@@ -20,14 +20,25 @@ The SDK is installed on the machine, outside this repository.
 
 ```bash
 cd ~/Desktop/EduApp
-npm --prefix frontend ci
-./scripts/create-parent.sh
+./scripts/create-parent.sh # First run only
 ./scripts/dev.sh
 ```
 
 Open **http://localhost:4200**. Use the parent email and password you just created.
 Use `localhost` consistently; switching to `127.0.0.1` creates a different cookie origin.
-Press **Ctrl+C** to stop both development servers.
+Leave the script running while you edit. It installs frontend dependencies when the
+Angular CLI is missing, starts both servers, and prints their URLs.
+
+- **C#:** `dotnet watch` applies supported edits with Hot Reload and automatically
+  restarts the API when an edit requires it. Compilation errors appear in the terminal;
+  fix and save to try again.
+- **Angular, HTML and styles:** Angular rebuilds and updates the browser on save.
+- **Stop:** press **Ctrl+C** once to stop both watchers and their child servers. If
+  either watcher exits, the script stops the other one too.
+
+Changes to startup configuration or environment variables can require a manual restart.
+After changing frontend dependencies, stop the script, run `npm --prefix frontend ci`,
+then start it again. Database model changes still need an EF migration.
 
 The parent setup command prompts for a password without echoing it. Use at least
 12 characters with uppercase, lowercase, a number and a symbol. There is no default
@@ -41,7 +52,7 @@ migrations automatically. Your templates and tasks start empty.
 To debug with two terminals instead:
 
 ```bash
-dotnet watch --project backend/FamilyLearning.Api
+dotnet watch --project backend/FamilyLearning.Api --launch-profile http
 ```
 
 ```bash
