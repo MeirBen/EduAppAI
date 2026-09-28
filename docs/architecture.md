@@ -43,6 +43,10 @@ validation before persistence.
 `AiPrompts` separates fixed teaching requirements from variable fields and refers
 to keys, not labels. Resolved values override defaults in prose, including false,
 zero and empty text. Prompt changes advance the metadata's prompt version.
+General quality rules belong to the engine; template instructions contain the
+learning goal, variable behavior and task-specific requirements or exceptions,
+without repeating the engine's rules. Distractor quality, answer-position variety
+and avoiding accidental repetition are task-generation defaults.
 Both prompts share terminology, register, spelling, notation and presentation
 guidance, with Hebrew interaction terms and brief agreement examples. Template
 instructions carry requested conventions forward using exact parameter keys;

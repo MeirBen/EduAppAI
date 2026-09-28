@@ -3,8 +3,8 @@ namespace FamilyLearning.Api.TaskEngine.Ai;
 /// <summary>Application-owned instructions; bump versions when behavior changes.</summary>
 internal static class AiPrompts
 {
-    public const string AuthoringVersion = "template-authoring-v6";
-    public const string InstanceVersion = "instance-generation-v6";
+    public const string AuthoringVersion = "template-authoring-v7";
+    public const string InstanceVersion = "instance-generation-v7";
 
     private const string LanguageQuality = """
         Use natural, grammatical language suited to the audience; Hebrew by default, otherwise the requested language.
@@ -40,6 +40,8 @@ internal static class AiPrompts
         Write new names, labels, options, text defaults and instructions in the requested language.
         Put fixed teaching requirements in concise generation.instructions with short paragraphs.
         Carry requested language, register, terminology and notation into those instructions so future tasks retain them.
+        Keep instructions specific to this learning goal; the task engine already applies general language, presentation,
+        question-quality, answer-key and validation rules. Do not restate those rules; retain task-specific requirements and exceptions.
         Apart from exact parameter keys, keep JSON field paths and application implementation details out of that prose.
         In Hebrew generation.instructions, use consistent impersonal wording such as "יש ליצור" and "יש להציג".
         Parameterize only useful choices that vary per task; do not put generated task content in defaults.
@@ -53,7 +55,6 @@ internal static class AiPrompts
         Otherwise use null and state a fixed count of 1-20 in instructions.
         Tasks support text passages and numeric-input, text-input or single-choice questions with integer points.
         Text answers must be short and objectively checkable; choice questions support 2-6 options.
-        Require a separate answer key without marking correct answers in learner-facing text or options.
         """ + "\n\n" + LanguageQuality;
 
     public const string Instance = """
@@ -70,6 +71,9 @@ internal static class AiPrompts
         For both input types, options is null. single-choice options must be distinct, trimmed and single-line;
         answer.value must exactly equal the correct option. Do not mark answers in learner-facing text or choices.
         Choice questions must have exactly one unambiguously correct option; keep options parallel in phrasing and level of detail.
+        Distractors must be plausible but clearly incorrect for the question; avoid overlapping alternatives or wording that gives away the answer.
+        Vary correct-option positions unless the option order is meaningful or explicitly prescribed.
+        Cover distinct aspects of the learning goal without accidental repetition; preserve deliberate repeated practice.
         Facts, names, quantities and units must agree across passages, questions, choices and answers.
         All answers must be correct and supported by the passage when applicable.
         Before returning, check the requested language, length, counts and format against the finished content.
