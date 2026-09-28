@@ -31,8 +31,6 @@ builder.Services.Configure<RouteHandlerOptions>(options => options.ThrowOnBadReq
 builder.Services.ConfigureHttpJsonOptions(options =>
 {
     options.SerializerOptions.NumberHandling = JsonNumberHandling.Strict;
-    options.SerializerOptions.RespectNullableAnnotations = true;
-    options.SerializerOptions.RespectRequiredConstructorParameters = true;
     options.SerializerOptions.UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow;
 });
 builder.Services.AddProblemDetails(options => options.CustomizeProblemDetails = context =>

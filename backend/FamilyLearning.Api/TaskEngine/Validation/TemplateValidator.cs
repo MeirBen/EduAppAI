@@ -5,9 +5,14 @@ namespace FamilyLearning.Api.TaskEngine.Validation;
 
 public static partial class TemplateValidator
 {
-    public static Dictionary<string, string[]> Validate(TaskTemplateDefinition definition)
+    public static Dictionary<string, string[]> Validate(TaskTemplateDefinition? definition)
     {
         var errors = new Dictionary<string, string[]>();
+        if (definition is null)
+        {
+            errors["definition"] = ["A template definition is required."];
+            return errors;
+        }
         if (definition.SchemaVersion != 1) errors["schemaVersion"] = ["Only schema version 1 is supported."];
         if (string.IsNullOrWhiteSpace(definition.Name) || definition.Name.Length > 100)
             errors["name"] = ["Enter a name of 1–100 characters."];

@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using FamilyLearning.Api.Infrastructure.Persistence;
 using FamilyLearning.Api.TaskEngine.Models;
 
@@ -9,4 +10,6 @@ public sealed record TemplateDetail(Guid Id, int CurrentVersion, Guid VersionId,
     public static TemplateDetail From(TaskTemplate template, TaskTemplateVersion version) =>
         new(template.Id, version.Version, version.Id, StoredJson.Read<TaskTemplateDefinition>(version.DefinitionJson));
 }
-public sealed record CreateVersionRequest(int ExpectedVersion, TaskTemplateDefinition Definition);
+public sealed record CreateVersionRequest(
+    [property: JsonRequired] int ExpectedVersion,
+    [property: JsonRequired] TaskTemplateDefinition Definition);

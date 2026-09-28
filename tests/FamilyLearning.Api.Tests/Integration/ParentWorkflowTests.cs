@@ -73,7 +73,7 @@ public sealed class ParentWorkflowTests
     {
         using var app = new ApiFactory();
         using var parent = await app.ParentAsync();
-        var definition = JsonSerializer.SerializeToNode(MathGenerationTests.Definition(), JsonSerializerOptions.Web)!;
+        var definition = JsonSerializer.SerializeToNode(MathGenerationTests.Definition(), new JsonSerializerOptions(JsonSerializerDefaults.Web))!;
         definition["schemaVersion"] = "1";
         Assert.Equal(HttpStatusCode.BadRequest,
             (await parent.PostAsJsonAsync("/api/templates", definition)).StatusCode);

@@ -11,10 +11,13 @@ static templates, a child task player, optional AI, and reports.
 
 ## Run locally
 
-Prerequisites: .NET SDK **10.0.401**, and Node **24.15+ LTS** or **26+** with npm.
+Prerequisites: .NET SDK **8.0.425**, and Node **24.15+ LTS** or **26+** with npm.
 The app was verified with Node 26.5 and npm 12. Dependencies and lockfiles are committed.
-This machine also has a repository-local .NET SDK in ignored `.tools/dotnet`;
-`scripts/dotnet.sh` uses it automatically without changing your system installation.
+Open `FamilyLearning.sln` in your IDE. Both backend projects target `net8.0`, using
+ASP.NET Core / EF Core **8.0.31**. `global.json` pins the SDK; CI uses the same version.
+This machine also has a repository-local .NET 8 SDK in ignored `.tools/dotnet`.
+`scripts/dotnet.sh` uses it when it satisfies `global.json`, otherwise it uses the
+system `dotnet`. Your system installation is unchanged.
 
 ```bash
 cd ~/Desktop/EduApp
@@ -99,6 +102,16 @@ that same value for provisioning, migrations and the running application.
   --output-dir Infrastructure/Persistence/Migrations
 ```
 
+The EF CLI is pinned to 8.0.31 in `.config/dotnet-tools.json`. To check the model:
+
+```bash
+./scripts/dotnet.sh ef migrations has-pending-model-changes --project backend/FamilyLearning.Api
+```
+
+The .NET 8 change preserves the initial migration ID, database schema and JSON
+snapshots. Existing databases do not need to be reset. Keep their Data Protection
+keys alongside the database so existing authentication cookies remain readable.
+
 Review each generated migration before applying it. Keep old template JSON compatible;
 `schemaVersion` is the contract version, not the database migration version.
 
@@ -108,8 +121,12 @@ Review each generated migration before applying it. Keep old template JSON compa
 ./scripts/publish.sh
 ```
 
-The result is `artifacts/app/`: the API and Angular assets in `wwwroot`. This is a
-framework-dependent build requiring the .NET 10 ASP.NET runtime.
+The result is `artifacts/app/`: the API and Angular assets in `wwwroot`. Publishing
+uses a fresh staging directory and replaces the generated package, preserving an
+existing default `artifacts/app/data/` directory. Keep custom persistent storage
+outside `artifacts/app`.
+
+This is a framework-dependent build requiring the ASP.NET Core 8 runtime.
 For a local same-origin preview on port 5124:
 
 ```bash

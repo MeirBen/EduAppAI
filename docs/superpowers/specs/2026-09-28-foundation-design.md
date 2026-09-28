@@ -6,7 +6,7 @@ It is not the full MVP.
 
 ## Decisions
 
-- One ASP.NET Core 10 production project, organized by feature; EF Core 10 and SQLite.
+- One ASP.NET Core 8 production project, organized by feature; EF Core 8 and SQLite.
 - One Angular 22 / Ionic 9 client with standalone components, signals, strict types,
   lazy routes, and a PWA application shell. API calls use relative URLs.
 - ASP.NET Identity cookies, a command-line parent provisioning operation, server-side

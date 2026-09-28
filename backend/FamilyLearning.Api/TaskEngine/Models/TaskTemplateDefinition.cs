@@ -1,17 +1,18 @@
 using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace FamilyLearning.Api.TaskEngine.Models;
 
 public sealed record TaskTemplateDefinition(
-    int SchemaVersion,
-    string Name,
-    ParameterDefinition[] InstanceParameters,
-    GenerationDefinition Generation);
+    [property: JsonRequired] int SchemaVersion,
+    [property: JsonRequired] string Name,
+    [property: JsonRequired] ParameterDefinition[] InstanceParameters,
+    [property: JsonRequired] GenerationDefinition Generation);
 
 public sealed record ParameterDefinition(
-    string Key,
-    string Label,
-    string Type,
+    [property: JsonRequired] string Key,
+    [property: JsonRequired] string Label,
+    [property: JsonRequired] string Type,
     bool Required = false,
     JsonElement? Default = null,
     int? Min = null,
@@ -20,5 +21,8 @@ public sealed record ParameterDefinition(
     string[]? Options = null);
 
 // Add another generation contract when a second generator is implemented.
-public sealed record GenerationDefinition(string Mode, string Generator, MathSettings FixedSettings);
-public sealed record MathSettings(string Operation);
+public sealed record GenerationDefinition(
+    [property: JsonRequired] string Mode,
+    [property: JsonRequired] string Generator,
+    [property: JsonRequired] MathSettings FixedSettings);
+public sealed record MathSettings([property: JsonRequired] string Operation);

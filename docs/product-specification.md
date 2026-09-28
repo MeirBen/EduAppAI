@@ -1,9 +1,9 @@
 # Family Learning App
 ## KISS Dynamic Product & Technical Specification
 
-**Version:** 3.0  
+**Version:** 3.0 (backend target updated to .NET 8 on 2026-09-28)
 **Target:** Private family educational application  
-**Architecture:** Angular/Ionic PWA + ASP.NET Core 10 + EF Core 10 + SQLite + optional AI generation  
+**Architecture:** Angular/Ionic PWA + ASP.NET Core 8 + EF Core 8 + SQLite + optional AI generation
 **Design principle:** Simple core, highly dynamic content
 
 ---
@@ -191,7 +191,7 @@ Never merge these concepts.
                           │
                           │ HTTPS
                           ▼
-                 ASP.NET Core 10
+                 ASP.NET Core 8
                  Modular Monolith
                           │
        ┌──────────────────┼──────────────────┐
@@ -256,10 +256,10 @@ Do not start with NgRx.
 ## Backend
 
 ```text
-.NET 10
+.NET 8
 ASP.NET Core
 Minimal APIs
-EF Core 10
+EF Core 8
 SQLite
 Microsoft.Extensions.AI
 ```
@@ -3003,7 +3003,7 @@ The application should preserve these rules.
                   Create Template
                            │
                            ▼
-                  ASP.NET Core 10
+                  ASP.NET Core 8
                            │
                     AI Authoring
                            │

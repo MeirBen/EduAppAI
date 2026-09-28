@@ -1,7 +1,7 @@
 # How the foundation fits together
 
 There are two programs during development, and one process after publishing.
-Angular serves the UI; ASP.NET handles cookies, validation and persistence. In a
+Angular serves the UI; ASP.NET Core 8 handles cookies, validation and persistence. In a
 published build ASP.NET also serves Angular. SQLite is an embedded database file.
 
 ```text
@@ -56,9 +56,14 @@ assemblies, a mediator or generic repositories. Endpoint handlers directly use
 `LearningDbContext`; the task engine has no EF dependency. Add an abstraction when
 there are real implementations or a meaningful external boundary, such as `IChatClient`.
 
-EF owns relationships and transactions; versioned JSON owns dynamic content. JSON
+EF Core 8 owns relationships and transactions; versioned JSON owns dynamic content. JSON
 is serialized explicitly through `StoredJson`, not by exposing EF entities. UTC
 `DateTime` timestamps and integer points keep the SQLite model straightforward.
+
+On .NET 8, request records mark mandatory JSON properties with `[JsonRequired]`.
+That enforces presence; the validators separately reject explicit nulls and invalid
+values. C# nullable annotations alone do not validate incoming JSON. Strict number
+handling and rejection of unknown properties are configured once in `Program.cs`.
 
 ## Authentication and ownership
 
@@ -109,6 +114,6 @@ The application shell is installable, but offline task execution is not implemen
 There is no claim that the whole app is deployment-ready.
 
 Framework references: [Angular compatibility](https://angular.dev/reference/versions),
-[Identity configuration](https://learn.microsoft.com/en-us/aspnet/core/security/authentication/identity-configuration?view=aspnetcore-10.0),
-[ASP.NET antiforgery](https://learn.microsoft.com/en-us/aspnet/core/security/anti-request-forgery?view=aspnetcore-10.0),
+[Identity configuration](https://learn.microsoft.com/en-us/aspnet/core/security/authentication/identity-configuration?view=aspnetcore-8.0),
+[ASP.NET antiforgery](https://learn.microsoft.com/en-us/aspnet/core/security/anti-request-forgery?view=aspnetcore-8.0),
 and [Ionic 9 changes](https://github.com/ionic-team/ionic-framework/blob/main/BREAKING.md).

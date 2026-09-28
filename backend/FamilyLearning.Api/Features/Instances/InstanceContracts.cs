@@ -1,10 +1,11 @@
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using FamilyLearning.Api.Infrastructure.Persistence;
 using FamilyLearning.Api.TaskEngine.Models;
 
 namespace FamilyLearning.Api.Features.Instances;
 
-public sealed record CreateInstanceRequest(Dictionary<string, JsonElement> Parameters);
+public sealed record CreateInstanceRequest([property: JsonRequired] Dictionary<string, JsonElement> Parameters);
 public sealed record InstanceSummary(Guid Id, string Title, string Status, DateTime CreatedAtUtc);
 
 // Parent-only DTO: contains answer keys. Child endpoints must project a separate answer-free DTO.

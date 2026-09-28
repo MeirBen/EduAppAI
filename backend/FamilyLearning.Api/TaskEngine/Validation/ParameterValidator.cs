@@ -11,10 +11,15 @@ public static class ParameterValidator
 {
     public static ParameterValidationResult Validate(
         IReadOnlyList<ParameterDefinition> definitions,
-        IReadOnlyDictionary<string, JsonElement> supplied)
+        IReadOnlyDictionary<string, JsonElement>? supplied)
     {
         var values = new Dictionary<string, JsonElement>(StringComparer.Ordinal);
         var errors = new Dictionary<string, string[]>(StringComparer.Ordinal);
+        if (supplied is null)
+        {
+            errors["parameters"] = ["Parameters are required. Use an empty object to accept defaults."];
+            return new(values, errors);
+        }
         var knownKeys = definitions.Select(p => p.Key).ToHashSet(StringComparer.Ordinal);
         foreach (var key in supplied.Keys)
         {

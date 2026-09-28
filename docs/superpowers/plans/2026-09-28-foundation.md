@@ -7,7 +7,7 @@
 **Architecture:** A single feature-organized API directly uses EF Core. The Angular
 client consumes explicit DTOs; pure task-engine logic owns validation and generation.
 
-**Tech Stack:** .NET 10, EF Core 10, SQLite, ASP.NET Identity, Angular 22, Ionic 9.
+**Tech Stack:** .NET 8, EF Core 8, SQLite, ASP.NET Identity, Angular 22, Ionic 9.
 
 **Spec:** [Foundation design](../specs/2026-09-28-foundation-design.md).
 
@@ -80,7 +80,7 @@ instance list/get/create; all JSON DTOs scoped to the signed-in family.
 ## Execution notes
 
 - Worked in the requested, newly created desktop repository. No remote was configured.
-- Installed a local .NET 10 SDK under ignored `.tools`, preserving the system .NET 8 SDK.
+- Installed a local .NET 8.0.425 SDK under ignored `.tools`, preserving the system SDK.
 - Final review was performed by an independent read-only reviewer. Quoted integer JSON
   handling and successful-logout behavior were tightened with regression tests.
 - Test storage overrides use early host settings; every authenticated fixture asserts

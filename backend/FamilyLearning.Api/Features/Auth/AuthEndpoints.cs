@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using FamilyLearning.Api.Infrastructure.Auth;
 using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.Identity;
@@ -45,5 +46,7 @@ public static class AuthEndpoints
             : Results.Problem(statusCode: 401, title: "Sign-in failed. Check your details or try again later.");
     }
 
-    public sealed record LoginRequest(string Email, string Password);
+    public sealed record LoginRequest(
+        [property: JsonRequired] string Email,
+        [property: JsonRequired] string Password);
 }
