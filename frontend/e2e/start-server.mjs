@@ -14,7 +14,8 @@ const environment = {
   Storage__Directory: dataDirectory,
   Logging__LogLevel__Default: 'Warning',
   Ai__ApiKey: 'isolated-test-key',
-  Ai__Model: 'openrouter/free',
+  Ai__Model: 'nvidia/nemotron-3-super-120b-a12b:free',
+  Ai__FallbackModel: 'qwen/qwen3.8-27b:free',
   Ai__ReasoningEnabled: 'true',
   Ai__ReasoningEffort: 'low',
   Ai__Temperature: '',
@@ -23,7 +24,7 @@ const environment = {
   Ai__RequestTimeoutSeconds: '180',
 };
 // Separate families keep cleanup independent of other workflows and their AI rate limits.
-for (const email of ['browser@example.test', 'cleanup@example.test']) {
+for (const email of ['browser@example.test', 'failures@example.test', 'cleanup@example.test']) {
   // This known password belongs only to this disposable test database.
   const account = spawnSync(
     'dotnet',

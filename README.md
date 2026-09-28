@@ -37,13 +37,16 @@ repo; it makes no AI call. Restart the server afterward. Alternatively provide
 `Ai__ApiKey` or `OPENROUTER_API_KEY` through server secrets. Production does not
 load development user secrets.
 
-The default [free router](https://openrouter.ai/docs/guides/routing/routers/free-router)
-(`openrouter/free`) selects an eligible free model for each request, filtered by
-required capabilities. To pin a model, set `Ai__Model` to an available `:free`
-model (or `Ai:Model` in development user secrets), then restart. Paid models are
-rejected. Choose an endpoint that supports JSON-schema structured output and the
-requested parameters. Automatic routing does not guarantee a particular model,
-availability or language quality; the actual model is recorded with each result.
+Generation prefers `nvidia/nemotron-3-super-120b-a12b:free`, with
+`qwen/qwen3.8-27b:free` as the [fallback](https://openrouter.ai/docs/guides/routing/model-fallbacks).
+OpenRouter tries the fallback for provider errors such as rate limits or
+unavailability. This does not retry truncated, malformed or poor-quality output.
+Set `Ai__Model` and `Ai__FallbackModel` to override these choices (or the matching
+`Ai:` settings in development user secrets), then restart. Set the fallback to
+an empty string to disable it. Both must be free endpoints supporting
+JSON-schema output and the requested parameters; paid models are rejected.
+`openrouter/free` remains an explicit option for random compatible-model routing.
+The actual model is recorded with each result.
 Evaluate fluency, educational correctness and latency on representative prompts;
 schema validation cannot guarantee language or answer quality. Saved tasks
 remain readable without AI.
@@ -54,6 +57,8 @@ reasoning text is excluded from returned content. Set `Ai__ReasoningEnabled=fals
 to disable thinking, or `Ai__ReasoningEffort` to change the requested effort.
 Effort is model-specific, not a hard token budget; check a pinned model's
 supported levels. Reasoning can improve complex tasks but also increase latency.
+Reasoning and final output share an 8192-token cap. A response stopped by that
+cap is rejected with a distinct output-limit message; nothing is saved.
 
 Sampling is left to the selected provider. Optional `Ai__Temperature` (0–2) and
 `Ai__TopP` (greater than 0 through 1) override it; null in JSON omits a parameter.

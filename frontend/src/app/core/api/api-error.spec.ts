@@ -19,4 +19,17 @@ describe('Hebrew API feedback', () => {
     expect(apiError(new HttpErrorResponse({ status: 500, error }))).not.toContain('המספר');
     expect(apiError(new Error('Technical details'))).not.toContain('Technical details');
   });
+
+  it('distinguishes an AI output limit from invalid JSON without displaying provider text', () => {
+    const error = {
+      type: 'urn:family-learning:ai-output-limit',
+      title: 'private provider details',
+    };
+    const message = apiError(new HttpErrorResponse({ status: 502, error }));
+    expect(message).toContain('מגבלת הפלט');
+    expect(message).toContain('לא נשמר דבר');
+    expect(message).not.toContain('private provider');
+    expect(apiError(new HttpErrorResponse({ status: 504, error }))).not.toContain('מגבלת הפלט');
+    expect(apiError(new HttpErrorResponse({ status: 502, error: {} }))).not.toContain('מגבלת הפלט');
+  });
 });

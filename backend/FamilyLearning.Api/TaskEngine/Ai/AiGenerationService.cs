@@ -83,7 +83,7 @@ public sealed class AiGenerationService(IEnumerable<IChatClient> clients, ILogge
                 response.FinishReason, text.Length, Stopwatch.GetElapsedTime(started).TotalMilliseconds, response.Usage?.InputTokenCount,
                 response.Usage?.OutputTokenCount, response.Usage?.ReasoningTokenCount);
             if (response.FinishReason != ChatFinishReason.Stop)
-                throw InvalidOutput("incomplete-response", promptVersion);
+                throw InvalidOutput(response.FinishReason == ChatFinishReason.Length ? "output-limit" : "incomplete-response", promptVersion);
             if (text.Length is 0 or > 32000)
                 throw InvalidOutput("response-size", promptVersion);
             var value = JsonSerializer.Deserialize<T>(text, Json) ?? throw InvalidOutput("null-json", promptVersion);
@@ -117,7 +117,7 @@ public sealed class AiGenerationService(IEnumerable<IChatClient> clients, ILogge
     private AiGenerationException InvalidOutput(string failure, string promptVersion)
     {
         logger.LogWarning("AI output rejected: {Failure}, prompt version {PromptVersion}", failure, promptVersion);
-        return AiGenerationException.InvalidOutput();
+        return failure == "output-limit" ? AiGenerationException.OutputLimit() : AiGenerationException.InvalidOutput();
     }
 
     public void Dispose() => capacity.Dispose();

@@ -68,14 +68,18 @@ return 404 before content reads or AI calls. Authenticated API responses use
 AI has a configurable three-minute deadline, two concurrent calls per process
 and ten requests per family per minute. Cancellation reaches the provider and
 always releases capacity. Transport timeout adds five seconds so application
-cancellation wins. The default free router chooses a compatible model; requests
-enable low-effort reasoning and leave sampling to the provider. Reasoning and
+cancellation wins. Requests prefer Nemotron Super with a Qwen fallback, enable
+low-effort reasoning and leave sampling to the provider. Reasoning and
 sampling settings belong to the OpenRouter adapter; generation owns schemas and
 validation. Configuration can pin a free model or override generation settings.
 Excluding reasoning from responses alone does not reduce computation. Requests
 allow up to 8192 output tokens, shared with reasoning when enabled. SDK retries
-are disabled. Failures return safe ProblemDetails without saving, including 429
-for provider rate limits. The transport checks HTTP 200 bodies for provider errors
+are disabled. OpenRouter owns fallback routing on provider errors; it does not
+retry failed application validation. Failures return safe ProblemDetails without
+saving, including 429 for provider rate limits. Output-limit failures use
+`urn:family-learning:ai-output-limit` so the UI can distinguish them from invalid
+JSON without displaying provider text. The transport checks HTTP 200 bodies for
+provider errors
 and missing completions before SDK conversion. AI response logs record metadata,
 finish reason, size, elapsed time and token counts before output validation.
 Rejections log a failure category; transport failures log exception type, status,

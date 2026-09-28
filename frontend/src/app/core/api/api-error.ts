@@ -10,13 +10,21 @@ export function apiError(error: unknown): string {
   if (error.status === 404) return 'הפריט המבוקש לא נמצא.';
   if (error.status === 409) return 'התבנית השתנתה. יש לרענן את העמוד לפני שמירת גרסה נוספת.';
   if (error.status === 429) return 'הגעתם למגבלת הבקשות. יש לנסות שוב מאוחר יותר.';
-  if (error.status === 502)
+  const problem: unknown = error.error;
+  if (error.status === 502) {
+    if (
+      problem &&
+      typeof problem === 'object' &&
+      'type' in problem &&
+      problem.type === 'urn:family-learning:ai-output-limit'
+    )
+      return 'המודל הגיע למגבלת הפלט לפני שהשלים את התוכן. לא נשמר דבר. אפשר לנסות שוב.';
     return 'שירות ה־AI לא החזיר תוכן תקין. לא נשמר דבר. אפשר לנסות שוב או לדייק את ההנחיות.';
+  }
   if (error.status === 503)
     return 'שירות ה־AI אינו זמין כרגע. יש לבדוק את החיבור לשירות או לנסות שוב בעוד רגע.';
   if (error.status === 504) return 'יצירת התוכן ארכה יותר מדי זמן. לא נשמר דבר. אפשר לנסות שוב.';
   if (error.status >= 500) return 'השרת לא הצליח להשלים את הבקשה. אפשר לנסות שוב בעוד רגע.';
-  const problem: unknown = error.error;
   if (problem && typeof problem === 'object') {
     if ('errors' in problem && problem.errors && typeof problem.errors === 'object') {
       const messages = Object.values(problem.errors)

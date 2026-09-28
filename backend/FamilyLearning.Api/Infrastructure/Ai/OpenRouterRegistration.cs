@@ -22,7 +22,9 @@ public static class OpenRouterRegistration
         services.AddSingleton<AiGenerationService>();
         var key = configuration["Ai:ApiKey"] ?? configuration["OPENROUTER_API_KEY"];
         if (string.IsNullOrWhiteSpace(key)) return;
-        var model = configuration["Ai:Model"] ?? "openrouter/free";
+        var model = configuration["Ai:Model"] ?? "nvidia/nemotron-3-super-120b-a12b:free";
+        var fallbackModel = configuration["Ai:FallbackModel"];
+        if (string.IsNullOrWhiteSpace(fallbackModel) || fallbackModel == model) fallbackModel = null;
         var reasoningEnabled = configuration.GetValue("Ai:ReasoningEnabled", true);
         var effort = configuration["Ai:ReasoningEffort"] ?? "low";
         if (effort is not ("minimal" or "low" or "medium" or "high" or "xhigh" or "max"))
@@ -37,8 +39,8 @@ public static class OpenRouterRegistration
         if (sampling.TopP is { } topP && (!float.IsFinite(topP) || topP is <= 0 or > 1))
             throw new InvalidOperationException("Ai:TopP must be greater than 0 and at most 1.");
         object reasoning = reasoningEnabled ? new { effort, exclude = true } : new { enabled = false, exclude = true };
-        if (model != "openrouter/free" && (!model.EndsWith(":free", StringComparison.Ordinal) || model.Contains(',')))
-            throw new InvalidOperationException("Ai:Model must be openrouter/free or a single :free model.");
+        if (!IsFreeModel(model) || (fallbackModel is not null && !IsFreeModel(fallbackModel)))
+            throw new InvalidOperationException("Ai:Model and Ai:FallbackModel must each be openrouter/free or a single :free model.");
         var endpoint = new Uri(configuration["Ai:Endpoint"] ?? "https://openrouter.ai/api/v1");
         // Local endpoints support isolated provider-contract tests without exposing real keys or paying for calls.
         if (endpoint.AbsoluteUri.TrimEnd('/') != "https://openrouter.ai/api/v1" &&
@@ -55,7 +57,11 @@ public static class OpenRouterRegistration
             };
             clientOptions.AddPolicy(new OpenRouterResponsePolicy(), PipelinePosition.PerCall);
             return new OpenRouterChatClient(new ChatClient(model, new ApiKeyCredential(key), clientOptions),
-                sampling, BinaryData.FromObjectAsJson(reasoning));
+                sampling, BinaryData.FromObjectAsJson(reasoning),
+                fallbackModel is null ? null : BinaryData.FromObjectAsJson(new[] { fallbackModel }));
         });
     }
+
+    private static bool IsFreeModel(string model) => model == "openrouter/free" ||
+        (model.EndsWith(":free", StringComparison.Ordinal) && !model.Contains(','));
 }

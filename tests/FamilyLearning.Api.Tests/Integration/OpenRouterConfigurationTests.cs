@@ -16,12 +16,12 @@ namespace FamilyLearning.Api.Tests.Integration;
 public sealed class OpenRouterConfigurationTests
 {
     [Theory]
-    [InlineData(false, "low", 0.7f, 0.8f)]
-    [InlineData(true, "medium", 1f, 0.95f)]
-    [InlineData(true, "low", null, null)]
-    [InlineData(null, null, null, null)]
+    [InlineData(false, "low", 0.7f, 0.8f, "test/secondary:free")]
+    [InlineData(true, "medium", 1f, 0.95f, "test/secondary:free")]
+    [InlineData(true, "low", null, null, "")]
+    [InlineData(null, null, null, null, null)]
     public async Task Configured_reasoning_and_sampling_reach_the_provider(bool? enabled, string? effort,
-        float? temperature, float? topP)
+        float? temperature, float? topP, string? fallbackModel)
     {
         var builder = WebApplication.CreateSlimBuilder();
         builder.WebHost.UseUrls("http://127.0.0.1:0");
@@ -45,6 +45,7 @@ public sealed class OpenRouterConfigurationTests
         {
             ["Ai:ApiKey"] = "isolated-test-key",
             ["Ai:Endpoint"] = server.Urls.Single(),
+            ["Ai:FallbackModel"] = fallbackModel,
             ["Ai:ReasoningEnabled"] = enabled?.ToString(),
             ["Ai:ReasoningEffort"] = effort,
             ["Ai:Temperature"] = temperature?.ToString(CultureInfo.InvariantCulture),
@@ -54,9 +55,12 @@ public sealed class OpenRouterConfigurationTests
         services.AddTaskAi(configuration, new HostingEnvironment { EnvironmentName = "Development" });
         using var provider = services.BuildServiceProvider();
         using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(10));
-        await provider.GetRequiredService<AiGenerationService>().AuthorAsync("A learning idea", deadline.Token);
+        var result = await provider.GetRequiredService<AiGenerationService>().AuthorAsync("A learning idea", deadline.Token);
 
-        Assert.Equal("openrouter/free", request.GetProperty("model").GetString());
+        Assert.Equal("nvidia/nemotron-3-super-120b-a12b:free", request.GetProperty("model").GetString());
+        if (string.IsNullOrWhiteSpace(fallbackModel)) Assert.False(request.TryGetProperty("models", out _));
+        else Assert.Equal(fallbackModel, Assert.Single(request.GetProperty("models").EnumerateArray()).GetString());
+        Assert.Equal("test:free", result.Metadata.Model);
         var reasoning = request.GetProperty("reasoning");
         Assert.True(reasoning.GetProperty("exclude").GetBoolean());
         if (enabled ?? true)
@@ -123,6 +127,9 @@ public sealed class OpenRouterConfigurationTests
     [InlineData("Ai:TopP", "0")]
     [InlineData("Ai:TopP", "2")]
     [InlineData("Ai:ReasoningEffort", "unlimited")]
+    [InlineData("Ai:Model", "paid/model")]
+    [InlineData("Ai:FallbackModel", "paid/model")]
+    [InlineData("Ai:FallbackModel", "paid/model,test:free")]
     public void Invalid_generation_settings_are_rejected(string setting, string value)
     {
         var configuration = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>

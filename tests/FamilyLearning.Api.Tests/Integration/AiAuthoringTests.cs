@@ -87,6 +87,8 @@ public sealed class AiAuthoringTests
         Assert.Equal(scenario == "timeout" ? HttpStatusCode.GatewayTimeout : HttpStatusCode.BadGateway, response.StatusCode);
         Assert.Equal("application/problem+json", response.Content.Headers.ContentType?.MediaType);
         Assert.DoesNotContain("provider secret", await response.Content.ReadAsStringAsync());
+        var problem = await response.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal(scenario == "truncated", problem.GetProperty("type").GetString() == "urn:family-learning:ai-output-limit");
         Assert.Equal(0, (await parent.GetFromJsonAsync<JsonElement>("/api/instances")).GetArrayLength());
     }
 

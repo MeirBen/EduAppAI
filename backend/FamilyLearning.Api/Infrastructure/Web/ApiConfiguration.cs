@@ -46,7 +46,7 @@ public static class ApiConfiguration
             context.HttpContext.Response.Headers.CacheControl = "no-store";
             try { return await next(context); }
             catch (AiGenerationException exception)
-            { return Results.Problem(statusCode: exception.StatusCode, title: exception.Message); }
+            { return Results.Problem(statusCode: exception.StatusCode, title: exception.Message, type: exception.ProblemType); }
         });
         api.MapAuthEndpoints();
         api.MapAiEndpoints();

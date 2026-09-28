@@ -27,7 +27,8 @@ export async function startAiProvider() {
     let body = '';
     for await (const chunk of request) body += chunk;
     const input = JSON.parse(body);
-    assert.equal(input.model, 'openrouter/free');
+    assert.equal(input.model, 'nvidia/nemotron-3-super-120b-a12b:free');
+    assert.deepEqual(input.models, ['qwen/qwen3.8-27b:free']);
     assert.deepEqual(input.reasoning, { effort: 'low', exclude: true });
     assert.equal(input.temperature, undefined);
     assert.equal(input.top_p, undefined);
@@ -145,7 +146,7 @@ export async function startAiProvider() {
               role: 'assistant',
               content: user.includes('בדיקת כשל') ? '{invalid' : JSON.stringify(result),
             },
-            finish_reason: 'stop',
+            finish_reason: user.includes('בדיקת מגבלת פלט') ? 'length' : 'stop',
           },
         ],
         usage: { prompt_tokens: 100, completion_tokens: 100, total_tokens: 200 },

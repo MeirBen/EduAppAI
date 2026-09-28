@@ -122,13 +122,18 @@ test('AI template revisions preserve snapshots and concurrent edits', async ({ p
 });
 
 test('AI failures preserve the prompt and explicit retry can recover', async ({ page }) => {
-  await login(page);
+  await login(page, 'failures@example.test');
   const before = (await (await page.request.get('/api/templates')).json()).length;
   await page.goto('/templates/new');
   await page.getByLabel('הרעיון שלכם לתבנית').fill('בדיקת כשל');
   await page.getByRole('button', { name: 'יצירת תבנית בעזרת AI', exact: true }).click();
   await expect(page.getByRole('alert')).toContainText('לא נשמר דבר');
   await expect(page.getByLabel('הרעיון שלכם לתבנית')).toHaveValue('בדיקת כשל');
+  await page.getByLabel('הרעיון שלכם לתבנית').fill('בדיקת מגבלת פלט');
+  await page.getByRole('button', { name: 'יצירת תבנית בעזרת AI', exact: true }).click();
+  await expect(page.getByRole('alert')).toContainText('מגבלת הפלט');
+  await expect(page.getByRole('alert')).toContainText('לא נשמר דבר');
+  await expect(page.getByLabel('הרעיון שלכם לתבנית')).toHaveValue('בדיקת מגבלת פלט');
   for (const prompt of ['בדיקת מכסה', 'בדיקת מכסה בגוף התשובה']) {
     await page.getByLabel('הרעיון שלכם לתבנית').fill(prompt);
     const limited = page.waitForResponse('/api/ai/template-drafts');
