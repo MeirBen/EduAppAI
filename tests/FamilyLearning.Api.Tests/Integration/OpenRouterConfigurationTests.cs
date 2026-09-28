@@ -76,6 +76,47 @@ public sealed class OpenRouterConfigurationTests
     }
 
     [Theory]
+    [InlineData("{\"error\":{\"code\":429,\"message\":\"provider secret\"}}", 429)]
+    [InlineData("{\"error\":{\"code\":503,\"message\":\"provider secret\"}}", 502)]
+    [InlineData("{\"choices\":[]}", 502)]
+    [InlineData("{\"choices\":[{}]}", 502)]
+    [InlineData("null", 502)]
+    [InlineData("not JSON", 502)]
+    public async Task Failed_completions_in_HTTP_200_are_safe_and_do_not_retry(string body, int status)
+    {
+        var builder = WebApplication.CreateSlimBuilder();
+        builder.WebHost.UseUrls("http://127.0.0.1:0");
+        builder.Logging.ClearProviders();
+        await using var server = builder.Build();
+        var requests = 0;
+        server.MapPost("/chat/completions", () =>
+        {
+            requests++;
+            return Results.Text(body, "application/json");
+        });
+        await server.StartAsync();
+        var configuration = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
+        {
+            ["Ai:ApiKey"] = "isolated-test-key",
+            ["Ai:Endpoint"] = server.Urls.Single()
+        }).Build();
+        var services = new ServiceCollection().AddLogging();
+        services.AddTaskAi(configuration, new HostingEnvironment { EnvironmentName = "Development" });
+        using var provider = services.BuildServiceProvider();
+        using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+        var service = provider.GetRequiredService<AiGenerationService>();
+
+        // More calls than available slots also verifies failures release capacity.
+        for (var i = 0; i < 3; i++)
+        {
+            var error = await Assert.ThrowsAsync<AiGenerationException>(() => service.AuthorAsync("A learning idea", deadline.Token));
+            Assert.Equal(status, error.StatusCode);
+            Assert.DoesNotContain("provider secret", error.Message);
+        }
+        Assert.Equal(3, requests);
+    }
+
+    [Theory]
     [InlineData("Ai:Temperature", "-1")]
     [InlineData("Ai:Temperature", "NaN")]
     [InlineData("Ai:Temperature", "3")]

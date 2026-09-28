@@ -129,14 +129,16 @@ test('AI failures preserve the prompt and explicit retry can recover', async ({ 
   await page.getByRole('button', { name: 'יצירת תבנית בעזרת AI', exact: true }).click();
   await expect(page.getByRole('alert')).toContainText('לא נשמר דבר');
   await expect(page.getByLabel('הרעיון שלכם לתבנית')).toHaveValue('בדיקת כשל');
-  await page.getByLabel('הרעיון שלכם לתבנית').fill('בדיקת מכסה');
-  const limited = page.waitForResponse('/api/ai/template-drafts');
-  await page.getByRole('button', { name: 'יצירת תבנית בעזרת AI', exact: true }).click();
-  expect((await limited).status()).toBe(429);
-  await expect(page.getByRole('alert')).toContainText('מגבלת הבקשות');
-  await expect(page.getByRole('alert')).not.toContainText('private provider');
-  await expect(page.getByRole('alert')).not.toContainText('דקה');
-  await expect(page.getByLabel('הרעיון שלכם לתבנית')).toHaveValue('בדיקת מכסה');
+  for (const prompt of ['בדיקת מכסה', 'בדיקת מכסה בגוף התשובה']) {
+    await page.getByLabel('הרעיון שלכם לתבנית').fill(prompt);
+    const limited = page.waitForResponse('/api/ai/template-drafts');
+    await page.getByRole('button', { name: 'יצירת תבנית בעזרת AI', exact: true }).click();
+    expect((await limited).status()).toBe(429);
+    await expect(page.getByRole('alert')).toContainText('מגבלת הבקשות');
+    await expect(page.getByRole('alert')).not.toContainText('private provider');
+    await expect(page.getByRole('alert')).not.toContainText('דקה');
+    await expect(page.getByLabel('הרעיון שלכם לתבנית')).toHaveValue(prompt);
+  }
   await page.getByLabel('הרעיון שלכם לתבנית').fill('מילים באנגלית לתלמידים מתחילים');
   await page.getByRole('button', { name: 'יצירת תבנית בעזרת AI', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'בדיקה ועריכת התבנית' })).toBeVisible();

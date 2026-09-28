@@ -44,12 +44,18 @@ public static class OpenRouterRegistration
         if (endpoint.AbsoluteUri.TrimEnd('/') != "https://openrouter.ai/api/v1" &&
             !(environment.IsDevelopment() && endpoint.IsLoopback && endpoint.Scheme == "http"))
             throw new InvalidOperationException("Ai:Endpoint must be OpenRouter, or a loopback HTTP endpoint in Development.");
-        services.AddSingleton<IChatClient>(provider => new OpenRouterChatClient(new ChatClient(model, new ApiKeyCredential(key), new OpenAIClientOptions
+        services.AddSingleton<IChatClient>(provider =>
         {
-            Endpoint = endpoint,
-            RetryPolicy = new ClientRetryPolicy(maxRetries: 0),
-            // Let the application deadline cancel first so timeouts consistently return 504.
-            NetworkTimeout = provider.GetRequiredService<IOptions<AiGenerationOptions>>().Value.RequestTimeout + TimeSpan.FromSeconds(5)
-        }), sampling, BinaryData.FromObjectAsJson(reasoning)));
+            var clientOptions = new OpenAIClientOptions
+            {
+                Endpoint = endpoint,
+                RetryPolicy = new ClientRetryPolicy(maxRetries: 0),
+                // Let the application deadline cancel first so timeouts consistently return 504.
+                NetworkTimeout = provider.GetRequiredService<IOptions<AiGenerationOptions>>().Value.RequestTimeout + TimeSpan.FromSeconds(5)
+            };
+            clientOptions.AddPolicy(new OpenRouterResponsePolicy(), PipelinePosition.PerCall);
+            return new OpenRouterChatClient(new ChatClient(model, new ApiKeyCredential(key), clientOptions),
+                sampling, BinaryData.FromObjectAsJson(reasoning));
+        });
     }
 }

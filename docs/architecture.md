@@ -46,7 +46,9 @@ zero and empty text. Prompt changes advance the metadata's prompt version.
 Both prompts share concise language-quality guidance, including grammatical
 Hebrew and Hebrew script. This guides the model; validators check structure and
 bounds, not fluency. Prompt changes apply to new AI output, never rewrite saved
-snapshots.
+snapshots. Generate directly in the requested language. An automatic translation
+step would add latency and can change verbatim text, language exercises and
+answer/option relationships; it requires separate quality evaluation.
 
 Publication atomically saves a revision and current pointer, guarded by
 `expectedVersion`, an EF concurrency token and a unique revision index. Joined
@@ -73,8 +75,12 @@ validation. Configuration can pin a free model or override generation settings.
 Excluding reasoning from responses alone does not reduce computation. Requests
 allow up to 8192 output tokens, shared with reasoning when enabled. SDK retries
 are disabled. Failures return safe ProblemDetails without saving, including 429
-for provider rate limits. AI response logs contain metadata, elapsed time and
-token counts. Provider failures log only exception type and HTTP status.
+for provider rate limits. The transport checks HTTP 200 bodies for provider errors
+and missing completions before SDK conversion. AI response logs record metadata,
+finish reason, size, elapsed time and token counts before output validation.
+Rejections log a failure category; transport failures log exception type, status,
+prompt version and elapsed time. Prompts, answers and reasoning text stay out of
+logs.
 `/api/ai/status` checks configuration without a call.
 
 Production requires explicit migrations and HTTPS; tests cover migration,

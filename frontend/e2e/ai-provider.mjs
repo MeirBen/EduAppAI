@@ -53,7 +53,9 @@ export async function startAiProvider() {
     const user = input.messages[1].content;
     assert.ok(!user.includes('browser@example.test'));
     if (user.includes('בדיקת מכסה')) {
-      response.writeHead(429, { 'content-type': 'application/json' });
+      response.writeHead(user.includes('בגוף התשובה') ? 200 : 429, {
+        'content-type': 'application/json',
+      });
       response.end(
         JSON.stringify({ error: { code: 429, message: 'private provider quota details' } }),
       );

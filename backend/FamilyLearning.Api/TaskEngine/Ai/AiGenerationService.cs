@@ -35,7 +35,7 @@ public sealed class AiGenerationService(IEnumerable<IChatClient> clients, ILogge
         var result = await RequestAsync<TaskTemplateDefinition>(AiPrompts.Authoring, prompt, AiSchemas.Template,
             AiPrompts.AuthoringVersion, ct);
         if (TemplateValidator.Validate(result.Value).Count > 0)
-            throw AiGenerationException.InvalidOutput();
+            throw InvalidOutput("template-validation", AiPrompts.AuthoringVersion);
         return result;
     }
 
@@ -48,7 +48,7 @@ public sealed class AiGenerationService(IEnumerable<IChatClient> clients, ILogge
         var result = await RequestAsync<TaskContent>(AiPrompts.Instance, input, AiSchemas.Content, AiPrompts.InstanceVersion, ct);
         if (TaskContentValidator.Validate(result.Value).Count > 0 ||
             (expectedCount.HasValue && result.Value.Questions.Length != expectedCount.Value))
-            throw AiGenerationException.InvalidOutput();
+            throw InvalidOutput("task-validation", AiPrompts.InstanceVersion);
         return result;
     }
 
@@ -72,21 +72,30 @@ public sealed class AiGenerationService(IEnumerable<IChatClient> clients, ILogge
                     MaxOutputTokens = 8192,
                     AdditionalProperties = new() { ["strict"] = true }
                 }, timeout.Token);
-            if (response.FinishReason != ChatFinishReason.Stop || response.Text.Length is 0 or > 32000)
-                throw AiGenerationException.InvalidOutput();
-            var value = JsonSerializer.Deserialize<T>(response.Text, Json) ?? throw AiGenerationException.InvalidOutput();
+            var text = response.Text;
             var metadata = new GenerationMetadata("OpenRouter", response.ModelId ?? "unknown", promptVersion, DateTime.UtcNow);
+            // Record metadata before parsing so truncated and invalid responses remain diagnosable.
             logger.LogInformation(
                 "AI response: provider {Provider}, model {Model}, prompt version {PromptVersion}, generated {GeneratedAtUtc}, " +
-                "elapsed {ElapsedMilliseconds} ms, input tokens {InputTokens}, output tokens {OutputTokens}, reasoning tokens {ReasoningTokens}",
+                "finish {FinishReason}, characters {CharacterCount}, elapsed {ElapsedMilliseconds} ms, " +
+                "input tokens {InputTokens}, output tokens {OutputTokens}, reasoning tokens {ReasoningTokens}",
                 metadata.Provider, metadata.Model, metadata.PromptVersion, metadata.GeneratedAtUtc,
-                Stopwatch.GetElapsedTime(started).TotalMilliseconds, response.Usage?.InputTokenCount,
+                response.FinishReason, text.Length, Stopwatch.GetElapsedTime(started).TotalMilliseconds, response.Usage?.InputTokenCount,
                 response.Usage?.OutputTokenCount, response.Usage?.ReasoningTokenCount);
+            if (response.FinishReason != ChatFinishReason.Stop)
+                throw InvalidOutput("incomplete-response", promptVersion);
+            if (text.Length is 0 or > 32000)
+                throw InvalidOutput("response-size", promptVersion);
+            var value = JsonSerializer.Deserialize<T>(text, Json) ?? throw InvalidOutput("null-json", promptVersion);
             return new(value, metadata);
         }
-        catch (JsonException) { throw AiGenerationException.InvalidOutput(); }
+        catch (JsonException) { throw InvalidOutput("json-contract", promptVersion); }
         catch (OperationCanceledException) when (!ct.IsCancellationRequested)
-        { throw new AiGenerationException(504, "יצירת התוכן ארכה יותר מדי זמן. לא נשמר דבר. אפשר לנסות שוב."); }
+        {
+            logger.LogWarning("AI request timed out: prompt version {PromptVersion}, elapsed {ElapsedMilliseconds} ms",
+                promptVersion, Stopwatch.GetElapsedTime(started).TotalMilliseconds);
+            throw new AiGenerationException(504, "יצירת התוכן ארכה יותר מדי זמן. לא נשמר דבר. אפשר לנסות שוב.");
+        }
         catch (Exception exception) when (exception is HttpRequestException or ClientResultException)
         {
             // Provider exceptions may contain request content or credentials. Do not log their bodies.
@@ -96,12 +105,19 @@ public sealed class AiGenerationService(IEnumerable<IChatClient> clients, ILogge
                 HttpRequestException request => (int?)request.StatusCode,
                 _ => null
             };
-            logger.LogWarning("AI provider request failed ({ExceptionType}, HTTP {StatusCode})", exception.GetType().Name, status);
+            logger.LogWarning("AI provider request failed ({ExceptionType}, HTTP {StatusCode}): prompt version {PromptVersion}, elapsed {ElapsedMilliseconds} ms",
+                exception.GetType().Name, status, promptVersion, Stopwatch.GetElapsedTime(started).TotalMilliseconds);
             if (status == 429)
                 throw new AiGenerationException(429, "שירות ה־AI הגיע למגבלת הבקשות. לא נשמר דבר. יש לנסות שוב מאוחר יותר.");
             throw new AiGenerationException(502, "שירות ה־AI לא הצליח ליצור תוכן כרגע. לא נשמר דבר. אפשר לנסות שוב.");
         }
         finally { capacity.Release(); }
+    }
+
+    private AiGenerationException InvalidOutput(string failure, string promptVersion)
+    {
+        logger.LogWarning("AI output rejected: {Failure}, prompt version {PromptVersion}", failure, promptVersion);
+        return AiGenerationException.InvalidOutput();
     }
 
     public void Dispose() => capacity.Dispose();
