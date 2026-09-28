@@ -37,10 +37,13 @@ repo; it makes no AI call. Restart the server afterward. Alternatively provide
 `Ai__ApiKey` or `OPENROUTER_API_KEY` through server secrets. Production does not
 load development user secrets.
 
-The default model is `openrouter/free`; `Ai__Model` can select a specific
-`:free` model. Paid models are rejected. Free-model availability and quality
-vary; parents review educational correctness before use. Missing configuration
-and provider failures are visible. Saved tasks remain readable without AI.
+The default [free router](https://openrouter.ai/docs/guides/routing/routers/free-router)
+randomly selects an eligible model. For consistent model selection, set
+`Ai__Model` to a specific available `:free` model (or `Ai:Model` in development
+user secrets), then restart. Paid models are rejected. Evaluate Hebrew fluency,
+educational correctness and structured output on representative prompts; schema
+validation cannot guarantee language quality. Saved tasks remain readable
+without AI.
 
 Generation waits up to three minutes. Set `Ai__RequestTimeoutSeconds` (1–300) to
 change the deadline, then restart. Requests ask for low reasoning effort where

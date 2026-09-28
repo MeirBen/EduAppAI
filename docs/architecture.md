@@ -43,6 +43,9 @@ validation before persistence.
 `AiPrompts` separates fixed teaching requirements from variable fields and refers
 to keys, not labels. Resolved values override defaults in prose, including false,
 zero and empty text. Prompt changes advance the metadata's prompt version.
+Both prompts share language-quality guidance, including Hebrew grammar and
+proofreading. This guides the model; validators check structure and bounds, not
+fluency. Prompt changes apply to new AI output, never rewrite saved snapshots.
 
 Publication atomically saves a revision and current pointer, guarded by
 `expectedVersion`, an EF concurrency token and a unique revision index. Joined
