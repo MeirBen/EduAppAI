@@ -9,7 +9,7 @@ export function apiError(error: unknown): string {
   if (error.status === 403) return 'אין הרשאה לביצוע הפעולה הזו.';
   if (error.status === 404) return 'הפריט המבוקש לא נמצא.';
   if (error.status === 409) return 'התבנית השתנתה. יש לרענן את העמוד לפני שמירת גרסה נוספת.';
-  if (error.status === 429) return 'בוצעו יותר מדי ניסיונות. יש להמתין דקה ולנסות שוב.';
+  if (error.status === 429) return 'הגעתם למגבלת הבקשות. יש לנסות שוב מאוחר יותר.';
   if (error.status === 502)
     return 'שירות ה־AI לא החזיר תוכן תקין. לא נשמר דבר. אפשר לנסות שוב או לדייק את ההנחיות.';
   if (error.status === 503)

@@ -43,9 +43,10 @@ validation before persistence.
 `AiPrompts` separates fixed teaching requirements from variable fields and refers
 to keys, not labels. Resolved values override defaults in prose, including false,
 zero and empty text. Prompt changes advance the metadata's prompt version.
-Both prompts share language-quality guidance, including Hebrew grammar and
-proofreading. This guides the model; validators check structure and bounds, not
-fluency. Prompt changes apply to new AI output, never rewrite saved snapshots.
+Both prompts share concise language-quality guidance, including grammatical
+Hebrew and Hebrew script. This guides the model; validators check structure and
+bounds, not fluency. Prompt changes apply to new AI output, never rewrite saved
+snapshots.
 
 Publication atomically saves a revision and current pointer, guarded by
 `expectedVersion`, an EF concurrency token and a unique revision index. Joined
@@ -65,10 +66,13 @@ return 404 before content reads or AI calls. Authenticated API responses use
 AI has a configurable three-minute deadline, two concurrent calls per process
 and ten requests per family per minute. Cancellation reaches the provider and
 always releases capacity. Transport timeout adds five seconds so application
-cancellation wins. Requests ask for low reasoning effort and exclude reasoning;
-exclusion alone does not reduce latency. SDK retries are disabled. Failures
-return safe ProblemDetails without saving; AI response logs contain metadata,
-elapsed time and token counts. Provider failures log only the exception type.
+cancellation wins. The default model is pinned, with reasoning disabled; an
+explicit opt-in requests low effort for models that require reasoning. Excluding
+reasoning from responses alone does not reduce computation. Requests allow up to
+8192 output tokens with temperature 0.2. SDK retries are disabled. Failures return
+safe ProblemDetails without saving, including 429
+for provider rate limits. AI response logs contain metadata, elapsed time and
+token counts. Provider failures log only exception type and HTTP status.
 `/api/ai/status` checks configuration without a call.
 
 Production requires explicit migrations and HTTPS; tests cover migration,

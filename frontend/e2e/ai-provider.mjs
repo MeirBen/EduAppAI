@@ -28,7 +28,9 @@ export async function startAiProvider() {
     for await (const chunk of request) body += chunk;
     const input = JSON.parse(body);
     assert.equal(input.model, 'openrouter/free');
-    assert.deepEqual(input.reasoning, { effort: 'low', exclude: true });
+    assert.deepEqual(input.reasoning, { enabled: false, exclude: true });
+    assert.equal(input.temperature, 0.2);
+    assert.equal(input.max_completion_tokens ?? input.max_tokens, 8192);
     assert.deepEqual(input.provider, { require_parameters: true });
     assert.equal(input.response_format.type, 'json_schema');
     assert.equal(input.response_format.json_schema.strict, true);
@@ -43,15 +45,22 @@ export async function startAiProvider() {
     // The SDK adapts strict response-format constraints; prompt context must retain the full schema.
     assert.deepEqual(
       JSON.parse(schemaText),
-      input.response_format.json_schema.name === 'template_authoring_v3'
+      input.response_format.json_schema.name === 'template_authoring_v4'
         ? templateSchema
         : contentSchema,
     );
     const user = input.messages[1].content;
     assert.ok(!user.includes('browser@example.test'));
+    if (user.includes('בדיקת מכסה')) {
+      response.writeHead(429, { 'content-type': 'application/json' });
+      response.end(
+        JSON.stringify({ error: { code: 429, message: 'private provider quota details' } }),
+      );
+      return;
+    }
     sequence++;
     let result;
-    if (input.response_format.json_schema.name === 'template_authoring_v3') {
+    if (input.response_format.json_schema.name === 'template_authoring_v4') {
       result = {
         schemaVersion: 2,
         name: 'חוקרים וקוראים',
@@ -96,7 +105,7 @@ export async function startAiProvider() {
         },
       };
     } else {
-      assert.equal(input.response_format.json_schema.name, 'instance_generation_v3');
+      assert.equal(input.response_format.json_schema.name, 'instance_generation_v4');
       const { parameters, expectedQuestionCount } = JSON.parse(user);
       result = {
         title: `לומדים על ${parameters.theme}`,

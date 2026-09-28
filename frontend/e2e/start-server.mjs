@@ -15,6 +15,7 @@ const environment = {
   Logging__LogLevel__Default: 'Warning',
   Ai__ApiKey: 'isolated-test-key',
   Ai__Model: 'openrouter/free',
+  Ai__ReasoningEnabled: 'false',
   Ai__Endpoint: provider.endpoint,
   Ai__RequestTimeoutSeconds: '180',
 };

@@ -22,7 +22,8 @@ public static class OpenRouterRegistration
         services.AddSingleton<AiGenerationService>();
         var key = configuration["Ai:ApiKey"] ?? configuration["OPENROUTER_API_KEY"];
         if (string.IsNullOrWhiteSpace(key)) return;
-        var model = configuration["Ai:Model"] ?? "openrouter/free";
+        var model = configuration["Ai:Model"] ?? "qwen/qwen3.8-27b:free";
+        var reasoningEnabled = configuration.GetValue<bool>("Ai:ReasoningEnabled");
         if (model != "openrouter/free" && (!model.EndsWith(":free", StringComparison.Ordinal) || model.Contains(',')))
             throw new InvalidOperationException("Ai:Model must be openrouter/free or a single :free model.");
         var endpoint = new Uri(configuration["Ai:Endpoint"] ?? "https://openrouter.ai/api/v1");
@@ -36,6 +37,6 @@ public static class OpenRouterRegistration
             RetryPolicy = new ClientRetryPolicy(maxRetries: 0),
             // Let the application deadline cancel first so timeouts consistently return 504.
             NetworkTimeout = provider.GetRequiredService<IOptions<AiGenerationOptions>>().Value.RequestTimeout + TimeSpan.FromSeconds(5)
-        })));
+        }), reasoningEnabled));
     }
 }

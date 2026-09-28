@@ -37,17 +37,20 @@ repo; it makes no AI call. Restart the server afterward. Alternatively provide
 `Ai__ApiKey` or `OPENROUTER_API_KEY` through server secrets. Production does not
 load development user secrets.
 
-The default [free router](https://openrouter.ai/docs/guides/routing/routers/free-router)
-randomly selects an eligible model. For consistent model selection, set
-`Ai__Model` to a specific available `:free` model (or `Ai:Model` in development
-user secrets), then restart. Paid models are rejected. Evaluate Hebrew fluency,
-educational correctness and structured output on representative prompts; schema
-validation cannot guarantee language quality. Saved tasks remain readable
-without AI.
+The default model is [Qwen3.8 27B (free)](https://openrouter.ai/qwen/qwen3.8-27b:free),
+which supports structured output and optional reasoning. To change it, set
+`Ai__Model` to an available `:free` model (or `Ai:Model` in development user
+secrets), then restart. `openrouter/free` is also accepted but randomly selects
+an eligible model. Paid models are rejected. Evaluate Hebrew fluency, educational
+correctness and structured output on representative prompts; schema validation
+cannot guarantee language quality. Saved tasks remain readable without AI.
 
 Generation waits up to three minutes. Set `Ai__RequestTimeoutSeconds` (1–300) to
-change the deadline, then restart. Requests ask for low reasoning effort where
-the selected model supports it; free models may still be slow or unavailable.
+change the deadline, then restart. Reasoning is disabled by default to avoid
+spending the deadline on thinking. If a chosen model requires reasoning, set
+`Ai__ReasoningEnabled=true` to request low effort instead. Models must support
+the requested parameters. Free providers may be slow, unavailable or rate-limited;
+requests are not automatically retried or switched to another model.
 
 ## Verify
 

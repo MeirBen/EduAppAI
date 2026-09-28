@@ -70,6 +70,7 @@ public sealed class AiGenerationService(IEnumerable<IChatClient> clients, ILogge
                 {
                     ResponseFormat = ChatResponseFormat.ForJsonSchema(schema, promptVersion.Replace('-', '_')),
                     MaxOutputTokens = 8192,
+                    Temperature = 0.2f,
                     AdditionalProperties = new() { ["strict"] = true }
                 }, timeout.Token);
             if (response.FinishReason != ChatFinishReason.Stop || response.Text.Length is 0 or > 32000)
@@ -90,7 +91,15 @@ public sealed class AiGenerationService(IEnumerable<IChatClient> clients, ILogge
         catch (Exception exception) when (exception is HttpRequestException or ClientResultException)
         {
             // Provider exceptions may contain request content or credentials. Do not log their bodies.
-            logger.LogWarning("AI provider request failed ({ExceptionType})", exception.GetType().Name);
+            var status = exception switch
+            {
+                ClientResultException response => response.Status,
+                HttpRequestException request => (int?)request.StatusCode,
+                _ => null
+            };
+            logger.LogWarning("AI provider request failed ({ExceptionType}, HTTP {StatusCode})", exception.GetType().Name, status);
+            if (status == 429)
+                throw new AiGenerationException(429, "שירות ה־AI הגיע למגבלת הבקשות. לא נשמר דבר. יש לנסות שוב מאוחר יותר.");
             throw new AiGenerationException(502, "שירות ה־AI לא הצליח ליצור תוכן כרגע. לא נשמר דבר. אפשר לנסות שוב.");
         }
         finally { capacity.Release(); }
