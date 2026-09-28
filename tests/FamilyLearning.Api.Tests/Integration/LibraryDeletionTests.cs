@@ -6,6 +6,7 @@ using FamilyLearning.Api.Features.Templates;
 using FamilyLearning.Api.Infrastructure.Persistence;
 using FamilyLearning.Api.Tests.Fixtures;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -155,6 +156,34 @@ public sealed class LibraryDeletionTests
         Assert.Equal(0, (await parent.GetFromJsonAsync<JsonElement>("/api/instances")).GetArrayLength());
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Deletion_during_publication_returns_not_found_without_restoring_content(bool reset)
+    {
+        var publication = new PausedPublication();
+        using var app = new ApiFactory(services => services.AddScoped(provider => new LearningDbContext(
+            new DbContextOptionsBuilder<LearningDbContext>(provider.GetRequiredService<DbContextOptions<LearningDbContext>>())
+                .AddInterceptors(publication).Options)));
+        using var parent = await app.ParentAsync();
+        var id = await SaveTemplateAsync(parent);
+        var saving = parent.PostAsJsonAsync($"/api/templates/{id}/versions",
+            new { expectedVersion = 1, definition = AiFixtures.Definition() });
+        try
+        {
+            await publication.Entered.Task.WaitAsync(TimeSpan.FromSeconds(10));
+            Assert.Equal(HttpStatusCode.NoContent,
+                (await parent.DeleteAsync(reset ? "/api/templates" : $"/api/templates/{id}")).StatusCode);
+        }
+        finally { publication.Resume.TrySetResult(); }
+        Assert.Equal(HttpStatusCode.NotFound, (await saving).StatusCode);
+        using var scope = app.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<LearningDbContext>();
+        Assert.False(await db.TaskTemplates.AnyAsync());
+        Assert.False(await db.TaskTemplateVersions.AnyAsync());
+        Assert.False(await db.TaskInstances.AnyAsync());
+    }
+
     private static ApiFactory WithAi() => new(services => services.AddSingleton<IChatClient>(
         new AiFixtures.ScriptedChat(AiFixtures.Content().ToJsonString(), AiFixtures.Content().ToJsonString())));
 
@@ -183,6 +212,24 @@ public sealed class LibraryDeletionTests
             Entered.TrySetResult();
             await Resume.Task.WaitAsync(cancellationToken);
             return await base.GetResponseAsync(messages, options, cancellationToken);
+        }
+    }
+
+    private sealed class PausedPublication : SaveChangesInterceptor
+    {
+        public TaskCompletionSource Entered { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public TaskCompletionSource Resume { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public override async ValueTask<InterceptionResult<int>> SavingChangesAsync(DbContextEventData eventData,
+            InterceptionResult<int> result, CancellationToken cancellationToken = default)
+        {
+            if (eventData.Context!.ChangeTracker.Entries<TaskTemplateVersion>()
+                .Any(entry => entry.State == EntityState.Added && entry.Entity.Version == 2))
+            {
+                Entered.TrySetResult();
+                await Resume.Task.WaitAsync(cancellationToken);
+            }
+            return result;
         }
     }
 }

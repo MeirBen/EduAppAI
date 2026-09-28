@@ -36,7 +36,7 @@ public static class TemplateEndpoints
         var version = await db.TaskTemplateVersions.AsNoTracking()
             .SingleOrDefaultAsync(v => v.TemplateId == id && v.Version == template.CurrentVersion, ct);
         if (version is null) return Results.NotFound();
-        return Results.Ok(TemplateDetail.From(template, version));
+        return Results.Ok(TemplateDetail.From(version));
     }
 
     /// <summary>Deletes one template or the family's whole library, including all revisions and saved tasks.</summary>
@@ -69,7 +69,7 @@ public static class TemplateEndpoints
         db.TaskTemplateVersions.Add(version);
         // One SaveChanges transaction prevents a template from existing without its first revision.
         await db.SaveChangesAsync(ct);
-        return Results.Created($"/api/templates/{template.Id}", TemplateDetail.From(template, version));
+        return Results.Created($"/api/templates/{template.Id}", TemplateDetail.From(version));
     }
 
     private static async Task<IResult> CreateVersionAsync(Guid id, CreateVersionRequest request,
@@ -90,12 +90,17 @@ public static class TemplateEndpoints
             await db.SaveChangesAsync(ct);
         }
         catch (DbUpdateConcurrencyException) { return VersionConflict(); }
+        catch (DbUpdateException exception) when (exception.InnerException is SqliteException { SqliteExtendedErrorCode: 787 })
+        {
+            // Deletion can win after the owned read; EF inserts the revision before updating the pointer.
+            return Results.NotFound();
+        }
         catch (DbUpdateException exception) when (exception.InnerException is SqliteException { SqliteExtendedErrorCode: 2067 })
         {
             // The (TemplateId, Version) unique constraint also protects simultaneous publication.
             return VersionConflict();
         }
-        return Results.Created($"/api/templates/{id}", TemplateDetail.From(template, version));
+        return Results.Created($"/api/templates/{id}", TemplateDetail.From(version));
     }
 
     private static IResult VersionConflict() => Results.Problem(statusCode: 409,

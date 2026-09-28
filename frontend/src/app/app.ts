@@ -18,6 +18,7 @@ export class App {
   protected readonly signingOut = signal(false);
 
   protected async logout() {
+    if (this.signingOut()) return;
     this.signingOut.set(true);
     this.error.set('');
     try {

@@ -1,7 +1,6 @@
 import { HttpClient, httpResource } from '@angular/common/http';
 import { DestroyRef, inject, Injectable } from '@angular/core';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { firstValueFrom } from 'rxjs';
+import { requestResult } from './request-result';
 import {
   AiTemplateDraft,
   InstancePreview,
@@ -28,10 +27,9 @@ export class LearningApi {
   }
   /** Produces an unsaved proposal; leaving the caller cancels HTTP. Never retry automatically. */
   authorTemplate(prompt: string, lifetime: DestroyRef) {
-    return firstValueFrom(
-      this.http
-        .post<AiTemplateDraft>('/api/ai/template-drafts', { prompt })
-        .pipe(takeUntilDestroyed(lifetime)),
+    return requestResult(
+      this.http.post<AiTemplateDraft>('/api/ai/template-drafts', { prompt }),
+      lifetime,
     );
   }
 
@@ -48,23 +46,15 @@ export class LearningApi {
   }
   /** Permanently deletes the family's template, all revisions and their saved tasks. */
   deleteTemplate(id: string, lifetime: DestroyRef) {
-    return firstValueFrom(
-      this.http.delete<void>(`/api/templates/${id}`).pipe(takeUntilDestroyed(lifetime)),
-    );
+    return requestResult(this.http.delete<void>(`/api/templates/${id}`), lifetime);
   }
   /** Clears all family learning content, including items beyond list limits; keeps accounts and AI settings. */
   resetLibrary(lifetime: DestroyRef) {
-    return firstValueFrom(
-      this.http.delete<void>('/api/templates').pipe(takeUntilDestroyed(lifetime)),
-    );
+    return requestResult(this.http.delete<void>('/api/templates'), lifetime);
   }
   /** Creates the first immutable version; leaving the editor cancels the pending request. */
   createTemplate(definition: TemplateDefinition, lifetime: DestroyRef) {
-    return firstValueFrom(
-      this.http
-        .post<TemplateDetail>('/api/templates', definition)
-        .pipe(takeUntilDestroyed(lifetime)),
-    );
+    return requestResult(this.http.post<TemplateDetail>('/api/templates', definition), lifetime);
   }
   /** Publishes a new immutable revision; HTTP 409 leaves the caller's stale draft unsaved. */
   publishTemplate(
@@ -73,10 +63,12 @@ export class LearningApi {
     definition: TemplateDefinition,
     lifetime: DestroyRef,
   ) {
-    return firstValueFrom(
-      this.http
-        .post<TemplateDetail>(`/api/templates/${id}/versions`, { expectedVersion, definition })
-        .pipe(takeUntilDestroyed(lifetime)),
+    return requestResult(
+      this.http.post<TemplateDetail>(`/api/templates/${id}/versions`, {
+        expectedVersion,
+        definition,
+      }),
+      lifetime,
     );
   }
   /** Returns up to 100 of the family's most recently created drafts, without question content. */
@@ -89,9 +81,7 @@ export class LearningApi {
   }
   /** Permanently deletes one family-owned task; its template and sibling tasks remain. */
   deleteInstance(id: string, lifetime: DestroyRef) {
-    return firstValueFrom(
-      this.http.delete<void>(`/api/instances/${id}`).pipe(takeUntilDestroyed(lifetime)),
-    );
+    return requestResult(this.http.delete<void>(`/api/instances/${id}`), lifetime);
   }
   /**
    * Generates and saves an AI task from the current template revision.
@@ -101,10 +91,9 @@ export class LearningApi {
    * @returns The saved preview. Each success creates a task; never retry automatically.
    */
   createInstance(templateId: string, parameters: ParameterValues, lifetime: DestroyRef) {
-    return firstValueFrom(
-      this.http
-        .post<InstancePreview>(`/api/templates/${templateId}/instances`, { parameters })
-        .pipe(takeUntilDestroyed(lifetime)),
+    return requestResult(
+      this.http.post<InstancePreview>(`/api/templates/${templateId}/instances`, { parameters }),
+      lifetime,
     );
   }
 }

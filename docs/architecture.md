@@ -14,6 +14,7 @@ Angular is standalone, strict and signal-based. `core` contains auth and API
 access. Each feature owns its screens, controls and tests: `library` lists and
 removes saved content, `templates` owns prompt authoring and the create/edit
 `TemplateEditor`, and `instances` owns parameter choices, generation and previews.
+`shared` holds reusable presentation controls and form helpers.
 Native HTML and Tailwind provide the shell and controls. Angular proxies
 `/api` during development; publication serves the client and API from one
 process.
@@ -60,9 +61,9 @@ parameters, content and provider/model/prompt-version/UTC metadata. SQLite
 timestamp reads preserve UTC.
 
 Template deletion and library reset remove tasks, revisions and templates in one
-transaction. They preserve accounts, other families and AI configuration. A
-generation finishing after its template was deleted returns 404 and saves
-nothing.
+transaction. They preserve accounts, other families and AI configuration.
+Publication or generation finishing after its template was deleted returns 404
+and saves nothing.
 
 ## Access and failures
 
@@ -89,10 +90,13 @@ logs exclude prompts, content, reasoning text and provider error bodies.
 `httpResource` instances in the calling component's injection context. Route
 changes and component destruction cancel reads. Read values only after
 `hasValue()`; render errors independently. Writes use explicit HttpClient calls
-with the caller's lifetime, never reactive resources or automatic retries.
+through `requestResult`, which binds cancellation to the caller's lifetime.
+Never use reactive resources or automatic retries for writes.
 
-Lazy routes use guards for navigation; the server remains the authorization
-boundary. `AiTemplateAuthor` holds the prompt/proposal. `AiTemplateForm` edits a
+Lazy route guards return a session/token check whose reads are cancelled when
+navigation is superseded. Sign-in requests belong to the login page and cannot
+redirect after it closes. The server remains the authorization boundary.
+`AiTemplateAuthor` holds the prompt/proposal. `AiTemplateForm` edits a
 copy through Signal Forms and converts it to the API contract on save. Errors
 retain local edits; a replacement proposal resets feedback. `ParameterForm`
 emits validated choices. Blank numbers stay distinct from zero; optional empty

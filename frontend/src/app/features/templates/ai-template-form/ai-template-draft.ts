@@ -1,4 +1,5 @@
 import { ParameterDefinition, TemplateDefinition } from '../../../core/api/models';
+import { isIntegerInput } from '../../../shared/forms/integer-input';
 
 /** Editor-only strings retain empty and invalid numeric inputs until validation. */
 export interface ParameterDraft {
@@ -69,11 +70,6 @@ function options(field: ParameterDraft): string[] {
     .filter(Boolean);
 }
 
-function integer(value: string): boolean {
-  const number = Number(value);
-  return /^-?\d+$/.test(value) && number >= -2147483648 && number <= 2147483647;
-}
-
 /** Mirrors the editable field contract for immediate feedback; the server validates again on save. */
 export function aiTemplateErrors(draft: AiBlueprintDraft): string[] {
   const errors: string[] = [];
@@ -91,7 +87,7 @@ export function aiTemplateErrors(draft: AiBlueprintDraft): string[] {
       errors.push(prefix + 'נדרשת תווית עד 100 תווים.');
     if (field.type === 'integer') {
       for (const value of [field.min, field.max, field.defaultValue]) {
-        if (value !== '' && !integer(value))
+        if (value !== '' && !isIntegerInput(value))
           errors.push(prefix + 'הגבולות וברירת המחדל חייבים להיות מספרים שלמים.');
       }
       if (field.min !== '' && field.max !== '' && Number(field.min) > Number(field.max))
@@ -115,7 +111,7 @@ export function aiTemplateErrors(draft: AiBlueprintDraft): string[] {
         errors.push(prefix + 'ברירת המחדל חייבת להתאים לאחת האפשרויות.');
     } else if (field.type === 'text') {
       const limit = field.maxLength === '' ? 500 : Number(field.maxLength);
-      if ((field.maxLength !== '' && !integer(field.maxLength)) || limit < 1 || limit > 500)
+      if ((field.maxLength !== '' && !isIntegerInput(field.maxLength)) || limit < 1 || limit > 500)
         errors.push(prefix + 'אורך הטקסט חייב להיות בין 1 ל־500.');
       if (
         field.defaultValue.length > limit ||

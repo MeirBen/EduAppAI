@@ -1,17 +1,19 @@
 import { inject } from '@angular/core';
 import { CanActivateFn, Router } from '@angular/router';
+import { catchError, map, of } from 'rxjs';
 import { Auth } from './auth';
 
 /**
- * Loads session state before private navigation and routes failures to sign-in.
+ * Checks the session for private navigation; superseded navigation cancels both HTTP reads.
  * This is a navigation aid; API policies and ownership queries enforce access.
  */
-export const parentGuard: CanActivateFn = async () => {
+export const parentGuard: CanActivateFn = () => {
   const auth = inject(Auth);
   const router = inject(Router);
-  try {
-    return (await auth.loadSession()) || router.createUrlTree(['/login']);
-  } catch {
-    return router.createUrlTree(['/login'], { queryParams: { connection: 'unavailable' } });
-  }
+  return auth.loadSession().pipe(
+    map((signedIn) => signedIn || router.createUrlTree(['/login'])),
+    catchError(() =>
+      of(router.createUrlTree(['/login'], { queryParams: { connection: 'unavailable' } })),
+    ),
+  );
 };

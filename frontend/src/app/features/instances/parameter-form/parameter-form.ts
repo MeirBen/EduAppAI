@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, input, linkedSignal, output } from '@angular/core';
 import { applyEach, disabled, form, FormField, submit, validate } from '@angular/forms/signals';
 import { ParameterDefinition, ParameterValues } from '../../../core/api/models';
+import { isIntegerInput } from '../../../shared/forms/integer-input';
 
 /** Numeric input stays as text so an empty optional field cannot silently become zero. */
 interface ParameterEntry {
@@ -70,8 +71,7 @@ function parameterError(
     return definition.required ? `יש למלא את השדה „${label}”.` : undefined;
   if (definition.type === 'integer') {
     const number = Number(value.text);
-    if (!/^-?\d+$/.test(value.text) || number < -2147483648 || number > 2147483647)
-      return `יש להזין מספר שלם בשדה „${label}”.`;
+    if (!isIntegerInput(value.text)) return `יש להזין מספר שלם בשדה „${label}”.`;
     if (definition.min != null && number < definition.min)
       return `הערך בשדה „${label}” חייב להיות לפחות ${definition.min}.`;
     if (definition.max != null && number > definition.max)

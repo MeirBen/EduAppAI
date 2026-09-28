@@ -1,6 +1,7 @@
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
+import { firstValueFrom } from 'rxjs';
 import { Auth } from './auth';
 
 describe('Auth logout', () => {
@@ -10,7 +11,7 @@ describe('Auth logout', () => {
     });
     const auth = TestBed.inject(Auth);
     const http = TestBed.inject(HttpTestingController);
-    const session = auth.loadSession();
+    const session = firstValueFrom(auth.loadSession());
     http.expectOne('/api/auth/me').flush({ email: 'parent@example.test', familyId: 'family' });
     const sessionToken = await vi.waitFor(() => http.expectOne('/api/auth/csrf'));
     sessionToken.flush({ token: 'signed-in' });

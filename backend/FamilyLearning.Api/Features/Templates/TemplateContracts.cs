@@ -9,9 +9,9 @@ public sealed record TemplateSummary(Guid Id, string Name, int CurrentVersion, D
 /// <summary>A template identity paired with the published revision selected by the endpoint.</summary>
 public sealed record TemplateDetail(Guid Id, int CurrentVersion, Guid VersionId, TaskTemplateDefinition Definition)
 {
-    /// <summary>Projects an already authorized template and its matching revision.</summary>
-    public static TemplateDetail From(TaskTemplate template, TaskTemplateVersion version) =>
-        new(template.Id, version.Version, version.Id, StoredJson.Read<TaskTemplateDefinition>(version.DefinitionJson));
+    /// <summary>Projects an already authorized revision, including its owning template ID.</summary>
+    public static TemplateDetail From(TaskTemplateVersion version) =>
+        new(version.TemplateId, version.Version, version.Id, StoredJson.Read<TaskTemplateDefinition>(version.DefinitionJson));
 }
 /// <summary>Publishes a replacement blueprint while detecting edits made since the caller last read it.</summary>
 /// <param name="ExpectedVersion">The current revision observed by the caller; a mismatch yields HTTP 409.</param>
