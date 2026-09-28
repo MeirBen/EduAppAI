@@ -1,7 +1,6 @@
 import { ChangeDetectionStrategy, Component, input, linkedSignal, output } from '@angular/core';
 import { applyEach, disabled, form, FormField, submit, validate } from '@angular/forms/signals';
 import { ParameterDefinition, ParameterValues } from '../../core/api/models';
-import { parameterLabel, parameterOption } from '../../core/locale/hebrew';
 
 /** Numeric input stays as text so an empty optional field cannot silently become zero. */
 interface ParameterEntry {
@@ -26,8 +25,6 @@ export class ParameterForm {
   readonly busy = input(false);
   /** Emits values only; this component neither calls the API nor creates task content. */
   readonly generated = output<ParameterValues>();
-  protected readonly label = parameterLabel;
-  protected readonly optionLabel = parameterOption;
   protected readonly model = linkedSignal(() => ({
     entries: this.definitions().map((definition) => ({
       text: definition.default == null ? '' : String(definition.default),
@@ -67,7 +64,7 @@ function parameterError(
   value: ParameterEntry,
 ): string | undefined {
   if (definition.type === 'boolean') return;
-  const label = parameterLabel(definition);
+  const label = definition.label;
   if (!value.text.trim()) return definition.required ? `יש למלא את השדה „${label}”.` : undefined;
   if (definition.type === 'integer') {
     const number = Number(value.text);

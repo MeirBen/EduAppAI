@@ -3,8 +3,6 @@ export type ParameterValue = string | number | boolean;
 /** Values keyed by case-sensitive schema keys. Omitted keys allow server defaults. */
 export type ParameterValues = Record<string, ParameterValue>;
 
-/** Operations implemented by math-v1; multiplication keeps its original wire value. */
-export type MathOperation = 'addition' | 'subtraction' | 'multiplication' | 'division';
 /** Supported controls for authored questions, independent of the school subject. */
 export type QuestionType = 'numeric-input' | 'text-input' | 'single-choice';
 
@@ -24,12 +22,24 @@ export interface ParameterDefinition {
 
 /** Published blueprint; schemaVersion describes the JSON format, not the template revision. */
 export interface TemplateDefinition {
-  schemaVersion: 1;
+  schemaVersion: 2;
   name: string;
   instanceParameters: ParameterDefinition[];
-  generation:
-    | { mode: 'deterministic'; generator: 'math-v1'; fixedSettings: { operation: MathOperation } }
-    | { mode: 'static'; content: TaskContent };
+  generation: { instructions: string; questionCountParameter?: string | null };
+}
+
+/** Server-recorded generation diagnostics; excludes prompts, identity and model reasoning. */
+export interface GenerationMetadata {
+  provider: string;
+  model: string;
+  promptVersion: string;
+  generatedAtUtc: string;
+}
+
+/** Transient AI proposal. The parent must review it and explicitly publish a template. */
+export interface AiTemplateDraft {
+  definition: TemplateDefinition;
+  generationMetadata: GenerationMetadata;
 }
 
 /** Template list projection; fetch TemplateDetail when the definition is needed. */
@@ -78,8 +88,7 @@ export interface InstanceSummary {
  * A future child contract must omit answers and enforce assignment access on the server.
  */
 export interface InstancePreview extends InstanceSummary {
-  /** Taken from this draft's pinned template version, not the current revision. */
-  generationMode: 'deterministic' | 'static';
+  generationMetadata: GenerationMetadata | null;
   templateVersionId: string;
   templateVersion: number;
   parameters: ParameterValues;

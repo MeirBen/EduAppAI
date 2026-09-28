@@ -3,7 +3,7 @@
     @let entry = fields.entries[index];
     <div class="field">
       <label [for]="'parameter-' + definition.key"
-        ><bdi>{{ label(definition) }}</bdi>
+        ><bdi>{{ definition.label }}</bdi>
         @if (!definition.required) {
           <span class="text-sm text-muted">(לא חובה)</span>
         }
@@ -19,7 +19,7 @@
           >
             <option value="">בחירת אפשרות</option>
             @for (option of definition.options; track option) {
-              <option [value]="option">{{ optionLabel(definition, option) }}</option>
+              <option [value]="option">{{ option }}</option>
             }
           </select>
         }

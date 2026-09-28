@@ -1,8 +1,7 @@
 using System.Security.Claims;
-using System.Security.Cryptography;
 using FamilyLearning.Api.Infrastructure.Auth;
 using FamilyLearning.Api.Infrastructure.Persistence;
-using FamilyLearning.Api.TaskEngine.Generators;
+using FamilyLearning.Api.TaskEngine.Ai;
 using FamilyLearning.Api.TaskEngine.Models;
 using FamilyLearning.Api.TaskEngine.Validation;
 using Microsoft.EntityFrameworkCore;
@@ -15,7 +14,7 @@ public static class InstanceEndpoints
     /// <summary>Maps authenticated draft routes onto the API group configured with CSRF protection.</summary>
     public static void MapInstanceEndpoints(this RouteGroupBuilder api)
     {
-        api.MapPost("/templates/{id:guid}/instances", CreateAsync).RequireAuthorization("Parent");
+        api.MapPost("/templates/{id:guid}/instances", CreateAsync).RequireAuthorization("Parent").RequireRateLimiting("generation");
         var instances = api.MapGroup("/instances").RequireAuthorization("Parent");
         instances.MapGet("/", async (ClaimsPrincipal user, LearningDbContext db, CancellationToken ct) =>
             await db.TaskInstances.AsNoTracking().Where(i => i.FamilyId == user.FamilyId())
@@ -27,14 +26,13 @@ public static class InstanceEndpoints
                 .SingleOrDefaultAsync(i => i.Id == id && i.FamilyId == user.FamilyId(), ct);
             if (instance is null) return Results.NotFound();
             var version = await db.TaskTemplateVersions.AsNoTracking().Where(v => v.Id == instance.TemplateVersionId)
-                .Select(v => new { v.Version, v.DefinitionJson }).SingleAsync(ct);
-            var definition = StoredJson.Read<TaskTemplateDefinition>(version.DefinitionJson);
-            return Results.Ok(InstancePreview.From(instance, version.Version, definition.Generation.Mode));
+                .Select(v => v.Version).SingleAsync(ct);
+            return Results.Ok(InstancePreview.From(instance, version));
         });
     }
 
     private static async Task<IResult> CreateAsync(Guid id, CreateInstanceRequest request, ClaimsPrincipal user,
-        LearningDbContext db, CancellationToken ct)
+        LearningDbContext db, AiGenerationService ai, CancellationToken ct)
     {
         var template = await db.TaskTemplates.AsNoTracking()
             .SingleOrDefaultAsync(t => t.Id == id && t.FamilyId == user.FamilyId(), ct);
@@ -45,14 +43,11 @@ public static class InstanceEndpoints
         var definition = StoredJson.Read<TaskTemplateDefinition>(version.DefinitionJson);
         var parameters = ParameterValidator.Validate(definition.InstanceParameters, request.Parameters);
         if (parameters.Errors.Count > 0) return Results.ValidationProblem(parameters.Errors);
-        var seed = RandomNumberGenerator.GetInt32(int.MaxValue);
-        var content = TaskGenerator.Generate(definition, parameters.Values, seed);
-        var contentErrors = TaskContentValidator.Validate(content);
-        if (contentErrors.Count > 0) return Results.ValidationProblem(contentErrors);
-        var instance = new TaskInstance(user.FamilyId(), version.Id, content.Title,
-            StoredJson.Write(parameters.Values), StoredJson.Write(content), seed);
+        var generated = await ai.GenerateAsync(definition, parameters.Values, ct);
+        var instance = new TaskInstance(user.FamilyId(), version.Id, generated.Value.Title,
+            StoredJson.Write(parameters.Values), StoredJson.Write(generated.Value), StoredJson.Write(generated.Metadata));
         db.TaskInstances.Add(instance);
         await db.SaveChangesAsync(ct);
-        return Results.Created($"/api/instances/{instance.Id}", InstancePreview.From(instance, version.Version, definition.Generation.Mode));
+        return Results.Created($"/api/instances/{instance.Id}", InstancePreview.From(instance, version.Version));
     }
 }

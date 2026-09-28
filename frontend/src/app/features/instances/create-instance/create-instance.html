@@ -9,19 +9,14 @@
     <button class="button mt-4" (click)="template.reload()">ניסיון נוסף</button>
   </div>
 } @else if (template.hasValue()) {
-  @let generation = template.value().definition.generation;
   <header class="mb-8 flex flex-wrap items-center justify-between gap-5">
     <div>
-      <p class="mb-3 text-sm font-medium text-brand">התרגול של היום</p>
+      <p class="mb-3 text-sm font-medium text-brand">מהרעיון למשימה חדשה</p>
       <h1 class="mb-3">
         <bdi>{{ template.value().definition.name }}</bdi>
       </h1>
       <p class="text-muted">
-        {{
-          generation.mode === 'static'
-            ? 'יוצרים עותק שמור של התוכן שכתבתם, לעיון לפני השימוש.'
-            : 'בוחרים את הרמה ואת מספר השאלות. התרגול יישמר כטיוטה לעיון שלכם.'
-        }}
+        בחרו את הפרטים להיום. ה־AI ייצור תוכן חדש וישמור אותו כטיוטה לעיון שלכם.
       </p>
     </div>
     <span class="badge">גרסת תבנית {{ template.value().currentVersion }}</span>
@@ -29,51 +24,32 @@
   <a class="text-link mb-5" [routerLink]="['/templates', templateId(), 'edit']">עריכת התבנית</a>
   <div class="grid items-start gap-6 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
     <section class="panel" aria-labelledby="practice-title">
-      <h2 id="practice-title">תרגול בקצב שלכם</h2>
+      <h2 id="practice-title" class="mb-5">מתאימים את המשימה</h2>
       @if (error()) {
-        <p class="error" role="alert">{{ error() }}</p>
+        <p class="error mb-5" role="alert">{{ error() }}</p>
       }
-      @if (generation.mode === 'static') {
-        <p class="my-5 text-muted">
-          מספר השאלות: {{ generation.content.questions.length }} · קטעי קריאה:
-          {{ generation.content.contentBlocks.length }}
-        </p>
+      @if (template.value().definition.instanceParameters.length === 0) {
+        <p class="my-5 text-muted">התוכן ייווצר לפי ההנחיות הקבועות בתבנית.</p>
       }
       <app-parameter-form
         [definitions]="template.value().definition.instanceParameters"
         [busy]="busy()"
         (generated)="generate($event)"
       />
-    </section>
-    <aside class="rounded-2xl bg-soft p-6 sm:p-8" aria-labelledby="difficulty-title">
-      @if (generation.mode === 'static') {
-        <p class="mb-3 text-sm font-medium text-brand">התוכן שכתבתם</p>
-        <h2 id="difficulty-title" class="mb-5">עותק שאפשר לחזור אליו</h2>
-        <p class="text-muted">
-          השאלות וקטעי הקריאה יועתקו כפי שנשמרו בתבנית. אפשר לערוך את התבנית לפני יצירת התרגול.
-        </p>
-        <p class="mt-5 text-sm text-muted">עדכון התבנית בהמשך לא ישנה טיוטות שכבר נוצרו.</p>
-      } @else {
-        <p class="mb-3 text-sm font-medium text-brand">בוחרים את האתגר</p>
-        <h2 id="difficulty-title" class="mb-5">קצת יותר קל, קצת יותר מאתגר</h2>
-        <dl class="space-y-4 text-sm">
-          <div class="flex flex-wrap justify-between gap-2 border-b border-line pb-3">
-            <dt class="font-medium">קלה</dt>
-            <dd class="text-muted">{{ range(generation.fixedSettings.operation, 'easy') }}</dd>
-          </div>
-          <div class="flex flex-wrap justify-between gap-2 border-b border-line pb-3">
-            <dt class="font-medium">בינונית</dt>
-            <dd class="text-muted">{{ range(generation.fixedSettings.operation, 'medium') }}</dd>
-          </div>
-          <div class="flex flex-wrap justify-between gap-2">
-            <dt class="font-medium">מאתגרת</dt>
-            <dd class="text-muted">{{ range(generation.fixedSettings.operation, 'hard') }}</dd>
-          </div>
-        </dl>
-        <p class="mt-6 text-sm text-muted">
-          בכל יצירה מתקבלת סדרת תרגילים חדשה. הטיוטה השמורה לא משתנה.
-        </p>
+      @if (busy()) {
+        <p class="mt-4 text-muted" role="status">יוצרים ובודקים את התוכן. זה עשוי לקחת עד דקה.</p>
       }
+    </section>
+    <aside class="rounded-2xl bg-soft p-6 sm:p-8" aria-labelledby="generation-title">
+      <p class="mb-3 text-sm font-medium text-brand">התבנית שלכם</p>
+      <h2 id="generation-title" class="mb-5">הנחיות ליצירה</h2>
+      <p class="whitespace-pre-wrap text-muted" dir="auto">
+        {{ template.value().definition.generation.instructions }}
+      </p>
+      <p class="mt-6 border-t border-line pt-5 text-sm text-muted">
+        המשימה תכלול תוכן, שאלות ותשובות לבדיקה שלכם. פתיחת טיוטה שמורה מציגה את אותו תוכן, ללא
+        יצירה מחדש.
+      </p>
     </aside>
   </div>
 }

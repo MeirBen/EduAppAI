@@ -3,7 +3,6 @@ using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
-using FamilyLearning.Api.Tests.TaskEngine;
 
 namespace FamilyLearning.Api.Tests.Integration;
 
@@ -18,15 +17,15 @@ public sealed class RequestValidationTests
         using var parent = await app.ParentAsync();
         foreach (var member in new[] { "schemaVersion", "name", "instanceParameters", "generation" })
         {
-            var definition = JsonSerializer.SerializeToNode(MathGenerationTests.Definition(), JsonOptions)!.AsObject();
+            var definition = JsonSerializer.SerializeToNode(AiAuthoringTests.Definition(), JsonOptions)!.AsObject();
             definition.Remove(member);
             await AssertBadRequestAsync(parent, "/api/templates", definition.ToJsonString());
             definition[member] = null;
             await AssertBadRequestAsync(parent, "/api/templates", definition.ToJsonString());
         }
-        foreach (var member in new[] { "mode", "generator", "fixedSettings" })
+        foreach (var member in new[] { "instructions" })
         {
-            var definition = JsonSerializer.SerializeToNode(MathGenerationTests.Definition(), JsonOptions)!;
+            var definition = JsonSerializer.SerializeToNode(AiAuthoringTests.Definition(), JsonOptions)!;
             definition["generation"]![member] = null;
             await AssertBadRequestAsync(parent, "/api/templates", definition.ToJsonString());
         }
@@ -38,7 +37,7 @@ public sealed class RequestValidationTests
     {
         using var app = new ApiFactory();
         using var parent = await app.ParentAsync();
-        var created = await parent.PostAsJsonAsync("/api/templates", MathGenerationTests.Definition());
+        var created = await parent.PostAsJsonAsync("/api/templates", AiAuthoringTests.Definition());
         var template = await created.Content.ReadFromJsonAsync<JsonElement>();
         var id = template.GetProperty("id").GetGuid();
         foreach (var body in new[] { "{}", """{"parameters":null}""" })
@@ -47,7 +46,7 @@ public sealed class RequestValidationTests
             await AssertBadRequestAsync(parent, $"/api/templates/{id}/versions", body);
         var missingExpectedVersion = new JsonObject
         {
-            ["definition"] = JsonSerializer.SerializeToNode(MathGenerationTests.Definition(), JsonOptions)
+            ["definition"] = JsonSerializer.SerializeToNode(AiAuthoringTests.Definition(), JsonOptions)
         };
         await AssertBadRequestAsync(parent, $"/api/templates/{id}/versions", missingExpectedVersion.ToJsonString());
         Assert.Equal(0, (await parent.GetFromJsonAsync<JsonElement>("/api/instances")).GetArrayLength());

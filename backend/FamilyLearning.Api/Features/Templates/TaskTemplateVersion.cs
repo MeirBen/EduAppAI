@@ -18,5 +18,4 @@ public sealed class TaskTemplateVersion
     /// <summary>Validated blueprint serialized with the application's stored JSON format.</summary>
     public string DefinitionJson { get; private set; } = "";
     public DateTime CreatedAtUtc { get; private set; } = DateTime.UtcNow;
-    public string AuthoringSource { get; private set; } = "Manual";
 }

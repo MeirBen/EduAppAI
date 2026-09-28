@@ -68,14 +68,14 @@ describe('ParameterForm', () => {
     );
   });
 
-  it('localizes legacy math metadata without changing saved labels or option values', async () => {
+  it('renders schema labels and options verbatim with appropriate input direction', async () => {
     const view = await render();
     const element: HTMLElement = view.fixture.nativeElement;
     expect(element.querySelector('label[for="parameter-difficulty"]')?.textContent).toContain(
-      'רמת קושי',
+      'Difficulty',
     );
     const option = element.querySelector<HTMLOptionElement>('#parameter-difficulty option:checked');
-    expect(option?.textContent).toContain('קלה');
+    expect(option?.textContent).toContain('easy');
     expect(option?.value).toBe('easy');
     expect(definitions[2].label).toBe('Difficulty');
     expect(element.querySelector('#parameter-theme')?.getAttribute('dir')).toBe('auto');

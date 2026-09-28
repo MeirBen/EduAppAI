@@ -3,7 +3,6 @@ import { DatePipe } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { LearningApi } from '../../../core/api/learning-api';
 import { apiError } from '../../../core/api/api-error';
-import { taskInstructions } from '../../../core/locale/hebrew';
 
 /** Read-only parent preview of saved content, including answers; this is not the child player. */
 @Component({
@@ -21,5 +20,4 @@ export class InstancePreviewPage {
     loader: ({ params }) => this.api.getInstance(params),
   });
   protected readonly apiError = apiError;
-  protected readonly instructions = taskInstructions;
 }

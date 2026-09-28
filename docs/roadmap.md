@@ -1,30 +1,21 @@
-# Small next steps
+# Next product increments
 
-Build one complete behavior at a time. Keep the [product specification](product-specification.md)
-as the destination. The [foundation](superpowers/specs/2026-09-28-foundation-design.md)
-now includes the [richer authoring increment](superpowers/specs/2026-09-28-richer-authoring-design.md):
-four arithmetic operations, authored passages and mixed questions, version editing,
-bounded content validation and generic parent previews. Family learning sessions remain next.
+The [core specification](product-specification.md) is AI-first and subject-independent.
+The parent workflow now covers prompt-based proposals, editable instructions and fields,
+explicit publication, generic AI task generation, validation and frozen parent previews.
 
-Each increment includes accurate contract documentation and updates to affected specs,
-following the [commenting guide](commenting-guide.md).
+1. **Real-provider evaluation.** Configure OpenRouter locally and evaluate representative
+   Hebrew reading, science and vocabulary prompts using a free model. Record educational
+   correctness, schema failures and latency. Live evaluations stay outside normal CI.
+2. **Child access.** Add family-owned child profiles, expiring device activation codes,
+   revocable child cookies and ownership tests.
+3. **A complete learning loop.** Add assignment, a generic player for text/numeric/choice
+   questions, sessions and authoritative scoring. Specify text normalization, retry rules
+   and safe concurrent state transitions; test parent → child → result in the browser.
+4. **Reports.** Start with completed counts and per-question results from stored sessions.
+5. **Operations.** Add account recovery, another parent in the same family, backup/restore
+   verification, deployment packaging and PWA update notices.
 
-1. **Child access.** Add child profiles, expiring device activation codes, revocable
-   persistent child cookies and ownership tests. Never expose a parent session on a
-   child device. A family needs an actual child before drafts can be assigned.
-2. **One complete learning loop.** Add assignment, the numeric child player, a session,
-   answer storage and authoritative C# scoring. Make start/answer/complete transitions
-   safe under retries and concurrent requests. Add a browser test from parent to result.
-3. **Mixed-question learning.** Extend the child player and authoritative scoring to
-   text and single-choice answers. Decide and document text normalization/retry rules
-   before introducing them; the authoring workflow already stores answers and points.
-4. **AI template drafts.** Add `Microsoft.Extensions.AI` and `IChatClient`, an owned
-   structured schema, validation and parent review. Keep provider keys outside source.
-5. **AI instance generation.** Add one generic generator, preview before assignment,
-   provider failure handling, metadata and separate paid evaluations.
-6. **Reports.** Start with completed counts and per-question results from stored sessions.
-7. **Operations.** Add account recovery, invitation of a second parent to the same family,
-   Docker packaging, HTTPS hosting, backup/restore verification and PWA update notices.
-
-Add pagination when the initial 100-item lists become limiting. Keep offline
-synchronization and native app packaging out until online family use is dependable.
+Add pagination when 100-item lists become limiting. Keep offline synchronization and
+native packaging outside the scope until online family use is dependable. Do not add
+subject-specific generators, a static authoring mode or placeholder features.

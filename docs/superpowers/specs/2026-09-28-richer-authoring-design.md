@@ -1,3 +1,5 @@
+> Historical increment, superseded by the [AI-only product specification](../../product-specification.md).
+
 # Richer template authoring
 
 ## Outcome

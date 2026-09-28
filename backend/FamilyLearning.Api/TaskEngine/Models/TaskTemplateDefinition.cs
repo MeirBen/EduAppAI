@@ -6,9 +6,9 @@ namespace FamilyLearning.Api.TaskEngine.Models;
 /// <summary>The versioned blueprint stored when a parent publishes a template.</summary>
 /// <remarks>Validate before storage. Treat nested arrays as immutable once published.</remarks>
 /// <param name="SchemaVersion">The JSON contract version, independent of the template revision number.</param>
-/// <param name="Name">The display name copied into newly generated content.</param>
+/// <param name="Name">The parent-facing name of this reusable learning idea.</param>
 /// <param name="InstanceParameters">Fields a parent can supply for each new instance.</param>
-/// <param name="Generation">The supported generator and settings fixed by this template version.</param>
+/// <param name="Generation">Instructions and count binding fixed by this template version.</param>
 public sealed record TaskTemplateDefinition(
     [property: JsonRequired] int SchemaVersion,
     [property: JsonRequired] string Name,
@@ -36,15 +36,7 @@ public sealed record ParameterDefinition(
     int? MaxLength = null,
     string[]? Options = null);
 
-/// <summary>Selects deterministic arithmetic or parent-authored static content.</summary>
-/// <remarks>
-/// The validator requires the fields for exactly one mode. Keep this envelope compatible
-/// with existing deterministic snapshots, including JSON properties in any order.
-/// </remarks>
+/// <summary>Reusable AI instructions and an optional binding to the parent's question-count field.</summary>
 public sealed record GenerationDefinition(
-    [property: JsonRequired] string Mode,
-    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? Generator = null,
-    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] MathSettings? FixedSettings = null,
-    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] TaskContent? Content = null);
-/// <summary>Arithmetic operation fixed at publication: addition, subtraction, multiplication or division.</summary>
-public sealed record MathSettings([property: JsonRequired] string Operation);
+    [property: JsonRequired] string Instructions,
+    string? QuestionCountParameter = null);

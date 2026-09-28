@@ -1,5 +1,9 @@
 # Repository guidance
 
+- Do not commit, stage, branch, merge, or perform other Git mutations. The user handles Git.
+- Prompt-first AI template authoring and generic AI task generation are the primary product flow.
+  Do not add static or subject-specific deterministic generators; all task creation uses the generic AI path.
+
 - Read README.md and docs/architecture.md before making structural changes.
 - Follow docs/commenting-guide.md: document meaningful C# contracts with XML docs and
   TypeScript contracts with JSDoc; explain non-obvious decisions inline.

@@ -49,11 +49,10 @@ API validation messages and newly generated instructions are Hebrew. The client
 uses Hebrew status fallbacks and never displays arbitrary framework problem titles
 or server-error details. Developer CLI output and internal exceptions remain English.
 
-Wire values such as `easy`, `medium`, `hard`, `Draft` and `math-v1` stay unchanged.
-`core/locale/hebrew.ts` presents built-in difficulty options, exact legacy field
-labels and the original generator instruction in Hebrew. It never writes back to
-the saved definition or content. Preserve arbitrary authored labels and text;
-do not translate or migrate immutable snapshots in place.
+Parameter labels and select options come directly from the reviewed template. There
+are no reserved difficulty values or subject-specific translation tables. Preserve
+these choices and the generated learning language exactly; localize only application
+chrome, status and validation. Never rewrite a saved content snapshot for presentation.
 
 ## Accessibility and verification
 
@@ -66,8 +65,9 @@ with enlarged text.
 
 Run `./scripts/verify.sh`, then publish and run the isolated Playwright workflow as
 described in the README. It checks Hebrew labels, document direction, keyboard
-navigation, unchanged option values, LTR math, saved content after reload and every
-screen at 360px with 200% text, plus a full action target in short landscape mode.
+navigation, edited parameter labels, unchanged option values, saved content after reload,
+AI failure recovery, revision conflicts and the review/preview screens at 360px with
+200% text.
 Inspect the screenshots in `artifacts/`, including
 mixed Hebrew/Latin titles. Automated checks do not replace manual keyboard and
 screen-reader review when adding a new interaction.

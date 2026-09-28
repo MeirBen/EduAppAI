@@ -1,0 +1,172 @@
+<form class="panel" (submit)="save($event)" novalidate [attr.aria-busy]="saving() || busy()">
+  <h2 id="blueprint-review" tabindex="-1" class="mb-3">בדיקה ועריכת התבנית</h2>
+  <p class="mb-6 text-muted">
+    אלו ההנחיות הקבועות והשדות שתוכלו לבחור בכל יצירת משימה. אפשר לשנות הכול לפני השמירה.
+  </p>
+  @if (error() || (attempted() && fields().invalid())) {
+    <div id="blueprint-errors" class="error mb-5" role="alert" tabindex="-1">
+      @if (error()) {
+        <p>{{ error() }}</p>
+      }
+      @for (error of fields().errors(); track error.kind) {
+        <p>{{ error.message }}</p>
+      }
+      @if (conflict()) {
+        <button type="button" class="button button-secondary mt-4" (click)="reloadRequested.emit()">
+          טעינת הגרסה העדכנית והחלפת העריכה המקומית
+        </button>
+      }
+    </div>
+  }
+  <div class="field">
+    <label for="ai-template-name">שם התבנית</label>
+    <input id="ai-template-name" [formField]="fields.name" dir="auto" />
+  </div>
+  <div class="field">
+    <label for="ai-instructions">הנחיות ליצירת המשימות</label>
+    <textarea
+      id="ai-instructions"
+      [formField]="fields.instructions"
+      rows="7"
+      dir="auto"
+      aria-describedby="instructions-hint"
+    ></textarea>
+    <p id="instructions-hint" class="text-sm text-muted">
+      המטרה, גיל הלומדים, סוגי השאלות והשפה. השתמשו במפתחות השדות כדי להתייחס לבחירות המשתנות.
+    </p>
+  </div>
+  <h3 class="mb-3 mt-8">מה בוחרים בכל שימוש?</h3>
+  <p class="mb-5 text-sm text-muted">
+    למשל נושא, רמת קושי, אורך קטע או מספר שאלות. ברירת מחדל ריקה משאירה את הבחירה לשימוש הבא.
+  </p>
+  @for (parameter of model().parameters; track parameter.id; let index = $index) {
+    @let field = fields.parameters[index];
+    <fieldset class="mb-5 min-w-0 rounded-xl border border-line p-4" data-parameter-editor>
+      <legend class="px-2 font-medium">שדה {{ index + 1 }}</legend>
+      <div class="field">
+        <label [for]="parameter.id + '-label'">שם השדה להורה</label>
+        <input [id]="parameter.id + '-label'" [formField]="field.label" dir="auto" />
+      </div>
+      <div class="grid gap-x-4 sm:grid-cols-2">
+        <div class="field">
+          <label [for]="parameter.id + '-key'">מפתח בהנחיות</label>
+          <input
+            [id]="parameter.id + '-key'"
+            [formField]="field.key"
+            dir="ltr"
+            autocapitalize="off"
+            spellcheck="false"
+          />
+        </div>
+        <div class="field">
+          <label [for]="parameter.id + '-type'">סוג השדה</label>
+          <select [id]="parameter.id + '-type'" [formField]="field.type">
+            <option value="text">טקסט</option>
+            <option value="integer">מספר שלם</option>
+            <option value="select">בחירה מרשימה</option>
+            <option value="boolean">כן או לא</option>
+          </select>
+        </div>
+      </div>
+      @if (parameter.type === 'select') {
+        <div class="field">
+          <label [for]="parameter.id + '-options'">אפשרויות — אפשרות בכל שורה</label>
+          <textarea
+            [id]="parameter.id + '-options'"
+            [formField]="field.options"
+            rows="3"
+            dir="auto"
+          ></textarea>
+        </div>
+      }
+      @if (parameter.type === 'integer') {
+        <div class="grid gap-x-4 sm:grid-cols-2">
+          <div class="field">
+            <label [for]="parameter.id + '-min'">מינימום</label
+            ><input
+              [id]="parameter.id + '-min'"
+              [formField]="field.min"
+              inputmode="numeric"
+              dir="ltr"
+            />
+          </div>
+          <div class="field">
+            <label [for]="parameter.id + '-max'">מקסימום</label
+            ><input
+              [id]="parameter.id + '-max'"
+              [formField]="field.max"
+              inputmode="numeric"
+              dir="ltr"
+            />
+          </div>
+        </div>
+      }
+      @if (parameter.type === 'text') {
+        <div class="field">
+          <label [for]="parameter.id + '-length'">אורך מרבי (עד 500 תווים)</label
+          ><input
+            [id]="parameter.id + '-length'"
+            [formField]="field.maxLength"
+            inputmode="numeric"
+            dir="ltr"
+          />
+        </div>
+      }
+      <div class="field">
+        <label [for]="parameter.id + '-default'">ברירת מחדל</label>
+        @if (parameter.type === 'boolean') {
+          <select [id]="parameter.id + '-default'" [formField]="field.defaultValue">
+            <option value="">ללא ברירת מחדל</option>
+            <option value="true">כן</option>
+            <option value="false">לא</option>
+          </select>
+        } @else {
+          <input
+            [id]="parameter.id + '-default'"
+            [formField]="field.defaultValue"
+            [attr.inputmode]="parameter.type === 'integer' ? 'numeric' : 'text'"
+            [attr.dir]="parameter.type === 'integer' ? 'ltr' : 'auto'"
+          />
+        }
+      </div>
+      <label class="mb-4 flex items-center gap-3"
+        ><input type="checkbox" [formField]="field.required" />שדה חובה</label
+      >
+      <button
+        type="button"
+        class="text-link"
+        [disabled]="saving() || busy()"
+        [attr.aria-label]="'הסרת שדה ' + (index + 1)"
+        (click)="removeParameter(index)"
+      >
+        הסרת השדה
+      </button>
+    </fieldset>
+  }
+  <button
+    id="add-parameter"
+    type="button"
+    class="button button-secondary mb-5"
+    [disabled]="saving() || busy() || model().parameters.length >= 16"
+    (click)="addParameter()"
+  >
+    הוספת שדה
+  </button>
+  <div class="field">
+    <label for="count-binding">שדה שקובע את מספר השאלות</label>
+    <select id="count-binding" [formField]="fields.questionCountParameter">
+      <option value="">לפי ההנחיות הקבועות</option>
+      @for (parameter of model().parameters; track parameter.id) {
+        @if (parameter.type === 'integer' && parameter.key) {
+          <option [value]="parameter.key">{{ parameter.label || parameter.key }}</option>
+        }
+      }
+    </select>
+    <p class="text-sm text-muted">
+      כשמקשרים שדה, הוא חייב להיות נדרש ובטווח 1–20. השרת יוודא שהתקבל מספר השאלות שנבחר.
+    </p>
+  </div>
+  <button class="button" type="submit" [disabled]="saving() || busy()">
+    {{ saving() ? 'שומרים…' : existing() ? 'פרסום גרסה חדשה' : 'שמירת התבנית' }}
+  </button>
+</form>

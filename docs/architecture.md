@@ -1,164 +1,142 @@
-# How the application fits together
+# Application architecture
 
-There are two programs during development, and one process after publishing.
-Angular serves the UI; ASP.NET Core 8 handles cookies, validation and persistence. In a
-published build ASP.NET also serves Angular. SQLite is an embedded database file.
+Family Learning is an AI-first parent authoring app. Parents describe ideas, review
+reusable blueprints and generate tasks with new parameter choices. Every subject follows
+the same path. There are no arithmetic generators, static authoring modes or seeded tasks.
+
+During development Angular and ASP.NET run separately with a same-origin API proxy.
+After publishing, one ASP.NET process serves the API and Angular assets. SQLite stores
+Identity and family learning data. One production backend project keeps feature boundaries
+clear without repository, mediator or unit-of-work wrappers.
 
 ```text
 frontend/src/app/
-  core/             Auth, HTTP contracts, API client, errors
-  features/         Parent sign-in, template authoring/revisions, draft creation/preview
-  dynamic-form/     Four parameter types rendered from server metadata
+  core/                       Authentication, API contracts and error feedback
+  features/templates/         Prompt authoring, blueprint review, revisions, library
+  features/instances/         Dynamic choices and frozen parent previews
+  dynamic-form/               Metadata-driven text, integer, select and boolean inputs
 
 backend/FamilyLearning.Api/
-  Features/         HTTP endpoints, DTOs and feature entities
-  TaskEngine/       Plain models, validation and deterministic generation
-  Infrastructure/   Identity, EF Core, JSON snapshots and CSRF
-  Program.cs        Composition and request pipeline
-
-tests/FamilyLearning.Api.Tests/
-  TaskEngine/       Pure validation and generation tests
-  Integration/      Real application + isolated SQLite database
+  Features/                   Authenticated HTTP endpoints and feature entities
+  TaskEngine/Models/          Reusable blueprint and common task content
+  TaskEngine/Validation/      Parameter, blueprint and content rules
+  TaskEngine/Ai/              Two AI operations, versioned prompts and owned schemas
+  Infrastructure/Ai/         OpenRouter registration behind IChatClient
+  Infrastructure/Persistence/ Direct EF Core and explicit snapshot serialization
 ```
 
-## Three different things
-
-A **template** is a stable identity. Its **version** is an immutable blueprint.
-A **task instance** is the exact content created from one version and a set of
-parameters. A future **session** will record what a child did with that instance.
-Do not put children's answers into a template or overwrite generated questions.
+## Two AI operations, one domain
 
 ```text
+POST /api/ai/template-drafts { prompt }
+  → validate prompt bounds
+  → IChatClient + authoring prompt + template JSON schema
+  → strict parse + blueprint validation
+  → return an UNSAVED proposal
+
 POST /api/templates
-  → validate definition
-  → insert template + version 1 in one EF transaction
+  → validate the parent's reviewed definition
+  → insert stable template + immutable version 1 atomically
 
 POST /api/templates/{id}/instances
-  → find the parent's template and its current version
-  → validate parameters and apply defaults
-  → generate arithmetic in C# or copy authored static content
-  → validate the content and answer keys
-  → store parameters + exact content + seed as a Draft
+  → enforce family ownership
+  → pin the current template version
+  → validate choices and resolve defaults
+  → IChatClient + generation prompt + task-content JSON schema
+  → strict parse + content/answer/count validation
+  → save exact parameters, content and generation metadata as Draft
 
 GET /api/instances/{id}
-  → read the saved content (no generation)
+  → enforce family ownership
+  → return the stored snapshot; never call AI
 ```
 
-`TaskTemplate.CurrentVersion` is an EF concurrency token. Publishing a revision
-requires `expectedVersion`; a stale edit gets 409. The unique `(TemplateId, Version)`
-index also prevents duplicate version numbers. A previous instance still references
-its original version. Lists return the most recent 100 items; pagination is a later
-addition before this becomes limiting.
+The AI service has no database or identity dependency. It knows only the blueprint,
+selected parameters, shared schemas and `IChatClient`. OpenRouter is configured at the
+composition boundary. Adding reading, history, science or another subject changes data,
+not the C# code or Angular component tree.
 
-## Why only one backend project?
+`AiSchemas` loads embedded application-owned JSON schemas. `AiPrompts` contains separately
+versioned authoring/generation instructions. Requests use `ChatResponseFormat.ForJsonSchema`
+and strict structured output, not JSON-only prompting. No tool definitions are supplied.
+Responses must finish normally, fit the size bound and deserialize with required members,
+strict numbers, bounded depth and unknown-member rejection. Domain validators then check
+business rules, supported interactions, answers, points and the selected question count.
 
-The application is small. Feature folders provide useful boundaries without six
-assemblies, a mediator or generic repositories. Endpoint handlers directly use
-`LearningDbContext`; the task engine has no EF dependency. Add an abstraction when
-there are real implementations or a meaningful external boundary, such as `IChatClient`.
+OpenRouter defaults to `openrouter/free`; paid model IDs are rejected. Infrastructure
+accepts an explicit `:free` model, with no retry or fallback configuration. The official
+OpenAI-compatible SDK is adapted through Microsoft.Extensions.AI. Its .NET 8-compatible
+packages are pinned in lockfiles; no runtime or SDK upgrade is required.
 
-EF Core 8 owns relationships and transactions; versioned JSON owns dynamic content. JSON
-is serialized explicitly through `StoredJson`, not by exposing EF entities. UTC
-`DateTime` timestamps and integer points keep the SQLite model straightforward.
+## Immutable content and concurrency
 
-On .NET 8, request records mark mandatory JSON properties with `[JsonRequired]`.
-That enforces presence; the validators separately reject explicit nulls and invalid
-values. C# nullable annotations alone do not validate incoming JSON. Strict number
-handling and rejection of unknown properties are configured once in `Program.cs`.
+Schema version 2 is the blueprint contract; template revision numbers are independent.
+Generation instructions hold fixed requirements. `instanceParameters` hold the fields
+a parent chooses each time. An optional `questionCountParameter` identifies a required
+integer field bounded within 1–20; it has no reserved name or subject-specific behavior.
 
-## Authentication and ownership
+A published `TaskTemplateVersion` never changes. Revision publication requires
+`expectedVersion`; EF concurrency and a unique template/version index reject a stale
+writer with 409. The editor retains unsaved changes and only reloads on an explicit action.
+Generation pins a version before awaiting the provider, so concurrent publication cannot
+change the in-flight task's meaning. No DB transaction remains open during the AI call.
 
-ASP.NET Identity hashes passwords, handles lockout and validates the authentication
-cookie. The server issues the `family_id` and `Parent` claims; browser-supplied family
-IDs are never accepted. Every feature query filters by the authenticated family.
-Missing and foreign records both return 404.
+A saved `TaskInstance` is authoritative. It owns parameters, task content and metadata
+(provider, actual returned model, prompt version and UTC timestamp). There is no seed or
+generator registry. Reopening an instance only reads data. The AI-only migration removes
+incompatible prototype templates and their tasks but preserves accounts and families.
+Its data removal cannot be reversed by rolling the migration down.
 
-The authentication cookie is HttpOnly and SameSite Strict, and Secure in Production.
-A separate readable `XSRF-TOKEN` cookie is not an authentication credential: Angular
-copies it into `X-XSRF-TOKEN`, which ASP.NET validates on writes. Sign-in
-refreshes that token after the identity changes. After sign-out, the next login
-obtains a new anonymous token; token refresh cannot prevent leaving private content.
+## Boundaries and failure handling
 
-The parent preview DTO includes correct answers. A future child endpoint **must**
-project a different DTO with no answer keys, and scope access to the authenticated
-child and assigned state. Do not reuse `InstancePreview` for the child player.
+ASP.NET Identity provides parent authentication. All ownership comes from server-issued
+claims, never request IDs. Queries constrain the family before any provider call. Missing
+and foreign items both return 404. CSRF protects writes; authenticated API responses are
+`no-store`. Parent answer keys must never be included in a future child DTO.
 
-## Frontend flow
+The shared AI service permits two concurrent calls per process. A linked 60-second timeout
+and request cancellation reach the provider; the semaphore is released on every exit.
+A family is limited to ten generation requests per minute. SDK retries are disabled;
+users explicitly retry. Invalid output saves nothing and returns safe ProblemDetails.
+Raw provider messages are neither returned nor logged. Logs hold diagnostic metadata only.
+Only learning prompts/blueprints/parameters enter provider messages, not user or family IDs.
 
-Routes are lazy. `Auth` owns only the current parent; it never stores credentials or
-authentication tokens in local storage. `LearningApi` groups the few HTTP operations.
-Components use signals for local state and resources for reads, without a global store.
+If no API key exists, `/api/ai/status` reports that AI is unconfigured without contacting
+OpenRouter. The prompt screen shows this state. Reading saved content and editing existing
+blueprints do not depend on provider availability. There is no production mock or fallback.
 
-The template editor routes to one reusable Signal Form for creation and revision.
-It offers generated arithmetic or parent-authored content. A question-fields component
-renders numeric, text and choice authoring controls; feature-local helpers convert
-editor state to wire definitions while preserving IDs and existing math metadata.
-Revision publication includes the version originally loaded. A 409 keeps the local
-form; reloading the latest version is an explicit action that discards local edits.
+## Angular workflow
 
-The next screen uses `ParameterForm` to render the blueprint's parameters. Static
-templates have an empty parameter list and copy their fixed content. Browser
-validation improves feedback; the server always validates again.
-For optional numeric fields, the form keeps input text until submission so that an
-empty field does not accidentally turn into zero.
+Routes are lazy, standalone and guarded. Signals own local state; resources load data.
+`AiTemplateAuthor` owns the prompt and transient proposal. `AiTemplateForm` owns a copy of
+instructions and parameter metadata, using Signal Forms. A feature-local converter keeps
+empty numeric inputs distinct from zero and emits only the public contract after validation.
+Save, regenerate and cancel are explicit actions. Pending requests disable conflicting edits.
 
-The UI is Hebrew-only with document-level RTL and Angular's `he-IL` locale.
-Tailwind CSS 4 handles presentation; Ionic remains the application shell. The
-[UI guide](ui-guide.md) documents styling, mixed-direction content and accessibility.
-A small display helper translates only known legacy system labels and generated-math instructions;
-immutable snapshots, arbitrary authored content and API enum values stay unchanged.
+`ParameterForm` renders all four field types directly from the blueprint's labels/options.
+The parent preview renders the shared content schema, with plain text, optional choice lists
+and answer disclosures. There are no subject-specific labels, operation controls or
+conditional math rendering. Future child interaction can use the same content shape with
+answers removed server-side.
 
-## Generation and content contracts
+The interface is Hebrew and RTL, with logical spacing, locally bundled Heebo, isolated
+numeric/email directions, native labels and keyboard focus. See [ui-guide.md](ui-guide.md).
+Templates render text through Angular interpolation, never generated HTML.
 
-`GenerationDefinition` retains the original `mode`, `generator`, `fixedSettings`
-JSON shape for deterministic templates. Static mode supplies `content` instead.
-Mode validation rejects conflicting fields. Nullable fields are omitted when writing;
-explicit nulls never bypass mode/content validation. This envelope preserves existing
-clients' freedom to order JSON fields without a metadata-first polymorphic contract.
+## Verification and limits
 
-`TaskGenerator` dispatches to `math-v1` or returns the authored content for snapshot
-serialization. Multiplication retains its original ranges and seeded algorithm.
-Addition/subtraction use operands up to 10/50/100; subtraction orders the operands.
-Division uses factors up to 5/10/12 and constructs an exactly divisible dividend.
+`scripts/verify.sh` restores locked dependencies, builds, tests, checks XML documentation,
+formats and builds Angular. HTTP tests use a unique SQLite database and scripted IChatClient.
+The isolated browser harness runs a local OpenRouter-compatible HTTP server alongside the
+published app. It checks the actual SDK's schema request, prompt → review → save → repeated
+instances, stale revisions, failures, RTL and narrow layouts. No normal test calls live AI.
 
-`TaskContentValidator` checks plain-text blocks, unique question IDs, supported
-interactions, numeric answers, choice membership, integer points and text/count bounds.
-Required JSON properties distinguish omitted points from deliberately choosing zero.
-Content is limited to 20 questions, four passages and 8,000 aggregate text characters;
-individual limits are in the [authoring design](superpowers/specs/2026-09-28-richer-authoring-design.md).
-No HTML is rendered from authored content and no content data is executed.
+The current app ends at the parent preview. Child profiles, activation, assignment,
+sessions, scoring and reports are future increments. Lists return at most 100 items.
+The PWA caches application assets only; offline task execution is not implemented.
 
-The parent preview includes `generationMode` from the instance's pinned template
-version. That lets the UI format generated equations as LTR while preserving authored
-numeric questions as written. Stored task content is never changed to add display metadata.
-
-## Extension points
-
-- Change the visible wording in a feature's `.html` file.
-- Change theme tokens in `frontend/src/styles.css` and layout utilities in templates.
-- Add a new deterministic generator only alongside its explicit settings, validation,
-  tests and authoring UI. Do not execute code from template data.
-- Keep new generation paths behind the small dispatcher and shared content validator.
-  Preserve existing generator behavior or introduce an explicit new generator version.
-
-## Documentation stays with the contract
-
-Follow the [commenting guide](commenting-guide.md) for C# XML docs and TypeScript JSDoc.
-The declarations explain preconditions, ownership, saved-data guarantees and failure
-behavior; inline comments explain decisions such as transaction boundaries and CSRF
-ordering. Keep these descriptions current when changing a contract, and update both
-backend and frontend documentation when the HTTP shape or semantics change.
-
-## Current limits
-
-The product document is broader than this implementation. The application
-has no child account, session model, scoring API, assignments, AI, reports or public
-registration. Points and answer keys are authored and validated, but scoring execution
-belongs to the forthcoming session workflow.
-The application shell is installable, but offline task execution is not implemented.
-There is no claim that the whole app is deployment-ready.
-
-Framework references: [Angular compatibility](https://angular.dev/reference/versions),
-[Identity configuration](https://learn.microsoft.com/en-us/aspnet/core/security/authentication/identity-configuration?view=aspnetcore-8.0),
-[ASP.NET antiforgery](https://learn.microsoft.com/en-us/aspnet/core/security/anti-request-forgery?view=aspnetcore-8.0),
-and [Ionic 9 changes](https://github.com/ionic-team/ionic-framework/blob/main/BREAKING.md).
+Primary references: [Microsoft IChatClient](https://learn.microsoft.com/en-us/dotnet/ai/ichatclient),
+[structured output in .NET](https://learn.microsoft.com/en-us/dotnet/ai/quickstarts/structured-output),
+[OpenRouter structured outputs](https://openrouter.ai/docs/guides/features/structured-outputs),
+[OpenRouter free router](https://openrouter.ai/docs/guides/routing/routers/free-router),
+[Angular Signal Forms](https://angular.dev/guide/forms/signals/overview).

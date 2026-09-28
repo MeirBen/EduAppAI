@@ -3,12 +3,13 @@ import { Router, RouterLink } from '@angular/router';
 import { LearningApi } from '../../../core/api/learning-api';
 import { apiError } from '../../../core/api/api-error';
 import { TemplateDetail } from '../../../core/api/models';
-import { TemplateForm } from '../template-form/template-form';
+import { AiTemplateForm } from '../ai-template-form/ai-template-form';
+import { AiTemplateAuthor } from '../ai-template-author/ai-template-author';
 
 /** Route container for new templates and explicit publication of an existing template revision. */
 @Component({
   selector: 'app-create-template',
-  imports: [TemplateForm, RouterLink],
+  imports: [AiTemplateForm, AiTemplateAuthor, RouterLink],
   templateUrl: './create-template.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })

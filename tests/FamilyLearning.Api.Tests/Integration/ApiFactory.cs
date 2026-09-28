@@ -5,12 +5,14 @@ using FamilyLearning.Api.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace FamilyLearning.Api.Tests.Integration;
 
 /// <summary>Runs the real application against a unique temporary SQLite database and key directory.</summary>
-public sealed class ApiFactory : WebApplicationFactory<Program>
+public sealed class ApiFactory(Action<IServiceCollection>? configureServices = null) : WebApplicationFactory<Program>
 {
     private readonly string dataDirectory = Path.Combine(Path.GetTempPath(), "family-learning-tests", Guid.NewGuid().ToString());
 
@@ -18,6 +20,13 @@ public sealed class ApiFactory : WebApplicationFactory<Program>
     {
         builder.UseEnvironment("Development");
         builder.UseSetting("Storage:Directory", dataDirectory);
+        // Developer secrets/environment must never enable a real provider in automated tests.
+        builder.UseSetting("Ai:ApiKey", "");
+        builder.UseSetting("OPENROUTER_API_KEY", "");
+        builder.UseSetting("Ai:Model", "openrouter/free");
+        builder.UseSetting("Ai:Endpoint", "https://openrouter.ai/api/v1");
+        builder.ConfigureServices(services => services.RemoveAll<IChatClient>());
+        if (configureServices is not null) builder.ConfigureServices(configureServices);
     }
 
     /// <summary>Provisions a new family and returns a signed-in client with its current CSRF header.</summary>

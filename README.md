@@ -3,32 +3,49 @@
 A small, private family learning app with a working parent authoring workflow.
 The broader destination is described in [the product specification](docs/product-specification.md).
 
-**Works now:** parent sign-in, an initially empty template library, all four arithmetic
-operations, parent-written passages and mixed-question quizzes, template editing with
-immutable revisions, dynamic math parameters, and saved parent previews.
+**Works now:** parent sign-in, an empty library, AI template creation from a parent prompt,
+editable reusable instructions and dynamic fields, explicit publication and immutable
+revisions, generic AI task generation, validation and saved parent previews.
 
-The interface is Hebrew and RTL, with a minimal Tailwind CSS 4 theme and a locally
-bundled Hebrew font. See the [UI guide](docs/ui-guide.md) for styling, localization
-and accessibility conventions.
+The interface is Hebrew and RTL, using native controls and Tailwind theme tokens.
+All subjects use the same AI flow. There are no math-specific or static template modes.
+Child accounts, assignment, sessions, scoring and reports are still future work.
 
-**Next:** child profiles and device activation, assignment, a child task player,
-sessions and scoring, optional AI, and reports.
+## Create a template from your idea
 
-## Create useful templates
+Choose **תבנית חדשה**, describe the learning goal and generate a proposal. Review its
+name, instructions and configurable fields; edit them or regenerate before explicitly
+saving. Then choose values for this use and create a task. For example, reuse one reading
+template with dinosaurs today and space tomorrow, with different difficulty and question
+counts. The generated content and parent answer keys are frozen on save.
 
-Choose **תבנית חדשה** and select a template type:
+Use **עריכת התבנית** to publish a new revision. Existing tasks retain their original
+content. A two-tab editing conflict preserves local edits until you explicitly reload.
+The supported content is plain text passages with numeric, short-text and single-choice
+questions. AI cannot introduce new UI controls or executable code.
 
-- **תרגול חשבון:** choose addition, subtraction, multiplication or exact division.
-  Each new task accepts difficulty and question count. Subtraction stays nonnegative;
-  division produces whole-number answers and never divides by zero.
-- **שאלות וקטעי קריאה:** write optional passages and 1–20 questions. Each question
-  supports a numeric answer, short text or single choice, with an answer key and points.
-  Question order is editable. Creating a task copies this authored content exactly.
+## Connect OpenRouter
 
-Use **עריכת התבנית** to publish a new version. Old tasks keep their original content.
-If another tab publishes first, your unsaved edits remain visible until you choose
-to load the latest version. Previews and answer keys are parent-only; children cannot
-yet receive or complete these drafts. See the [authoring design](docs/superpowers/specs/2026-09-28-richer-authoring-design.md).
+Create an OpenRouter API key in your own account, then run:
+
+```bash
+./scripts/configure-ai.sh
+```
+
+The prompt hides the key and stores it in .NET development user secrets **outside this
+repository**. Restart `scripts/dev.sh` after configuring it. The script does not call AI.
+Alternatively supply `Ai__ApiKey` or `OPENROUTER_API_KEY` through your server's secret
+configuration; production does not load development user secrets.
+
+The default model is `openrouter/free`. You may set `Ai__Model` to a specific `:free`
+model. Paid model IDs are rejected; requests have a 60-second timeout and no automatic
+retries. Free-model availability and output quality vary. The app shows missing
+configuration or generation failures explicitly and never substitutes fake content.
+Read saved tasks without a provider connection. Verify educational correctness in the
+parent preview before use. No live AI calls are part of normal tests.
+
+Provider behavior follows [OpenRouter's free router](https://openrouter.ai/docs/guides/routing/routers/free-router)
+and [structured-output documentation](https://openrouter.ai/docs/guides/features/structured-outputs).
 
 ## Run locally
 
@@ -100,9 +117,9 @@ npx playwright install chromium
 npm run e2e
 ```
 
-It checks Hebrew/RTL and keyboard navigation, creates arithmetic and mixed-content
-templates, reloads frozen drafts, publishes revisions and exercises a two-tab edit
-conflict. Screens are checked at 360px with 200% text size. Screenshots are written
+It uses a test-only local provider to exercise prompt authoring, review, two different
+tasks from one template, frozen previews, revisions, two-tab conflicts and AI failures.
+It also checks Hebrew/RTL and keyboard navigation. Screens are checked at 360px with 200% text size. Screenshots are written
 to `artifacts/`. It never touches your local family data.
 On Linux CI hosts, `npx playwright install --with-deps chromium` also installs browser libraries.
 
@@ -112,8 +129,8 @@ On Linux CI hosts, `npx playwright install --with-deps chromium` also installs b
 2. [Template model](backend/FamilyLearning.Api/TaskEngine/Models/TaskTemplateDefinition.cs)
    — what is fixed and what a parent chooses each time.
 3. [Content validation](backend/FamilyLearning.Api/TaskEngine/Validation/TaskContentValidator.cs)
-   and [task generation](backend/FamilyLearning.Api/TaskEngine/Generators/TaskGenerator.cs)
-   — bounded content checks and a small dispatcher without HTTP or database dependencies.
+   and [AI generation](backend/FamilyLearning.Api/TaskEngine/Ai/AiGenerationService.cs)
+   — bounded content checks and the generic IChatClient integration without database dependencies.
 4. [Create-instance endpoint](backend/FamilyLearning.Api/Features/Instances/InstanceEndpoints.cs)
    — load, validate, generate, freeze, save.
 5. [Dynamic parameter form](frontend/src/app/dynamic-form/parameter-form/parameter-form.ts)
@@ -145,12 +162,13 @@ The EF CLI is pinned to 8.0.31 in `.config/dotnet-tools.json`. To check the mode
 dotnet ef migrations has-pending-model-changes --project backend/FamilyLearning.Api
 ```
 
-The .NET 8 change preserves the initial migration ID, database schema and JSON
-snapshots. Existing databases do not need to be reset. Keep their Data Protection
-keys alongside the database so existing authentication cookies remain readable.
+The AI-only migration removes incompatible prototype learning data (schema version 1)
+and obsolete generator fields. Parent accounts and families remain. Deleted learning
+data cannot be restored by rolling the migration down. New templates use schema version 2.
+Keep Data Protection keys alongside the database so authentication cookies remain readable.
 
-Review each generated migration before applying it. Keep old template JSON compatible;
-`schemaVersion` is the contract version, not the database migration version.
+Review each generated migration before applying it. `schemaVersion` is the JSON contract
+version, independent of template revision and database migration versions.
 
 ## One-process build
 

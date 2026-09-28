@@ -1,7 +1,9 @@
 import { HttpClient } from '@angular/common/http';
-import { inject, Injectable } from '@angular/core';
+import { DestroyRef, inject, Injectable } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { firstValueFrom } from 'rxjs';
 import {
+  AiTemplateDraft,
   InstancePreview,
   InstanceSummary,
   ParameterValues,
@@ -18,6 +20,19 @@ import {
 @Injectable({ providedIn: 'root' })
 export class LearningApi {
   private readonly http = inject(HttpClient);
+
+  /** Reports server configuration without exposing credentials or contacting the provider. */
+  aiStatus() {
+    return firstValueFrom(this.http.get<{ configured: boolean }>('/api/ai/status'));
+  }
+  /** Produces an unsaved proposal; leaving the caller cancels HTTP. Never retry automatically. */
+  authorTemplate(prompt: string, lifetime: DestroyRef) {
+    return firstValueFrom(
+      this.http
+        .post<AiTemplateDraft>('/api/ai/template-drafts', { prompt })
+        .pipe(takeUntilDestroyed(lifetime)),
+    );
+  }
 
   /** Returns up to 100 of the family's most recently created templates. */
   listTemplates() {
@@ -52,11 +67,14 @@ export class LearningApi {
    * Creates a new persisted draft from the template's current version at request time.
    * @param templateId - The stable template ID; the server selects its current published revision.
    * @param parameters - Submitted values; an empty object accepts the template's defaults.
+   * @param lifetime - Cancels the pending request when the owning page is destroyed.
    * @returns The saved preview. Each successful call creates another draft; do not retry automatically.
    */
-  createInstance(templateId: string, parameters: ParameterValues) {
+  createInstance(templateId: string, parameters: ParameterValues, lifetime: DestroyRef) {
     return firstValueFrom(
-      this.http.post<InstancePreview>(`/api/templates/${templateId}/instances`, { parameters }),
+      this.http
+        .post<InstancePreview>(`/api/templates/${templateId}/instances`, { parameters })
+        .pipe(takeUntilDestroyed(lifetime)),
     );
   }
 }

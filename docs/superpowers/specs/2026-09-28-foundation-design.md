@@ -1,3 +1,5 @@
+> Historical increment, superseded by the [AI-only product specification](../../product-specification.md).
+
 # Family Learning foundation
 
 This records the original increment. Current parent authoring also includes the

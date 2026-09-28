@@ -7,14 +7,14 @@ public sealed class TaskInstance
     private TaskInstance() { }
 
     public TaskInstance(Guid familyId, Guid templateVersionId, string title,
-        string parametersJson, string contentJson, int seed)
+        string parametersJson, string contentJson, string generationMetadataJson)
     {
         FamilyId = familyId;
         TemplateVersionId = templateVersionId;
         Title = title;
         ParametersJson = parametersJson;
         ContentJson = contentJson;
-        Seed = seed;
+        GenerationMetadataJson = generationMetadataJson;
     }
 
     public Guid Id { get; private set; } = Guid.NewGuid();
@@ -26,8 +26,7 @@ public sealed class TaskInstance
     /// <summary>The authoritative content snapshot, including answer keys; never regenerate on read.</summary>
     public string ContentJson { get; private set; } = "";
     public string Status { get; private set; } = "Draft";
-    public string GenerationMethod { get; private set; } = "math-v1";
-    /// <summary>Diagnostic generation seed; saved content remains authoritative across code changes.</summary>
-    public int Seed { get; private set; }
+    /// <summary>Provider/model/prompt-version diagnostics for AI generation; never contains prompts or reasoning.</summary>
+    public string? GenerationMetadataJson { get; private set; }
     public DateTime CreatedAtUtc { get; private set; } = DateTime.UtcNow;
 }
