@@ -6,6 +6,8 @@ using Microsoft.EntityFrameworkCore;
 
 namespace FamilyLearning.Api.Infrastructure.Persistence;
 
+/// <summary>Scoped persistence for Identity and learning data in one SQLite database.</summary>
+/// <remarks>No global ownership filter is installed; feature queries must constrain access by family.</remarks>
 public sealed class LearningDbContext(DbContextOptions<LearningDbContext> options)
     : IdentityUserContext<ParentUser>(options)
 {
@@ -14,6 +16,7 @@ public sealed class LearningDbContext(DbContextOptions<LearningDbContext> option
     public DbSet<TaskTemplateVersion> TaskTemplateVersions => Set<TaskTemplateVersion>();
     public DbSet<TaskInstance> TaskInstances => Set<TaskInstance>();
 
+    /// <inheritdoc />
     protected override void OnModelCreating(ModelBuilder model)
     {
         base.OnModelCreating(model);
@@ -22,6 +25,7 @@ public sealed class LearningDbContext(DbContextOptions<LearningDbContext> option
         model.Entity<TaskTemplate>(entity =>
         {
             entity.Property(t => t.Name).HasMaxLength(100);
+            // Reject a stale writer even when both requests passed the initial revision check.
             entity.Property(t => t.CurrentVersion).IsConcurrencyToken();
             entity.HasIndex(t => new { t.FamilyId, t.CreatedAtUtc });
             entity.HasOne<Family>().WithMany().HasForeignKey(t => t.FamilyId).OnDelete(DeleteBehavior.Restrict);

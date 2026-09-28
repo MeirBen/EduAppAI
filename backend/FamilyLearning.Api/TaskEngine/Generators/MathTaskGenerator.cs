@@ -4,9 +4,19 @@ using FamilyLearning.Api.TaskEngine.Models;
 
 namespace FamilyLearning.Api.TaskEngine.Generators;
 
+/// <summary>Generates multiplication content without HTTP, storage or shared random state.</summary>
 public static class MathTaskGenerator
 {
-    // Call only after template and parameter validation. The seed makes failures reproducible.
+    /// <summary>Creates questions and their answer keys from validated inputs.</summary>
+    /// <param name="definition">A blueprint accepted by the template validator.</param>
+    /// <param name="parameters">Resolved values from successful parameter validation, including defaults.</param>
+    /// <param name="seed">Seed for a random sequence local to this call.</param>
+    /// <returns>New content to freeze in an instance before returning it to the parent.</returns>
+    /// <remarks>
+    /// Identical inputs reproduce content for the same generator and runtime implementation.
+    /// Persist the content itself: a seed is diagnostic data, not a cross-version replay contract.
+    /// </remarks>
+    /// <exception cref="ArgumentException">The difficulty is unsupported.</exception>
     public static TaskContent Generate(
         TaskTemplateDefinition definition, IReadOnlyDictionary<string, JsonElement> parameters, int seed)
     {

@@ -9,8 +9,10 @@ using Microsoft.EntityFrameworkCore;
 
 namespace FamilyLearning.Api.Features.Instances;
 
+/// <summary>Parent operations that create frozen drafts and read the family's saved content.</summary>
 public static class InstanceEndpoints
 {
+    /// <summary>Maps authenticated draft routes onto the API group configured with CSRF protection.</summary>
     public static void MapInstanceEndpoints(this RouteGroupBuilder api)
     {
         api.MapPost("/templates/{id:guid}/instances", CreateAsync).RequireAuthorization("Parent");
@@ -36,6 +38,7 @@ public static class InstanceEndpoints
         var template = await db.TaskTemplates.AsNoTracking()
             .SingleOrDefaultAsync(t => t.Id == id && t.FamilyId == user.FamilyId(), ct);
         if (template is null) return Results.NotFound();
+        // Pin the revision we read; concurrent publication cannot change this immutable definition.
         var version = await db.TaskTemplateVersions.AsNoTracking()
             .SingleAsync(v => v.TemplateId == id && v.Version == template.CurrentVersion, ct);
         var definition = StoredJson.Read<TaskTemplateDefinition>(version.DefinitionJson);

@@ -3,12 +3,21 @@ using FamilyLearning.Api.TaskEngine.Models;
 
 namespace FamilyLearning.Api.TaskEngine.Validation;
 
+/// <summary>Resolved values and field errors from one validation pass.</summary>
+/// <param name="Values">Accepted values, including defaults; use only when Errors is empty.</param>
+/// <param name="Errors">Errors keyed by parameter name, suitable for an HTTP validation problem.</param>
 public sealed record ParameterValidationResult(
     Dictionary<string, JsonElement> Values,
     Dictionary<string, string[]> Errors);
 
+/// <summary>Resolves defaults and validates instance values against a published parameter schema.</summary>
 public static class ParameterValidator
 {
+    /// <summary>Validates supplied values without changing the schema or input dictionary.</summary>
+    /// <param name="definitions">Unique parameter definitions accepted by the template validator.</param>
+    /// <param name="supplied">Submitted values; null is invalid, while an empty dictionary requests defaults.</param>
+    /// <returns>Cloned accepted values and any errors. A nonempty error dictionary prevents generation.</returns>
+    /// <remarks>Unknown keys are rejected. Explicit nulls do not fall back to defaults.</remarks>
     public static ParameterValidationResult Validate(
         IReadOnlyList<ParameterDefinition> definitions,
         IReadOnlyDictionary<string, JsonElement>? supplied)
@@ -38,6 +47,7 @@ public static class ParameterValidator
                 }
             }
 
+            // Clone accepted values so the result survives disposal of the caller's JSON document.
             var error = ValidateValue(definition, value);
             if (error is not null) errors[definition.Key] = [error];
             else values.Add(definition.Key, value.Clone());
@@ -46,6 +56,8 @@ public static class ParameterValidator
         return new(values, errors);
     }
 
+    /// <summary>Checks one value; shared with template validation so defaults obey the same rules.</summary>
+    /// <returns>A field error, or null when the value is valid.</returns>
     internal static string? ValidateValue(ParameterDefinition definition, JsonElement value)
     {
         switch (definition.Type)

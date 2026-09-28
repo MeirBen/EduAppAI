@@ -1,6 +1,7 @@
 import { Routes } from '@angular/router';
 import { parentGuard } from './core/auth/parent-guard';
 
+/** Lazy parent routes; route parameter names match component inputs. */
 export const routes: Routes = [
   {
     path: 'login',

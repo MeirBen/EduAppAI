@@ -2,8 +2,10 @@ using Microsoft.AspNetCore.Antiforgery;
 
 namespace FamilyLearning.Api.Infrastructure.Web;
 
+/// <summary>Validates antiforgery tokens for API writes, including anonymous sign-in attempts.</summary>
 public sealed class CsrfFilter(IAntiforgery antiforgery) : IEndpointFilter
 {
+    /// <summary>Passes safe methods through and returns HTTP 400 when a write lacks a valid token.</summary>
     public async ValueTask<object?> InvokeAsync(EndpointFilterInvocationContext context, EndpointFilterDelegate next)
     {
         var method = context.HttpContext.Request.Method;

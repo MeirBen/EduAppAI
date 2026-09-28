@@ -1,6 +1,10 @@
 # Repository guidance
 
 - Read README.md and docs/architecture.md before making structural changes.
+- Follow docs/commenting-guide.md: document meaningful C# contracts with XML docs and
+  TypeScript contracts with JSDoc; explain non-obvious decisions inline.
+- Keep comments accurate in the same change as code. Avoid narrating obvious code,
+  duplicating types, or documenting generated files; preserve XML syntax/reference checks.
 - Keep one production backend project and feature-oriented folders.
 - Use DbContext directly. Do not add repository, unit-of-work or mediator wrappers.
 - Template versions and task content are immutable snapshots; edits publish a version.

@@ -1,11 +1,15 @@
+/** JSON scalar accepted by the parameter form; the server validates its type and bounds. */
 export type ParameterValue = string | number | boolean;
+/** Values keyed by case-sensitive schema keys. Omitted keys allow server defaults. */
 export type ParameterValues = Record<string, ParameterValue>;
 
+/** Field metadata shared with the backend's ParameterDefinition contract. */
 export interface ParameterDefinition {
   key: string;
   label: string;
   type: 'text' | 'integer' | 'select' | 'boolean';
   required?: boolean;
+  /** Used when a submitted key is omitted; a missing or null default means no default. */
   default?: ParameterValue | null;
   min?: number | null;
   max?: number | null;
@@ -13,6 +17,7 @@ export interface ParameterDefinition {
   options?: string[] | null;
 }
 
+/** Published blueprint; schemaVersion describes the JSON format, not the template revision. */
 export interface TemplateDefinition {
   schemaVersion: 1;
   name: string;
@@ -24,6 +29,7 @@ export interface TemplateDefinition {
   };
 }
 
+/** Template list projection; fetch TemplateDetail when the definition is needed. */
 export interface TemplateSummary {
   id: string;
   name: string;
@@ -31,6 +37,7 @@ export interface TemplateSummary {
   createdAtUtc: string;
 }
 
+/** Stable template ID paired with the selected published revision and its definition. */
 export interface TemplateDetail {
   id: string;
   currentVersion: number;
@@ -38,6 +45,7 @@ export interface TemplateDetail {
   definition: TemplateDefinition;
 }
 
+/** Frozen parent-preview content, including answer keys. Never reuse for a child response. */
 export interface TaskContent {
   title: string;
   instructions: string | null;
@@ -54,6 +62,7 @@ export interface TaskContent {
   }[];
 }
 
+/** Saved-task list projection. Only the draft lifecycle is implemented in this increment. */
 export interface InstanceSummary {
   id: string;
   title: string;
@@ -61,7 +70,10 @@ export interface InstanceSummary {
   createdAtUtc: string;
 }
 
-// Parent-only contract. A future child contract must omit answers.
+/**
+ * Parent-only saved snapshot. Reloading it reads stored content without generation.
+ * A future child contract must omit answers and enforce assignment access on the server.
+ */
 export interface InstancePreview extends InstanceSummary {
   templateVersionId: string;
   templateVersion: number;

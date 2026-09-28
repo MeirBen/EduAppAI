@@ -9,6 +9,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace FamilyLearning.Api.Tests.Integration;
 
+/// <summary>Runs the real application against a unique temporary SQLite database and key directory.</summary>
 public sealed class ApiFactory : WebApplicationFactory<Program>
 {
     private readonly string dataDirectory = Path.Combine(Path.GetTempPath(), "family-learning-tests", Guid.NewGuid().ToString());
@@ -19,6 +20,8 @@ public sealed class ApiFactory : WebApplicationFactory<Program>
         builder.UseSetting("Storage:Directory", dataDirectory);
     }
 
+    /// <summary>Provisions a new family and returns a signed-in client with its current CSRF header.</summary>
+    /// <remarks>Each call creates a different family so tests can exercise ownership boundaries.</remarks>
     public async Task<HttpClient> ParentAsync()
     {
         var client = CreateClient(new() { AllowAutoRedirect = false });

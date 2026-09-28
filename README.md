@@ -1,7 +1,7 @@
 # Family Learning
 
 A small, private family learning app. This repository is the first working foundation,
-not the complete product in [the original specification](docs/product-specification.md).
+not the complete product in [the product specification](docs/product-specification.md).
 
 **Works now:** parent sign-in, empty template library, multiplication template creation,
 dynamic task parameters, immutable template versions, and saved draft previews.
@@ -57,6 +57,8 @@ npm --prefix frontend start
 
 This restores locked dependencies, builds .NET, runs SQLite integration/unit tests,
 checks formatting, runs Angular tests, and builds the client. No AI keys are required.
+The API build also generates and validates XML documentation. Review comment accuracy
+using the [commenting guide](docs/commenting-guide.md); formatting cannot verify meaning.
 
 The browser test uses the published application and its own temporary SQLite database:
 
@@ -87,6 +89,8 @@ On Linux CI hosts, `npx playwright install --with-deps chromium` also installs b
    — executable examples of the important contracts.
 
 See [the roadmap](docs/roadmap.md) for the next small increments.
+Before editing, read the [commenting guide](docs/commenting-guide.md) for C# XML docs,
+TypeScript JSDoc, useful inline comments and the review checklist.
 
 ## Database and migrations
 

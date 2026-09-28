@@ -13,6 +13,7 @@ import {
 import { LearningApi } from '../../../core/api/learning-api';
 import { apiError } from '../../../core/api/api-error';
 
+/** Authors the supported multiplication blueprint; defaults remain editable per task instance. */
 @Component({
   selector: 'app-create-template',
   imports: [FormField, RouterLink],

@@ -1,5 +1,10 @@
 import { HttpErrorResponse } from '@angular/common/http';
 
+/**
+ * Converts an unknown failure into plain-text UI feedback.
+ * Uses validation messages for client errors and hides server-error payloads.
+ * Render through Angular text interpolation, never as HTML.
+ */
 export function apiError(error: unknown): string {
   if (!(error instanceof HttpErrorResponse)) return 'Something went wrong. Please try again.';
   if (error.status === 0) return 'Cannot reach the server. Check your connection and try again.';

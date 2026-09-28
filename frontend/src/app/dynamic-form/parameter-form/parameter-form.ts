@@ -2,11 +2,16 @@ import { ChangeDetectionStrategy, Component, input, linkedSignal, output } from 
 import { applyEach, disabled, form, FormField, submit, validate } from '@angular/forms/signals';
 import { ParameterDefinition, ParameterValues } from '../../core/api/models';
 
+/** Numeric input stays as text so an empty optional field cannot silently become zero. */
 interface ParameterEntry {
   text: string;
   checked: boolean;
 }
 
+/**
+ * Renders supported parameter metadata and emits validated values for a parent to submit.
+ * Client validation provides feedback; the API validates every submitted value again.
+ */
 @Component({
   selector: 'app-parameter-form',
   imports: [FormField],
@@ -14,8 +19,11 @@ interface ParameterEntry {
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ParameterForm {
+  /** Replacing the schema resets the form to that schema's defaults. */
   readonly definitions = input.required<ParameterDefinition[]>();
+  /** Disables editing/submission while the parent persists a draft. */
   readonly busy = input(false);
+  /** Emits values only; this component neither calls the API nor creates task content. */
   readonly generated = output<ParameterValues>();
   protected readonly model = linkedSignal(() => ({
     entries: this.definitions().map((definition) => ({
@@ -39,6 +47,7 @@ export class ParameterForm {
     if (this.busy()) return;
     await submit(this.fields, async () => {
       const values: ParameterValues = {};
+      // Omit empty text/numeric fields so the server can apply defaults or required checks.
       this.definitions().forEach((definition, index) => {
         const entry = this.model().entries[index];
         if (definition.type === 'boolean') values[definition.key] = entry.checked;

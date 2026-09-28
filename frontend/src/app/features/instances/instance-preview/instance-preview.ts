@@ -4,6 +4,7 @@ import { RouterLink } from '@angular/router';
 import { LearningApi } from '../../../core/api/learning-api';
 import { apiError } from '../../../core/api/api-error';
 
+/** Read-only parent preview of saved content, including answers; this is not the child player. */
 @Component({
   selector: 'app-instance-preview',
   imports: [RouterLink, DatePipe],
@@ -11,6 +12,7 @@ import { apiError } from '../../../core/api/api-error';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class InstancePreviewPage {
+  /** Bound from the route; changing it reloads the corresponding saved snapshot. */
   readonly instanceId = input.required<string>();
   private readonly api = inject(LearningApi);
   protected readonly instance = resource({

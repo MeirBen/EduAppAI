@@ -23,6 +23,7 @@ builder.Services.AddDbContext<LearningDbContext>(options => options.UseSqlite(
         ForeignKeys = true,
         Pooling = false
     }.ToString()));
+// Persist keys with the database so restarts do not invalidate existing login cookies.
 builder.Services.AddDataProtection().SetApplicationName("FamilyLearning")
     .PersistKeysToFileSystem(new DirectoryInfo(Path.Combine(dataDirectory, "keys")));
 builder.Services.AddParentAuthentication(builder.Environment.IsDevelopment());
@@ -77,9 +78,11 @@ api.MapAuthEndpoints();
 api.MapTemplateEndpoints();
 api.MapInstanceEndpoints();
 app.MapGet("/health", () => Results.Ok(new { status = "ok" }));
+// An unknown API route must remain a 404 instead of returning Angular's HTML fallback.
 app.Map("/api/{**path}", () => Results.NotFound());
 if (File.Exists(Path.Combine(app.Environment.WebRootPath ?? "wwwroot", "index.html")))
     app.MapFallbackToFile("index.html");
 app.Run();
 
+/// <summary>Public host entry point exposed for in-process HTTP integration tests.</summary>
 public partial class Program;

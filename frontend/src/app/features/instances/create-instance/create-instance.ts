@@ -5,6 +5,7 @@ import { apiError } from '../../../core/api/api-error';
 import { ParameterValues } from '../../../core/api/models';
 import { ParameterForm } from '../../../dynamic-form/parameter-form/parameter-form';
 
+/** Collects parameters for the current template and navigates to the newly saved draft. */
 @Component({
   selector: 'app-create-instance',
   imports: [RouterLink, ParameterForm],
@@ -12,6 +13,7 @@ import { ParameterForm } from '../../../dynamic-form/parameter-form/parameter-fo
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class CreateInstance {
+  /** Bound from the route by withComponentInputBinding. */
   readonly templateId = input.required<string>();
   private readonly api = inject(LearningApi);
   private readonly router = inject(Router);

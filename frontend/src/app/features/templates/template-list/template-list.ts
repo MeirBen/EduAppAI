@@ -4,6 +4,7 @@ import { RouterLink } from '@angular/router';
 import { LearningApi } from '../../../core/api/learning-api';
 import { apiError } from '../../../core/api/api-error';
 
+/** Loads the family's templates and drafts together for the parent library. */
 @Component({
   selector: 'app-template-list',
   imports: [RouterLink, DatePipe],

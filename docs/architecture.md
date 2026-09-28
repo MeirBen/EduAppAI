@@ -105,9 +105,17 @@ empty field does not accidentally turn into zero.
 - Add static content next using a separate generation definition and content validator.
   When multiple modes exist, introduce a small generator dispatcher.
 
+## Documentation stays with the contract
+
+Follow the [commenting guide](commenting-guide.md) for C# XML docs and TypeScript JSDoc.
+The declarations explain preconditions, ownership, saved-data guarantees and failure
+behavior; inline comments explain decisions such as transaction boundaries and CSRF
+ordering. Keep these descriptions current when changing a contract, and update both
+backend and frontend documentation when the HTTP shape or semantics change.
+
 ## Limits of this increment
 
-The original product document is broader than this implementation. This foundation
+The product document is broader than this implementation. This foundation
 has no child account, session model, scoring API, assignments, AI, reports or public
 registration. Version creation exists in the API; its visual editor is deferred.
 The application shell is installable, but offline task execution is not implemented.

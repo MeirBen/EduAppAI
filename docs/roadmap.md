@@ -1,8 +1,11 @@
 # Small next steps
 
-Build one complete behavior at a time. Keep the [original specification](product-specification.md)
+Build one complete behavior at a time. Keep the [product specification](product-specification.md)
 as the destination; the current [foundation scope](superpowers/specs/2026-09-28-foundation-design.md)
 is intentionally smaller.
+
+Each increment includes accurate contract documentation and updates to affected specs,
+following the [commenting guide](commenting-guide.md).
 
 1. **Child access.** Add child profiles, expiring device activation codes, revocable
    persistent child cookies and ownership tests. Never expose a parent session on a

@@ -3,8 +3,12 @@ using FamilyLearning.Api.TaskEngine.Models;
 
 namespace FamilyLearning.Api.TaskEngine.Validation;
 
+/// <summary>Checks template structure and the inputs required by the implemented generator.</summary>
 public static partial class TemplateValidator
 {
+    /// <summary>Validates an untrusted blueprint before publication or generation.</summary>
+    /// <param name="definition">The submitted blueprint, including potentially null nested JSON members.</param>
+    /// <returns>Field errors suitable for a validation problem; an empty dictionary means success.</returns>
     public static Dictionary<string, string[]> Validate(TaskTemplateDefinition? definition)
     {
         var errors = new Dictionary<string, string[]>();
@@ -36,6 +40,7 @@ public static partial class TemplateValidator
             if (error is not null) errors[$"instanceParameters[{index}]"] = [error];
         }
 
+        // A structurally valid field list must also satisfy the math generator's input contract.
         var difficulty = parameters.FirstOrDefault(p => p?.Key == "difficulty");
         if (difficulty is not { Type: "select", Required: true, Options.Length: 3 } ||
             !difficulty.Options.ToHashSet(StringComparer.Ordinal).SetEquals(["easy", "medium", "hard"]))

@@ -18,12 +18,13 @@ client consumes explicit DTOs; pure task-engine logic owns validation and genera
 - Parent cookies, CSRF and server-side ownership checks from the first API slice.
 - Dynamic parameters: text, integer, select, boolean; question count 1–20.
 - No AI provider, paid calls, public deployment, or remote repository in this increment.
+- Maintain contract docs and decision comments using the [commenting guide](../../commenting-guide.md).
 
 ## Review Focus
 
 - Missing, null, mistyped, unknown and out-of-range JSON input must produce 400, not 500.
 - Cross-family GUIDs must not expose templates or draft answer keys.
-- Login/logout must refresh the CSRF token after the identity changes.
+- Login refreshes CSRF for the authenticated identity; the next login obtains the anonymous token after logout.
 - Conflicting version publication must not overwrite an earlier definition.
 - Deep-link refreshes must work while unknown `/api` paths remain JSON 404 responses.
 

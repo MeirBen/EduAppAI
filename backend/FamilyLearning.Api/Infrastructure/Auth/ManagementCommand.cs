@@ -3,8 +3,14 @@ using Microsoft.EntityFrameworkCore;
 
 namespace FamilyLearning.Api.Infrastructure.Auth;
 
+/// <summary>Local administrative operations that run without starting the HTTP server.</summary>
 public static class ManagementCommand
 {
+    /// <summary>Applies migrations and, when requested, provisions a parent from console input.</summary>
+    /// <param name="services">The root provider; database and Identity services are resolved in a new scope.</param>
+    /// <param name="arguments">Either --migrate, or --create-parent followed by an email address.</param>
+    /// <returns>Zero on success, or one for invalid arguments or rejected account creation.</returns>
+    /// <remarks>Infrastructure failures propagate to the host. Passwords are read from input, never arguments.</remarks>
     public static async Task<int> RunAsync(IServiceProvider services, string[] arguments)
     {
         if (arguments is not ["--migrate"] and not ["--create-parent", _])

@@ -52,6 +52,12 @@ Use migrations; apply automatically only in Development. Production uses an expl
 
 ## Verification
 
+Maintain meaningful C# XML documentation, TypeScript JSDoc and inline decision comments
+according to the [commenting guide](../../commenting-guide.md). Document caller obligations,
+ownership and failure semantics; avoid boilerplate for obvious members. The API build
+generates XML docs and checks their syntax/references. Comment accuracy and scope remain
+part of review, alongside tests and synchronized backend/frontend contract descriptions.
+
 Real SQLite integration tests cover cookies/CSRF, empty state, validation, cross-family
 isolation, version conflicts, and frozen content after a template update. Unit tests
 cover parameter boundaries and seeded math generation. Client tests exercise the

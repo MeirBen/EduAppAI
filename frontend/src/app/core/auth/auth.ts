@@ -2,20 +2,27 @@ import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { inject, Injectable, signal } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 
+/** Session display data issued by the server; familyId is not an authorization input. */
 interface Parent {
   email: string;
   familyId: string;
 }
 
+/** Owns in-memory parent state; the browser keeps the HttpOnly authentication cookie. */
 @Injectable({ providedIn: 'root' })
 export class Auth {
   private readonly http = inject(HttpClient);
   readonly parent = signal<Parent | null>(null);
 
+  /** Obtains an identity-bound request token that HttpClient sends on same-origin writes. */
   async refreshCsrf(): Promise<void> {
     await firstValueFrom(this.http.get('/api/auth/csrf'));
   }
 
+  /**
+   * Reads the cookie-backed session and refreshes its antiforgery token.
+   * @returns True after session/token refresh, or false for HTTP 401; other failures reject.
+   */
   async loadSession(): Promise<boolean> {
     try {
       this.parent.set(await firstValueFrom(this.http.get<Parent>('/api/auth/me')));
@@ -28,6 +35,7 @@ export class Auth {
     }
   }
 
+  /** Signs in with a CSRF token for the current identity, then reloads state for the new identity. */
   async login(email: string, password: string): Promise<void> {
     await this.refreshCsrf();
     await firstValueFrom(this.http.post('/api/auth/login', { email, password }));
@@ -35,10 +43,11 @@ export class Auth {
     await this.loadSession();
   }
 
+  /** Sends a protected sign-out request and clears local state only after the server accepts it. */
   async logout(): Promise<void> {
     await this.refreshCsrf();
     await firstValueFrom(this.http.post('/api/auth/logout', {}));
     this.parent.set(null);
-    // The next login obtains an anonymous token. A refresh failure must not block sign-out.
+    // Refresh the anonymous token on the next login, not after a successful sign-out.
   }
 }

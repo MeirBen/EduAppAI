@@ -1,10 +1,14 @@
 # Family Learning App
 ## KISS Dynamic Product & Technical Specification
 
-**Version:** 3.0 (backend target updated to .NET 8 on 2026-09-28)
+**Version:** 3.1 (.NET 8 baseline and commenting standards; 2026-09-28)
 **Target:** Private family educational application  
 **Architecture:** Angular/Ionic PWA + ASP.NET Core 8 + EF Core 8 + SQLite + optional AI generation
 **Design principle:** Simple core, highly dynamic content
+
+The [foundation design](superpowers/specs/2026-09-28-foundation-design.md) defines what
+is implemented now. The broader product below remains the destination. All increments
+follow the [commenting and API documentation guide](commenting-guide.md).
 
 ---
 
@@ -3066,3 +3070,26 @@ It is:
 > **Parents create reusable, parameterized educational blueprints. Each blueprint can generate unlimited concrete tasks using the simplest appropriate strategy: static content, deterministic C# logic, or AI.**
 
 That gives the application maximum useful flexibility while keeping the engineering model small, understandable, testable, and maintainable.
+
+---
+
+# 77. Code Documentation and Maintenance
+
+The code must remain understandable to a developer learning and extending this app.
+Use meaningful names and small functions, supported by concise documentation of
+contracts, constraints and decisions.
+
+- Use C# XML documentation for meaningful public contracts and reusable backend logic.
+- Use TypeScript JSDoc for client contracts, shared services and component input/output behavior.
+- Explain validation preconditions, null/default semantics, ownership, answer-key exposure,
+  immutable snapshots, transaction/concurrency obligations and retry behavior where relevant.
+- Use inline comments to explain non-obvious decisions. Do not narrate simple statements,
+  repeat types, add empty comment templates or hand-document generated files.
+- Update affected comments and specifications in the same change as behavior. Clearly
+  distinguish implemented guarantees from roadmap features.
+- Generate C# XML documentation during the build and retain syntax/reference diagnostics.
+  Reviewers verify meaning and useful coverage; automated checks do not establish accuracy.
+
+The [commenting guide](commenting-guide.md) is the authoritative repository convention
+for tags, examples, exceptions and the review checklist. Keep detailed practices there
+instead of duplicating them across specifications.

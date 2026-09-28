@@ -5,14 +5,17 @@ using Microsoft.AspNetCore.Identity;
 
 namespace FamilyLearning.Api.Features.Auth;
 
+/// <summary>Cookie-based parent sign-in, sign-out, session discovery and antiforgery token issuance.</summary>
 public static class AuthEndpoints
 {
+    /// <summary>Maps authentication routes onto the API group configured with CSRF protection.</summary>
     public static void MapAuthEndpoints(this RouteGroupBuilder api)
     {
         var auth = api.MapGroup("/auth");
         auth.MapGet("/csrf", (HttpContext context, IAntiforgery antiforgery, IWebHostEnvironment environment) =>
         {
             var token = antiforgery.GetAndStoreTokens(context).RequestToken!;
+            // Angular reads this request token; the separate authentication cookie stays HttpOnly.
             context.Response.Cookies.Append("XSRF-TOKEN", token, new CookieOptions
             {
                 HttpOnly = false,
@@ -46,6 +49,7 @@ public static class AuthEndpoints
             : Results.Problem(statusCode: 401, title: "Sign-in failed. Check your details or try again later.");
     }
 
+    /// <summary>Transient sign-in credentials; never persist or log this request.</summary>
     public sealed record LoginRequest(
         [property: JsonRequired] string Email,
         [property: JsonRequired] string Password);

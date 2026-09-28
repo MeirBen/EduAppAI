@@ -3,8 +3,13 @@ using Microsoft.AspNetCore.Identity;
 
 namespace FamilyLearning.Api.Infrastructure.Auth;
 
+/// <summary>Configures Identity, parent authorization and same-origin cookie/antiforgery behavior.</summary>
 public static class AuthConfiguration
 {
+    /// <summary>Registers the services used by parent endpoints and local account provisioning.</summary>
+    /// <param name="services">The application's dependency injection registrations.</param>
+    /// <param name="development">Allows HTTP cookies for local development; other environments require HTTPS.</param>
+    /// <returns>The supplied service collection.</returns>
     public static IServiceCollection AddParentAuthentication(this IServiceCollection services, bool development)
     {
         services.AddIdentityCore<ParentUser>(options =>
@@ -26,6 +31,7 @@ public static class AuthConfiguration
             options.Cookie.SecurePolicy = development ? CookieSecurePolicy.SameAsRequest : CookieSecurePolicy.Always;
             options.ExpireTimeSpan = TimeSpan.FromHours(8);
             options.SlidingExpiration = true;
+            // API clients need status codes, not Identity's default HTML redirects.
             options.Events.OnRedirectToLogin = context => { context.Response.StatusCode = 401; return Task.CompletedTask; };
             options.Events.OnRedirectToAccessDenied = context => { context.Response.StatusCode = 403; return Task.CompletedTask; };
         });

@@ -8,8 +8,10 @@ using Microsoft.EntityFrameworkCore;
 
 namespace FamilyLearning.Api.Features.Templates;
 
+/// <summary>Parent operations for family-owned templates and immutable published revisions.</summary>
 public static class TemplateEndpoints
 {
+    /// <summary>Maps authenticated template routes onto the API group configured with CSRF protection.</summary>
     public static void MapTemplateEndpoints(this RouteGroupBuilder api)
     {
         var templates = api.MapGroup("/templates").RequireAuthorization("Parent");
@@ -24,6 +26,7 @@ public static class TemplateEndpoints
 
     private static async Task<IResult> GetAsync(Guid id, ClaimsPrincipal user, LearningDbContext db, CancellationToken ct)
     {
+        // One ownership-scoped lookup gives missing and foreign IDs the same 404 response.
         var template = await db.TaskTemplates.AsNoTracking().SingleOrDefaultAsync(t => t.Id == id && t.FamilyId == user.FamilyId(), ct);
         if (template is null) return Results.NotFound();
         var version = await db.TaskTemplateVersions.AsNoTracking()
@@ -41,6 +44,7 @@ public static class TemplateEndpoints
         var version = new TaskTemplateVersion(template.Id, 1, StoredJson.Write(definition));
         db.TaskTemplates.Add(template);
         db.TaskTemplateVersions.Add(version);
+        // One SaveChanges transaction prevents a template from existing without its first revision.
         await db.SaveChangesAsync(ct);
         return Results.Created($"/api/templates/{template.Id}", TemplateDetail.From(template, version));
     }
@@ -59,6 +63,7 @@ public static class TemplateEndpoints
         db.TaskTemplateVersions.Add(version);
         try
         {
+            // Persist the pointer and snapshot atomically; EF also checks the concurrency token.
             await db.SaveChangesAsync(ct);
         }
         catch (DbUpdateConcurrencyException) { return VersionConflict(); }
