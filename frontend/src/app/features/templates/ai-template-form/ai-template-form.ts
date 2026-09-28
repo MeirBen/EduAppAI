@@ -21,11 +21,12 @@ import {
   aiTemplateErrors,
   blankParameter,
 } from './ai-template-draft';
+import { LoadingIndicator } from '../../../shared/loading-indicator/loading-indicator';
 
 /** Reviews AI instructions and dynamic fields before explicit publication; failures retain local edits. */
 @Component({
   selector: 'app-ai-template-form',
-  imports: [FormField],
+  imports: [LoadingIndicator, FormField],
   templateUrl: './ai-template-form.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })

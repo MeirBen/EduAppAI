@@ -1,14 +1,13 @@
 <a class="text-link mb-6" routerLink="/templates"
   ><span aria-hidden="true">→</span> חזרה למרחב שלנו</a
 >
-@if (template.isLoading()) {
-  <p role="status" class="panel">טוענים את התבנית…</p>
-} @else if (template.error()) {
+<app-loading-indicator [active]="template.isLoading()" variant="panel" label="טוענים את התבנית…" />
+@if (!template.isLoading() && template.error()) {
   <div class="error" role="alert">
     <p>{{ apiError(template.error()) }}</p>
     <button class="button mt-4" (click)="template.reload()">ניסיון נוסף</button>
   </div>
-} @else if (template.hasValue()) {
+} @else if (!template.isLoading() && template.hasValue()) {
   <header class="mb-8 flex flex-wrap items-center justify-between gap-5">
     <div>
       <p class="mb-3 text-sm font-medium text-brand">מהרעיון למשימה חדשה</p>
@@ -36,9 +35,13 @@
         [busy]="busy()"
         (generated)="generate($event)"
       />
-      @if (busy()) {
-        <p class="mt-4 text-muted" role="status">יוצרים ובודקים את התוכן. זה עשוי לקחת כמה דקות.</p>
-      }
+      <app-loading-indicator
+        class="mt-5"
+        [active]="busy()"
+        variant="panel"
+        label="יוצרים את התרגול שלכם…"
+        detail="יוצרים ובודקים את התוכן. זה עשוי לקחת כמה דקות."
+      />
     </section>
     <aside class="rounded-2xl bg-soft p-6 sm:p-8" aria-labelledby="generation-title">
       <p class="mb-3 text-sm font-medium text-brand">התבנית שלכם</p>

@@ -2,17 +2,18 @@ import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/cor
 import { Router, RouterLink, RouterOutlet } from '@angular/router';
 import { Auth } from './core/auth/auth';
 import { apiError } from './core/api/api-error';
+import { LoadingIndicator } from './shared/loading-indicator/loading-indicator';
 
 /** Application shell with session-aware navigation and explicit sign-out feedback. */
 @Component({
   selector: 'app-root',
-  imports: [RouterOutlet, RouterLink],
+  imports: [LoadingIndicator, RouterOutlet, RouterLink],
   templateUrl: './app.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class App {
   protected readonly auth = inject(Auth);
-  private readonly router = inject(Router);
+  protected readonly router = inject(Router);
   protected readonly error = signal('');
   protected readonly signingOut = signal(false);
 

@@ -1,9 +1,23 @@
 import { createServer } from 'node:http';
 import { once } from 'node:events';
+import { readFile } from 'node:fs/promises';
 import assert from 'node:assert/strict';
 
 /** Test-only OpenRouter-compatible transport. Never imported by production code. */
 export async function startAiProvider() {
+  const [templateSchema, contentSchema] = await Promise.all(
+    ['template', 'content'].map(async (name) =>
+      JSON.parse(
+        await readFile(
+          new URL(
+            `../../backend/FamilyLearning.Api/TaskEngine/Ai/${name}.schema.json`,
+            import.meta.url,
+          ),
+          'utf8',
+        ),
+      ),
+    ),
+  );
   let sequence = 0;
   const server = createServer(async (request, response) => {
     if (request.url !== '/chat/completions' || request.method !== 'POST') {
@@ -15,16 +29,29 @@ export async function startAiProvider() {
     const input = JSON.parse(body);
     assert.equal(input.model, 'openrouter/free');
     assert.deepEqual(input.reasoning, { effort: 'low', exclude: true });
+    assert.deepEqual(input.provider, { require_parameters: true });
     assert.equal(input.response_format.type, 'json_schema');
     assert.equal(input.response_format.json_schema.strict, true);
     assert.equal(input.response_format.json_schema.schema.additionalProperties, false);
     assert.equal(input.tools, undefined);
     assert.equal(input.messages.length, 2);
+    const schemaText = input.messages[0].content.split('\nOutput JSON schema:\n')[1];
+    assert.ok(
+      schemaText,
+      'The model must see the schema as well as the response-format constraint',
+    );
+    // The SDK adapts strict response-format constraints; prompt context must retain the full schema.
+    assert.deepEqual(
+      JSON.parse(schemaText),
+      input.response_format.json_schema.name === 'template_authoring_v2'
+        ? templateSchema
+        : contentSchema,
+    );
     const user = input.messages[1].content;
     assert.ok(!user.includes('browser@example.test'));
     sequence++;
     let result;
-    if (input.response_format.json_schema.name === 'template_authoring_v1') {
+    if (input.response_format.json_schema.name === 'template_authoring_v2') {
       result = {
         schemaVersion: 2,
         name: 'חוקרים וקוראים',
@@ -69,7 +96,7 @@ export async function startAiProvider() {
         },
       };
     } else {
-      assert.equal(input.response_format.json_schema.name, 'instance_generation_v1');
+      assert.equal(input.response_format.json_schema.name, 'instance_generation_v2');
       const { parameters, expectedQuestionCount } = JSON.parse(user);
       result = {
         title: `לומדים על ${parameters.theme}`,

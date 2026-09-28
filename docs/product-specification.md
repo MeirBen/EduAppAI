@@ -84,8 +84,8 @@ Parents review educational correctness and age suitability.
 
 OpenRouter uses `openrouter/free` or an explicit `:free` model. No paid calls or
 automatic retries. Send only learning inputs; do not add account IDs, emails or
-credentials. Logs contain generation metadata, not prompts, answers or raw
-errors.
+credentials. Logs contain generation metadata, elapsed time and reported token
+counts, not prompts, answers, reasoning text or raw errors.
 
 The server enforces family ownership and CSRF. Publication is atomic and detects
 concurrent edits. Generation pins its revision before contacting AI. Parent

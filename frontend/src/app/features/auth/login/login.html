@@ -65,6 +65,11 @@
         {{ fields().submitting() ? 'מתחברים…' : 'כניסה למרחב שלנו' }}
       </button>
     </form>
+    <app-loading-indicator
+      class="mt-4"
+      [active]="fields().submitting()"
+      label="מתחברים למרחב שלכם…"
+    />
     <p class="mt-6 border-t border-line pt-5 text-sm text-muted">
       מרחב פרטי ליצירת תרגול אישי ולשמירת רעיונות ללמידה.
     </p>

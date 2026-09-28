@@ -4,14 +4,17 @@
     תארו במילים שלכם את הרעיון, גיל הלומדים ומה תרצו לתרגל. ה־AI יבנה תבנית שתוכלו להתאים ולהשתמש בה
     שוב.
   </p>
-  @if (status.isLoading()) {
-    <p role="status" class="mb-4 text-muted">בודקים את החיבור לשירות היצירה…</p>
-  } @else if (status.error()) {
+  <app-loading-indicator
+    class="mb-4"
+    [active]="status.isLoading()"
+    label="בודקים את החיבור לשירות היצירה…"
+  />
+  @if (!status.isLoading() && status.error()) {
     <div class="error mb-4" role="alert">
       <p>לא הצלחנו לבדוק את החיבור לשירות.</p>
       <button class="text-link mt-3" type="button" (click)="status.reload()">בדיקה נוספת</button>
     </div>
-  } @else if (!configured()) {
+  } @else if (!status.isLoading() && !configured()) {
     <div class="rounded-xl border border-line bg-soft p-4 mb-5" role="status">
       <p>שירות ה־AI עדיין לא מחובר. אחרי חיבור OpenRouter תוכלו ליצור תבניות מהרעיון שלכם.</p>
       <button class="text-link mt-3" type="button" (click)="status.reload()">
@@ -51,12 +54,14 @@
   <button class="button" type="submit" [disabled]="busy() || publishing() || !configured()">
     {{ busy() ? 'בונים את התבנית…' : draft() ? 'יצירת הצעה חדשה' : 'יצירת תבנית בעזרת AI' }}
   </button>
-  @if (busy()) {
-    <p class="mt-4 text-sm text-muted" role="status">
-      זה עשוי לקחת כמה דקות. הרעיון שלכם יישאר כאן גם אם היצירה לא תושלם.
-    </p>
-  }
 </form>
+<app-loading-indicator
+  class="mb-6"
+  [active]="busy()"
+  variant="panel"
+  label="בונים את התבנית שלכם…"
+  detail="זה עשוי לקחת כמה דקות. הרעיון שלכם יישאר כאן גם אם היצירה לא תושלם."
+/>
 @if (draft(); as proposal) {
   <app-ai-template-form
     [definition]="proposal.definition"

@@ -8,14 +8,17 @@
 </header>
 <div class="grid items-start gap-6 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
   <div class="min-w-0">
-    @if (templateId() && template.isLoading()) {
-      <p class="panel" role="status">טוענים את התבנית לעריכה…</p>
-    } @else if (templateId() && template.error()) {
+    <app-loading-indicator
+      [active]="!!templateId() && template.isLoading()"
+      variant="panel"
+      label="טוענים את התבנית לעריכה…"
+    />
+    @if (!template.isLoading() && templateId() && template.error()) {
       <div class="error" role="alert">
         <p>{{ apiError(template.error()) }}</p>
         <button class="button mt-4" (click)="template.reload()">ניסיון נוסף</button>
       </div>
-    } @else if (template.hasValue()) {
+    } @else if (!template.isLoading() && template.hasValue()) {
       <app-ai-template-form
         [definition]="template.value().definition"
         [existing]="template.value()"

@@ -3,11 +3,12 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { email, form, FormField, required, submit } from '@angular/forms/signals';
 import { Auth } from '../../../core/auth/auth';
 import { apiError } from '../../../core/api/api-error';
+import { LoadingIndicator } from '../../../shared/loading-indicator/loading-indicator';
 
 /** Parent sign-in form with local feedback and navigation after cookie authentication. */
 @Component({
   selector: 'app-login',
-  imports: [FormField],
+  imports: [LoadingIndicator, FormField],
   templateUrl: './login.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })

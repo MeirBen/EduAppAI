@@ -1,4 +1,5 @@
 using System.ClientModel;
+using System.Diagnostics;
 using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -58,10 +59,13 @@ public sealed class AiGenerationService(IEnumerable<IChatClient> clients, ILogge
         if (!await capacity.WaitAsync(0, ct)) throw new AiGenerationException(503, "שירות היצירה עסוק כרגע. אפשר לנסות שוב בעוד רגע.");
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
         timeout.CancelAfter(requestTimeout);
+        var started = Stopwatch.GetTimestamp();
         try
         {
+            // Keep the model-visible contract and output constraint sourced from the same schema.
+            var instructions = $"{systemPrompt}\nOutput JSON schema:\n{JsonSerializer.Serialize(schema, Json)}";
             var response = await client.GetResponseAsync(
-                [new ChatMessage(ChatRole.System, systemPrompt), new ChatMessage(ChatRole.User, input)],
+                [new ChatMessage(ChatRole.System, instructions), new ChatMessage(ChatRole.User, input)],
                 new ChatOptions
                 {
                     ResponseFormat = ChatResponseFormat.ForJsonSchema(schema, promptVersion.Replace('-', '_')),
@@ -72,8 +76,12 @@ public sealed class AiGenerationService(IEnumerable<IChatClient> clients, ILogge
                 throw AiGenerationException.InvalidOutput();
             var value = JsonSerializer.Deserialize<T>(response.Text, Json) ?? throw AiGenerationException.InvalidOutput();
             var metadata = new GenerationMetadata("OpenRouter", response.ModelId ?? "unknown", promptVersion, DateTime.UtcNow);
-            logger.LogInformation("AI response: provider {Provider}, model {Model}, prompt version {PromptVersion}, generated {GeneratedAtUtc}",
-                metadata.Provider, metadata.Model, metadata.PromptVersion, metadata.GeneratedAtUtc);
+            logger.LogInformation(
+                "AI response: provider {Provider}, model {Model}, prompt version {PromptVersion}, generated {GeneratedAtUtc}, " +
+                "elapsed {ElapsedMilliseconds} ms, input tokens {InputTokens}, output tokens {OutputTokens}, reasoning tokens {ReasoningTokens}",
+                metadata.Provider, metadata.Model, metadata.PromptVersion, metadata.GeneratedAtUtc,
+                Stopwatch.GetElapsedTime(started).TotalMilliseconds, response.Usage?.InputTokenCount,
+                response.Usage?.OutputTokenCount, response.Usage?.ReasoningTokenCount);
             return new(value, metadata);
         }
         catch (JsonException) { throw AiGenerationException.InvalidOutput(); }

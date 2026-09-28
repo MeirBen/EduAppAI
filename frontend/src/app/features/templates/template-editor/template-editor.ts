@@ -5,11 +5,12 @@ import { apiError } from '../../../core/api/api-error';
 import { TemplateDetail } from '../../../core/api/models';
 import { AiTemplateForm } from '../ai-template-form/ai-template-form';
 import { AiTemplateAuthor } from '../ai-template-author/ai-template-author';
+import { LoadingIndicator } from '../../../shared/loading-indicator/loading-indicator';
 
 /** Route container for new templates and explicit publication of an existing template revision. */
 @Component({
   selector: 'app-template-editor',
-  imports: [AiTemplateForm, AiTemplateAuthor, RouterLink],
+  imports: [LoadingIndicator, AiTemplateForm, AiTemplateAuthor, RouterLink],
   templateUrl: './template-editor.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })

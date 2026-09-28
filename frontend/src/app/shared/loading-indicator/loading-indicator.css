@@ -1,0 +1,67 @@
+:host {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-inline-size: 0;
+}
+
+/* An empty live region stays mounted without retaining the caller's spacing. */
+:host(.loading-idle) {
+  margin: 0;
+}
+
+:host(.loading-panel) {
+  flex-wrap: wrap;
+  gap: 1rem;
+  padding: 1.25rem;
+  border: 1px solid var(--color-line);
+  border-radius: 1rem;
+  background: linear-gradient(120deg, var(--color-soft), var(--color-surface));
+}
+
+:host(.loading-panel) .loading-copy {
+  min-inline-size: min(100%, 12rem);
+}
+
+.loader-mark {
+  position: relative;
+  display: grid;
+  place-items: center;
+  flex: none;
+  inline-size: var(--loader-size, 1.5rem);
+  block-size: var(--loader-size, 1.5rem);
+  color: var(--loader-color, var(--color-brand));
+}
+
+:host(.loading-panel) .loader-mark {
+  inline-size: var(--loader-size, 3rem);
+  block-size: var(--loader-size, 3rem);
+}
+
+.loader-mark svg {
+  inline-size: 45%;
+  block-size: 45%;
+}
+
+.loader-mark::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border: 0.125rem solid color-mix(in srgb, currentColor 15%, transparent);
+  border-block-start-color: currentColor;
+  border-inline-end-color: color-mix(in srgb, currentColor 55%, transparent);
+  border-radius: 50%;
+  animation: loader-orbit var(--loader-duration, 1.6s) linear infinite;
+}
+
+@keyframes loader-orbit {
+  to {
+    transform: rotate(1turn);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .loader-mark::before {
+    animation: none;
+  }
+}

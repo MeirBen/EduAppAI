@@ -3,11 +3,12 @@ import { DatePipe } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { LearningApi } from '../../../core/api/learning-api';
 import { apiError } from '../../../core/api/api-error';
+import { LoadingIndicator } from '../../../shared/loading-indicator/loading-indicator';
 
 /** Displays a saved task and parent-only answers without regeneration. */
 @Component({
   selector: 'app-instance-preview',
-  imports: [RouterLink, DatePipe],
+  imports: [LoadingIndicator, RouterLink, DatePipe],
   templateUrl: './instance-preview.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })

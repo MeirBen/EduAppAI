@@ -31,6 +31,31 @@ interpolation, never HTML. Parameter labels/options come from the reviewed
 template; no reserved subject names or translation tables. Never rewrite saved
 content for presentation.
 
+## Loading
+
+Keep the shared `LoadingIndicator` mounted outside `aria-busy` containers, with
+`active` bound to the request's pending state. Its empty live region exists before
+the status changes; the animation and text disappear on completion or failure.
+Use `variant="panel"` for page loads and long AI calls, or the default inline
+variant for shorter actions. Set `label` and optional `detail` for the operation;
+avoid invented progress percentages or generation stages.
+
+Customize the animation through CSS properties on the component or an ancestor:
+`--loader-color` (brand by default), `--loader-size` (1.5rem inline, 3rem panel)
+and `--loader-duration` (1.6s). For example:
+
+```html
+<app-loading-indicator
+  [active]="busy()"
+  variant="panel"
+  label="יוצרים את התרגול שלכם…"
+  detail="זה עשוי לקחת כמה דקות."
+  style="--loader-size: 3.5rem; --loader-duration: 2s"
+/>
+```
+
+The decorative animation respects reduced motion; readable status remains.
+
 ## Check
 
 Follow the [verification commands](../README.md#verify). The isolated browser

@@ -177,3 +177,4 @@
     {{ saving() ? 'שומרים…' : existing() ? 'פרסום גרסה חדשה' : 'שמירת התבנית' }}
   </button>
 </form>
+<app-loading-indicator class="mt-4" [active]="saving()" label="שומרים את התבנית…" />

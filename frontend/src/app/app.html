@@ -55,6 +55,11 @@
   @if (error()) {
     <p class="error" role="alert">{{ error() }}</p>
   }
+  <app-loading-indicator
+    class="mb-6"
+    [active]="signingOut() || !!router.currentNavigation()"
+    [label]="signingOut() ? 'מתנתקים מהחשבון…' : 'פותחים את המרחב…'"
+  />
   <router-outlet />
 </main>
 <footer class="mx-auto max-w-6xl border-t border-line px-5 py-6 text-sm text-muted sm:px-8">

@@ -41,7 +41,8 @@ public sealed class AiAuthoringTests
         Assert.Equal(3, chat.Requests.Count);
         Assert.All(chat.Requests, request =>
         {
-            Assert.IsType<ChatResponseFormatJson>(request.Options!.ResponseFormat);
+            var format = Assert.IsType<ChatResponseFormatJson>(request.Options!.ResponseFormat);
+            Assert.Contains(JsonSerializer.Serialize(format.Schema), request.Input);
             Assert.Null(request.Options.Tools);
             Assert.DoesNotContain("@example.test", request.Input);
             Assert.DoesNotContain("familyId", request.Input);
@@ -95,6 +96,21 @@ public sealed class AiAuthoringTests
         Assert.False(status.GetProperty("configured").GetBoolean());
         Assert.Equal(HttpStatusCode.ServiceUnavailable, (await parent.PostAsJsonAsync("/api/ai/template-drafts", new { prompt = "מדעים" })).StatusCode);
         Assert.Equal(HttpStatusCode.Created, (await parent.PostAsJsonAsync("/api/templates", Definition())).StatusCode);
+    }
+
+    [Fact]
+    public async Task Authoring_rejects_invented_top_level_fields_without_saving_a_template()
+    {
+        var proposal = Definition();
+        proposal["labels"] = new System.Text.Json.Nodes.JsonObject { ["topicLabel"] = "נושא" };
+        var chat = new ScriptedChat(proposal.ToJsonString());
+        using var app = new ApiFactory(services => services.AddSingleton<IChatClient>(chat));
+        using var parent = await app.ParentAsync();
+
+        using var response = await parent.PostAsJsonAsync("/api/ai/template-drafts", new { prompt = "תבנית ללמידה" });
+        Assert.Equal(HttpStatusCode.BadGateway, response.StatusCode);
+        Assert.Equal(0, (await parent.GetFromJsonAsync<JsonElement>("/api/templates")).GetArrayLength());
+        Assert.Single(chat.Requests);
     }
 
     [Theory]

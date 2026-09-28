@@ -12,13 +12,14 @@ import { DatePipe } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { LearningApi } from '../../core/api/learning-api';
 import { apiError } from '../../core/api/api-error';
+import { LoadingIndicator } from '../../shared/loading-indicator/loading-indicator';
 
 type Removal = { kind: 'template' | 'instance' | 'library'; id: string; name: string };
 
 /** Family library with explicit confirmation before permanent content deletion. */
 @Component({
   selector: 'app-library',
-  imports: [RouterLink, DatePipe],
+  imports: [LoadingIndicator, RouterLink, DatePipe],
   templateUrl: './library.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })

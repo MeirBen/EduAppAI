@@ -18,6 +18,7 @@ internal sealed class OpenRouterChatClient(ChatClient client) : DelegatingChatCl
             // exclude only keeps reasoning out of the response, it does not limit computation.
 #pragma warning disable SCME0001 // The SDK's JSON extension point carries OpenRouter-specific parameters.
             request.Patch.Set("$.reasoning"u8, BinaryData.FromString("""{"effort":"low","exclude":true}"""));
+            request.Patch.Set("$.provider"u8, BinaryData.FromString("""{"require_parameters":true}"""));
 #pragma warning restore SCME0001
             return request;
         };

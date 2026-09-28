@@ -38,10 +38,20 @@ explicitly allow anonymous requests. Add endpoints to this group.
 
 `AiGenerationService` calls `IChatClient` and has no identity or database
 access. `AiPrompts` versions authoring/generation instructions; `AiSchemas`
-loads embedded JSON schemas. Requests use strict structured output without
-tools. Responses must finish normally and pass size/depth, required-member,
-unknown-field, numeric and domain validation before persistence. OpenRouter
-registration stays in infrastructure.
+loads embedded JSON schemas. Each request includes the full schema in its system
+message and uses it for the strict response format. The SDK adapts some
+constraints into provider-facing descriptions; server validators remain
+authoritative. OpenRouter routing requires support for the requested parameters.
+No tools are sent. Responses must finish normally and pass size/depth, required-
+member, unknown-field, numeric and domain validation before persistence.
+OpenRouter registration stays in infrastructure.
+
+Authoring prompts separate fixed teaching requirements from editable field
+defaults, bounds and options. Instructions refer to parameter keys; labels are
+display text. Generation prompts instruct the model to prioritize resolved
+values over stale defaults in prose, including explicit false, zero and empty
+optional text. Prompt changes advance the generation metadata's prompt version;
+saved snapshots remain immutable.
 
 Publication checks `expectedVersion`, an EF concurrency token and a unique
 revision index. Generation loads an immutable revision before awaiting AI; no
@@ -68,9 +78,10 @@ provider and every exit releases capacity. The transport timeout allows five
 seconds beyond that deadline so application cancellation wins. OpenRouter
 requests use low reasoning effort where supported and exclude reasoning from
 responses; exclusion alone does not reduce reasoning time. SDK retries are
-disabled. Failures return safe ProblemDetails and save nothing; logs exclude
-provider error bodies. `/api/ai/status` checks configuration without contacting
-the provider.
+disabled. Failures return safe ProblemDetails and save nothing. Successful
+responses log elapsed time, reported token counts and generation metadata;
+logs exclude prompts, content, reasoning text and provider error bodies.
+`/api/ai/status` checks configuration without contacting the provider.
 
 ## Client state
 

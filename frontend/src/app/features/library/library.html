@@ -9,14 +9,13 @@
   <a class="button" routerLink="/templates/new"><span aria-hidden="true">＋</span> תבנית חדשה</a>
 </header>
 <p role="status" class="mb-4 text-brand">{{ notice() }}</p>
-@if (loading()) {
-  <p role="status" class="panel">טוענים את מרחב הלמידה…</p>
-} @else if (loadError()) {
+<app-loading-indicator [active]="loading()" variant="panel" label="טוענים את מרחב הלמידה…" />
+@if (!loading() && loadError()) {
   <div class="error" role="alert">
     <p>{{ apiError(loadError()) }}</p>
     <button class="button mt-4" (click)="reload()">ניסיון נוסף</button>
   </div>
-} @else if (templates.hasValue() && instances.hasValue()) {
+} @else if (!loading() && templates.hasValue() && instances.hasValue()) {
   <section aria-labelledby="templates-title">
     <div class="mb-5 flex flex-wrap items-center justify-between gap-3">
       <h2 id="templates-title">
@@ -136,7 +135,6 @@
   class="panel fixed inset-0 m-auto max-h-[90dvh] w-[calc(100%-2rem)] max-w-lg overflow-y-auto text-ink backdrop:bg-ink/40"
   aria-labelledby="removal-title"
   aria-describedby="removal-description"
-  [attr.aria-busy]="deleting()"
   (cancel)="onCancel($event)"
   (close)="removal.set(null)"
 >
@@ -167,7 +165,7 @@
   @if (deletionError()) {
     <p class="error" role="alert">{{ deletionError() }}</p>
   }
-  <div class="flex flex-wrap gap-3">
+  <div class="flex flex-wrap gap-3" [attr.aria-busy]="deleting()">
     <button
       class="button button-secondary"
       type="button"
@@ -186,4 +184,10 @@
       {{ deleting() ? 'מוחקים…' : 'מחיקה לצמיתות' }}
     </button>
   </div>
+  <app-loading-indicator
+    class="mt-4"
+    [active]="deleting()"
+    style="--loader-color: var(--color-danger)"
+    [label]="removal()?.kind === 'library' ? 'מאפסים את נתוני הלמידה…' : 'מוחקים…'"
+  />
 </dialog>

@@ -140,28 +140,84 @@ test('invalid AI output preserves the prompt and explicit retry can recover', as
 test.describe('publication recovery', () => {
   test.use({ serviceWorkers: 'block' });
 
-  test('a failed save preserves reviewed fields and can be retried without regenerating', async ({
+  test('loading is accessible and customizable, and a failed save preserves edits for retry', async ({
     page,
   }) => {
     await login(page);
     const before = (await (await page.request.get('/api/templates')).json()).length;
-    await propose(page, 'הבנת הנקרא עם נושא ורמת קושי לבחירה');
+    let finishGeneration!: () => void;
+    const generationGate = new Promise<void>((resolve) => (finishGeneration = resolve));
+    await page.route(
+      '**/api/ai/template-drafts',
+      async (route) => {
+        await generationGate;
+        await route.continue();
+      },
+      { times: 1 },
+    );
+    await page.goto('/templates/new');
+    await page.getByLabel('הרעיון שלכם לתבנית').fill('הבנת הנקרא עם נושא ורמת קושי לבחירה');
+    await page.getByRole('button', { name: 'יצירת תבנית בעזרת AI', exact: true }).click();
+    try {
+      const loading = page.getByRole('status').filter({ hasText: 'בונים את התבנית שלכם' });
+      await expect(loading).toBeVisible();
+      await expect(loading).toContainText('זה עשוי לקחת כמה דקות');
+      await expect(page.getByLabel('הרעיון שלכם לתבנית')).toBeDisabled();
+      expect(await loading.evaluate((element) => element.closest('[aria-busy="true"]'))).toBeNull();
+      const mark = loading.locator('.loader-mark');
+      await page.emulateMedia({ reducedMotion: 'no-preference' });
+      expect(
+        await mark.evaluate((element) => getComputedStyle(element, '::before').animationName),
+      ).not.toBe('none');
+      await page.screenshot({ path: '../artifacts/loader-desktop.png', fullPage: true });
+      await checkNarrowLayout(page, 'loader');
+      await loading.evaluate((element) => {
+        element.style.setProperty('--loader-size', '4rem');
+        element.style.setProperty('--loader-color', 'rgb(100, 50, 150)');
+        element.style.setProperty('--loader-duration', '3s');
+      });
+      await expect(mark).toHaveCSS('width', '64px');
+      await expect(mark).toHaveCSS('color', 'rgb(100, 50, 150)');
+      expect(
+        await mark.evaluate((element) => getComputedStyle(element, '::before').animationDuration),
+      ).toBe('3s');
+      await page.emulateMedia({ reducedMotion: 'reduce' });
+      expect(
+        await mark.evaluate((element) => getComputedStyle(element, '::before').animationName),
+      ).toBe('none');
+      await expect(loading).toBeVisible();
+    } finally {
+      finishGeneration();
+    }
+    await expect(page.getByRole('heading', { name: 'בדיקה ועריכת התבנית' })).toBeVisible();
+    await expect(page.locator('app-loading-indicator .loader-mark')).toHaveCount(0);
     await page.getByLabel('שם התבנית', { exact: true }).fill('העריכה נשמרת גם אחרי כשל');
     const parameter = page.locator('[data-parameter-editor]').first();
     await parameter.getByLabel('שם השדה להורה').fill('נושא הקריאה שלי');
+    let finishSave!: () => void;
+    const saveGate = new Promise<void>((resolve) => (finishSave = resolve));
     await page.route(
       '**/api/templates',
-      (route) =>
-        route.fulfill({
+      async (route) => {
+        await saveGate;
+        await route.fulfill({
           status: 500,
           contentType: 'application/problem+json',
           body: JSON.stringify({ status: 500 }),
-        }),
+        });
+      },
       { times: 1 },
     );
 
     await page.getByRole('button', { name: 'שמירת התבנית', exact: true }).click();
+    try {
+      await expect(page.getByRole('status').filter({ hasText: 'שומרים את התבנית' })).toBeVisible();
+      await expect(page.getByRole('button', { name: 'שומרים…', exact: true })).toBeDisabled();
+    } finally {
+      finishSave();
+    }
     await expect(page.getByRole('alert')).toContainText('השרת לא הצליח להשלים');
+    await expect(page.locator('app-loading-indicator .loader-mark')).toHaveCount(0);
     await expect(page.getByLabel('שם התבנית', { exact: true })).toHaveValue(
       'העריכה נשמרת גם אחרי כשל',
     );
@@ -223,6 +279,10 @@ test.describe('library cleanup', () => {
     await dialog.getByRole('button', { name: 'מחיקה לצמיתות', exact: true }).click();
     await expect(dialog.getByRole('button', { name: 'מוחקים…', exact: true })).toBeDisabled();
     await expect(dialog.getByRole('button', { name: 'ביטול', exact: true })).toBeDisabled();
+    await expect(dialog.getByRole('status')).toContainText('מוחקים');
+    expect(
+      await dialog.getByRole('status').evaluate((element) => element.closest('[aria-busy="true"]')),
+    ).toBeNull();
     await page.keyboard.press('Escape');
     await expect(dialog).toBeVisible();
     finishDeletion();

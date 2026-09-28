@@ -1,0 +1,15 @@
+@if (active()) {
+  <span class="loader-mark" aria-hidden="true">
+    <svg viewBox="0 0 24 24" fill="currentColor" focusable="false">
+      <path
+        d="M12 2c1.5 6.5 3.5 8.5 10 10-6.5 1.5-8.5 3.5-10 10C10.5 15.5 8.5 13.5 2 12c6.5-1.5 8.5-3.5 10-10Z"
+      />
+    </svg>
+  </span>
+  <div class="loading-copy min-w-0 flex-1">
+    <p class="font-medium text-ink">{{ label() }}</p>
+    @if (detail()) {
+      <p class="mt-1 text-sm text-muted">{{ detail() }}</p>
+    }
+  </div>
+}

@@ -13,6 +13,8 @@ describe('AI task request lifetime', () => {
     const fixture = TestBed.createComponent(CreateInstance);
     fixture.componentRef.setInput('templateId', 'template');
     TestBed.tick();
+    const element: HTMLElement = fixture.nativeElement;
+    expect(element.querySelector('app-loading-indicator')?.textContent).toContain('טוענים');
     const http = TestBed.inject(HttpTestingController);
     http.expectOne('/api/templates/template').flush({
       id: 'template',
@@ -21,12 +23,16 @@ describe('AI task request lifetime', () => {
       definition: readingDefinition,
     });
     await fixture.whenStable();
+    expect(element.querySelector('.loader-mark')).toBeNull();
     const navigate = vi.spyOn(TestBed.inject(Router), 'navigate');
     fixture.nativeElement
       .querySelector('form')
       .dispatchEvent(new Event('submit', { cancelable: true }));
     TestBed.tick();
     const generation = http.expectOne('/api/templates/template/instances');
+    const loading = element.querySelector('section app-loading-indicator');
+    expect(loading?.textContent).toContain('יוצרים את התרגול');
+    expect(loading?.closest('[aria-busy="true"]')).toBeNull();
     fixture.destroy();
     expect(generation.cancelled).toBe(true);
     await Promise.resolve();

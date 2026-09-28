@@ -19,11 +19,18 @@ describe('Prompt-first authoring', () => {
     http.expectOne('/api/ai/status').flush({ configured: true });
     await fixture.whenStable();
     const element: HTMLElement = fixture.nativeElement;
+    const loading = element.querySelector('app-loading-indicator[variant="panel"]')!;
+    expect(loading.getAttribute('role')).toBe('status');
+    expect(loading.textContent?.trim()).toBe('');
     const prompt = element.querySelector<HTMLTextAreaElement>('#parent-prompt')!;
     prompt.value = 'הבנת הנקרא עם נושא משתנה';
     prompt.dispatchEvent(new Event('input', { bubbles: true }));
     element.querySelector('form')!.dispatchEvent(new Event('submit', { cancelable: true }));
     TestBed.tick();
+    expect(element.querySelector('app-loading-indicator[variant="panel"]')).toBe(loading);
+    expect(loading?.textContent).toContain('בונים את התבנית');
+    expect(loading?.closest('[aria-busy="true"]')).toBeNull();
+    expect(prompt.disabled).toBe(true);
     http
       .expectOne('/api/ai/template-drafts')
       .flush({ definition: readingDefinition, generationMetadata: {} });
@@ -33,6 +40,8 @@ describe('Prompt-first authoring', () => {
       TestBed.tick();
       expect(element.querySelector<HTMLInputElement>('#ai-template-name')?.disabled).toBe(false);
     });
+    expect(loading.textContent?.trim()).toBe('');
+    expect(element.querySelector('.loader-mark')).toBeNull();
     const name = element.querySelector<HTMLInputElement>('#ai-template-name')!;
     name.value = 'התבנית הערוכה שלי';
     name.dispatchEvent(new Event('input', { bubbles: true }));
@@ -41,6 +50,9 @@ describe('Prompt-first authoring', () => {
       .dispatchEvent(new Event('submit', { cancelable: true }));
     TestBed.tick();
     const save = http.expectOne('/api/templates');
+    expect(
+      element.querySelector('app-ai-template-form app-loading-indicator')?.textContent,
+    ).toContain('שומרים');
     expect(element.querySelector<HTMLButtonElement>('form button[type="submit"]')?.disabled).toBe(
       true,
     );
@@ -73,6 +85,9 @@ describe('Prompt-first authoring', () => {
     prompt.dispatchEvent(new Event('input', { bubbles: true }));
     element.querySelector('form')!.dispatchEvent(new Event('submit', { cancelable: true }));
     TestBed.tick();
+    expect(element.querySelector('app-loading-indicator[variant="panel"]')?.textContent).toContain(
+      'בונים',
+    );
     http.expectOne('/api/ai/template-drafts').flush({}, { status: 502, statusText: 'Bad Gateway' });
     await fixture.whenStable();
     expect(prompt.value).toBe('ניסוי מדעי');
@@ -80,6 +95,7 @@ describe('Prompt-first authoring', () => {
     await vi.waitFor(() => {
       TestBed.tick();
       expect(element.querySelector('[role="alert"]')?.textContent).toContain('לא נשמר דבר');
+      expect(element.querySelector('.loader-mark')).toBeNull();
     });
     http.expectNone('/api/templates');
   });

@@ -15,11 +15,12 @@ import { LearningApi } from '../../../core/api/learning-api';
 import { apiError } from '../../../core/api/api-error';
 import { AiTemplateDraft, TemplateDetail } from '../../../core/api/models';
 import { AiTemplateForm } from '../ai-template-form/ai-template-form';
+import { LoadingIndicator } from '../../../shared/loading-indicator/loading-indicator';
 
 /** AI proposes a template; the parent reviews and explicitly saves it. */
 @Component({
   selector: 'app-ai-template-author',
-  imports: [FormField, AiTemplateForm],
+  imports: [LoadingIndicator, FormField, AiTemplateForm],
   templateUrl: './ai-template-author.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })

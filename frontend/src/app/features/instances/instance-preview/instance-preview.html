@@ -1,14 +1,17 @@
 <a class="text-link mb-6" routerLink="/templates"
   ><span aria-hidden="true">→</span> חזרה למרחב שלנו</a
 >
-@if (instance.isLoading()) {
-  <p role="status" class="panel">טוענים את הטיוטה השמורה…</p>
-} @else if (instance.error()) {
+<app-loading-indicator
+  [active]="instance.isLoading()"
+  variant="panel"
+  label="טוענים את הטיוטה השמורה…"
+/>
+@if (!instance.isLoading() && instance.error()) {
   <div class="error" role="alert">
     <p>{{ apiError(instance.error()) }}</p>
     <button class="button mt-4" (click)="instance.reload()">ניסיון נוסף</button>
   </div>
-} @else if (instance.hasValue()) {
+} @else if (!instance.isLoading() && instance.hasValue()) {
   @let draft = instance.value();
   <header class="mb-6 flex flex-wrap items-center justify-between gap-5">
     <div>

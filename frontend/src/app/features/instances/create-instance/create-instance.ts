@@ -11,11 +11,12 @@ import { LearningApi } from '../../../core/api/learning-api';
 import { apiError } from '../../../core/api/api-error';
 import { ParameterValues } from '../../../core/api/models';
 import { ParameterForm } from '../parameter-form/parameter-form';
+import { LoadingIndicator } from '../../../shared/loading-indicator/loading-indicator';
 
 /** Collects choices, requests an AI task and opens its saved preview. */
 @Component({
   selector: 'app-create-instance',
-  imports: [RouterLink, ParameterForm],
+  imports: [LoadingIndicator, RouterLink, ParameterForm],
   templateUrl: './create-instance.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
