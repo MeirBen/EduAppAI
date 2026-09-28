@@ -68,8 +68,9 @@ return 404 before content reads or AI calls. Authenticated API responses use
 AI has a configurable three-minute deadline, two concurrent calls per process
 and ten requests per family per minute. Cancellation reaches the provider and
 always releases capacity. Transport timeout adds five seconds so application
-cancellation wins. Requests prefer Nemotron Super with a Qwen fallback, enable
-low-effort reasoning and leave sampling to the provider. Reasoning and
+cancellation wins. Requests use the configured free model, enable low-effort
+reasoning and leave sampling to the provider. Model selection is documented in
+[AI configuration](../README.md#ai-configuration). Reasoning and
 sampling settings belong to the OpenRouter adapter; generation owns schemas and
 validation. Configuration can pin a free model or override generation settings.
 Excluding reasoning from responses alone does not reduce computation. Requests

@@ -28,7 +28,7 @@ export async function startAiProvider() {
     for await (const chunk of request) body += chunk;
     const input = JSON.parse(body);
     assert.equal(input.model, 'nvidia/nemotron-3-super-120b-a12b:free');
-    assert.deepEqual(input.models, ['qwen/qwen3.8-27b:free']);
+    assert.equal(input.models, undefined);
     assert.deepEqual(input.reasoning, { effort: 'low', exclude: true });
     assert.equal(input.temperature, undefined);
     assert.equal(input.top_p, undefined);

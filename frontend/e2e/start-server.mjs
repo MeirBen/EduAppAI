@@ -15,7 +15,7 @@ const environment = {
   Logging__LogLevel__Default: 'Warning',
   Ai__ApiKey: 'isolated-test-key',
   Ai__Model: 'nvidia/nemotron-3-super-120b-a12b:free',
-  Ai__FallbackModel: 'qwen/qwen3.8-27b:free',
+  Ai__FallbackModel: '',
   Ai__ReasoningEnabled: 'true',
   Ai__ReasoningEffort: 'low',
   Ai__Temperature: '',

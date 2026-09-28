@@ -37,14 +37,18 @@ repo; it makes no AI call. Restart the server afterward. Alternatively provide
 `Ai__ApiKey` or `OPENROUTER_API_KEY` through server secrets. Production does not
 load development user secrets.
 
-Generation prefers `nvidia/nemotron-3-super-120b-a12b:free`, with
-`qwen/qwen3.8-27b:free` as the [fallback](https://openrouter.ai/docs/guides/routing/model-fallbacks).
-OpenRouter tries the fallback for provider errors such as rate limits or
-unavailability. This does not retry truncated, malformed or poor-quality output.
-Set `Ai__Model` and `Ai__FallbackModel` to override these choices (or the matching
-`Ai:` settings in development user secrets), then restart. Set the fallback to
-an empty string to disable it. Both must be free endpoints supporting
-JSON-schema output and the requested parameters; paid models are rejected.
+Generation uses `nvidia/nemotron-3-super-120b-a12b:free`, with no model fallback
+enabled by default. The dated deployment name shown in OpenRouter logs maps to
+this API model ID; configure the API ID with its `:free` suffix.
+Set `Ai__Model` to override the model (or the matching `Ai:` setting in
+development user secrets), then restart.
+
+An optional `Ai__FallbackModel` enables OpenRouter's
+[fallback routing](https://openrouter.ai/docs/guides/routing/model-fallbacks);
+an empty string disables it. Before enabling one, check its current endpoint
+supports JSON-schema output and the requested reasoning parameters. Paid models
+are rejected. OpenRouter tries a configured fallback for provider errors such as
+rate limits or unavailability, not for truncated, malformed or poor-quality output.
 `openrouter/free` remains an explicit option for random compatible-model routing.
 The actual model is recorded with each result.
 Evaluate fluency, educational correctness and latency on representative prompts;
