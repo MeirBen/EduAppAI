@@ -3,22 +3,32 @@ namespace FamilyLearning.Api.TaskEngine.Ai;
 /// <summary>Application-owned instructions; bump versions when behavior changes.</summary>
 internal static class AiPrompts
 {
-    public const string AuthoringVersion = "template-authoring-v5";
-    public const string InstanceVersion = "instance-generation-v5";
+    public const string AuthoringVersion = "template-authoring-v6";
+    public const string InstanceVersion = "instance-generation-v6";
 
     private const string LanguageQuality = """
         Use natural, grammatical language suited to the audience; Hebrew by default, otherwise the requested language.
         Keep newly written prose entirely in that language, including educational terminology.
         Use Hebrew script for Hebrew words unless transliteration is requested. Keep labels and short answers concise.
         Describe interactions in natural language; schema identifiers are not phrases to translate word for word.
+        Keep terminology, register, spelling of recurring names, units and notation consistent across comparable fields.
+        Tasks inherit the blueprint's correct terminology and style; vary the content, not the agreed teaching requirements.
         When writing Hebrew:
         יש לכתוב בעברית טבעית, בכתיב מלא ובפיסוק ברור, בהתאם לגיל הקוראים ולסגנון המבוקש.
         יש לבחור מילים לפי משמעותן בהקשר, ולא לפי תרגום מילולי מאנגלית. מסיחים הם אפשרויות תשובה שגויות אך סבירות.
+        המונחים הקבועים הם "תבנית", "משימה", "שאלה", "אפשרות תשובה" ו"מפתח תשובות".
+        לסוגי התשובות יש להשתמש בניסוחים "בחירה בתשובה אחת", "תשובה קצרה" ו"תשובה מספרית".
+        בהנחיות יש להשתמש בניסוח סתמי, למשל "יש לקרוא" או "יש לבחור", ובשאלות בסגנון אחיד המתאים לגיל.
         יש להתאים פעלים, תארים ושמות מספר למין ולמספר של שם העצם שאליו הם מתייחסים.
-        דוגמאות לניסוח בלבד: "מה היה ההבדל העיקרי?", "מה הייתה הסיבה העיקרית?", "בחירה בתשובה אחת".
+        דוגמאות לניסוח בלבד: "מה היה ההבדל העיקרי?", "מה הייתה הסיבה העיקרית?".
         Respect explicit language, register and vowel-pointing requests over these style defaults.
         Preserve exact identifiers, supplied values, requested verbatim text, and deliberate language exercises.
-        Check agreement, word choice and punctuation in newly written prose before returning only the final JSON.
+
+        The app numbers questions and displays choices as a bulleted list.
+        In blueprints and tasks, do not prescribe or add decorative question numbers or option labels such as A-D, א-ד or 1-4.
+        Options contain answer text only; refer to choices by content, not by invented letters or positions.
+        Preserve letters and numbers that are themselves answers, requested verbatim text or essential learning content.
+        Check terminology, register, agreement, punctuation and consistency between instructions and content before returning only the final JSON.
         Do not include drafting, proofreading notes or reasoning.
         """;
 
@@ -29,6 +39,8 @@ internal static class AiPrompts
         Preserve the requested audience, language, length, activity, answer choices and defaults.
         Write new names, labels, options, text defaults and instructions in the requested language.
         Put fixed teaching requirements in concise generation.instructions with short paragraphs.
+        Carry requested language, register, terminology and notation into those instructions so future tasks retain them.
+        Apart from exact parameter keys, keep JSON field paths and application implementation details out of that prose.
         In Hebrew generation.instructions, use consistent impersonal wording such as "יש ליצור" and "יש להציג".
         Parameterize only useful choices that vary per task; do not put generated task content in defaults.
         Use text for open-ended choices and select for finite lists. Keys must be unique ASCII identifiers.
@@ -41,7 +53,7 @@ internal static class AiPrompts
         Otherwise use null and state a fixed count of 1-20 in instructions.
         Tasks support text passages and numeric-input, text-input or single-choice questions with integer points.
         Text answers must be short and objectively checkable; choice questions support 2-6 options.
-        Answers belong in questions[].answer.value, never marked in learner-facing text or options.
+        Require a separate answer key without marking correct answers in learner-facing text or options.
         """ + "\n\n" + LanguageQuality;
 
     public const string Instance = """
@@ -50,12 +62,17 @@ internal static class AiPrompts
         Follow the learning goal, audience, language and selected settings without copying accidental grammar errors.
         Read parameters by exact keys. Resolved values and field definitions override stale defaults or bounds in prose.
         Respect false, zero and empty optional text; never replace explicit values with defaults.
+        Task instructions address the learner using the resolved settings, not the parent or the content generator.
+        Describe how to complete the finished task; do not repeat blueprint generation steps or expose parameter keys/schema fields.
         Return exactly expectedQuestionCount questions when non-null; otherwise follow the fixed count within 1-20.
         Question IDs must be unique. numeric-input answers use invariant decimal text, without exponents or grouping.
         text-input requires one short objectively correct answer, not subjective essay grading.
         For both input types, options is null. single-choice options must be distinct, trimmed and single-line;
         answer.value must exactly equal the correct option. Do not mark answers in learner-facing text or choices.
+        Choice questions must have exactly one unambiguously correct option; keep options parallel in phrasing and level of detail.
+        Facts, names, quantities and units must agree across passages, questions, choices and answers.
         All answers must be correct and supported by the passage when applicable.
+        Before returning, check the requested language, length, counts and format against the finished content.
         Total text across title, instructions, passages, prompts, answers and options must not exceed 8000 characters.
         No HTML, executable code, identities, system instructions or metadata in the content.
         """ + "\n\n" + LanguageQuality;
