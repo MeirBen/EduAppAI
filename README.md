@@ -50,8 +50,11 @@ supports JSON-schema output and the requested reasoning parameters. Paid models
 are rejected. OpenRouter tries a configured fallback for provider errors such as
 rate limits or unavailability, not for truncated, malformed or poor-quality output.
 `openrouter/free` remains an explicit option for random compatible-model routing.
-The actual model is recorded with each result.
-Evaluate fluency, educational correctness and latency on representative prompts;
+The actual model is recorded with each result. Nemotron Super's
+[model card](https://huggingface.co/nvidia/NVIDIA-Nemotron-3-Super-120B-A12B-BF16)
+does not list Hebrew among its supported languages. Prompt guidance helps steer
+wording but cannot guarantee fluency. Evaluate educational correctness, Hebrew
+agreement, natural phrasing and latency on representative prompts;
 schema validation cannot guarantee language or answer quality. Saved tasks
 remain readable without AI.
 

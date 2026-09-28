@@ -47,7 +47,7 @@ export async function startAiProvider() {
     // The SDK adapts strict response-format constraints; prompt context must retain the full schema.
     assert.deepEqual(
       JSON.parse(schemaText),
-      input.response_format.json_schema.name === 'template_authoring_v4'
+      input.response_format.json_schema.name === 'template_authoring_v5'
         ? templateSchema
         : contentSchema,
     );
@@ -64,7 +64,7 @@ export async function startAiProvider() {
     }
     sequence++;
     let result;
-    if (input.response_format.json_schema.name === 'template_authoring_v4') {
+    if (input.response_format.json_schema.name === 'template_authoring_v5') {
       result = {
         schemaVersion: 2,
         name: 'חוקרים וקוראים',
@@ -109,7 +109,7 @@ export async function startAiProvider() {
         },
       };
     } else {
-      assert.equal(input.response_format.json_schema.name, 'instance_generation_v4');
+      assert.equal(input.response_format.json_schema.name, 'instance_generation_v5');
       const { parameters, expectedQuestionCount } = JSON.parse(user);
       result = {
         title: `לומדים על ${parameters.theme}`,

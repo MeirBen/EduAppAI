@@ -43,9 +43,11 @@ validation before persistence.
 `AiPrompts` separates fixed teaching requirements from variable fields and refers
 to keys, not labels. Resolved values override defaults in prose, including false,
 zero and empty text. Prompt changes advance the metadata's prompt version.
-Both prompts share concise language-quality guidance, including grammatical
-Hebrew and Hebrew script. This guides the model; validators check structure and
-bounds, not fluency. Prompt changes apply to new AI output, never rewrite saved
+Both prompts share language guidance with brief Hebrew examples for agreement,
+natural phrasing and punctuation. Template instructions use impersonal wording
+and exact parameter keys. This is one generation call, without a translation or
+proofreading service. The guidance steers the model; validators check structure
+and bounds, not fluency. Prompt changes apply to new AI output, never rewrite saved
 snapshots. Generate directly in the requested language. An automatic translation
 step would add latency and can change verbatim text, language exercises and
 answer/option relationships; it requires separate quality evaluation.
