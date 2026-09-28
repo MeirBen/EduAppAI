@@ -1,0 +1,37 @@
+<a class="back-link" routerLink="/templates">← Your learning space</a>
+@if (template.isLoading()) {
+  <p role="status">Loading your template…</p>
+} @else if (template.error()) {
+  <div class="error" role="alert">
+    <p>{{ apiError(template.error()) }}</p>
+    <button class="button" (click)="template.reload()">Try again</button>
+  </div>
+} @else if (template.hasValue()) {
+  <header class="page-heading">
+    <div>
+      <p class="eyebrow">MAKE TODAY'S CHALLENGE</p>
+      <h1>{{ template.value().definition.name }}</h1>
+      <p class="lead">Choose what fits today. You'll see every question before going further.</p>
+    </div>
+    <span class="tag">TEMPLATE VERSION {{ template.value().currentVersion }}</span>
+  </header>
+  <div class="editor-layout">
+    <section class="panel">
+      <h2>A little practice, your way</h2>
+      @if (error()) {
+        <p class="error" role="alert">{{ error() }}</p>
+      }
+      <app-parameter-form
+        [definitions]="template.value().definition.instanceParameters"
+        [busy]="busy()"
+        (generated)="generate($event)"
+      />
+    </section>
+    <aside class="note-panel">
+      <span class="tag">A FRESH SET, EVERY TIME</span>
+      <h2>Just the right amount.</h2>
+      <p>Easy uses numbers 1–5, medium uses 1–10, and hard uses 1–12.</p>
+      <p>Your task will be saved as a draft for you to review.</p>
+    </aside>
+  </div>
+}

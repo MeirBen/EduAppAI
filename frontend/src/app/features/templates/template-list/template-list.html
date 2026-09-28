@@ -1,0 +1,81 @@
+<header class="page-heading">
+  <div>
+    <p class="eyebrow">PARENT SPACE</p>
+    <h1>A little learning starts here.</h1>
+    <p class="lead">
+      Your ideas become reusable templates. Your templates become little challenges.
+    </p>
+  </div>
+  <a class="button" routerLink="/templates/new">+ Create a template</a>
+</header>
+@if (data.isLoading()) {
+  <p role="status" class="panel">Loading your learning space…</p>
+} @else if (data.error()) {
+  <div class="error" role="alert">
+    <p>{{ apiError(data.error()) }}</p>
+    <button class="button" (click)="data.reload()">Try again</button>
+  </div>
+} @else if (data.hasValue()) {
+  <section aria-labelledby="templates-title">
+    <div class="section-heading">
+      <h2 id="templates-title">
+        Your templates <span class="count">{{ data.value().templates.length }}</span>
+      </h2>
+      <span class="muted small">Ideas you can use again</span>
+    </div>
+    @if (data.value().templates.length === 0) {
+      <div class="empty-state panel">
+        <div class="empty-mark" aria-hidden="true">✳</div>
+        <h3>A fresh page for your family</h3>
+        <p>
+          Start with a multiplication template.<br />Choose the difficulty and number of questions
+          each time you use it.
+        </p>
+        <a class="button button-secondary" routerLink="/templates/new"
+          >Create your first template</a
+        >
+      </div>
+    } @else {
+      <div class="card-grid">
+        @for (template of data.value().templates; track template.id) {
+          <article class="panel template-card">
+            <span class="tag">MATH · VERSION {{ template.currentVersion }}</span>
+            <h3>{{ template.name }}</h3>
+            <p class="muted">A fresh set of multiplication questions, at your pace.</p>
+            <a class="text-link" [routerLink]="['/templates', template.id, 'create']"
+              >Create a task <span aria-hidden="true">→</span></a
+            >
+          </article>
+        }
+      </div>
+    }
+  </section>
+  <section class="draft-section" aria-labelledby="drafts-title">
+    <div class="section-heading">
+      <h2 id="drafts-title">
+        Saved drafts <span class="count">{{ data.value().instances.length }}</span>
+      </h2>
+      <span class="muted small">Ready for your review</span>
+    </div>
+    @if (data.value().instances.length === 0) {
+      <p class="quiet-empty">
+        Your generated tasks will appear here. Each draft keeps its exact questions.
+      </p>
+    } @else {
+      <ul class="draft-list">
+        @for (instance of data.value().instances; track instance.id) {
+          <li>
+            <div>
+              <a [routerLink]="['/instances', instance.id]">{{ instance.title }}</a>
+              <p class="small muted">{{ instance.createdAtUtc | date: 'medium' }}</p>
+            </div>
+            <span class="tag">Draft</span>
+          </li>
+        }
+      </ul>
+    }
+    @if (data.value().templates.length === 100 || data.value().instances.length === 100) {
+      <p class="small muted">Showing the most recent 100 items in each list.</p>
+    }
+  </section>
+}

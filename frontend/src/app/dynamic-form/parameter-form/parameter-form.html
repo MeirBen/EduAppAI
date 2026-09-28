@@ -1,0 +1,52 @@
+<form (submit)="generate($event)" novalidate>
+  @for (definition of definitions(); track definition.key; let index = $index) {
+    @let entry = fields.entries[index];
+    <div class="field">
+      <label [for]="'parameter-' + definition.key"
+        >{{ definition.label }}
+        @if (!definition.required) {
+          <span class="muted small">(optional)</span>
+        }
+      </label>
+      @switch (definition.type) {
+        @case ('select') {
+          <select
+            [id]="'parameter-' + definition.key"
+            [formField]="entry.text"
+            [attr.aria-invalid]="entry().touched() && entry().invalid()"
+            [attr.aria-describedby]="'hint-' + definition.key"
+          >
+            <option value="">Choose an option</option>
+            @for (option of definition.options; track option) {
+              <option [value]="option">{{ option }}</option>
+            }
+          </select>
+        }
+        @case ('boolean') {
+          <input [id]="'parameter-' + definition.key" type="checkbox" [formField]="entry.checked" />
+        }
+        @default {
+          <input
+            [id]="'parameter-' + definition.key"
+            type="text"
+            [attr.inputmode]="definition.type === 'integer' ? 'numeric' : 'text'"
+            [formField]="entry.text"
+            [attr.aria-required]="definition.required ?? false"
+            [attr.aria-invalid]="entry().touched() && entry().invalid()"
+            [attr.aria-describedby]="'hint-' + definition.key"
+          />
+        }
+      }
+      <div [id]="'hint-' + definition.key">
+        @if (entry().touched()) {
+          @for (error of entry().errors(); track error.kind) {
+            <p class="field-error">{{ error.message }}</p>
+          }
+        }
+      </div>
+    </div>
+  }
+  <button class="button" type="submit" [disabled]="busy()">
+    {{ busy() ? 'Creating your task…' : 'Generate a draft' }}
+  </button>
+</form>

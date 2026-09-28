@@ -1,0 +1,45 @@
+using FamilyLearning.Api.Infrastructure.Persistence;
+using Microsoft.EntityFrameworkCore;
+
+namespace FamilyLearning.Api.Infrastructure.Auth;
+
+public static class ManagementCommand
+{
+    public static async Task<int> RunAsync(IServiceProvider services, string[] arguments)
+    {
+        if (arguments is not ["--migrate"] and not ["--create-parent", _])
+        {
+            Console.Error.WriteLine("Usage: --migrate | --create-parent parent@example.com");
+            return 1;
+        }
+        using var scope = services.CreateScope();
+        await scope.ServiceProvider.GetRequiredService<LearningDbContext>().Database.MigrateAsync();
+        if (arguments[0] == "--migrate") return 0;
+        Console.Write("Password (12+ characters, including upper/lowercase, number and symbol): ");
+        var password = ReadPassword();
+        Console.Write("Confirm password: ");
+        if (password != ReadPassword())
+        {
+            Console.Error.WriteLine("Passwords do not match.");
+            return 1;
+        }
+        var result = await scope.ServiceProvider.GetRequiredService<ParentAccount>().CreateAsync(arguments[1], password);
+        if (result.Succeeded) Console.WriteLine("Parent account created. You can now sign in.");
+        else foreach (var error in result.Errors) Console.Error.WriteLine(error.Description);
+        return result.Succeeded ? 0 : 1;
+    }
+
+    private static string ReadPassword()
+    {
+        // Redirected input supports automation without placing a password in process arguments.
+        if (Console.IsInputRedirected) return Console.ReadLine() ?? "";
+        var value = new System.Text.StringBuilder();
+        while (true)
+        {
+            var key = Console.ReadKey(intercept: true);
+            if (key.Key == ConsoleKey.Enter) { Console.WriteLine(); return value.ToString(); }
+            if (key.Key == ConsoleKey.Backspace) { if (value.Length > 0) value.Length--; }
+            else if (!char.IsControl(key.KeyChar) && value.Length < 256) value.Append(key.KeyChar);
+        }
+    }
+}

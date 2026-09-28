@@ -1,0 +1,64 @@
+<a class="back-link" routerLink="/templates">← Your learning space</a>
+<header class="page-heading">
+  <div>
+    <p class="eyebrow">A REUSABLE IDEA</p>
+    <h1>Create a template</h1>
+    <p class="lead">Give your multiplication practice a name and a starting point.</p>
+  </div>
+</header>
+<div class="editor-layout">
+  <form class="panel" (submit)="save($event)" novalidate>
+    <h2>The basics</h2>
+    <div class="field">
+      <label for="name">Template name</label
+      ><input
+        id="name"
+        [formField]="fields.name"
+        placeholder="e.g. A little times-table practice"
+      />
+      @if (fields.name().touched() && fields.name().invalid()) {
+        <p class="field-error">Enter a name of 1–100 characters.</p>
+      }
+    </div>
+    <div class="field">
+      <label for="difficulty">Starting difficulty</label
+      ><select id="difficulty" [formField]="fields.difficulty">
+        <option value="easy">Easy · numbers 1–5</option>
+        <option value="medium">Medium · numbers 1–10</option>
+        <option value="hard">Hard · numbers 1–12</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="question-count">Starting number of questions</label
+      ><input
+        id="question-count"
+        type="number"
+        inputmode="numeric"
+        [formField]="fields.questionCount"
+      />
+      @if (fields.questionCount().touched() && fields.questionCount().invalid()) {
+        <p class="field-error">Choose a whole number from 1 to 20.</p>
+      }
+    </div>
+    @if (error()) {
+      <p class="error" role="alert">{{ error() }}</p>
+    }
+    <div class="actions">
+      <button class="button" type="submit" [disabled]="fields().submitting()">
+        {{ fields().submitting() ? 'Saving…' : 'Save template' }}</button
+      ><a class="button-quiet" routerLink="/templates">Cancel</a>
+    </div>
+  </form>
+  <aside class="note-panel">
+    <span class="tag">HOW IT WORKS</span>
+    <h2>Keep the idea.<br />Change the challenge.</h2>
+    <p>
+      Each time you use this template, you can choose a different difficulty and question count.
+    </p>
+    <p>The questions are created fresh, then saved exactly as you see them.</p>
+    <hr />
+    <p class="small">
+      This first version supports multiplication. More kinds of practice will follow.
+    </p>
+  </aside>
+</div>

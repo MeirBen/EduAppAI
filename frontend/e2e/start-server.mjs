@@ -1,0 +1,30 @@
+import { spawn, spawnSync } from 'node:child_process';
+import { mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { resolve } from 'node:path';
+
+const root = resolve(import.meta.dirname, '../..');
+const dataDirectory = mkdtempSync(resolve(tmpdir(), 'family-learning-e2e-'));
+const environment = {
+  ...process.env,
+  ASPNETCORE_ENVIRONMENT: 'Development',
+  ASPNETCORE_URLS: 'http://localhost:5199',
+  Storage__Directory: dataDirectory,
+  Logging__LogLevel__Default: 'Warning',
+};
+// This known password belongs only to this disposable test database.
+const account = spawnSync(resolve(root, 'scripts/dotnet.sh'), [
+  'artifacts/app/FamilyLearning.Api.dll', '--create-parent', 'browser@example.test',
+], { cwd: root, env: environment, input: 'TestOnly!Parent12345\nTestOnly!Parent12345\n', encoding: 'utf8' });
+if (account.status !== 0) {
+  rmSync(dataDirectory, { recursive: true, force: true });
+  throw new Error(`Test account setup failed: ${account.stdout}\n${account.stderr}`);
+}
+const server = spawn(resolve(root, 'scripts/dotnet.sh'), [
+  'artifacts/app/FamilyLearning.Api.dll', '--contentRoot', resolve(root, 'artifacts/app'),
+], { cwd: root, env: environment, stdio: 'inherit' });
+for (const signal of ['SIGINT', 'SIGTERM']) process.on(signal, () => server.kill('SIGTERM'));
+server.on('exit', (code) => {
+  rmSync(dataDirectory, { recursive: true, force: true });
+  process.exit(code ?? 0);
+});

@@ -1,0 +1,30 @@
+<ion-app>
+  <ion-header class="ion-no-border">
+    <ion-toolbar>
+      <header class="topbar">
+        <a class="brand" routerLink="/templates" aria-label="Family Learning home"
+          ><span class="brand-mark" aria-hidden="true">f.</span> Family Learning</a
+        >
+        @if (auth.parent()) {
+          <nav aria-label="Main navigation">
+            <a routerLink="/templates">My learning space</a>
+            <button class="button-quiet" (click)="logout()" [disabled]="signingOut()">
+              Sign out
+            </button>
+          </nav>
+        } @else {
+          <span class="tag">A little practice, every day</span>
+        }
+      </header>
+    </ion-toolbar>
+  </ion-header>
+  <ion-content>
+    <main id="main-content" class="shell">
+      @if (error()) {
+        <p class="error" role="alert">{{ error() }}</p>
+      }
+      <router-outlet />
+    </main>
+    <footer class="site-footer">Made for your family. Room to grow.</footer>
+  </ion-content>
+</ion-app>

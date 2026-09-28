@@ -1,0 +1,50 @@
+<div class="login-layout">
+  <section class="intro">
+    <p class="eyebrow">YOUR FAMILY'S LEARNING SPACE</p>
+    <h1>Small steps.<br />Wonderful discoveries.</h1>
+    <p class="lead">
+      Create a little practice that fits your child. Keep the good ideas, and make something new
+      from them tomorrow.
+    </p>
+    <div class="learning-note">
+      <span aria-hidden="true">✳</span>
+      <div>
+        <strong>One idea, many possibilities.</strong>
+        <p>Save a template. Choose the challenge. Make it their own.</p>
+      </div>
+    </div>
+  </section>
+  <section class="panel login-panel" aria-labelledby="sign-in-title">
+    <span class="tag">PARENT SPACE</span>
+    <h2 id="sign-in-title">Welcome back</h2>
+    <p class="muted">Sign in to your family's learning space.</p>
+    <form (submit)="signIn($event)" novalidate>
+      <div class="field">
+        <label for="email">Email</label
+        ><input id="email" type="email" autocomplete="username" [formField]="fields.email" />
+        @if (fields.email().touched() && fields.email().invalid()) {
+          <p class="field-error">Enter a valid email address.</p>
+        }
+      </div>
+      <div class="field">
+        <label for="password">Password</label
+        ><input
+          id="password"
+          type="password"
+          autocomplete="current-password"
+          [formField]="fields.password"
+        />
+        @if (fields.password().touched() && fields.password().invalid()) {
+          <p class="field-error">Enter your password.</p>
+        }
+      </div>
+      @if (error()) {
+        <p class="error" role="alert">{{ error() }}</p>
+      }
+      <button class="button full-width" type="submit" [disabled]="fields().submitting()">
+        {{ fields().submitting() ? 'Signing in…' : 'Sign in' }}
+      </button>
+    </form>
+    <p class="small muted">A private space for parents to shape the next learning adventure.</p>
+  </section>
+</div>

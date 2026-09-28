@@ -35,11 +35,11 @@ solution/configuration files, and `scripts/dotnet.sh`.
 **Interfaces:** `TaskTemplateDefinition`, `ParameterDefinition`, `TaskContent`,
 `TemplateValidator.Validate`, `ParameterValidator.Validate`, `MathTaskGenerator.Generate`.
 
-- [ ] Scaffold the solution and client with pinned dependencies and ignored local tooling.
-- [ ] Write tests for missing/unknown/type-invalid parameters, defaults and bounds;
+- [x] Scaffold the solution and client with pinned dependencies and ignored local tooling.
+- [x] Write tests for missing/unknown/type-invalid parameters, defaults and bounds;
   seed 42 must produce the same multiplication content and valid answers.
-- [ ] Observe failing tests; implement only the supported schema and math generator.
-- [ ] Run `./scripts/dotnet.sh test`; expect green engine tests.
+- [x] Observe failing tests; implement only the supported schema and math generator.
+- [x] Run `./scripts/dotnet.sh test`; expect green engine tests.
 
 ### Task 2: Persistent authenticated API
 
@@ -49,11 +49,11 @@ solution/configuration files, and `scripts/dotnet.sh`.
 **Interfaces:** cookie login/logout/me/CSRF; template list/get/create/version;
 instance list/get/create; all JSON DTOs scoped to the signed-in family.
 
-- [ ] Write real SQLite tests for unauthenticated access, missing CSRF, login/logout,
+- [x] Write real SQLite tests for unauthenticated access, missing CSRF, login/logout,
   two-family ownership, empty state, invalid definitions and frozen saved drafts.
-- [ ] Implement Identity, CLI parent provisioning, migrations and feature endpoint groups.
-- [ ] Verify conflicting expected versions return 409 and old draft content is unchanged.
-- [ ] Run `./scripts/dotnet.sh test`; expect all tests passing.
+- [x] Implement Identity, CLI parent provisioning, migrations and feature endpoint groups.
+- [x] Verify conflicting expected versions return 409 and old draft content is unchanged.
+- [x] Run `./scripts/dotnet.sh test`; expect all tests passing.
 
 ### Task 3: Angular parent workflow
 
@@ -61,17 +61,33 @@ instance list/get/create; all JSON DTOs scoped to the signed-in family.
 
 **Interfaces:** relative `/api` calls matching Task 2; signal form state and explicit DTOs.
 
-- [ ] Generate focused components/services using the Angular CLI.
-- [ ] Add tests for dynamic parameter defaults/types, required fields and range handling.
-- [ ] Implement sign-in, template empty/list/create, parameter entry and saved draft preview.
-- [ ] Run `npm test -- --watch=false` and `npm run build`; expect passing tests/build.
+- [x] Generate focused components/services using the Angular CLI.
+- [x] Add tests for dynamic parameter defaults/types, required fields and range handling.
+- [x] Implement sign-in, template empty/list/create, parameter entry and saved draft preview.
+- [x] Run `npm test -- --watch=false` and `npm run build`; expect passing tests/build.
 
 ### Task 4: Developer handoff and verification
 
 **Files:** `README.md`, `docs/architecture.md`, `docs/roadmap.md`, `scripts/*`, CI.
 
-- [ ] Document startup, parent provisioning, code-reading order and extension points.
-- [ ] Add same-origin publish and local verification scripts.
-- [ ] Check the parent workflow in a browser, including narrow-screen layout.
-- [ ] Review the final code and fix material findings; run the full validation script.
-- [ ] Commit the local scaffold and report exactly what is implemented and deferred.
+- [x] Document startup, parent provisioning, code-reading order and extension points.
+- [x] Add same-origin publish and local verification scripts.
+- [x] Check the parent workflow in a browser, including narrow-screen layout.
+- [x] Review the final code and fix material findings; run the full validation script.
+- [x] Commit the local scaffold and report exactly what is implemented and deferred.
+
+
+## Execution notes
+
+- Worked in the requested, newly created desktop repository. No remote was configured.
+- Installed a local .NET 10 SDK under ignored `.tools`, preserving the system .NET 8 SDK.
+- Final review was performed by an independent read-only reviewer. Quoted integer JSON
+  handling and successful-logout behavior were tightened with regression tests.
+- Test storage overrides use early host settings; every authenticated fixture asserts
+  its connection path. Temporary integration/browser databases are isolated and removed.
+- Added a real simultaneous version-publication test: one request succeeds, the other
+  gets 409, and the current version advances only once.
+- Child access, sessions, scoring, static generation, AI and reports remain intentionally
+  outside this first slice. The code and README name those boundaries explicitly.
+- CSRF is refreshed after sign-in; the next login refreshes the anonymous token after
+  logout. A failed token refresh cannot prevent leaving a signed-out private view.
