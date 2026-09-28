@@ -127,5 +127,8 @@ Storage__Directory=/absolute/persistent/data dotnet \
   artifacts/app/FamilyLearning.Api.dll --migrate
 ```
 
-The PWA caches assets only; task operations require a connection. Deployment and
-recovery work is tracked in the specification's next steps.
+The PWA caches assets only; task operations require a connection. Before a live
+deployment, verify HTTPS and trusted proxy handling if applicable, persistent
+storage permissions, a tested backup/restore procedure and operational monitoring.
+`/health` checks process availability, not database or AI readiness. Account
+recovery and real-model evaluation remain in the [next steps](docs/product-specification.md#next-steps).

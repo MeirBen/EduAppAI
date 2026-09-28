@@ -30,13 +30,11 @@ public static class TemplateEndpoints
 
     private static async Task<IResult> GetAsync(Guid id, ClaimsPrincipal user, LearningDbContext db, CancellationToken ct)
     {
-        // One ownership-scoped lookup gives missing and foreign IDs the same 404 response.
-        var template = await db.TaskTemplates.AsNoTracking().SingleOrDefaultAsync(t => t.Id == id && t.FamilyId == user.FamilyId(), ct);
-        if (template is null) return Results.NotFound();
-        var version = await db.TaskTemplateVersions.AsNoTracking()
-            .SingleOrDefaultAsync(v => v.TemplateId == id && v.Version == template.CurrentVersion, ct);
-        if (version is null) return Results.NotFound();
-        return Results.Ok(TemplateDetail.From(version));
+        var version = await (from template in db.TaskTemplates
+                             join revision in db.TaskTemplateVersions on template.Id equals revision.TemplateId
+                             where template.Id == id && template.FamilyId == user.FamilyId() && revision.Version == template.CurrentVersion
+                             select revision).AsNoTracking().SingleOrDefaultAsync(ct);
+        return version is null ? Results.NotFound() : Results.Ok(TemplateDetail.From(version));
     }
 
     /// <summary>Deletes one template or the family's whole library, including all revisions and saved tasks.</summary>

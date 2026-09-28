@@ -5,10 +5,9 @@
     "ng": "ng",
     "start": "ng serve --host localhost --proxy-config proxy.conf.json",
     "build": "ng build",
-    "watch": "ng build --watch --configuration development",
     "test": "ng test",
-    "format": "prettier --write \"src/**/*.{ts,html,css}\" \"e2e/**/*.{ts,mjs}\" \"*.{ts,json}\" ../.prettierrc .postcssrc.json \"../*.json\" ../.markdownlint-cli2.jsonc \"../*.md\" \"../docs/**/*.md\" ../.github/workflows/verify.yml",
-    "format:check": "prettier --check \"src/**/*.{ts,html,css}\" \"e2e/**/*.{ts,mjs}\" \"*.{ts,json}\" ../.prettierrc .postcssrc.json \"../*.json\" ../.markdownlint-cli2.jsonc \"../*.md\" \"../docs/**/*.md\" ../.github/workflows/verify.yml",
+    "format": "prettier --write \"src/**/*.{ts,html,css}\" \"e2e/**/*.{ts,mjs}\" \"*.{ts,json}\" public/manifest.webmanifest ../.prettierrc .postcssrc.json \"../*.json\" ../.markdownlint-cli2.jsonc \"../*.md\" \"../docs/**/*.md\" ../.github/workflows/verify.yml",
+    "format:check": "prettier --check \"src/**/*.{ts,html,css}\" \"e2e/**/*.{ts,mjs}\" \"*.{ts,json}\" public/manifest.webmanifest ../.prettierrc .postcssrc.json \"../*.json\" ../.markdownlint-cli2.jsonc \"../*.md\" \"../docs/**/*.md\" ../.github/workflows/verify.yml",
     "e2e": "playwright test",
     "lint:md": "cd .. && markdownlint-cli2",
     "typecheck:e2e": "tsc -p tsconfig.e2e.json"

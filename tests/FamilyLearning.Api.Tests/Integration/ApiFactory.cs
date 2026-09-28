@@ -12,13 +12,13 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 namespace FamilyLearning.Api.Tests.Integration;
 
 /// <summary>Runs the real application against a unique temporary SQLite database and key directory.</summary>
-public sealed class ApiFactory(Action<IServiceCollection>? configureServices = null) : WebApplicationFactory<Program>
+public sealed class ApiFactory(Action<IServiceCollection>? configureServices = null, string environment = "Development") : WebApplicationFactory<Program>
 {
     private readonly string dataDirectory = Path.Combine(Path.GetTempPath(), "family-learning-tests", Guid.NewGuid().ToString());
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
-        builder.UseEnvironment("Development");
+        builder.UseEnvironment(environment);
         builder.UseSetting("Storage:Directory", dataDirectory);
         // Developer secrets/environment must never enable a real provider in automated tests.
         builder.UseSetting("Ai:ApiKey", "");

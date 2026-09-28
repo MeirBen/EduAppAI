@@ -84,7 +84,10 @@ export interface InstanceSummary {
 }
 
 /** Saved parent preview; never regenerate on read or expose its answers to a child. */
-export interface InstancePreview extends InstanceSummary {
+export interface InstancePreview {
+  id: string;
+  status: 'Draft';
+  createdAtUtc: string;
   generationMetadata: GenerationMetadata | null;
   templateVersionId: string;
   templateVersion: number;

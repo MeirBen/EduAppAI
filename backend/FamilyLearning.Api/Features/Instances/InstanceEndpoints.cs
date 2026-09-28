@@ -23,12 +23,11 @@ public static class InstanceEndpoints
                 .Select(i => new InstanceSummary(i.Id, i.Title, i.Status, i.CreatedAtUtc)).ToListAsync(ct));
         instances.MapGet("/{id:guid}", async (Guid id, ClaimsPrincipal user, LearningDbContext db, CancellationToken ct) =>
         {
-            var instance = await db.TaskInstances.AsNoTracking()
-                .SingleOrDefaultAsync(i => i.Id == id && i.FamilyId == user.FamilyId(), ct);
-            if (instance is null) return Results.NotFound();
-            var version = await db.TaskTemplateVersions.AsNoTracking().Where(v => v.Id == instance.TemplateVersionId)
-                .Select(v => (int?)v.Version).SingleOrDefaultAsync(ct);
-            return version is null ? Results.NotFound() : Results.Ok(InstancePreview.From(instance, version.Value));
+            var snapshot = await (from instance in db.TaskInstances
+                                  join version in db.TaskTemplateVersions on instance.TemplateVersionId equals version.Id
+                                  where instance.Id == id && instance.FamilyId == user.FamilyId()
+                                  select new { Instance = instance, version.Version }).AsNoTracking().SingleOrDefaultAsync(ct);
+            return snapshot is null ? Results.NotFound() : Results.Ok(InstancePreview.From(snapshot.Instance, snapshot.Version));
         });
         instances.MapDelete("/{id:guid}", async (Guid id, ClaimsPrincipal user, LearningDbContext db, CancellationToken ct) =>
         {
@@ -40,12 +39,11 @@ public static class InstanceEndpoints
     private static async Task<IResult> CreateAsync(Guid id, CreateInstanceRequest request, ClaimsPrincipal user,
         LearningDbContext db, AiGenerationService ai, CancellationToken ct)
     {
-        var template = await db.TaskTemplates.AsNoTracking()
-            .SingleOrDefaultAsync(t => t.Id == id && t.FamilyId == user.FamilyId(), ct);
-        if (template is null) return Results.NotFound();
-        // Pin the revision we read; concurrent publication cannot change this immutable definition.
-        var version = await db.TaskTemplateVersions.AsNoTracking()
-            .SingleOrDefaultAsync(v => v.TemplateId == id && v.Version == template.CurrentVersion, ct);
+        // Resolve ownership and pin the current immutable revision in one database read.
+        var version = await (from template in db.TaskTemplates
+                             join revision in db.TaskTemplateVersions on template.Id equals revision.TemplateId
+                             where template.Id == id && template.FamilyId == user.FamilyId() && revision.Version == template.CurrentVersion
+                             select revision).AsNoTracking().SingleOrDefaultAsync(ct);
         if (version is null) return Results.NotFound();
         var definition = StoredJson.Read<TaskTemplateDefinition>(version.DefinitionJson);
         var parameters = ParameterValidator.Validate(definition.InstanceParameters, request.Parameters);

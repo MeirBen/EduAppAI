@@ -23,7 +23,8 @@ builder.Services.AddDataProtection().SetApplicationName("FamilyLearning")
 builder.Services.AddParentAuthentication(builder.Environment.IsDevelopment());
 builder.Services.AddTaskAi(builder.Configuration, builder.Environment);
 builder.Services.AddApplicationApi();
-builder.WebHost.ConfigureKestrel(options => options.Limits.MaxRequestBodySize = 64 * 1024);
+// Allow all bounded template fields even when Hebrew characters use six-byte JSON escapes.
+builder.WebHost.ConfigureKestrel(options => options.Limits.MaxRequestBodySize = 256 * 1024);
 var app = builder.Build();
 if (management)
 {

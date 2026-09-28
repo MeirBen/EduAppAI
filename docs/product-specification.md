@@ -1,20 +1,13 @@
 # Product specification
 
-**A parent describes a learning goal. AI proposes a reusable template. The
-parent reviews and saves it, then chooses parameters so AI can generate new
-tasks.**
-
-Every subject uses this flow. Templates are data: instructions and configurable
-fields, not subject-specific C# generators. The library starts empty.
+Templates are AI-authored instructions and configurable fields, never
+subject-specific generators. Every subject follows the same flow, starting from
+an empty library:
 
 ```text
 Parent prompt → AI proposal → parent review → published template
 Published template + chosen parameters → AI content → validation → saved task
 ```
-
-For example, one reading template can produce a task about dinosaurs today and
-space tomorrow. The parent changes the topic or difficulty; the app code stays
-the same.
 
 ## Current workflow
 
@@ -31,12 +24,10 @@ Failures preserve local input and allow explicit retry. Successful regeneration
 replaces the proposal. A stale publication returns 409; local edits remain until
 an explicit reload. Saved tasks remain readable when AI is unavailable.
 
-Parents can permanently delete a saved draft, or delete a template together with
-all its revisions and generated drafts. The library also offers a confirmed
-reset of all the family's learning content, including items beyond the list
-limit. Accounts and AI configuration remain. Every deletion requires explicit
-confirmation in the UI and server-enforced family ownership. Unsaved AI proposals
-can be discarded from the authoring screen; they are never stored as drafts.
+Parents can delete a draft, a template with its revisions/drafts, or all family
+learning content, including items beyond the list limit. Deletion requires UI
+confirmation and server-enforced ownership; accounts and AI configuration remain.
+Unsaved proposals can be discarded and are never stored as drafts.
 
 ## Contracts
 
@@ -76,21 +67,19 @@ Server limits:
 
 ## Boundaries
 
-AI authors templates and generates content. The application owns validation,
-authorization, persistence, versioning and scoring rules. It uses structured
-output with application-owned schemas and validates responses before saving.
-Invalid or unavailable responses produce clear errors, never substitute content.
-Parents review educational correctness and age suitability.
+AI generates within application-owned schemas and controls. The application
+validates and persists output, authorizes access and versions templates. Invalid
+or unavailable responses produce errors, never substitute content. Parents
+review educational correctness and age suitability.
 
-OpenRouter uses `openrouter/free` or an explicit `:free` model. No paid calls or
-automatic retries. Send only learning inputs; do not add account IDs, emails or
-credentials. Logs contain generation metadata, elapsed time and reported token
-counts, not prompts, answers, reasoning text or raw errors.
+OpenRouter uses `openrouter/free` or an explicit `:free` model, without paid calls
+or automatic retries. Send only learning inputs. Logs exclude prompts, answers,
+identities, credentials, reasoning text and raw provider errors.
 
-The server enforces family ownership and CSRF. Publication is atomic and detects
-concurrent edits. Generation pins its revision before contacting AI. Parent
-answer keys must never enter child responses. The interface is Hebrew/RTL with
-native, accessible controls; learning content is rendered as text.
+The server enforces family ownership, CSRF and atomic, concurrency-safe
+publication. Generation pins its revision before AI. Parent answer keys must
+never enter child responses. Hebrew/RTL UI uses native accessible controls and
+renders learning content as text.
 
 Implementation details live in [architecture](architecture.md), setup in the
 [README](../README.md), and presentation rules in the [UI guide](ui-guide.md).
