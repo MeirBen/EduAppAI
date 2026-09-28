@@ -24,18 +24,18 @@ public static class AuthEndpoints
                 Path = "/"
             });
             return Results.Ok(new { token });
-        });
-        auth.MapPost("/login", LoginAsync).RequireRateLimiting("login");
+        }).AllowAnonymous();
+        auth.MapPost("/login", LoginAsync).AllowAnonymous().RequireRateLimiting("login");
         auth.MapPost("/logout", async (SignInManager<ParentUser> signIn) =>
         {
             await signIn.SignOutAsync();
             return Results.NoContent();
-        }).RequireAuthorization("Parent");
+        });
         auth.MapGet("/me", (HttpContext context) => Results.Ok(new
         {
             email = context.User.Identity!.Name,
             familyId = context.User.FamilyId()
-        })).RequireAuthorization("Parent");
+        }));
     }
 
     private static async Task<IResult> LoginAsync(LoginRequest request, SignInManager<ParentUser> signIn)

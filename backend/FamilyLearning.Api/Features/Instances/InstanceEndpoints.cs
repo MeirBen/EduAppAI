@@ -15,8 +15,8 @@ public static class InstanceEndpoints
     /// <summary>Maps authenticated draft routes onto the API group configured with CSRF protection.</summary>
     public static void MapInstanceEndpoints(this RouteGroupBuilder api)
     {
-        api.MapPost("/templates/{id:guid}/instances", CreateAsync).RequireAuthorization("Parent").RequireRateLimiting("generation");
-        var instances = api.MapGroup("/instances").RequireAuthorization("Parent");
+        api.MapPost("/templates/{id:guid}/instances", CreateAsync).RequireRateLimiting("generation");
+        var instances = api.MapGroup("/instances");
         instances.MapGet("/", async (ClaimsPrincipal user, LearningDbContext db, CancellationToken ct) =>
             await db.TaskInstances.AsNoTracking().Where(i => i.FamilyId == user.FamilyId())
                 .OrderByDescending(i => i.CreatedAtUtc).Take(100)

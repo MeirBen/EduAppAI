@@ -16,23 +16,22 @@ export const routes: Routes = [
       {
         path: 'templates',
         title: 'המרחב שלנו · לומדים ביחד',
-        loadComponent: () =>
-          import('./features/templates/template-list/template-list').then((m) => m.TemplateList),
+        loadComponent: () => import('./features/library/library').then((m) => m.Library),
       },
       {
         path: 'templates/new',
         title: 'תבנית חדשה · לומדים ביחד',
         loadComponent: () =>
-          import('./features/templates/create-template/create-template').then(
-            (m) => m.CreateTemplate,
+          import('./features/templates/template-editor/template-editor').then(
+            (m) => m.TemplateEditor,
           ),
       },
       {
         path: 'templates/:templateId/edit',
         title: 'עריכת תבנית · לומדים ביחד',
         loadComponent: () =>
-          import('./features/templates/create-template/create-template').then(
-            (m) => m.CreateTemplate,
+          import('./features/templates/template-editor/template-editor').then(
+            (m) => m.TemplateEditor,
           ),
       },
       {

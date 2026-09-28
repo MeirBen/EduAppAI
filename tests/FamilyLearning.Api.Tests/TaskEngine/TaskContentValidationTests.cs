@@ -2,7 +2,7 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using FamilyLearning.Api.TaskEngine.Models;
 using FamilyLearning.Api.TaskEngine.Validation;
-using FamilyLearning.Api.Tests.Integration;
+using FamilyLearning.Api.Tests.Fixtures;
 
 namespace FamilyLearning.Api.Tests.TaskEngine;
 
@@ -28,7 +28,7 @@ public sealed class TaskContentValidationTests
     [InlineData("oversize-total")]
     public void Rejects_invalid_generated_content(string scenario)
     {
-        var content = AiAuthoringTests.Content(count: 3);
+        var content = AiFixtures.Content(count: 3);
         content["questions"]![2]!["interaction"] = new JsonObject { ["type"] = "single-choice", ["options"] = new JsonArray("ספרים", "פרחים") };
         content["questions"]![2]!["answer"]!["value"] = "ספרים";
         content["questions"]![0]!["interaction"]!["type"] = "numeric-input";

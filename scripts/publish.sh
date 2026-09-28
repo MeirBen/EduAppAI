@@ -8,7 +8,7 @@ mkdir -p artifacts
 publish_dir="$(mktemp -d "$repo_dir/artifacts/publish.XXXXXX")"
 trap 'rm -rf "$publish_dir"' EXIT
 # Publish into an empty directory: an older package can have newer file timestamps.
-dotnet publish backend/FamilyLearning.Api -c Release -o "$publish_dir"
+dotnet publish backend/FamilyLearning.Api -c Release -o "$publish_dir" -p:RestoreLockedMode=true
 mkdir -p "$publish_dir/wwwroot"
 cp -R frontend/dist/family-learning/browser/. "$publish_dir/wwwroot/"
 

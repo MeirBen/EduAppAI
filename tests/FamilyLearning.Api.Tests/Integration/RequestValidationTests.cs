@@ -3,6 +3,7 @@ using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using FamilyLearning.Api.Tests.Fixtures;
 
 namespace FamilyLearning.Api.Tests.Integration;
 
@@ -15,13 +16,13 @@ public sealed class RequestValidationTests
         using var parent = await app.ParentAsync();
         foreach (var member in new[] { "schemaVersion", "name", "instanceParameters", "generation" })
         {
-            var definition = AiAuthoringTests.Definition().AsObject();
+            var definition = AiFixtures.Definition().AsObject();
             definition.Remove(member);
             await AssertBadRequestAsync(parent, "/api/templates", definition.ToJsonString());
             definition[member] = null;
             await AssertBadRequestAsync(parent, "/api/templates", definition.ToJsonString());
         }
-        var invalidInstructions = AiAuthoringTests.Definition();
+        var invalidInstructions = AiFixtures.Definition();
         invalidInstructions["generation"]!["instructions"] = null;
         await AssertBadRequestAsync(parent, "/api/templates", invalidInstructions.ToJsonString());
         Assert.Equal(0, (await parent.GetFromJsonAsync<JsonElement>("/api/templates")).GetArrayLength());
@@ -32,7 +33,7 @@ public sealed class RequestValidationTests
     {
         using var app = new ApiFactory();
         using var parent = await app.ParentAsync();
-        var created = await parent.PostAsJsonAsync("/api/templates", AiAuthoringTests.Definition());
+        var created = await parent.PostAsJsonAsync("/api/templates", AiFixtures.Definition());
         var template = await created.Content.ReadFromJsonAsync<JsonElement>();
         var id = template.GetProperty("id").GetGuid();
         foreach (var body in new[] { "{}", """{"parameters":null}""" })
@@ -41,7 +42,7 @@ public sealed class RequestValidationTests
             await AssertBadRequestAsync(parent, $"/api/templates/{id}/versions", body);
         var missingExpectedVersion = new JsonObject
         {
-            ["definition"] = AiAuthoringTests.Definition()
+            ["definition"] = AiFixtures.Definition()
         };
         await AssertBadRequestAsync(parent, $"/api/templates/{id}/versions", missingExpectedVersion.ToJsonString());
         Assert.Equal(0, (await parent.GetFromJsonAsync<JsonElement>("/api/instances")).GetArrayLength());

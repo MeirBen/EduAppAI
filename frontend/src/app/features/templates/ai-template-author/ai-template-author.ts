@@ -3,11 +3,11 @@ import {
   afterNextRender,
   ChangeDetectionStrategy,
   Component,
+  computed,
   DestroyRef,
   inject,
   Injector,
   output,
-  resource,
   signal,
 } from '@angular/core';
 import { disabled, form, FormField, maxLength, submit, validate } from '@angular/forms/signals';
@@ -29,7 +29,10 @@ export class AiTemplateAuthor {
   private readonly document = inject(DOCUMENT);
   private readonly injector = inject(Injector);
   private readonly lifetime = inject(DestroyRef);
-  protected readonly status = resource({ loader: () => this.api.aiStatus() });
+  protected readonly status = this.api.aiStatus();
+  protected readonly configured = computed(
+    () => this.status.hasValue() && this.status.value().configured,
+  );
   protected readonly model = signal({ prompt: '' });
   protected readonly error = signal('');
   protected readonly publishing = signal(false);
@@ -45,7 +48,7 @@ export class AiTemplateAuthor {
 
   protected async generate(event: Event) {
     event.preventDefault();
-    if (this.busy() || this.publishing() || !this.status.value()?.configured) return;
+    if (this.busy() || this.publishing() || !this.configured()) return;
     this.error.set('');
     await submit(this.fields, async () => {
       try {

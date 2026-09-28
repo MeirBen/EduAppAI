@@ -11,10 +11,17 @@ models, validators and AI operations. `Infrastructure` handles authentication,
 provider registration and persistence. No repository or mediator wrappers.
 
 Angular is standalone, strict and signal-based. `core` contains auth and API
-access; feature folders contain screens; `dynamic-form` renders template-defined
-fields. Native HTML and Tailwind provide the shell and controls. Angular proxies
+access. Each feature owns its screens, controls and tests: `library` lists and
+removes saved content, `templates` owns prompt authoring and the create/edit
+`TemplateEditor`, and `instances` owns parameter choices, generation and previews.
+Native HTML and Tailwind provide the shell and controls. Angular proxies
 `/api` during development; publication serves the client and API from one
 process.
+
+`Program.cs` composes the host. `Infrastructure/Web/ApiConfiguration` owns shared
+JSON, ProblemDetails, rate limits and route policies. Every feature API inherits
+parent authorization and CSRF protection; only sign-in and token issuance
+explicitly allow anonymous requests. Add endpoints to this group.
 
 ## AI and persistence
 
@@ -63,13 +70,19 @@ configuration without contacting the provider.
 
 ## Client state
 
+`LearningApi` owns URLs and transport contracts. Its read methods create Angular
+`httpResource` instances in the calling component's injection context. Route
+changes and component destruction cancel reads. Read values only after
+`hasValue()`; render errors independently. Writes use explicit HttpClient calls
+with the caller's lifetime, never reactive resources or automatic retries.
+
 Lazy routes use guards for navigation; the server remains the authorization
 boundary. `AiTemplateAuthor` holds the prompt/proposal. `AiTemplateForm` edits a
 copy through Signal Forms and converts it to the API contract on save. Errors
 retain local edits; a replacement proposal resets feedback. `ParameterForm`
 emits validated choices. Blank numbers stay distinct from zero; optional empty
-text defaults stay explicit. Leaving an authoring/generation screen cancels its
-pending write request.
+text defaults stay explicit. Cancellation stops the browser request but does not
+guarantee that a server write was rolled back.
 
 The preview reads saved content. The PWA caches application assets only;
 authenticated responses and task operations require a connection. See the

@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { ParameterForm } from './parameter-form';
-import { ParameterDefinition, ParameterValues } from '../../core/api/models';
+import { ParameterDefinition, ParameterValues } from '../../../core/api/models';
 
 const definitions: ParameterDefinition[] = [
   { key: 'theme', label: 'נושא', type: 'text', required: true, maxLength: 10 },

@@ -48,9 +48,9 @@ and provider failures are visible. Saved tasks remain readable without AI.
 ./scripts/verify.sh
 ```
 
-Checks locked restores, .NET builds/tests/XML docs, formatting, Angular tests
-and production build. TypeScript rejects unused locals/parameters. No AI key is
-needed.
+Checks locked restores, .NET builds/tests/XML docs, source/config formatting,
+Markdown, shell syntax, browser-test types, Angular tests and production build.
+TypeScript rejects unused locals/parameters. No AI key is needed.
 
 For the isolated browser workflow:
 

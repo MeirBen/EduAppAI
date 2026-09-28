@@ -11,7 +11,7 @@
       <p>לא הצלחנו לבדוק את החיבור לשירות.</p>
       <button class="text-link mt-3" type="button" (click)="status.reload()">בדיקה נוספת</button>
     </div>
-  } @else if (!status.value()?.configured) {
+  } @else if (!configured()) {
     <div class="rounded-xl border border-line bg-soft p-4 mb-5" role="status">
       <p>שירות ה־AI עדיין לא מחובר. אחרי חיבור OpenRouter תוכלו ליצור תבניות מהרעיון שלכם.</p>
       <button class="text-link mt-3" type="button" (click)="status.reload()">
@@ -48,11 +48,7 @@
       יצירה מחדש תחליף את ההצעה ואת העריכות המקומיות. דבר עדיין לא נשמר.
     </p>
   }
-  <button
-    class="button"
-    type="submit"
-    [disabled]="busy() || publishing() || !status.value()?.configured"
-  >
+  <button class="button" type="submit" [disabled]="busy() || publishing() || !configured()">
     {{ busy() ? 'בונים את התבנית…' : draft() ? 'יצירת הצעה חדשה' : 'יצירת תבנית בעזרת AI' }}
   </button>
   @if (busy()) {

@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
+using FamilyLearning.Api.Tests.Fixtures;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -18,7 +19,7 @@ public sealed class ParentWorkflowTests
         using var parent = await app.ParentAsync();
         parent.DefaultRequestHeaders.Remove("X-XSRF-TOKEN");
         Assert.Equal(HttpStatusCode.BadRequest,
-            (await parent.PostAsJsonAsync("/api/templates", AiAuthoringTests.Definition())).StatusCode);
+            (await parent.PostAsJsonAsync("/api/templates", AiFixtures.Definition())).StatusCode);
         await ApiFactory.RefreshCsrfAsync(parent);
         Assert.Equal(HttpStatusCode.NoContent, (await parent.PostAsync("/api/auth/logout", null)).StatusCode);
         Assert.Equal(HttpStatusCode.Unauthorized, (await parent.GetAsync("/api/templates")).StatusCode);
@@ -27,11 +28,11 @@ public sealed class ParentWorkflowTests
     [Fact]
     public async Task Saves_frozen_draft_and_keeps_old_version_after_template_edit()
     {
-        using var app = new ApiFactory(services => services.AddSingleton<IChatClient>(new AiAuthoringTests.ScriptedChat(AiAuthoringTests.Content(count: 3).ToJsonString())));
+        using var app = new ApiFactory(services => services.AddSingleton<IChatClient>(new AiFixtures.ScriptedChat(AiFixtures.Content(count: 3).ToJsonString())));
         using var parent = await app.ParentAsync();
         var empty = await parent.GetFromJsonAsync<JsonElement>("/api/templates");
         Assert.Equal(0, empty.GetArrayLength());
-        var created = await parent.PostAsJsonAsync("/api/templates", AiAuthoringTests.Definition());
+        var created = await parent.PostAsJsonAsync("/api/templates", AiFixtures.Definition());
         Assert.Equal(HttpStatusCode.Created, created.StatusCode);
         var template = await created.Content.ReadFromJsonAsync<JsonElement>();
         var id = template.GetProperty("id").GetGuid();
@@ -43,7 +44,7 @@ public sealed class ParentWorkflowTests
         Assert.Equal("Draft", instance.GetProperty("status").GetString());
         Assert.Equal(3, instance.GetProperty("content").GetProperty("questions").GetArrayLength());
 
-        var definition = AiAuthoringTests.Definition();
+        var definition = AiFixtures.Definition();
         definition["name"] = "New name";
         var update = new { expectedVersion = 1, definition };
         Assert.Equal(HttpStatusCode.Created, (await parent.PostAsJsonAsync($"/api/templates/{id}/versions", update)).StatusCode);
@@ -61,10 +62,10 @@ public sealed class ParentWorkflowTests
     [Fact]
     public async Task Other_families_cannot_read_or_change_templates_or_drafts()
     {
-        using var app = new ApiFactory(services => services.AddSingleton<IChatClient>(new AiAuthoringTests.ScriptedChat(AiAuthoringTests.Content(count: 3).ToJsonString())));
+        using var app = new ApiFactory(services => services.AddSingleton<IChatClient>(new AiFixtures.ScriptedChat(AiFixtures.Content(count: 3).ToJsonString())));
         using var owner = await app.ParentAsync();
         using var stranger = await app.ParentAsync();
-        var response = await owner.PostAsJsonAsync("/api/templates", AiAuthoringTests.Definition());
+        var response = await owner.PostAsJsonAsync("/api/templates", AiFixtures.Definition());
         var template = await response.Content.ReadFromJsonAsync<JsonElement>();
         var id = template.GetProperty("id").GetGuid();
         var draftResponse = await owner.PostAsJsonAsync($"/api/templates/{id}/instances", new { parameters = new { count = 3 } });
@@ -81,7 +82,7 @@ public sealed class ParentWorkflowTests
     {
         using var app = new ApiFactory();
         using var parent = await app.ParentAsync();
-        var definition = AiAuthoringTests.Definition();
+        var definition = AiFixtures.Definition();
         definition["schemaVersion"] = "2";
         Assert.Equal(HttpStatusCode.BadRequest,
             (await parent.PostAsJsonAsync("/api/templates", definition)).StatusCode);
@@ -92,10 +93,10 @@ public sealed class ParentWorkflowTests
     {
         using var app = new ApiFactory();
         using var parent = await app.ParentAsync();
-        var created = await parent.PostAsJsonAsync("/api/templates", AiAuthoringTests.Definition());
+        var created = await parent.PostAsJsonAsync("/api/templates", AiFixtures.Definition());
         var template = await created.Content.ReadFromJsonAsync<JsonElement>();
         var id = template.GetProperty("id").GetGuid();
-        var update = new { expectedVersion = 1, definition = AiAuthoringTests.Definition() };
+        var update = new { expectedVersion = 1, definition = AiFixtures.Definition() };
         var responses = await Task.WhenAll(
             parent.PostAsJsonAsync($"/api/templates/{id}/versions", update),
             parent.PostAsJsonAsync($"/api/templates/{id}/versions", update));
@@ -123,7 +124,7 @@ public sealed class ParentWorkflowTests
     {
         using var app = new ApiFactory();
         using var parent = await app.ParentAsync();
-        var response = await parent.PostAsJsonAsync("/api/templates", AiAuthoringTests.Definition());
+        var response = await parent.PostAsJsonAsync("/api/templates", AiFixtures.Definition());
         var template = await response.Content.ReadFromJsonAsync<JsonElement>();
         var id = template.GetProperty("id").GetGuid();
         Assert.Equal(HttpStatusCode.BadRequest,

@@ -14,7 +14,7 @@ describe('Prompt-first authoring', () => {
 
   it('keeps an AI proposal unsaved until the parent explicitly saves their edits', async () => {
     const fixture = TestBed.createComponent(AiTemplateAuthor);
-    fixture.detectChanges();
+    TestBed.tick();
     const http = TestBed.inject(HttpTestingController);
     http.expectOne('/api/ai/status').flush({ configured: true });
     await fixture.whenStable();
@@ -30,7 +30,7 @@ describe('Prompt-first authoring', () => {
     await fixture.whenStable();
     http.expectNone('/api/templates');
     await vi.waitFor(() => {
-      fixture.detectChanges();
+      TestBed.tick();
       expect(element.querySelector<HTMLInputElement>('#ai-template-name')?.disabled).toBe(false);
     });
     const name = element.querySelector<HTMLInputElement>('#ai-template-name')!;
@@ -63,7 +63,7 @@ describe('Prompt-first authoring', () => {
 
   it('preserves the prompt on provider failure and never silently creates fallback content', async () => {
     const fixture = TestBed.createComponent(AiTemplateAuthor);
-    fixture.detectChanges();
+    TestBed.tick();
     const http = TestBed.inject(HttpTestingController);
     http.expectOne('/api/ai/status').flush({ configured: true });
     await fixture.whenStable();
@@ -78,7 +78,7 @@ describe('Prompt-first authoring', () => {
     expect(prompt.value).toBe('ניסוי מדעי');
     expect(element.querySelector('app-ai-template-form')).toBeNull();
     await vi.waitFor(() => {
-      fixture.detectChanges();
+      TestBed.tick();
       expect(element.querySelector('[role="alert"]')?.textContent).toContain('לא נשמר דבר');
     });
     http.expectNone('/api/templates');

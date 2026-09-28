@@ -8,7 +8,7 @@ public static class AiEndpoints
 {
     public static void MapAiEndpoints(this RouteGroupBuilder api)
     {
-        var ai = api.MapGroup("/ai").RequireAuthorization("Parent");
+        var ai = api.MapGroup("/ai");
         ai.MapGet("/status", (AiGenerationService service) => Results.Ok(new { configured = service.Configured }));
         ai.MapPost("/template-drafts", async (AuthorTemplateRequest request, AiGenerationService service, CancellationToken ct) =>
         {

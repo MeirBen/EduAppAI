@@ -6,7 +6,8 @@ import { firstValueFrom } from 'rxjs';
 @Injectable({ providedIn: 'root' })
 export class Auth {
   private readonly http = inject(HttpClient);
-  readonly signedIn = signal(false);
+  private readonly session = signal(false);
+  readonly signedIn = this.session.asReadonly();
 
   /** Obtains an identity-bound request token that HttpClient sends on same-origin writes. */
   async refreshCsrf(): Promise<void> {
@@ -20,12 +21,12 @@ export class Auth {
   async loadSession(): Promise<boolean> {
     try {
       await firstValueFrom(this.http.get('/api/auth/me'));
-      this.signedIn.set(true);
+      this.session.set(true);
       await this.refreshCsrf();
       return true;
     } catch (error) {
       if (!(error instanceof HttpErrorResponse) || error.status !== 401) throw error;
-      this.signedIn.set(false);
+      this.session.set(false);
       return false;
     }
   }
@@ -41,7 +42,7 @@ export class Auth {
   async logout(): Promise<void> {
     await this.refreshCsrf();
     await firstValueFrom(this.http.post('/api/auth/logout', {}));
-    this.signedIn.set(false);
+    this.session.set(false);
     // Refresh the anonymous token on the next login, not after a successful sign-out.
   }
 }

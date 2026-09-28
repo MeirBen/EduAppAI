@@ -4,14 +4,13 @@ import {
   DestroyRef,
   inject,
   input,
-  resource,
   signal,
 } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { LearningApi } from '../../../core/api/learning-api';
 import { apiError } from '../../../core/api/api-error';
 import { ParameterValues } from '../../../core/api/models';
-import { ParameterForm } from '../../../dynamic-form/parameter-form/parameter-form';
+import { ParameterForm } from '../parameter-form/parameter-form';
 
 /** Collects choices, requests an AI task and opens its saved preview. */
 @Component({
@@ -26,10 +25,7 @@ export class CreateInstance {
   private readonly api = inject(LearningApi);
   private readonly router = inject(Router);
   private readonly lifetime = inject(DestroyRef);
-  protected readonly template = resource({
-    params: this.templateId,
-    loader: ({ params }) => this.api.getTemplate(params),
-  });
+  protected readonly template = this.api.template(this.templateId);
   protected readonly busy = signal(false);
   protected readonly error = signal('');
   protected readonly apiError = apiError;

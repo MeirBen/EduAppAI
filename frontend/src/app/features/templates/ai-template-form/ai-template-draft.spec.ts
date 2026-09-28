@@ -25,6 +25,29 @@ describe('AI blueprint editor', () => {
     expect(aiTemplateDefinition(draft).instanceParameters[1].default).toBeUndefined();
   });
 
+  it('removes old type settings when a parameter changes type', () => {
+    const draft = aiTemplateDraft(readingDefinition);
+    const field = draft.parameters[1];
+    field.type = 'boolean';
+    field.defaultValue = 'false';
+    expect(aiTemplateDefinition(draft).instanceParameters[1]).toEqual({
+      key: 'count',
+      label: field.label,
+      type: 'boolean',
+      required: true,
+      default: false,
+    });
+  });
+
+  it.each(['theme\n', 'theme\r', 'theme\r\n'])(
+    'rejects a key with trailing line breaks: %j',
+    (key) => {
+      const draft = aiTemplateDraft(readingDefinition);
+      draft.parameters[0].key = key;
+      expect(aiTemplateErrors(draft)).not.toEqual([]);
+    },
+  );
+
   it.each(['', '   '])('preserves the server-valid optional text default %j', (value) => {
     const definition = structuredClone(readingDefinition);
     definition.instanceParameters[0].required = false;

@@ -4,6 +4,7 @@ using System.Text.Json;
 using FamilyLearning.Api.Features.Instances;
 using FamilyLearning.Api.Features.Templates;
 using FamilyLearning.Api.Infrastructure.Persistence;
+using FamilyLearning.Api.Tests.Fixtures;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
@@ -52,7 +53,7 @@ public sealed class LibraryDeletionTests
         var id = await SaveTemplateAsync(owner);
         var firstDraft = await GenerateAsync(owner, id);
         Assert.Equal(HttpStatusCode.Created, (await owner.PostAsJsonAsync($"/api/templates/{id}/versions",
-            new { expectedVersion = 1, definition = AiAuthoringTests.Definition() })).StatusCode);
+            new { expectedVersion = 1, definition = AiFixtures.Definition() })).StatusCode);
         var secondDraft = await GenerateAsync(owner, id);
         var keptId = await SaveTemplateAsync(owner);
         var foreignId = await SaveTemplateAsync(stranger);
@@ -85,9 +86,9 @@ public sealed class LibraryDeletionTests
             for (var i = 0; i < 101; i++)
             {
                 var template = new TaskTemplate(familyId, $"Saved template {i}");
-                var version = new TaskTemplateVersion(template.Id, 1, AiAuthoringTests.Definition().ToJsonString());
+                var version = new TaskTemplateVersion(template.Id, 1, AiFixtures.Definition().ToJsonString());
                 db.AddRange(template, version, new TaskInstance(familyId, version.Id, "Saved draft", "{}",
-                    AiAuthoringTests.Content().ToJsonString(), "{}"));
+                    AiFixtures.Content().ToJsonString(), "{}"));
             }
             await db.SaveChangesAsync();
         }
@@ -155,11 +156,11 @@ public sealed class LibraryDeletionTests
     }
 
     private static ApiFactory WithAi() => new(services => services.AddSingleton<IChatClient>(
-        new AiAuthoringTests.ScriptedChat(AiAuthoringTests.Content().ToJsonString(), AiAuthoringTests.Content().ToJsonString())));
+        new AiFixtures.ScriptedChat(AiFixtures.Content().ToJsonString(), AiFixtures.Content().ToJsonString())));
 
     private static async Task<Guid> SaveTemplateAsync(HttpClient parent)
     {
-        var response = await parent.PostAsJsonAsync("/api/templates", AiAuthoringTests.Definition());
+        var response = await parent.PostAsJsonAsync("/api/templates", AiFixtures.Definition());
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
         return (await response.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("id").GetGuid();
     }
@@ -171,7 +172,7 @@ public sealed class LibraryDeletionTests
         return (await response.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("id").GetGuid();
     }
 
-    private sealed class PausedChat() : DelegatingChatClient(new AiAuthoringTests.ScriptedChat(AiAuthoringTests.Content().ToJsonString()))
+    private sealed class PausedChat() : DelegatingChatClient(new AiFixtures.ScriptedChat(AiFixtures.Content().ToJsonString()))
     {
         public TaskCompletionSource Entered { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         public TaskCompletionSource Resume { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);

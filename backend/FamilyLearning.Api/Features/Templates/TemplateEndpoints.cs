@@ -14,7 +14,7 @@ public static class TemplateEndpoints
     /// <summary>Maps authenticated template routes onto the API group configured with CSRF protection.</summary>
     public static void MapTemplateEndpoints(this RouteGroupBuilder api)
     {
-        var templates = api.MapGroup("/templates").RequireAuthorization("Parent");
+        var templates = api.MapGroup("/templates");
         templates.MapGet("/", async (ClaimsPrincipal user, LearningDbContext db, CancellationToken ct) =>
             await db.TaskTemplates.AsNoTracking().Where(t => t.FamilyId == user.FamilyId())
                 .OrderByDescending(t => t.CreatedAtUtc).Take(100)

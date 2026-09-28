@@ -150,28 +150,36 @@ export function aiTemplateDefinition(draft: AiBlueprintDraft): TemplateDefinitio
       instructions: draft.instructions,
       questionCountParameter: draft.questionCountParameter || null,
     },
-    instanceParameters: draft.parameters.map((field): ParameterDefinition => ({
-      key: field.key,
-      label: field.label,
-      type: field.type,
-      required: field.required,
-      ...(field.defaultValue !== '' ||
-      (field.type === 'text' && !field.required && field.emptyTextDefault)
-        ? {
-            default:
-              field.type === 'integer'
-                ? Number(field.defaultValue)
-                : field.type === 'boolean'
-                  ? field.defaultValue === 'true'
-                  : field.defaultValue,
-          }
-        : {}),
-      ...(field.type === 'integer' && field.min !== '' ? { min: Number(field.min) } : {}),
-      ...(field.type === 'integer' && field.max !== '' ? { max: Number(field.max) } : {}),
-      ...(field.type === 'text' && field.maxLength !== ''
-        ? { maxLength: Number(field.maxLength) }
-        : {}),
-      ...(field.type === 'select' ? { options: options(field) } : {}),
-    })),
+    instanceParameters: draft.parameters.map(parameterDefinition),
   };
+}
+
+function parameterDefinition(field: ParameterDraft): ParameterDefinition {
+  const definition: ParameterDefinition = {
+    key: field.key,
+    label: field.label,
+    type: field.type,
+    required: field.required,
+  };
+  const hasDefault = field.defaultValue !== '';
+  switch (field.type) {
+    case 'integer':
+      if (hasDefault) definition.default = Number(field.defaultValue);
+      if (field.min !== '') definition.min = Number(field.min);
+      if (field.max !== '') definition.max = Number(field.max);
+      break;
+    case 'boolean':
+      if (hasDefault) definition.default = field.defaultValue === 'true';
+      break;
+    case 'text':
+      if (hasDefault || (!field.required && field.emptyTextDefault))
+        definition.default = field.defaultValue;
+      if (field.maxLength !== '') definition.maxLength = Number(field.maxLength);
+      break;
+    case 'select':
+      if (hasDefault) definition.default = field.defaultValue;
+      definition.options = options(field);
+      break;
+  }
+  return definition;
 }

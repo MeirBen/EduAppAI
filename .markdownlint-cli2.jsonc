@@ -1,0 +1,14 @@
+{
+  "globs": ["**/*.md"],
+  "ignores": [
+    "**/node_modules/**",
+    "**/bin/**",
+    "**/obj/**",
+    "**/.angular/**",
+    "**/dist/**",
+    "**/test-results/**",
+    "**/playwright-report/**",
+    "artifacts/**",
+    ".superpowers/**",
+  ],
+}

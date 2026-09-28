@@ -12,7 +12,7 @@ describe('AI task request lifetime', () => {
     });
     const fixture = TestBed.createComponent(CreateInstance);
     fixture.componentRef.setInput('templateId', 'template');
-    fixture.detectChanges();
+    TestBed.tick();
     const http = TestBed.inject(HttpTestingController);
     http.expectOne('/api/templates/template').flush({
       id: 'template',

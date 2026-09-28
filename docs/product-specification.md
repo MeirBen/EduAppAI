@@ -118,6 +118,5 @@ must stay separate from parent authentication and use answer-free,
 assignment-checked responses. Do not expose placeholder controls for unfinished
 features.
 
-[template]:
-  ../backend/FamilyLearning.Api/TaskEngine/Models/TaskTemplateDefinition.cs
+[template]: ../backend/FamilyLearning.Api/TaskEngine/Models/TaskTemplateDefinition.cs
 [content]: ../backend/FamilyLearning.Api/TaskEngine/Models/TaskContent.cs

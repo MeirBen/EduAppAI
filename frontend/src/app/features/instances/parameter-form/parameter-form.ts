@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, input, linkedSignal, output } from '@angular/core';
 import { applyEach, disabled, form, FormField, submit, validate } from '@angular/forms/signals';
-import { ParameterDefinition, ParameterValues } from '../../core/api/models';
+import { ParameterDefinition, ParameterValues } from '../../../core/api/models';
 
 /** Numeric input stays as text so an empty optional field cannot silently become zero. */
 interface ParameterEntry {
