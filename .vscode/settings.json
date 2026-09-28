@@ -1,3 +1,33 @@
 {
-    "dotnet.defaultSolution": "FamilyLearning.sln"
+    "dotnet.defaultSolution": "FamilyLearning.sln",
+    "workbench.colorCustomizations": {
+        "activityBar.activeBackground": "#727b5f",
+        "activityBar.activeBorder": "#e7e7e7",
+        "activityBar.background": "#727b5f",
+        "activityBar.foreground": "#e7e7e7",
+        "activityBar.inactiveForeground": "#e7e7e799",
+        "activityBarBadge.background": "#204b60",
+        "activityBarBadge.foreground": "#e7e7e7",
+        "activityBarTop.activeBackground": "#727b5f",
+        "activityBarTop.activeBorder": "#e7e7e7",
+        "activityBarTop.background": "#727b5f",
+        "activityBarTop.foreground": "#e7e7e7",
+        "activityBarTop.inactiveForeground": "#e7e7e799",
+        "commandCenter.border": "#e7e7e799",
+        "commandCenter.foreground": "#e7e7e7",
+        "sash.hoverBorder": "#727b5f",
+        "statusBar.background": "#575e49",
+        "statusBar.debuggingBackground": "#575e49",
+        "statusBar.debuggingForeground": "#e7e7e7",
+        "statusBar.foreground": "#e7e7e7",
+        "statusBarItem.hoverBackground": "#727b5f",
+        "statusBarItem.remoteBackground": "#4095bf",
+        "statusBarItem.remoteForeground": "#e7e7e7",
+        "titleBar.activeBackground": "#575e49",
+        "titleBar.activeForeground": "#e7e7e7",
+        "titleBar.inactiveBackground": "#575e4999",
+        "titleBar.inactiveForeground": "#e7e7e799",
+        "statusBar.inactiveBackground": "#575e49"
+    },
+    "peacock.color": "#575e49"
 }
