@@ -1,17 +1,20 @@
 import { HttpErrorResponse } from '@angular/common/http';
 
 /**
- * Converts an unknown failure into plain-text UI feedback.
- * Uses validation messages for client errors and hides server-error payloads.
+ * Converts a failure into Hebrew plain-text feedback. The API supplies Hebrew validation errors.
+ * Framework problem titles and server-error payloads are never exposed to the UI.
  * Render through Angular text interpolation, never as HTML.
  */
 export function apiError(error: unknown): string {
-  if (!(error instanceof HttpErrorResponse)) return 'Something went wrong. Please try again.';
-  if (error.status === 0) return 'Cannot reach the server. Check your connection and try again.';
-  if (error.status === 401) return 'Please sign in again, or check your email and password.';
-  if (error.status === 404) return 'This item could not be found.';
-  if (error.status === 429) return 'Too many attempts. Wait a minute and try again.';
-  if (error.status >= 500) return 'The server could not finish your request. Please try again.';
+  if (!(error instanceof HttpErrorResponse)) return 'משהו השתבש. אפשר לנסות שוב.';
+  if (error.status === 0) return 'לא ניתן להתחבר לשרת. יש לבדוק את החיבור ולנסות שוב.';
+  if (error.status === 401)
+    return 'הכניסה לא הצליחה או פגה. יש לבדוק את הדוא״ל והסיסמה ולנסות שוב.';
+  if (error.status === 403) return 'אין הרשאה לביצוע הפעולה הזו.';
+  if (error.status === 404) return 'הפריט המבוקש לא נמצא.';
+  if (error.status === 409) return 'התבנית השתנתה. יש לרענן את העמוד לפני שמירת גרסה נוספת.';
+  if (error.status === 429) return 'בוצעו יותר מדי ניסיונות. יש להמתין דקה ולנסות שוב.';
+  if (error.status >= 500) return 'השרת לא הצליח להשלים את הבקשה. אפשר לנסות שוב בעוד רגע.';
   const problem: unknown = error.error;
   if (problem && typeof problem === 'object') {
     if ('errors' in problem && problem.errors && typeof problem.errors === 'object') {
@@ -20,7 +23,6 @@ export function apiError(error: unknown): string {
         .filter((value): value is string => typeof value === 'string');
       if (messages.length) return messages.join(' ');
     }
-    if ('title' in problem && typeof problem.title === 'string') return problem.title;
   }
-  return 'Check your details and try again.';
+  return 'הבקשה לא התקבלה. יש לבדוק את הפרטים או לרענן את העמוד ולנסות שוב.';
 }

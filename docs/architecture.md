@@ -94,10 +94,16 @@ values. Browser validation improves feedback; the server always validates again.
 For optional numeric fields, the form keeps input text until submission so that an
 empty field does not accidentally turn into zero.
 
+The UI is Hebrew-only with document-level RTL and Angular's `he-IL` locale.
+Tailwind CSS 4 handles presentation; Ionic remains the application shell. The
+[UI guide](ui-guide.md) documents styling, mixed-direction content and accessibility.
+A small display helper translates only known legacy system labels/instructions;
+immutable snapshots, arbitrary authored content and API enum values stay unchanged.
+
 ## Changes you can make first
 
 - Change the visible wording in a feature's `.html` file.
-- Change spacing and colors in `frontend/src/styles.scss`.
+- Change theme tokens in `frontend/src/styles.css` and layout utilities in templates.
 - Adjust the multiplication ranges in `MathTaskGenerator`; update its tests with the
   corresponding behavior. Existing drafts intentionally keep their old questions.
 - Add a new deterministic generator only alongside its explicit settings, validation,

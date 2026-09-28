@@ -76,5 +76,5 @@ public static class TemplateEndpoints
     }
 
     private static IResult VersionConflict() => Results.Problem(statusCode: 409,
-        title: "This template has changed. Reload it before publishing another version.");
+        title: "התבנית השתנתה. יש לרענן את העמוד לפני שמירת גרסה נוספת.");
 }

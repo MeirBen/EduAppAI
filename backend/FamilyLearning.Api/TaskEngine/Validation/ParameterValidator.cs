@@ -5,7 +5,7 @@ namespace FamilyLearning.Api.TaskEngine.Validation;
 
 /// <summary>Resolved values and field errors from one validation pass.</summary>
 /// <param name="Values">Accepted values, including defaults; use only when Errors is empty.</param>
-/// <param name="Errors">Errors keyed by parameter name, suitable for an HTTP validation problem.</param>
+/// <param name="Errors">Hebrew feedback keyed by parameter name, suitable for an HTTP validation problem.</param>
 public sealed record ParameterValidationResult(
     Dictionary<string, JsonElement> Values,
     Dictionary<string, string[]> Errors);
@@ -26,13 +26,13 @@ public static class ParameterValidator
         var errors = new Dictionary<string, string[]>(StringComparer.Ordinal);
         if (supplied is null)
         {
-            errors["parameters"] = ["Parameters are required. Use an empty object to accept defaults."];
+            errors["parameters"] = ["יש לציין את הגדרות התרגול. אפשר להשתמש בברירות המחדל."];
             return new(values, errors);
         }
         var knownKeys = definitions.Select(p => p.Key).ToHashSet(StringComparer.Ordinal);
         foreach (var key in supplied.Keys)
         {
-            if (!knownKeys.Contains(key)) errors[key] = ["Unknown parameter."];
+            if (!knownKeys.Contains(key)) errors[key] = ["ההגדרה אינה מוכרת."];
         }
 
         foreach (var definition in definitions)
@@ -42,7 +42,7 @@ public static class ParameterValidator
                 if (definition.Default is { } defaultValue) value = defaultValue;
                 else
                 {
-                    if (definition.Required) errors[definition.Key] = ["This field is required."];
+                    if (definition.Required) errors[definition.Key] = ["יש למלא את השדה הזה."];
                     continue;
                 }
             }
@@ -63,22 +63,22 @@ public static class ParameterValidator
         switch (definition.Type)
         {
             case "text":
-                if (value.ValueKind != JsonValueKind.String) return "Enter text.";
+                if (value.ValueKind != JsonValueKind.String) return "יש להזין טקסט.";
                 var text = value.GetString()!;
-                if (definition.Required && string.IsNullOrWhiteSpace(text)) return "This field is required.";
-                return text.Length > (definition.MaxLength ?? 500) ? "The text is too long." : null;
+                if (definition.Required && string.IsNullOrWhiteSpace(text)) return "יש למלא את השדה הזה.";
+                return text.Length > (definition.MaxLength ?? 500) ? "הטקסט ארוך מדי." : null;
             case "integer":
                 if (value.ValueKind != JsonValueKind.Number || !value.TryGetInt32(out var number))
-                    return "Enter a whole number.";
-                return number < definition.Min || number > definition.Max ? "The number is outside the allowed range." : null;
+                    return "יש להזין מספר שלם.";
+                return number < definition.Min || number > definition.Max ? "המספר מחוץ לטווח המותר." : null;
             case "select":
                 return value.ValueKind == JsonValueKind.String &&
                     definition.Options?.Contains(value.GetString(), StringComparer.Ordinal) == true
-                    ? null : "Choose one of the available options.";
+                    ? null : "יש לבחור אחת מהאפשרויות הזמינות.";
             case "boolean":
-                return value.ValueKind is JsonValueKind.True or JsonValueKind.False ? null : "Choose true or false.";
+                return value.ValueKind is JsonValueKind.True or JsonValueKind.False ? null : "יש לבחור כן או לא.";
             default:
-                return "Unsupported parameter type.";
+                return "סוג השדה אינו נתמך.";
         }
     }
 }

@@ -26,6 +26,10 @@ change histories, commented-out code, speculative promises and summaries that me
 repeat a symbol name. Git records history; the roadmap records future work. A TODO
 needs a concrete condition and a tracked issue or roadmap reference.
 
+This English convention applies to developer documentation. User-facing copy is
+Hebrew; follow the [UI guide](ui-guide.md). Comment direction isolation or legacy
+label mapping only where it explains a compatibility decision, not every RTL utility.
+
 ## C# XML documentation
 
 Use `///` with `<summary>` for the declaration's purpose. Add tags only when useful:

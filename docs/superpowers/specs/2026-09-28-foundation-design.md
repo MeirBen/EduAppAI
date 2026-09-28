@@ -10,6 +10,8 @@ It is not the full MVP.
 - Use the machine's installed .NET 8 SDK via `dotnet`; keep SDK installations outside the repository.
 - One Angular 22 / Ionic 9 client with standalone components, signals, strict types,
   lazy routes, and a PWA application shell. API calls use relative URLs.
+- Hebrew-only RTL interface with Angular's Hebrew locale, Tailwind CSS 4, a local
+  Heebo font and native accessible controls. Follow the [UI guide](../../ui-guide.md).
 - ASP.NET Identity cookies, a command-line parent provisioning operation, server-side
   family ownership checks, CSRF validation, login lockout and rate limiting.
 - No public registration, tokens in browser storage, repository wrappers, mediator,

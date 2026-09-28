@@ -22,7 +22,7 @@ export class Login {
   });
   protected readonly error = signal(
     inject(ActivatedRoute).snapshot.queryParamMap.has('connection')
-      ? 'Cannot reach the server. Check that it is running, then try again.'
+      ? 'לא ניתן להתחבר לשרת. יש לבדוק את החיבור ולנסות שוב.'
       : '',
   );
 

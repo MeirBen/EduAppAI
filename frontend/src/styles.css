@@ -1,0 +1,167 @@
+@layer theme, base, components, utilities;
+
+@import '@ionic/angular/css/core.css' layer(base);
+@import '@ionic/angular/css/structure.css' layer(base);
+@import '@fontsource-variable/heebo';
+@import 'tailwindcss';
+
+@theme {
+  --font-sans: 'Heebo Variable', Arial, sans-serif;
+  --color-canvas: #f8f9f5;
+  --color-surface: #ffffff;
+  --color-ink: #213e36;
+  --color-muted: #586b62;
+  --color-line: #d8e1d8;
+  --color-control: #7f9187;
+  --color-brand: #215c4d;
+  --color-brand-hover: #174638;
+  --color-soft: #edf2e8;
+  --color-accent: #f5e8bd;
+  --color-danger: #942e2e;
+  --color-danger-soft: #fff3f0;
+  --color-focus: #9c5100;
+  --text-sm--line-height: 1.7;
+  --text-base--line-height: 1.7;
+  --text-lg--line-height: 1.7;
+  --text-xl--line-height: 1.5;
+  --text-2xl--line-height: 1.4;
+  --text-3xl--line-height: 1.4;
+  --text-4xl--line-height: 1.4;
+  --text-5xl--line-height: 1.4;
+}
+
+@layer base {
+  :root {
+    font-size: 100%;
+    color-scheme: light;
+    --ion-font-family: var(--font-sans);
+    --ion-background-color: var(--color-canvas);
+    --ion-text-color: var(--color-ink);
+    --ion-color-primary: var(--color-brand);
+  }
+
+  body {
+    @apply bg-canvas font-sans text-ink antialiased;
+    line-height: 1.7;
+  }
+
+  ion-content {
+    --background: var(--color-canvas);
+  }
+
+  h1,
+  h2,
+  h3,
+  p,
+  a,
+  label {
+    overflow-wrap: anywhere;
+  }
+
+  h1,
+  h2,
+  h3 {
+    @apply font-semibold;
+    line-height: 1.4;
+  }
+
+  h1 {
+    @apply text-3xl sm:text-4xl;
+  }
+  h2 {
+    @apply text-xl;
+  }
+  h3 {
+    @apply text-lg;
+  }
+
+  a {
+    text-underline-offset: 0.25em;
+  }
+  button,
+  summary {
+    cursor: pointer;
+  }
+  button:disabled {
+    cursor: wait;
+  }
+
+  :focus-visible {
+    outline: 3px solid var(--color-focus);
+    outline-offset: 4px;
+  }
+
+  label {
+    @apply mb-2 block font-medium;
+  }
+
+  label:has(+ input[type='checkbox']) {
+    @apply min-h-11;
+  }
+
+  input:not([type='checkbox']),
+  select {
+    @apply min-h-12 w-full min-w-0 rounded-xl border border-control bg-surface px-4 py-3 text-base text-ink;
+    /* Native controls must inherit Hebrew typography, including on iOS. */
+    font: inherit;
+  }
+
+  input::placeholder {
+    @apply text-muted;
+    opacity: 1;
+  }
+  input[aria-invalid='true'],
+  select[aria-invalid='true'] {
+    @apply border-danger;
+  }
+  input:disabled,
+  select:disabled {
+    opacity: 0.65;
+  }
+  input[type='checkbox'] {
+    @apply size-6 accent-brand;
+  }
+  summary {
+    @apply min-h-11 py-2 font-medium text-brand;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      scroll-behavior: auto !important;
+      animation-duration: 0.01ms !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
+
+/* Shared controls keep states consistent; page layouts use utilities in their templates. */
+@layer components {
+  .button {
+    @apply inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-transparent bg-brand px-5 py-3 text-center font-medium text-white no-underline transition-colors hover:bg-brand-hover disabled:opacity-60;
+    line-height: 1.5;
+  }
+
+  .button-secondary {
+    @apply border-line bg-surface text-brand hover:bg-soft;
+  }
+  .text-link {
+    @apply inline-flex min-h-11 items-center gap-2 py-2 font-medium text-brand hover:underline;
+  }
+  .panel {
+    @apply rounded-2xl border border-line bg-surface p-5 sm:p-8;
+  }
+  .badge {
+    @apply inline-flex items-center gap-1 rounded-lg bg-soft px-3 py-1 text-sm font-medium text-brand;
+  }
+  .field {
+    @apply my-6;
+  }
+  .field-error {
+    @apply mt-2 text-sm text-danger;
+  }
+  .error {
+    @apply my-4 rounded-xl border border-danger/25 bg-danger-soft p-4 text-danger;
+  }
+}

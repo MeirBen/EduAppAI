@@ -1,6 +1,6 @@
 {
-  "name": "Family Learning",
-  "short_name": "Family Learning",
+  "name": "לומדים ביחד",
+  "short_name": "לומדים ביחד",
   "display": "standalone",
   "scope": "./",
   "start_url": "./",
@@ -55,6 +55,8 @@
     }
   ],
   "theme_color": "#215c4d",
-  "background_color": "#f7f8f4",
-  "description": "Your private family learning space."
+  "background_color": "#f8f9f5",
+  "description": "מרחב משפחתי ליצירת תרגול אישי, צעד אחר צעד.",
+  "lang": "he",
+  "dir": "rtl"
 }

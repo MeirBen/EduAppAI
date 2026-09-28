@@ -1,11 +1,11 @@
-<form (submit)="generate($event)" novalidate>
+<form (submit)="generate($event)" novalidate [attr.aria-busy]="busy()">
   @for (definition of definitions(); track definition.key; let index = $index) {
     @let entry = fields.entries[index];
     <div class="field">
       <label [for]="'parameter-' + definition.key"
-        >{{ definition.label }}
+        ><bdi>{{ label(definition) }}</bdi>
         @if (!definition.required) {
-          <span class="muted small">(optional)</span>
+          <span class="text-sm text-muted">(לא חובה)</span>
         }
       </label>
       @switch (definition.type) {
@@ -13,12 +13,13 @@
           <select
             [id]="'parameter-' + definition.key"
             [formField]="entry.text"
+            [attr.aria-required]="definition.required ?? false"
             [attr.aria-invalid]="entry().touched() && entry().invalid()"
             [attr.aria-describedby]="'hint-' + definition.key"
           >
-            <option value="">Choose an option</option>
+            <option value="">בחירת אפשרות</option>
             @for (option of definition.options; track option) {
-              <option [value]="option">{{ option }}</option>
+              <option [value]="option">{{ optionLabel(definition, option) }}</option>
             }
           </select>
         }
@@ -29,6 +30,7 @@
           <input
             [id]="'parameter-' + definition.key"
             type="text"
+            [attr.dir]="definition.type === 'integer' ? 'ltr' : 'auto'"
             [attr.inputmode]="definition.type === 'integer' ? 'numeric' : 'text'"
             [formField]="entry.text"
             [attr.aria-required]="definition.required ?? false"
@@ -47,6 +49,6 @@
     </div>
   }
   <button class="button" type="submit" [disabled]="busy()">
-    {{ busy() ? 'Creating your task…' : 'Generate a draft' }}
+    {{ busy() ? 'יוצרים את התרגול…' : 'יצירת טיוטה' }}
   </button>
 </form>

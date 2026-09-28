@@ -42,11 +42,11 @@ public static class AuthEndpoints
     {
         if (string.IsNullOrWhiteSpace(request.Email) || request.Email.Length > 254 ||
             string.IsNullOrEmpty(request.Password) || request.Password.Length > 256)
-            return Results.ValidationProblem(new Dictionary<string, string[]> { ["credentials"] = ["Enter your email and password."] });
+            return Results.ValidationProblem(new Dictionary<string, string[]> { ["credentials"] = ["יש להזין כתובת דוא״ל וסיסמה."] });
         var result = await signIn.PasswordSignInAsync(request.Email.Trim(), request.Password,
             isPersistent: false, lockoutOnFailure: true);
         return result.Succeeded ? Results.NoContent()
-            : Results.Problem(statusCode: 401, title: "Sign-in failed. Check your details or try again later.");
+            : Results.Problem(statusCode: 401, title: "הכניסה לא הצליחה. יש לבדוק את הפרטים או לנסות שוב מאוחר יותר.");
     }
 
     /// <summary>Transient sign-in credentials; never persist or log this request.</summary>

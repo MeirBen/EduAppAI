@@ -1,23 +1,27 @@
-<a class="back-link" routerLink="/templates">← Your learning space</a>
+<a class="text-link mb-6" routerLink="/templates"
+  ><span aria-hidden="true">→</span> חזרה למרחב שלנו</a
+>
 @if (template.isLoading()) {
-  <p role="status">Loading your template…</p>
+  <p role="status" class="panel">טוענים את התבנית…</p>
 } @else if (template.error()) {
   <div class="error" role="alert">
     <p>{{ apiError(template.error()) }}</p>
-    <button class="button" (click)="template.reload()">Try again</button>
+    <button class="button mt-4" (click)="template.reload()">ניסיון נוסף</button>
   </div>
 } @else if (template.hasValue()) {
-  <header class="page-heading">
+  <header class="mb-8 flex flex-wrap items-center justify-between gap-5">
     <div>
-      <p class="eyebrow">MAKE TODAY'S CHALLENGE</p>
-      <h1>{{ template.value().definition.name }}</h1>
-      <p class="lead">Choose what fits today. You'll see every question before going further.</p>
+      <p class="mb-3 text-sm font-medium text-brand">התרגול של היום</p>
+      <h1 class="mb-3">
+        <bdi>{{ template.value().definition.name }}</bdi>
+      </h1>
+      <p class="text-muted">בוחרים את הרמה ואת מספר השאלות. התרגול יישמר כטיוטה לעיון שלכם.</p>
     </div>
-    <span class="tag">TEMPLATE VERSION {{ template.value().currentVersion }}</span>
+    <span class="badge">גרסת תבנית {{ template.value().currentVersion }}</span>
   </header>
-  <div class="editor-layout">
-    <section class="panel">
-      <h2>A little practice, your way</h2>
+  <div class="grid items-start gap-6 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
+    <section class="panel" aria-labelledby="practice-title">
+      <h2 id="practice-title">תרגול בקצב שלכם</h2>
       @if (error()) {
         <p class="error" role="alert">{{ error() }}</p>
       }
@@ -27,11 +31,26 @@
         (generated)="generate($event)"
       />
     </section>
-    <aside class="note-panel">
-      <span class="tag">A FRESH SET, EVERY TIME</span>
-      <h2>Just the right amount.</h2>
-      <p>Easy uses numbers 1–5, medium uses 1–10, and hard uses 1–12.</p>
-      <p>Your task will be saved as a draft for you to review.</p>
+    <aside class="rounded-2xl bg-soft p-6 sm:p-8" aria-labelledby="difficulty-title">
+      <p class="mb-3 text-sm font-medium text-brand">בוחרים את האתגר</p>
+      <h2 id="difficulty-title" class="mb-5">קצת יותר קל, קצת יותר מאתגר</h2>
+      <dl class="space-y-4 text-sm">
+        <div class="flex flex-wrap justify-between gap-2 border-b border-line pb-3">
+          <dt class="font-medium">קלה</dt>
+          <dd class="text-muted">מספרים מ־1 עד 5</dd>
+        </div>
+        <div class="flex flex-wrap justify-between gap-2 border-b border-line pb-3">
+          <dt class="font-medium">בינונית</dt>
+          <dd class="text-muted">מספרים מ־1 עד 10</dd>
+        </div>
+        <div class="flex flex-wrap justify-between gap-2">
+          <dt class="font-medium">מאתגרת</dt>
+          <dd class="text-muted">מספרים מ־1 עד 12</dd>
+        </div>
+      </dl>
+      <p class="mt-6 text-sm text-muted">
+        בכל יצירה מתקבלת סדרת תרגילים חדשה. הטיוטה השמורה לא משתנה.
+      </p>
     </aside>
   </div>
 }

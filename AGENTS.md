@@ -12,6 +12,8 @@
 - Enforce family/child ownership on the server. Parent answer keys must never enter child DTOs.
 - Use ProblemDetails, bounded validation, cancellation tokens and UTC timestamps.
 - Keep Angular standalone, strict and signal-based. Prefer native accessible controls.
+- Follow docs/ui-guide.md: Hebrew UI, logical RTL spacing, isolated LTR math/email,
+  Tailwind theme tokens and unchanged API values/immutable snapshots.
 - Do not seed educational data, add fake working features or introduce paid AI calls.
 - Run scripts/verify.sh for changes; use the isolated browser test for workflow changes.
 - Never commit databases, Data Protection keys, credentials, node_modules or build outputs.

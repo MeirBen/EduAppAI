@@ -1,44 +1,57 @@
-<a class="back-link" routerLink="/templates">← Your learning space</a>
+<a class="text-link mb-6" routerLink="/templates"
+  ><span aria-hidden="true">→</span> חזרה למרחב שלנו</a
+>
 @if (instance.isLoading()) {
-  <p role="status">Loading your saved draft…</p>
+  <p role="status" class="panel">טוענים את הטיוטה השמורה…</p>
 } @else if (instance.error()) {
   <div class="error" role="alert">
     <p>{{ apiError(instance.error()) }}</p>
-    <button class="button" (click)="instance.reload()">Try again</button>
+    <button class="button mt-4" (click)="instance.reload()">ניסיון נוסף</button>
   </div>
 } @else if (instance.hasValue()) {
   @let draft = instance.value();
-  <header class="page-heading">
+  <header class="mb-6 flex flex-wrap items-center justify-between gap-5">
     <div>
-      <p class="eyebrow">SAVED TASK · PARENT PREVIEW</p>
-      <h1>{{ draft.content.title }}</h1>
-      <p class="lead">{{ draft.content.questions.length }} questions, ready for a closer look.</p>
+      <p class="mb-3 text-sm font-medium text-brand">תצוגה מקדימה להורים</p>
+      <h1 class="mb-3">
+        <bdi>{{ draft.content.title }}</bdi>
+      </h1>
+      <p class="text-muted">מספר השאלות בתרגול: {{ draft.content.questions.length }}</p>
     </div>
-    <span class="tag">Draft saved</span>
+    <span class="badge"><span aria-hidden="true">✓</span> הטיוטה נשמרה</span>
   </header>
-  <div class="preview-meta">
-    <span>Template version {{ draft.templateVersion }}</span
-    ><span>{{ draft.createdAtUtc | date: 'medium' }}</span>
+  <div class="mb-6 flex flex-wrap gap-x-6 gap-y-2 text-sm text-muted">
+    <span>גרסת תבנית {{ draft.templateVersion }}</span>
+    <span
+      ><bdi>{{ draft.createdAtUtc | date: 'd בMMMM y, HH:mm' }}</bdi></span
+    >
   </div>
-  <section class="panel" aria-label="Task questions">
-    <p class="lead">{{ draft.content.instructions }}</p>
+  <section class="panel" aria-labelledby="questions-title">
+    <h2 id="questions-title" class="mb-3">התרגילים שלנו</h2>
+    <p class="text-muted" dir="auto">{{ instructions(draft.content.instructions) }}</p>
     @for (block of draft.content.contentBlocks; track $index) {
-      <p class="passage">{{ block.text }}</p>
+      <p class="my-4 whitespace-pre-wrap" dir="auto">{{ block.text }}</p>
     }
-    <ol class="question-list">
+    <ol class="mt-4 list-decimal divide-y divide-line ps-6 marker:text-sm marker:text-muted">
       @for (question of draft.content.questions; track question.id) {
-        <li>
-          <span class="question-prompt">{{ question.prompt }} = ?</span>
-          <details>
-            <summary>Show answer</summary>
-            <p>{{ question.answer.value }}</p>
+        <li class="py-5 ps-2">
+          <bdi dir="ltr" class="question-prompt inline-block text-2xl font-medium tabular-nums"
+            >{{ question.prompt }} = ?</bdi
+          >
+          <details class="mt-2">
+            <summary>
+              הצגת התשובה<span class="sr-only"> לשאלה {{ $index + 1 }}</span>
+            </summary>
+            <p class="mt-2 font-medium">
+              <span class="sr-only">התשובה: </span><bdi dir="ltr">{{ question.answer.value }}</bdi>
+            </p>
           </details>
         </li>
       }
     </ol>
   </section>
-  <p class="info-note">
-    This draft keeps its exact questions. Assigning tasks to children is coming in the next stage.
+  <p class="my-6 border-s-2 border-brand/40 ps-4 text-sm text-muted">
+    התרגילים בטיוטה נשמרים כפי שנוצרו. האפשרות לשייך תרגול לילדים עדיין אינה זמינה.
   </p>
-  <a class="button" routerLink="/templates">Back to your learning space</a>
+  <a class="button button-secondary" routerLink="/templates">חזרה לכל התרגולים</a>
 }

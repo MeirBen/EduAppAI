@@ -17,7 +17,7 @@ public sealed class CsrfFilter(IAntiforgery antiforgery) : IEndpointFilter
         }
         catch (AntiforgeryValidationException)
         {
-            return Results.Problem(statusCode: 400, title: "Your form has expired. Refresh the page and try again.");
+            return Results.Problem(statusCode: 400, title: "תוקף הטופס פג. יש לרענן את העמוד ולנסות שוב.");
         }
         return await next(context);
     }

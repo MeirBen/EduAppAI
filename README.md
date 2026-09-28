@@ -6,6 +6,10 @@ not the complete product in [the product specification](docs/product-specificati
 **Works now:** parent sign-in, empty template library, multiplication template creation,
 dynamic task parameters, immutable template versions, and saved draft previews.
 
+The interface is Hebrew and RTL, with a minimal Tailwind CSS 4 theme and a locally
+bundled Hebrew font. See the [UI guide](docs/ui-guide.md) for styling, localization
+and accessibility conventions.
+
 **Next:** child profiles and device activation, assignment, sessions and scoring,
 static templates, a child task player, optional AI, and reports.
 
@@ -79,8 +83,9 @@ npx playwright install chromium
 npm run e2e
 ```
 
-It signs in, creates a template and draft, reloads the frozen questions, checks a
-360px screen at 200% text size, and signs out. It never touches your local family data.
+It checks Hebrew/RTL and keyboard navigation, signs in, creates a template and draft,
+reloads the frozen questions, checks each screen at 360px with 200% text size, and
+signs out. Screenshots are written to `artifacts/`. It never touches your local family data.
 On Linux CI hosts, `npx playwright install --with-deps chromium` also installs browser libraries.
 
 ## Read the code in this order

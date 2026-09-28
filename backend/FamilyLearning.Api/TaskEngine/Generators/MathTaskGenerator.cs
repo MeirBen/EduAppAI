@@ -11,7 +11,7 @@ public static class MathTaskGenerator
     /// <param name="definition">A blueprint accepted by the template validator.</param>
     /// <param name="parameters">Resolved values from successful parameter validation, including defaults.</param>
     /// <param name="seed">Seed for a random sequence local to this call.</param>
-    /// <returns>New content to freeze in an instance before returning it to the parent.</returns>
+    /// <returns>New content with Hebrew instructions to freeze before returning it to the parent.</returns>
     /// <remarks>
     /// Identical inputs reproduce content for the same generator and runtime implementation.
     /// Persist the content itself: a seed is diagnostic data, not a cross-version replay contract.
@@ -37,6 +37,6 @@ public static class MathTaskGenerator
                 new((left * right).ToString(CultureInfo.InvariantCulture)), 1);
         }
 
-        return new(definition.Name, "Multiply the two numbers.", [], questions);
+        return new(definition.Name, "מהי המכפלה של שני המספרים?", [], questions);
     }
 }

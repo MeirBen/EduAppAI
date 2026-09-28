@@ -1,81 +1,93 @@
-<header class="page-heading">
+<header class="mb-10 flex flex-wrap items-center justify-between gap-6">
   <div>
-    <p class="eyebrow">PARENT SPACE</p>
-    <h1>A little learning starts here.</h1>
-    <p class="lead">
-      Your ideas become reusable templates. Your templates become little challenges.
+    <p class="mb-3 text-sm font-medium text-brand">המרחב המשפחתי</p>
+    <h1 class="mb-3">מה נלמד היום?</h1>
+    <p class="max-w-xl text-muted">
+      רעיונות טובים הופכים לתבניות. מתבניות יוצרים תרגול שמתאים בדיוק להיום.
     </p>
   </div>
-  <a class="button" routerLink="/templates/new">+ Create a template</a>
+  <a class="button" routerLink="/templates/new"><span aria-hidden="true">＋</span> תבנית חדשה</a>
 </header>
 @if (data.isLoading()) {
-  <p role="status" class="panel">Loading your learning space…</p>
+  <p role="status" class="panel">טוענים את מרחב הלמידה…</p>
 } @else if (data.error()) {
   <div class="error" role="alert">
     <p>{{ apiError(data.error()) }}</p>
-    <button class="button" (click)="data.reload()">Try again</button>
+    <button class="button mt-4" (click)="data.reload()">ניסיון נוסף</button>
   </div>
 } @else if (data.hasValue()) {
   <section aria-labelledby="templates-title">
-    <div class="section-heading">
+    <div class="mb-5 flex flex-wrap items-center justify-between gap-3">
       <h2 id="templates-title">
-        Your templates <span class="count">{{ data.value().templates.length }}</span>
+        התבניות שלנו <span class="badge ms-2">{{ data.value().templates.length }}</span>
       </h2>
-      <span class="muted small">Ideas you can use again</span>
+      <p class="text-sm text-muted">רעיון שאפשר לחזור אליו</p>
     </div>
     @if (data.value().templates.length === 0) {
-      <div class="empty-state panel">
-        <div class="empty-mark" aria-hidden="true">✳</div>
-        <h3>A fresh page for your family</h3>
-        <p>
-          Start with a multiplication template.<br />Choose the difficulty and number of questions
-          each time you use it.
-        </p>
-        <a class="button button-secondary" routerLink="/templates/new"
-          >Create your first template</a
+      <div class="panel border-dashed py-10 text-center sm:py-12">
+        <span
+          class="mx-auto mb-5 grid size-14 place-items-center rounded-2xl bg-accent text-3xl"
+          aria-hidden="true"
+          >✳</span
         >
+        <h3 class="mb-3 text-xl">מתחילים עם רעיון אחד</h3>
+        <p class="mx-auto mb-6 max-w-md text-muted">
+          יוצרים תבנית לתרגול כפל. בכל שימוש בוחרים את הרמה ואת מספר השאלות, ומקבלים תרגילים חדשים.
+        </p>
+        <a class="button button-secondary" routerLink="/templates/new">יצירת התבנית הראשונה</a>
       </div>
     } @else {
-      <div class="card-grid">
+      <div class="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
         @for (template of data.value().templates; track template.id) {
-          <article class="panel template-card">
-            <span class="tag">MATH · VERSION {{ template.currentVersion }}</span>
-            <h3>{{ template.name }}</h3>
-            <p class="muted">A fresh set of multiplication questions, at your pace.</p>
-            <a class="text-link" [routerLink]="['/templates', template.id, 'create']"
-              >Create a task <span aria-hidden="true">→</span></a
+          <article class="panel flex min-w-0 flex-col items-start border-t-4 border-t-brand/30">
+            <span class="badge">כפל · גרסה {{ template.currentVersion }}</span>
+            <h3 class="mb-2 mt-5">
+              <bdi>{{ template.name }}</bdi>
+            </h3>
+            <p class="mb-4 text-sm text-muted">תרגילי כפל חדשים, ברמה ובקצב שמתאימים לכם.</p>
+            <a
+              class="text-link mt-auto"
+              [routerLink]="['/templates', template.id, 'create']"
+              [attr.aria-label]="'יצירת תרגול: ' + template.name"
+              >יצירת תרגול <span aria-hidden="true">←</span></a
             >
           </article>
         }
       </div>
     }
   </section>
-  <section class="draft-section" aria-labelledby="drafts-title">
-    <div class="section-heading">
+  <section class="mt-10" aria-labelledby="drafts-title">
+    <div class="mb-5 flex flex-wrap items-center justify-between gap-3">
       <h2 id="drafts-title">
-        Saved drafts <span class="count">{{ data.value().instances.length }}</span>
+        טיוטות שמורות <span class="badge ms-2">{{ data.value().instances.length }}</span>
       </h2>
-      <span class="muted small">Ready for your review</span>
+      <p class="text-sm text-muted">מוכנות לעיון שלכם</p>
     </div>
     @if (data.value().instances.length === 0) {
-      <p class="quiet-empty">
-        Your generated tasks will appear here. Each draft keeps its exact questions.
+      <p class="rounded-2xl border border-line p-6 text-muted">
+        התרגולים שתיצרו יופיעו כאן. כל טיוטה שומרת את השאלות בדיוק כפי שנוצרו.
       </p>
     } @else {
-      <ul class="draft-list">
+      <ul
+        class="draft-list divide-y divide-line rounded-2xl border border-line bg-surface px-5 sm:px-8"
+      >
         @for (instance of data.value().instances; track instance.id) {
-          <li>
-            <div>
-              <a [routerLink]="['/instances', instance.id]">{{ instance.title }}</a>
-              <p class="small muted">{{ instance.createdAtUtc | date: 'medium' }}</p>
+          <li class="flex flex-wrap items-center justify-between gap-x-5 gap-y-2 py-4">
+            <div class="min-w-0">
+              <a class="text-link" [routerLink]="['/instances', instance.id]"
+                ><bdi>{{ instance.title }}</bdi></a
+              >
+              <p class="text-sm text-muted">
+                <bdi>{{ instance.createdAtUtc | date: 'd בMMMM y, HH:mm' }}</bdi>
+              </p>
             </div>
-            <span class="tag">Draft</span>
+            <span class="badge">טיוטה</span>
           </li>
         }
       </ul>
     }
     @if (data.value().templates.length === 100 || data.value().instances.length === 100) {
-      <p class="small muted">Showing the most recent 100 items in each list.</p>
+      <p class="mt-4 text-sm text-muted">בכל רשימה מוצגים עד 100 הפריטים האחרונים.</p>
     }
   </section>
 }

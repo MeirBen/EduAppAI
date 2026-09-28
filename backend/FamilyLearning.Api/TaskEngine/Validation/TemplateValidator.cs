@@ -8,27 +8,27 @@ public static partial class TemplateValidator
 {
     /// <summary>Validates an untrusted blueprint before publication or generation.</summary>
     /// <param name="definition">The submitted blueprint, including potentially null nested JSON members.</param>
-    /// <returns>Field errors suitable for a validation problem; an empty dictionary means success.</returns>
+    /// <returns>Hebrew field errors suitable for a validation problem; an empty dictionary means success.</returns>
     public static Dictionary<string, string[]> Validate(TaskTemplateDefinition? definition)
     {
         var errors = new Dictionary<string, string[]>();
         if (definition is null)
         {
-            errors["definition"] = ["A template definition is required."];
+            errors["definition"] = ["יש לציין את הגדרות התבנית."];
             return errors;
         }
-        if (definition.SchemaVersion != 1) errors["schemaVersion"] = ["Only schema version 1 is supported."];
+        if (definition.SchemaVersion != 1) errors["schemaVersion"] = ["גרסת מבנה התבנית אינה נתמכת."];
         if (string.IsNullOrWhiteSpace(definition.Name) || definition.Name.Length > 100)
-            errors["name"] = ["Enter a name of 1–100 characters."];
+            errors["name"] = ["יש להזין שם באורך של 1 עד 100 תווים."];
         if (definition.Generation is not
             {
                 Mode: "deterministic", Generator: "math-v1",
                 FixedSettings.Operation: "multiplication"
             })
-            errors["generation"] = ["Choose the supported math-v1 multiplication generator."];
+            errors["generation"] = ["יש לבחור בתרגול הכפל הנתמך."];
         if (definition.InstanceParameters is not { Length: > 0 and <= 16 } parameters)
         {
-            errors["instanceParameters"] = ["Provide between 1 and 16 parameters."];
+            errors["instanceParameters"] = ["יש להגדיר בין שדה אחד ל־16 שדות."];
             return errors;
         }
 
@@ -44,29 +44,29 @@ public static partial class TemplateValidator
         var difficulty = parameters.FirstOrDefault(p => p?.Key == "difficulty");
         if (difficulty is not { Type: "select", Required: true, Options.Length: 3 } ||
             !difficulty.Options.ToHashSet(StringComparer.Ordinal).SetEquals(["easy", "medium", "hard"]))
-            errors["difficulty"] = ["Math requires a difficulty select with easy, medium and hard options."];
+            errors["difficulty"] = ["תרגול כפל דורש בחירת רמת קושי: קלה, בינונית או מאתגרת."];
         var count = parameters.FirstOrDefault(p => p?.Key == "questionCount");
         if (count is not { Type: "integer", Required: true, Min: >= 1, Max: <= 20 })
-            errors["questionCount"] = ["Math requires an integer questionCount with bounds within 1–20."];
+            errors["questionCount"] = ["תרגול כפל דורש מספר שאלות שלם בטווח שבין 1 ל־20."];
         return errors;
     }
 
     private static string? ValidateParameter(ParameterDefinition? parameter, HashSet<string> keys)
     {
-        if (parameter is null) return "A parameter cannot be null.";
+        if (parameter is null) return "הגדרת שדה אינה יכולה להיות ריקה.";
         if (parameter.Key is null || !ParameterKey().IsMatch(parameter.Key) || !keys.Add(parameter.Key))
-            return "Use a unique key beginning with a lowercase letter, followed by letters or digits (40 maximum).";
+            return "מפתח השדה חייב להיות ייחודי, להתחיל באות לטינית קטנה ולהכיל עד 40 אותיות לטיניות וספרות.";
         if (string.IsNullOrWhiteSpace(parameter.Label) || parameter.Label.Length > 100)
-            return "Enter a label of 1–100 characters.";
+            return "יש להזין תווית באורך של 1 עד 100 תווים.";
         if (parameter.Type is not ("text" or "integer" or "select" or "boolean"))
-            return "Unsupported parameter type.";
+            return "סוג השדה אינו נתמך.";
         if (parameter.Min > parameter.Max || parameter.MaxLength is < 1 or > 500)
-            return "Invalid parameter bounds.";
+            return "גבולות השדה אינם תקינים.";
         if (parameter.Type == "select" &&
             (parameter.Options is not { Length: > 0 and <= 20 } ||
              parameter.Options.Any(option => string.IsNullOrWhiteSpace(option) || option.Length > 100) ||
              parameter.Options.Distinct(StringComparer.Ordinal).Count() != parameter.Options.Length))
-            return "Provide 1–20 unique, nonempty options of at most 100 characters.";
+            return "יש להגדיר בין אפשרות אחת ל־20 אפשרויות שונות, שאינן ריקות, באורך של עד 100 תווים.";
         return parameter.Default is { } value ? ParameterValidator.ValidateValue(parameter, value) : null;
     }
 

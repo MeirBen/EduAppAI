@@ -1,64 +1,74 @@
-<a class="back-link" routerLink="/templates">← Your learning space</a>
-<header class="page-heading">
-  <div>
-    <p class="eyebrow">A REUSABLE IDEA</p>
-    <h1>Create a template</h1>
-    <p class="lead">Give your multiplication practice a name and a starting point.</p>
-  </div>
+<a class="text-link mb-6" routerLink="/templates"
+  ><span aria-hidden="true">→</span> חזרה למרחב שלנו</a
+>
+<header class="mb-8">
+  <p class="mb-3 text-sm font-medium text-brand">רעיון שנשאר איתנו</p>
+  <h1 class="mb-3">תבנית חדשה</h1>
+  <p class="text-muted">נותנים לתרגול הכפל שם ובוחרים נקודת התחלה.</p>
 </header>
-<div class="editor-layout">
-  <form class="panel" (submit)="save($event)" novalidate>
-    <h2>The basics</h2>
+<div class="grid items-start gap-6 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
+  <form class="panel" (submit)="save($event)" novalidate [attr.aria-busy]="fields().submitting()">
+    <h2>פרטי התבנית</h2>
     <div class="field">
-      <label for="name">Template name</label
-      ><input
+      <label for="name">שם התבנית</label>
+      <input
         id="name"
+        dir="auto"
         [formField]="fields.name"
-        placeholder="e.g. A little times-table practice"
+        placeholder="למשל: מתרגלים את לוח הכפל"
+        aria-describedby="name-error"
+        [attr.aria-invalid]="fields.name().touched() && fields.name().invalid()"
       />
-      @if (fields.name().touched() && fields.name().invalid()) {
-        <p class="field-error">Enter a name of 1–100 characters.</p>
-      }
+      <div id="name-error">
+        @if (fields.name().touched() && fields.name().invalid()) {
+          <p class="field-error">יש להזין שם באורך של 1 עד 100 תווים.</p>
+        }
+      </div>
     </div>
     <div class="field">
-      <label for="difficulty">Starting difficulty</label
-      ><select id="difficulty" [formField]="fields.difficulty">
-        <option value="easy">Easy · numbers 1–5</option>
-        <option value="medium">Medium · numbers 1–10</option>
-        <option value="hard">Hard · numbers 1–12</option>
+      <label for="difficulty">רמת קושי התחלתית</label>
+      <select id="difficulty" [formField]="fields.difficulty">
+        <option value="easy">קלה · מספרים מ־1 עד 5</option>
+        <option value="medium">בינונית · מספרים מ־1 עד 10</option>
+        <option value="hard">מאתגרת · מספרים מ־1 עד 12</option>
       </select>
     </div>
     <div class="field">
-      <label for="question-count">Starting number of questions</label
-      ><input
+      <label for="question-count">מספר שאלות התחלתי</label>
+      <input
         id="question-count"
         type="number"
+        dir="ltr"
         inputmode="numeric"
         [formField]="fields.questionCount"
+        aria-describedby="question-count-hint"
+        [attr.aria-invalid]="fields.questionCount().touched() && fields.questionCount().invalid()"
       />
-      @if (fields.questionCount().touched() && fields.questionCount().invalid()) {
-        <p class="field-error">Choose a whole number from 1 to 20.</p>
-      }
+      <div id="question-count-hint">
+        @if (fields.questionCount().touched() && fields.questionCount().invalid()) {
+          <p class="field-error">יש לבחור מספר שלם מ־1 עד 20.</p>
+        } @else {
+          <p class="mt-2 text-sm text-muted">אפשר לבחור מ־1 עד 20 שאלות.</p>
+        }
+      </div>
     </div>
     @if (error()) {
       <p class="error" role="alert">{{ error() }}</p>
     }
-    <div class="actions">
+    <div class="mt-8 flex flex-wrap items-center gap-5">
       <button class="button" type="submit" [disabled]="fields().submitting()">
-        {{ fields().submitting() ? 'Saving…' : 'Save template' }}</button
-      ><a class="button-quiet" routerLink="/templates">Cancel</a>
+        {{ fields().submitting() ? 'שומרים…' : 'שמירת התבנית' }}
+      </button>
+      <a class="text-link" routerLink="/templates">ביטול</a>
     </div>
   </form>
-  <aside class="note-panel">
-    <span class="tag">HOW IT WORKS</span>
-    <h2>Keep the idea.<br />Change the challenge.</h2>
-    <p>
-      Each time you use this template, you can choose a different difficulty and question count.
+  <aside class="rounded-2xl bg-soft p-6 sm:p-8" aria-labelledby="template-note-title">
+    <p class="mb-3 text-sm font-medium text-brand">איך זה עובד?</p>
+    <h2 id="template-note-title" class="mb-4">הרעיון נשמר.<br />האתגר משתנה.</h2>
+    <p class="mb-4 text-muted">
+      בכל שימוש בתבנית אפשר לבחור רמת קושי ומספר שאלות שמתאימים לאותו יום.
     </p>
-    <p>The questions are created fresh, then saved exactly as you see them.</p>
-    <hr />
-    <p class="small">
-      This first version supports multiplication. More kinds of practice will follow.
-    </p>
+    <p class="text-muted">התרגילים נוצרים מחדש ונשמרים בטיוטה לעיון שלכם.</p>
+    <p class="mt-6 border-t border-line pt-5 text-sm text-muted">בשלב הזה אפשר ליצור תרגולי כפל.</p>
   </aside>
 </div>

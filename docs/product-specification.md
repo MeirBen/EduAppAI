@@ -1,14 +1,21 @@
 # Family Learning App
 ## KISS Dynamic Product & Technical Specification
 
-**Version:** 3.1 (.NET 8 baseline and commenting standards; 2026-09-28)
+**Version:** 3.2 (Hebrew RTL interface and Tailwind theme; 2026-09-28)
 **Target:** Private family educational application  
-**Architecture:** Angular/Ionic PWA + ASP.NET Core 8 + EF Core 8 + SQLite + optional AI generation
+**Architecture:** Angular/Ionic PWA + Tailwind CSS 4 + ASP.NET Core 8 + EF Core 8 + SQLite + optional AI generation
 **Design principle:** Simple core, highly dynamic content
 
 The [foundation design](superpowers/specs/2026-09-28-foundation-design.md) defines what
 is implemented now. The broader product below remains the destination. All increments
 follow the [commenting and API documentation guide](commenting-guide.md).
+
+**Interface language:** Hebrew, with document-level RTL, Hebrew dates and accessible
+native controls. The product is presented as **לומדים ביחד**. Follow the
+[UI guide](ui-guide.md) for the minimal Tailwind theme, typography, mixed-direction
+text, feedback and responsive behavior. English examples below describe educational
+content or technical contracts, not the interface language. Keep authored content,
+immutable snapshots and existing API keys/enum values intact.
 
 ---
 

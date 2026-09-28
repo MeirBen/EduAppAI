@@ -3,10 +3,10 @@ import { ParameterForm } from './parameter-form';
 import { ParameterDefinition, ParameterValues } from '../../core/api/models';
 
 const definitions: ParameterDefinition[] = [
-  { key: 'theme', label: 'Theme', type: 'text', required: true, maxLength: 10 },
+  { key: 'theme', label: 'נושא', type: 'text', required: true, maxLength: 10 },
   {
     key: 'count',
-    label: 'Questions',
+    label: 'שאלות',
     type: 'integer',
     required: true,
     default: 5,
@@ -21,7 +21,7 @@ const definitions: ParameterDefinition[] = [
     default: 'easy',
     options: ['easy', 'hard'],
   },
-  { key: 'retry', label: 'Retry', type: 'boolean', default: false },
+  { key: 'retry', label: 'ניסיון נוסף', type: 'boolean', default: false },
 ];
 
 describe('ParameterForm', () => {
@@ -62,7 +62,23 @@ describe('ParameterForm', () => {
       .dispatchEvent(new Event('submit', { cancelable: true }));
     await view.fixture.whenStable();
     expect(view.submitted()).toBeUndefined();
-    expect(view.fixture.nativeElement.textContent).toContain('Theme is required');
-    expect(view.fixture.nativeElement.textContent).toContain('Questions must be at most 20');
+    expect(view.fixture.nativeElement.textContent).toContain('יש למלא את השדה „נושא”.');
+    expect(view.fixture.nativeElement.textContent).toContain(
+      'הערך בשדה „שאלות” חייב להיות לכל היותר 20.',
+    );
+  });
+
+  it('localizes legacy math metadata without changing saved labels or option values', async () => {
+    const view = await render();
+    const element: HTMLElement = view.fixture.nativeElement;
+    expect(element.querySelector('label[for="parameter-difficulty"]')?.textContent).toContain(
+      'רמת קושי',
+    );
+    const option = element.querySelector<HTMLOptionElement>('#parameter-difficulty option:checked');
+    expect(option?.textContent).toContain('קלה');
+    expect(option?.value).toBe('easy');
+    expect(definitions[2].label).toBe('Difficulty');
+    expect(element.querySelector('#parameter-theme')?.getAttribute('dir')).toBe('auto');
+    expect(element.querySelector('#parameter-count')?.getAttribute('dir')).toBe('ltr');
   });
 });

@@ -28,12 +28,12 @@ export class CreateTemplate {
     required(path.name);
     maxLength(path.name, 100);
     validate(path.name, ({ value }) =>
-      value().trim() ? undefined : { kind: 'required', message: 'Enter a template name.' },
+      value().trim() ? undefined : { kind: 'required', message: 'יש להזין שם לתבנית.' },
     );
     min(path.questionCount, 1);
     max(path.questionCount, 20);
     validate(path.questionCount, ({ value }) =>
-      Number.isInteger(value()) ? undefined : { kind: 'integer', message: 'Enter a whole number.' },
+      Number.isInteger(value()) ? undefined : { kind: 'integer', message: 'יש להזין מספר שלם.' },
     );
   });
   protected readonly error = signal('');
@@ -50,7 +50,7 @@ export class CreateTemplate {
           instanceParameters: [
             {
               key: 'difficulty',
-              label: 'Difficulty',
+              label: 'רמת קושי',
               type: 'select',
               required: true,
               default: value.difficulty,
@@ -58,7 +58,7 @@ export class CreateTemplate {
             },
             {
               key: 'questionCount',
-              label: 'Number of questions',
+              label: 'מספר שאלות',
               type: 'integer',
               required: true,
               default: value.questionCount,

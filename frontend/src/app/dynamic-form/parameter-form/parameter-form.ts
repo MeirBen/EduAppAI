@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, input, linkedSignal, output } from '@angular/core';
 import { applyEach, disabled, form, FormField, submit, validate } from '@angular/forms/signals';
 import { ParameterDefinition, ParameterValues } from '../../core/api/models';
+import { parameterLabel, parameterOption } from '../../core/locale/hebrew';
 
 /** Numeric input stays as text so an empty optional field cannot silently become zero. */
 interface ParameterEntry {
@@ -25,6 +26,8 @@ export class ParameterForm {
   readonly busy = input(false);
   /** Emits values only; this component neither calls the API nor creates task content. */
   readonly generated = output<ParameterValues>();
+  protected readonly label = parameterLabel;
+  protected readonly optionLabel = parameterOption;
   protected readonly model = linkedSignal(() => ({
     entries: this.definitions().map((definition) => ({
       text: definition.default == null ? '' : String(definition.default),
@@ -64,20 +67,20 @@ function parameterError(
   value: ParameterEntry,
 ): string | undefined {
   if (definition.type === 'boolean') return;
-  if (!value.text.trim())
-    return definition.required ? `${definition.label} is required.` : undefined;
+  const label = parameterLabel(definition);
+  if (!value.text.trim()) return definition.required ? `יש למלא את השדה „${label}”.` : undefined;
   if (definition.type === 'integer') {
     const number = Number(value.text);
     if (!/^-?\d+$/.test(value.text) || !Number.isSafeInteger(number))
-      return `${definition.label} must be a whole number.`;
+      return `יש להזין מספר שלם בשדה „${label}”.`;
     if (definition.min != null && number < definition.min)
-      return `${definition.label} must be at least ${definition.min}.`;
+      return `הערך בשדה „${label}” חייב להיות לפחות ${definition.min}.`;
     if (definition.max != null && number > definition.max)
-      return `${definition.label} must be at most ${definition.max}.`;
+      return `הערך בשדה „${label}” חייב להיות לכל היותר ${definition.max}.`;
   }
   if (definition.type === 'text' && value.text.length > (definition.maxLength ?? 500))
-    return `${definition.label} is too long.`;
+    return `הטקסט בשדה „${label}” ארוך מדי.`;
   if (definition.type === 'select' && !definition.options?.includes(value.text))
-    return `Choose a valid ${definition.label.toLowerCase()}.`;
+    return `יש לבחור אחת מהאפשרויות בשדה „${label}”.`;
   return;
 }

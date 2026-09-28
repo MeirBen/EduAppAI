@@ -1,50 +1,72 @@
-<div class="login-layout">
-  <section class="intro">
-    <p class="eyebrow">YOUR FAMILY'S LEARNING SPACE</p>
-    <h1>Small steps.<br />Wonderful discoveries.</h1>
-    <p class="lead">
-      Create a little practice that fits your child. Keep the good ideas, and make something new
-      from them tomorrow.
+<div class="grid items-center gap-10 py-2 lg:grid-cols-2 lg:gap-20 lg:py-10">
+  <section class="max-w-lg">
+    <p class="mb-4 text-sm font-medium text-brand">מרחב קטן ללמידה משותפת</p>
+    <h1 class="mb-6 text-4xl sm:text-5xl">
+      לומדים משהו חדש.<br /><span class="text-brand">צומחים ביחד.</span>
+    </h1>
+    <p class="max-w-md text-lg text-muted">
+      תרגול שמתאים למשפחה שלכם. יוצרים תבנית, בוחרים את רמת האתגר, וחוזרים ללמוד — כל פעם קצת אחרת.
     </p>
-    <div class="learning-note">
-      <span aria-hidden="true">✳</span>
+    <div class="mt-8 flex items-start gap-4 rounded-2xl bg-soft p-5">
+      <span
+        class="grid size-11 shrink-0 place-items-center rounded-xl bg-accent text-xl"
+        aria-hidden="true"
+        >✳</span
+      >
       <div>
-        <strong>One idea, many possibilities.</strong>
-        <p>Save a template. Choose the challenge. Make it their own.</p>
+        <p class="font-medium">רעיון אחד, הרבה אפשרויות</p>
+        <p class="mt-1 text-sm text-muted">התבנית נשמרת. התרגילים מתחדשים.</p>
       </div>
     </div>
   </section>
-  <section class="panel login-panel" aria-labelledby="sign-in-title">
-    <span class="tag">PARENT SPACE</span>
-    <h2 id="sign-in-title">Welcome back</h2>
-    <p class="muted">Sign in to your family's learning space.</p>
-    <form (submit)="signIn($event)" novalidate>
+  <section class="panel w-full max-w-lg lg:justify-self-end" aria-labelledby="sign-in-title">
+    <span class="badge">כניסת הורים</span>
+    <h2 id="sign-in-title" class="mb-2 mt-5 text-2xl">טוב שחזרתם</h2>
+    <p class="text-muted">נכנסים למרחב הלמידה המשפחתי.</p>
+    <form (submit)="signIn($event)" novalidate [attr.aria-busy]="fields().submitting()">
       <div class="field">
-        <label for="email">Email</label
-        ><input id="email" type="email" autocomplete="username" [formField]="fields.email" />
-        @if (fields.email().touched() && fields.email().invalid()) {
-          <p class="field-error">Enter a valid email address.</p>
-        }
+        <label for="email">כתובת דוא״ל</label>
+        <input
+          id="email"
+          type="email"
+          dir="ltr"
+          autocomplete="username"
+          [formField]="fields.email"
+          aria-describedby="email-error"
+          [attr.aria-invalid]="fields.email().touched() && fields.email().invalid()"
+        />
+        <div id="email-error">
+          @if (fields.email().touched() && fields.email().invalid()) {
+            <p class="field-error">יש להזין כתובת דוא״ל תקינה.</p>
+          }
+        </div>
       </div>
       <div class="field">
-        <label for="password">Password</label
-        ><input
+        <label for="password">סיסמה</label>
+        <input
           id="password"
           type="password"
+          dir="auto"
           autocomplete="current-password"
           [formField]="fields.password"
+          aria-describedby="password-error"
+          [attr.aria-invalid]="fields.password().touched() && fields.password().invalid()"
         />
-        @if (fields.password().touched() && fields.password().invalid()) {
-          <p class="field-error">Enter your password.</p>
-        }
+        <div id="password-error">
+          @if (fields.password().touched() && fields.password().invalid()) {
+            <p class="field-error">יש להזין סיסמה.</p>
+          }
+        </div>
       </div>
       @if (error()) {
         <p class="error" role="alert">{{ error() }}</p>
       }
-      <button class="button full-width" type="submit" [disabled]="fields().submitting()">
-        {{ fields().submitting() ? 'Signing in…' : 'Sign in' }}
+      <button class="button w-full" type="submit" [disabled]="fields().submitting()">
+        {{ fields().submitting() ? 'מתחברים…' : 'כניסה למרחב שלנו' }}
       </button>
     </form>
-    <p class="small muted">A private space for parents to shape the next learning adventure.</p>
+    <p class="mt-6 border-t border-line pt-5 text-sm text-muted">
+      מרחב פרטי ליצירת תרגול אישי ולשמירת רעיונות ללמידה.
+    </p>
   </section>
 </div>
