@@ -49,8 +49,8 @@ and provider failures are visible. Saved tasks remain readable without AI.
 ```
 
 Checks locked restores, .NET builds/tests/XML docs, source/config formatting,
-Markdown, shell syntax, browser-test types, Angular tests and production build.
-TypeScript rejects unused locals/parameters. No AI key is needed.
+Markdown, shell syntax, browser-test and harness type checks, Angular tests and
+production build. TypeScript rejects unused locals/parameters. No AI key is needed.
 
 For the isolated browser workflow:
 

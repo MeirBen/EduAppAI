@@ -11,6 +11,11 @@
       "root": "",
       "sourceRoot": "src",
       "prefix": "app",
+      "schematics": {
+        "@schematics/angular:component": {
+          "style": "none"
+        }
+      },
       "architect": {
         "build": {
           "builder": "@angular/build:application",

@@ -2,7 +2,9 @@
   "extends": "./tsconfig.json",
   "compilerOptions": {
     "types": ["node"],
+    "allowJs": true,
+    "checkJs": true,
     "noEmit": true
   },
-  "include": ["e2e/**/*.ts", "playwright.config.ts"]
+  "include": ["e2e/**/*.ts", "e2e/**/*.mjs", "playwright.config.ts"]
 }

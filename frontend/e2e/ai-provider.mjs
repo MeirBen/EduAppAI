@@ -1,4 +1,5 @@
 import { createServer } from 'node:http';
+import { once } from 'node:events';
 import assert from 'node:assert/strict';
 
 /** Test-only OpenRouter-compatible transport. Never imported by production code. */
@@ -111,6 +112,8 @@ export async function startAiProvider() {
       }),
     );
   });
-  await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
-  return { endpoint: `http://127.0.0.1:${server.address().port}`, close: () => server.close() };
+  await once(server.listen(0, '127.0.0.1'), 'listening');
+  const address = server.address();
+  assert.ok(address && typeof address !== 'string');
+  return { endpoint: `http://127.0.0.1:${address.port}`, close: () => server.close() };
 }
