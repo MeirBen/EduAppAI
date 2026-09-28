@@ -20,15 +20,30 @@ public static partial class TemplateValidator
         if (definition.SchemaVersion != 1) errors["schemaVersion"] = ["גרסת מבנה התבנית אינה נתמכת."];
         if (string.IsNullOrWhiteSpace(definition.Name) || definition.Name.Length > 100)
             errors["name"] = ["יש להזין שם באורך של 1 עד 100 תווים."];
-        if (definition.Generation is not
-            {
-                Mode: "deterministic", Generator: "math-v1",
-                FixedSettings.Operation: "multiplication"
-            })
-            errors["generation"] = ["יש לבחור בתרגול הכפל הנתמך."];
-        if (definition.InstanceParameters is not { Length: > 0 and <= 16 } parameters)
+        var isStatic = definition.Generation?.Mode == "static";
+        if (isStatic)
         {
-            errors["instanceParameters"] = ["יש להגדיר בין שדה אחד ל־16 שדות."];
+            if (definition.Generation is not { Generator: null, FixedSettings: null, Content: not null })
+                errors["generation"] = ["תבנית שאלות דורשת תוכן כתוב בלבד, ללא הגדרות מחולל."];
+            foreach (var error in TaskContentValidator.Validate(definition.Generation!.Content))
+                errors[$"generation.content.{error.Key}"] = error.Value;
+        }
+        else if (definition.Generation is not
+        {
+            Mode: "deterministic", Generator: "math-v1", Content: null,
+            FixedSettings.Operation: "addition" or "subtraction" or "multiplication" or "division"
+        })
+            errors["generation"] = ["יש לבחור סוג תבנית ופעולת חשבון נתמכים."];
+        if (definition.InstanceParameters is not { Length: <= 16 } parameters)
+        {
+            errors["instanceParameters"] = ["יש לציין רשימת שדות, עד 16 שדות."];
+            return errors;
+        }
+
+        if (isStatic)
+        {
+            if (parameters.Length != 0)
+                errors["instanceParameters"] = ["תוכן שנכתב מראש אינו משתמש בשדות משתנים."];
             return errors;
         }
 
@@ -44,10 +59,10 @@ public static partial class TemplateValidator
         var difficulty = parameters.FirstOrDefault(p => p?.Key == "difficulty");
         if (difficulty is not { Type: "select", Required: true, Options.Length: 3 } ||
             !difficulty.Options.ToHashSet(StringComparer.Ordinal).SetEquals(["easy", "medium", "hard"]))
-            errors["difficulty"] = ["תרגול כפל דורש בחירת רמת קושי: קלה, בינונית או מאתגרת."];
+            errors["difficulty"] = ["תרגול חשבון דורש בחירת רמת קושי: קלה, בינונית או מאתגרת."];
         var count = parameters.FirstOrDefault(p => p?.Key == "questionCount");
         if (count is not { Type: "integer", Required: true, Min: >= 1, Max: <= 20 })
-            errors["questionCount"] = ["תרגול כפל דורש מספר שאלות שלם בטווח שבין 1 ל־20."];
+            errors["questionCount"] = ["תרגול חשבון דורש מספר שאלות שלם בטווח שבין 1 ל־20."];
         return errors;
     }
 

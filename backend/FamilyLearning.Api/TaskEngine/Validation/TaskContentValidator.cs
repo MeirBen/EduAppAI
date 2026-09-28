@@ -1,0 +1,91 @@
+using System.Globalization;
+using System.Text.RegularExpressions;
+using FamilyLearning.Api.TaskEngine.Models;
+
+namespace FamilyLearning.Api.TaskEngine.Validation;
+
+/// <summary>Bounds untrusted plain-text task content and validates its parent-only answer keys.</summary>
+public static partial class TaskContentValidator
+{
+    /// <summary>Validates authored or generated content before it enters an immutable snapshot.</summary>
+    /// <remarks>Accepts potentially null nested JSON members. An empty result means the content is supported.</remarks>
+    public static Dictionary<string, string[]> Validate(TaskContent? content)
+    {
+        var errors = new Dictionary<string, string[]>();
+        if (content is null)
+        {
+            errors["content"] = ["יש לציין את תוכן התרגול."];
+            return errors;
+        }
+        if (!HasText(content.Title, 100)) errors["title"] = ["יש להזין כותרת באורך של 1 עד 100 תווים."];
+        if (content.Instructions?.Length > 1000) errors["instructions"] = ["ההנחיות מוגבלות ל־1,000 תווים."];
+        var length = (long)(content.Title?.Length ?? 0) + (content.Instructions?.Length ?? 0);
+        if (content.ContentBlocks is not { Length: <= 4 })
+            errors["contentBlocks"] = ["יש לציין רשימת קטעי קריאה, עד ארבעה קטעים."];
+        else
+            for (var index = 0; index < content.ContentBlocks.Length; index++)
+            {
+                var block = content.ContentBlocks[index];
+                if (block is not { Type: "text" } || !HasText(block.Text, 4000))
+                    errors[$"contentBlocks[{index}]"] = ["קטע קריאה חייב להכיל טקסט באורך של 1 עד 4,000 תווים."];
+                length += block?.Text?.Length ?? 0;
+            }
+
+        if (content.Questions is not { Length: >= 1 and <= 20 })
+            errors["questions"] = ["יש להוסיף בין שאלה אחת ל־20 שאלות."];
+        else
+        {
+            var ids = new HashSet<string>(StringComparer.Ordinal);
+            for (var index = 0; index < content.Questions.Length; index++)
+            {
+                var question = content.Questions[index];
+                var error = ValidateQuestion(question, ids);
+                if (error is not null) errors[$"questions[{index}]"] = [error];
+                length += (long)(question?.Prompt?.Length ?? 0) + (question?.Answer?.Value?.Length ?? 0);
+                if (question?.Interaction?.Options is { } options)
+                    foreach (var option in options) length += option?.Length ?? 0;
+            }
+        }
+        if (length > 8000) errors["content"] = ["התוכן כולו מוגבל ל־8,000 תווים, כולל שאלות ותשובות."];
+        return errors;
+    }
+
+    private static string? ValidateQuestion(TaskQuestion? question, HashSet<string> ids)
+    {
+        if (question is null) return "שאלה אינה יכולה להיות ריקה.";
+        if (question.Id is null || !QuestionId().IsMatch(question.Id) || !ids.Add(question.Id))
+            return "מזהה השאלה חייב להיות ייחודי ולהכיל עד 64 אותיות לטיניות, ספרות, מקפים או קווים תחתונים.";
+        if (!HasText(question.Prompt, 500)) return "יש להזין שאלה באורך של 1 עד 500 תווים.";
+        if (question.Points is < 0 or > 100) return "הניקוד חייב להיות מספר שלם בין 0 ל־100.";
+        if (question.Answer is null || !HasText(question.Answer.Value, 200))
+            return "יש להזין תשובה באורך של 1 עד 200 תווים.";
+        if (question.Interaction is not { Type: "numeric-input" or "text-input" or "single-choice" } interaction)
+            return "יש לבחור סוג תשובה נתמך.";
+        if (interaction.Type == "single-choice")
+        {
+            if (interaction.Options is not { Length: >= 2 and <= 6 } options ||
+                options.Any(option => !HasText(option, 200) || option != option.Trim() ||
+                    option.Contains('\r') || option.Contains('\n')) ||
+                options.Select(option => option.Trim()).Distinct(StringComparer.Ordinal).Count() != options.Length)
+                return "יש להזין בין שתיים לשש אפשרויות שונות, כל אחת בשורה אחת וללא רווחים בקצוות, עד 200 תווים.";
+            if (!options.Contains(question.Answer.Value, StringComparer.Ordinal))
+                return "התשובה הנכונה חייבת להיות אחת מהאפשרויות.";
+        }
+        else if (interaction.Options is not null) return "אפשרויות תשובה מתאימות רק לשאלת בחירה.";
+        if (interaction.Type == "numeric-input" &&
+            (!NumericAnswer().IsMatch(question.Answer.Value) ||
+             !decimal.TryParse(question.Answer.Value, NumberStyles.AllowLeadingSign | NumberStyles.AllowDecimalPoint,
+                 CultureInfo.InvariantCulture, out _)))
+            return "יש להזין תשובה מספרית רגילה, עם נקודה עשרונית לפי הצורך וללא מפרידי אלפים.";
+        return null;
+    }
+
+    private static bool HasText(string? value, int maximum) =>
+        !string.IsNullOrWhiteSpace(value) && value.Length <= maximum;
+
+    [GeneratedRegex("\\A[a-zA-Z0-9_-]{1,64}\\z", RegexOptions.CultureInvariant)]
+    private static partial Regex QuestionId();
+
+    [GeneratedRegex("\\A[+-]?[0-9]+(?:\\.[0-9]+)?\\z", RegexOptions.CultureInvariant)]
+    private static partial Regex NumericAnswer();
+}

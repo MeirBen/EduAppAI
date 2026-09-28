@@ -1,0 +1,136 @@
+@let field = fields();
+@let id = field.id().value();
+<fieldset class="min-w-0 rounded-2xl border border-line p-4 sm:p-6" data-question>
+  <legend class="px-2 text-lg font-semibold">שאלה {{ index() + 1 }}</legend>
+  <div class="flex flex-wrap items-center gap-x-4 gap-y-1">
+    <button
+      type="button"
+      class="text-link"
+      [disabled]="index() === 0"
+      (click)="moved.emit(-1)"
+      [attr.aria-label]="'העברת שאלה ' + (index() + 1) + ' למעלה'"
+    >
+      ↑ למעלה
+    </button>
+    <button
+      type="button"
+      class="text-link"
+      [disabled]="index() === count() - 1"
+      (click)="moved.emit(1)"
+      [attr.aria-label]="'העברת שאלה ' + (index() + 1) + ' למטה'"
+    >
+      ↓ למטה
+    </button>
+    <button
+      type="button"
+      class="text-link text-danger"
+      [disabled]="count() === 1"
+      (click)="removed.emit()"
+      [attr.aria-label]="'הסרת שאלה ' + (index() + 1)"
+    >
+      הסרה
+    </button>
+  </div>
+  <div class="field">
+    <label [for]="id + '-prompt'">נוסח השאלה</label>
+    <textarea
+      [id]="id + '-prompt'"
+      dir="auto"
+      rows="2"
+      [formField]="field.prompt"
+      [attr.aria-invalid]="field.prompt().touched() && field.prompt().invalid()"
+      [attr.aria-describedby]="id + '-prompt-error'"
+    ></textarea>
+    <div [id]="id + '-prompt-error'">
+      @if (field.prompt().touched()) {
+        @for (error of field.prompt().errors(); track error.kind) {
+          <p class="field-error">{{ error.message }}</p>
+        }
+      }
+    </div>
+  </div>
+  <div class="grid gap-x-5 sm:grid-cols-2">
+    <div class="field">
+      <label [for]="id + '-type'">סוג התשובה</label>
+      <select [id]="id + '-type'" [formField]="field.type">
+        <option value="text-input">תשובה קצרה</option>
+        <option value="numeric-input">תשובה מספרית</option>
+        <option value="single-choice">בחירה מתוך אפשרויות</option>
+      </select>
+    </div>
+    <div class="field">
+      <label [for]="id + '-points'">נקודות לשאלה</label>
+      <input
+        [id]="id + '-points'"
+        type="text"
+        dir="ltr"
+        inputmode="numeric"
+        [formField]="field.points"
+        [attr.aria-invalid]="field.points().touched() && field.points().invalid()"
+        [attr.aria-describedby]="id + '-points-error'"
+      />
+      <div [id]="id + '-points-error'">
+        @if (field.points().touched()) {
+          @for (error of field.points().errors(); track error.kind) {
+            <p class="field-error">{{ error.message }}</p>
+          }
+        }
+      </div>
+    </div>
+  </div>
+  @if (field.type().value() === 'single-choice') {
+    <div class="field">
+      <label [for]="id + '-choices'">אפשרויות תשובה — אפשרות בכל שורה</label>
+      <textarea
+        [id]="id + '-choices'"
+        rows="4"
+        dir="auto"
+        [formField]="field.choices"
+        [attr.aria-invalid]="field.choices().touched() && field.choices().invalid()"
+        [attr.aria-describedby]="id + '-choices-hint'"
+      ></textarea>
+      <div [id]="id + '-choices-hint'">
+        <p class="text-sm text-muted">בין שתיים לשש אפשרויות שונות. שורות ריקות אינן נכללות.</p>
+        @if (field.choices().touched()) {
+          @for (error of field.choices().errors(); track error.kind) {
+            <p class="field-error">{{ error.message }}</p>
+          }
+        }
+      </div>
+    </div>
+  }
+  <div class="field">
+    <label [for]="id + '-answer'">התשובה הנכונה</label>
+    @if (field.type().value() === 'single-choice') {
+      <select
+        [id]="id + '-answer'"
+        dir="auto"
+        [formField]="field.answer"
+        [attr.aria-invalid]="field.answer().touched() && field.answer().invalid()"
+        [attr.aria-describedby]="id + '-answer-error'"
+      >
+        <option value="">בחירת התשובה הנכונה</option>
+        @for (option of options(); track $index) {
+          <option [value]="option">{{ option }}</option>
+        }
+      </select>
+    } @else {
+      <input
+        [id]="id + '-answer'"
+        type="text"
+        [attr.dir]="field.type().value() === 'numeric-input' ? 'ltr' : 'auto'"
+        [attr.inputmode]="field.type().value() === 'numeric-input' ? 'decimal' : 'text'"
+        [formField]="field.answer"
+        [attr.aria-invalid]="field.answer().touched() && field.answer().invalid()"
+        [attr.aria-describedby]="id + '-answer-error'"
+      />
+    }
+    <div [id]="id + '-answer-error'">
+      @if (field.answer().touched()) {
+        @for (error of field.answer().errors(); track error.kind) {
+          <p class="field-error">{{ error.message }}</p>
+        }
+      }
+    </div>
+  </div>
+</fieldset>

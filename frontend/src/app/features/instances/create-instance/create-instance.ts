@@ -4,6 +4,7 @@ import { LearningApi } from '../../../core/api/learning-api';
 import { apiError } from '../../../core/api/api-error';
 import { ParameterValues } from '../../../core/api/models';
 import { ParameterForm } from '../../../dynamic-form/parameter-form/parameter-form';
+import { mathRange } from '../../../core/locale/hebrew';
 
 /** Collects parameters for the current template and navigates to the newly saved draft. */
 @Component({
@@ -24,6 +25,7 @@ export class CreateInstance {
   protected readonly busy = signal(false);
   protected readonly error = signal('');
   protected readonly apiError = apiError;
+  protected readonly range = mathRange;
 
   protected async generate(parameters: ParameterValues) {
     if (this.busy()) return;

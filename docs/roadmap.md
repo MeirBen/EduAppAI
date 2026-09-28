@@ -1,8 +1,10 @@
 # Small next steps
 
 Build one complete behavior at a time. Keep the [product specification](product-specification.md)
-as the destination; the current [foundation scope](superpowers/specs/2026-09-28-foundation-design.md)
-is intentionally smaller.
+as the destination. The [foundation](superpowers/specs/2026-09-28-foundation-design.md)
+now includes the [richer authoring increment](superpowers/specs/2026-09-28-richer-authoring-design.md):
+four arithmetic operations, authored passages and mixed questions, version editing,
+bounded content validation and generic parent previews. Family learning sessions remain next.
 
 Each increment includes accurate contract documentation and updates to affected specs,
 following the [commenting guide](commenting-guide.md).
@@ -13,9 +15,9 @@ following the [commenting guide](commenting-guide.md).
 2. **One complete learning loop.** Add assignment, the numeric child player, a session,
    answer storage and authoritative C# scoring. Make start/answer/complete transitions
    safe under retries and concurrent requests. Add a browser test from parent to result.
-3. **Manual authoring expansion.** Add the template version editor, static content,
-   text/single-choice rendering and scoring rules. Validate all question IDs, answer
-   choices, lengths and points before storing content.
+3. **Mixed-question learning.** Extend the child player and authoritative scoring to
+   text and single-choice answers. Decide and document text normalization/retry rules
+   before introducing them; the authoring workflow already stores answers and points.
 4. **AI template drafts.** Add `Microsoft.Extensions.AI` and `IChatClient`, an owned
    structured schema, validation and parent review. Keep provider keys outside source.
 5. **AI instance generation.** Add one generic generator, preview before assignment,

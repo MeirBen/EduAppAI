@@ -3,6 +3,11 @@ export type ParameterValue = string | number | boolean;
 /** Values keyed by case-sensitive schema keys. Omitted keys allow server defaults. */
 export type ParameterValues = Record<string, ParameterValue>;
 
+/** Operations implemented by math-v1; multiplication keeps its original wire value. */
+export type MathOperation = 'addition' | 'subtraction' | 'multiplication' | 'division';
+/** Supported controls for authored questions, independent of the school subject. */
+export type QuestionType = 'numeric-input' | 'text-input' | 'single-choice';
+
 /** Field metadata shared with the backend's ParameterDefinition contract. */
 export interface ParameterDefinition {
   key: string;
@@ -22,11 +27,9 @@ export interface TemplateDefinition {
   schemaVersion: 1;
   name: string;
   instanceParameters: ParameterDefinition[];
-  generation: {
-    mode: 'deterministic';
-    generator: 'math-v1';
-    fixedSettings: { operation: 'multiplication' };
-  };
+  generation:
+    | { mode: 'deterministic'; generator: 'math-v1'; fixedSettings: { operation: MathOperation } }
+    | { mode: 'static'; content: TaskContent };
 }
 
 /** Template list projection; fetch TemplateDetail when the definition is needed. */
@@ -54,7 +57,7 @@ export interface TaskContent {
     id: string;
     prompt: string;
     interaction: {
-      type: 'numeric-input' | 'text-input' | 'single-choice';
+      type: QuestionType;
       options: string[] | null;
     };
     answer: { value: string };
@@ -75,6 +78,8 @@ export interface InstanceSummary {
  * A future child contract must omit answers and enforce assignment access on the server.
  */
 export interface InstancePreview extends InstanceSummary {
+  /** Taken from this draft's pinned template version, not the current revision. */
+  generationMode: 'deterministic' | 'static';
   templateVersionId: string;
   templateVersion: number;
   parameters: ParameterValues;

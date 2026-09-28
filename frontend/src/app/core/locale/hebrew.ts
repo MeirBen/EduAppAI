@@ -1,4 +1,32 @@
-import { ParameterDefinition } from '../api/models';
+import { MathOperation, ParameterDefinition } from '../api/models';
+
+/** Hebrew operation labels, independent of the immutable wire keys. */
+export const mathOperations: { value: MathOperation; label: string }[] = [
+  { value: 'addition', label: 'חיבור' },
+  { value: 'subtraction', label: 'חיסור' },
+  { value: 'multiplication', label: 'כפל' },
+  { value: 'division', label: 'חילוק' },
+];
+
+/** Describes the generator's operand bounds; division ranges refer to divisor and quotient. */
+export function mathRange(operation: MathOperation, difficulty: string): string {
+  const larger = operation === 'addition' || operation === 'subtraction';
+  const maximum =
+    difficulty === 'easy'
+      ? larger
+        ? 10
+        : 5
+      : difficulty === 'medium'
+        ? larger
+          ? 50
+          : 10
+        : larger
+          ? 100
+          : 12;
+  return operation === 'division'
+    ? `המחלק והתוצאה מ־1 עד ${maximum}`
+    : `המספרים בתרגיל מ־1 עד ${maximum}`;
+}
 
 /** Presents legacy built-in labels in Hebrew without rewriting immutable template snapshots. */
 export function parameterLabel(definition: ParameterDefinition): string {

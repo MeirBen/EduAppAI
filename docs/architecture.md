@@ -1,4 +1,4 @@
-# How the foundation fits together
+# How the application fits together
 
 There are two programs during development, and one process after publishing.
 Angular serves the UI; ASP.NET Core 8 handles cookies, validation and persistence. In a
@@ -7,7 +7,7 @@ published build ASP.NET also serves Angular. SQLite is an embedded database file
 ```text
 frontend/src/app/
   core/             Auth, HTTP contracts, API client, errors
-  features/         Parent sign-in, templates, draft creation/preview
+  features/         Parent sign-in, template authoring/revisions, draft creation/preview
   dynamic-form/     Four parameter types rendered from server metadata
 
 backend/FamilyLearning.Api/
@@ -36,7 +36,8 @@ POST /api/templates
 POST /api/templates/{id}/instances
   → find the parent's template and its current version
   → validate parameters and apply defaults
-  → generate multiplication questions in C#
+  → generate arithmetic in C# or copy authored static content
+  → validate the content and answer keys
   → store parameters + exact content + seed as a Draft
 
 GET /api/instances/{id}
@@ -88,28 +89,57 @@ Routes are lazy. `Auth` owns only the current parent; it never stores credential
 authentication tokens in local storage. `LearningApi` groups the few HTTP operations.
 Components use signals for local state and resources for reads, without a global store.
 
-The manual template editor creates a multiplication blueprint. The next screen is
-generic: `ParameterForm` reads the blueprint's field definitions and produces typed
-values. Browser validation improves feedback; the server always validates again.
+The template editor routes to one reusable Signal Form for creation and revision.
+It offers generated arithmetic or parent-authored content. A question-fields component
+renders numeric, text and choice authoring controls; feature-local helpers convert
+editor state to wire definitions while preserving IDs and existing math metadata.
+Revision publication includes the version originally loaded. A 409 keeps the local
+form; reloading the latest version is an explicit action that discards local edits.
+
+The next screen uses `ParameterForm` to render the blueprint's parameters. Static
+templates have an empty parameter list and copy their fixed content. Browser
+validation improves feedback; the server always validates again.
 For optional numeric fields, the form keeps input text until submission so that an
 empty field does not accidentally turn into zero.
 
 The UI is Hebrew-only with document-level RTL and Angular's `he-IL` locale.
 Tailwind CSS 4 handles presentation; Ionic remains the application shell. The
 [UI guide](ui-guide.md) documents styling, mixed-direction content and accessibility.
-A small display helper translates only known legacy system labels/instructions;
+A small display helper translates only known legacy system labels and generated-math instructions;
 immutable snapshots, arbitrary authored content and API enum values stay unchanged.
 
-## Changes you can make first
+## Generation and content contracts
+
+`GenerationDefinition` retains the original `mode`, `generator`, `fixedSettings`
+JSON shape for deterministic templates. Static mode supplies `content` instead.
+Mode validation rejects conflicting fields. Nullable fields are omitted when writing;
+explicit nulls never bypass mode/content validation. This envelope preserves existing
+clients' freedom to order JSON fields without a metadata-first polymorphic contract.
+
+`TaskGenerator` dispatches to `math-v1` or returns the authored content for snapshot
+serialization. Multiplication retains its original ranges and seeded algorithm.
+Addition/subtraction use operands up to 10/50/100; subtraction orders the operands.
+Division uses factors up to 5/10/12 and constructs an exactly divisible dividend.
+
+`TaskContentValidator` checks plain-text blocks, unique question IDs, supported
+interactions, numeric answers, choice membership, integer points and text/count bounds.
+Required JSON properties distinguish omitted points from deliberately choosing zero.
+Content is limited to 20 questions, four passages and 8,000 aggregate text characters;
+individual limits are in the [authoring design](superpowers/specs/2026-09-28-richer-authoring-design.md).
+No HTML is rendered from authored content and no content data is executed.
+
+The parent preview includes `generationMode` from the instance's pinned template
+version. That lets the UI format generated equations as LTR while preserving authored
+numeric questions as written. Stored task content is never changed to add display metadata.
+
+## Extension points
 
 - Change the visible wording in a feature's `.html` file.
 - Change theme tokens in `frontend/src/styles.css` and layout utilities in templates.
-- Adjust the multiplication ranges in `MathTaskGenerator`; update its tests with the
-  corresponding behavior. Existing drafts intentionally keep their old questions.
 - Add a new deterministic generator only alongside its explicit settings, validation,
   tests and authoring UI. Do not execute code from template data.
-- Add static content next using a separate generation definition and content validator.
-  When multiple modes exist, introduce a small generator dispatcher.
+- Keep new generation paths behind the small dispatcher and shared content validator.
+  Preserve existing generator behavior or introduce an explicit new generator version.
 
 ## Documentation stays with the contract
 
@@ -119,11 +149,12 @@ behavior; inline comments explain decisions such as transaction boundaries and C
 ordering. Keep these descriptions current when changing a contract, and update both
 backend and frontend documentation when the HTTP shape or semantics change.
 
-## Limits of this increment
+## Current limits
 
-The product document is broader than this implementation. This foundation
+The product document is broader than this implementation. The application
 has no child account, session model, scoring API, assignments, AI, reports or public
-registration. Version creation exists in the API; its visual editor is deferred.
+registration. Points and answer keys are authored and validated, but scoring execution
+belongs to the forthcoming session workflow.
 The application shell is installable, but offline task execution is not implemented.
 There is no claim that the whole app is deployment-ready.
 

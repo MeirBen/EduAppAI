@@ -31,6 +31,15 @@ export class LearningApi {
   createTemplate(definition: TemplateDefinition) {
     return firstValueFrom(this.http.post<TemplateDetail>('/api/templates', definition));
   }
+  /** Publishes a new immutable revision; HTTP 409 leaves the caller's stale draft unsaved. */
+  publishTemplate(id: string, expectedVersion: number, definition: TemplateDefinition) {
+    return firstValueFrom(
+      this.http.post<TemplateDetail>(`/api/templates/${id}/versions`, {
+        expectedVersion,
+        definition,
+      }),
+    );
+  }
   /** Returns up to 100 of the family's most recently created drafts, without question content. */
   listInstances() {
     return firstValueFrom(this.http.get<InstanceSummary[]>('/api/instances'));

@@ -32,7 +32,8 @@
         >
         <h3 class="mb-3 text-xl">מתחילים עם רעיון אחד</h3>
         <p class="mx-auto mb-6 max-w-md text-muted">
-          יוצרים תבנית לתרגול כפל. בכל שימוש בוחרים את הרמה ואת מספר השאלות, ומקבלים תרגילים חדשים.
+          יוצרים תרגול חשבון, כותבים שאלות או מוסיפים קטע קריאה. הרעיון נשמר ואפשר לחזור אליו בכל
+          יום.
         </p>
         <a class="button button-secondary" routerLink="/templates/new">יצירת התבנית הראשונה</a>
       </div>
@@ -40,16 +41,24 @@
       <div class="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
         @for (template of data.value().templates; track template.id) {
           <article class="panel flex min-w-0 flex-col items-start border-t-4 border-t-brand/30">
-            <span class="badge">כפל · גרסה {{ template.currentVersion }}</span>
+            <span class="badge">תבנית · גרסה {{ template.currentVersion }}</span>
             <h3 class="mb-2 mt-5">
               <bdi>{{ template.name }}</bdi>
             </h3>
-            <p class="mb-4 text-sm text-muted">תרגילי כפל חדשים, ברמה ובקצב שמתאימים לכם.</p>
+            <p class="mb-4 text-sm text-muted">
+              יוצרים תרגול מהתבנית השמורה או מעדכנים אותה לגרסה חדשה.
+            </p>
             <a
               class="text-link mt-auto"
               [routerLink]="['/templates', template.id, 'create']"
               [attr.aria-label]="'יצירת תרגול: ' + template.name"
               >יצירת תרגול <span aria-hidden="true">←</span></a
+            >
+            <a
+              class="text-link mt-2"
+              [routerLink]="['/templates', template.id, 'edit']"
+              [attr.aria-label]="'עריכת תבנית: ' + template.name"
+              >עריכת התבנית</a
             >
           </article>
         }

@@ -36,11 +36,15 @@ public sealed record ParameterDefinition(
     int? MaxLength = null,
     string[]? Options = null);
 
-/// <summary>Selects the implemented deterministic math generator.</summary>
-/// <remarks>Add a separate contract when another generation mode is implemented.</remarks>
+/// <summary>Selects deterministic arithmetic or parent-authored static content.</summary>
+/// <remarks>
+/// The validator requires the fields for exactly one mode. Keep this envelope compatible
+/// with existing deterministic snapshots, including JSON properties in any order.
+/// </remarks>
 public sealed record GenerationDefinition(
     [property: JsonRequired] string Mode,
-    [property: JsonRequired] string Generator,
-    [property: JsonRequired] MathSettings FixedSettings);
-/// <summary>Math behavior fixed at publication; currently only multiplication is supported.</summary>
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? Generator = null,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] MathSettings? FixedSettings = null,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] TaskContent? Content = null);
+/// <summary>Arithmetic operation fixed at publication: addition, subtraction, multiplication or division.</summary>
 public sealed record MathSettings([property: JsonRequired] string Operation);

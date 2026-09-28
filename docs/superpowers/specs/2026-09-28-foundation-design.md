@@ -1,5 +1,8 @@
 # Family Learning foundation
 
+This records the original increment. Current parent authoring also includes the
+[richer authoring extension](2026-09-28-richer-authoring-design.md).
+
 The supplied [product specification](../../product-specification.md) describes the destination.
 This first increment provides a runnable, readable foundation and a complete parent workflow.
 It is not the full MVP.

@@ -3,72 +3,37 @@
 >
 <header class="mb-8">
   <p class="mb-3 text-sm font-medium text-brand">רעיון שנשאר איתנו</p>
-  <h1 class="mb-3">תבנית חדשה</h1>
-  <p class="text-muted">נותנים לתרגול הכפל שם ובוחרים נקודת התחלה.</p>
+  <h1 class="mb-3">{{ templateId() ? 'עריכת תבנית' : 'תבנית חדשה' }}</h1>
+  <p class="text-muted">בונים רעיון שאפשר לחזור אליו: תרגול חשבון, שאלות או קטעי קריאה.</p>
 </header>
 <div class="grid items-start gap-6 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
-  <form class="panel" (submit)="save($event)" novalidate [attr.aria-busy]="fields().submitting()">
-    <h2>פרטי התבנית</h2>
-    <div class="field">
-      <label for="name">שם התבנית</label>
-      <input
-        id="name"
-        dir="auto"
-        [formField]="fields.name"
-        placeholder="למשל: מתרגלים את לוח הכפל"
-        aria-describedby="name-error"
-        [attr.aria-invalid]="fields.name().touched() && fields.name().invalid()"
-      />
-      <div id="name-error">
-        @if (fields.name().touched() && fields.name().invalid()) {
-          <p class="field-error">יש להזין שם באורך של 1 עד 100 תווים.</p>
-        }
+  <div class="min-w-0">
+    @if (templateId() && template.isLoading()) {
+      <p class="panel" role="status">טוענים את התבנית לעריכה…</p>
+    } @else if (templateId() && template.error()) {
+      <div class="error" role="alert">
+        <p>{{ apiError(template.error()) }}</p>
+        <button class="button mt-4" (click)="template.reload()">ניסיון נוסף</button>
       </div>
-    </div>
-    <div class="field">
-      <label for="difficulty">רמת קושי התחלתית</label>
-      <select id="difficulty" [formField]="fields.difficulty">
-        <option value="easy">קלה · מספרים מ־1 עד 5</option>
-        <option value="medium">בינונית · מספרים מ־1 עד 10</option>
-        <option value="hard">מאתגרת · מספרים מ־1 עד 12</option>
-      </select>
-    </div>
-    <div class="field">
-      <label for="question-count">מספר שאלות התחלתי</label>
-      <input
-        id="question-count"
-        type="number"
-        dir="ltr"
-        inputmode="numeric"
-        [formField]="fields.questionCount"
-        aria-describedby="question-count-hint"
-        [attr.aria-invalid]="fields.questionCount().touched() && fields.questionCount().invalid()"
+    } @else if (!templateId() || template.hasValue()) {
+      <app-template-form
+        [template]="template.value()"
+        (saved)="saved($event)"
+        (reloadRequested)="template.reload()"
       />
-      <div id="question-count-hint">
-        @if (fields.questionCount().touched() && fields.questionCount().invalid()) {
-          <p class="field-error">יש לבחור מספר שלם מ־1 עד 20.</p>
-        } @else {
-          <p class="mt-2 text-sm text-muted">אפשר לבחור מ־1 עד 20 שאלות.</p>
-        }
-      </div>
-    </div>
-    @if (error()) {
-      <p class="error" role="alert">{{ error() }}</p>
     }
-    <div class="mt-8 flex flex-wrap items-center gap-5">
-      <button class="button" type="submit" [disabled]="fields().submitting()">
-        {{ fields().submitting() ? 'שומרים…' : 'שמירת התבנית' }}
-      </button>
-      <a class="text-link" routerLink="/templates">ביטול</a>
-    </div>
-  </form>
+  </div>
   <aside class="rounded-2xl bg-soft p-6 sm:p-8" aria-labelledby="template-note-title">
     <p class="mb-3 text-sm font-medium text-brand">איך זה עובד?</p>
     <h2 id="template-note-title" class="mb-4">הרעיון נשמר.<br />האתגר משתנה.</h2>
     <p class="mb-4 text-muted">
-      בכל שימוש בתבנית אפשר לבחור רמת קושי ומספר שאלות שמתאימים לאותו יום.
+      בתרגול חשבון בוחרים פעולה, ובכל שימוש מתאימים את הרמה ואת מספר השאלות.
     </p>
-    <p class="text-muted">התרגילים נוצרים מחדש ונשמרים בטיוטה לעיון שלכם.</p>
-    <p class="mt-6 border-t border-line pt-5 text-sm text-muted">בשלב הזה אפשר ליצור תרגולי כפל.</p>
+    <p class="text-muted">
+      בתבנית שאלות כותבים את התוכן פעם אחת. בכל שימוש נשמר עותק מדויק לעיון שלכם.
+    </p>
+    <p class="mt-6 border-t border-line pt-5 text-sm text-muted">
+      אפשר לשלב קטעי קריאה, תשובות קצרות, שאלות מספריות ושאלות בחירה.
+    </p>
   </aside>
 </div>

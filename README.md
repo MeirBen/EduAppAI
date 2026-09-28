@@ -1,17 +1,34 @@
 # Family Learning
 
-A small, private family learning app. This repository is the first working foundation,
-not the complete product in [the product specification](docs/product-specification.md).
+A small, private family learning app with a working parent authoring workflow.
+The broader destination is described in [the product specification](docs/product-specification.md).
 
-**Works now:** parent sign-in, empty template library, multiplication template creation,
-dynamic task parameters, immutable template versions, and saved draft previews.
+**Works now:** parent sign-in, an initially empty template library, all four arithmetic
+operations, parent-written passages and mixed-question quizzes, template editing with
+immutable revisions, dynamic math parameters, and saved parent previews.
 
 The interface is Hebrew and RTL, with a minimal Tailwind CSS 4 theme and a locally
 bundled Hebrew font. See the [UI guide](docs/ui-guide.md) for styling, localization
 and accessibility conventions.
 
-**Next:** child profiles and device activation, assignment, sessions and scoring,
-static templates, a child task player, optional AI, and reports.
+**Next:** child profiles and device activation, assignment, a child task player,
+sessions and scoring, optional AI, and reports.
+
+## Create useful templates
+
+Choose **תבנית חדשה** and select a template type:
+
+- **תרגול חשבון:** choose addition, subtraction, multiplication or exact division.
+  Each new task accepts difficulty and question count. Subtraction stays nonnegative;
+  division produces whole-number answers and never divides by zero.
+- **שאלות וקטעי קריאה:** write optional passages and 1–20 questions. Each question
+  supports a numeric answer, short text or single choice, with an answer key and points.
+  Question order is editable. Creating a task copies this authored content exactly.
+
+Use **עריכת התבנית** to publish a new version. Old tasks keep their original content.
+If another tab publishes first, your unsaved edits remain visible until you choose
+to load the latest version. Previews and answer keys are parent-only; children cannot
+yet receive or complete these drafts. See the [authoring design](docs/superpowers/specs/2026-09-28-richer-authoring-design.md).
 
 ## Run locally
 
@@ -83,9 +100,10 @@ npx playwright install chromium
 npm run e2e
 ```
 
-It checks Hebrew/RTL and keyboard navigation, signs in, creates a template and draft,
-reloads the frozen questions, checks each screen at 360px with 200% text size, and
-signs out. Screenshots are written to `artifacts/`. It never touches your local family data.
+It checks Hebrew/RTL and keyboard navigation, creates arithmetic and mixed-content
+templates, reloads frozen drafts, publishes revisions and exercises a two-tab edit
+conflict. Screens are checked at 360px with 200% text size. Screenshots are written
+to `artifacts/`. It never touches your local family data.
 On Linux CI hosts, `npx playwright install --with-deps chromium` also installs browser libraries.
 
 ## Read the code in this order
@@ -93,9 +111,9 @@ On Linux CI hosts, `npx playwright install --with-deps chromium` also installs b
 1. [Architecture guide](docs/architecture.md) — the data flow and decisions.
 2. [Template model](backend/FamilyLearning.Api/TaskEngine/Models/TaskTemplateDefinition.cs)
    — what is fixed and what a parent chooses each time.
-3. [Parameter validation](backend/FamilyLearning.Api/TaskEngine/Validation/ParameterValidator.cs)
-   and [math generation](backend/FamilyLearning.Api/TaskEngine/Generators/MathTaskGenerator.cs)
-   — small C# functions without HTTP or database dependencies.
+3. [Content validation](backend/FamilyLearning.Api/TaskEngine/Validation/TaskContentValidator.cs)
+   and [task generation](backend/FamilyLearning.Api/TaskEngine/Generators/TaskGenerator.cs)
+   — bounded content checks and a small dispatcher without HTTP or database dependencies.
 4. [Create-instance endpoint](backend/FamilyLearning.Api/Features/Instances/InstanceEndpoints.cs)
    — load, validate, generate, freeze, save.
 5. [Dynamic parameter form](frontend/src/app/dynamic-form/parameter-form/parameter-form.ts)

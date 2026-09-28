@@ -27,23 +27,48 @@
     >
   </div>
   <section class="panel" aria-labelledby="questions-title">
-    <h2 id="questions-title" class="mb-3">התרגילים שלנו</h2>
-    <p class="text-muted" dir="auto">{{ instructions(draft.content.instructions) }}</p>
+    <h2 id="questions-title" class="mb-3">השאלות שלנו</h2>
+    <p class="whitespace-pre-wrap text-muted" dir="auto">
+      {{
+        draft.generationMode === 'deterministic'
+          ? instructions(draft.content.instructions)
+          : draft.content.instructions
+      }}
+    </p>
     @for (block of draft.content.contentBlocks; track $index) {
       <p class="my-4 whitespace-pre-wrap" dir="auto">{{ block.text }}</p>
     }
     <ol class="mt-4 list-decimal divide-y divide-line ps-6 marker:text-sm marker:text-muted">
       @for (question of draft.content.questions; track question.id) {
         <li class="py-5 ps-2">
-          <bdi dir="ltr" class="question-prompt inline-block text-2xl font-medium tabular-nums"
-            >{{ question.prompt }} = ?</bdi
-          >
+          @if (draft.generationMode === 'deterministic') {
+            <bdi dir="ltr" class="question-prompt inline-block text-2xl font-medium tabular-nums"
+              >{{ question.prompt }} = ?</bdi
+            >
+          } @else {
+            <p dir="auto" class="question-prompt whitespace-pre-wrap text-lg font-medium">
+              {{ question.prompt }}
+            </p>
+          }
+          <p class="mt-2 text-sm text-muted">נקודות לשאלה: {{ question.points }}</p>
+          @if (question.interaction.type === 'single-choice') {
+            <ul class="my-3 list-disc space-y-2 ps-6" aria-label="אפשרויות תשובה">
+              @for (option of question.interaction.options; track $index) {
+                <li>
+                  <bdi>{{ option }}</bdi>
+                </li>
+              }
+            </ul>
+          }
           <details class="mt-2">
             <summary>
               הצגת התשובה<span class="sr-only"> לשאלה {{ $index + 1 }}</span>
             </summary>
             <p class="mt-2 font-medium">
-              <span class="sr-only">התשובה: </span><bdi dir="ltr">{{ question.answer.value }}</bdi>
+              <span class="sr-only">התשובה: </span
+              ><bdi [attr.dir]="question.interaction.type === 'numeric-input' ? 'ltr' : 'auto'">{{
+                question.answer.value
+              }}</bdi>
             </p>
           </details>
         </li>

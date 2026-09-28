@@ -26,9 +26,10 @@ public static class InstanceEndpoints
             var instance = await db.TaskInstances.AsNoTracking()
                 .SingleOrDefaultAsync(i => i.Id == id && i.FamilyId == user.FamilyId(), ct);
             if (instance is null) return Results.NotFound();
-            var version = await db.TaskTemplateVersions.Where(v => v.Id == instance.TemplateVersionId)
-                .Select(v => v.Version).SingleAsync(ct);
-            return Results.Ok(InstancePreview.From(instance, version));
+            var version = await db.TaskTemplateVersions.AsNoTracking().Where(v => v.Id == instance.TemplateVersionId)
+                .Select(v => new { v.Version, v.DefinitionJson }).SingleAsync(ct);
+            var definition = StoredJson.Read<TaskTemplateDefinition>(version.DefinitionJson);
+            return Results.Ok(InstancePreview.From(instance, version.Version, definition.Generation.Mode));
         });
     }
 
@@ -45,11 +46,13 @@ public static class InstanceEndpoints
         var parameters = ParameterValidator.Validate(definition.InstanceParameters, request.Parameters);
         if (parameters.Errors.Count > 0) return Results.ValidationProblem(parameters.Errors);
         var seed = RandomNumberGenerator.GetInt32(int.MaxValue);
-        var content = MathTaskGenerator.Generate(definition, parameters.Values, seed);
+        var content = TaskGenerator.Generate(definition, parameters.Values, seed);
+        var contentErrors = TaskContentValidator.Validate(content);
+        if (contentErrors.Count > 0) return Results.ValidationProblem(contentErrors);
         var instance = new TaskInstance(user.FamilyId(), version.Id, content.Title,
             StoredJson.Write(parameters.Values), StoredJson.Write(content), seed);
         db.TaskInstances.Add(instance);
         await db.SaveChangesAsync(ct);
-        return Results.Created($"/api/instances/{instance.Id}", InstancePreview.From(instance, version.Version));
+        return Results.Created($"/api/instances/{instance.Id}", InstancePreview.From(instance, version.Version, definition.Generation.Mode));
     }
 }

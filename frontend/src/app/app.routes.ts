@@ -28,6 +28,14 @@ export const routes: Routes = [
           ),
       },
       {
+        path: 'templates/:templateId/edit',
+        title: 'עריכת תבנית · לומדים ביחד',
+        loadComponent: () =>
+          import('./features/templates/create-template/create-template').then(
+            (m) => m.CreateTemplate,
+          ),
+      },
+      {
         path: 'templates/:templateId/create',
         title: 'יצירת תרגול · לומדים ביחד',
         loadComponent: () =>
