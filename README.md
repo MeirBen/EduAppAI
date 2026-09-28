@@ -71,6 +71,11 @@ Before editing, read the [comment rules](docs/commenting-guide.md) and
 
 ## Data
 
+Remove saved drafts and templates from the library. **איפוס נתוני הלמידה**
+(reset learning data) clears your family's templates, revisions and drafts after
+confirmation; your login and AI configuration remain. This also removes old
+content retained from earlier development.
+
 Development stores SQLite and Data Protection keys in
 `backend/FamilyLearning.Api/data/`, ignored by Git. Set `Storage__Directory` to
 an absolute path to relocate them; use the same path for provisioning,

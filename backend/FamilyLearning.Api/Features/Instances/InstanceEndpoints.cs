@@ -4,11 +4,12 @@ using FamilyLearning.Api.Infrastructure.Persistence;
 using FamilyLearning.Api.TaskEngine.Ai;
 using FamilyLearning.Api.TaskEngine.Models;
 using FamilyLearning.Api.TaskEngine.Validation;
+using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 
 namespace FamilyLearning.Api.Features.Instances;
 
-/// <summary>Parent operations that create frozen drafts and read the family's saved content.</summary>
+/// <summary>Parent operations that create, read and delete the family's saved task snapshots.</summary>
 public static class InstanceEndpoints
 {
     /// <summary>Maps authenticated draft routes onto the API group configured with CSRF protection.</summary>
@@ -26,8 +27,13 @@ public static class InstanceEndpoints
                 .SingleOrDefaultAsync(i => i.Id == id && i.FamilyId == user.FamilyId(), ct);
             if (instance is null) return Results.NotFound();
             var version = await db.TaskTemplateVersions.AsNoTracking().Where(v => v.Id == instance.TemplateVersionId)
-                .Select(v => v.Version).SingleAsync(ct);
-            return Results.Ok(InstancePreview.From(instance, version));
+                .Select(v => (int?)v.Version).SingleOrDefaultAsync(ct);
+            return version is null ? Results.NotFound() : Results.Ok(InstancePreview.From(instance, version.Value));
+        });
+        instances.MapDelete("/{id:guid}", async (Guid id, ClaimsPrincipal user, LearningDbContext db, CancellationToken ct) =>
+        {
+            var deleted = await db.TaskInstances.Where(i => i.Id == id && i.FamilyId == user.FamilyId()).ExecuteDeleteAsync(ct);
+            return deleted == 0 ? Results.NotFound() : Results.NoContent();
         });
     }
 
@@ -39,7 +45,8 @@ public static class InstanceEndpoints
         if (template is null) return Results.NotFound();
         // Pin the revision we read; concurrent publication cannot change this immutable definition.
         var version = await db.TaskTemplateVersions.AsNoTracking()
-            .SingleAsync(v => v.TemplateId == id && v.Version == template.CurrentVersion, ct);
+            .SingleOrDefaultAsync(v => v.TemplateId == id && v.Version == template.CurrentVersion, ct);
+        if (version is null) return Results.NotFound();
         var definition = StoredJson.Read<TaskTemplateDefinition>(version.DefinitionJson);
         var parameters = ParameterValidator.Validate(definition.InstanceParameters, request.Parameters);
         if (parameters.Errors.Count > 0) return Results.ValidationProblem(parameters.Errors);
@@ -47,7 +54,12 @@ public static class InstanceEndpoints
         var instance = new TaskInstance(user.FamilyId(), version.Id, generated.Value.Title,
             StoredJson.Write(parameters.Values), StoredJson.Write(generated.Value), StoredJson.Write(generated.Metadata));
         db.TaskInstances.Add(instance);
-        await db.SaveChangesAsync(ct);
+        try { await db.SaveChangesAsync(ct); }
+        catch (DbUpdateException exception) when (exception.InnerException is SqliteException { SqliteExtendedErrorCode: 787 })
+        {
+            // A template deletion/reset during the AI call must not resurrect content or return a server error.
+            return Results.NotFound();
+        }
         return Results.Created($"/api/instances/{instance.Id}", InstancePreview.From(instance, version.Version));
     }
 }

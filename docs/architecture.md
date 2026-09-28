@@ -18,13 +18,16 @@ process.
 
 ## AI and persistence
 
-| Request                              | Result                             |
-| ------------------------------------ | ---------------------------------- |
-| `POST /api/ai/template-drafts`       | Validated, unsaved AI proposal     |
-| `POST /api/templates`                | Template + revision 1, atomically  |
-| `POST /api/templates/{id}/versions`  | New revision; conflict returns 409 |
-| `POST /api/templates/{id}/instances` | Validated, saved AI task           |
-| `GET /api/instances/{id}`            | Stored parent preview              |
+| Request                              | Result                                |
+| ------------------------------------ | ------------------------------------- |
+| `POST /api/ai/template-drafts`       | Validated, unsaved AI proposal        |
+| `POST /api/templates`                | Template + revision 1, atomically     |
+| `POST /api/templates/{id}/versions`  | New revision; conflict returns 409    |
+| `POST /api/templates/{id}/instances` | Validated, saved AI task              |
+| `GET /api/instances/{id}`            | Stored parent preview                 |
+| `DELETE /api/instances/{id}`         | Deletes one saved task                |
+| `DELETE /api/templates/{id}`         | Deletes template, revisions and tasks |
+| `DELETE /api/templates`              | Clears the family's learning library  |
 
 `AiGenerationService` calls `IChatClient` and has no identity or database
 access. `AiPrompts` versions authoring/generation instructions; `AiSchemas`
@@ -38,6 +41,11 @@ revision index. Generation loads an immutable revision before awaiting AI; no
 database transaction stays open during the call. Tasks store resolved
 parameters, content and provider/model/prompt-version/UTC metadata. SQLite
 timestamp reads preserve UTC.
+
+Template deletion and library reset remove tasks, revisions and templates in one
+transaction. They preserve accounts, other families and AI configuration. A
+generation finishing after its template was deleted returns 404 and saves
+nothing.
 
 ## Access and failures
 

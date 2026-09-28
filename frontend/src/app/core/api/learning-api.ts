@@ -41,6 +41,14 @@ export class LearningApi {
   getTemplate(id: string) {
     return firstValueFrom(this.http.get<TemplateDetail>(`/api/templates/${id}`));
   }
+  /** Permanently deletes the family's template, all revisions and their saved tasks. */
+  deleteTemplate(id: string) {
+    return firstValueFrom(this.http.delete<void>(`/api/templates/${id}`));
+  }
+  /** Clears all family learning content, including items beyond list limits; keeps accounts and AI settings. */
+  resetLibrary() {
+    return firstValueFrom(this.http.delete<void>('/api/templates'));
+  }
   /** Creates the first immutable version; leaving the editor cancels the pending request. */
   createTemplate(definition: TemplateDefinition, lifetime: DestroyRef) {
     return firstValueFrom(
@@ -69,6 +77,10 @@ export class LearningApi {
   /** Reads frozen content, including parent-only answer keys; it never generates new questions. */
   getInstance(id: string) {
     return firstValueFrom(this.http.get<InstancePreview>(`/api/instances/${id}`));
+  }
+  /** Permanently deletes one family-owned task; its template and sibling tasks remain. */
+  deleteInstance(id: string) {
+    return firstValueFrom(this.http.delete<void>(`/api/instances/${id}`));
   }
   /**
    * Generates and saves an AI task from the current template revision.

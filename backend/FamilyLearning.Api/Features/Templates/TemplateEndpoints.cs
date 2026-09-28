@@ -22,6 +22,10 @@ public static class TemplateEndpoints
         templates.MapGet("/{id:guid}", GetAsync);
         templates.MapPost("/", CreateAsync);
         templates.MapPost("/{id:guid}/versions", CreateVersionAsync);
+        templates.MapDelete("/{id:guid}", (Guid id, ClaimsPrincipal user, LearningDbContext db, CancellationToken ct) =>
+            DeleteAsync(id, user, db, ct));
+        templates.MapDelete("/", (ClaimsPrincipal user, LearningDbContext db, CancellationToken ct) =>
+            DeleteAsync(null, user, db, ct));
     }
 
     private static async Task<IResult> GetAsync(Guid id, ClaimsPrincipal user, LearningDbContext db, CancellationToken ct)
@@ -30,8 +34,27 @@ public static class TemplateEndpoints
         var template = await db.TaskTemplates.AsNoTracking().SingleOrDefaultAsync(t => t.Id == id && t.FamilyId == user.FamilyId(), ct);
         if (template is null) return Results.NotFound();
         var version = await db.TaskTemplateVersions.AsNoTracking()
-            .SingleAsync(v => v.TemplateId == id && v.Version == template.CurrentVersion, ct);
+            .SingleOrDefaultAsync(v => v.TemplateId == id && v.Version == template.CurrentVersion, ct);
+        if (version is null) return Results.NotFound();
         return Results.Ok(TemplateDetail.From(template, version));
+    }
+
+    /// <summary>Deletes one template or the family's whole library, including all revisions and saved tasks.</summary>
+    private static async Task<IResult> DeleteAsync(Guid? id, ClaimsPrincipal user, LearningDbContext db, CancellationToken ct)
+    {
+        var familyId = user.FamilyId();
+        var templates = db.TaskTemplates.Where(t => t.FamilyId == familyId);
+        if (id.HasValue) templates = templates.Where(t => t.Id == id.Value);
+        var versions = db.TaskTemplateVersions.Where(v => templates.Select(t => t.Id).Contains(v.TemplateId));
+        // Bulk deletes bypass SaveChanges: one transaction keeps dependent rows and revisions atomic.
+        await using var transaction = await db.Database.BeginTransactionAsync(ct);
+        if (id.HasValue && !await templates.AnyAsync(ct)) return Results.NotFound();
+        await db.TaskInstances.Where(i => i.FamilyId == familyId && versions.Select(v => v.Id).Contains(i.TemplateVersionId))
+            .ExecuteDeleteAsync(ct);
+        await versions.ExecuteDeleteAsync(ct);
+        await templates.ExecuteDeleteAsync(ct);
+        await transaction.CommitAsync(ct);
+        return Results.NoContent();
     }
 
     private static async Task<IResult> CreateAsync(TaskTemplateDefinition definition, ClaimsPrincipal user,

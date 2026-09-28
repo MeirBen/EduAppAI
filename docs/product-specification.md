@@ -31,6 +31,13 @@ Failures preserve local input and allow explicit retry. Successful regeneration
 replaces the proposal. A stale publication returns 409; local edits remain until
 an explicit reload. Saved tasks remain readable when AI is unavailable.
 
+Parents can permanently delete a saved draft, or delete a template together with
+all its revisions and generated drafts. The library also offers a confirmed
+reset of all the family's learning content, including items beyond the list
+limit. Accounts and AI configuration remain. Every deletion requires explicit
+confirmation in the UI and server-enforced family ownership. Unsaved AI proposals
+can be discarded from the authoring screen; they are never stored as drafts.
+
 ## Contracts
 
 - **TaskTemplate:** family-owned identity pointing to the current revision.

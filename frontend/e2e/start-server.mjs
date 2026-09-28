@@ -17,21 +17,24 @@ const environment = {
   Ai__Model: 'openrouter/free',
   Ai__Endpoint: provider.endpoint,
 };
-// This known password belongs only to this disposable test database.
-const account = spawnSync(
-  'dotnet',
-  ['artifacts/app/FamilyLearning.Api.dll', '--create-parent', 'browser@example.test'],
-  {
-    cwd: root,
-    env: environment,
-    input: 'TestOnly!Parent12345\nTestOnly!Parent12345\n',
-    encoding: 'utf8',
-  },
-);
-if (account.status !== 0) {
-  provider.close();
-  rmSync(dataDirectory, { recursive: true, force: true });
-  throw new Error(`Test account setup failed: ${account.stdout}\n${account.stderr}`);
+// Separate families keep cleanup independent of other workflows and their AI rate limits.
+for (const email of ['browser@example.test', 'cleanup@example.test']) {
+  // This known password belongs only to this disposable test database.
+  const account = spawnSync(
+    'dotnet',
+    ['artifacts/app/FamilyLearning.Api.dll', '--create-parent', email],
+    {
+      cwd: root,
+      env: environment,
+      input: 'TestOnly!Parent12345\nTestOnly!Parent12345\n',
+      encoding: 'utf8',
+    },
+  );
+  if (account.status !== 0) {
+    provider.close();
+    rmSync(dataDirectory, { recursive: true, force: true });
+    throw new Error(`Test account setup failed: ${account.stdout}\n${account.stderr}`);
+  }
 }
 const server = spawn(
   'dotnet',

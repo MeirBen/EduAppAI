@@ -1,13 +1,14 @@
 <header class="mb-10 flex flex-wrap items-center justify-between gap-6">
   <div>
     <p class="mb-3 text-sm font-medium text-brand">המרחב המשפחתי</p>
-    <h1 class="mb-3">מה נלמד היום?</h1>
+    <h1 #heading class="mb-3" tabindex="-1">מה נלמד היום?</h1>
     <p class="max-w-xl text-muted">
       רעיונות טובים הופכים לתבניות. מתבניות יוצרים תרגול שמתאים בדיוק להיום.
     </p>
   </div>
   <a class="button" routerLink="/templates/new"><span aria-hidden="true">＋</span> תבנית חדשה</a>
 </header>
+<p role="status" class="mb-4 text-brand">{{ notice() }}</p>
 @if (data.isLoading()) {
   <p role="status" class="panel">טוענים את מרחב הלמידה…</p>
 } @else if (data.error()) {
@@ -60,6 +61,14 @@
               [attr.aria-label]="'עריכת תבנית: ' + template.name"
               >עריכת התבנית</a
             >
+            <button
+              class="text-link mt-2 text-danger"
+              type="button"
+              [attr.aria-label]="'מחיקת תבנית: ' + template.name"
+              (click)="requestRemoval('template', template.id, template.name)"
+            >
+              מחיקת התבנית
+            </button>
           </article>
         }
       </div>
@@ -88,7 +97,14 @@
                 <bdi>{{ instance.createdAtUtc | date: 'd בMMMM y, HH:mm' }}</bdi>
               </p>
             </div>
-            <span class="badge">טיוטה</span>
+            <button
+              class="text-link text-danger"
+              type="button"
+              [attr.aria-label]="'מחיקת טיוטה: ' + instance.title"
+              (click)="requestRemoval('instance', instance.id, instance.title)"
+            >
+              מחיקת הטיוטה
+            </button>
           </li>
         }
       </ul>
@@ -97,4 +113,77 @@
       <p class="mt-4 text-sm text-muted">בכל רשימה מוצגים עד 100 הפריטים האחרונים.</p>
     }
   </section>
+  <section
+    class="mt-10 rounded-2xl border border-danger/25 p-5 sm:p-8"
+    aria-labelledby="reset-title"
+  >
+    <h2 id="reset-title" class="mb-3">מתחילים מחדש</h2>
+    <p class="mb-4 text-muted">
+      אפשר למחוק את כל התבניות, הגרסאות והטיוטות השמורות של המשפחה. החשבון והגדרות ה־AI יישארו.
+    </p>
+    <button
+      class="button button-secondary text-danger"
+      type="button"
+      [disabled]="!data.value().templates.length && !data.value().instances.length"
+      (click)="requestRemoval('library')"
+    >
+      איפוס נתוני הלמידה
+    </button>
+  </section>
 }
+<dialog
+  #confirmation
+  class="panel fixed inset-0 m-auto max-h-[90dvh] w-[calc(100%-2rem)] max-w-lg overflow-y-auto text-ink backdrop:bg-ink/40"
+  aria-labelledby="removal-title"
+  aria-describedby="removal-description"
+  [attr.aria-busy]="deleting()"
+  (cancel)="onCancel($event)"
+  (close)="removal.set(null)"
+>
+  <h2 id="removal-title" class="mb-3">
+    {{
+      removal()?.kind === 'library'
+        ? 'איפוס נתוני הלמידה'
+        : removal()?.kind === 'template'
+          ? 'מחיקת תבנית'
+          : 'מחיקת טיוטה'
+    }}
+  </h2>
+  <p id="removal-description" class="mb-5">
+    @switch (removal()?.kind) {
+      @case ('library') {
+        כל התבניות, הגרסאות והטיוטות השמורות של המשפחה יימחקו לצמיתות. החשבון והגדרות ה־AI יישארו.
+      }
+      @case ('template') {
+        התבנית <bdi>״{{ removal()?.name }}״</bdi>, כל הגרסאות שלה והטיוטות שנוצרו ממנה יימחקו
+        לצמיתות.
+      }
+      @case ('instance') {
+        הטיוטה <bdi>״{{ removal()?.name }}״</bdi> תימחק לצמיתות. התבנית ושאר הטיוטות יישארו.
+      }
+    }
+    אין אפשרות לבטל את המחיקה.
+  </p>
+  @if (deletionError()) {
+    <p class="error" role="alert">{{ deletionError() }}</p>
+  }
+  <div class="flex flex-wrap gap-3">
+    <button
+      class="button button-secondary"
+      type="button"
+      autofocus
+      [disabled]="deleting()"
+      (click)="confirmation.close()"
+    >
+      ביטול
+    </button>
+    <button
+      class="button bg-danger hover:bg-danger"
+      type="button"
+      [disabled]="deleting()"
+      (click)="remove()"
+    >
+      {{ deleting() ? 'מוחקים…' : 'מחיקה לצמיתות' }}
+    </button>
+  </div>
+</dialog>
