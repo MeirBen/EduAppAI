@@ -4,7 +4,7 @@ using System.Text.Json;
 
 namespace FamilyLearning.Api.Infrastructure.Ai;
 
-/// <summary>Rejects failed non-streaming completions before the OpenAI SDK interprets them.</summary>
+/// <summary>Maps OpenRouter errors embedded in HTTP 200 responses to transport failures.</summary>
 internal sealed class OpenRouterResponsePolicy : PipelinePolicy
 {
     public override void Process(PipelineMessage message, IReadOnlyList<PipelinePolicy> pipeline, int currentIndex)
@@ -35,10 +35,6 @@ internal sealed class OpenRouterResponsePolicy : PipelinePolicy
                     code.TryGetInt32(out var status) && status == 429;
                 throw Failure(rateLimited ? HttpStatusCode.TooManyRequests : HttpStatusCode.BadGateway);
             }
-            if (!root.TryGetProperty("choices", out var choices) || choices.ValueKind != JsonValueKind.Array ||
-                choices.GetArrayLength() == 0 || choices[0].ValueKind != JsonValueKind.Object ||
-                !choices[0].TryGetProperty("message", out var completion) || completion.ValueKind != JsonValueKind.Object)
-                throw Failure();
         }
         catch (JsonException) { throw Failure(); }
     }

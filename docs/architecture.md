@@ -79,13 +79,12 @@ retry failed application validation. Failures return safe ProblemDetails without
 saving, including 429 for provider rate limits. Output-limit failures use
 `urn:family-learning:ai-output-limit` so the UI can distinguish them from invalid
 JSON without displaying provider text. The transport checks HTTP 200 bodies for
-provider errors
-and missing completions before SDK conversion. AI response logs record metadata,
-finish reason, size, elapsed time and token counts before output validation.
+provider errors; the adapter normalizes missing or malformed SDK responses to
+safe provider failures. AI response logs record metadata, finish reason, size,
+elapsed time and token counts before output validation.
 Rejections log a failure category; transport failures log exception type, status,
 prompt version and elapsed time. Prompts, answers and reasoning text stay out of
-logs.
-`/api/ai/status` checks configuration without a call.
+logs. `/api/ai/status` checks configuration without a call.
 
 Production requires explicit migrations and HTTPS; tests cover migration,
 redirect, HSTS, secure-cookie and CSRF behavior. `/health` reports process

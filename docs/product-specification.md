@@ -72,9 +72,10 @@ validates and persists output, authorizes access and versions templates. Invalid
 or unavailable responses produce errors, never substitute content. Parents
 review educational correctness and age suitability.
 
-OpenRouter uses `openrouter/free` or an explicit `:free` model, without paid calls
-or automatic retries. Send only learning inputs. Logs exclude prompts, answers,
-identities, credentials, reasoning text and raw provider errors.
+OpenRouter uses only free models and may fall back to another configured free
+model on provider errors. The application does not retry requests. Send only
+learning inputs. Logs exclude prompts, answers, identities, credentials,
+reasoning text and raw provider errors.
 
 The server enforces family ownership, CSRF and atomic, concurrency-safe
 publication. Generation pins its revision before AI. Parent answer keys must
