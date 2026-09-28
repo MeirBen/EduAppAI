@@ -1,8 +1,12 @@
 using System.Collections.Concurrent;
+using FamilyLearning.Api.Infrastructure.Ai;
 using FamilyLearning.Api.TaskEngine.Ai;
 using FamilyLearning.Api.Tests.Fixtures;
 using Microsoft.Extensions.AI;
-using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting.Internal;
+using Microsoft.Extensions.Options;
 
 namespace FamilyLearning.Api.Tests.TaskEngine;
 
@@ -12,12 +16,14 @@ public sealed class AiCapacityTests
     [InlineData("cancellation")]
     [InlineData("invalid-json")]
     [InlineData("provider-error")]
+    [InlineData("timeout")]
     public async Task Failed_requests_release_both_AI_slots(string outcome)
     {
         using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(5));
         using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(deadline.Token);
         using var chat = new PausedChat();
-        using var service = new AiGenerationService([chat], NullLogger<AiGenerationService>.Instance);
+        using var services = CreateServices(chat, "1");
+        var service = services.GetRequiredService<AiGenerationService>();
         var first = service.AuthorAsync("First idea", cancellation.Token);
         var second = service.AuthorAsync("Second idea", cancellation.Token);
         Assert.False(first.IsCompleted);
@@ -25,10 +31,18 @@ public sealed class AiCapacityTests
         var busy = await Assert.ThrowsAsync<AiGenerationException>(() => service.AuthorAsync("Excess", deadline.Token));
         Assert.Equal(503, busy.StatusCode);
 
-        if (outcome == "cancellation")
+        if (outcome is "cancellation" or "timeout")
         {
-            cancellation.Cancel();
-            await Assert.ThrowsAnyAsync<OperationCanceledException>(() => Task.WhenAll(first, second));
+            if (outcome == "cancellation")
+            {
+                cancellation.Cancel();
+                await Assert.ThrowsAnyAsync<OperationCanceledException>(() => Task.WhenAll(first, second));
+            }
+            else
+            {
+                var error = await Assert.ThrowsAsync<AiGenerationException>(() => Task.WhenAll(first, second).WaitAsync(deadline.Token));
+                Assert.Equal(504, error.StatusCode);
+            }
             Assert.Equal(2, chat.Tokens.Count);
             Assert.All(chat.Tokens, token => Assert.True(token.IsCancellationRequested));
         }
@@ -50,6 +64,30 @@ public sealed class AiCapacityTests
         chat.Response.SetResult(Response(AiFixtures.Definition().ToJsonString()));
         var results = await Task.WhenAll(next, another);
         Assert.All(results, result => Assert.Equal("קוראים ומגלים", result.Value.Name));
+    }
+
+    [Theory]
+    [InlineData("0")]
+    [InlineData("-1")]
+    [InlineData("301")]
+    public void Invalid_timeout_configuration_is_rejected(string seconds)
+    {
+        using var chat = new PausedChat();
+        using var services = CreateServices(chat, seconds);
+        Assert.Throws<OptionsValidationException>(() => services.GetRequiredService<AiGenerationService>());
+    }
+
+    private static ServiceProvider CreateServices(IChatClient chat, string seconds)
+    {
+        var configuration = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
+        {
+            ["Ai:RequestTimeoutSeconds"] = seconds
+        }).Build();
+        var services = new ServiceCollection();
+        services.AddLogging();
+        services.AddSingleton(chat);
+        services.AddTaskAi(configuration, new HostingEnvironment());
+        return services.BuildServiceProvider();
     }
 
     private static ChatResponse Response(string text) => new(new ChatMessage(ChatRole.Assistant, text))

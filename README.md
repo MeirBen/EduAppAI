@@ -42,6 +42,10 @@ The default model is `openrouter/free`; `Ai__Model` can select a specific
 vary; parents review educational correctness before use. Missing configuration
 and provider failures are visible. Saved tasks remain readable without AI.
 
+Generation waits up to three minutes. Set `Ai__RequestTimeoutSeconds` (1–300) to
+change the deadline, then restart. Requests ask for low reasoning effort where
+the selected model supports it; free models may still be slow or unavailable.
+
 ## Verify
 
 ```bash

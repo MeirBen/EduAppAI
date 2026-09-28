@@ -25,6 +25,7 @@ public sealed class ApiFactory(Action<IServiceCollection>? configureServices = n
         builder.UseSetting("OPENROUTER_API_KEY", "");
         builder.UseSetting("Ai:Model", "openrouter/free");
         builder.UseSetting("Ai:Endpoint", "https://openrouter.ai/api/v1");
+        builder.UseSetting("Ai:RequestTimeoutSeconds", "180");
         builder.ConfigureServices(services => services.RemoveAll<IChatClient>());
         if (configureServices is not null) builder.ConfigureServices(configureServices);
     }

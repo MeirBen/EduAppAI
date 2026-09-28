@@ -62,11 +62,15 @@ Cookies and CSRF protect parent operations. Authenticated API responses use
 `no-store`. Parent preview DTOs include answers and cannot be reused for child
 access.
 
-AI requests have a 60-second timeout, two concurrent calls per process and ten
-requests per family per minute. Cancellation reaches the provider and every exit
-releases capacity. SDK retries are disabled. Failures return safe ProblemDetails
-and save nothing; logs exclude provider error bodies. `/api/ai/status` checks
-configuration without contacting the provider.
+AI requests have a configurable three-minute deadline, two concurrent calls per
+process and ten requests per family per minute. Cancellation reaches the
+provider and every exit releases capacity. The transport timeout allows five
+seconds beyond that deadline so application cancellation wins. OpenRouter
+requests use low reasoning effort where supported and exclude reasoning from
+responses; exclusion alone does not reduce reasoning time. SDK retries are
+disabled. Failures return safe ProblemDetails and save nothing; logs exclude
+provider error bodies. `/api/ai/status` checks configuration without contacting
+the provider.
 
 ## Client state
 

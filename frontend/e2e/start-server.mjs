@@ -16,6 +16,7 @@ const environment = {
   Ai__ApiKey: 'isolated-test-key',
   Ai__Model: 'openrouter/free',
   Ai__Endpoint: provider.endpoint,
+  Ai__RequestTimeoutSeconds: '180',
 };
 // Separate families keep cleanup independent of other workflows and their AI rate limits.
 for (const email of ['browser@example.test', 'cleanup@example.test']) {

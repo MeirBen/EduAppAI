@@ -5,14 +5,17 @@ using System.Text.Json.Serialization;
 using FamilyLearning.Api.TaskEngine.Models;
 using FamilyLearning.Api.TaskEngine.Validation;
 using Microsoft.Extensions.AI;
+using Microsoft.Extensions.Options;
 
 namespace FamilyLearning.Api.TaskEngine.Ai;
 
 /// <summary>AI template authoring and task generation through one provider boundary.</summary>
 /// <remarks>Singleton; the semaphore caps in-flight provider calls. This service has no persistence or identity access.</remarks>
-public sealed class AiGenerationService(IEnumerable<IChatClient> clients, ILogger<AiGenerationService> logger) : IDisposable
+public sealed class AiGenerationService(IEnumerable<IChatClient> clients, ILogger<AiGenerationService> logger,
+    IOptions<AiGenerationOptions> options) : IDisposable
 {
     private readonly IChatClient? client = clients.SingleOrDefault();
+    private readonly TimeSpan requestTimeout = options.Value.RequestTimeout;
     private readonly SemaphoreSlim capacity = new(2, 2);
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web)
     {
@@ -54,7 +57,7 @@ public sealed class AiGenerationService(IEnumerable<IChatClient> clients, ILogge
         if (client is null) throw new AiGenerationException(503, "יצירת תוכן בעזרת AI עדיין לא מחוברת. יש להגדיר מפתח OpenRouter בשרת.");
         if (!await capacity.WaitAsync(0, ct)) throw new AiGenerationException(503, "שירות היצירה עסוק כרגע. אפשר לנסות שוב בעוד רגע.");
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
-        timeout.CancelAfter(TimeSpan.FromSeconds(60));
+        timeout.CancelAfter(requestTimeout);
         try
         {
             var response = await client.GetResponseAsync(

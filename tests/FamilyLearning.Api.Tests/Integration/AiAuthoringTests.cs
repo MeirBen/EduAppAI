@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
+using FamilyLearning.Api.TaskEngine.Ai;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -57,6 +58,7 @@ public sealed class AiAuthoringTests
     [InlineData("invalid-answer")]
     [InlineData("truncated")]
     [InlineData("provider-error")]
+    [InlineData("timeout")]
     public async Task Invalid_provider_output_never_saves_an_instance(string scenario)
     {
         var content = Content();
@@ -65,15 +67,20 @@ public sealed class AiAuthoringTests
         var chat = new ScriptedChat(scenario == "invalid-json" ? "not JSON" : content.ToJsonString())
         {
             FinishReason = scenario == "truncated" ? ChatFinishReason.Length : ChatFinishReason.Stop,
-            Fail = scenario == "provider-error"
+            Fail = scenario == "provider-error",
+            WaitForCancellation = scenario == "timeout"
         };
-        using var app = new ApiFactory(services => services.AddSingleton<IChatClient>(chat));
+        using var app = new ApiFactory(services =>
+        {
+            services.AddSingleton<IChatClient>(chat);
+            services.Configure<AiGenerationOptions>(options => options.RequestTimeoutSeconds = 1);
+        });
         using var parent = await app.ParentAsync();
         using var saved = await parent.PostAsJsonAsync("/api/templates", Definition());
         Assert.Equal(HttpStatusCode.Created, saved.StatusCode);
         var id = (await saved.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("id").GetGuid();
         using var response = await parent.PostAsJsonAsync($"/api/templates/{id}/instances", new { parameters = new { } });
-        Assert.Equal(HttpStatusCode.BadGateway, response.StatusCode);
+        Assert.Equal(scenario == "timeout" ? HttpStatusCode.GatewayTimeout : HttpStatusCode.BadGateway, response.StatusCode);
         Assert.Equal("application/problem+json", response.Content.Headers.ContentType?.MediaType);
         Assert.DoesNotContain("provider secret", await response.Content.ReadAsStringAsync());
         Assert.Equal(0, (await parent.GetFromJsonAsync<JsonElement>("/api/instances")).GetArrayLength());

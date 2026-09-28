@@ -14,6 +14,7 @@ export async function startAiProvider() {
     for await (const chunk of request) body += chunk;
     const input = JSON.parse(body);
     assert.equal(input.model, 'openrouter/free');
+    assert.deepEqual(input.reasoning, { effort: 'low', exclude: true });
     assert.equal(input.response_format.type, 'json_schema');
     assert.equal(input.response_format.json_schema.strict, true);
     assert.equal(input.response_format.json_schema.schema.additionalProperties, false);
