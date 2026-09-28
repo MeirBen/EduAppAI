@@ -11,13 +11,12 @@ static templates, a child task player, optional AI, and reports.
 
 ## Run locally
 
-Prerequisites: .NET SDK **8.0.425**, and Node **24.15+ LTS** or **26+** with npm.
+Prerequisites: a stable **.NET 8 SDK** available as `dotnet`, and Node **24.15+ LTS** or **26+** with npm.
 The app was verified with Node 26.5 and npm 12. Dependencies and lockfiles are committed.
 Open `FamilyLearning.sln` in your IDE. Both backend projects target `net8.0`, using
-ASP.NET Core / EF Core **8.0.31**. `global.json` pins the SDK; CI uses the same version.
-This machine also has a repository-local .NET 8 SDK in ignored `.tools/dotnet`.
-`scripts/dotnet.sh` uses it when it satisfies `global.json`, otherwise it uses the
-system `dotnet`. Your system installation is unchanged.
+ASP.NET Core / EF Core **8.0.31** packages. `global.json` selects the newest installed
+stable 8.0 SDK; CI installs the latest 8.0 SDK. Scripts use `dotnet` from your PATH.
+The SDK is installed on the machine, outside this repository.
 
 ```bash
 cd ~/Desktop/EduApp
@@ -42,7 +41,7 @@ migrations automatically. Your templates and tasks start empty.
 To debug with two terminals instead:
 
 ```bash
-./scripts/dotnet.sh watch --project backend/FamilyLearning.Api
+dotnet watch --project backend/FamilyLearning.Api
 ```
 
 ```bash
@@ -100,8 +99,8 @@ Set `Storage__Directory` to an absolute directory to use a different location; u
 that same value for provisioning, migrations and the running application.
 
 ```bash
-./scripts/dotnet.sh tool restore
-./scripts/dotnet.sh ef migrations add YourChange \
+dotnet tool restore
+dotnet ef migrations add YourChange \
   --project backend/FamilyLearning.Api \
   --output-dir Infrastructure/Persistence/Migrations
 ```
@@ -109,7 +108,7 @@ that same value for provisioning, migrations and the running application.
 The EF CLI is pinned to 8.0.31 in `.config/dotnet-tools.json`. To check the model:
 
 ```bash
-./scripts/dotnet.sh ef migrations has-pending-model-changes --project backend/FamilyLearning.Api
+dotnet ef migrations has-pending-model-changes --project backend/FamilyLearning.Api
 ```
 
 The .NET 8 change preserves the initial migration ID, database schema and JSON
@@ -135,7 +134,7 @@ For a local same-origin preview on port 5124:
 
 ```bash
 export Storage__Directory="$PWD/backend/FamilyLearning.Api/data"
-ASPNETCORE_ENVIRONMENT=Development ./scripts/dotnet.sh artifacts/app/FamilyLearning.Api.dll \
+ASPNETCORE_ENVIRONMENT=Development dotnet artifacts/app/FamilyLearning.Api.dll \
   --contentRoot "$PWD/artifacts/app" --urls http://localhost:5124
 ```
 
@@ -144,7 +143,7 @@ storage for **both** the database and Data Protection keys. Apply migrations exp
 before starting the application (they do not run automatically in Production):
 
 ```bash
-Storage__Directory=/absolute/persistent/data ./scripts/dotnet.sh \
+Storage__Directory=/absolute/persistent/data dotnet \
   artifacts/app/FamilyLearning.Api.dll --migrate
 ```
 

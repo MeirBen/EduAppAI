@@ -6,6 +6,7 @@
 - Keep comments accurate in the same change as code. Avoid narrating obvious code,
   duplicating types, or documenting generated files; preserve XML syntax/reference checks.
 - Keep one production backend project and feature-oriented folders.
+- Use the installed .NET 8 SDK through standard `dotnet` commands; keep SDK installations outside the repo.
 - Use DbContext directly. Do not add repository, unit-of-work or mediator wrappers.
 - Template versions and task content are immutable snapshots; edits publish a version.
 - Enforce family/child ownership on the server. Parent answer keys must never enter child DTOs.

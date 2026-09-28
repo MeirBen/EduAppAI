@@ -31,7 +31,7 @@ client consumes explicit DTOs; pure task-engine logic owns validation and genera
 ### Task 1: Engine and project foundation
 
 **Files:** `backend/FamilyLearning.Api/TaskEngine/*`, `tests/FamilyLearning.Api.Tests/*`,
-solution/configuration files, and `scripts/dotnet.sh`.
+solution/configuration files.
 
 **Interfaces:** `TaskTemplateDefinition`, `ParameterDefinition`, `TaskContent`,
 `TemplateValidator.Validate`, `ParameterValidator.Validate`, `MathTaskGenerator.Generate`.
@@ -40,7 +40,7 @@ solution/configuration files, and `scripts/dotnet.sh`.
 - [x] Write tests for missing/unknown/type-invalid parameters, defaults and bounds;
   seed 42 must produce the same multiplication content and valid answers.
 - [x] Observe failing tests; implement only the supported schema and math generator.
-- [x] Run `./scripts/dotnet.sh test`; expect green engine tests.
+- [x] Run `dotnet test`; expect green engine tests.
 
 ### Task 2: Persistent authenticated API
 
@@ -54,7 +54,7 @@ instance list/get/create; all JSON DTOs scoped to the signed-in family.
   two-family ownership, empty state, invalid definitions and frozen saved drafts.
 - [x] Implement Identity, CLI parent provisioning, migrations and feature endpoint groups.
 - [x] Verify conflicting expected versions return 409 and old draft content is unchanged.
-- [x] Run `./scripts/dotnet.sh test`; expect all tests passing.
+- [x] Run `dotnet test`; expect all tests passing.
 
 ### Task 3: Angular parent workflow
 
@@ -81,7 +81,8 @@ instance list/get/create; all JSON DTOs scoped to the signed-in family.
 ## Execution notes
 
 - Worked in the requested, newly created desktop repository. No remote was configured.
-- Installed a local .NET 8.0.425 SDK under ignored `.tools`, preserving the system SDK.
+- Tooling uses the machine's installed .NET 8 SDK through the standard `dotnet` command.
+  A temporary repository-local SDK used during setup was removed during cleanup.
 - Final review was performed by an independent read-only reviewer. Quoted integer JSON
   handling and successful-logout behavior were tightened with regression tests.
 - Test storage overrides use early host settings; every authenticated fixture asserts
