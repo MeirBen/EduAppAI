@@ -15,10 +15,10 @@ const environment = {
   Logging__LogLevel__Default: 'Warning',
   Ai__ApiKey: 'isolated-test-key',
   Ai__Model: 'openrouter/free',
-  Ai__ReasoningEnabled: 'false',
+  Ai__ReasoningEnabled: 'true',
   Ai__ReasoningEffort: 'low',
-  Ai__Temperature: '0.7',
-  Ai__TopP: '0.8',
+  Ai__Temperature: '',
+  Ai__TopP: '',
   Ai__Endpoint: provider.endpoint,
   Ai__RequestTimeoutSeconds: '180',
 };

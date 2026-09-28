@@ -28,9 +28,9 @@ export async function startAiProvider() {
     for await (const chunk of request) body += chunk;
     const input = JSON.parse(body);
     assert.equal(input.model, 'openrouter/free');
-    assert.deepEqual(input.reasoning, { enabled: false, exclude: true });
-    assert.equal(input.temperature, 0.7);
-    assert.equal(input.top_p, 0.8);
+    assert.deepEqual(input.reasoning, { effort: 'low', exclude: true });
+    assert.equal(input.temperature, undefined);
+    assert.equal(input.top_p, undefined);
     assert.equal(input.max_completion_tokens ?? input.max_tokens, 8192);
     assert.deepEqual(input.provider, { require_parameters: true });
     assert.equal(input.response_format.type, 'json_schema');

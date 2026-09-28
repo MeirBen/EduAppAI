@@ -22,8 +22,8 @@ public static class OpenRouterRegistration
         services.AddSingleton<AiGenerationService>();
         var key = configuration["Ai:ApiKey"] ?? configuration["OPENROUTER_API_KEY"];
         if (string.IsNullOrWhiteSpace(key)) return;
-        var model = configuration["Ai:Model"] ?? "qwen/qwen3.8-27b:free";
-        var reasoningEnabled = configuration.GetValue<bool>("Ai:ReasoningEnabled");
+        var model = configuration["Ai:Model"] ?? "openrouter/free";
+        var reasoningEnabled = configuration.GetValue("Ai:ReasoningEnabled", true);
         var effort = configuration["Ai:ReasoningEffort"] ?? "low";
         if (effort is not ("minimal" or "low" or "medium" or "high" or "xhigh" or "max"))
             throw new InvalidOperationException("Ai:ReasoningEffort must be minimal, low, medium, high, xhigh or max.");

@@ -37,32 +37,29 @@ repo; it makes no AI call. Restart the server afterward. Alternatively provide
 `Ai__ApiKey` or `OPENROUTER_API_KEY` through server secrets. Production does not
 load development user secrets.
 
-The default model is [Qwen3.8 27B (free)](https://openrouter.ai/qwen/qwen3.8-27b:free),
-which supports structured output and optional reasoning. To change it, set
-`Ai__Model` to an available `:free` model (or `Ai:Model` in development user
-secrets), then restart. `openrouter/free` is also accepted but randomly selects
-an eligible model. Paid models are rejected. Choose an endpoint that supports
-JSON-schema structured output and the requested parameters; popularity does not
-measure suitability. Qwen is a configurable baseline, not a proven Hebrew winner.
+The default [free router](https://openrouter.ai/docs/guides/routing/routers/free-router)
+(`openrouter/free`) selects an eligible free model for each request, filtered by
+required capabilities. To pin a model, set `Ai__Model` to an available `:free`
+model (or `Ai:Model` in development user secrets), then restart. Paid models are
+rejected. Choose an endpoint that supports JSON-schema structured output and the
+requested parameters. Automatic routing does not guarantee a particular model,
+availability or language quality; the actual model is recorded with each result.
 Evaluate fluency, educational correctness and latency on representative prompts;
 schema validation cannot guarantee language or answer quality. Saved tasks
 remain readable without AI.
 
 Generation waits up to three minutes. Set `Ai__RequestTimeoutSeconds` (1–300) to
-change the deadline, then restart. Reasoning is disabled by default to reduce
-latency; this can trade away accuracy on complex tasks. To evaluate thinking
-with Qwen, set `Ai__ReasoningEnabled=true`, `Ai__ReasoningEffort=low`,
-`Ai__Temperature=1` and `Ai__TopP=0.95`. Reasoning effort is model-specific, not
-a hard token budget. Check the selected model's supported levels before changing
-it; low effort is not universally supported.
+change the deadline, then restart. Requests enable reasoning with low effort;
+reasoning text is excluded from returned content. Set `Ai__ReasoningEnabled=false`
+to disable thinking, or `Ai__ReasoningEffort` to change the requested effort.
+Effort is model-specific, not a hard token budget; check a pinned model's
+supported levels. Reasoning can improve complex tasks but also increase latency.
 
-The default non-thinking sampling settings are temperature `0.7` and top-p `0.8`,
-following [Qwen's guidance](https://huggingface.co/Qwen/Qwen3.8-27B#best-practices).
-Both are configurable through the environment settings above; null in JSON
-omits the parameter. Temperature accepts 0–2 and top-p accepts greater than 0
-through 1. Sampling belongs to the provider configuration, not the task engine.
-Free providers may be slow, unavailable or rate-limited; requests are not
-automatically retried or switched to another model.
+Sampling is left to the selected provider. Optional `Ai__Temperature` (0–2) and
+`Ai__TopP` (greater than 0 through 1) override it; null in JSON omits a parameter.
+Remove model-specific overrides when returning to automatic routing. Free
+providers may be slow, unavailable or rate-limited. The app does not retry failed
+calls automatically; OpenRouter owns model and provider routing.
 
 ## Verify
 

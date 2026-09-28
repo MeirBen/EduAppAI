@@ -19,7 +19,8 @@ public sealed class OpenRouterConfigurationTests
     [InlineData(false, "low", 0.7f, 0.8f)]
     [InlineData(true, "medium", 1f, 0.95f)]
     [InlineData(true, "low", null, null)]
-    public async Task Configured_reasoning_and_sampling_reach_the_provider(bool enabled, string effort,
+    [InlineData(null, null, null, null)]
+    public async Task Configured_reasoning_and_sampling_reach_the_provider(bool? enabled, string? effort,
         float? temperature, float? topP)
     {
         var builder = WebApplication.CreateSlimBuilder();
@@ -44,7 +45,7 @@ public sealed class OpenRouterConfigurationTests
         {
             ["Ai:ApiKey"] = "isolated-test-key",
             ["Ai:Endpoint"] = server.Urls.Single(),
-            ["Ai:ReasoningEnabled"] = enabled.ToString(),
+            ["Ai:ReasoningEnabled"] = enabled?.ToString(),
             ["Ai:ReasoningEffort"] = effort,
             ["Ai:Temperature"] = temperature?.ToString(CultureInfo.InvariantCulture),
             ["Ai:TopP"] = topP?.ToString(CultureInfo.InvariantCulture)
@@ -55,12 +56,12 @@ public sealed class OpenRouterConfigurationTests
         using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(10));
         await provider.GetRequiredService<AiGenerationService>().AuthorAsync("A learning idea", deadline.Token);
 
-        Assert.Equal("qwen/qwen3.8-27b:free", request.GetProperty("model").GetString());
+        Assert.Equal("openrouter/free", request.GetProperty("model").GetString());
         var reasoning = request.GetProperty("reasoning");
         Assert.True(reasoning.GetProperty("exclude").GetBoolean());
-        if (enabled)
+        if (enabled ?? true)
         {
-            Assert.Equal(effort, reasoning.GetProperty("effort").GetString());
+            Assert.Equal(effort ?? "low", reasoning.GetProperty("effort").GetString());
             Assert.False(reasoning.TryGetProperty("enabled", out _));
         }
         else
