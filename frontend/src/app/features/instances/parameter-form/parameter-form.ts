@@ -47,10 +47,11 @@ export class ParameterForm {
     if (this.busy()) return;
     await submit(this.fields, async () => {
       const values: ParameterValues = {};
-      // Omit empty text/numeric fields so the server can apply defaults or required checks.
+      // Empty optional text is an explicit value; omitting it would restore a cleared default.
       this.definitions().forEach((definition, index) => {
         const entry = this.model().entries[index];
         if (definition.type === 'boolean') values[definition.key] = entry.checked;
+        else if (definition.type === 'text') values[definition.key] = entry.text;
         else if (entry.text !== '')
           values[definition.key] = definition.type === 'integer' ? Number(entry.text) : entry.text;
       });

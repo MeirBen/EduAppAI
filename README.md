@@ -94,6 +94,10 @@ dotnet ef migrations add YourChange \
 dotnet ef migrations has-pending-model-changes --project backend/FamilyLearning.Api
 ```
 
+Stop `dev.sh` before creating or editing migrations: its reload watcher can apply
+an unfinished migration. Once applied, keep migration files unchanged and add a
+new migration for corrections.
+
 Review migrations before applying them. Migrations can remove incompatible
 learning data; rolling back cannot restore deleted content. Back up using
 SQLite's backup API or `VACUUM INTO`, not by copying an active database file.

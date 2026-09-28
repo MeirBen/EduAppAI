@@ -88,6 +88,9 @@ emits validated choices. Blank numbers stay distinct from zero; optional empty
 text defaults stay explicit. Cancellation stops the browser request but does not
 guarantee that a server write was rolled back.
 
+Clearing optional text sends an explicit empty string; blank numeric and select
+inputs are omitted so the server can resolve their defaults.
+
 The preview reads saved content. The PWA caches application assets only;
 authenticated responses and task operations require a connection. See the
 [UI guide](ui-guide.md) and [verification commands](../README.md#verify).

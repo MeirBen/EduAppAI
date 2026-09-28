@@ -90,7 +90,7 @@ public static class TemplateEndpoints
             await db.SaveChangesAsync(ct);
         }
         catch (DbUpdateConcurrencyException) { return VersionConflict(); }
-        catch (DbUpdateException exception) when (exception.InnerException is SqliteException { SqliteErrorCode: 19 })
+        catch (DbUpdateException exception) when (exception.InnerException is SqliteException { SqliteExtendedErrorCode: 2067 })
         {
             // The (TemplateId, Version) unique constraint also protects simultaneous publication.
             return VersionConflict();

@@ -68,6 +68,21 @@ describe('ParameterForm', () => {
     );
   });
 
+  it('submits cleared optional text explicitly so the server cannot restore its default', async () => {
+    const view = await render([
+      { key: 'theme', label: 'נושא', type: 'text', required: false, default: 'דינוזאורים' },
+    ]);
+    const element: HTMLElement = view.fixture.nativeElement;
+    const input = element.querySelector<HTMLInputElement>('#parameter-theme')!;
+    expect(input.value).toBe('דינוזאורים');
+    input.value = '';
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    await view.fixture.whenStable();
+    element.querySelector('form')!.dispatchEvent(new Event('submit', { cancelable: true }));
+    await view.fixture.whenStable();
+    expect(view.submitted()).toEqual({ theme: '' });
+  });
+
   it('renders schema labels and options verbatim with appropriate input direction', async () => {
     const view = await render();
     const element: HTMLElement = view.fixture.nativeElement;

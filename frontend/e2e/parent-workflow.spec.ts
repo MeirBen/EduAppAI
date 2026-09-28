@@ -137,6 +137,43 @@ test('invalid AI output preserves the prompt and explicit retry can recover', as
   expect((await (await page.request.get('/api/templates')).json()).length).toBe(before);
 });
 
+test.describe('publication recovery', () => {
+  test.use({ serviceWorkers: 'block' });
+
+  test('a failed save preserves reviewed fields and can be retried without regenerating', async ({
+    page,
+  }) => {
+    await login(page);
+    const before = (await (await page.request.get('/api/templates')).json()).length;
+    await propose(page, 'הבנת הנקרא עם נושא ורמת קושי לבחירה');
+    await page.getByLabel('שם התבנית', { exact: true }).fill('העריכה נשמרת גם אחרי כשל');
+    const parameter = page.locator('[data-parameter-editor]').first();
+    await parameter.getByLabel('שם השדה להורה').fill('נושא הקריאה שלי');
+    await page.route(
+      '**/api/templates',
+      (route) =>
+        route.fulfill({
+          status: 500,
+          contentType: 'application/problem+json',
+          body: JSON.stringify({ status: 500 }),
+        }),
+      { times: 1 },
+    );
+
+    await page.getByRole('button', { name: 'שמירת התבנית', exact: true }).click();
+    await expect(page.getByRole('alert')).toContainText('השרת לא הצליח להשלים');
+    await expect(page.getByLabel('שם התבנית', { exact: true })).toHaveValue(
+      'העריכה נשמרת גם אחרי כשל',
+    );
+    await expect(parameter.getByLabel('שם השדה להורה')).toHaveValue('נושא הקריאה שלי');
+    expect((await (await page.request.get('/api/templates')).json()).length).toBe(before);
+
+    await page.getByRole('button', { name: 'שמירת התבנית', exact: true }).click();
+    await expect(page.getByLabel('נושא הקריאה שלי', { exact: true })).toHaveValue('דינוזאורים');
+    expect((await (await page.request.get('/api/templates')).json()).length).toBe(before + 1);
+  });
+});
+
 test.describe('library cleanup', () => {
   // Route interception must see API requests instead of the published PWA's service worker.
   test.use({ serviceWorkers: 'block' });

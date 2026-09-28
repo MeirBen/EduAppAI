@@ -2,7 +2,9 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
+using FamilyLearning.Api.Infrastructure.Persistence;
 using FamilyLearning.Api.Tests.Fixtures;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -117,6 +119,28 @@ public sealed class ParentWorkflowTests
         using var parent = await app.ParentAsync();
         var response = await parent.PostAsync("/api/templates", new StringContent(body, Encoding.UTF8, "application/json"));
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Database_constraint_failures_are_not_reported_as_stale_edits_and_roll_back_publication()
+    {
+        using var app = new ApiFactory();
+        using var parent = await app.ParentAsync();
+        using var created = await parent.PostAsJsonAsync("/api/templates", AiFixtures.Definition());
+        var template = await created.Content.ReadFromJsonAsync<JsonElement>();
+        var id = template.GetProperty("id").GetGuid();
+        using var scope = app.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<LearningDbContext>();
+        await db.Database.ExecuteSqlRawAsync("""
+            CREATE TRIGGER RejectPublication BEFORE INSERT ON TaskTemplateVersions
+            BEGIN SELECT RAISE(ABORT, 'private constraint diagnostic'); END;
+            """);
+        using var response = await parent.PostAsJsonAsync($"/api/templates/{id}/versions",
+            new { expectedVersion = 1, definition = AiFixtures.Definition() });
+        Assert.Equal(HttpStatusCode.InternalServerError, response.StatusCode);
+        Assert.DoesNotContain("private constraint diagnostic", await response.Content.ReadAsStringAsync());
+        Assert.Equal(1, (await db.TaskTemplates.SingleAsync()).CurrentVersion);
+        Assert.Equal(1, await db.TaskTemplateVersions.CountAsync());
     }
 
     [Fact]
