@@ -7,7 +7,7 @@ namespace FamilyLearning.Api.TaskEngine.Validation;
 /// <summary>Bounds untrusted plain-text task content and validates its parent-only answer keys.</summary>
 public static partial class TaskContentValidator
 {
-    /// <summary>Validates authored or generated content before it enters an immutable snapshot.</summary>
+    /// <summary>Validates AI content before it is saved as an immutable task.</summary>
     /// <remarks>Accepts potentially null nested JSON members. An empty result means the content is supported.</remarks>
     public static Dictionary<string, string[]> Validate(TaskContent? content)
     {
@@ -66,7 +66,7 @@ public static partial class TaskContentValidator
             if (interaction.Options is not { Length: >= 2 and <= 6 } options ||
                 options.Any(option => !HasText(option, 200) || option != option.Trim() ||
                     option.Contains('\r') || option.Contains('\n')) ||
-                options.Select(option => option.Trim()).Distinct(StringComparer.Ordinal).Count() != options.Length)
+                options.Distinct(StringComparer.Ordinal).Count() != options.Length)
                 return "יש להזין בין שתיים לשש אפשרויות שונות, כל אחת בשורה אחת וללא רווחים בקצוות, עד 200 תווים.";
             if (!options.Contains(question.Answer.Value, StringComparer.Ordinal))
                 return "התשובה הנכונה חייבת להיות אחת מהאפשרויות.";

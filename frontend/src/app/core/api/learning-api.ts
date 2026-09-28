@@ -13,9 +13,8 @@ import {
 } from './models';
 
 /**
- * Same-origin client for the current parent's templates and drafts.
- * Promises reject with HTTP errors for callers to present through apiError.
- * Authentication and XSRF cookies are managed by HttpClient and the browser.
+ * Parent API for AI proposals, templates and saved tasks. HTTP failures reject.
+ * HttpClient and the browser manage same-origin authentication and XSRF cookies.
  */
 @Injectable({ providedIn: 'root' })
 export class LearningApi {
@@ -42,17 +41,25 @@ export class LearningApi {
   getTemplate(id: string) {
     return firstValueFrom(this.http.get<TemplateDetail>(`/api/templates/${id}`));
   }
-  /** Creates a stable template and its first immutable version after server validation. */
-  createTemplate(definition: TemplateDefinition) {
-    return firstValueFrom(this.http.post<TemplateDetail>('/api/templates', definition));
+  /** Creates the first immutable version; leaving the editor cancels the pending request. */
+  createTemplate(definition: TemplateDefinition, lifetime: DestroyRef) {
+    return firstValueFrom(
+      this.http
+        .post<TemplateDetail>('/api/templates', definition)
+        .pipe(takeUntilDestroyed(lifetime)),
+    );
   }
   /** Publishes a new immutable revision; HTTP 409 leaves the caller's stale draft unsaved. */
-  publishTemplate(id: string, expectedVersion: number, definition: TemplateDefinition) {
+  publishTemplate(
+    id: string,
+    expectedVersion: number,
+    definition: TemplateDefinition,
+    lifetime: DestroyRef,
+  ) {
     return firstValueFrom(
-      this.http.post<TemplateDetail>(`/api/templates/${id}/versions`, {
-        expectedVersion,
-        definition,
-      }),
+      this.http
+        .post<TemplateDetail>(`/api/templates/${id}/versions`, { expectedVersion, definition })
+        .pipe(takeUntilDestroyed(lifetime)),
     );
   }
   /** Returns up to 100 of the family's most recently created drafts, without question content. */
@@ -64,11 +71,11 @@ export class LearningApi {
     return firstValueFrom(this.http.get<InstancePreview>(`/api/instances/${id}`));
   }
   /**
-   * Creates a new persisted draft from the template's current version at request time.
-   * @param templateId - The stable template ID; the server selects its current published revision.
+   * Generates and saves an AI task from the current template revision.
+   * @param templateId - The server selects and pins this template's current revision.
    * @param parameters - Submitted values; an empty object accepts the template's defaults.
    * @param lifetime - Cancels the pending request when the owning page is destroyed.
-   * @returns The saved preview. Each successful call creates another draft; do not retry automatically.
+   * @returns The saved preview. Each success creates a task; never retry automatically.
    */
   createInstance(templateId: string, parameters: ParameterValues, lifetime: DestroyRef) {
     return firstValueFrom(

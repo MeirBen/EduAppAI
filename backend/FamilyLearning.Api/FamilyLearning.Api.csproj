@@ -2,8 +2,6 @@
 
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
-    <Nullable>enable</Nullable>
-    <ImplicitUsings>enable</ImplicitUsings>
     <UserSecretsId>FamilyLearning.LocalDevelopment</UserSecretsId>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <!-- Document meaningful contracts; generated migrations and obvious members need no boilerplate. -->

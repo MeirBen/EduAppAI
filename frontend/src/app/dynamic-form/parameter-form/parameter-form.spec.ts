@@ -25,9 +25,9 @@ const definitions: ParameterDefinition[] = [
 ];
 
 describe('ParameterForm', () => {
-  async function render() {
+  async function render(schema = definitions) {
     const fixture = TestBed.createComponent(ParameterForm);
-    fixture.componentRef.setInput('definitions', definitions);
+    fixture.componentRef.setInput('definitions', schema);
     let submitted: ParameterValues | undefined;
     fixture.componentInstance.generated.subscribe((value) => (submitted = value));
     await fixture.whenStable();
@@ -80,5 +80,35 @@ describe('ParameterForm', () => {
     expect(definitions[2].label).toBe('Difficulty');
     expect(element.querySelector('#parameter-theme')?.getAttribute('dir')).toBe('auto');
     expect(element.querySelector('#parameter-count')?.getAttribute('dir')).toBe('ltr');
+  });
+
+  it.each([' ', '2147483648', '-2147483649'])(
+    'rejects optional integer input %j instead of emitting an invalid or coerced value',
+    async (value) => {
+      const view = await render([{ key: 'count', label: 'שאלות', type: 'integer' }]);
+      const element: HTMLElement = view.fixture.nativeElement;
+      const input = element.querySelector<HTMLInputElement>('#parameter-count')!;
+      input.value = value;
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+      element.querySelector('form')!.dispatchEvent(new Event('submit', { cancelable: true }));
+      await view.fixture.whenStable();
+      expect(view.submitted()).toBeUndefined();
+      expect(element.textContent).toContain('יש להזין מספר שלם');
+    },
+  );
+
+  it.each([
+    ['', {}],
+    ['-2147483648', { count: -2147483648 }],
+    ['2147483647', { count: 2147483647 }],
+  ])('preserves blank omission and valid integer boundary %j', async (value, expected) => {
+    const view = await render([{ key: 'count', label: 'שאלות', type: 'integer' }]);
+    const element: HTMLElement = view.fixture.nativeElement;
+    const input = element.querySelector<HTMLInputElement>('#parameter-count')!;
+    input.value = value as string;
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    element.querySelector('form')!.dispatchEvent(new Event('submit', { cancelable: true }));
+    await view.fixture.whenStable();
+    expect(view.submitted()).toEqual(expected);
   });
 });

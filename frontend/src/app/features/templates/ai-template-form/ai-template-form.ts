@@ -4,12 +4,12 @@ import {
   afterNextRender,
   ChangeDetectionStrategy,
   Component,
+  DestroyRef,
   inject,
   Injector,
   input,
   linkedSignal,
   output,
-  signal,
 } from '@angular/core';
 import { disabled, form, FormField, submit, validate } from '@angular/forms/signals';
 import { LearningApi } from '../../../core/api/learning-api';
@@ -40,17 +40,22 @@ export class AiTemplateForm {
   private readonly api = inject(LearningApi);
   private readonly document = inject(DOCUMENT);
   private readonly injector = inject(Injector);
+  private readonly lifetime = inject(DestroyRef);
   protected readonly model = linkedSignal(() => aiTemplateDraft(this.definition()));
-  protected readonly saving = signal(false);
-  protected readonly attempted = signal(false);
-  protected readonly error = signal('');
-  protected readonly conflict = signal(false);
+  // A replacement proposal starts a fresh review, including prior publication feedback.
+  protected readonly attempted = linkedSignal({
+    source: this.definition,
+    computation: () => false,
+  });
+  protected readonly error = linkedSignal({ source: this.definition, computation: () => '' });
+  protected readonly conflict = linkedSignal({ source: this.definition, computation: () => false });
   protected readonly fields = form(this.model, (path) => {
-    disabled(path, () => this.saving() || this.busy());
+    disabled(path, ({ state }) => state.submitting() || this.busy());
     validate(path, ({ value }) =>
       aiTemplateErrors(value()).map((message, index) => ({ kind: `blueprint-${index}`, message })),
     );
   });
+  protected readonly saving = this.fields().submitting;
 
   protected addParameter() {
     if (this.saving() || this.busy() || this.model().parameters.length >= 16) return;
@@ -76,22 +81,28 @@ export class AiTemplateForm {
     await submit(this.fields, async () => {
       const definition = aiTemplateDefinition(this.model());
       const previous = this.existing();
-      this.saving.set(true);
       this.savingChanged.emit(true);
       try {
         const result = previous
-          ? await this.api.publishTemplate(previous.id, previous.currentVersion, definition)
-          : await this.api.createTemplate(definition);
-        this.saved.emit(result);
+          ? await this.api.publishTemplate(
+              previous.id,
+              previous.currentVersion,
+              definition,
+              this.lifetime,
+            )
+          : await this.api.createTemplate(definition, this.lifetime);
+        if (!this.lifetime.destroyed) this.saved.emit(result);
       } catch (error) {
-        this.error.set(apiError(error));
-        this.conflict.set(error instanceof HttpErrorResponse && error.status === 409);
+        if (!this.lifetime.destroyed) {
+          this.error.set(apiError(error));
+          this.conflict.set(error instanceof HttpErrorResponse && error.status === 409);
+        }
       } finally {
-        this.saving.set(false);
-        this.savingChanged.emit(false);
+        if (!this.lifetime.destroyed) this.savingChanged.emit(false);
       }
     });
-    if (this.fields().invalid() || this.error()) this.focus('blueprint-errors');
+    if (!this.lifetime.destroyed && (this.fields().invalid() || this.error()))
+      this.focus('blueprint-errors');
   }
 
   private focus(id: string) {

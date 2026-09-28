@@ -40,8 +40,8 @@ public static class AuthEndpoints
 
     private static async Task<IResult> LoginAsync(LoginRequest request, SignInManager<ParentUser> signIn)
     {
-        if (string.IsNullOrWhiteSpace(request.Email) || request.Email.Length > 254 ||
-            string.IsNullOrEmpty(request.Password) || request.Password.Length > 256)
+        if (string.IsNullOrWhiteSpace(request.Email) || request.Email.Length > ParentAccount.MaximumEmailLength ||
+            string.IsNullOrEmpty(request.Password) || request.Password.Length > ParentAccount.MaximumPasswordLength)
             return Results.ValidationProblem(new Dictionary<string, string[]> { ["credentials"] = ["יש להזין כתובת דוא״ל וסיסמה."] });
         var result = await signIn.PasswordSignInAsync(request.Email.Trim(), request.Password,
             isPersistent: false, lockoutOnFailure: true);

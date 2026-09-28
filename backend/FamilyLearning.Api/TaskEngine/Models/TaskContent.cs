@@ -2,18 +2,15 @@ using System.Text.Json.Serialization;
 
 namespace FamilyLearning.Api.TaskEngine.Models;
 
-/// <summary>Generated content saved with a task instance, including the server's answer keys.</summary>
-/// <remarks>
-/// Reopening a draft reads this snapshot without regenerating questions.
-/// Child-facing responses must use a separate projection that omits answers.
-/// </remarks>
+/// <summary>AI-generated task content and parent-only answer keys.</summary>
+/// <remarks>Read the saved snapshot without regeneration. Child responses must omit answers.</remarks>
 public sealed record TaskContent(
     [property: JsonRequired] string Title,
     string? Instructions,
     [property: JsonRequired] ContentBlock[] ContentBlocks,
     [property: JsonRequired] TaskQuestion[] Questions);
 
-/// <summary>Material presented before the questions; the current renderer supports text blocks.</summary>
+/// <summary>Plain-text material presented before the questions.</summary>
 public sealed record ContentBlock([property: JsonRequired] string Type, [property: JsonRequired] string Text);
 /// <summary>A question with an ID local to its content snapshot and an integer point value.</summary>
 public sealed record TaskQuestion(

@@ -37,7 +37,8 @@
   </div>
   <h3 class="mb-3 mt-8">מה בוחרים בכל שימוש?</h3>
   <p class="mb-5 text-sm text-muted">
-    למשל נושא, רמת קושי, אורך קטע או מספר שאלות. ברירת מחדל ריקה משאירה את הבחירה לשימוש הבא.
+    למשל נושא, רמת קושי, אורך קטע או מספר שאלות. ברירת מחדל ריקה משאירה את הבחירה לשימוש הבא. בשדה
+    טקסט לא חובה אפשר לבחור במפורש בטקסט ריק.
   </p>
   @for (parameter of model().parameters; track parameter.id; let index = $index) {
     @let field = fields.parameters[index];
@@ -129,6 +130,12 @@
           />
         }
       </div>
+      @if (parameter.type === 'text' && !parameter.required && parameter.defaultValue === '') {
+        <label class="mb-4 flex items-center gap-3">
+          <input type="checkbox" [formField]="field.emptyTextDefault" />
+          שימוש בטקסט ריק כברירת מחדל
+        </label>
+      }
       <label class="mb-4 flex items-center gap-3"
         ><input type="checkbox" [formField]="field.required" />שדה חובה</label
       >

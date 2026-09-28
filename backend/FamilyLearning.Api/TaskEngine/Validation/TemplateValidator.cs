@@ -62,6 +62,6 @@ public static partial class TemplateValidator
         return parameter.Default is { } value ? ParameterValidator.ValidateValue(parameter, value) : null;
     }
 
-    [GeneratedRegex("^[a-z][a-zA-Z0-9]{0,39}$", RegexOptions.CultureInvariant)]
+    [GeneratedRegex("\\A[a-z][a-zA-Z0-9]{0,39}\\z", RegexOptions.CultureInvariant)]
     private static partial Regex ParameterKey();
 }

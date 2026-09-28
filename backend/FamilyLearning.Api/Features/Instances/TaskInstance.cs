@@ -1,7 +1,7 @@
 namespace FamilyLearning.Api.Features.Instances;
 
-/// <summary>A draft that owns frozen parameters and content from one published template revision.</summary>
-/// <remarks>Future assignment may change status, but must never replace the content snapshot.</remarks>
+/// <summary>A saved AI task with frozen parameters, content and its published template revision.</summary>
+/// <remarks>Parameters, content and answers remain unchanged after creation.</remarks>
 public sealed class TaskInstance
 {
     private TaskInstance() { }

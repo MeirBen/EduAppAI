@@ -18,17 +18,26 @@ const environment = {
   Ai__Endpoint: provider.endpoint,
 };
 // This known password belongs only to this disposable test database.
-const account = spawnSync('dotnet', [
-  'artifacts/app/FamilyLearning.Api.dll', '--create-parent', 'browser@example.test',
-], { cwd: root, env: environment, input: 'TestOnly!Parent12345\nTestOnly!Parent12345\n', encoding: 'utf8' });
+const account = spawnSync(
+  'dotnet',
+  ['artifacts/app/FamilyLearning.Api.dll', '--create-parent', 'browser@example.test'],
+  {
+    cwd: root,
+    env: environment,
+    input: 'TestOnly!Parent12345\nTestOnly!Parent12345\n',
+    encoding: 'utf8',
+  },
+);
 if (account.status !== 0) {
   provider.close();
   rmSync(dataDirectory, { recursive: true, force: true });
   throw new Error(`Test account setup failed: ${account.stdout}\n${account.stderr}`);
 }
-const server = spawn('dotnet', [
-  'artifacts/app/FamilyLearning.Api.dll', '--contentRoot', resolve(root, 'artifacts/app'),
-], { cwd: root, env: environment, stdio: 'inherit' });
+const server = spawn(
+  'dotnet',
+  ['artifacts/app/FamilyLearning.Api.dll', '--contentRoot', resolve(root, 'artifacts/app')],
+  { cwd: root, env: environment, stdio: 'inherit' },
+);
 for (const signal of ['SIGINT', 'SIGTERM']) process.on(signal, () => server.kill('SIGTERM'));
 server.on('exit', (code) => {
   provider.close();

@@ -5,15 +5,9 @@
     "packageManager": "npm",
     "analytics": false
   },
-  "newProjectRoot": "projects",
   "projects": {
     "family-learning": {
       "projectType": "application",
-      "schematics": {
-        "@schematics/angular:component": {
-          "style": "css"
-        }
-      },
       "root": "",
       "sourceRoot": "src",
       "prefix": "app",
@@ -23,7 +17,6 @@
           "options": {
             "browser": "src/main.ts",
             "tsConfig": "tsconfig.app.json",
-            "inlineStyleLanguage": "css",
             "assets": [
               {
                 "glob": "**/*",

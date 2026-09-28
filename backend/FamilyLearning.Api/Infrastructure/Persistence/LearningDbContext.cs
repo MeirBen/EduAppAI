@@ -3,6 +3,7 @@ using FamilyLearning.Api.Features.Templates;
 using FamilyLearning.Api.Infrastructure.Auth;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 namespace FamilyLearning.Api.Infrastructure.Persistence;
 
@@ -20,11 +21,17 @@ public sealed class LearningDbContext(DbContextOptions<LearningDbContext> option
     protected override void OnModelCreating(ModelBuilder model)
     {
         base.OnModelCreating(model);
+        // SQLite loses DateTime.Kind; these timestamp columns always contain UTC values.
+        var utcTimestamp = new ValueConverter<DateTime, DateTime>(value => value,
+            value => DateTime.SpecifyKind(value, DateTimeKind.Utc));
+        model.Entity<Family>().Property(f => f.CreatedAtUtc).HasConversion(utcTimestamp);
         model.Entity<ParentUser>().HasOne<Family>().WithMany().HasForeignKey(p => p.FamilyId)
             .OnDelete(DeleteBehavior.Restrict);
         model.Entity<TaskTemplate>(entity =>
         {
             entity.Property(t => t.Name).HasMaxLength(100);
+            entity.Property(t => t.CreatedAtUtc).HasConversion(utcTimestamp);
+            entity.Property(t => t.UpdatedAtUtc).HasConversion(utcTimestamp);
             // Reject a stale writer even when both requests passed the initial revision check.
             entity.Property(t => t.CurrentVersion).IsConcurrencyToken();
             entity.HasIndex(t => new { t.FamilyId, t.CreatedAtUtc });
@@ -32,12 +39,14 @@ public sealed class LearningDbContext(DbContextOptions<LearningDbContext> option
         });
         model.Entity<TaskTemplateVersion>(entity =>
         {
+            entity.Property(v => v.CreatedAtUtc).HasConversion(utcTimestamp);
             entity.HasIndex(v => new { v.TemplateId, v.Version }).IsUnique();
             entity.HasOne<TaskTemplate>().WithMany().HasForeignKey(v => v.TemplateId).OnDelete(DeleteBehavior.Restrict);
         });
         model.Entity<TaskInstance>(entity =>
         {
             entity.Property(i => i.Title).HasMaxLength(100);
+            entity.Property(i => i.CreatedAtUtc).HasConversion(utcTimestamp);
             entity.HasIndex(i => new { i.FamilyId, i.CreatedAtUtc });
             entity.HasOne<Family>().WithMany().HasForeignKey(i => i.FamilyId).OnDelete(DeleteBehavior.Restrict);
             entity.HasOne<TaskTemplateVersion>().WithMany().HasForeignKey(i => i.TemplateVersionId)

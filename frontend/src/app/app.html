@@ -1,66 +1,62 @@
-<ion-app>
-  <a
-    class="fixed start-4 top-4 z-50 -translate-y-32 rounded-xl bg-brand px-5 py-3 text-white focus:translate-y-0"
-    href="#main-content"
-    (click)="$event.preventDefault(); mainContent.focus()"
-    >דילוג לתוכן הראשי</a
+<a
+  class="fixed start-4 top-4 z-50 -translate-y-32 rounded-xl bg-brand px-5 py-3 text-white focus:translate-y-0"
+  href="#main-content"
+  (click)="$event.preventDefault(); mainContent.focus()"
+  >דילוג לתוכן הראשי</a
+>
+<!-- Let the header scroll away so large text cannot trap content on short screens. -->
+<header class="border-b border-line bg-surface">
+  <div
+    class="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-x-8 gap-y-2 px-5 py-4 sm:px-8"
   >
-  <ion-content>
-    <!-- Let the header scroll away so large text cannot trap content on short screens. -->
-    <header class="border-b border-line bg-surface">
-      <div
-        class="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-x-8 gap-y-2 px-5 py-4 sm:px-8"
-      >
-        <a
-          class="flex min-h-11 items-center gap-3 text-lg font-semibold text-brand"
-          routerLink="/templates"
-          aria-label="לומדים ביחד — עמוד הבית"
-        >
-          <span
-            class="grid size-11 shrink-0 place-items-center rounded-xl bg-brand text-white"
-            aria-hidden="true"
-          >
-            <svg
-              class="size-6"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="1.6"
-            >
-              <path d="M12 6c-3-2-6-2-9-1v14c3-1 6-1 9 1 3-2 6-2 9-1V5c-3-1-6-1-9 1Zm0 0v14" />
-            </svg>
-          </span>
-          לומדים ביחד
-        </a>
-        @if (auth.parent()) {
-          <nav class="flex flex-wrap items-center gap-x-6" aria-label="ניווט ראשי">
-            <a class="text-link" routerLink="/templates">המרחב שלנו</a>
-            <button
-              class="text-link text-muted disabled:opacity-60"
-              (click)="logout()"
-              [disabled]="signingOut()"
-            >
-              {{ signingOut() ? 'מתנתקים…' : 'יציאה מהחשבון' }}
-            </button>
-          </nav>
-        } @else {
-          <span class="hidden text-sm text-muted sm:block">קצת תרגול. הרבה סקרנות.</span>
-        }
-      </div>
-    </header>
-    <main
-      #mainContent
-      id="main-content"
-      tabindex="-1"
-      class="mx-auto min-h-[75vh] max-w-6xl px-5 py-8 sm:px-8 sm:py-12"
+    <a
+      class="flex min-h-11 items-center gap-3 text-lg font-semibold text-brand"
+      routerLink="/templates"
+      aria-label="לומדים ביחד — עמוד הבית"
     >
-      @if (error()) {
-        <p class="error" role="alert">{{ error() }}</p>
-      }
-      <router-outlet />
-    </main>
-    <footer class="mx-auto max-w-6xl border-t border-line px-5 py-6 text-sm text-muted sm:px-8">
-      לומדים ביחד · בקצב של המשפחה שלכם
-    </footer>
-  </ion-content>
-</ion-app>
+      <span
+        class="grid size-11 shrink-0 place-items-center rounded-xl bg-brand text-white"
+        aria-hidden="true"
+      >
+        <svg
+          class="size-6"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.6"
+        >
+          <path d="M12 6c-3-2-6-2-9-1v14c3-1 6-1 9 1 3-2 6-2 9-1V5c-3-1-6-1-9 1Zm0 0v14" />
+        </svg>
+      </span>
+      לומדים ביחד
+    </a>
+    @if (auth.signedIn()) {
+      <nav class="flex flex-wrap items-center gap-x-6" aria-label="ניווט ראשי">
+        <a class="text-link" routerLink="/templates">המרחב שלנו</a>
+        <button
+          class="text-link text-muted disabled:opacity-60"
+          (click)="logout()"
+          [disabled]="signingOut()"
+        >
+          {{ signingOut() ? 'מתנתקים…' : 'יציאה מהחשבון' }}
+        </button>
+      </nav>
+    } @else {
+      <span class="hidden text-sm text-muted sm:block">קצת תרגול. הרבה סקרנות.</span>
+    }
+  </div>
+</header>
+<main
+  #mainContent
+  id="main-content"
+  tabindex="-1"
+  class="mx-auto min-h-[75vh] max-w-6xl px-5 py-8 sm:px-8 sm:py-12"
+>
+  @if (error()) {
+    <p class="error" role="alert">{{ error() }}</p>
+  }
+  <router-outlet />
+</main>
+<footer class="mx-auto max-w-6xl border-t border-line px-5 py-6 text-sm text-muted sm:px-8">
+  לומדים ביחד · בקצב של המשפחה שלכם
+</footer>

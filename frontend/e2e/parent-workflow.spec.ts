@@ -1,26 +1,15 @@
 import { expect, test, type Page } from '@playwright/test';
 
-/** Checks Ionic's actual scroll container as well as the document, which clips body overflow. */
+/** Verify native document scrolling at a narrow viewport with enlarged text. */
 async function checkNarrowLayout(page: Page, name: string) {
   await page.setViewportSize({ width: 360, height: 800 });
   await page.evaluate(() => (document.documentElement.style.fontSize = '200%'));
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-  const content = page.locator('ion-content');
-  expect(await content.evaluate(async (element) => {
-    const scroll = await (element as HTMLElement & { getScrollElement(): Promise<HTMLElement> }).getScrollElement();
-    return scroll.scrollWidth <= scroll.clientWidth;
-  })).toBe(true);
-  await content.evaluate(async (element) => {
-    await (element as HTMLElement & { scrollToTop(duration: number): Promise<void> }).scrollToTop(0);
-  });
+  await page.evaluate(() => window.scrollTo(0, 0));
   await page.screenshot({ path: `../artifacts/${name}-mobile.png`, fullPage: true });
-  await content.evaluate(async (element) => {
-    await (element as HTMLElement & { scrollToBottom(duration: number): Promise<void> }).scrollToBottom(0);
-  });
-  await page.screenshot({ path: `../artifacts/${name}-mobile-bottom.png`, fullPage: true });
-  await content.evaluate(async (element) => {
-    await (element as HTMLElement & { scrollToTop(duration: number): Promise<void> }).scrollToTop(0);
-  });
+  await page.locator('footer').scrollIntoViewIfNeeded();
+  await expect(page.locator('footer')).toBeInViewport();
+  await page.evaluate(() => window.scrollTo(0, 0));
   await page.evaluate(() => (document.documentElement.style.fontSize = '100%'));
   await page.setViewportSize({ width: 1440, height: 1000 });
 }
@@ -40,9 +29,11 @@ async function propose(page: Page, prompt: string) {
   await expect(page.getByRole('heading', { name: 'בדיקה ועריכת התבנית' })).toBeVisible();
 }
 
-test('a parent prompt becomes an editable reusable template and distinct frozen tasks', async ({ page }) => {
+test('a parent prompt becomes an editable reusable template and distinct frozen tasks', async ({
+  page,
+}) => {
   const errors: string[] = [];
-  page.on('pageerror', error => errors.push(error.message));
+  page.on('pageerror', (error) => errors.push(error.message));
   await page.goto('/');
   await expect(page.locator('html')).toHaveAttribute('lang', 'he');
   await expect(page.locator('html')).toHaveAttribute('dir', 'rtl');
@@ -59,7 +50,10 @@ test('a parent prompt becomes an editable reusable template and distinct frozen 
   const parameter = page.locator('[data-parameter-editor]').first();
   await parameter.getByLabel('שם השדה להורה').fill('מה נחקור?');
   await checkNarrowLayout(page, 'ai-template-review');
-  const createdResponse = page.waitForResponse(response => response.url().endsWith('/api/templates') && response.request().method() === 'POST');
+  const createdResponse = page.waitForResponse(
+    (response) =>
+      response.url().endsWith('/api/templates') && response.request().method() === 'POST',
+  );
   await page.getByRole('button', { name: 'שמירת התבנית', exact: true }).click();
   const template = await (await createdResponse).json();
   expect(template.definition.schemaVersion).toBe(2);
@@ -74,11 +68,14 @@ test('a parent prompt becomes an editable reusable template and distinct frozen 
   await page.reload();
   await expect(page.locator('section')).toHaveText(originalContent, { useInnerText: true });
   await page.goto(`/templates/${template.id}/create`);
-  await page.getByLabel('מה נחקור?', { exact: true }).fill('חלל');
+  const secondTheme = 'חלל' + 'A'.repeat(80);
+  await page.getByLabel('מה נחקור?', { exact: true }).fill(secondTheme);
   await page.getByLabel('רמה', { exact: true }).selectOption('מאתגרת');
   await page.getByLabel('מספר שאלות', { exact: true }).fill('3');
   await page.getByRole('button', { name: 'יצירת טיוטה', exact: true }).click();
-  await expect(page.getByRole('heading', { name: 'לומדים על חלל', exact: true })).toBeVisible();
+  await expect(
+    page.getByRole('heading', { name: `לומדים על ${secondTheme}`, exact: true }),
+  ).toBeVisible();
   await expect(page.locator('.question-prompt')).toHaveCount(3);
   await page.getByText('הצגת התשובה לשאלה 1', { exact: true }).click();
   await expect(page.locator('details').first()).toHaveAttribute('open', '');
@@ -86,7 +83,9 @@ test('a parent prompt becomes an editable reusable template and distinct frozen 
   await page.screenshot({ path: '../artifacts/ai-preview-desktop.png', fullPage: true });
   await page.goto(originalUrl);
   await expect(page.locator('.question-prompt')).toHaveText(originalQuestions);
-  await expect(page.getByRole('heading', { name: 'לומדים על דינוזאורים', exact: true })).toBeVisible();
+  await expect(
+    page.getByRole('heading', { name: 'לומדים על דינוזאורים', exact: true }),
+  ).toBeVisible();
   await page.getByRole('button', { name: 'יציאה מהחשבון', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'טוב שחזרתם' })).toBeVisible();
   expect(errors).toEqual([]);
@@ -95,7 +94,10 @@ test('a parent prompt becomes an editable reusable template and distinct frozen 
 test('AI template revisions preserve snapshots and concurrent edits', async ({ page, context }) => {
   await login(page);
   await propose(page, 'שאלות מדעים בנושאים משתנים');
-  const createdResponse = page.waitForResponse(response => response.url().endsWith('/api/templates') && response.request().method() === 'POST');
+  const createdResponse = page.waitForResponse(
+    (response) =>
+      response.url().endsWith('/api/templates') && response.request().method() === 'POST',
+  );
   await page.getByRole('button', { name: 'שמירת התבנית', exact: true }).click();
   const template = await (await createdResponse).json();
   await page.getByRole('button', { name: 'יצירת טיוטה', exact: true }).click();

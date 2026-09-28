@@ -1,9 +1,9 @@
-/** JSON scalar accepted by the parameter form; the server validates its type and bounds. */
+/** JSON scalar parameter value; the server validates type and bounds. */
 export type ParameterValue = string | number | boolean;
 /** Values keyed by case-sensitive schema keys. Omitted keys allow server defaults. */
 export type ParameterValues = Record<string, ParameterValue>;
 
-/** Supported controls for authored questions, independent of the school subject. */
+/** Question controls supported across all subjects. */
 export type QuestionType = 'numeric-input' | 'text-input' | 'single-choice';
 
 /** Field metadata shared with the backend's ParameterDefinition contract. */
@@ -75,7 +75,7 @@ export interface TaskContent {
   }[];
 }
 
-/** Saved-task list projection. Only the draft lifecycle is implemented in this increment. */
+/** Saved-task list entry without question content. */
 export interface InstanceSummary {
   id: string;
   title: string;
@@ -83,10 +83,7 @@ export interface InstanceSummary {
   createdAtUtc: string;
 }
 
-/**
- * Parent-only saved snapshot. Reloading it reads stored content without generation.
- * A future child contract must omit answers and enforce assignment access on the server.
- */
+/** Saved parent preview; never regenerate on read or expose its answers to a child. */
 export interface InstancePreview extends InstanceSummary {
   generationMetadata: GenerationMetadata | null;
   templateVersionId: string;

@@ -8,7 +8,7 @@ using Microsoft.Extensions.AI;
 
 namespace FamilyLearning.Api.TaskEngine.Ai;
 
-/// <summary>Two bounded AI operations using a single provider boundary and shared educational contracts.</summary>
+/// <summary>AI template authoring and task generation through one provider boundary.</summary>
 /// <remarks>Singleton; the semaphore caps in-flight provider calls. This service has no persistence or identity access.</remarks>
 public sealed class AiGenerationService(IEnumerable<IChatClient> clients, ILogger<AiGenerationService> logger) : IDisposable
 {

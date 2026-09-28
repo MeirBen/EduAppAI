@@ -1,7 +1,3 @@
-@layer theme, base, components, utilities;
-
-@import '@ionic/angular/css/core.css' layer(base);
-@import '@ionic/angular/css/structure.css' layer(base);
 @import '@fontsource-variable/heebo';
 @import 'tailwindcss';
 
@@ -34,27 +30,11 @@
   :root {
     font-size: 100%;
     color-scheme: light;
-    --ion-font-family: var(--font-sans);
-    --ion-background-color: var(--color-canvas);
-    --ion-text-color: var(--color-ink);
-    --ion-color-primary: var(--color-brand);
   }
 
   body {
     @apply bg-canvas font-sans text-ink antialiased;
     line-height: 1.7;
-  }
-
-  ion-content {
-    --background: var(--color-canvas);
-  }
-
-  h1,
-  h2,
-  h3,
-  p,
-  a,
-  label {
     overflow-wrap: anywhere;
   }
 
@@ -144,7 +124,6 @@
   }
 }
 
-/* Shared controls keep states consistent; page layouts use utilities in their templates. */
 @layer components {
   .button {
     @apply inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-transparent bg-brand px-5 py-3 text-center font-medium text-white no-underline transition-colors hover:bg-brand-hover disabled:opacity-60;

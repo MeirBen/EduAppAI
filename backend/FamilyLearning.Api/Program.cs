@@ -13,8 +13,7 @@ using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 
-var management = args.Length > 0 && args[0].StartsWith("--", StringComparison.Ordinal) &&
-    args[0] is "--migrate" or "--create-parent";
+var management = args.Length > 0 && args[0] is "--migrate" or "--create-parent";
 var builder = WebApplication.CreateBuilder(management ? [] : args);
 var dataDirectory = Path.GetFullPath(builder.Configuration["Storage:Directory"] ?? "data", builder.Environment.ContentRootPath);
 if (OperatingSystem.IsWindows()) Directory.CreateDirectory(dataDirectory);

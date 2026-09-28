@@ -3,7 +3,7 @@ using System.Text.Json.Serialization;
 
 namespace FamilyLearning.Api.TaskEngine.Models;
 
-/// <summary>The versioned blueprint stored when a parent publishes a template.</summary>
+/// <summary>Reusable AI instructions and parameters published as one immutable revision.</summary>
 /// <remarks>Validate before storage. Treat nested arrays as immutable once published.</remarks>
 /// <param name="SchemaVersion">The JSON contract version, independent of the template revision number.</param>
 /// <param name="Name">The parent-facing name of this reusable learning idea.</param>

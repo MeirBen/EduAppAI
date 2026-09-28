@@ -77,9 +77,7 @@
         התרגולים שתיצרו יופיעו כאן. כל טיוטה שומרת את השאלות בדיוק כפי שנוצרו.
       </p>
     } @else {
-      <ul
-        class="draft-list divide-y divide-line rounded-2xl border border-line bg-surface px-5 sm:px-8"
-      >
+      <ul class="divide-y divide-line rounded-2xl border border-line bg-surface px-5 sm:px-8">
         @for (instance of data.value().instances; track instance.id) {
           <li class="flex flex-wrap items-center justify-between gap-x-5 gap-y-2 py-4">
             <div class="min-w-0">

@@ -17,7 +17,7 @@ public sealed record InstancePreview(Guid Id, Guid TemplateVersionId, int Templa
     Dictionary<string, JsonElement> Parameters, TaskContent Content, string Status, DateTime CreatedAtUtc,
     GenerationMetadata? GenerationMetadata)
 {
-    /// <summary>Reads stored snapshots from an already authorized instance without running a generator.</summary>
+    /// <summary>Reads an authorized task snapshot without calling AI.</summary>
     /// <param name="instance">The instance belonging to the authenticated parent's family.</param>
     /// <param name="version">Revision number of the instance's referenced template version.</param>
     public static InstancePreview From(TaskInstance instance, int version) => new(instance.Id,

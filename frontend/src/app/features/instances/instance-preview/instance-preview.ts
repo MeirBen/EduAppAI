@@ -4,7 +4,7 @@ import { RouterLink } from '@angular/router';
 import { LearningApi } from '../../../core/api/learning-api';
 import { apiError } from '../../../core/api/api-error';
 
-/** Read-only parent preview of saved content, including answers; this is not the child player. */
+/** Displays a saved task and parent-only answers without regeneration. */
 @Component({
   selector: 'app-instance-preview',
   imports: [RouterLink, DatePipe],

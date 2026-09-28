@@ -21,7 +21,7 @@ interface ParameterEntry {
 export class ParameterForm {
   /** Replacing the schema resets the form to that schema's defaults. */
   readonly definitions = input.required<ParameterDefinition[]>();
-  /** Disables editing/submission while the parent persists a draft. */
+  /** Locks inputs during AI generation and saving. */
   readonly busy = input(false);
   /** Emits values only; this component neither calls the API nor creates task content. */
   readonly generated = output<ParameterValues>();
@@ -65,10 +65,11 @@ function parameterError(
 ): string | undefined {
   if (definition.type === 'boolean') return;
   const label = definition.label;
-  if (!value.text.trim()) return definition.required ? `יש למלא את השדה „${label}”.` : undefined;
+  if (value.text === '' || (definition.required && !value.text.trim()))
+    return definition.required ? `יש למלא את השדה „${label}”.` : undefined;
   if (definition.type === 'integer') {
     const number = Number(value.text);
-    if (!/^-?\d+$/.test(value.text) || !Number.isSafeInteger(number))
+    if (!/^-?\d+$/.test(value.text) || number < -2147483648 || number > 2147483647)
       return `יש להזין מספר שלם בשדה „${label}”.`;
     if (definition.min != null && number < definition.min)
       return `הערך בשדה „${label}” חייב להיות לפחות ${definition.min}.`;

@@ -1,6 +1,6 @@
 import { TemplateDefinition } from '../../../core/api/models';
 
-/** Subject-specific examples are test data only; the editor is entirely metadata-driven. */
+/** Test-only blueprint; production templates come from AI and parent review. */
 export const readingDefinition: TemplateDefinition = {
   schemaVersion: 2,
   name: 'הבנת הנקרא',

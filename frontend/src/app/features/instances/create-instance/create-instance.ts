@@ -13,7 +13,7 @@ import { apiError } from '../../../core/api/api-error';
 import { ParameterValues } from '../../../core/api/models';
 import { ParameterForm } from '../../../dynamic-form/parameter-form/parameter-form';
 
-/** Collects parameters for the current template and navigates to the newly saved draft. */
+/** Collects choices, requests an AI task and opens its saved preview. */
 @Component({
   selector: 'app-create-instance',
   imports: [RouterLink, ParameterForm],

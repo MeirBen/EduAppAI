@@ -12,7 +12,7 @@ public sealed class ParentWorkflowTests
     [Fact]
     public async Task Requires_authentication_and_csrf_and_logout_removes_access()
     {
-        using var app = new ApiFactory(services => services.AddSingleton<IChatClient>(new AiAuthoringTests.ScriptedChat(AiAuthoringTests.Content(count: 3).ToJsonString())));
+        using var app = new ApiFactory();
         using var anonymous = app.CreateClient(new() { AllowAutoRedirect = false });
         Assert.Equal(HttpStatusCode.Unauthorized, (await anonymous.GetAsync("/api/templates")).StatusCode);
         using var parent = await app.ParentAsync();
@@ -50,7 +50,12 @@ public sealed class ParentWorkflowTests
         Assert.Equal(HttpStatusCode.Conflict, (await parent.PostAsJsonAsync($"/api/templates/{id}/versions", update)).StatusCode);
         var fetched = await parent.GetFromJsonAsync<JsonElement>($"/api/instances/{instanceId}");
         Assert.Equal(instance.GetProperty("content").GetRawText(), fetched.GetProperty("content").GetRawText());
+        Assert.Equal(instance.GetProperty("createdAtUtc").GetString(), fetched.GetProperty("createdAtUtc").GetString());
         Assert.Equal(1, fetched.GetProperty("templateVersion").GetInt32());
+        var listedInstances = await parent.GetFromJsonAsync<JsonElement>("/api/instances");
+        Assert.Equal(instance.GetProperty("createdAtUtc").GetString(), listedInstances[0].GetProperty("createdAtUtc").GetString());
+        var listedTemplates = await parent.GetFromJsonAsync<JsonElement>("/api/templates");
+        Assert.EndsWith("Z", listedTemplates[0].GetProperty("createdAtUtc").GetString());
     }
 
     [Fact]
@@ -74,10 +79,10 @@ public sealed class ParentWorkflowTests
     [Fact]
     public async Task Rejects_quoted_numbers_in_typed_json_contracts()
     {
-        using var app = new ApiFactory(services => services.AddSingleton<IChatClient>(new AiAuthoringTests.ScriptedChat(AiAuthoringTests.Content(count: 3).ToJsonString())));
+        using var app = new ApiFactory();
         using var parent = await app.ParentAsync();
-        var definition = JsonSerializer.SerializeToNode(AiAuthoringTests.Definition(), new JsonSerializerOptions(JsonSerializerDefaults.Web))!;
-        definition["schemaVersion"] = "1";
+        var definition = AiAuthoringTests.Definition();
+        definition["schemaVersion"] = "2";
         Assert.Equal(HttpStatusCode.BadRequest,
             (await parent.PostAsJsonAsync("/api/templates", definition)).StatusCode);
     }
@@ -85,7 +90,7 @@ public sealed class ParentWorkflowTests
     [Fact]
     public async Task Concurrent_publications_create_only_one_next_version()
     {
-        using var app = new ApiFactory(services => services.AddSingleton<IChatClient>(new AiAuthoringTests.ScriptedChat(AiAuthoringTests.Content(count: 3).ToJsonString())));
+        using var app = new ApiFactory();
         using var parent = await app.ParentAsync();
         var created = await parent.PostAsJsonAsync("/api/templates", AiAuthoringTests.Definition());
         var template = await created.Content.ReadFromJsonAsync<JsonElement>();
@@ -107,7 +112,7 @@ public sealed class ParentWorkflowTests
     [InlineData("{\"schemaVersion\":1,\"name\":\"x\",\"instanceParameters\":[null],\"generation\":null}")]
     public async Task Malformed_definitions_are_client_errors(string body)
     {
-        using var app = new ApiFactory(services => services.AddSingleton<IChatClient>(new AiAuthoringTests.ScriptedChat(AiAuthoringTests.Content(count: 3).ToJsonString())));
+        using var app = new ApiFactory();
         using var parent = await app.ParentAsync();
         var response = await parent.PostAsync("/api/templates", new StringContent(body, Encoding.UTF8, "application/json"));
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
@@ -116,7 +121,7 @@ public sealed class ParentWorkflowTests
     [Fact]
     public async Task Invalid_instance_parameters_do_not_create_a_draft()
     {
-        using var app = new ApiFactory(services => services.AddSingleton<IChatClient>(new AiAuthoringTests.ScriptedChat(AiAuthoringTests.Content(count: 3).ToJsonString())));
+        using var app = new ApiFactory();
         using var parent = await app.ParentAsync();
         var response = await parent.PostAsJsonAsync("/api/templates", AiAuthoringTests.Definition());
         var template = await response.Content.ReadFromJsonAsync<JsonElement>();

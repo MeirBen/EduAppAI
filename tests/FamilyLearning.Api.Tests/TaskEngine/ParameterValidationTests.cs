@@ -44,4 +44,15 @@ public sealed class ParameterValidationTests
         Assert.False(input.ContainsKey("count"));
         Assert.False(result.Values.ContainsKey("level"));
     }
+
+    [Theory]
+    [InlineData("theme\n")]
+    [InlineData("theme\r\n")]
+    public void Template_parameter_keys_reject_trailing_newlines(string key)
+    {
+        var definition = new TaskTemplateDefinition(2, "Reading",
+            [new(key, "Theme", "text")], new("Create reading questions."));
+
+        Assert.Contains("instanceParameters[0]", TemplateValidator.Validate(definition).Keys);
+    }
 }

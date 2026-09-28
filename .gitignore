@@ -4,6 +4,7 @@
 **/node_modules/
 **/.angular/
 **/dist/
+**/out-tsc/
 **/coverage/
 **/TestResults/
 **/playwright-report/
@@ -17,3 +18,8 @@ data/
 .env
 .DS_Store
 .idea/
+frontend/tmp/
+**/.history/
+**/npm-debug.log
+**/yarn-error.log
+Thumbs.db

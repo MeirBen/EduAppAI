@@ -8,6 +8,8 @@ export interface ParameterDraft {
   type: ParameterDefinition['type'];
   required: boolean;
   defaultValue: string;
+  /** Distinguishes an explicit empty optional-text default from an omitted default. */
+  emptyTextDefault: boolean;
   min: string;
   max: string;
   maxLength: string;
@@ -30,6 +32,7 @@ export function blankParameter(): ParameterDraft {
     type: 'text',
     required: true,
     defaultValue: '',
+    emptyTextDefault: false,
     min: '',
     max: '',
     maxLength: '100',
@@ -50,6 +53,7 @@ export function aiTemplateDraft(definition: TemplateDefinition): AiBlueprintDraf
       type: field.type,
       required: field.required ?? false,
       defaultValue: field.default == null ? '' : String(field.default),
+      emptyTextDefault: field.type === 'text' && field.default === '',
       min: field.min == null ? '' : String(field.min),
       max: field.max == null ? '' : String(field.max),
       maxLength: field.maxLength == null ? '' : String(field.maxLength),
@@ -66,12 +70,8 @@ function options(field: ParameterDraft): string[] {
 }
 
 function integer(value: string): boolean {
-  return (
-    /^-?\d+$/.test(value) &&
-    Number.isSafeInteger(Number(value)) &&
-    Number(value) >= -2147483648 &&
-    Number(value) <= 2147483647
-  );
+  const number = Number(value);
+  return /^-?\d+$/.test(value) && number >= -2147483648 && number <= 2147483647;
 }
 
 /** Mirrors the editable field contract for immediate feedback; the server validates again on save. */
@@ -119,7 +119,7 @@ export function aiTemplateErrors(draft: AiBlueprintDraft): string[] {
         errors.push(prefix + 'אורך הטקסט חייב להיות בין 1 ל־500.');
       if (
         field.defaultValue.length > limit ||
-        (field.defaultValue !== '' && !field.defaultValue.trim())
+        (field.required && field.defaultValue !== '' && !field.defaultValue.trim())
       )
         errors.push(prefix + 'ברירת המחדל אינה טקסט תקין בטווח.');
     } else if (field.defaultValue !== '' && !['true', 'false'].includes(field.defaultValue))
@@ -155,7 +155,8 @@ export function aiTemplateDefinition(draft: AiBlueprintDraft): TemplateDefinitio
       label: field.label,
       type: field.type,
       required: field.required,
-      ...(field.defaultValue !== ''
+      ...(field.defaultValue !== '' ||
+      (field.type === 'text' && !field.required && field.emptyTextDefault)
         ? {
             default:
               field.type === 'integer'

@@ -1,77 +1,40 @@
-# Hebrew UI and RTL
+# Hebrew UI
 
-The interface has one language: Hebrew. The product name is **לומדים ביחד**.
-Application copy lives beside its feature, without a translation service or a
-language switcher. Code identifiers, JSON keys and developer documentation stay in
-English. Educational content and parent-authored names may contain other languages.
+The app is **לומדים ביחד**, with Hebrew UI and RTL layout. Keep UI copy beside
+its feature; identifiers and developer docs remain English. Learning content and
+parent labels keep their original language and values.
 
-## Theme and layout
+## Layout and controls
 
-Tailwind CSS 4 runs through the official PostCSS plugin. Use plain CSS, not Sass.
-`frontend/src/styles.css` is the single home for semantic theme tokens, base rules,
-and the few shared controls: buttons, links, panels, badges, fields and errors.
-Page layout belongs in template utilities. Do not add a UI framework, duplicate
-component layer or configuration file to change a color or a gap.
+- Use native HTML, document scrolling and accessible controls. Keep the header
+  scrollable and include the skip link.
+- Use Tailwind theme tokens from `frontend/src/styles.css`; shared controls live
+  there and page layout uses template utilities. Keep the light green theme,
+  visible focus/error states and locally bundled Heebo. Avoid another UI layer.
+- Use rem sizing, generous line height and wrapping for long user content.
+  Preserve browser zoom, iOS text scaling and the production bundle budgets.
+- Label controls; associate errors with fields. Provide keyboard access, visible
+  focus, loading status, error alerts and distinguishable repeated
+  links/disclosures.
 
-Use `bg-canvas`, `bg-surface`, `text-ink`, `text-muted`, `text-brand` and `border-line`
-instead of scattering literal colors through templates. Keep the light, restrained
-green theme, visible focus rings and clear error states. Ionic supplies the shell;
-its CSS is in the base layer so Tailwind utilities can override it predictably.
+## Direction and copy
 
-Heebo is bundled locally through a pinned Fontsource package with Unicode subsets
-loaded as needed and `font-display: swap`. There are no external font requests. Use rem-based
-text and spacing, generous Hebrew line height, and no letter spacing or uppercase
-transforms. Keep Angular's existing production bundle budgets.
+Set `lang="he"`, `dir="rtl"` and Angular's `he-IL` locale; keep the manifest
+aligned. Use logical spacing (`ms`, `me`, `ps`, `pe`, `start`, `end`) and normal
+DOM order. Use `dir="auto"` for learning text and `<bdi>` for inline user
+values; isolate email and numeric inputs as LTR. Back arrows point right. Dates
+display in Hebrew while stored timestamps remain UTC.
 
-## Direction and mixed content
+Write concise Hebrew for labels, validation, loading and errors. Do not expose
+raw framework/provider errors. Render generated text through Angular
+interpolation, never HTML. Parameter labels/options come from the reviewed
+template; no reserved subject names or translation tables. Never rewrite saved
+content for presentation.
 
-- Set `lang="he"` and `dir="rtl"` on the document. The PWA manifest has the same
-  language and direction. Register Angular's Hebrew locale and use `he-IL` for pipes.
-- Prefer `ms-*`, `me-*`, `ps-*`, `pe-*`, `start-*`, `end-*`, `border-s-*` and
-  `text-start`. Flex and grid already follow the document direction; do not reverse
-  their order just to implement RTL. Keep DOM, reading and keyboard order aligned.
-- Use `dir="auto"` for authored text fields and `<bdi>` for inline user content.
-  Email addresses, numeric fields and complete math expressions are explicit LTR
-  islands. Keep an equation's operators and unknown in the same isolated element.
-- Back arrows point right; forward arrows point left. Do not mirror books, checks,
-  numerals or other nondirectional symbols.
-- Use Hebrew date formatting. Keep the existing UTC API contract; formatting must
-  not change stored timestamps. Avoid concatenating English status or enum values
-  into visible copy.
+## Check
 
-## Copy and stored data
-
-Write concise, natural Hebrew with neutral action labels such as “שמירת התבנית”.
-Translate loading, empty, validation, error and accessible text as well as headings.
-Use count labels such as “מספר השאלות” when a sentence would require plural rules.
-
-API validation messages and newly generated instructions are Hebrew. The client
-uses Hebrew status fallbacks and never displays arbitrary framework problem titles
-or server-error details. Developer CLI output and internal exceptions remain English.
-
-Parameter labels and select options come directly from the reviewed template. There
-are no reserved difficulty values or subject-specific translation tables. Preserve
-these choices and the generated learning language exactly; localize only application
-chrome, status and validation. Never rewrite a saved content snapshot for presentation.
-
-## Accessibility and verification
-
-Use native labeled controls, associated error descriptions, `aria-invalid`, visible
-keyboard focus, loading status and error alerts. Navigation has a skip link. Give
-repeated links and answer disclosures distinguishable accessible names. Controls
-must be comfortable to touch; never disable browser zoom or clamp iOS text scaling.
-The header scrolls with the page so it cannot consume the viewport on short screens
-with enlarged text.
-
-Run `./scripts/verify.sh`, then publish and run the isolated Playwright workflow as
-described in the README. It checks Hebrew labels, document direction, keyboard
-navigation, edited parameter labels, unchanged option values, saved content after reload,
-AI failure recovery, revision conflicts and the review/preview screens at 360px with
-200% text.
-Inspect the screenshots in `artifacts/`, including
-mixed Hebrew/Latin titles. Automated checks do not replace manual keyboard and
-screen-reader review when adding a new interaction.
-
-References: [Tailwind with Angular](https://tailwindcss.com/docs/installation/framework-guides/angular),
-[Tailwind compatibility](https://tailwindcss.com/docs/compatibility),
-[Angular locale formatting](https://angular.dev/guide/i18n/format-data-locale).
+Follow the [verification commands](../README.md#verify). The isolated browser
+suite covers prompt/review/save, parameter choices, frozen previews, failures
+and revision conflicts. Check keyboard navigation and screenshots at 360px with
+200% text, including long mixed-language content. Review screen-reader behavior
+when changing an interaction.

@@ -1,13 +1,12 @@
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { Router, RouterLink, RouterOutlet } from '@angular/router';
-import { IonApp, IonContent } from '@ionic/angular';
 import { Auth } from './core/auth/auth';
 import { apiError } from './core/api/api-error';
 
 /** Application shell with session-aware navigation and explicit sign-out feedback. */
 @Component({
   selector: 'app-root',
-  imports: [RouterOutlet, RouterLink, IonApp, IonContent],
+  imports: [RouterOutlet, RouterLink],
   templateUrl: './app.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })

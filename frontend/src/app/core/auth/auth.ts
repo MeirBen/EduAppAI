@@ -2,17 +2,11 @@ import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { inject, Injectable, signal } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 
-/** Session display data issued by the server; familyId is not an authorization input. */
-interface Parent {
-  email: string;
-  familyId: string;
-}
-
-/** Owns in-memory parent state; the browser keeps the HttpOnly authentication cookie. */
+/** Tracks the parent session for navigation; the browser keeps the HttpOnly authentication cookie. */
 @Injectable({ providedIn: 'root' })
 export class Auth {
   private readonly http = inject(HttpClient);
-  readonly parent = signal<Parent | null>(null);
+  readonly signedIn = signal(false);
 
   /** Obtains an identity-bound request token that HttpClient sends on same-origin writes. */
   async refreshCsrf(): Promise<void> {
@@ -25,12 +19,13 @@ export class Auth {
    */
   async loadSession(): Promise<boolean> {
     try {
-      this.parent.set(await firstValueFrom(this.http.get<Parent>('/api/auth/me')));
+      await firstValueFrom(this.http.get('/api/auth/me'));
+      this.signedIn.set(true);
       await this.refreshCsrf();
       return true;
     } catch (error) {
       if (!(error instanceof HttpErrorResponse) || error.status !== 401) throw error;
-      this.parent.set(null);
+      this.signedIn.set(false);
       return false;
     }
   }
@@ -39,7 +34,6 @@ export class Auth {
   async login(email: string, password: string): Promise<void> {
     await this.refreshCsrf();
     await firstValueFrom(this.http.post('/api/auth/login', { email, password }));
-    // Antiforgery tokens are tied to the current identity.
     await this.loadSession();
   }
 
@@ -47,7 +41,7 @@ export class Auth {
   async logout(): Promise<void> {
     await this.refreshCsrf();
     await firstValueFrom(this.http.post('/api/auth/logout', {}));
-    this.parent.set(null);
+    this.signedIn.set(false);
     // Refresh the anonymous token on the next login, not after a successful sign-out.
   }
 }

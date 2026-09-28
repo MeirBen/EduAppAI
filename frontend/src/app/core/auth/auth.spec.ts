@@ -10,7 +10,7 @@ describe('Auth logout', () => {
     });
     const auth = TestBed.inject(Auth);
     const http = TestBed.inject(HttpTestingController);
-    auth.parent.set({ email: 'parent@example.test', familyId: 'family' });
+    auth.signedIn.set(true);
     const logout = auth.logout();
     http.expectOne('/api/auth/csrf').flush({ token: 'before-signout' });
     await new Promise((resolve) => setTimeout(resolve, 0));
@@ -20,7 +20,7 @@ describe('Auth logout', () => {
       request.flush({}, { status: 503, statusText: 'Unavailable' });
     }
     await expect(logout).resolves.toBeUndefined();
-    expect(auth.parent()).toBeNull();
+    expect(auth.signedIn()).toBe(false);
     http.verify();
   });
 });

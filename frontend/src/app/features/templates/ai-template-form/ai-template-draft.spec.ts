@@ -24,4 +24,13 @@ describe('AI blueprint editor', () => {
     draft.parameters[1].defaultValue = '';
     expect(aiTemplateDefinition(draft).instanceParameters[1].default).toBeUndefined();
   });
+
+  it.each(['', '   '])('preserves the server-valid optional text default %j', (value) => {
+    const definition = structuredClone(readingDefinition);
+    definition.instanceParameters[0].required = false;
+    definition.instanceParameters[0].default = value;
+    const draft = aiTemplateDraft(definition);
+    expect(aiTemplateErrors(draft)).toEqual([]);
+    expect(aiTemplateDefinition(draft)).toEqual(definition);
+  });
 });

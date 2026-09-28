@@ -27,11 +27,44 @@ export async function startAiProvider() {
         schemaVersion: 2,
         name: 'חוקרים וקוראים',
         instanceParameters: [
-          { key: 'theme', label: 'נושא', type: 'text', required: true, default: 'דינוזאורים', min: null, max: null, maxLength: 100, options: null },
-          { key: 'level', label: 'רמה', type: 'select', required: true, default: 'קלה', min: null, max: null, maxLength: null, options: ['קלה', 'מאתגרת'] },
-          { key: 'count', label: 'מספר שאלות', type: 'integer', required: true, default: 2, min: 1, max: 20, maxLength: null, options: null },
+          {
+            key: 'theme',
+            label: 'נושא',
+            type: 'text',
+            required: true,
+            default: 'דינוזאורים',
+            min: null,
+            max: null,
+            maxLength: 100,
+            options: null,
+          },
+          {
+            key: 'level',
+            label: 'רמה',
+            type: 'select',
+            required: true,
+            default: 'קלה',
+            min: null,
+            max: null,
+            maxLength: null,
+            options: ['קלה', 'מאתגרת'],
+          },
+          {
+            key: 'count',
+            label: 'מספר שאלות',
+            type: 'integer',
+            required: true,
+            default: 2,
+            min: 1,
+            max: 20,
+            maxLength: null,
+            options: null,
+          },
         ],
-        generation: { instructions: 'צרו קטע קריאה חדש על theme ברמה level עם count שאלות הבנה.', questionCountParameter: 'count' },
+        generation: {
+          instructions: 'צרו קטע קריאה חדש על theme ברמה level עם count שאלות הבנה.',
+          questionCountParameter: 'count',
+        },
       };
     } else {
       assert.equal(input.response_format.json_schema.name, 'instance_generation_v1');
@@ -39,22 +72,44 @@ export async function startAiProvider() {
       result = {
         title: `לומדים על ${parameters.theme}`,
         instructions: 'קראו וענו על השאלות.',
-        contentBlocks: [{ type: 'text', text: `קטע ${sequence}: לומדים על ${parameters.theme} ברמה ${parameters.level}.` }],
+        contentBlocks: [
+          {
+            type: 'text',
+            text: `קטע ${sequence}: לומדים על ${parameters.theme} ברמה ${parameters.level}.`,
+          },
+        ],
         questions: Array.from({ length: expectedQuestionCount }, (_, index) => ({
           id: `q${index + 1}`,
           prompt: index % 3 === 2 ? 'כמה נושאים מופיעים בקטע?' : `מה נושא הקטע? (${index + 1})`,
-          interaction: { type: ['text-input', 'single-choice', 'numeric-input'][index % 3], options: index % 3 === 1 ? [parameters.theme, 'נושא אחר'] : null },
+          interaction: {
+            type: ['text-input', 'single-choice', 'numeric-input'][index % 3],
+            options: index % 3 === 1 ? [parameters.theme, 'נושא אחר'] : null,
+          },
           answer: { value: index % 3 === 2 ? '1' : parameters.theme },
           points: 1,
         })),
       };
     }
     response.writeHead(200, { 'content-type': 'application/json' });
-    response.end(JSON.stringify({
-      id: `test-${sequence}`, object: 'chat.completion', created: Math.floor(Date.now() / 1000), model: 'isolated-test:free',
-      choices: [{ index: 0, message: { role: 'assistant', content: user.includes('בדיקת כשל') ? '{invalid' : JSON.stringify(result) }, finish_reason: 'stop' }],
-      usage: { prompt_tokens: 100, completion_tokens: 100, total_tokens: 200 },
-    }));
+    response.end(
+      JSON.stringify({
+        id: `test-${sequence}`,
+        object: 'chat.completion',
+        created: Math.floor(Date.now() / 1000),
+        model: 'isolated-test:free',
+        choices: [
+          {
+            index: 0,
+            message: {
+              role: 'assistant',
+              content: user.includes('בדיקת כשל') ? '{invalid' : JSON.stringify(result),
+            },
+            finish_reason: 'stop',
+          },
+        ],
+        usage: { prompt_tokens: 100, completion_tokens: 100, total_tokens: 200 },
+      }),
+    );
   });
   await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
   return { endpoint: `http://127.0.0.1:${server.address().port}`, close: () => server.close() };

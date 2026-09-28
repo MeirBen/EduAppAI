@@ -3,7 +3,7 @@ using FamilyLearning.Api.TaskEngine.Ai;
 
 namespace FamilyLearning.Api.Features.Ai;
 
-/// <summary>Parent-only transient authoring. No template is stored until the existing explicit save endpoint is called.</summary>
+/// <summary>Returns parent-only AI template proposals without publishing them.</summary>
 public static class AiEndpoints
 {
     public static void MapAiEndpoints(this RouteGroupBuilder api)

@@ -1,10 +1,6 @@
 import { HttpErrorResponse } from '@angular/common/http';
 
-/**
- * Converts a failure into Hebrew plain-text feedback. The API supplies Hebrew validation errors.
- * Framework problem titles and server-error payloads are never exposed to the UI.
- * Render through Angular text interpolation, never as HTML.
- */
+/** Hebrew plain-text errors; hides framework/provider details. Render through interpolation. */
 export function apiError(error: unknown): string {
   if (!(error instanceof HttpErrorResponse)) return 'משהו השתבש. אפשר לנסות שוב.';
   if (error.status === 0) return 'לא ניתן להתחבר לשרת. יש לבדוק את החיבור ולנסות שוב.';

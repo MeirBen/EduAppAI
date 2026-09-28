@@ -31,7 +31,7 @@ describe('Prompt-first authoring', () => {
     http.expectNone('/api/templates');
     await vi.waitFor(() => {
       fixture.detectChanges();
-      expect(element.querySelector('#ai-template-name')).not.toBeNull();
+      expect(element.querySelector<HTMLInputElement>('#ai-template-name')?.disabled).toBe(false);
     });
     const name = element.querySelector<HTMLInputElement>('#ai-template-name')!;
     name.value = 'התבנית הערוכה שלי';
@@ -41,6 +41,13 @@ describe('Prompt-first authoring', () => {
       .dispatchEvent(new Event('submit', { cancelable: true }));
     TestBed.tick();
     const save = http.expectOne('/api/templates');
+    expect(element.querySelector<HTMLButtonElement>('form button[type="submit"]')?.disabled).toBe(
+      true,
+    );
+    expect(
+      element.querySelector<HTMLButtonElement>('app-ai-template-form + button')?.disabled,
+    ).toBe(true);
+    expect(prompt.disabled).toBe(true);
     expect(save.request.body.name).toBe('התבנית הערוכה שלי');
     expect(save.request.body.generation.instructions).toBe(
       readingDefinition.generation.instructions,
