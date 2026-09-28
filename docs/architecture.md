@@ -66,11 +66,12 @@ return 404 before content reads or AI calls. Authenticated API responses use
 AI has a configurable three-minute deadline, two concurrent calls per process
 and ten requests per family per minute. Cancellation reaches the provider and
 always releases capacity. Transport timeout adds five seconds so application
-cancellation wins. The default model is pinned, with reasoning disabled; an
-explicit opt-in requests low effort for models that require reasoning. Excluding
-reasoning from responses alone does not reduce computation. Requests allow up to
-8192 output tokens with temperature 0.2. SDK retries are disabled. Failures return
-safe ProblemDetails without saving, including 429
+cancellation wins. The default model is pinned, with reasoning disabled; provider
+configuration can enable it with a supported effort level. Reasoning and sampling
+settings belong to the OpenRouter adapter; generation owns schemas and validation.
+Excluding reasoning from responses alone does not reduce computation. Requests
+allow up to 8192 output tokens, shared with reasoning when enabled. SDK retries
+are disabled. Failures return safe ProblemDetails without saving, including 429
 for provider rate limits. AI response logs contain metadata, elapsed time and
 token counts. Provider failures log only exception type and HTTP status.
 `/api/ai/status` checks configuration without a call.

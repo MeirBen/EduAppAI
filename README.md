@@ -41,16 +41,28 @@ The default model is [Qwen3.8 27B (free)](https://openrouter.ai/qwen/qwen3.8-27b
 which supports structured output and optional reasoning. To change it, set
 `Ai__Model` to an available `:free` model (or `Ai:Model` in development user
 secrets), then restart. `openrouter/free` is also accepted but randomly selects
-an eligible model. Paid models are rejected. Evaluate Hebrew fluency, educational
-correctness and structured output on representative prompts; schema validation
-cannot guarantee language quality. Saved tasks remain readable without AI.
+an eligible model. Paid models are rejected. Choose an endpoint that supports
+JSON-schema structured output and the requested parameters; popularity does not
+measure suitability. Qwen is a configurable baseline, not a proven Hebrew winner.
+Evaluate fluency, educational correctness and latency on representative prompts;
+schema validation cannot guarantee language or answer quality. Saved tasks
+remain readable without AI.
 
 Generation waits up to three minutes. Set `Ai__RequestTimeoutSeconds` (1–300) to
-change the deadline, then restart. Reasoning is disabled by default to avoid
-spending the deadline on thinking. If a chosen model requires reasoning, set
-`Ai__ReasoningEnabled=true` to request low effort instead. Models must support
-the requested parameters. Free providers may be slow, unavailable or rate-limited;
-requests are not automatically retried or switched to another model.
+change the deadline, then restart. Reasoning is disabled by default to reduce
+latency; this can trade away accuracy on complex tasks. To evaluate thinking
+with Qwen, set `Ai__ReasoningEnabled=true`, `Ai__ReasoningEffort=low`,
+`Ai__Temperature=1` and `Ai__TopP=0.95`. Reasoning effort is model-specific, not
+a hard token budget. Check the selected model's supported levels before changing
+it; low effort is not universally supported.
+
+The default non-thinking sampling settings are temperature `0.7` and top-p `0.8`,
+following [Qwen's guidance](https://huggingface.co/Qwen/Qwen3.8-27B#best-practices).
+Both are configurable through the environment settings above; null in JSON
+omits the parameter. Temperature accepts 0–2 and top-p accepts greater than 0
+through 1. Sampling belongs to the provider configuration, not the task engine.
+Free providers may be slow, unavailable or rate-limited; requests are not
+automatically retried or switched to another model.
 
 ## Verify
 

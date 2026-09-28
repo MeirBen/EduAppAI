@@ -46,7 +46,6 @@ public sealed class AiAuthoringTests
             var format = Assert.IsType<ChatResponseFormatJson>(request.Options!.ResponseFormat);
             Assert.Contains(JsonSerializer.Serialize(format.Schema), request.Input);
             Assert.Null(request.Options.Tools);
-            Assert.Equal(0.2f, request.Options.Temperature);
             Assert.Equal(8192, request.Options.MaxOutputTokens);
             Assert.DoesNotContain("@example.test", request.Input);
             Assert.DoesNotContain("familyId", request.Input);

@@ -24,6 +24,19 @@ public static class OpenRouterRegistration
         if (string.IsNullOrWhiteSpace(key)) return;
         var model = configuration["Ai:Model"] ?? "qwen/qwen3.8-27b:free";
         var reasoningEnabled = configuration.GetValue<bool>("Ai:ReasoningEnabled");
+        var effort = configuration["Ai:ReasoningEffort"] ?? "low";
+        if (effort is not ("minimal" or "low" or "medium" or "high" or "xhigh" or "max"))
+            throw new InvalidOperationException("Ai:ReasoningEffort must be minimal, low, medium, high, xhigh or max.");
+        var sampling = new ChatOptions
+        {
+            Temperature = configuration.GetValue<float?>("Ai:Temperature"),
+            TopP = configuration.GetValue<float?>("Ai:TopP")
+        };
+        if (sampling.Temperature is { } temperature && (!float.IsFinite(temperature) || temperature is < 0 or > 2))
+            throw new InvalidOperationException("Ai:Temperature must be between 0 and 2.");
+        if (sampling.TopP is { } topP && (!float.IsFinite(topP) || topP is <= 0 or > 1))
+            throw new InvalidOperationException("Ai:TopP must be greater than 0 and at most 1.");
+        object reasoning = reasoningEnabled ? new { effort, exclude = true } : new { enabled = false, exclude = true };
         if (model != "openrouter/free" && (!model.EndsWith(":free", StringComparison.Ordinal) || model.Contains(',')))
             throw new InvalidOperationException("Ai:Model must be openrouter/free or a single :free model.");
         var endpoint = new Uri(configuration["Ai:Endpoint"] ?? "https://openrouter.ai/api/v1");
@@ -37,6 +50,6 @@ public static class OpenRouterRegistration
             RetryPolicy = new ClientRetryPolicy(maxRetries: 0),
             // Let the application deadline cancel first so timeouts consistently return 504.
             NetworkTimeout = provider.GetRequiredService<IOptions<AiGenerationOptions>>().Value.RequestTimeout + TimeSpan.FromSeconds(5)
-        }), reasoningEnabled));
+        }), sampling, BinaryData.FromObjectAsJson(reasoning)));
     }
 }

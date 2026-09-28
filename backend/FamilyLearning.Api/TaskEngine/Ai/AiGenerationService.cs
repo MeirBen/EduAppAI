@@ -70,7 +70,6 @@ public sealed class AiGenerationService(IEnumerable<IChatClient> clients, ILogge
                 {
                     ResponseFormat = ChatResponseFormat.ForJsonSchema(schema, promptVersion.Replace('-', '_')),
                     MaxOutputTokens = 8192,
-                    Temperature = 0.2f,
                     AdditionalProperties = new() { ["strict"] = true }
                 }, timeout.Token);
             if (response.FinishReason != ChatFinishReason.Stop || response.Text.Length is 0 or > 32000)

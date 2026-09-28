@@ -1,0 +1,94 @@
+using System.Globalization;
+using System.Text.Json;
+using FamilyLearning.Api.Infrastructure.Ai;
+using FamilyLearning.Api.TaskEngine.Ai;
+using FamilyLearning.Api.Tests.Fixtures;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting.Internal;
+using Microsoft.Extensions.Logging;
+
+namespace FamilyLearning.Api.Tests.Integration;
+
+public sealed class OpenRouterConfigurationTests
+{
+    [Theory]
+    [InlineData(false, "low", 0.7f, 0.8f)]
+    [InlineData(true, "medium", 1f, 0.95f)]
+    [InlineData(true, "low", null, null)]
+    public async Task Configured_reasoning_and_sampling_reach_the_provider(bool enabled, string effort,
+        float? temperature, float? topP)
+    {
+        var builder = WebApplication.CreateSlimBuilder();
+        builder.WebHost.UseUrls("http://127.0.0.1:0");
+        builder.Logging.ClearProviders();
+        await using var server = builder.Build();
+        JsonElement request = default;
+        server.MapPost("/chat/completions", async (HttpRequest incoming) =>
+        {
+            using var body = await JsonDocument.ParseAsync(incoming.Body);
+            request = body.RootElement.Clone();
+            return Results.Json(new
+            {
+                id = "local-test",
+                model = "test:free",
+                created = 0,
+                choices = new[] { new { index = 0, message = new { role = "assistant", content = AiFixtures.Definition().ToJsonString() }, finish_reason = "stop" } }
+            });
+        });
+        await server.StartAsync();
+        var configuration = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
+        {
+            ["Ai:ApiKey"] = "isolated-test-key",
+            ["Ai:Endpoint"] = server.Urls.Single(),
+            ["Ai:ReasoningEnabled"] = enabled.ToString(),
+            ["Ai:ReasoningEffort"] = effort,
+            ["Ai:Temperature"] = temperature?.ToString(CultureInfo.InvariantCulture),
+            ["Ai:TopP"] = topP?.ToString(CultureInfo.InvariantCulture)
+        }).Build();
+        var services = new ServiceCollection().AddLogging();
+        services.AddTaskAi(configuration, new HostingEnvironment { EnvironmentName = "Development" });
+        using var provider = services.BuildServiceProvider();
+        using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+        await provider.GetRequiredService<AiGenerationService>().AuthorAsync("A learning idea", deadline.Token);
+
+        Assert.Equal("qwen/qwen3.8-27b:free", request.GetProperty("model").GetString());
+        var reasoning = request.GetProperty("reasoning");
+        Assert.True(reasoning.GetProperty("exclude").GetBoolean());
+        if (enabled)
+        {
+            Assert.Equal(effort, reasoning.GetProperty("effort").GetString());
+            Assert.False(reasoning.TryGetProperty("enabled", out _));
+        }
+        else
+        {
+            Assert.False(reasoning.GetProperty("enabled").GetBoolean());
+            Assert.False(reasoning.TryGetProperty("effort", out _));
+        }
+        Assert.Equal(temperature, request.TryGetProperty("temperature", out var value) ? value.GetSingle() : null);
+        Assert.Equal(topP, request.TryGetProperty("top_p", out value) ? value.GetSingle() : null);
+        Assert.Equal("json_schema", request.GetProperty("response_format").GetProperty("type").GetString());
+        Assert.True(request.GetProperty("provider").GetProperty("require_parameters").GetBoolean());
+    }
+
+    [Theory]
+    [InlineData("Ai:Temperature", "-1")]
+    [InlineData("Ai:Temperature", "NaN")]
+    [InlineData("Ai:Temperature", "3")]
+    [InlineData("Ai:TopP", "0")]
+    [InlineData("Ai:TopP", "2")]
+    [InlineData("Ai:ReasoningEffort", "unlimited")]
+    public void Invalid_generation_settings_are_rejected(string setting, string value)
+    {
+        var configuration = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
+        {
+            ["Ai:ApiKey"] = "isolated-test-key",
+            [setting] = value
+        }).Build();
+        Assert.Throws<InvalidOperationException>(() =>
+            new ServiceCollection().AddTaskAi(configuration, new HostingEnvironment()));
+    }
+}
