@@ -79,17 +79,23 @@ share the output ceiling. A response stopped by the cap is rejected without
 saving. See [reasoning controls][reasoning] for provider differences. Token budgets
 and the deadline are application cost/latency limits, not vendor quality defaults.
 Tune them against representative tasks; a tight thinking budget can reduce quality.
-The [Qwen Flash-Next guide][qwen-guide] recommends temperature/top-p/top-k of
-1.0/0.95/20 in thinking mode, while the [hosted Flash guide][qwen-hosted] documents
-a temperature default of 0.6. These are different baselines, neither a validated
-Hebrew optimum. Local quantization and inference-engine reports do not establish
-hosted API behavior. Qwen also warns that high presence penalties can mix languages.
 
-The current Qwen profile tests the hosted temperature of 0.6, retaining 4,096
-thinking tokens within the 8,192-token total. Compare with temperature 1.0 using
-the same prompts, cases, checks and judge controls. [Thinking stops at its
-budget][qwen-thinking]; more thinking or lower temperature does not guarantee
-better Hebrew. Assess manually reviewed quality alongside latency and cost.
+The current profile uses `deepseek/deepseek-v4.1-flash` with `high` reasoning
+effort, an 8,192-token total ceiling and the default 180-second deadline.
+[OpenRouter's model metadata][model-metadata] lists `low`, `high` and `max`
+efforts for this model, without a native reasoning-token budget. `ReasoningMaxTokens`
+is therefore null: effort controls depth, not an exact token allocation. `high`
+is OpenRouter's advertised default and our starting baseline for quality evaluation.
+Compare with `low` if reasoning consumes the output budget or latency is excessive;
+neither effort level has been validated for this app's Hebrew content.
+
+Temperature/top-p are 1.0/0.95 from the [DeepSeek model card][deepseek-card];
+top-k is unset to avoid carrying over Qwen's sampling profile or unnecessarily
+restricting provider routing. The [native DeepSeek API][deepseek-thinking]
+ignores temperature in thinking mode; hosted providers can differ. Strict
+JSON-schema output and server validation remain enabled. Compare models using
+the same prompts, cases and checks, with manual review; changing the model also
+changes the evaluation judge, so its findings are not independent evidence.
 
 The same settings apply to an optional fallback: it must support the selected
 output format, reasoning and sampling controls. [Fallback routing][fallback]
@@ -105,9 +111,9 @@ credits. Their model IDs and settings are independent of the active model.
 
 [parameters]: https://openrouter.ai/docs/api/reference/parameters
 [reasoning]: https://openrouter.ai/docs/guides/best-practices/reasoning-tokens
-[qwen-guide]: https://huggingface.co/Qwen/Qwen3.8-Flash-Next#best-practices
-[qwen-hosted]: https://docs.qwencloud.com/developer-guides/getting-started/latest-model#thinking
-[qwen-thinking]: https://docs.qwencloud.com/developer-guides/text-generation/thinking#token-budget
+[model-metadata]: https://openrouter.ai/api/v1/models
+[deepseek-card]: https://huggingface.co/deepseek-ai/DeepSeek-V4.1-Flash
+[deepseek-thinking]: https://api-docs.deepseek.com/guides/thinking_mode/
 [fallback]: https://openrouter.ai/docs/guides/routing/model-fallbacks
 
 ## Hebrew AI evaluation
