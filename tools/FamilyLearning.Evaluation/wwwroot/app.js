@@ -520,8 +520,8 @@ export function reportBrief(id, report, summary) {
       finishedAtUtc: report.finishedAtUtc,
       runNotes: report.runNotes,
       repeat: report.repeat,
-      automaticChecksVersion: report.automaticChecksVersion ?? 1,
-      callDelaySeconds: report.callDelaySeconds ?? 0,
+      automaticChecksVersion: report.automaticChecksVersion,
+      callDelaySeconds: report.callDelaySeconds,
       judgeEnabled: report.judgeEnabled,
       judgePromptVersion: report.judgePromptVersion,
       maxCalls: report.maxCalls,
@@ -1218,7 +1218,7 @@ export function createDashboard(document, fetchRequest = globalThis.fetch.bind(g
       title,
       node(
         'p',
-        `${timestamp(report.startedAtUtc)} · Finished: ${timestamp(report.finishedAtUtc)} · Pause between calls: ${report.callDelaySeconds ?? 0}s`,
+        `${timestamp(report.startedAtUtc)} · Finished: ${timestamp(report.finishedAtUtc)} · Pause between calls: ${report.callDelaySeconds}s`,
         'hint',
       ),
     );
@@ -1317,7 +1317,7 @@ export function createDashboard(document, fetchRequest = globalThis.fetch.bind(g
         automaticChecks.append(
           node(
             'p',
-            `Passage words: ${number(evaluation.passageWordCount)} · whitespace count across passage blocks; an exact leading task title is excluded since checks v3. Other headings remain included.`,
+            `Passage words: ${number(evaluation.passageWordCount)} · whitespace count across passage blocks; an exact leading task title is excluded. Other headings remain included.`,
             'hint',
           ),
         );

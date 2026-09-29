@@ -28,6 +28,7 @@ public sealed class EvaluationValidationTests : IDisposable
     [InlineData("passage-inverted")]
     [InlineData("count-override-zero")]
     [InlineData("count-override-negative")]
+    [InlineData("count-override-mismatch")]
     public async Task Malformed_case_fixture_is_rejected_when_loaded(string invalid)
     {
         var scenario = invalid switch
@@ -49,6 +50,7 @@ public sealed class EvaluationValidationTests : IDisposable
             "passage-max-negative" => ValidCase with { MaxPassageWords = -1 },
             "passage-inverted" => ValidCase with { MinPassageWords = 20, MaxPassageWords = 10 },
             "count-override-negative" => ValidCase with { QuestionCountOverride = -1 },
+            "count-override-mismatch" => ValidCase with { QuestionCountOverride = 3 },
             _ => ValidCase with { QuestionCountOverride = 0 }
         };
         var path = await WriteFixtureAsync([scenario]);

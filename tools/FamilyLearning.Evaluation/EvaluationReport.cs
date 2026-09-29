@@ -18,8 +18,8 @@ public sealed class EvaluationReport(EvaluationCase[] cases, int repeat, string 
     public DateTime StartedAtUtc { get; init; } = DateTime.UtcNow;
     public DateTime? FinishedAtUtc { get; set; }
     [JsonRequired] public string Status { get; set; } = "running";
-    /// <summary>Version of the runner's deterministic checks; reports predating this field used version 1.</summary>
-    public int AutomaticChecksVersion { get; set; } = 1;
+    /// <summary>Recorded deterministic-check version; required for meaningful comparison.</summary>
+    [JsonRequired] public int AutomaticChecksVersion { get; init; } = 6;
     public string SuiteSha256 { get; } = suiteSha256;
     /// <summary>Optional developer description, at most 120 characters; excluded from comparison semantics.</summary>
     public string? Label { get; init; }
@@ -35,8 +35,8 @@ public sealed class EvaluationReport(EvaluationCase[] cases, int repeat, string 
     public string JudgePrompt { get; init; } = "";
     [JsonRequired] public bool JudgeEnabled { get; init; }
     public int MaxCalls { get; init; } = 100;
-    /// <summary>Pause before each call after the first, outside request timing. Older reports used no pause.</summary>
-    public int CallDelaySeconds { get; init; }
+    /// <summary>Recorded pause before each call after the first, outside request timing.</summary>
+    [JsonRequired] public int CallDelaySeconds { get; init; }
     public int PlannedCalls => CountCalls(Cases.Length, Repeat, JudgeEnabled ? CalibrationSamples.Length : 0);
     public List<CalibrationResult> Calibration { get; init; } = [];
     [JsonRequired] public List<EvaluationResult> Results { get; init; } = [];
@@ -74,7 +74,7 @@ public sealed class EvaluationResult(string caseId, int repetition)
     public EvaluationStep? Judge { get; set; }
     public HebrewIssue[]? Issues { get; set; }
     public Dictionary<string, JsonElement>? Parameters { get; set; }
-    /// <summary>Whitespace words excluding an exact leading task title; null when no length check ran, including older results.</summary>
+    /// <summary>Whitespace words excluding an exact leading task title; null when no length check ran.</summary>
     public int? PassageWordCount { get; set; }
     /// <summary>One-based position shared by at least three choice answers. Advisory only; ordered options may be intentional.</summary>
     public int? RepeatedAnswerPosition { get; set; }
@@ -106,7 +106,7 @@ public sealed class EvaluationStep
     /// <summary>Sanitized Retry-After seconds, when supplied by the provider; no raw headers are retained.</summary>
     public double? RetryAfterSeconds { get; set; }
     public string? Failure { get; set; }
-    /// <summary>Safe field errors from the application validator; null for other failures and older reports.</summary>
+    /// <summary>Safe field errors from the application validator; null for other failures.</summary>
     public IReadOnlyDictionary<string, string[]>? ValidationErrors { get; set; }
 }
 

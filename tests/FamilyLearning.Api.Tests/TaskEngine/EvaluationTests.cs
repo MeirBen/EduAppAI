@@ -222,30 +222,21 @@ public sealed class EvaluationTests : IDisposable
         Assert.Equal(expected, Assert.Single(saved.Results).Checks["parameterReferences"]);
     }
 
-    [Theory]
-    [InlineData(null)]
-    [InlineData(2)]
-    [InlineData(3)]
-    [InlineData(4)]
-    [InlineData(5)]
-    public async Task New_checks_do_not_make_legacy_automatic_scores_directly_comparable(int? oldVersion)
+    [Fact]
+    public async Task Recorded_check_versions_are_preserved_and_must_match_for_comparison()
     {
         using var chat = new AiFixtures.ScriptedChat(AiFixtures.Definition().ToJsonString(), AiFixtures.Content().ToJsonString());
         var current = await RunAsync(chat);
         var path = Path.Combine(directory, "run.json");
-        var legacyJson = JsonNode.Parse(await File.ReadAllTextAsync(path))!;
-        legacyJson.AsObject().Remove("automaticChecksVersion");
-        if (oldVersion.HasValue) legacyJson["automaticChecksVersion"] = oldVersion.Value;
-        legacyJson["results"]![0]!["checks"]!.AsObject().Remove("parameterReferences");
-        legacyJson["results"]![0]!.AsObject().Remove("passageWordCount");
-        legacyJson["results"]![0]!.AsObject().Remove("repeatedAnswerPosition");
-        await File.WriteAllTextAsync(path, legacyJson.ToJsonString());
-        var legacy = await EvaluationFiles.ReadReportAsync(path);
-        Assert.Null(Assert.Single(legacy.Results).PassageWordCount);
-        var comparison = EvaluationComparison.Compare(legacy, current);
+        var json = JsonNode.Parse(await File.ReadAllTextAsync(path))!;
+        json["automaticChecksVersion"] = 5;
+        await File.WriteAllTextAsync(path, json.ToJsonString());
+        var baseline = await EvaluationFiles.ReadReportAsync(path);
+        Assert.Equal(5, baseline.AutomaticChecksVersion);
+        var comparison = EvaluationComparison.Compare(baseline, current);
         Assert.False(comparison.DirectlyComparable);
         Assert.Contains("automatic-checks-version", comparison.Incompatibilities);
-        Assert.True(EvaluationComparison.Compare(legacy, legacy).DirectlyComparable);
+        Assert.True(EvaluationComparison.Compare(baseline, baseline).DirectlyComparable);
         Assert.True(EvaluationComparison.Compare(current, current).DirectlyComparable);
     }
 

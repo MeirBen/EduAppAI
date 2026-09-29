@@ -266,6 +266,8 @@ const validTask = {
   ],
 };
 const completedReport = {
+  automaticChecksVersion: 6,
+  callDelaySeconds: 0,
   status: 'completed',
   label: 'Reviewed run',
   runNotes: 'Run notes',
@@ -408,7 +410,7 @@ test('findings expose captured source context and measurements without treating 
         sample: { id: 'invalid-path', texts: [], expectedIssues: [] },
         call: { contractValid: false, responseReceived: true },
         passed: false,
-        missingExpectedIssueCount: 3, // Legacy reports must not display this as a measured miss.
+        missingExpectedIssueCount: 3, // Invalid reviews must not present stored counts as measured misses.
         unexpectedFindingCount: 0,
       },
     ],
@@ -933,10 +935,6 @@ test('the AI brief carries context, requests, outputs, findings and reviews with
   };
   const brief = ui.reportBrief('run-1', report, runSummary);
   assert.match(brief, /"automaticChecksVersion": 2/);
-  assert.match(
-    ui.reportBrief('legacy', completedReport, runSummary),
-    /"automaticChecksVersion": 1/,
-  );
   for (const expected of [
     'Reading rules:',
     'Contains prompts and generated answer keys.',

@@ -100,7 +100,7 @@ public static class EvaluationFiles
                 item.QuestionCount < 1 || item.Interaction is not ("single-choice" or "text-input" or "numeric-input") ||
                 (item.ChoiceCount.HasValue && (item.Interaction != "single-choice" || item.ChoiceCount is < 2 or > 6)) ||
                 item.MinPassageWords < 0 || item.MaxPassageWords < 0 || item.MinPassageWords > item.MaxPassageWords ||
-                item.QuestionCountOverride < 1)
+                (item.QuestionCountOverride.HasValue && item.QuestionCountOverride != item.QuestionCount))
                 throw new InvalidDataException("Evaluation cases require unique safe IDs, bounded text and supported, consistent expectations.");
         }
     }

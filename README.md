@@ -153,7 +153,8 @@ run plans 44 base calls, or 70 with the four judge controls, before retries.
 Select individual cases for focused checks.
 
 `reviewFocus` guides human review, not automatic assertions. The runner uses
-generated defaults; `questionCountOverride` supplies an explicit per-task count.
+generated defaults; `questionCountOverride` supplies an explicit per-task count
+and must match the case's expected `questionCount`.
 `minPassageWords` and `maxPassageWords` measure adherence to a case's requested
 length after generation; they are evaluation expectations, not application fields.
 Length checks do not reject otherwise valid content or prevent language review.
@@ -190,8 +191,8 @@ Billable CLI runs require `--live` and use the app's secrets, environment
 overrides, deadline and token cap. Calls run sequentially with a 5-second pause,
 including calibration and reviews. Set **Pause between calls** or
 `--call-delay-seconds N` to 0–60 (0 disables it). Waiting is cancellable and
-excluded from deadlines and latency. Reports record the pause; older reports
-used zero. Spacing cannot guarantee provider availability.
+excluded from deadlines and latency. Reports record the pause; spacing cannot
+guarantee provider availability.
 
 Only HTTP 429 is retried, at most three times per stage within the call budget.
 Retries honor `Retry-After`, otherwise 5/10/20 seconds plus up to 20% jitter,
@@ -220,7 +221,7 @@ Reports go to ignored `artifacts/evaluations/<run>/` or under `--output`:
   messages, final and rejected outputs, actual models, generation prompt versions,
   finish reasons and usage. Domain rejections include safe `validationErrors`
   with field paths and messages, also shown beside the failed dashboard stage.
-  Older reports and non-validation failures have no field diagnostics.
+  Non-validation failures have no field diagnostics.
   Secrets, raw provider errors and separate reasoning text are excluded.
 - **summary.json** separates stage outcomes, automatic check failures, calibration
   health, generated findings by kind/case, human scores, models and measurements.
@@ -279,8 +280,8 @@ passing calibration and matching reviewed cases; human-score deltas require the
 same scored case/repetition pairs. Token/cost deltas require full measurement
 coverage. Other deltas are null or explicitly qualified. Only format 2 reports
 are supported; mismatched embedded controls and invalid human scores are rejected.
-Reports retain their recorded check version. Start a new baseline for direct
-comparison after changing contracts, checks or fixtures.
+Reports require their recorded check version and call delay. Start a new baseline
+for direct comparison after changing contracts, checks or fixtures.
 
 Run exit codes: 0 completed automatic checks and, when enabled, calibration and
 reviews passed without findings; 1 failures/findings or stopped run; 2 invalid

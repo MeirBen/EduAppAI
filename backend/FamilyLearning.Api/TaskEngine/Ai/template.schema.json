@@ -57,7 +57,7 @@
             "type": ["integer", "null"],
             "minimum": 1,
             "maximum": 500,
-            "description": "Text length limit; null uses 500 for text fields and is unused for other types."
+            "description": "Text length limit; null uses 500 for text fields. Use null for other types."
           },
           "options": {
             "type": ["array", "null"],

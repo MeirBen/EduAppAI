@@ -152,6 +152,19 @@ public sealed class EvaluationReportsTests : IDisposable
     }
 
     [Theory]
+    [InlineData("automaticChecksVersion")]
+    [InlineData("callDelaySeconds")]
+    public async Task Missing_run_settings_are_rejected_instead_of_assuming_legacy_defaults(string property)
+    {
+        var path = await SaveAsync("missing-run-setting", CreateReport());
+        var json = JsonNode.Parse(await File.ReadAllTextAsync(path))!.AsObject();
+        json.Remove(property);
+        await File.WriteAllTextAsync(path, json.ToJsonString());
+
+        await Assert.ThrowsAsync<JsonException>(() => EvaluationFiles.ReadReportAsync(path));
+    }
+
+    [Theory]
     [InlineData(0)]
     [InlineData(-1)]
     public async Task Invalid_automatic_check_versions_are_rejected(int version)

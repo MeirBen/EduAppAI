@@ -3,7 +3,7 @@ using System.Text.Json;
 namespace FamilyLearning.Api.Infrastructure.Persistence;
 
 /// <summary>One explicit JSON format for stored snapshots, separate from HTTP request validation.</summary>
-/// <remarks>Serialize contract models, not EF entities. Changes must preserve existing stored documents.</remarks>
+/// <remarks>Serialize contract models, not EF entities. Reading never upgrades or rewrites a snapshot.</remarks>
 public static class StoredJson
 {
     private static readonly JsonSerializerOptions Options = new(JsonSerializerDefaults.Web);

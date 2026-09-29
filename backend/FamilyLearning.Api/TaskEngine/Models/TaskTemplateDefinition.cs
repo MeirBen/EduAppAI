@@ -16,6 +16,7 @@ public sealed record TaskTemplateDefinition(
     [property: JsonRequired] GenerationDefinition Generation);
 
 /// <summary>Metadata shared by the dynamic form and server-side parameter validation.</summary>
+/// <remarks>Only settings applicable to the field type may be supplied; omit the others or use null.</remarks>
 /// <param name="Key">Case-sensitive identifier used in submitted and stored parameter dictionaries.</param>
 /// <param name="Label">Human-readable field label.</param>
 /// <param name="Type">One of text, integer, select or boolean.</param>

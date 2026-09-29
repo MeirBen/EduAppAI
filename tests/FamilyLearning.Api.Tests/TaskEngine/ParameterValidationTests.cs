@@ -58,6 +58,31 @@ public sealed class ParameterValidationTests
     }
 
     [Theory]
+    [InlineData("text", "min")]
+    [InlineData("select", "max")]
+    [InlineData("boolean", "min")]
+    [InlineData("integer", "maxLength")]
+    [InlineData("select", "maxLength")]
+    [InlineData("boolean", "maxLength")]
+    [InlineData("text", "options")]
+    [InlineData("integer", "options")]
+    [InlineData("boolean", "options")]
+    public void Template_rejects_settings_that_the_parameter_type_cannot_use(string type, string setting)
+    {
+        var field = new ParameterDefinition("choice", "Choice", type, Options: type == "select" ? ["one"] : null);
+        field = setting switch
+        {
+            "min" => field with { Min = 1 },
+            "max" => field with { Max = 10 },
+            "maxLength" => field with { MaxLength = 100 },
+            _ => field with { Options = ["unused"] }
+        };
+        var definition = new TaskTemplateDefinition(3, "Practice", [field], new("Use choice.", 2));
+
+        Assert.Contains("instanceParameters[0]", TemplateValidator.Validate(definition).Keys);
+    }
+
+    [Theory]
     [InlineData(false, "{}", 4)]
     [InlineData(true, "{}", 4)]
     [InlineData(false, "{\"items\":6}", 6)]

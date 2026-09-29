@@ -3,7 +3,7 @@ namespace FamilyLearning.Api.TaskEngine.Ai;
 /// <summary>Application-owned instructions; bump versions when behavior changes.</summary>
 internal static class AiPrompts
 {
-    public const string AuthoringVersion = "template-authoring-v17";
+    public const string AuthoringVersion = "template-authoring-v18";
     public const string InstanceVersion = "instance-generation-v17";
 
     private const string LanguageQuality = """

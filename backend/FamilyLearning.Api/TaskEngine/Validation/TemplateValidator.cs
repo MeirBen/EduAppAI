@@ -50,6 +50,10 @@ public static partial class TemplateValidator
             return "יש להזין תווית באורך של 1 עד 100 תווים.";
         if (parameter.Type is not ("text" or "integer" or "select" or "boolean"))
             return "סוג השדה אינו נתמך.";
+        if ((parameter.Type != "integer" && (parameter.Min.HasValue || parameter.Max.HasValue)) ||
+            (parameter.Type != "text" && parameter.MaxLength.HasValue) ||
+            (parameter.Type != "select" && parameter.Options is not null))
+            return "יש להגדיר רק הגבלות ואפשרויות שמתאימות לסוג השדה.";
         if (parameter.Min > parameter.Max || parameter.MaxLength is < 1 or > 500)
             return "גבולות השדה אינם תקינים.";
         if (parameter.Type == "select" &&

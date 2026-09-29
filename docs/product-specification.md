@@ -36,16 +36,17 @@ Unsaved proposals can be discarded and are never stored as drafts.
 - **TaskInstance:** immutable generated content pinned to a template revision,
   initially saved with status `Draft`.
 
-Schema version 2 describes the template JSON, independently of revision numbers.
-See the [template contract][template] and [task contract][content] for exact
-fields.
+The [template contract][template] and [task contract][content] define the stored
+snapshots. The blueprint schema version is independent of template revisions.
 
 Parameters support text, integer, select and boolean values. Keys are unique,
 case-sensitive Latin identifiers; labels and learning content may use any
 language. Required values, defaults, bounds and options are validated on the
 server. Preserve scalar types, including `false`, zero and explicit empty
 optional-text defaults. Defaults resolve omitted values regardless of `required`;
-`required` rejects omission without a default and blank text.
+`required` rejects omission without a default and blank text. Integer bounds,
+text length and select options belong only to their corresponding field types;
+irrelevant settings are omitted or null.
 
 Blueprint schema version 3 stores a positive integer `generation.questionCount`
 as the default number of questions. Parents edit this number directly in the
