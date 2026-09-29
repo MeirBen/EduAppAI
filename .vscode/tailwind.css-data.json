@@ -1,0 +1,13 @@
+{
+  "version": 1.1,
+  "atDirectives": [
+    {
+      "name": "@theme",
+      "description": "Defines Tailwind CSS theme variables and their generated utilities."
+    },
+    {
+      "name": "@apply",
+      "description": "Inlines existing Tailwind CSS utilities into a custom CSS rule."
+    }
+  ]
+}

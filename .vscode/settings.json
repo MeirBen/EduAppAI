@@ -1,4 +1,5 @@
 {
+    "css.customData": [".vscode/tailwind.css-data.json"],
     "dotnet.defaultSolution": "FamilyLearning.sln",
     "workbench.colorCustomizations": {
         "activityBar.activeBackground": "#727b5f",
