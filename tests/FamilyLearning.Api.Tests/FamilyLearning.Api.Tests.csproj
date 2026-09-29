@@ -19,6 +19,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\backend\FamilyLearning.Api\FamilyLearning.Api.csproj" />
+    <ProjectReference Include="..\..\tools\FamilyLearning.Evaluation\FamilyLearning.Evaluation.csproj" />
   </ItemGroup>
 
 </Project>

@@ -187,11 +187,13 @@ correctness, age fit, instruction adherence and answer ambiguity; record failure
 as well as successes, the model/profile, prompt version, latency, token use and
 actual cost when available. Use synthetic requests, never child identities.
 
-Any evaluation runner should reuse the configured generation path and its
-validators, remain outside normal CI, require an explicit live invocation and
-bound the number of calls. It must not create learning records or copy the
-prompts/provider implementation into a second engine. A Qwen-specific test
-framework is unnecessary; model quality is still unverified by local tests.
+The [developer evaluation harness](../README.md#hebrew-ai-evaluation) reuses the
+configured generation path and validators. Live runs stay outside normal CI,
+require an explicit invocation and bound the number of calls. They create no
+learning records. Optional Hebrew review reports exact defects and suggestions;
+labelled controls check known misses and false alarms. It never corrects normal
+application output at runtime. Local tests verify the tool, not model quality;
+real outputs still require human review.
 
 [template]: ../backend/FamilyLearning.Api/TaskEngine/Models/TaskTemplateDefinition.cs
 [content]: ../backend/FamilyLearning.Api/TaskEngine/Models/TaskContent.cs

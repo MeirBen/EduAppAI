@@ -98,6 +98,84 @@ credits. Their model IDs and settings are independent of the active model.
 [qwen-guide]: https://huggingface.co/Qwen/Qwen3.8-Flash-Next#best-practices
 [fallback]: https://openrouter.ai/docs/guides/routing/model-fallbacks
 
+## Hebrew AI evaluation
+
+This is **developer tooling**, not runtime proofreading. It reuses the app's
+configured model, prompts and validators without starting the app or touching
+its database. Normal application calls do not run the evaluator or get rewritten.
+
+```bash
+# Preview the 16 synthetic scenarios; no API calls or key needed.
+./scripts/evaluate-ai.sh --case all
+
+# One real template + one task, at most two billable calls.
+./scripts/evaluate-ai.sh --live --case reading-grade3 --max-calls 2
+
+# Add advisory Hebrew review and two judge calibration controls: five calls.
+./scripts/evaluate-ai.sh --live --case ants-inference --judge --max-calls 5
+
+# Repeat the same full suite twice to expose variation: at most 64 calls.
+./scripts/evaluate-ai.sh --live --case all --repeat 2 --max-calls 64
+```
+
+`--live` is required for billable calls. Runs are sequential, have no retries,
+stop on rate limits and use the app's request deadline and token cap. `--repeat`
+accepts 1–5; `--max-calls` accepts 1–100 and must cover the entire plan. Without
+`--judge`, each repetition authors a fresh template and generates one task.
+With it, two fixed controls run once, then each successful template/task pair
+gets one separate review. The maximum is `cases × repeats × 3 + 2`. This bounds
+application requests, not currency or upstream attempts by a configured fallback.
+Set a key spending limit in OpenRouter for a monetary cap.
+
+The script loads the same development secrets and `Ai__…` environment overrides
+as the app. It uses the current profile; it does not hardcode Qwen or impose a
+second sampling profile. Qwen's documented thinking defaults are a starting
+point, not a Hebrew quality guarantee. Keep cases, repeats and other settings
+fixed when comparing profiles; change one setting at a time. Keep fallback empty
+for a model-specific comparison and check the actual returned model.
+
+Each run saves an ignored `artifacts/evaluations/<run>/run.json` (or a directory
+under `--output`). It checkpoints after each call, including rejected output and
+cancellation. It contains the case set/hash, nonsecret profile, exact engine
+messages, final outputs, model/prompt versions, latency, finish reason, token
+counts and [reported usage cost][usage-accounting]. Missing cost is unknown;
+the total covers only calls with reported cost. Reasoning tokens are already
+included in output tokens: do not add them again. Secret configuration, provider
+error bodies and separate reasoning content are excluded.
+
+The report separates three kinds of evidence:
+
+- **Automatic checks:** application contract validation, parameter resolution,
+  requested question/choice counts and interaction type. Passage length uses
+  whitespace-separated words, allowing five extra words for a title within a
+  content block; it is a diagnostic, not a Hebrew tokenizer.
+- **Optional judge findings:** exact field, quoted defect, suggested correction
+  and explanation. Unknown fields, invented quotes and malformed reviews fail
+  validation. The judge receives the parent request and visible text in a fresh
+  conversation using the same configured model; it never edits the output.
+- **Human review:** fill each result's `review` fields with 0 (unusable), 1 (needs
+  edits), or 2 (ready), with evidence in `notes`. Review Hebrew, correctness, age
+  fit, adherence, answer clarity and consistency. Null means unreviewed, never
+  a pass. Check answers against the passage and check grammar distractors in
+  context, not as ordinary prose.
+
+The judge controls include the reported ant passage/questions with `להסיין` and
+`הנמלות`, plus valid Hebrew with intentional grammar distractors and English.
+They expose known misses and false alarms. Two controls do not establish general
+accuracy; a same-model reviewer can repeat the generator's mistakes, consistent
+with [research on LLM judge limitations][judge-limitations]. A clean review is
+not proof of correct Hebrew. Do not compare only successful generations or
+interpret a tiny suite as a statistical quality guarantee.
+
+Exit codes: 0 means the run completed and its automatic checks passed (including
+advisory judge checks when enabled), 1 means failures or findings, 2 means invalid
+setup/arguments or report IO failure, and 130 means cancellation. Human quality
+scores never fill themselves. CI tests the harness with isolated providers;
+real-model evaluation is always a separate explicit command.
+
+[usage-accounting]: https://openrouter.ai/docs/cookbook/administration/usage-accounting
+[judge-limitations]: https://arxiv.org/abs/2306.05685
+
 ## Verify
 
 ```bash
@@ -188,4 +266,4 @@ follow
 [Microsoft's proxy guidance](https://learn.microsoft.com/en-us/aspnet/core/host-and-deploy/proxy-load-balancer?view=aspnetcore-8.0).
 Also verify storage permissions, backup/restore and operational monitoring.
 `/health` checks process availability, not database or AI readiness. Account
-recovery and real-model evaluation remain in the [next steps](docs/product-specification.md#next-steps).
+recovery and the child flow remain in the [next steps](docs/product-specification.md#next-steps).

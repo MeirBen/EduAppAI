@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <UserSecretsId>FamilyLearning.LocalDevelopment</UserSecretsId>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../backend/FamilyLearning.Api/FamilyLearning.Api.csproj" />
+    <Content Include="cases.json" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="hebrew-review-samples.json" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="../../backend/FamilyLearning.Api/appsettings.json" Link="appsettings.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>

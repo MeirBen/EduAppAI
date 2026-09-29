@@ -10,6 +10,10 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{DC4D3164
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FamilyLearning.Api.Tests", "tests\FamilyLearning.Api.Tests\FamilyLearning.Api.Tests.csproj", "{8843A3D3-1025-47B5-A305-DB2AE29DFABE}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tools", "tools", "{6BAD7CF4-1671-473C-AD08-60D86A19D811}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FamilyLearning.Evaluation", "tools\FamilyLearning.Evaluation\FamilyLearning.Evaluation.csproj", "{BE9263E3-7B68-491F-BB4A-8887B232B03A}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -27,9 +31,14 @@ Global
 		{8843A3D3-1025-47B5-A305-DB2AE29DFABE}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{8843A3D3-1025-47B5-A305-DB2AE29DFABE}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{8843A3D3-1025-47B5-A305-DB2AE29DFABE}.Release|Any CPU.Build.0 = Release|Any CPU
+		{BE9263E3-7B68-491F-BB4A-8887B232B03A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{BE9263E3-7B68-491F-BB4A-8887B232B03A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{BE9263E3-7B68-491F-BB4A-8887B232B03A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{BE9263E3-7B68-491F-BB4A-8887B232B03A}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{EF496B36-F7BC-4F3F-901A-F63C4F49FBD2} = {3C1ACBF1-030B-4E21-B820-1CD168611CA7}
 		{8843A3D3-1025-47B5-A305-DB2AE29DFABE} = {DC4D3164-CA1D-4C4B-8976-1C79D6FE5A15}
+		{BE9263E3-7B68-491F-BB4A-8887B232B03A} = {6BAD7CF4-1671-473C-AD08-60D86A19D811}
 	EndGlobalSection
 EndGlobal
