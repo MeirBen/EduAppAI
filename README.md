@@ -37,8 +37,10 @@ repo; it makes no AI call. Restart the server afterward. Alternatively provide
 `Ai__ApiKey` or `OPENROUTER_API_KEY` through server secrets. Production does not
 load development user secrets.
 
-Generation uses `nvidia/nemotron-3-super-120b-a12b:free`, with no model fallback
-enabled.
+Generation uses paid `qwen/qwen3.8-flash`, with no model fallback enabled.
+Fund the OpenRouter account before generating; the existing API key still works.
+Each template proposal or generated task makes one billable request. Local
+automated tests use an isolated provider and consume no OpenRouter credits.
 Model changes need configuration only: edit the `Ai` section in
 [appsettings.json](backend/FamilyLearning.Api/appsettings.json), or override
 settings with `Ai__…` environment variables or `Ai:…` development user secrets,
@@ -47,7 +49,7 @@ model default. Check the new endpoint's output format, reasoning and sampling
 capabilities against the settings below. Fallback models share those settings.
 
 `Ai:UseJsonSchema=true` requests provider-enforced JSON schemas, supported by
-Nemotron Super's [free endpoint](https://openrouter.ai/nvidia/nemotron-3-super-120b-a12b:free).
+the [Qwen3.8 Flash endpoint](https://openrouter.ai/qwen/qwen3.8-flash).
 For an endpoint that supports JSON output without schema enforcement, set it to
 `false`. The full schema stays in the prompt in either mode, and the server rejects
 invalid output before it can be saved. Changing this setting never disables
@@ -56,8 +58,9 @@ server validation.
 An optional `Ai__FallbackModel` enables OpenRouter's
 [fallback routing](https://openrouter.ai/docs/guides/routing/model-fallbacks);
 an empty string disables it. Before enabling one, check its current endpoint
-supports the configured output format and reasoning parameters. Paid models
-are rejected. OpenRouter tries a configured fallback for provider errors such as
+supports the configured output format and reasoning parameters. Free and paid
+model IDs are accepted; paid fallbacks also consume credits.
+OpenRouter tries a configured fallback for provider errors such as
 rate limits or unavailability, not for truncated, malformed or poor-quality output.
 `openrouter/free` remains an explicit option for random compatible-model routing.
 The actual model is recorded with each result. Prompt guidance helps steer
@@ -68,23 +71,34 @@ remain readable without AI.
 
 Generation waits up to three minutes. Set `Ai__RequestTimeoutSeconds` (1–300) to
 change the deadline, then restart. Requests enable reasoning with
-`Ai:ReasoningEffort=low`; reasoning text is excluded from returned content.
-Set `Ai__ReasoningEnabled=false` to disable thinking. For endpoints without effort
-selection, set `Ai__ReasoningEffort` to an empty string to use provider defaults.
-Effort levels are model-specific, not a hard token budget. Reasoning can improve
-complex tasks but also increase latency.
-Reasoning and final output share an 8192-token cap. A response stopped by that
-cap is rejected with a distinct output-limit message; nothing is saved.
+`Ai:ReasoningEnabled=true`; reasoning text is excluded from returned content.
+Qwen3.8 Flash supports a [reasoning token budget][reasoning].
+`Ai:ReasoningMaxTokens=2048` limits thinking within the 8192-token total, leaving
+room for the final JSON. This is an initial app budget, not a measured optimum
+for Hebrew. Reasoning tokens are billed even when excluded from the response.
+Set `Ai__ReasoningEnabled=false` to disable thinking. To use provider defaults,
+clear `Ai:ReasoningMaxTokens` and leave `Ai:ReasoningEffort` empty. For models
+that support effort selection, configure an effort instead of a token budget;
+the two settings are mutually exclusive. The token budget must be positive and
+below the total cap. Review these settings when changing models.
+A response stopped by the total cap is rejected with a distinct output-limit
+message; nothing is saved.
 
-Sampling defaults to `Ai:Temperature=1.0` and `Ai:TopP=0.95`, following the pinned
-Nemotron Super [model guide](https://huggingface.co/nvidia/NVIDIA-Nemotron-3-Super-120B-A12B-BF16#quick-start).
-`Ai__Temperature` (0–2) and `Ai__TopP` (greater than 0 through 1) override these;
+Sampling uses `Ai:Temperature=1.0`, `Ai:TopP=0.95` and `Ai:TopK=20`, following
+the [Qwen model guide][qwen-guide] for thinking mode. Avoid adding repetition
+penalties to fix Hebrew: the guide warns that higher presence penalties can
+cause language mixing.
+`Ai__Temperature` (0–2), `Ai__TopP` (greater than 0 through 1) and positive
+`Ai__TopK` override these;
 `null` in JSON or an empty environment override omits that parameter so the
-provider applies its default. Temperature is not supported by every endpoint.
+provider applies its default. Parameter support varies by endpoint.
 Review or clear these model-specific settings
 when changing models or returning to automatic routing. Free providers may be
 slow, unavailable or rate-limited. The app does not retry failed
 calls automatically; OpenRouter owns model and provider routing.
+
+[reasoning]: https://openrouter.ai/docs/guides/best-practices/reasoning-tokens
+[qwen-guide]: https://huggingface.co/Qwen/Qwen3.8-Flash-Next#best-practices
 
 ## Verify
 

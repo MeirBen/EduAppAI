@@ -28,8 +28,8 @@
   controls.
 - Follow docs/ui-guide.md: Hebrew UI, logical RTL spacing, isolated LTR
   numeric/email inputs, Tailwind theme tokens and immutable content snapshots.
-- Do not seed educational data, add fake working features or introduce paid AI
-  calls.
+- Do not seed educational data or add fake working features. Use isolated AI
+  providers for verification; do not make live paid AI calls unless requested.
 - Run scripts/verify.sh for changes; use the isolated browser test for workflow
   changes.
 - Never commit databases, Data Protection keys, credentials, node_modules or

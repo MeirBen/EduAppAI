@@ -27,11 +27,12 @@ export async function startAiProvider() {
     let body = '';
     for await (const chunk of request) body += chunk;
     const input = JSON.parse(body);
-    assert.equal(input.model, 'nvidia/nemotron-3-super-120b-a12b:free');
+    assert.equal(input.model, 'qwen/qwen3.8-flash');
     assert.equal(input.models, undefined);
-    assert.deepEqual(input.reasoning, { effort: 'low', exclude: true });
+    assert.deepEqual(input.reasoning, { max_tokens: 2048, exclude: true });
     assert.equal(input.temperature, 1);
     assert.equal(input.top_p, 0.95);
+    assert.equal(input.top_k, 20);
     assert.equal(input.max_completion_tokens ?? input.max_tokens, 8192);
     assert.deepEqual(input.provider, { require_parameters: true });
     assert.equal(input.response_format.type, 'json_schema');

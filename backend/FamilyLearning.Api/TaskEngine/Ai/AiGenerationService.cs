@@ -69,7 +69,7 @@ public sealed class AiGenerationService(IEnumerable<IChatClient> clients, ILogge
                 new ChatOptions
                 {
                     ResponseFormat = ChatResponseFormat.ForJsonSchema(schema, promptVersion.Replace('-', '_')),
-                    MaxOutputTokens = 8192,
+                    MaxOutputTokens = AiGenerationOptions.MaxOutputTokens,
                     AdditionalProperties = new() { ["strict"] = true }
                 }, timeout.Token);
             var text = response.Text;

@@ -11,7 +11,7 @@ namespace FamilyLearning.Api.Infrastructure.Ai;
 /// <summary>OpenRouter is a replaceable transport; generation depends only on IChatClient.</summary>
 public static class OpenRouterRegistration
 {
-    /// <summary>Registers the free-only provider when a server secret exists; otherwise AI stays explicitly unavailable.</summary>
+    /// <summary>Registers the configured provider when a server secret exists; otherwise AI stays explicitly unavailable.</summary>
     public static void AddTaskAi(this IServiceCollection services, IConfiguration configuration, IHostEnvironment environment)
     {
         services.AddOptions<AiGenerationOptions>()
@@ -31,20 +31,31 @@ public static class OpenRouterRegistration
         var effort = configuration["Ai:ReasoningEffort"] ?? "";
         if (effort is not ("" or "minimal" or "low" or "medium" or "high" or "xhigh" or "max"))
             throw new InvalidOperationException("Ai:ReasoningEffort must be empty, minimal, low, medium, high, xhigh or max.");
+        var reasoningMaxTokens = configuration.GetValue<int?>("Ai:ReasoningMaxTokens");
+        if (reasoningMaxTokens is <= 0 or >= AiGenerationOptions.MaxOutputTokens)
+            throw new InvalidOperationException($"Ai:ReasoningMaxTokens must be positive and below {AiGenerationOptions.MaxOutputTokens}.");
+        if (reasoningMaxTokens.HasValue && effort.Length > 0)
+            throw new InvalidOperationException("Set either Ai:ReasoningMaxTokens or Ai:ReasoningEffort, not both.");
         var useJsonSchema = configuration.GetValue("Ai:UseJsonSchema", false);
         var sampling = new ChatOptions
         {
             Temperature = configuration.GetValue<float?>("Ai:Temperature"),
-            TopP = configuration.GetValue<float?>("Ai:TopP")
+            TopP = configuration.GetValue<float?>("Ai:TopP"),
+            TopK = configuration.GetValue<int?>("Ai:TopK")
         };
         if (sampling.Temperature is { } temperature && (!float.IsFinite(temperature) || temperature is < 0 or > 2))
             throw new InvalidOperationException("Ai:Temperature must be between 0 and 2.");
         if (sampling.TopP is { } topP && (!float.IsFinite(topP) || topP is <= 0 or > 1))
             throw new InvalidOperationException("Ai:TopP must be greater than 0 and at most 1.");
-        object reasoning = reasoningEnabled && effort.Length > 0
-            ? new { effort, exclude = true } : new { enabled = reasoningEnabled, exclude = true };
-        if (!IsFreeModel(model) || (fallbackModel is not null && !IsFreeModel(fallbackModel)))
-            throw new InvalidOperationException("Ai:Model and Ai:FallbackModel must each be openrouter/free or a single :free model.");
+        if (sampling.TopK is <= 0)
+            throw new InvalidOperationException("Ai:TopK must be positive.");
+        object reasoning = new { enabled = reasoningEnabled, exclude = true };
+        if (reasoningEnabled && reasoningMaxTokens.HasValue)
+            reasoning = new { max_tokens = reasoningMaxTokens.Value, exclude = true };
+        else if (reasoningEnabled && effort.Length > 0)
+            reasoning = new { effort, exclude = true };
+        if (model.Contains(',') || fallbackModel?.Contains(',') == true)
+            throw new InvalidOperationException("Ai:Model and Ai:FallbackModel must each contain a single model ID.");
         var endpoint = new Uri(configuration["Ai:Endpoint"] ?? "https://openrouter.ai/api/v1");
         // Local endpoints support isolated provider-contract tests without exposing real keys or paying for calls.
         if (endpoint.AbsoluteUri.TrimEnd('/') != "https://openrouter.ai/api/v1" &&
@@ -65,7 +76,4 @@ public static class OpenRouterRegistration
                 fallbackModel is null ? null : BinaryData.FromObjectAsJson(new[] { fallbackModel }), useJsonSchema);
         });
     }
-
-    private static bool IsFreeModel(string model) => model == "openrouter/free" ||
-        (model.EndsWith(":free", StringComparison.Ordinal) && !model.Contains(','));
 }

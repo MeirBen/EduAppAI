@@ -24,6 +24,7 @@ internal sealed class OpenRouterChatClient(ChatClient client, ChatOptions sampli
             var request = new ChatCompletionOptions();
 #pragma warning disable SCME0001 // The SDK's JSON extension point carries OpenRouter-specific parameters.
             request.Patch.Set("$.reasoning"u8, reasoning);
+            if (sampling.TopK is { } topK) request.Patch.Set("$.top_k"u8, BinaryData.FromObjectAsJson(topK));
             request.Patch.Set("$.provider"u8, BinaryData.FromString("""{"require_parameters":true}"""));
             // With model present, OpenRouter treats models as ordered fallbacks for provider errors.
             if (fallbackModels is not null) request.Patch.Set("$.models"u8, fallbackModels);

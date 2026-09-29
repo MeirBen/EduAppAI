@@ -21,8 +21,12 @@ public sealed class OpenRouterConfigurationTests
     [InlineData(true, "low", null, null, "", true)]
     [InlineData(null, null, null, null, null, null)]
     [InlineData(true, "", 1f, 0.95f, "", false)]
+    [InlineData(true, "", 1f, 0.95f, "", true, "qwen/qwen3.8-flash", 2048, 20)]
+    [InlineData(false, "", null, null, "", true, "qwen/qwen3.8-flash", 2048)]
+    [InlineData(true, "", null, null, "qwen/qwen3.8-flash", true)]
     public async Task Generation_requests_preserve_settings_schema_guidance_and_unicode(bool? enabled, string? effort,
-        float? temperature, float? topP, string? fallbackModel, bool? useJsonSchema)
+        float? temperature, float? topP, string? fallbackModel, bool? useJsonSchema, string model = "test/model:free",
+        int? reasoningMaxTokens = null, int? topK = null)
     {
         const string sourceText = "שָׁלוֹם, Maya! שלום־עולם";
         const string passage = sourceText + "\n\nA second paragraph.";
@@ -50,7 +54,6 @@ public sealed class OpenRouterConfigurationTests
             });
         });
         await server.StartAsync();
-        var model = useJsonSchema == true ? "nvidia/nemotron-3-super-120b-a12b:free" : "google/gemma-4-31b-it:free";
         var configuration = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
         {
             ["Ai:ApiKey"] = "isolated-test-key",
@@ -60,8 +63,10 @@ public sealed class OpenRouterConfigurationTests
             ["Ai:FallbackModel"] = fallbackModel,
             ["Ai:ReasoningEnabled"] = enabled?.ToString(),
             ["Ai:ReasoningEffort"] = effort,
+            ["Ai:ReasoningMaxTokens"] = reasoningMaxTokens?.ToString(CultureInfo.InvariantCulture),
             ["Ai:Temperature"] = temperature?.ToString(CultureInfo.InvariantCulture),
-            ["Ai:TopP"] = topP?.ToString(CultureInfo.InvariantCulture)
+            ["Ai:TopP"] = topP?.ToString(CultureInfo.InvariantCulture),
+            ["Ai:TopK"] = topK?.ToString(CultureInfo.InvariantCulture)
         }).Build();
         var services = new ServiceCollection().AddLogging();
         services.AddTaskAi(configuration, new HostingEnvironment { EnvironmentName = "Development" });
@@ -76,7 +81,13 @@ public sealed class OpenRouterConfigurationTests
         Assert.Equal(instructions, result.Value.Generation.Instructions);
         var reasoning = request.GetProperty("reasoning");
         Assert.True(reasoning.GetProperty("exclude").GetBoolean());
-        if ((enabled ?? true) && !string.IsNullOrEmpty(effort))
+        if ((enabled ?? true) && reasoningMaxTokens.HasValue)
+        {
+            Assert.Equal(reasoningMaxTokens, reasoning.GetProperty("max_tokens").GetInt32());
+            Assert.False(reasoning.TryGetProperty("effort", out _));
+            Assert.False(reasoning.TryGetProperty("enabled", out _));
+        }
+        else if ((enabled ?? true) && !string.IsNullOrEmpty(effort))
         {
             Assert.Equal(effort, reasoning.GetProperty("effort").GetString());
             Assert.False(reasoning.TryGetProperty("enabled", out _));
@@ -86,8 +97,12 @@ public sealed class OpenRouterConfigurationTests
             Assert.Equal(enabled ?? true, reasoning.GetProperty("enabled").GetBoolean());
             Assert.False(reasoning.TryGetProperty("effort", out _));
         }
+        if (!(enabled ?? true) || !reasoningMaxTokens.HasValue)
+            Assert.False(reasoning.TryGetProperty("max_tokens", out _));
         Assert.Equal(temperature, request.TryGetProperty("temperature", out var value) ? value.GetSingle() : null);
         Assert.Equal(topP, request.TryGetProperty("top_p", out value) ? value.GetSingle() : null);
+        Assert.Equal(topK, request.TryGetProperty("top_k", out value) ? value.GetInt32() : null);
+        Assert.Equal(8192, request.GetProperty("max_completion_tokens").GetInt32());
         Assert.True(request.GetProperty("provider").GetProperty("require_parameters").GetBoolean());
         AssertResponseSchema(request, useJsonSchema ?? false, "task generator");
 
@@ -171,21 +186,27 @@ public sealed class OpenRouterConfigurationTests
     [InlineData("Ai:Temperature", "3")]
     [InlineData("Ai:TopP", "0")]
     [InlineData("Ai:TopP", "2")]
+    [InlineData("Ai:TopK", "0")]
+    [InlineData("Ai:TopK", "-1")]
+    [InlineData("Ai:ReasoningMaxTokens", "0")]
+    [InlineData("Ai:ReasoningMaxTokens", "-1")]
+    [InlineData("Ai:ReasoningMaxTokens", "8192")]
+    [InlineData("Ai:ReasoningMaxTokens", "2048", "low")]
     [InlineData("Ai:ReasoningEffort", "unlimited")]
     [InlineData("Ai:ReasoningEnabled", "maybe")]
     [InlineData("Ai:UseJsonSchema", "maybe")]
     [InlineData("Ai:Model", null)]
     [InlineData("Ai:Model", "")]
     [InlineData("Ai:Model", " ")]
-    [InlineData("Ai:Model", "paid/model")]
-    [InlineData("Ai:FallbackModel", "paid/model")]
+    [InlineData("Ai:Model", "paid/model,test:free")]
     [InlineData("Ai:FallbackModel", "paid/model,test:free")]
-    public void Invalid_generation_settings_are_rejected(string setting, string? value)
+    public void Invalid_generation_settings_are_rejected(string setting, string? value, string? effort = null)
     {
         var configuration = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
         {
             ["Ai:ApiKey"] = "isolated-test-key",
             ["Ai:Model"] = "test/model:free",
+            ["Ai:ReasoningEffort"] = effort,
             [setting] = value
         }).Build();
         var error = Assert.Throws<InvalidOperationException>(() =>
