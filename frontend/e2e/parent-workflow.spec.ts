@@ -43,9 +43,13 @@ test('a parent prompt becomes an editable reusable template and distinct frozen 
   await expect(page.locator('main')).toBeFocused();
   await login(page);
   await expect(page.getByRole('heading', { name: 'מתחילים עם רעיון אחד' })).toBeVisible();
+  const proposalResponse = page.waitForResponse('/api/ai/template-drafts');
   await propose(page, 'קטעי קריאה לכיתה ג׳ עם נושא ורמה לבחירה ושאלות מעורבות');
+  const { definition } = await (await proposalResponse).json();
+  await expect(page.getByLabel('הנחיות ליצירת המשימות')).toHaveValue(
+    definition.generation.instructions,
+  );
   expect((await (await page.request.get('/api/templates')).json()).length).toBe(0);
-  await expect(page.getByLabel('סוג התבנית')).toHaveCount(0);
   await page.getByLabel('שם התבנית', { exact: true }).fill('קוראים ומגלים');
   const parameter = page.locator('[data-parameter-editor]').first();
   await parameter.getByLabel('שם השדה להורה').fill('מה נחקור?');
@@ -57,7 +61,7 @@ test('a parent prompt becomes an editable reusable template and distinct frozen 
   await page.getByRole('button', { name: 'שמירת התבנית', exact: true }).click();
   const template = await (await createdResponse).json();
   expect(template.definition.schemaVersion).toBe(2);
-  expect(template.definition.generation.mode).toBeUndefined();
+  expect(template.definition.generation.instructions).toBe(definition.generation.instructions);
   await expect(page.getByLabel('מה נחקור?', { exact: true })).toHaveValue('דינוזאורים');
   await page.getByRole('button', { name: 'יצירת טיוטה', exact: true }).click();
   await expect(page.getByText('הטיוטה נשמרה', { exact: false })).toBeVisible();

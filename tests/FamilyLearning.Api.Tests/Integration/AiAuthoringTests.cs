@@ -20,7 +20,7 @@ public sealed class AiAuthoringTests
         using var draftResponse = await parent.PostAsJsonAsync("/api/ai/template-drafts", new { prompt = "תבנית הבנת הנקרא עם נושא ומספר שאלות לבחירה" });
         Assert.Equal(HttpStatusCode.OK, draftResponse.StatusCode);
         var draft = await draftResponse.Content.ReadFromJsonAsync<JsonElement>();
-        Assert.Equal("template-authoring-v8", draft.GetProperty("generationMetadata").GetProperty("promptVersion").GetString());
+        Assert.Equal("template-authoring-v9", draft.GetProperty("generationMetadata").GetProperty("promptVersion").GetString());
         Assert.Equal(0, (await parent.GetFromJsonAsync<JsonElement>("/api/templates")).GetArrayLength());
         var definition = draft.GetProperty("definition");
         Assert.False(string.IsNullOrWhiteSpace(definition.GetProperty("generation").GetProperty("instructions").GetString()));
@@ -39,7 +39,7 @@ public sealed class AiAuthoringTests
         var loaded = await parent.GetFromJsonAsync<JsonElement>($"/api/instances/{frozen.GetProperty("id").GetGuid()}");
         Assert.Equal(frozen.GetProperty("content").GetRawText(), loaded.GetProperty("content").GetRawText());
         Assert.Equal("test-free-model", loaded.GetProperty("generationMetadata").GetProperty("model").GetString());
-        Assert.Equal("instance-generation-v8", loaded.GetProperty("generationMetadata").GetProperty("promptVersion").GetString());
+        Assert.Equal("instance-generation-v9", loaded.GetProperty("generationMetadata").GetProperty("promptVersion").GetString());
         Assert.Equal(3, chat.Requests.Count);
         Assert.All(chat.Requests, request =>
         {

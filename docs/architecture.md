@@ -42,23 +42,15 @@ OpenRouter requires parameter support. No tools are sent. Responses must finish
 normally and pass size/depth, required-member, unknown-field, numeric and domain
 validation before persistence.
 
-`AiPrompts` owns shared language, presentation and question-quality guidance.
-Templates retain the learning goal, variable behavior and requested conventions,
-without repeating general engine rules. Instructions reference exact parameter
-keys and select values; resolved values override stale defaults, including false,
-zero and empty text. Language applies per part, allowing bilingual tasks and
-unchanged quoted source text. Learner directions omit keys and generation steps.
-The app numbers questions and lists choices; generated text should omit decorative
-labels while preserving letters/numbers used as learning material. Quality guidance
-covers factual consistency, plausible distractors and varied answer positions,
-with exceptions for requested fiction, ordered choices and deliberate repetition.
+`AiPrompts` owns shared language, presentation and question-quality guidance;
+templates retain task-specific requirements and exact parameter references.
+Resolved values override stale defaults, including false, zero and empty text.
 
-Each operation makes one AI call. Language and educational quality checks are
-prompt guidance; validators enforce structure and bounds, not fluency or truth.
-There is no translation or proofreading service. Such a step adds latency and
-can change verbatim text, language exercises and answer/option relationships;
-it requires separate quality evaluation. Prompt changes advance the metadata's
-prompt version and affect new output, never saved snapshots.
+Each operation makes one AI call. Validators enforce structure and bounds, not
+fluency or truth. The editor and persistence preserve generated instructions and
+content without translation or proofreading. Prompt changes advance the metadata's
+prompt version and affect new output, never saved snapshots. Evaluate language
+quality separately from automated contract tests.
 
 Publication atomically saves a revision and current pointer, guarded by
 `expectedVersion`, an EF concurrency token and a unique revision index. Joined
@@ -78,16 +70,12 @@ return 404 before content reads or AI calls. Authenticated API responses use
 AI has a configurable three-minute deadline, two concurrent calls per process
 and ten requests per family per minute. Cancellation reaches the provider and
 always releases capacity. Transport timeout adds five seconds so application
-cancellation wins. The default configuration pins a free model, enables low-effort
-reasoning and sets sampling from that model's guide. Model selection is documented
-in [AI configuration](../README.md#ai-configuration). Reasoning and
-sampling settings belong to the OpenRouter adapter; generation owns schemas and
-validation. Configuration can pin a free model or override generation settings.
-Excluding reasoning from responses alone does not reduce computation. Requests
-allow up to 8192 output tokens, shared with reasoning when enabled. SDK retries
-are disabled. OpenRouter owns fallback routing on provider errors; it does not
-retry failed application validation. Failures return safe ProblemDetails without
-saving, including 429 for provider rate limits. Output-limit failures use
+cancellation wins. The OpenRouter adapter owns routing, reasoning and sampling;
+generation owns schemas and validation. See [AI configuration](../README.md#ai-configuration)
+for model settings, deadlines and token limits. SDK retries are disabled;
+OpenRouter's optional fallback handles provider errors, not failed app validation.
+Failures return safe ProblemDetails without saving, including 429 for provider
+rate limits. Output-limit failures use
 `urn:family-learning:ai-output-limit` so the UI can distinguish them from invalid
 JSON without displaying provider text. The transport checks HTTP 200 bodies for
 provider errors; the adapter normalizes missing or malformed SDK responses to

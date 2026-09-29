@@ -102,7 +102,8 @@ export async function startAiProvider() {
           },
         ],
         generation: {
-          instructions: 'צרו קטע קריאה חדש על theme ברמה level עם count שאלות הבנה.',
+          instructions:
+            'יש ליצור קטע קריאה חדש לפי "theme" ברמה "level", עם "count" שאלות הבנה.\n\nיש לשמור כלשונו את המשפט: שָׁלוֹם, Maya! שלום־עולם',
           questionCountParameter: 'count',
         },
       };

@@ -71,8 +71,8 @@ Sampling defaults to `Ai:Temperature=1.0` and `Ai:TopP=0.95`, following the pinn
 Nemotron Super's [model guide](https://huggingface.co/nvidia/NVIDIA-Nemotron-3-Super-120B-A12B-BF16#quick-start).
 `Ai__Temperature` (0–2) and `Ai__TopP` (greater than 0 through 1) override these;
 null in JSON omits a parameter. Review or clear these model-specific settings
-when changing models or returning to automatic routing. Free
-providers may be slow, unavailable or rate-limited. The app does not retry failed
+when changing models or returning to automatic routing. Free providers may be
+slow, unavailable or rate-limited. The app does not retry failed
 calls automatically; OpenRouter owns model and provider routing.
 
 ## Verify

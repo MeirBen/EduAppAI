@@ -25,6 +25,9 @@ public sealed class OpenRouterConfigurationTests
     {
         const string sourceText = "שָׁלוֹם, Maya! שלום־עולם";
         const string passage = sourceText + "\n\nA second paragraph.";
+        var definition = AiFixtures.Definition();
+        var instructions = "יש ליצור משימה לפי \"theme\".\n\n" + sourceText;
+        definition["generation"]!["instructions"] = instructions;
         var generated = AiFixtures.Content();
         generated["contentBlocks"]![0]!["text"] = passage;
         var builder = WebApplication.CreateSlimBuilder();
@@ -43,7 +46,7 @@ public sealed class OpenRouterConfigurationTests
                 id = "local-test",
                 model = "test:free",
                 created = 0,
-                choices = new[] { new { index = 0, message = new { role = "assistant", content = (isInstance ? generated : AiFixtures.Definition()).ToJsonString() }, finish_reason = "stop" } }
+                choices = new[] { new { index = 0, message = new { role = "assistant", content = (isInstance ? generated : definition).ToJsonString() }, finish_reason = "stop" } }
             });
         });
         await server.StartAsync();
@@ -67,6 +70,7 @@ public sealed class OpenRouterConfigurationTests
         if (string.IsNullOrWhiteSpace(fallbackModel)) Assert.False(request.TryGetProperty("models", out _));
         else Assert.Equal(fallbackModel, Assert.Single(request.GetProperty("models").EnumerateArray()).GetString());
         Assert.Equal("test:free", result.Metadata.Model);
+        Assert.Equal(instructions, result.Value.Generation.Instructions);
         var reasoning = request.GetProperty("reasoning");
         Assert.True(reasoning.GetProperty("exclude").GetBoolean());
         if (enabled ?? true)
