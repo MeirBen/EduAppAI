@@ -255,9 +255,11 @@
             <dd>The response met the app's structure and validation rules.</dd>
             <dt>Automatic checks</dt>
             <dd>
-              Case checks such as question, choice and passage counts; not every instruction.
+              Case checks such as question, choice and passage counts; not every instruction. Cases
+              with explicit word limits also check that the template retained those bounds.
               Parameter references checks that each parameter key appears in template instructions,
-              not that it is used correctly. Failed checks retain the generated evidence.
+              not that it is used correctly. Rejected content reports its measured word count in
+              generation validation errors. Failed checks retain the generated evidence.
             </dd>
             <dt>Judge calibration</dt>
             <dd>Known-example detection. If it fails or is unfinished, trust findings less.</dd>

@@ -22,6 +22,8 @@ interface AiBlueprintDraft {
   name: string;
   instructions: string;
   questionCountParameter: string;
+  minContentWords: string;
+  maxContentWords: string;
   parameters: ParameterDraft[];
 }
 
@@ -47,6 +49,8 @@ export function aiTemplateDraft(definition: TemplateDefinition): AiBlueprintDraf
     name: definition.name,
     instructions: definition.generation.instructions,
     questionCountParameter: definition.generation.questionCountParameter ?? '',
+    minContentWords: String(definition.generation.contentWordCount?.min ?? ''),
+    maxContentWords: String(definition.generation.contentWordCount?.max ?? ''),
     parameters: definition.instanceParameters.map((field) => ({
       id: crypto.randomUUID(),
       key: field.key,
@@ -76,6 +80,18 @@ export function aiTemplateErrors(draft: AiBlueprintDraft): string[] {
   if (!draft.name.trim() || draft.name.length > 100) errors.push('יש להזין שם עד 100 תווים.');
   if (!draft.instructions.trim() || draft.instructions.length > 4000)
     errors.push('יש להזין הנחיות עד 4,000 תווים.');
+  if (
+    [draft.minContentWords, draft.maxContentWords].some(
+      (value) =>
+        value !== '' && (!isIntegerInput(value) || Number(value) < 0 || Number(value) > 4000),
+    ) ||
+    (draft.minContentWords !== '' &&
+      draft.maxContentWords !== '' &&
+      Number(draft.minContentWords) > Number(draft.maxContentWords))
+  )
+    errors.push(
+      'גבולות מספר המילים חייבים להיות שלמים בין 0 ל־4,000, והמינימום אינו יכול להיות גדול מהמקסימום.',
+    );
   if (draft.parameters.length > 16) errors.push('אפשר להגדיר עד 16 שדות.');
   const keys = new Set<string>();
   for (const [index, field] of draft.parameters.entries()) {
@@ -147,6 +163,14 @@ export function aiTemplateDefinition(draft: AiBlueprintDraft): TemplateDefinitio
     generation: {
       instructions: draft.instructions,
       questionCountParameter: draft.questionCountParameter || null,
+      ...(draft.minContentWords !== '' || draft.maxContentWords !== ''
+        ? {
+            contentWordCount: {
+              min: draft.minContentWords === '' ? null : Number(draft.minContentWords),
+              max: draft.maxContentWords === '' ? null : Number(draft.maxContentWords),
+            },
+          }
+        : {}),
     },
     instanceParameters: draft.parameters.map(parameterDefinition),
   };

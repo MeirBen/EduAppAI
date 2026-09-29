@@ -10,8 +10,10 @@ public static partial class TaskContentValidator
     /// <summary>Validates AI content before it is saved as an immutable task.</summary>
     /// <param name="content">Untrusted generated content.</param>
     /// <param name="expectedQuestionCount">Exact resolved count, or null to allow any count within 1–20.</param>
+    /// <param name="contentWordCount">Optional reviewed limits for text blocks; absent limits impose no word count.</param>
     /// <remarks>Accepts potentially null nested JSON members. An empty result means the content is supported.</remarks>
-    public static Dictionary<string, string[]> Validate(TaskContent? content, int? expectedQuestionCount = null)
+    public static Dictionary<string, string[]> Validate(TaskContent? content, int? expectedQuestionCount = null,
+        WordCountRange? contentWordCount = null)
     {
         var errors = new Dictionary<string, string[]>();
         if (content is null)
@@ -51,7 +53,37 @@ public static partial class TaskContentValidator
         if (length > 8000) errors["content"] = ["התוכן כולו מוגבל ל־8,000 תווים, כולל שאלות ותשובות."];
         if (expectedQuestionCount.HasValue && content.Questions is { } questions && questions.Length != expectedQuestionCount.Value)
             errors["questions"] = ["מספר השאלות שנוצרו אינו תואם למספר שנבחר."];
+        if (contentWordCount is { } range && content.ContentBlocks is { } blocks && blocks.All(block => block?.Text is not null))
+        {
+            var words = CountContentWords(content);
+            if (words < range.Min || words > range.Max)
+            {
+                var expected = range.Min.HasValue && range.Max.HasValue ? $"בין {range.Min} ל־{range.Max}" :
+                    range.Min.HasValue ? $"לפחות {range.Min}" : $"לכל היותר {range.Max}";
+                errors["contentBlocks.wordCount"] = [$"התוכן כולל {words} מילים. נדרשות {expected} מילים."];
+            }
+        }
         return errors;
+    }
+
+    /// <summary>Counts whitespace-separated words in non-null text blocks, excluding only an exact standalone leading task title.</summary>
+    /// <remarks>Shared by runtime validation and evaluation. Other headings remain text; no language or subject is inferred.</remarks>
+    public static int CountContentWords(TaskContent content)
+    {
+        var words = 0;
+        var title = content.Title?.Trim();
+        for (var i = 0; i < content.ContentBlocks.Length; i++)
+        {
+            var text = content.ContentBlocks[i].Text.Trim();
+            if (i == 0)
+            {
+                var newline = text.IndexOf('\n');
+                if (newline >= 0 && text[..newline].Trim() == title) text = text[(newline + 1)..];
+                else if (text == title) text = "";
+            }
+            words += text.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries).Length;
+        }
+        return words;
     }
 
     private static string? ValidateQuestion(TaskQuestion? question, HashSet<string> ids)

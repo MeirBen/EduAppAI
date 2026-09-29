@@ -2,6 +2,37 @@ import { readingDefinition } from './ai-template.fixture';
 import { aiTemplateDefinition, aiTemplateDraft, aiTemplateErrors } from './ai-template-draft';
 
 describe('AI blueprint editor', () => {
+  it('preserves reviewed word bounds and removes them when both fields are cleared', () => {
+    const definition = {
+      ...readingDefinition,
+      generation: { ...readingDefinition.generation, contentWordCount: { min: 100, max: 150 } },
+    };
+    const draft = aiTemplateDraft(definition);
+    expect(aiTemplateErrors(draft)).toEqual([]);
+    expect(aiTemplateDefinition(draft)).toEqual(definition);
+    draft.minContentWords = '';
+    expect(aiTemplateDefinition(draft).generation.contentWordCount).toEqual({
+      min: null,
+      max: 150,
+    });
+    draft.maxContentWords = '';
+    expect(aiTemplateDefinition(draft).generation.contentWordCount).toBeUndefined();
+    expect(definition.generation.contentWordCount).toEqual({ min: 100, max: 150 });
+  });
+
+  it.each([
+    ['-1', '150'],
+    ['100', '99'],
+    ['1.5', '150'],
+    ['100', '4001'],
+    [' ', '150'],
+  ])('rejects invalid word bounds %j to %j', (min, max) => {
+    const draft = aiTemplateDraft(readingDefinition);
+    draft.minContentWords = min;
+    draft.maxContentWords = max;
+    expect(aiTemplateErrors(draft)).not.toEqual([]);
+  });
+
   it('round-trips all four parameter types, false defaults and custom count binding without mutation', () => {
     const original = structuredClone(readingDefinition);
     const draft = aiTemplateDraft(readingDefinition);

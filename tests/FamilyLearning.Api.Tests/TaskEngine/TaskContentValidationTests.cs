@@ -8,6 +8,24 @@ namespace FamilyLearning.Api.Tests.TaskEngine;
 
 public sealed class TaskContentValidationTests
 {
+    [Fact]
+    public void A_repeated_task_title_alone_does_not_satisfy_a_minimum_word_count()
+    {
+        var content = new TaskContent("כותרת בלבד", "", [new("text", "כותרת בלבד")], []);
+        Assert.Equal(0, TaskContentValidator.CountContentWords(content));
+        Assert.Contains("contentBlocks.wordCount", TaskContentValidator.Validate(content, contentWordCount: new(1)).Keys);
+    }
+
+    [Fact]
+    public void Word_limits_count_whitespace_and_vowel_points_across_text_blocks_only()
+    {
+        var content = new TaskContent("כותרת שלא נספרת", "הוראות שלא נספרות",
+            [new("text", "כותרת שלא נספרת\r\n\nשָׁלוֹם־עוֹלָם\tמילה\u00a0נוספת"), new("text", "שתי מילים")], []);
+        Assert.Equal(5, TaskContentValidator.CountContentWords(content));
+        Assert.DoesNotContain("contentBlocks.wordCount", TaskContentValidator.Validate(content, contentWordCount: new(5, 5)).Keys);
+        Assert.Contains("contentBlocks.wordCount", TaskContentValidator.Validate(content, contentWordCount: new(6, 6)).Keys);
+    }
+
     [Theory]
     [InlineData("missing-points")]
     [InlineData("null-question")]

@@ -148,6 +148,9 @@ Select individual cases for focused checks.
 
 `reviewFocus` guides human review, not automatic assertions. The runner uses
 generated defaults; `useMaximumQuestionCount` selects the count field's maximum.
+`requireWordCountConstraint` checks that authoring captured the case's requested
+word bounds as template data. Verbatim-source checks can measure length without
+requiring a constraint the parent never requested.
 Fixtures do not exercise arbitrary input values or repeated tasks from one
 template. HTTP, persistence and UI behavior have separate automated tests.
 
@@ -223,7 +226,9 @@ Interpret the results separately:
 - **Code tests:** harness/app behavior with local providers, not model quality.
 - **Automatic checks:** contracts, defaults, parameter references, question/choice
   counts and interaction types. A bound question count must be required or have
-  a valid default. Passage length is checked only when requested, using whitespace
+  a valid default. Declared template word limits are enforced before saving;
+  rejected output remains available with measured field errors and is not retried.
+  Evaluation also checks requested passage length, using whitespace
   word counts and the case's bounds. An exact standalone task title at the start
   of the first block is excluded; other headings count. A zero maximum checks for
   no passage blocks. Counts do not establish source fidelity; review verbatim

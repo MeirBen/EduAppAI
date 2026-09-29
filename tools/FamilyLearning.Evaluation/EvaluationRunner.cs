@@ -22,7 +22,7 @@ public static class EvaluationRunner
     public static async Task RunAsync(IChatClient client, AiGenerationOptions options, EvaluationReport report,
         string directory, CancellationToken ct, Action<EvaluationProgress>? progress = null, TimeProvider? timeProvider = null)
     {
-        report.AutomaticChecksVersion = 4;
+        report.AutomaticChecksVersion = 5;
         var capture = new EvaluationCapture(client, report.MaxCalls);
         using var engine = new AiGenerationService([capture], NullLogger<AiGenerationService>.Instance, Options.Create(options));
         string stage = "starting";
@@ -64,6 +64,12 @@ public static class EvaluationRunner
                     var references = Regex.Matches(definition.Generation.Instructions, "[A-Za-z0-9_]+")
                         .Select(match => match.Value).ToHashSet(StringComparer.Ordinal);
                     result.Checks["parameterReferences"] = definition.InstanceParameters.All(parameter => references.Contains(parameter.Key));
+                    if (scenario.RequireWordCountConstraint)
+                    {
+                        var range = definition.Generation.ContentWordCount;
+                        result.Checks["contentWordCountConstraint"] = range is not null &&
+                            range.Min == scenario.MinPassageWords && range.Max == scenario.MaxPassageWords;
+                    }
                     var supplied = new Dictionary<string, JsonElement>();
                     if (scenario.UseMaximumQuestionCount)
                     {
@@ -214,7 +220,7 @@ public static class EvaluationRunner
             checks["noPassage"] = content.ContentBlocks.Length == 0;
         else if (scenario.MinPassageWords.HasValue || scenario.MaxPassageWords.HasValue)
         {
-            result.PassageWordCount = CountPassageWords(content);
+            result.PassageWordCount = TaskContentValidator.CountContentWords(content);
             checks["passageLength"] = (!scenario.MinPassageWords.HasValue || result.PassageWordCount >= scenario.MinPassageWords) &&
                 (!scenario.MaxPassageWords.HasValue || result.PassageWordCount <= scenario.MaxPassageWords);
         }
@@ -222,24 +228,5 @@ public static class EvaluationRunner
             .Select(question => Array.IndexOf(question.Interaction.Options!, question.Answer.Value) + 1).ToArray();
         if (positions.Length >= 3 && positions[0] > 0 && positions.All(position => position == positions[0]))
             result.RepeatedAnswerPosition = positions[0];
-    }
-
-    private static int CountPassageWords(TaskContent content)
-    {
-        var words = 0;
-        for (var i = 0; i < content.ContentBlocks.Length; i++)
-        {
-            var text = content.ContentBlocks[i].Text.Trim();
-            // The contract has no passage-heading field. Exclude only an exact standalone task title;
-            // guessing from short lines would discard real prose or supplied source text.
-            if (i == 0)
-            {
-                var newline = text.IndexOf('\n');
-                if (newline >= 0 && text[..newline].Trim() == content.Title.Trim()) text = text[(newline + 1)..];
-                else if (content.ContentBlocks.Length > 1 && text == content.Title.Trim()) text = "";
-            }
-            words += text.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries).Length;
-        }
-        return words;
     }
 }

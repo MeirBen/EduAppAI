@@ -103,6 +103,7 @@ export async function startAiProvider() {
           instructions:
             'יש ליצור קטע קריאה חדש לפי "theme" ברמה "level", עם "count" שאלות הבנה.\n\nיש לשמור כלשונו את המשפט: שָׁלוֹם, Maya! שלום־עולם',
           questionCountParameter: 'count',
+          contentWordCount: user.includes('בדיקת אורך') ? { min: 100, max: 150 } : null,
         },
       };
     } else {

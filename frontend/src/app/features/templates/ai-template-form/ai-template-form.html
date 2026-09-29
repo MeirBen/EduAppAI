@@ -35,6 +35,35 @@
       המטרה, גיל הלומדים, סוגי השאלות והשפה. השתמשו במפתחות השדות כדי להתייחס לבחירות המשתנות.
     </p>
   </div>
+  <details class="well mt-6" [open]="definition().generation.contentWordCount != null">
+    <summary>בדיקת אורך התוכן המקדים — לא חובה</summary>
+    <p id="word-count-hint" class="mt-2 text-sm text-muted">
+      הטווח חל על כל קטעי הטקסט יחד, בלי הכותרת, ההוראות, השאלות והתשובות. הספירה נעשית לפי רווחים.
+      המשימה תישמר רק אם היא עומדת בטווח. גבול ריק אינו מגביל. טווח שכתוב בהנחיות בלבד אינו נאכף.
+    </p>
+    <div class="grid gap-x-4 sm:grid-cols-2">
+      <div class="field">
+        <label for="content-min-words">מספר מילים מינימלי</label>
+        <input
+          id="content-min-words"
+          [formField]="fields.minContentWords"
+          aria-describedby="word-count-hint"
+          inputmode="numeric"
+          dir="ltr"
+        />
+      </div>
+      <div class="field">
+        <label for="content-max-words">מספר מילים מרבי</label>
+        <input
+          id="content-max-words"
+          [formField]="fields.maxContentWords"
+          aria-describedby="word-count-hint"
+          inputmode="numeric"
+          dir="ltr"
+        />
+      </div>
+    </div>
+  </details>
   <h3 class="mb-3 mt-8">מה בוחרים בכל שימוש?</h3>
   <p class="mb-5 text-sm text-muted">
     למשל נושא, רמת קושי, אורך קטע או מספר שאלות. ברירת מחדל ריקה משאירה את הבחירה לשימוש הבא. בשדה

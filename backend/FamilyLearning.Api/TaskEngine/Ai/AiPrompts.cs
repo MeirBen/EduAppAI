@@ -3,8 +3,8 @@ namespace FamilyLearning.Api.TaskEngine.Ai;
 /// <summary>Application-owned instructions; bump versions when behavior changes.</summary>
 internal static class AiPrompts
 {
-    public const string AuthoringVersion = "template-authoring-v12";
-    public const string InstanceVersion = "instance-generation-v13";
+    public const string AuthoringVersion = "template-authoring-v13";
+    public const string InstanceVersion = "instance-generation-v14";
 
     private const string LanguageQuality = """
         Use natural, grammatical language suited to the audience and the language requested for each part; default to Hebrew.
@@ -53,6 +53,11 @@ internal static class AiPrompts
         For variable question count, bind questionCountParameter to an integer field bounded within 1-20;
         it must have required=true or a valid non-null default so the count always resolves.
         Otherwise use null and state a fixed count of 1-20 in instructions.
+        For an explicit fixed total word range for text blocks, set generation.contentWordCount with inclusive min/max.
+        Use null for an unspecified bound or for the entire range when no such requirement exists.
+        Equal bounds mean an exact count. Never infer a length from age or difficulty, and do not repeat these bounds in prose.
+        Count the combined text bodies, excluding the task title, directions, questions and choices.
+        Use this range only for space-delimited languages and a fixed total length; describe variable or per-passage lengths in instructions.
         Tasks support text passages and numeric-input, text-input or single-choice questions with integer points.
         Text answers must be short and objectively checkable; choice questions support 2-6 options.
         """ + "\n\n" + LanguageQuality + """
@@ -71,10 +76,10 @@ internal static class AiPrompts
         Read parameters by exact keys. Resolved values and field definitions override stale defaults or bounds in prose.
         Defaults have already been resolved. Missing optional keys are unset: follow the blueprint's omission behavior.
         Respect false, zero and empty optional text; do not substitute defaults or invent a selection.
-        Explicit numeric requirements are constraints, including both ends of word-count ranges. Aim inside a requested range.
-        A request for simple language, short sentences or short paragraphs does not reduce the requested total length.
-        For Hebrew and other space-delimited text, count words separated by whitespace, not model tokens or characters.
-        Apply a passage's length to its body, excluding headings, learner instructions, questions and choices unless requested otherwise.
+        When generation.contentWordCount is set, the combined contentBlocks must satisfy its inclusive bounds.
+        These reviewed bounds override conflicting prose. Aim comfortably inside the range even for easy tasks with short sentences.
+        The server counts whitespace-separated words in the text bodies, excluding the task title, directions, questions and choices.
+        Respect other numeric requirements stated in the blueprint.
         Return exactly expectedQuestionCount questions when non-null; otherwise follow the fixed count within 1-20.
         Question IDs must be unique. numeric-input answers use invariant decimal text, without exponents or grouping.
         text-input requires one short objectively correct answer, not subjective essay grading.
@@ -92,11 +97,10 @@ internal static class AiPrompts
         """ + "\n\n" + LanguageQuality + """
 
 
-        Final task check: verify requested lengths and counts against the completed content, not an estimate made before writing.
-        If a passage is too short, add relevant detail; if too long, shorten it while retaining evidence needed by the answers.
+        Final task check: check requirements and answer support against the completed content.
         Read every title, direction, passage, question, option and answer for spelling, agreement, tense and idiomatic phrasing.
         Prefer familiar words whose meaning fits the context; simplify uncertain wording without changing the learning goal.
-        After edits, recheck length and answer support; keep each choice answer identical to its correct option.
+        Keep each choice answer identical to its correct option.
         Preserve requested verbatim material and intentional language errors. Return only the final JSON, without notes or reasoning.
         """;
 }

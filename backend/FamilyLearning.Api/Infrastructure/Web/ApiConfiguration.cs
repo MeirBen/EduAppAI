@@ -46,7 +46,10 @@ public static class ApiConfiguration
             context.HttpContext.Response.Headers.CacheControl = "no-cache, no-store";
             try { return await next(context); }
             catch (AiGenerationException exception)
-            { return Results.Problem(statusCode: exception.StatusCode, title: exception.Message, type: exception.ProblemType); }
+            {
+                return Results.Problem(statusCode: exception.StatusCode, title: exception.Message, type: exception.ProblemType,
+                    extensions: exception.ValidationErrors is null ? null : new Dictionary<string, object?> { ["errors"] = exception.ValidationErrors });
+            }
         });
         api.MapAuthEndpoints();
         api.MapAiEndpoints();

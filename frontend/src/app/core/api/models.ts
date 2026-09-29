@@ -22,7 +22,12 @@ export interface TemplateDefinition {
   schemaVersion: 2;
   name: string;
   instanceParameters: ParameterDefinition[];
-  generation: { instructions: string; questionCountParameter?: string | null };
+  generation: {
+    instructions: string;
+    questionCountParameter?: string | null;
+    /** Optional inclusive word limits across all text blocks; an omitted bound is open. */
+    contentWordCount?: { min?: number | null; max?: number | null } | null;
+  };
 }
 
 /** Server-recorded generation diagnostics; excludes prompts, identity and model reasoning. */

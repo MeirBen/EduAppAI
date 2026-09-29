@@ -36,7 +36,12 @@ public sealed record ParameterDefinition(
     int? MaxLength = null,
     string[]? Options = null);
 
-/// <summary>Reusable AI instructions and an optional binding to the parent's question-count field.</summary>
+/// <summary>Reusable AI instructions with optional question-count binding and fixed text-length limits.</summary>
 public sealed record GenerationDefinition(
     [property: JsonRequired] string Instructions,
-    string? QuestionCountParameter = null);
+    string? QuestionCountParameter = null,
+    WordCountRange? ContentWordCount = null);
+
+/// <summary>Inclusive word limits across content blocks; null bounds are open. Omit the range when no length is required.</summary>
+/// <remarks>Counts whitespace-separated words, excluding an exact leading task title. At least one bound is required.</remarks>
+public sealed record WordCountRange(int? Min = null, int? Max = null);

@@ -218,6 +218,7 @@ public sealed class EvaluationTests : IDisposable
     [InlineData(null)]
     [InlineData(2)]
     [InlineData(3)]
+    [InlineData(4)]
     public async Task New_checks_do_not_make_legacy_automatic_scores_directly_comparable(int? oldVersion)
     {
         using var chat = new AiFixtures.ScriptedChat(AiFixtures.Definition().ToJsonString(), AiFixtures.Content().ToJsonString());
@@ -238,6 +239,33 @@ public sealed class EvaluationTests : IDisposable
         Assert.Contains("automatic-checks-version", comparison.Incompatibilities);
         Assert.True(EvaluationComparison.Compare(legacy, legacy).DirectlyComparable);
         Assert.True(EvaluationComparison.Compare(current, current).DirectlyComparable);
+    }
+
+    [Theory]
+    [InlineData(false, 100, false, true)]
+    [InlineData(true, 79, true, false)]
+    [InlineData(true, 100, true, true)]
+    public async Task Explicit_length_requests_check_both_the_blueprint_and_generated_content(
+        bool hasConstraint, int words, bool constraintPasses, bool generationPasses)
+    {
+        var definition = AiFixtures.Definition();
+        if (hasConstraint)
+            definition["generation"]!["contentWordCount"] = new JsonObject { ["min"] = 100, ["max"] = 150 };
+        var content = AiFixtures.Content();
+        content["contentBlocks"]![0]!["text"] = string.Join(' ', Enumerable.Repeat("מילה", words));
+        using var chat = new AiFixtures.ScriptedChat(definition.ToJsonString(), content.ToJsonString());
+        var report = await RunAsync(chat, Case with { MinPassageWords = 100, MaxPassageWords = 150, RequireWordCountConstraint = true });
+        var saved = await EvaluationFiles.ReadReportAsync(Path.Combine(directory, "run.json"));
+        var result = Assert.Single(saved.Results);
+
+        Assert.Equal(constraintPasses, result.Checks["contentWordCountConstraint"]);
+        Assert.Equal(generationPasses, result.Generation!.ContractValid);
+        Assert.Equal(content.ToJsonString(), result.Generation.Output);
+        Assert.Equal(constraintPasses && generationPasses ? 1 : 0, report.AutomaticPasses);
+        Assert.Equal(2, chat.Requests.Count);
+        Assert.Empty(report.Retries);
+        if (!generationPasses)
+            Assert.Contains("79", Assert.Single(result.Generation.ValidationErrors!["contentBlocks.wordCount"]));
     }
 
     [Fact]

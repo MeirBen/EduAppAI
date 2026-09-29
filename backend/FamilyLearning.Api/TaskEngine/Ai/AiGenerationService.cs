@@ -48,7 +48,7 @@ public sealed class AiGenerationService(IEnumerable<IChatClient> clients, ILogge
         int? expectedCount = definition.Generation.QuestionCountParameter is { } key ? parameters[key].GetInt32() : null;
         var input = JsonSerializer.Serialize(new { definition, parameters, expectedQuestionCount = expectedCount }, Json);
         var result = await RequestAsync<TaskContent>(AiPrompts.Instance, input, AiSchemas.Content, AiPrompts.InstanceVersion, ct);
-        var errors = TaskContentValidator.Validate(result.Value, expectedCount);
+        var errors = TaskContentValidator.Validate(result.Value, expectedCount, definition.Generation.ContentWordCount);
         if (errors.Count > 0)
             throw InvalidOutput("task-validation", AiPrompts.InstanceVersion, errors);
         return result;

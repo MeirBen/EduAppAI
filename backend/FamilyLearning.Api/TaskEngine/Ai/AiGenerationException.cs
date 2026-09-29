@@ -6,10 +6,11 @@ public sealed class AiGenerationException(int statusCode, string message, string
     public int StatusCode { get; } = statusCode;
     /// <summary>Optional stable ProblemDetails type for failures the client can distinguish safely.</summary>
     public string? ProblemType { get; } = problemType;
-    /// <summary>Application validator paths and fixed messages for diagnostics; never provider errors or generated values.</summary>
+    /// <summary>Application validator paths, messages and measured counts; never provider errors or generated text.</summary>
     public IReadOnlyDictionary<string, string[]>? ValidationErrors { get; init; }
     public static AiGenerationException InvalidOutput(IReadOnlyDictionary<string, string[]>? errors = null) => new(502,
-        "התוכן שהתקבל לא עבר את בדיקות התקינות. לא נשמר דבר. אפשר לנסות שוב או לדייק את ההנחיות.")
+        "התוכן שהתקבל לא עבר את בדיקות התקינות. לא נשמר דבר. אפשר לנסות שוב או לדייק את ההנחיות.",
+        errors is null ? null : "urn:family-learning:ai-validation")
     { ValidationErrors = errors };
     public static AiGenerationException OutputLimit() => new(502,
         "המודל הגיע למגבלת הפלט לפני שהשלים את התוכן. לא נשמר דבר. אפשר לנסות שוב.",

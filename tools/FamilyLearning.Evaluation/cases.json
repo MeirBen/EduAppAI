@@ -7,7 +7,8 @@
     "interaction": "single-choice",
     "choiceCount": 4,
     "minPassageWords": 100,
-    "maxPassageWords": 150
+    "maxPassageWords": 150,
+    "requireWordCountConstraint": true
   },
   {
     "id": "reading-count-override",
@@ -18,7 +19,8 @@
     "choiceCount": 4,
     "minPassageWords": 100,
     "maxPassageWords": 150,
-    "useMaximumQuestionCount": true
+    "useMaximumQuestionCount": true,
+    "requireWordCountConstraint": true
   },
   {
     "id": "ants-inference",
@@ -28,7 +30,8 @@
     "interaction": "single-choice",
     "choiceCount": 4,
     "minPassageWords": 100,
-    "maxPassageWords": 150
+    "maxPassageWords": 150,
+    "requireWordCountConstraint": true
   },
   {
     "id": "early-reader-nikud",
@@ -38,7 +41,8 @@
     "interaction": "single-choice",
     "choiceCount": 3,
     "minPassageWords": 40,
-    "maxPassageWords": 60
+    "maxPassageWords": 60,
+    "requireWordCountConstraint": true
   },
   {
     "id": "science-grade5",
@@ -48,7 +52,8 @@
     "interaction": "single-choice",
     "choiceCount": 4,
     "minPassageWords": 100,
-    "maxPassageWords": 150
+    "maxPassageWords": 150,
+    "requireWordCountConstraint": true
   },
   {
     "id": "number-gender",
@@ -82,7 +87,8 @@
     "interaction": "single-choice",
     "choiceCount": 4,
     "minPassageWords": 60,
-    "maxPassageWords": 80
+    "maxPassageWords": 80,
+    "requireWordCountConstraint": true
   },
   {
     "id": "bilingual-vocabulary",
@@ -99,7 +105,8 @@
     "questionCount": 3,
     "interaction": "text-input",
     "minPassageWords": 70,
-    "maxPassageWords": 90
+    "maxPassageWords": 90,
+    "requireWordCountConstraint": true
   },
   {
     "id": "causality-grade4",
@@ -109,7 +116,8 @@
     "interaction": "single-choice",
     "choiceCount": 4,
     "minPassageWords": 120,
-    "maxPassageWords": 160
+    "maxPassageWords": 160,
+    "requireWordCountConstraint": true
   },
   {
     "id": "older-reader",
@@ -119,7 +127,8 @@
     "interaction": "single-choice",
     "choiceCount": 4,
     "minPassageWords": 180,
-    "maxPassageWords": 220
+    "maxPassageWords": 220,
+    "requireWordCountConstraint": true
   },
   {
     "id": "optional-topic",
@@ -129,7 +138,8 @@
     "interaction": "single-choice",
     "choiceCount": 4,
     "minPassageWords": 80,
-    "maxPassageWords": 100
+    "maxPassageWords": 100,
+    "requireWordCountConstraint": true
   },
   {
     "id": "fixed-single-question",

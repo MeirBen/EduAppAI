@@ -6,6 +6,22 @@ namespace FamilyLearning.Api.Tests.TaskEngine;
 
 public sealed class ParameterValidationTests
 {
+    [Theory]
+    [InlineData(null, null, false)]
+    [InlineData(-1, 150, false)]
+    [InlineData(100, 99, false)]
+    [InlineData(100, 4001, false)]
+    [InlineData(null, -1, false)]
+    [InlineData(0, 0, true)]
+    [InlineData(100, null, true)]
+    [InlineData(null, 150, true)]
+    public void Word_limits_require_a_bounded_ordered_range(int? min, int? max, bool valid)
+    {
+        var definition = new TaskTemplateDefinition(2, "Practice", [], new("Generate a task.",
+            ContentWordCount: new(min, max)));
+        Assert.Equal(!valid, TemplateValidator.Validate(definition).ContainsKey("generation.contentWordCount"));
+    }
+
     private static readonly ParameterDefinition[] Schema =
     [
         new("theme", "Theme", "text", Required: true, MaxLength: 10),

@@ -2,6 +2,22 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { apiError } from './api-error';
 
 describe('Hebrew API feedback', () => {
+  it('shows measured AI validation failures only for the application-owned problem type', () => {
+    const error = {
+      type: 'urn:family-learning:ai-validation',
+      title: 'private diagnostic',
+      errors: { 'contentBlocks.wordCount': ['התוכן כולל 79 מילים. נדרשות בין 100 ל־150 מילים.'] },
+    };
+    const message = apiError(new HttpErrorResponse({ status: 502, error }));
+    expect(message).toContain('79');
+    expect(message).toContain('לא נשמר דבר');
+    expect(message).not.toContain('private diagnostic');
+    expect(
+      apiError(new HttpErrorResponse({ status: 502, error: { ...error, type: 'provider-error' } })),
+    ).not.toContain('79');
+    expect(apiError(new HttpErrorResponse({ status: 500, error }))).not.toContain('79');
+  });
+
   it.each([0, 400, 401, 403, 404, 409, 429, 500])(
     'hides framework titles for HTTP %s',
     (status) => {

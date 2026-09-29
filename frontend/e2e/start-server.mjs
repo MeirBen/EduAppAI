@@ -29,7 +29,12 @@ const environment = {
   Ai__RequestTimeoutSeconds: '180',
 };
 // Separate families keep cleanup independent of other workflows and their AI rate limits.
-for (const email of ['browser@example.test', 'failures@example.test', 'cleanup@example.test']) {
+for (const email of [
+  'browser@example.test',
+  'failures@example.test',
+  'cleanup@example.test',
+  'word-count@example.test',
+]) {
   // This known password belongs only to this disposable test database.
   const account = spawnSync(
     'dotnet',

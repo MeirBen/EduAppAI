@@ -50,6 +50,18 @@ optional-text defaults. Defaults resolve omitted values regardless of `required`
 required or has a valid default, so generation always receives and returns the
 exact count. No key has subject-specific meaning.
 
+`generation.contentWordCount` optionally declares inclusive `min`/`max` word
+limits across all text blocks. At least one bound must be set, between 0 and
+4,000; equal bounds require an exact count. A null or omitted range adds no
+word-count requirement. Counting uses whitespace, excluding an exact standalone
+task title at the beginning; other headings count as text. This suits Hebrew and
+other space-delimited languages. It does not count questions or answer choices.
+Parents review these bounds in the template editor. Out-of-range content is
+rejected before saving, with the measured count. Fixed total length is supported;
+variable and per-passage lengths remain prose instructions. Existing templates
+stay unchanged: prose-only limits are not enforced until a parent adds bounds
+and publishes a new revision.
+
 Supported task content is plain text with short-text, numeric or single-choice
 questions. Each question has an ID, prompt, answer and integer points. Numeric
 answers use invariant decimal text; choice answers match one option exactly. New

@@ -164,6 +164,34 @@ test('a parent prompt becomes an editable reusable template and distinct frozen 
   expect(errors).toEqual([]);
 });
 
+test('reviewed word limits reject short content and remain editable in a new revision', async ({
+  page,
+}) => {
+  await login(page, 'word-count@example.test');
+  await propose(page, 'בדיקת אורך: תוכן של 100–150 מילים.');
+  await expect(page.getByLabel('מספר מילים מינימלי')).toHaveValue('100');
+  await expect(page.getByLabel('מספר מילים מרבי')).toHaveValue('150');
+  await checkNarrowLayout(page, 'word-count-review');
+  await page.getByLabel('מספר מילים מינימלי').fill('151');
+  await page.getByRole('button', { name: 'שמירת התבנית', exact: true }).click();
+  await expect(page.getByRole('alert')).toContainText('המינימום אינו יכול להיות גדול מהמקסימום');
+  await page.getByLabel('מספר מילים מינימלי').fill('100');
+  const template = await saveTemplate(page);
+  expect(template.definition.generation.contentWordCount).toEqual({ min: 100, max: 150 });
+  await page.getByRole('button', { name: 'יצירת טיוטה', exact: true }).click();
+  await expect(page.getByRole('alert')).toContainText(/התוכן כולל \d+ מילים/);
+  await expect(page.getByRole('alert')).toContainText('לא נשמר דבר');
+  expect((await (await page.request.get('/api/instances')).json()).length).toBe(0);
+  await page.getByRole('link', { name: 'עריכת התבנית', exact: true }).click();
+  await expect(page.getByLabel('מספר מילים מינימלי')).toHaveValue('100');
+  await page.getByLabel('מספר מילים מינימלי').fill('1');
+  await page.getByLabel('מספר מילים מרבי').fill('20');
+  await page.getByRole('button', { name: 'פרסום גרסה חדשה', exact: true }).click();
+  await page.waitForURL(`**/templates/${template.id}/create`);
+  await generateTask(page);
+  await expect(page.getByText('גרסת תבנית 2', { exact: true })).toBeVisible();
+});
+
 test('AI template revisions preserve snapshots and concurrent edits', async ({ page, context }) => {
   await login(page);
   await propose(page, 'שאלות מדעים בנושאים משתנים');

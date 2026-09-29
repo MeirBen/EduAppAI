@@ -51,7 +51,11 @@ public sealed class EvaluationCommandTests : IDisposable
             }
             var authoringCall = calls == (rateLimitFirst ? 2 : 1);
             var output = authoringCall ? AiFixtures.Definition() : AiFixtures.Content(count: 4);
-            if (authoringCall) output["instanceParameters"]![1]!["default"] = 4;
+            if (authoringCall)
+            {
+                output["instanceParameters"]![1]!["default"] = 4;
+                output["generation"]!["contentWordCount"] = new JsonObject { ["min"] = 100, ["max"] = 150 };
+            }
             else
             {
                 output["contentBlocks"]![0]!["text"] = string.Join(' ', Enumerable.Repeat("מילה", 100));

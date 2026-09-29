@@ -22,6 +22,10 @@ public static partial class TemplateValidator
             errors["name"] = ["יש להזין שם באורך של 1 עד 100 תווים."];
         if (string.IsNullOrWhiteSpace(definition.Generation?.Instructions) || definition.Generation.Instructions.Length > 4000)
             errors["generation.instructions"] = ["יש להזין הנחיות ליצירת תוכן באורך של 1 עד 4,000 תווים."];
+        if (definition.Generation?.ContentWordCount is { } range &&
+            ((range.Min is null && range.Max is null) || range.Min is < 0 or > 4000 ||
+             range.Max is < 0 or > 4000 || range.Min > range.Max))
+            errors["generation.contentWordCount"] = ["יש להגדיר לפחות גבול אחד למספר המילים, בין 0 ל־4,000, כשהמינימום אינו גדול מהמקסימום."];
         if (definition.InstanceParameters is not { Length: <= 16 } parameters)
         {
             errors["instanceParameters"] = ["יש לציין רשימת שדות, עד 16 שדות."];

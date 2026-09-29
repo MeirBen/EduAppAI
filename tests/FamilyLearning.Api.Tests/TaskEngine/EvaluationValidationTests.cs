@@ -27,6 +27,7 @@ public sealed class EvaluationValidationTests : IDisposable
     [InlineData("passage-max-negative")]
     [InlineData("passage-inverted")]
     [InlineData("maximum-not-adjustable")]
+    [InlineData("word-constraint-without-bounds")]
     public async Task Malformed_case_fixture_is_rejected_when_loaded(string invalid)
     {
         var scenario = invalid switch
@@ -47,6 +48,7 @@ public sealed class EvaluationValidationTests : IDisposable
             "passage-min-negative" => ValidCase with { MinPassageWords = -1 },
             "passage-max-negative" => ValidCase with { MaxPassageWords = -1 },
             "passage-inverted" => ValidCase with { MinPassageWords = 20, MaxPassageWords = 10 },
+            "word-constraint-without-bounds" => ValidCase with { RequireWordCountConstraint = true },
             _ => ValidCase with { UseMaximumQuestionCount = true, QuestionCount = 1 }
         };
         var path = await WriteFixtureAsync([scenario]);

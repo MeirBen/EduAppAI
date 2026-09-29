@@ -126,11 +126,42 @@
           ],
           "pattern": "^[a-z][a-zA-Z0-9]{0,39}$",
           "description": "Exact key of the integer parameter controlling question count, bounded within 1-20. It must have required=true or a valid non-null default so its value always resolves. Null for a fixed count."
+        },
+        "contentWordCount": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "description": "Optional fixed word-count limits across all contentBlocks, excluding the task title, learner directions, questions and choices. Use for an explicit total text-length request in a space-delimited language, independent of subject; null otherwise. Use at least one bound; equal bounds mean an exact count. Do not infer limits from age or difficulty. Per-passage or variable lengths remain explicit instructions.",
+          "properties": {
+            "min": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 0,
+              "maximum": 4000
+            },
+            "max": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 0,
+              "maximum": 4000
+            }
+          },
+          "required": [
+            "min",
+            "max"
+          ],
+          "additionalProperties": false
         }
       },
       "required": [
         "instructions",
-        "questionCountParameter"
+        "questionCountParameter",
+        "contentWordCount"
       ],
       "additionalProperties": false
     }

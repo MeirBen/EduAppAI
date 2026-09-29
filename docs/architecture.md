@@ -45,6 +45,11 @@ unknown-field, numeric and domain validation before persistence.
 `AiPrompts` owns shared language, presentation and question-quality guidance;
 templates retain task-specific requirements and exact parameter references.
 Resolved values override stale defaults, including false, zero and empty text.
+Optional reviewed `contentWordCount` bounds override prose length instructions.
+`TaskContentValidator` owns counting and enforcement; evaluation reuses the same
+counter. Domain failures expose application-authored field messages and measured
+counts through a typed ProblemDetails response, without a correction call or
+parsing requirements from prose.
 
 Each generation operation makes one AI call. Validators enforce structure and
 bounds, not fluency or truth. Parents can edit proposed instructions; the app

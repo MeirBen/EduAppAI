@@ -7,7 +7,7 @@ namespace FamilyLearning.Evaluation;
 /// <summary>Synthetic parent request, measurable expectations and a case-specific human review focus.</summary>
 public sealed record EvaluationCase(string Id, string Prompt, string ReviewFocus, int QuestionCount,
     string Interaction, int? ChoiceCount, int? MinPassageWords, int? MaxPassageWords,
-    bool UseMaximumQuestionCount = false);
+    bool UseMaximumQuestionCount = false, bool RequireWordCountConstraint = false);
 
 /// <summary>Local evaluation artifact. Contract success never implies educational or language quality.</summary>
 public sealed class EvaluationReport(EvaluationCase[] cases, int repeat, string suiteSha256,
