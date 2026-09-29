@@ -94,7 +94,7 @@
             "properties": {
               "value": {
                 "type": "string",
-                "description": "Parent-only correct answer. For single-choice, copy the correct option exactly; for numeric-input, use invariant decimal text.",
+                "description": "Parent-only answer: copy the correct option exactly for single-choice; use invariant decimal text without exponents, grouping or units for numeric-input; use one short, objectively checkable answer for text-input.",
                 "minLength": 1,
                 "maxLength": 200
               }

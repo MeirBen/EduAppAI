@@ -132,7 +132,7 @@
             "object",
             "null"
           ],
-          "description": "Optional fixed word-count limits across all contentBlocks, excluding the task title, learner directions, questions and choices. Use for an explicit total text-length request in a space-delimited language, independent of subject; null otherwise. Use at least one bound; equal bounds mean an exact count. Do not infer limits from age or difficulty. Per-passage or variable lengths remain explicit instructions.",
+          "description": "Fixed total word limits for text bodies in space-delimited languages, across all contentBlocks. Exclude the task title, learner directions, questions and choices. Use only for an explicitly requested total length; otherwise null. Bounds are inclusive: use at least one; min must not exceed max; equal bounds mean an exact count. Never infer limits from age or difficulty. Variable or per-passage limits stay in instructions.",
           "properties": {
             "min": {
               "type": [

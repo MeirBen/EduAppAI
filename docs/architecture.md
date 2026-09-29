@@ -42,8 +42,10 @@ these with fixed local model IDs, independently of the active model. No tools
 are sent. Responses must finish normally and pass size/depth, required-member,
 unknown-field, numeric and domain validation before persistence.
 
-`AiPrompts` owns shared language, presentation and question-quality guidance;
-templates retain task-specific requirements and exact parameter references.
+`AiPrompts` separates reusable template design from task generation, sharing
+language and presentation rules. Schemas describe field constraints; prompts
+explain task semantics and cross-field priorities. Templates retain task-specific
+requirements and exact parameter references, rather than repeating engine rules.
 Resolved values override stale defaults, including false, zero and empty text.
 Optional reviewed `contentWordCount` bounds override prose length instructions.
 `TaskContentValidator` owns counting and enforcement; evaluation reuses the same
@@ -137,8 +139,10 @@ link; delayed or failed navigation cannot repeat the write or AI generation.
 Previews read snapshots. The PWA caches assets only; API calls need a connection.
 See the [UI guide](ui-guide.md) and [verification commands](../README.md#verify).
 
-References: [IChatClient][chat], [structured output][output], [Signal Forms][forms].
+References: [IChatClient][chat], [structured output][output],
+[Qwen prompting guidance][prompting], [Signal Forms][forms].
 
 [chat]: https://learn.microsoft.com/en-us/dotnet/ai/ichatclient
 [output]: https://openrouter.ai/docs/guides/features/structured-outputs
+[prompting]: https://docs.qwencloud.com/developer-guides/accuracy-tuning/text-generation
 [forms]: https://angular.dev/guide/forms/signals/overview
