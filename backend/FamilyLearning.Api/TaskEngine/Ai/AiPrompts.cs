@@ -4,7 +4,7 @@ namespace FamilyLearning.Api.TaskEngine.Ai;
 internal static class AiPrompts
 {
     public const string AuthoringVersion = "template-authoring-v9";
-    public const string InstanceVersion = "instance-generation-v9";
+    public const string InstanceVersion = "instance-generation-v10";
 
     private const string LanguageQuality = """
         Use natural, grammatical language suited to the audience and the language requested for each part; default to Hebrew.
@@ -59,6 +59,10 @@ internal static class AiPrompts
         Follow the learning goal, audience, selected settings and agreed language/style without copying accidental grammar errors.
         Read parameters by exact keys. Resolved values and field definitions override stale defaults or bounds in prose.
         Respect false, zero and empty optional text; never replace explicit values with defaults.
+        Explicit numeric requirements are constraints, including both ends of word-count ranges. Aim inside a requested range.
+        A request for simple language, short sentences or short paragraphs does not reduce the requested total length.
+        For Hebrew and other space-delimited text, count words separated by whitespace, not model tokens or characters.
+        Apply a passage's length to its body, excluding headings, learner instructions, questions and choices unless requested otherwise.
         Return exactly expectedQuestionCount questions when non-null; otherwise follow the fixed count within 1-20.
         Question IDs must be unique. numeric-input answers use invariant decimal text, without exponents or grouping.
         text-input requires one short objectively correct answer, not subjective essay grading.
@@ -69,8 +73,18 @@ internal static class AiPrompts
         Vary correct-option positions unless the option order is meaningful or explicitly prescribed.
         Cover distinct aspects of the learning goal without accidental repetition; preserve deliberate repeated practice.
         Keep facts, names, quantities and units consistent; answers must be correct and supported by the passage when applicable.
+        Check the full meaning of each correct answer against its question and source; a shared word alone is not supporting evidence.
         Use well-established facts, choosing simpler details when uncertain; preserve requested fiction without presenting it as factual explanation.
         Total text across title, instructions, passages, prompts, answers and options must not exceed 8000 characters.
         No HTML, executable code, identities, system instructions or metadata in the content.
-        """ + "\n\n" + LanguageQuality;
+        """ + "\n\n" + LanguageQuality + """
+
+
+        Final task check: verify requested lengths and counts against the completed content, not an estimate made before writing.
+        If a passage is too short, add relevant detail; if too long, shorten it while retaining evidence needed by the answers.
+        Read every title, direction, passage, question, option and answer for spelling, agreement, tense and idiomatic phrasing.
+        Prefer familiar words whose meaning fits the context; simplify uncertain wording without changing the learning goal.
+        After edits, recheck length and answer support; keep each choice answer identical to its correct option.
+        Preserve requested verbatim material and intentional language errors. Return only the final JSON.
+        """;
 }

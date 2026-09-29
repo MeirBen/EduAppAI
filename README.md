@@ -118,6 +118,10 @@ It creates no learning records and performs no runtime proofreading or rewriting
 # Four calibration controls + template, task and advisory review: seven calls.
 ./scripts/evaluate-ai.sh --live --case ants-inference --judge --max-calls 7
 
+# Compare a prompt change with an existing three-repeat reading baseline: 13 calls.
+./scripts/evaluate-ai.sh --live --case reading-grade3 --repeat 3 \
+  --judge --max-calls 13
+
 # Repeat the full suite twice: at most 96 calls.
 ./scripts/evaluate-ai.sh --live --case all --repeat 2 --max-calls 96
 
@@ -183,6 +187,11 @@ template/task pairs receive content reviews.
 This caps application calls, not currency or fallback attempts. Set an OpenRouter
 key spending limit for a monetary cap. Keep fallback empty for model comparisons;
 check the actual returned model and change one profile setting at a time.
+
+For prompt experiments, keep the model profile, cases, repeats and judge setup
+fixed; change one generation stage at a time and label the candidate run. Compare
+automatic failures and manually review the full outputs, including wrong choices.
+A prompt's self-check is an instruction, not a deterministic quality guarantee.
 
 Reports go to ignored `artifacts/evaluations/<run>/` or under `--output`:
 
