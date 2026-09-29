@@ -24,6 +24,31 @@ public sealed class CalibrationTests
     public void Minimal_word_can_match_a_small_expected_phrase() =>
         Assert.True(new ExpectedHebrewIssue("question", "אפשר להסיין").Matches(Issue("question", "להסיין")));
 
+    [Theory]
+    [InlineData("אפשר להסיק שהנמלות יצאו", 1)]
+    [InlineData("אפשר להסיין שהנמלים יצאו", 1)]
+    [InlineData("אפשר להסיק שהנמלים יצאו", 0)]
+    public void Quoting_two_defects_only_credits_the_ones_changed_by_the_suggestion(string suggestion, int missing)
+    {
+        var sample = Sample with { ExpectedIssues = [Expected, new("question", "שהנמלות")] };
+        var result = new CalibrationResult(sample, new() { ContractValid = true })
+        {
+            Issues = [Issue("question", "אפשר להסיין שהנמלות יצאו") with { Suggestion = suggestion }]
+        };
+        Assert.Equal(missing, result.MissingExpectedIssueCount);
+        Assert.Equal(missing == 0, result.Passed);
+    }
+
+    [Fact]
+    public async Task Ant_control_accepts_a_correction_that_preserves_the_attached_prefix()
+    {
+        var controls = await EvaluationFiles.LoadFixtureAsync<CalibrationSample>("hebrew-review-samples.json");
+        var sample = Assert.Single(controls.Items, sample => sample.Id == "reported-ants-defects");
+        var issue = Issue("task.questions[1].prompt", "שהנמלות") with { Suggestion = "שהנמלים" };
+
+        Assert.Contains(sample.ExpectedIssues, expected => expected.Matches(issue));
+    }
+
     [Fact]
     public void Finding_expected_defects_does_not_excuse_unexpected_findings()
     {

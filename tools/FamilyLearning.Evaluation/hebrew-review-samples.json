@@ -43,7 +43,7 @@
       },
       {
         "path": "task.questions[1].prompt",
-        "quote": "הנמלות"
+        "quote": "שהנמלות"
       }
     ],
     "allowUnexpectedFindings": true

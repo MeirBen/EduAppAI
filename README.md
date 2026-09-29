@@ -243,7 +243,10 @@ Interpret the results separately:
 The stateless judge uses the same model. Its [controls](tools/FamilyLearning.Evaluation/hebrew-review-samples.json)
 cover language defects and clean text, including intentional errors and mixed
 languages. Findings must quote an existing field and use a supported kind;
-expected defects match whole tokens or short containing phrases. Extra findings
+expected defects match whole tokens or short containing phrases, and the suggestion
+must not retain the expected offending phrase. This checks detection, not whether
+the correction is linguistically valid. All controls must pass; one missed defect
+can fail a control even when its other defects were found. Extra findings
 fail controls unless explicitly permitted by the sample. A same-model reviewer
 can repeat the generator's mistakes ([judge limitations][judge-limitations]);
 retain failed generations and use human review when assessing quality.

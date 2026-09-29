@@ -122,9 +122,9 @@ public sealed record CalibrationSample(string Id, string Request, ReviewText[] T
 }
 public sealed record ExpectedHebrewIssue(string Path, string Quote)
 {
-    /// <summary>Match whole tokens or a short containing phrase on the same field; never an unrelated path.</summary>
+    /// <summary>Match whole tokens or a short containing phrase on the same field, excluding unchanged offending text.</summary>
     public bool Matches(HebrewIssue issue) => Path == issue.Path && Math.Abs(Quote.Length - issue.Quote.Length) <= 60 &&
-        (ContainsPhrase(Quote, issue.Quote) || ContainsPhrase(issue.Quote, Quote));
+        (ContainsPhrase(Quote, issue.Quote) || ContainsPhrase(issue.Quote, Quote)) && !ContainsPhrase(issue.Suggestion, Quote);
 
     private static bool ContainsPhrase(string text, string phrase)
     {
