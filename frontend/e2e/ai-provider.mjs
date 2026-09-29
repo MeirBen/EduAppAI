@@ -30,11 +30,14 @@ export async function startAiProvider() {
     assert.equal(input.model, 'nvidia/nemotron-3-super-120b-a12b:free');
     assert.equal(input.models, undefined);
     assert.deepEqual(input.reasoning, { effort: 'low', exclude: true });
-    assert.equal(input.temperature, undefined);
-    assert.equal(input.top_p, undefined);
+    assert.equal(input.temperature, 1);
+    assert.equal(input.top_p, 0.95);
     assert.equal(input.max_completion_tokens ?? input.max_tokens, 8192);
     assert.deepEqual(input.provider, { require_parameters: true });
     assert.equal(input.response_format.type, 'json_schema');
+    const schemaName = input.response_format.json_schema.name;
+    assert.match(schemaName, /^(template_authoring|instance_generation)_v[1-9]\d*$/);
+    const isAuthoring = schemaName.startsWith('template_authoring_');
     assert.equal(input.response_format.json_schema.strict, true);
     assert.equal(input.response_format.json_schema.schema.additionalProperties, false);
     assert.equal(input.tools, undefined);
@@ -45,12 +48,7 @@ export async function startAiProvider() {
       'The model must see the schema as well as the response-format constraint',
     );
     // The SDK adapts strict response-format constraints; prompt context must retain the full schema.
-    assert.deepEqual(
-      JSON.parse(schemaText),
-      input.response_format.json_schema.name === 'template_authoring_v5'
-        ? templateSchema
-        : contentSchema,
-    );
+    assert.deepEqual(JSON.parse(schemaText), isAuthoring ? templateSchema : contentSchema);
     const user = input.messages[1].content;
     assert.ok(!user.includes('browser@example.test'));
     if (user.includes('בדיקת מכסה')) {
@@ -64,7 +62,7 @@ export async function startAiProvider() {
     }
     sequence++;
     let result;
-    if (input.response_format.json_schema.name === 'template_authoring_v5') {
+    if (isAuthoring) {
       result = {
         schemaVersion: 2,
         name: 'חוקרים וקוראים',
@@ -109,7 +107,6 @@ export async function startAiProvider() {
         },
       };
     } else {
-      assert.equal(input.response_format.json_schema.name, 'instance_generation_v5');
       const { parameters, expectedQuestionCount } = JSON.parse(user);
       result = {
         title: `לומדים על ${parameters.theme}`,

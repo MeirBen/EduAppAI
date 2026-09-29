@@ -9,11 +9,13 @@
     },
     "name": {
       "type": "string",
+      "description": "Parent-facing name of the reusable template, not a finished task or passage title.",
       "minLength": 1,
       "maxLength": 100
     },
     "instanceParameters": {
       "type": "array",
+      "description": "Useful choices the parent can change each time; do not put generated learning content here.",
       "items": {
         "type": "object",
         "properties": {
@@ -100,6 +102,7 @@
       "properties": {
         "instructions": {
           "type": "string",
+          "description": "Reusable teaching instructions for the task generator: audience, language for each part, fixed requirements and how exact parameter keys affect the task. Do not generate the task here.",
           "minLength": 1,
           "maxLength": 4000
         },

@@ -18,8 +18,8 @@ const environment = {
   Ai__FallbackModel: '',
   Ai__ReasoningEnabled: 'true',
   Ai__ReasoningEffort: 'low',
-  Ai__Temperature: '',
-  Ai__TopP: '',
+  Ai__Temperature: '1.0',
+  Ai__TopP: '0.95',
   Ai__Endpoint: provider.endpoint,
   Ai__RequestTimeoutSeconds: '180',
 };

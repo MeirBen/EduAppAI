@@ -20,9 +20,13 @@ public sealed class OpenRouterConfigurationTests
     [InlineData(true, "medium", 1f, 0.95f, "test/secondary:free")]
     [InlineData(true, "low", null, null, "")]
     [InlineData(null, null, null, null, null)]
-    public async Task Configured_reasoning_and_sampling_reach_the_provider(bool? enabled, string? effort,
+    public async Task Generation_requests_preserve_settings_schema_guidance_and_unicode(bool? enabled, string? effort,
         float? temperature, float? topP, string? fallbackModel)
     {
+        const string sourceText = "שָׁלוֹם, Maya! שלום־עולם";
+        const string passage = sourceText + "\n\nA second paragraph.";
+        var generated = AiFixtures.Content();
+        generated["contentBlocks"]![0]!["text"] = passage;
         var builder = WebApplication.CreateSlimBuilder();
         builder.WebHost.UseUrls("http://127.0.0.1:0");
         builder.Logging.ClearProviders();
@@ -32,12 +36,14 @@ public sealed class OpenRouterConfigurationTests
         {
             using var body = await JsonDocument.ParseAsync(incoming.Body);
             request = body.RootElement.Clone();
+            var isInstance = request.GetProperty("response_format").GetProperty("json_schema").GetProperty("name")
+                .GetString()!.StartsWith("instance", StringComparison.Ordinal);
             return Results.Json(new
             {
                 id = "local-test",
                 model = "test:free",
                 created = 0,
-                choices = new[] { new { index = 0, message = new { role = "assistant", content = AiFixtures.Definition().ToJsonString() }, finish_reason = "stop" } }
+                choices = new[] { new { index = 0, message = new { role = "assistant", content = (isInstance ? generated : AiFixtures.Definition()).ToJsonString() }, finish_reason = "stop" } }
             });
         });
         await server.StartAsync();
@@ -77,6 +83,20 @@ public sealed class OpenRouterConfigurationTests
         Assert.Equal(topP, request.TryGetProperty("top_p", out value) ? value.GetSingle() : null);
         Assert.Equal("json_schema", request.GetProperty("response_format").GetProperty("type").GetString());
         Assert.True(request.GetProperty("provider").GetProperty("require_parameters").GetBoolean());
+        var schema = request.GetProperty("response_format").GetProperty("json_schema");
+        Assert.True(schema.GetProperty("strict").GetBoolean());
+        Assert.Contains("task generator", schema.GetProperty("schema").GetProperty("properties").GetProperty("generation")
+            .GetProperty("properties").GetProperty("instructions").GetProperty("description").GetString());
+
+        var instance = await provider.GetRequiredService<AiGenerationService>().GenerateAsync(result.Value,
+            new() { ["theme"] = JsonSerializer.SerializeToElement(sourceText), ["count"] = JsonSerializer.SerializeToElement(2) }, deadline.Token);
+        Assert.Equal(passage, Assert.Single(instance.Value.ContentBlocks).Text);
+        schema = request.GetProperty("response_format").GetProperty("json_schema");
+        Assert.True(schema.GetProperty("strict").GetBoolean());
+        Assert.Contains("learner", schema.GetProperty("schema").GetProperty("properties").GetProperty("instructions")
+            .GetProperty("description").GetString());
+        using var input = JsonDocument.Parse(request.GetProperty("messages")[1].GetProperty("content").GetString()!);
+        Assert.Equal(sourceText, input.RootElement.GetProperty("parameters").GetProperty("theme").GetString());
     }
 
     [Theory]

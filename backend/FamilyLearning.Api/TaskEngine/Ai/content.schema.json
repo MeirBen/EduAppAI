@@ -3,10 +3,12 @@
   "properties": {
     "title": {
       "type": "string",
+      "description": "Title of this generated task, consistent with its actual content.",
       "minLength": 1,
       "maxLength": 100
     },
     "instructions": {
+      "description": "Directions for the learner completing this task, in the requested language; not generation steps, parameter keys or answer-key details.",
       "type": [
         "string",
         "null"
@@ -15,6 +17,7 @@
     },
     "contentBlocks": {
       "type": "array",
+      "description": "Learning material presented before the questions; an empty array when no passage is needed.",
       "items": {
         "type": "object",
         "properties": {
@@ -26,6 +29,7 @@
           },
           "text": {
             "type": "string",
+            "description": "Passage text in the requested language. Use newline characters for requested paragraph breaks. Preserve source text exactly when verbatim reproduction is requested.",
             "minLength": 1,
             "maxLength": 4000
           }
@@ -49,6 +53,7 @@
           },
           "prompt": {
             "type": "string",
+            "description": "One question or exercise for the learner, without an added question number.",
             "minLength": 1,
             "maxLength": 500
           },
@@ -64,6 +69,7 @@
                 ]
               },
               "options": {
+                "description": "Answer texts for single-choice questions, without decorative letters or numbers; null for other interaction types.",
                 "type": [
                   "array",
                   "null"
@@ -88,6 +94,7 @@
             "properties": {
               "value": {
                 "type": "string",
+                "description": "Parent-only correct answer. For single-choice, copy the correct option exactly; for numeric-input, use invariant decimal text.",
                 "minLength": 1,
                 "maxLength": 200
               }

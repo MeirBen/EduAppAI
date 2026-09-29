@@ -35,31 +35,30 @@ template contract even with escaped Unicode; validators enforce field limits.
 
 `AiGenerationService` calls `IChatClient` without identity or database access.
 `AiSchemas` loads embedded schemas for both the system message and strict output
-format. The SDK adapts some constraints; validators remain authoritative.
+format. Field descriptions distinguish generator instructions, learner directions,
+source passages and parent-only answers. The SDK adapts some constraints;
+validators remain authoritative.
 OpenRouter requires parameter support. No tools are sent. Responses must finish
 normally and pass size/depth, required-member, unknown-field, numeric and domain
 validation before persistence.
 
-`AiPrompts` separates fixed teaching requirements from variable fields and refers
-to keys, not labels. Resolved values override defaults in prose, including false,
-zero and empty text. Prompt changes advance the metadata's prompt version.
-General quality rules belong to the engine; template instructions contain the
-learning goal, variable behavior and task-specific requirements or exceptions,
-without repeating the engine's rules. Distractor quality, answer-position variety
-and avoiding accidental repetition are task-generation defaults.
-Both prompts share terminology, register, spelling, notation and presentation
-guidance, with Hebrew interaction terms and brief agreement examples. Template
-instructions carry requested conventions forward using exact parameter keys;
-task instructions address the learner without exposing keys or generation steps.
-Task guidance covers consistency across passages, questions, choices and answers.
-The app numbers questions and lists choices, so generated text should omit
-decorative numbers and letters while preserving them as learning material.
-This is one generation call, without a translation or proofreading service.
-The guidance steers the model; validators check structure and bounds, not fluency.
-Prompt changes apply to new AI output, never rewrite saved
-snapshots. Generate directly in the requested language. An automatic translation
-step would add latency and can change verbatim text, language exercises and
-answer/option relationships; it requires separate quality evaluation.
+`AiPrompts` owns shared language, presentation and question-quality guidance.
+Templates retain the learning goal, variable behavior and requested conventions,
+without repeating general engine rules. Instructions reference exact parameter
+keys and select values; resolved values override stale defaults, including false,
+zero and empty text. Language applies per part, allowing bilingual tasks and
+unchanged quoted source text. Learner directions omit keys and generation steps.
+The app numbers questions and lists choices; generated text should omit decorative
+labels while preserving letters/numbers used as learning material. Quality guidance
+covers factual consistency, plausible distractors and varied answer positions,
+with exceptions for requested fiction, ordered choices and deliberate repetition.
+
+Each operation makes one AI call. Language and educational quality checks are
+prompt guidance; validators enforce structure and bounds, not fluency or truth.
+There is no translation or proofreading service. Such a step adds latency and
+can change verbatim text, language exercises and answer/option relationships;
+it requires separate quality evaluation. Prompt changes advance the metadata's
+prompt version and affect new output, never saved snapshots.
 
 Publication atomically saves a revision and current pointer, guarded by
 `expectedVersion`, an EF concurrency token and a unique revision index. Joined
@@ -79,9 +78,9 @@ return 404 before content reads or AI calls. Authenticated API responses use
 AI has a configurable three-minute deadline, two concurrent calls per process
 and ten requests per family per minute. Cancellation reaches the provider and
 always releases capacity. Transport timeout adds five seconds so application
-cancellation wins. Requests use the configured free model, enable low-effort
-reasoning and leave sampling to the provider. Model selection is documented in
-[AI configuration](../README.md#ai-configuration). Reasoning and
+cancellation wins. The default configuration pins a free model, enables low-effort
+reasoning and sets sampling from that model's guide. Model selection is documented
+in [AI configuration](../README.md#ai-configuration). Reasoning and
 sampling settings belong to the OpenRouter adapter; generation owns schemas and
 validation. Configuration can pin a free model or override generation settings.
 Excluding reasoning from responses alone does not reduce computation. Requests
