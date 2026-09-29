@@ -11,10 +11,13 @@ for tool in dotnet node npm; do
 done
 dotnet --version >/dev/null
 if [[ ! -x frontend/node_modules/.bin/ng ]]; then npm --prefix frontend ci; fi
+# Build before starting the API watcher: both projects share the backend dependency.
+dotnet build tools/FamilyLearning.Evaluation
 
 printf '\nStarting Family Learning with automatic reload.\n'
-printf 'App: http://localhost:4200\nAPI: http://localhost:5124\n'
-printf 'Save code changes to reload; press Ctrl+C to stop both servers.\n\n'
+printf 'App: http://localhost:4200\nAPI: http://localhost:5124\nEvaluation: http://127.0.0.1:5180\n'
+printf 'Evaluation starts without AI calls; confirm runs in its dashboard.\n'
+printf 'Press Ctrl+C to stop all three servers.\n\n'
 
 # Separate process groups let cleanup stop the watchers and their child servers together.
 set -m
@@ -37,6 +40,9 @@ DOTNET_WATCH_SUPPRESS_LAUNCH_BROWSER=1 \
 server_pids+=("$!")
 npm --prefix frontend start </dev/null &
 server_pids+=("$!")
+DOTNET_ENVIRONMENT="${DOTNET_ENVIRONMENT:-Development}" \
+  dotnet run --no-build --project tools/FamilyLearning.Evaluation --no-launch-profile -- --ui </dev/null &
+server_pids+=("$!")
 
-# If either watcher exits, stop its partner and return the watcher's exit status.
+# If any server exits, stop the others and return its exit status.
 wait -n "${server_pids[@]}"

@@ -24,10 +24,11 @@ must have 12–256 characters with upper/lowercase, a number and a symbol. Each
 provisioned parent gets a family. There is no default account or public
 registration.
 
-`dev.sh` installs missing client dependencies and runs both reload watchers.
-**Ctrl+C** stops both. Restart after configuration changes; run
-`npm --prefix frontend ci` after dependency changes. Angular proxies `/api` to
-`http://localhost:5124`. Use `localhost` consistently for cookies. Development
+`dev.sh` installs missing client dependencies, runs the API/client reload watchers
+and starts the evaluation dashboard at <http://127.0.0.1:5180> without AI calls.
+**Ctrl+C** stops all three. Restart after configuration or evaluation-tool changes.
+Run `npm --prefix frontend ci` after dependency changes. Angular proxies `/api`
+to `http://localhost:5124`. Use `localhost` consistently for cookies. Development
 applies migrations automatically and starts with an empty learning library.
 
 ## AI configuration
