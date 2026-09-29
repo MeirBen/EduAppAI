@@ -139,6 +139,19 @@
 }
 
 @layer components {
+  /* Keep navigation available where it leaves enough room for reading and focus. */
+  @media (min-width: 64rem) and (min-height: 40rem) {
+    :root {
+      scroll-padding-block-start: 6rem;
+    }
+
+    .app-header {
+      position: sticky;
+      inset-block-start: 0;
+      z-index: 20;
+    }
+  }
+
   .button {
     @apply inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-transparent bg-brand px-gutter py-3 text-center font-medium text-white no-underline shadow-button transition-[background-color,border-color,translate] duration-150 not-disabled:hover:bg-brand-hover motion-safe:not-disabled:hover:-translate-y-0.5 motion-safe:not-disabled:active:translate-y-0 disabled:opacity-60;
     line-height: 1.5;
@@ -154,13 +167,13 @@
     @apply inline-flex min-h-11 items-center gap-2 rounded-md py-2 font-medium text-brand decoration-2 not-disabled:hover:underline;
   }
   .panel {
-    @apply rounded-3xl border border-line bg-surface p-gutter shadow-panel sm:p-8;
+    @apply rounded-3xl border border-line bg-surface p-gutter shadow-panel sm:p-6;
   }
   .badge {
     @apply inline-flex items-center gap-1.5 rounded-full bg-soft px-3 py-1 text-sm font-medium text-brand;
   }
   .field {
-    @apply my-6;
+    @apply my-4;
   }
   .field-error {
     @apply mt-2 text-sm text-danger;

@@ -9,6 +9,7 @@ async function checkNarrowLayout(page: Page, name: string) {
   await page.screenshot({ path: `../artifacts/${name}-mobile.png`, fullPage: true });
   await page.locator('footer').scrollIntoViewIfNeeded();
   await expect(page.locator('footer')).toBeInViewport();
+  await expect(page.getByRole('banner')).not.toBeInViewport();
   await page.evaluate(() => window.scrollTo(0, 0));
   await page.evaluate(() => (document.documentElement.style.fontSize = '100%'));
   await page.setViewportSize({ width: 1440, height: 1000 });
@@ -105,6 +106,18 @@ test('a parent prompt becomes an editable reusable template and distinct frozen 
   await expect(page.getByRole('link', { name: 'יצירת תרגול: קוראים ומגלים' })).toBeVisible();
   await checkNarrowLayout(page, 'library');
   await page.screenshot({ path: '../artifacts/library-desktop.png', fullPage: true });
+  await page.locator('footer').scrollIntoViewIfNeeded();
+  expect(await page.evaluate(() => scrollY)).toBeGreaterThan(0);
+  await expect(page.getByRole('banner')).toBeInViewport({ ratio: 1 });
+  const createPractice = page.getByRole('link', { name: 'יצירת תרגול: קוראים ומגלים' });
+  await createPractice.evaluate((element) => element.scrollIntoView({ block: 'start' }));
+  const header = await page.getByRole('banner').boundingBox();
+  expect((await createPractice.boundingBox())!.y).toBeGreaterThan(header!.y + header!.height);
+  await page.screenshot({ path: '../artifacts/library-scrolled-desktop.png' });
+  await page.setViewportSize({ width: 1280, height: 480 });
+  await page.locator('footer').scrollIntoViewIfNeeded();
+  await expect(page.getByRole('banner')).not.toBeInViewport();
+  await page.setViewportSize({ width: 1440, height: 1000 });
   await page.getByRole('button', { name: 'יציאה מהחשבון', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'טוב שחזרתם' })).toBeVisible();
   expect(errors).toEqual([]);

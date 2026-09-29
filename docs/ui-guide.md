@@ -6,8 +6,10 @@ parent labels keep their original language and values.
 
 ## Layout and controls
 
-- Use native HTML, document scrolling and accessible controls. Keep the header
-  scrollable and include the skip link.
+- Use native HTML, document scrolling and accessible controls. The header stays
+  visible on screens at least 64rem wide and 40rem tall; let it scroll away on
+  smaller screens. Reserve scroll padding for focus targets and include the
+  skip link.
 - Use Tailwind theme tokens from `frontend/src/styles.css`; shared controls live
   there and page layout uses template utilities. Keep the light green theme,
   visible focus/error states and locally bundled Heebo. Avoid another UI layer.
