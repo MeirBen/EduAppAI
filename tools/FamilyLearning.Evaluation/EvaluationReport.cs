@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using FamilyLearning.Api.TaskEngine.Ai;
 
 namespace FamilyLearning.Evaluation;
@@ -12,27 +13,43 @@ public sealed record EvaluationCase(string Id, string Prompt, string ReviewFocus
 public sealed class EvaluationReport(EvaluationCase[] cases, int repeat, string suiteSha256,
     Dictionary<string, string?> profile)
 {
-    public int FormatVersion => 1;
-    public DateTime StartedAtUtc { get; } = DateTime.UtcNow;
+    public const int CurrentFormatVersion = 2;
+    [JsonRequired] public int FormatVersion { get; init; } = CurrentFormatVersion;
+    public DateTime StartedAtUtc { get; init; } = DateTime.UtcNow;
     public DateTime? FinishedAtUtc { get; set; }
-    public string Status { get; set; } = "running";
+    [JsonRequired] public string Status { get; set; } = "running";
     public string SuiteSha256 { get; } = suiteSha256;
     public Dictionary<string, string?> Profile { get; } = profile;
     public EvaluationCase[] Cases { get; } = cases;
     public int Repeat { get; } = repeat;
-    public bool JudgeEnabled { get; init; }
+    [JsonRequired] public string CalibrationSha256 { get; init; } = "";
+    [JsonRequired] public CalibrationSample[] CalibrationSamples { get; init; } = [];
+    [JsonRequired] public string JudgePromptVersion { get; init; } = HebrewJudge.Version;
+    [JsonRequired] public string JudgePrompt { get; init; } = HebrewJudge.Instructions;
+    [JsonRequired] public bool JudgeEnabled { get; init; }
     public int MaxCalls { get; init; } = 100;
-    public int PlannedCalls => Cases.Length * Repeat * (JudgeEnabled ? 3 : 2) + (JudgeEnabled ? 2 : 0);
-    public List<CalibrationResult> Calibration { get; } = [];
-    public List<EvaluationResult> Results { get; } = [];
+    public int PlannedCalls => CountCalls(Cases.Length, Repeat, JudgeEnabled ? CalibrationSamples.Length : 0);
+    [JsonRequired] public List<CalibrationResult> Calibration { get; init; } = [];
+    [JsonRequired] public List<EvaluationResult> Results { get; init; } = [];
     public int AttemptedCalls => Steps.Count(step => step.RequestSent);
     public int AutomaticPasses => Results.Count(result => result.Generation?.ContractValid == true && result.Checks.Values.All(value => value));
     public int CallsWithReportedCost => Steps.Count(step => step.CostCredits.HasValue);
-    public decimal ReportedCostCredits => Steps.Sum(step => step.CostCredits ?? 0);
-    public bool JudgeChecksPassed => !JudgeEnabled || Calibration.Count == 2 && Calibration.All(result => result.Passed) &&
-        Results.All(result => result.Judge?.ContractValid == true && result.Issues is { Length: 0 });
-    private IEnumerable<EvaluationStep> Steps => Calibration.Select(result => result.Call).Concat(
+    public decimal? ReportedCostCredits => CallsWithReportedCost == 0 ? null : Steps.Sum(step => step.CostCredits ?? 0);
+    /// <summary>Null means disabled or unfinished, never a pass. Content findings do not affect calibration.</summary>
+    public bool? JudgeCalibrationPassed => !JudgeEnabled || Calibration.Count != CalibrationSamples.Length ||
+        Calibration.Any(result => result.Call.FinishedAtUtc is null) ? null : Calibration.All(result => result.Passed);
+    public int CalibrationFailureCount => Calibration.Count(result => result.Call.FinishedAtUtc is not null && !result.Passed);
+    public int GeneratedHebrewIssueCount => GeneratedIssues.Count();
+    public bool HasHebrewFindings => GeneratedHebrewIssueCount > 0;
+    [JsonIgnore]
+    public IEnumerable<HebrewIssue> GeneratedIssues => Results.Where(result => result.Judge?.ContractValid == true)
+        .SelectMany(result => result.Issues ?? []);
+    [JsonIgnore]
+    public IEnumerable<EvaluationStep> Steps => Calibration.Select(result => result.Call).Concat(
         Results.SelectMany(result => new[] { result.Authoring, result.Generation, result.Judge }).OfType<EvaluationStep>());
+
+    public static int CountCalls(int caseCount, int repeat, int calibrationCount) =>
+        caseCount * repeat * (calibrationCount > 0 ? 3 : 2) + calibrationCount;
 }
 
 /// <summary>One independent authoring-to-instance run; generation is absent if authoring fails.</summary>
@@ -45,16 +62,18 @@ public sealed class EvaluationResult(string caseId, int repetition)
     public EvaluationStep? Judge { get; set; }
     public HebrewIssue[]? Issues { get; set; }
     public Dictionary<string, JsonElement>? Parameters { get; set; }
-    public Dictionary<string, bool> Checks { get; } = [];
-    public ManualReview Review { get; } = new();
+    [JsonRequired] public Dictionary<string, bool> Checks { get; init; } = [];
+    [JsonRequired] public ManualReview Review { get; init; } = new();
 }
 
 /// <summary>Only final content and whitelisted diagnostics are retained, including rejected outputs.</summary>
 public sealed class EvaluationStep
 {
-    public DateTime StartedAtUtc { get; } = DateTime.UtcNow;
-    public bool RequestSent { get; set; }
-    public double ElapsedMilliseconds { get; set; }
+    public DateTime StartedAtUtc { get; init; } = DateTime.UtcNow;
+    [JsonRequired] public DateTime? FinishedAtUtc { get; set; }
+    [JsonRequired] public bool RequestSent { get; set; }
+    [JsonRequired] public bool ResponseReceived { get; set; }
+    [JsonRequired] public double ElapsedMilliseconds { get; set; }
     public EvaluationMessage[] Request { get; set; } = [];
     public string? SchemaName { get; set; }
     public string? Output { get; set; }
@@ -66,7 +85,7 @@ public sealed class EvaluationStep
     public long? ReasoningTokens { get; set; }
     public decimal? CostCredits { get; set; }
     public GenerationMetadata? Metadata { get; set; }
-    public bool ContractValid { get; set; }
+    [JsonRequired] public bool ContractValid { get; set; }
     public int? StatusCode { get; set; }
     public string? Failure { get; set; }
 }
@@ -74,13 +93,36 @@ public sealed class EvaluationStep
 public sealed record EvaluationMessage(string Role, string Text);
 
 /// <summary>Fixed human-labelled controls measure known error detection and false alarms, not general judge accuracy.</summary>
-public sealed record CalibrationSample(string Id, string Request, ReviewText[] Texts, string[] ExpectedQuotes);
+public sealed record CalibrationSample(string Id, string Request, ReviewText[] Texts,
+    ExpectedHebrewIssue[] ExpectedIssues, bool AllowUnexpectedFindings = false);
+public sealed record ExpectedHebrewIssue(string Path, string Quote)
+{
+    /// <summary>Match whole tokens or a short containing phrase on the same field; never an unrelated path.</summary>
+    public bool Matches(HebrewIssue issue) => Path == issue.Path && Math.Abs(Quote.Length - issue.Quote.Length) <= 60 &&
+        (ContainsPhrase(Quote, issue.Quote) || ContainsPhrase(issue.Quote, Quote));
+
+    private static bool ContainsPhrase(string text, string phrase)
+    {
+        if (string.IsNullOrWhiteSpace(phrase)) return false;
+        for (var start = 0; start <= text.Length - phrase.Length; start++)
+        {
+            if (text.AsSpan(start).StartsWith(phrase, StringComparison.Ordinal) &&
+                (start == 0 || !IsWordCharacter(text[start - 1])) &&
+                (start + phrase.Length == text.Length || !IsWordCharacter(text[start + phrase.Length]))) return true;
+        }
+        return false;
+    }
+
+    private static bool IsWordCharacter(char value) => char.IsLetterOrDigit(value) ||
+        char.GetUnicodeCategory(value) == System.Globalization.UnicodeCategory.NonSpacingMark;
+}
 public sealed record CalibrationResult(CalibrationSample Sample, EvaluationStep Call)
 {
     public HebrewIssue[]? Issues { get; set; }
-    public bool Passed => Call.ContractValid && Issues is not null && (Sample.ExpectedQuotes.Length == 0
-        ? Issues.Length == 0
-        : Sample.ExpectedQuotes.All(expected => Issues.Any(issue => issue.Quote.Contains(expected, StringComparison.Ordinal))));
+    public int MissingExpectedIssueCount => Sample.ExpectedIssues.Count(expected => Issues?.Any(expected.Matches) != true);
+    public int UnexpectedFindingCount => Issues?.Count(issue => !Sample.ExpectedIssues.Any(expected => expected.Matches(issue))) ?? 0;
+    public bool Passed => Call.ContractValid && Issues is not null && MissingExpectedIssueCount == 0 &&
+        (Sample.AllowUnexpectedFindings || UnexpectedFindingCount == 0);
 }
 
 /// <summary>Reviewer fills 0 (unusable), 1 (needs edits), 2 (ready); null means not reviewed.</summary>
@@ -93,4 +135,15 @@ public sealed class ManualReview
     public int? AnswerClarity { get; set; }
     public int? Consistency { get; set; }
     public string? Notes { get; set; }
+
+    /// <summary>Stable rubric keys shared by score validation and comparison; null remains unreviewed.</summary>
+    public Dictionary<string, int?> Scores() => new()
+    {
+        ["hebrew"] = Hebrew,
+        ["correctness"] = Correctness,
+        ["ageFit"] = AgeFit,
+        ["adherence"] = Adherence,
+        ["answerClarity"] = AnswerClarity,
+        ["consistency"] = Consistency
+    };
 }

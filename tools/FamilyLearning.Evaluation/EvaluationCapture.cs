@@ -20,6 +20,7 @@ internal sealed class EvaluationCapture(IChatClient innerClient, int maxCalls) :
         calls++;
         Current.RequestSent = true;
         var response = await base.GetResponseAsync(request, options, cancellationToken);
+        Current.ResponseReceived = true;
         Current.Output = response.Text;
         Current.Model = response.ModelId;
         Current.ResponseId = response.ResponseId;

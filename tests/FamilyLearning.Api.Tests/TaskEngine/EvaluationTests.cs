@@ -31,6 +31,11 @@ public sealed class EvaluationTests : IDisposable
         Assert.NotEmpty(result.Authoring.Request[0].Text);
         Assert.Null(result.Authoring.CostCredits);
         Assert.True(File.Exists(Path.Combine(directory, "run.json")));
+        Assert.True(File.Exists(Path.Combine(directory, "summary.json")));
+        Assert.Equal(64, report.CalibrationSha256.Length);
+        Assert.Equal(HebrewJudge.Version, report.JudgePromptVersion);
+        var reloaded = await EvaluationFiles.ReadReportAsync(Path.Combine(directory, "run.json"));
+        Assert.Equal(report.CalibrationSha256, reloaded.CalibrationSha256);
     }
 
     [Fact]
@@ -81,6 +86,9 @@ public sealed class EvaluationTests : IDisposable
         Assert.Equal("cancelled", Assert.Single(report.Results).Authoring!.Failure);
         using var saved = JsonDocument.Parse(await File.ReadAllTextAsync(Path.Combine(directory, "run.json")));
         Assert.Equal("cancelled", saved.RootElement.GetProperty("status").GetString());
+        using var summary = JsonDocument.Parse(await File.ReadAllTextAsync(Path.Combine(directory, "summary.json")));
+        Assert.Equal("cancelled", summary.RootElement.GetProperty("status").GetString());
+        Assert.Null(summary.RootElement.GetProperty("costCredits").GetProperty("knownTotal").GetString());
     }
 
     [Fact]
@@ -121,7 +129,7 @@ public sealed class EvaluationTests : IDisposable
         var options = EvaluationOptions.Parse(["--case", "all", "--max-calls", "4"]);
         Assert.False(options.Live);
         Assert.Throws<ArgumentException>(() => options.ValidateCallBudget(16));
-        Assert.Equal(5, EvaluationOptions.Parse(["--judge", "--max-calls", "5"]).ValidateCallBudget(1));
+        Assert.Equal(7, EvaluationOptions.Parse(["--judge", "--max-calls", "7"]).ValidateCallBudget(1, 4));
     }
 
     [Fact]
@@ -130,16 +138,19 @@ public sealed class EvaluationTests : IDisposable
         var definition = AiFixtures.Definition();
         var content = AiFixtures.Content();
         content["questions"]![0]!["prompt"] = "מה אפשר להסיין?";
-        using var chat = new AiFixtures.ScriptedChat(
-            """{"issues":[{"path":"task.questions[0].prompt","quote":"להסיין","suggestion":"להסיק","reason":"שגיאת כתיב"},{"path":"task.passage","quote":"הנמלות","suggestion":"הנמלים","reason":"צורת רבים שגויה"}]}""",
-            """{"issues":[]}""", definition.ToJsonString(), content.ToJsonString(),
-            """{"issues":[{"path":"task.questions[0].prompt","quote":"להסיין","suggestion":"להסיק","reason":"שגיאת כתיב"}]}""");
+        var responses = await CalibrationResponsesAsync();
+        responses.AddRange([definition.ToJsonString(), content.ToJsonString(),
+            """{"issues":[{"path":"task.questions[0].prompt","quote":"להסיין","suggestion":"להסיק","reason":"שגיאת כתיב","kind":"invented-word"}]}"""]);
+        using var chat = new AiFixtures.ScriptedChat(responses.ToArray());
         var report = await RunAsync(chat, judge: true);
 
-        Assert.Equal(5, report.AttemptedCalls);
-        Assert.Equal(5, report.PlannedCalls);
+        Assert.Equal(responses.Count, report.AttemptedCalls);
+        Assert.Equal(responses.Count, report.PlannedCalls);
         Assert.All(report.Calibration, result => Assert.True(result.Passed));
-        Assert.False(report.JudgeChecksPassed);
+        Assert.True(report.JudgeCalibrationPassed);
+        Assert.Equal(0, report.CalibrationFailureCount);
+        Assert.True(report.HasHebrewFindings);
+        Assert.Equal(1, report.GeneratedHebrewIssueCount);
         Assert.Equal(1, report.AutomaticPasses);
         var result = Assert.Single(report.Results);
         Assert.Equal("להסיין", Assert.Single(result.Issues!).Quote);
@@ -151,22 +162,25 @@ public sealed class EvaluationTests : IDisposable
     [Fact]
     public async Task Judge_calibration_exposes_misses_and_false_alarms()
     {
-        using var chat = new AiFixtures.ScriptedChat("""{"issues":[]}""",
-            """{"issues":[{"path":"task.questions[0].options[1]","quote":"שלושה ילדות","suggestion":"שלוש ילדות","reason":"התאמת מספר"}]}""",
-            AiFixtures.Definition().ToJsonString(), AiFixtures.Content().ToJsonString(), """{"issues":[]}""");
+        var responses = await CalibrationResponsesAsync();
+        responses[0] = """{"issues":[]}""";
+        responses[^1] = """{"issues":[{"path":"task.questions[0].options[1]","quote":"שלושה ילדות","suggestion":"שלוש ילדות","reason":"התאמת מספר","kind":"agreement"}]}""";
+        responses.AddRange([AiFixtures.Definition().ToJsonString(), AiFixtures.Content().ToJsonString(), """{"issues":[]}"""]);
+        using var chat = new AiFixtures.ScriptedChat(responses.ToArray());
         var report = await RunAsync(chat, judge: true);
 
-        Assert.All(report.Calibration, result => Assert.False(result.Passed));
-        Assert.False(report.JudgeChecksPassed);
+        Assert.Equal(2, report.CalibrationFailureCount);
+        Assert.False(report.JudgeCalibrationPassed);
+        Assert.False(report.HasHebrewFindings);
     }
 
     [Theory]
     [InlineData("{}")] // Missing issues is not a clean review.
     [InlineData("{\"issues\":null}")]
     [InlineData("{\"issues\":[null]}")]
-    [InlineData("""{"issues":[{"path":"missing","quote":"להסיין","suggestion":"להסיק","reason":"כתיב"}]}""")]
-    [InlineData("""{"issues":[{"path":"question","quote":"מילה שלא הופיעה","suggestion":"להסיק","reason":"כתיב"}]}""")]
-    [InlineData("""{"issues":[{"path":"question","quote":"להסיין","suggestion":"להסיין","reason":"כתיב"}]}""")]
+    [InlineData("""{"issues":[{"path":"missing","quote":"להסיין","suggestion":"להסיק","reason":"כתיב","kind":"spelling"}]}""")]
+    [InlineData("""{"issues":[{"path":"question","quote":"מילה שלא הופיעה","suggestion":"להסיק","reason":"כתיב","kind":"spelling"}]}""")]
+    [InlineData("""{"issues":[{"path":"question","quote":"להסיין","suggestion":"להסיין","reason":"כתיב","kind":"spelling"}]}""")]
     public async Task Judge_rejects_unverifiable_findings(string response)
     {
         using var chat = new AiFixtures.ScriptedChat(response);
@@ -174,14 +188,56 @@ public sealed class EvaluationTests : IDisposable
             [new("question", "מה אפשר להסיין?")], 8192, CancellationToken.None));
     }
 
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("style")]
+    [InlineData("Spelling")]
+    public async Task Judge_rejects_missing_or_unknown_issue_kinds(string? kind)
+    {
+        var response = JsonSerializer.Serialize(new { issues = new[] { new { path = "question", quote = "להסיין", suggestion = "להסיק", reason = "כתיב", kind } } });
+        using var chat = new AiFixtures.ScriptedChat(response);
+        await Assert.ThrowsAsync<AiGenerationException>(() => HebrewJudge.ReviewAsync(chat, "בקשה",
+            [new("question", "מה אפשר להסיין?")], 8192, CancellationToken.None));
+    }
+
+    [Theory]
+    [InlineData("spelling")]
+    [InlineData("invented-word")]
+    [InlineData("agreement")]
+    [InlineData("grammar-syntax")]
+    [InlineData("language-mixing")]
+    [InlineData("non-idiomatic")]
+    public async Task Judge_accepts_only_the_documented_issue_vocabulary(string kind)
+    {
+        var response = JsonSerializer.Serialize(new { issues = new[] { new { path = "question", quote = "להסיין", suggestion = "להסיק", reason = "כתיב", kind } } });
+        using var chat = new AiFixtures.ScriptedChat(response);
+        var result = await HebrewJudge.ReviewAsync(chat, "בקשה", [new("question", "מה אפשר להסיין?")], 8192, CancellationToken.None);
+        Assert.Equal(kind, Assert.Single(result.Value.Issues).Kind);
+    }
+
     private async Task<EvaluationReport> RunAsync(IChatClient chat, EvaluationCase? scenario = null,
         int repeat = 1, CancellationToken ct = default, bool judge = false, int maxCalls = 100)
     {
         Directory.CreateDirectory(directory);
+        var controls = await EvaluationFiles.LoadFixtureAsync<CalibrationSample>("hebrew-review-samples.json");
         var report = new EvaluationReport([scenario ?? Case], repeat, "test-suite", new Dictionary<string, string?>())
-        { JudgeEnabled = judge, MaxCalls = maxCalls };
+        {
+            JudgeEnabled = judge,
+            MaxCalls = maxCalls,
+            CalibrationSha256 = controls.Sha256,
+            CalibrationSamples = controls.Items
+        };
         await EvaluationRunner.RunAsync(chat, new AiGenerationOptions(), report, directory, ct);
         return report;
+    }
+
+    private static async Task<List<string>> CalibrationResponsesAsync()
+    {
+        var controls = await EvaluationFiles.LoadFixtureAsync<CalibrationSample>("hebrew-review-samples.json");
+        return controls.Items.Select(sample => JsonSerializer.Serialize(new HebrewReview(sample.ExpectedIssues.Select(expected =>
+            new HebrewIssue(expected.Path, expected.Quote, "נוסח מתוקן", "ליקוי לשוני", "grammar-syntax")).ToArray()),
+            new JsonSerializerOptions(JsonSerializerDefaults.Web))).ToList();
     }
 
     public void Dispose()

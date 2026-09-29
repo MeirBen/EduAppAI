@@ -1,6 +1,5 @@
 using System.ClientModel;
 using System.Diagnostics;
-using System.Text.Encodings.Web;
 using System.Text.Json;
 using FamilyLearning.Api.TaskEngine.Ai;
 using FamilyLearning.Api.TaskEngine.Models;
@@ -14,13 +13,6 @@ namespace FamilyLearning.Evaluation;
 /// <summary>Exercises the app's prompts, schemas and validators without HTTP endpoints, identity or persistence.</summary>
 public static class EvaluationRunner
 {
-    internal static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web)
-    {
-        WriteIndented = true,
-        // Local JSON files, never interpolated into HTML; keep Hebrew readable for reviewers.
-        Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping
-    };
-
     /// <summary>Runs sequentially without retries, checkpointing each stage. Cancellation retains partial results.</summary>
     public static async Task RunAsync(IChatClient client, AiGenerationOptions options, EvaluationReport report,
         string directory, CancellationToken ct)
@@ -32,9 +24,7 @@ public static class EvaluationRunner
         {
             if (report.JudgeEnabled)
             {
-                var samples = JsonSerializer.Deserialize<CalibrationSample[]>(
-                    await File.ReadAllTextAsync(Path.Combine(AppContext.BaseDirectory, "hebrew-review-samples.json"), ct), Json)!;
-                foreach (var sample in samples)
+                foreach (var sample in report.CalibrationSamples)
                 {
                     ct.ThrowIfCancellationRequested();
                     Console.WriteLine($"Judge calibration: {sample.Id}");
@@ -133,16 +123,14 @@ public static class EvaluationRunner
                 if (step.StatusCode == 429) throw new AiGenerationException(429, "rate-limited");
                 return null;
             }
-            finally { step.ElapsedMilliseconds = Stopwatch.GetElapsedTime(started).TotalMilliseconds; }
+            finally
+            {
+                step.ElapsedMilliseconds = Stopwatch.GetElapsedTime(started).TotalMilliseconds;
+                step.FinishedAtUtc = DateTime.UtcNow;
+            }
         }
 
-        async Task SaveAsync()
-        {
-            // No cancellation token: preserve diagnostics even when Ctrl+C cancels the provider call.
-            var path = Path.Combine(directory, "run.json");
-            await File.WriteAllTextAsync(path + ".tmp", JsonSerializer.Serialize(report, Json));
-            File.Move(path + ".tmp", path, overwrite: true);
-        }
+        Task SaveAsync() => EvaluationFiles.SaveAsync(report, directory);
     }
 
     private static void CheckContent(EvaluationCase scenario, TaskContent content, Dictionary<string, bool> checks)

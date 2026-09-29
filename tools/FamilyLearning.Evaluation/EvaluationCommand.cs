@@ -1,4 +1,3 @@
-using System.Security.Cryptography;
 using System.Text.Json;
 using FamilyLearning.Api.Infrastructure.Ai;
 using FamilyLearning.Api.TaskEngine.Ai;
@@ -18,12 +17,21 @@ public static class EvaluationCommand
     {
         try
         {
+            if (args.Length > 0 && args[0] == "--compare")
+            {
+                if (args.Length != 3) throw new ArgumentException("Compare requires exactly two run.json paths.");
+                var comparison = await EvaluationComparison.ReadAsync(args[1], args[2]);
+                Console.WriteLine(JsonSerializer.Serialize(comparison, EvaluationFiles.Json));
+                return comparison.DirectlyComparable ? 0 : 1;
+            }
             var options = EvaluationOptions.Parse(args);
-            var suite = await File.ReadAllBytesAsync(Path.Combine(AppContext.BaseDirectory, "cases.json"));
-            var cases = JsonSerializer.Deserialize<EvaluationCase[]>(suite, EvaluationRunner.Json)!;
+            var suite = await EvaluationFiles.LoadFixtureAsync<EvaluationCase>("cases.json");
+            var controls = await EvaluationFiles.LoadFixtureAsync<CalibrationSample>("hebrew-review-samples.json");
+            EvaluationFiles.ValidateCalibrationSamples(controls.Items);
+            var cases = suite.Items;
             if (options.Case != "all") cases = cases.Where(scenario => scenario.Id == options.Case).ToArray();
             if (cases.Length == 0) throw new ArgumentException("Unknown case. Use --case all to list the suite.");
-            var calls = options.PlannedCalls(cases.Length);
+            var calls = options.PlannedCalls(cases.Length, controls.Items.Length);
             Console.WriteLine($"{cases.Length} cases × {options.Repeat} repeats; at most {calls} API calls (budget {options.MaxCalls}).");
             foreach (var scenario in cases) Console.WriteLine($"  {scenario.Id}: {scenario.ReviewFocus}");
             if (!options.Live)
@@ -31,7 +39,7 @@ public static class EvaluationCommand
                 Console.WriteLine("Preview only. Add --live to make billable calls using the app's Ai configuration.");
                 return 0;
             }
-            options.ValidateCallBudget(cases.Length);
+            options.ValidateCallBudget(cases.Length, controls.Items.Length);
 
             // Compose only the shared AI adapter, never the web host, authentication or database.
             var builder = Host.CreateApplicationBuilder(new HostApplicationBuilderSettings
@@ -45,9 +53,14 @@ public static class EvaluationCommand
             var client = host.Services.GetService<IChatClient>() ??
                 throw new ArgumentException("Configure the app's OpenRouter API key before using --live.");
             var aiOptions = host.Services.GetRequiredService<IOptions<AiGenerationOptions>>().Value;
-            var report = new EvaluationReport(cases, options.Repeat, Convert.ToHexString(SHA256.HashData(suite)),
+            var report = new EvaluationReport(cases, options.Repeat, suite.Sha256,
                 CaptureProfile(builder.Configuration, aiOptions))
-            { JudgeEnabled = options.Judge, MaxCalls = options.MaxCalls };
+            {
+                JudgeEnabled = options.Judge,
+                MaxCalls = options.MaxCalls,
+                CalibrationSha256 = controls.Sha256,
+                CalibrationSamples = controls.Items
+            };
             var directory = Path.GetFullPath(Path.Combine(options.Output, $"{DateTime.UtcNow:yyyyMMddTHHmmssZ}-{Guid.NewGuid():N}"));
             Directory.CreateDirectory(directory);
             Console.WriteLine($"Model: {report.Profile["Model"]}; report: {Path.Combine(directory, "run.json")}");
@@ -56,19 +69,37 @@ public static class EvaluationCommand
             Console.CancelKeyPress += cancel;
             try { await EvaluationRunner.RunAsync(client, aiOptions, report, directory, cancellation.Token); }
             finally { Console.CancelKeyPress -= cancel; }
-            Console.WriteLine($"{report.Status}: {report.AutomaticPasses}/{cases.Length * options.Repeat} automatic passes; Hebrew quality needs review.");
-            Console.WriteLine($"Reported cost: {report.ReportedCostCredits} credits for {report.CallsWithReportedCost}/{report.AttemptedCalls} calls; missing costs are unknown.");
-            return report.Status == "cancelled" ? 130 : report.Status == "completed" &&
-                report.AutomaticPasses == cases.Length * options.Repeat && report.JudgeChecksPassed ? 0 : 1;
+            var summary = EvaluationSummary.Create(report);
+            PrintSummary(summary);
+            if (report.Status == "cancelled") return 130;
+            return report.Status == "completed" && report.AutomaticPasses == summary.PlannedCaseRuns &&
+                (!report.JudgeEnabled || report.JudgeCalibrationPassed == true &&
+                    summary.GeneratedContentReviews.Succeeded == summary.PlannedCaseRuns && !report.HasHebrewFindings) ? 0 : 1;
         }
         catch (Exception exception) when (exception is ArgumentException or InvalidOperationException or
             OptionsValidationException or IOException or UnauthorizedAccessException or JsonException)
         {
             // Configuration/IO exceptions can contain secret values or paths; don't print their bodies.
-            Console.Error.WriteLine("Evaluation could not start or save its report. Check arguments, AI configuration and output permissions.");
+            Console.Error.WriteLine(args.Length > 0 && args[0] == "--compare"
+                ? "Cannot compare reports. Check file paths, format version 2 and human scores (0, 1, 2 or null)."
+                : "Evaluation could not start or save its report. Check arguments, AI configuration and output permissions.");
             Console.Error.WriteLine("Usage: evaluate-ai.sh [--live] [--case ID|all] [--repeat 1..5] [--max-calls 1..100] [--judge] [--output DIR]");
+            Console.Error.WriteLine("Offline comparison: evaluate-ai.sh --compare BASELINE/run.json CANDIDATE/run.json (format version 2)");
             return 2;
         }
+    }
+
+    private static void PrintSummary(EvaluationSummary summary)
+    {
+        Console.WriteLine($"Run: {summary.Status}; authoring {summary.Authoring.Succeeded} passed/{summary.Authoring.Failed} failed; " +
+            $"generation {summary.Generation.Succeeded} passed/{summary.Generation.Failed} failed.");
+        Console.WriteLine($"Scenario checks: {summary.ScenarioAutomaticPasses}/{summary.PlannedCaseRuns} passed; " +
+            $"failures by check: {JsonSerializer.Serialize(summary.AutomaticFailuresByCheck)}.");
+        Console.WriteLine($"Judge calibration: {(summary.JudgeEnabled ? summary.JudgeCalibrationPassed?.ToString() ?? "unfinished" : "disabled")}; " +
+            $"{summary.CalibrationFailureCount} failed controls. Content reviews: {summary.GeneratedContentReviews.Failed} failed; " +
+            $"generated Hebrew findings: {summary.GeneratedHebrewIssueCount}. Human review remains separate.");
+        Console.WriteLine($"Reported cost subtotal: {summary.CostCredits.KnownTotal?.ToString() ?? "unknown"} credits; " +
+            $"{summary.CostCredits.MissingCalls}/{summary.AttemptedCalls} calls have unknown cost. See summary.json and run.json.");
     }
 
     private static Dictionary<string, string?> CaptureProfile(IConfiguration configuration, AiGenerationOptions options)
@@ -109,12 +140,16 @@ public sealed record EvaluationOptions(bool Live, string Case, int Repeat, int M
         return options;
     }
 
-    public int ValidateCallBudget(int caseCount)
+    public int ValidateCallBudget(int caseCount, int calibrationCount = 0)
     {
-        var planned = PlannedCalls(caseCount);
+        var planned = PlannedCalls(caseCount, calibrationCount);
         if (planned > MaxCalls) throw new ArgumentException("Planned calls exceed --max-calls.");
         return planned;
     }
 
-    public int PlannedCalls(int caseCount) => caseCount * Repeat * (Judge ? 3 : 2) + (Judge ? 2 : 0);
+    public int PlannedCalls(int caseCount, int calibrationCount)
+    {
+        if (Judge && calibrationCount <= 0) throw new ArgumentException("Judge calibration controls are required.");
+        return EvaluationReport.CountCalls(caseCount, Repeat, Judge ? calibrationCount : 0);
+    }
 }

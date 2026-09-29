@@ -56,7 +56,11 @@ quality separately from automated contract tests.
 the existing engine and adapter. It composes AI services only, with no database
 or web host, and is not published with the API. Explicit live runs produce local
 reports; its optional stateless Hebrew judge supplies advisory findings, never
-runtime corrections. See [evaluation usage](../README.md#hebrew-ai-evaluation).
+runtime corrections. Fixture hashes and prompt/version snapshots identify the
+evaluation inputs. Calibration health is separate from generated-content findings.
+The file boundary checkpoints `run.json` and derives summaries; offline comparison
+reloads that evidence and checks comparability before exposing quality deltas.
+See [evaluation usage](../README.md#hebrew-ai-evaluation).
 
 Publication atomically saves a revision and current pointer, guarded by
 `expectedVersion`, an EF concurrency token and a unique revision index. Joined

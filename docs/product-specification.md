@@ -191,9 +191,12 @@ The [developer evaluation harness](../README.md#hebrew-ai-evaluation) reuses the
 configured generation path and validators. Live runs stay outside normal CI,
 require an explicit invocation and bound the number of calls. They create no
 learning records. Optional Hebrew review reports exact defects and suggestions;
-labelled controls check known misses and false alarms. It never corrects normal
-application output at runtime. Local tests verify the tool, not model quality;
-real outputs still require human review.
+labelled controls match field paths and quotes and reject unexpected findings by
+default. Calibration health and generated defects are separate results. Versioned
+reports preserve fixture hashes, prompts, measurements and human scores; offline
+comparison checks matching inputs and measurement/review coverage. It neither
+selects a winning model nor corrects application output at runtime. Local tests
+verify the tool, not model quality; real outputs still require human review.
 
 [template]: ../backend/FamilyLearning.Api/TaskEngine/Models/TaskTemplateDefinition.cs
 [content]: ../backend/FamilyLearning.Api/TaskEngine/Models/TaskContent.cs

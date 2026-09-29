@@ -24,22 +24,127 @@
         "text": "מה אפשר ללמוד מהקטע על החשיבות של העלים הגדולים?"
       }
     ],
-    "expectedQuotes": ["להסיין", "הנמלות"]
+    "expectedIssues": [
+      {
+        "path": "task.passage",
+        "quote": "הנמלות"
+      },
+      {
+        "path": "task.questions[0].prompt",
+        "quote": "להסיין"
+      },
+      {
+        "path": "task.questions[1].prompt",
+        "quote": "להסיין"
+      },
+      {
+        "path": "task.questions[2].prompt",
+        "quote": "להסיין"
+      },
+      {
+        "path": "task.questions[1].prompt",
+        "quote": "הנמלות"
+      }
+    ],
+    "allowUnexpectedFindings": true
+  },
+  {
+    "id": "controlled-agreement",
+    "request": "משפטים לתרגול קריאה בכיתה ג׳. אין כאן טעויות מכוונות.",
+    "texts": [
+      {
+        "path": "task.sentences[0]",
+        "text": "הילדה הלכו לבית הספר."
+      },
+      {
+        "path": "task.sentences[1]",
+        "text": "בסל יש שלושה תפוחים קטנות."
+      }
+    ],
+    "expectedIssues": [
+      {
+        "path": "task.sentences[0]",
+        "quote": "הלכו"
+      },
+      {
+        "path": "task.sentences[1]",
+        "quote": "קטנות"
+      }
+    ]
+  },
+  {
+    "id": "controlled-syntax-and-language",
+    "request": "משפטים בעברית בלבד לתרגול קריאה. אין כאן ציטוטים, מונחים באנגלית או טעויות מכוונות.",
+    "texts": [
+      {
+        "path": "task.sentences[0]",
+        "text": "הוא נתן את לי הספר."
+      },
+      {
+        "path": "task.instructions",
+        "text": "קראו את הקטע ואז answer בעברית."
+      },
+      {
+        "path": "task.sentences[1]",
+        "text": "נועה שמה תשומת לב לפרטים."
+      }
+    ],
+    "expectedIssues": [
+      {
+        "path": "task.sentences[0]",
+        "quote": "את לי הספר"
+      },
+      {
+        "path": "task.instructions",
+        "quote": "answer"
+      },
+      {
+        "path": "task.sentences[1]",
+        "quote": "שמה תשומת לב"
+      }
+    ]
   },
   {
     "id": "valid-hebrew-and-intentional-errors",
-    "request": "תרגול לשון: בחירת הניסוח התקין. באפשרות השגויה יש טעות מכוונת בשם המספר. הכותרת מנוקדת לבקשת ההורה. הטקסט באנגלית הוא ציטוט שיש לשמור כלשונו.",
+    "request": "תרגול לשון: בחירת הניסוח התקין. באפשרות השגויה יש טעות מכוונת בשם המספר. הכותרת מנוקדת לבקשת ההורה. הטקסט באנגלית הוא ציטוט שיש לשמור כלשונו. שמות הדמויות בדויים. המשפט בשדה english מיועד לתרגול אנגלית ויש להשאירו באנגלית. הציטוט בשדה quotation הוא מקור שיש לשמר בדיוק, כולל הטעות שבו.",
     "texts": [
-      { "path": "task.title", "text": "קוֹרְאִים וְלוֹמְדִים" },
-      { "path": "task.instructions", "text": "קראו ובחרו את הניסוח התקין." },
+      {
+        "path": "task.title",
+        "text": "קוֹרְאִים וְלוֹמְדִים"
+      },
+      {
+        "path": "task.instructions",
+        "text": "קראו ובחרו את הניסוח התקין."
+      },
       {
         "path": "task.passage",
         "text": "הנמלים שיתפו פעולה. מה אפשר להסיק מכך? על השלט נכתב: Welcome to our garden."
       },
-      { "path": "task.questions[0].prompt", "text": "איזה ניסוח תקין?" },
-      { "path": "task.questions[0].options[0]", "text": "שלוש ילדות" },
-      { "path": "task.questions[0].options[1]", "text": "שלושה ילדות" }
+      {
+        "path": "task.questions[0].prompt",
+        "text": "איזה ניסוח תקין?"
+      },
+      {
+        "path": "task.questions[0].options[0]",
+        "text": "שלוש ילדות"
+      },
+      {
+        "path": "task.questions[0].options[1]",
+        "text": "שלושה ילדות"
+      },
+      {
+        "path": "task.english",
+        "text": "Maya and Tom read a book."
+      },
+      {
+        "path": "task.names",
+        "text": "ליה ואורי נפגשו בגינה."
+      },
+      {
+        "path": "task.quotation",
+        "text": "התלמיד כתב: \"שלושה ילדות\"."
+      }
     ],
-    "expectedQuotes": []
+    "expectedIssues": []
   }
 ]

@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using FamilyLearning.Api.Tests.Fixtures;
+using FamilyLearning.Api.Tests.TaskEngine;
 using FamilyLearning.Evaluation;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
@@ -99,12 +100,58 @@ public sealed class EvaluationCommandTests : IDisposable
         var json = await File.ReadAllTextAsync(Assert.Single(reports));
         Assert.DoesNotContain("isolated-test-secret", json);
         Assert.DoesNotContain("private-reasoning", json);
+        var summaryJson = await File.ReadAllTextAsync(Path.Combine(Path.GetDirectoryName(reports[0])!, "summary.json"));
+        Assert.DoesNotContain("isolated-test-secret", summaryJson);
+        Assert.DoesNotContain("private-reasoning", summaryJson);
         using var report = JsonDocument.Parse(json);
         Assert.Equal(0.002m, report.RootElement.GetProperty("reportedCostCredits").GetDecimal());
         Assert.Equal(2, report.RootElement.GetProperty("callsWithReportedCost").GetInt32());
         var authoring = report.RootElement.GetProperty("results")[0].GetProperty("authoring");
         Assert.Equal(10, authoring.GetProperty("reasoningTokens").GetInt32());
         Assert.Equal("test/actual", authoring.GetProperty("model").GetString());
+    }
+
+    [Theory]
+    [InlineData(false, 0)]
+    [InlineData(true, 2)]
+    public async Task Compare_is_offline_and_cannot_be_combined_with_live_generation(bool extraLiveFlag, int expectedExit)
+    {
+        Directory.CreateDirectory(directory);
+        var report = EvaluationReportsTests.CreateReport();
+        report.Results.Add(new("reading", 1)
+        {
+            Authoring = EvaluationReportsTests.Step(),
+            Generation = EvaluationReportsTests.Step()
+        });
+        await EvaluationFiles.SaveAsync(report, directory);
+        var path = Path.Combine(directory, "run.json");
+        var start = new ProcessStartInfo("dotnet")
+        {
+            WorkingDirectory = directory,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true
+        };
+        foreach (var argument in new[] { typeof(EvaluationCommand).Assembly.Location, "--compare", path, path }) start.ArgumentList.Add(argument);
+        if (extraLiveFlag) start.ArgumentList.Add("--live");
+        // Resolving AI would fail this configuration. Comparison must not even compose the provider.
+        start.Environment["Ai__ApiKey"] = "isolated-secret";
+        start.Environment["Ai__Model"] = "";
+        start.Environment["Ai__Endpoint"] = "https://invalid.example";
+        using var process = Process.Start(start)!;
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+        var stdout = process.StandardOutput.ReadToEndAsync(timeout.Token);
+        var stderr = process.StandardError.ReadToEndAsync(timeout.Token);
+        try { await process.WaitForExitAsync(timeout.Token); }
+        finally { if (!process.HasExited) process.Kill(entireProcessTree: true); }
+        var output = await stdout;
+        Assert.True(process.ExitCode == expectedExit, output + await stderr);
+        Assert.DoesNotContain("isolated-secret", output);
+        if (!extraLiveFlag)
+        {
+            using var comparison = JsonDocument.Parse(output);
+            Assert.True(comparison.RootElement.GetProperty("directlyComparable").GetBoolean());
+            Assert.Equal(0, comparison.RootElement.GetProperty("deltas").GetProperty("scenarioAutomaticPasses").GetInt32());
+        }
     }
 
     public void Dispose()

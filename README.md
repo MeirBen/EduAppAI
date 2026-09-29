@@ -111,19 +111,23 @@ its database. Normal application calls do not run the evaluator or get rewritten
 # One real template + one task, at most two billable calls.
 ./scripts/evaluate-ai.sh --live --case reading-grade3 --max-calls 2
 
-# Add advisory Hebrew review and two judge calibration controls: five calls.
-./scripts/evaluate-ai.sh --live --case ants-inference --judge --max-calls 5
+# Add advisory Hebrew review and four calibration controls: seven calls.
+./scripts/evaluate-ai.sh --live --case ants-inference --judge --max-calls 7
 
 # Repeat the same full suite twice to expose variation: at most 64 calls.
 ./scripts/evaluate-ai.sh --live --case all --repeat 2 --max-calls 64
+
+# Compare existing reports offline; no API key or provider calls.
+./scripts/evaluate-ai.sh --compare baseline/run.json candidate/run.json
 ```
 
 `--live` is required for billable calls. Runs are sequential, have no retries,
 stop on rate limits and use the app's request deadline and token cap. `--repeat`
 accepts 1–5; `--max-calls` accepts 1–100 and must cover the entire plan. Without
 `--judge`, each repetition authors a fresh template and generates one task.
-With it, two fixed controls run once, then each successful template/task pair
-gets one separate review. The maximum is `cases × repeats × 3 + 2`. This bounds
+With it, the calibration controls run once, then each successful template/task
+pair gets one separate review. The maximum is `cases × repeats × 3 + controls`;
+the control count comes from the loaded fixture. This bounds
 application requests, not currency or upstream attempts by a configured fallback.
 Set a key spending limit in OpenRouter for a monetary cap.
 
@@ -135,43 +139,73 @@ fixed when comparing profiles; change one setting at a time. Keep fallback empty
 for a model-specific comparison and check the actual returned model.
 
 Each run saves an ignored `artifacts/evaluations/<run>/run.json` (or a directory
-under `--output`). It checkpoints after each call, including rejected output and
-cancellation. It contains the case set/hash, nonsecret profile, exact engine
-messages, final outputs, model/prompt versions, latency, finish reason, token
-counts and [reported usage cost][usage-accounting]. Missing cost is unknown;
-the total covers only calls with reported cost. Reasoning tokens are already
-included in output tokens: do not add them again. Secret configuration, provider
-error bodies and separate reasoning content are excluded.
+under `--output`). This authoritative report checkpoints after each call,
+including rejected output and cancellation. Format version 2 records both fixture
+SHA-256 hashes, the judge's exact instructions/schema and version, nonsecret
+profile, engine messages, final outputs, actual models, generation prompt versions,
+latency, finish reason, tokens and [reported usage cost][usage-accounting]. Secrets,
+provider error bodies and separate reasoning content are excluded.
 
-The report separates three kinds of evidence:
+`summary.json` is derived from the run. It separates authoring/generation outcomes,
+automatic failures by check, calibration failures, content findings by kind and
+case, review coverage, models, prompt versions and human scores. Token/cost totals
+show known subtotals and missing-call counts; no measurements means null, never
+zero/free. Reasoning tokens are included in output tokens: do not add them again.
+Average latency covers calls that returned a response, including rejected output;
+timeouts, cancellation and transport failures are excluded from that average.
 
+The workflow separates software correctness from model evaluation:
+
+- **Isolated code tests:** verify the harness and app with local providers. They
+  do not establish real-model quality; only explicit live runs measure it.
 - **Automatic checks:** application contract validation, parameter resolution,
   requested question/choice counts and interaction type. Passage length uses
   whitespace-separated words, allowing five extra words for a title within a
   content block; it is a diagnostic, not a Hebrew tokenizer.
-- **Optional judge findings:** exact field, quoted defect, suggested correction
-  and explanation. Unknown fields, invented quotes and malformed reviews fail
-  validation. The judge receives the parent request and visible text in a fresh
-  conversation using the same configured model; it never edits the output.
+- **Judge calibration:** checks whether the reviewer detects labelled defects
+  and avoids false alarms. Expectations match the field plus the offending token
+  or a short containing phrase, never a quote on an unrelated field. Unexpected
+  findings fail controlled samples by default. The preserved ant regression
+  explicitly allows extra findings because its prose may have additional defects.
+- **Generated Hebrew findings:** exact field, quote, correction, explanation and
+  one of `spelling`, `invented-word`, `agreement`, `grammar-syntax`,
+  `language-mixing`, `non-idiomatic`. Unknown kinds, invented quotes and malformed
+  reviews fail validation. A content finding does not mean the judge failed
+  calibration. The judge uses a fresh conversation with the same configured model
+  and never edits the output or scores educational quality.
 - **Human review:** fill each result's `review` fields with 0 (unusable), 1 (needs
   edits), or 2 (ready), with evidence in `notes`. Review Hebrew, correctness, age
   fit, adherence, answer clarity and consistency. Null means unreviewed, never
-  a pass. Check answers against the passage and check grammar distractors in
-  context, not as ordinary prose.
+  a pass. Comparison rejects scores outside this range. Human review remains
+  authoritative for facts, age fit, teaching usefulness and answer ambiguity.
 
-The judge controls include the reported ant passage/questions with `להסיין` and
-`הנמלות`, plus valid Hebrew with intentional grammar distractors and English.
-They expose known misses and false alarms. Two controls do not establish general
-accuracy; a same-model reviewer can repeat the generator's mistakes, consistent
+Four small controls cover invented words, agreement, malformed/non-idiomatic
+phrases and unwanted language mixing, plus intentional distractors, bilingual
+text, requested English, verbatim quotations, names and niqqud. The evaluator is
+generic: `להסיין` and `הנמלות` occur only in fixtures, not detection logic.
+Calibration exposes known misses and false alarms, not general accuracy.
+A same-model reviewer can repeat the generator's mistakes, consistent
 with [research on LLM judge limitations][judge-limitations]. A clean review is
 not proof of correct Hebrew. Do not compare only successful generations or
 interpret a tiny suite as a statistical quality guarantee.
 
-Exit codes: 0 means the run completed and its automatic checks passed (including
-advisory judge checks when enabled), 1 means failures or findings, 2 means invalid
-setup/arguments or report IO failure, and 130 means cancellation. Human quality
-scores never fill themselves. CI tests the harness with isolated providers;
-real-model evaluation is always a separate explicit command.
+Comparison prints JSON with before/after summaries, profile differences and
+candidate-minus-baseline deltas. It rereads `run.json`, ignoring cached summaries,
+so manual review edits are included. Different suite hashes, selected cases/order,
+captured scenario inputs, repeats, incomplete runs or changed judge setup are
+marked **not directly comparable**. Hebrew finding comparisons additionally need
+passing calibration and matching reviewed outputs. Human-score deltas require
+the same reviewed case/repetition pairs; cost/token deltas require complete
+measurement coverage. Otherwise those deltas are null or explicitly qualified.
+It never chooses a winner or computes a combined score. Comparison accepts only
+format version 2; older reports lack the evidence needed for these checks.
+
+Run exit codes: 0 means completed automatic checks and, if enabled, calibration
+and generated reviews passed without findings; 1 means failures/findings or a
+stopped run; 2 means setup/argument/report failure; 130 means cancellation.
+Comparison uses 0 for comparable inputs, 1 for incompatible inputs and 2 for an
+invalid report/command. A comparison exit code is not a quality verdict. Human
+scores never fill themselves. CI never runs live evaluation.
 
 [usage-accounting]: https://openrouter.ai/docs/cookbook/administration/usage-accounting
 [judge-limitations]: https://arxiv.org/abs/2306.05685
