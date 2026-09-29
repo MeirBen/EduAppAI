@@ -452,6 +452,15 @@ export function reportBrief(id, report, summary) {
     json(summary),
     '',
   ];
+  if (report.retries?.length) {
+    lines.push(
+      '## Rate-limited attempts before retry',
+      json(
+        report.retries.map((retry) => ({ ...retry, call: { ...retry.call, request: undefined } })),
+      ),
+      '',
+    );
+  }
   if (report.judgeEnabled) {
     lines.push('## Judge prompt', fence('text', report.judgePrompt ?? 'Not recorded'), '');
     lines.push(
@@ -535,6 +544,7 @@ export function createDashboard(document, fetchRequest = globalThis.fetch.bind(g
     active: null,
     activeKnown: false,
     pending: false,
+    savingReview: false,
     reportId: null,
     report: null,
     viewVersion: 0,
@@ -655,7 +665,8 @@ export function createDashboard(document, fetchRequest = globalThis.fetch.bind(g
         ['Template + task calls', count * repeat * 2],
         ['Additional Hebrew review calls', judge ? count * repeat : 0],
         ['Calibration calls (once per run)', calibrationCount],
-        ['Maximum billable application calls', planned],
+        ['Base calls (without retries)', planned],
+        ['Maximum application calls including retries', Math.min(maxCalls, planned * 4)],
         ['Pause between calls (seconds)', callDelaySeconds],
       ]),
       gauge(planned, maxCalls, 'Planned calls within max calls', planned > maxCalls ? 'over' : ''),
@@ -664,7 +675,7 @@ export function createDashboard(document, fetchRequest = globalThis.fetch.bind(g
       ? 'Select at least one case.'
       : planned > maxCalls
         ? `This selection needs a budget of at least ${planned} calls (limit: 100).`
-        : 'The server independently checks the call budget before starting.';
+        : `${maxCalls - planned} calls above the base plan are available for retries. The server enforces the total budget.`;
     get('start-run').disabled =
       !valid ||
       !state.setup?.configured ||
@@ -763,7 +774,14 @@ export function createDashboard(document, fetchRequest = globalThis.fetch.bind(g
             ],
             ['Current case', progress?.caseId],
             ['Repetition', progress?.repetition],
-            ['Stage', progress?.stage === 'waiting' ? 'Waiting between calls' : progress?.stage],
+            [
+              'Stage',
+              progress?.stage === 'waiting'
+                ? 'Waiting between calls'
+                : progress?.stage === 'retry-wait'
+                  ? 'Waiting to retry a 429 response'
+                  : progress?.stage,
+            ],
             ['Latest status', progress?.status],
             ['Returned model', progress?.model],
             [
@@ -923,7 +941,7 @@ export function createDashboard(document, fetchRequest = globalThis.fetch.bind(g
     return section;
   }
 
-  function renderReview(runId, report, result) {
+  function renderReview(runId, report, result, onSaved) {
     const form = node('form', null, 'review');
     const fieldset = node('fieldset');
     fieldset.append(node('legend', 'Human review'));
@@ -970,6 +988,7 @@ export function createDashboard(document, fetchRequest = globalThis.fetch.bind(g
     notesLabel.append(notes);
     const save = node('button', 'Save review');
     save.type = 'submit';
+    save.disabled = state.savingReview;
     const feedback = node('span', '', 'save-message');
     feedback.setAttribute('role', 'status');
     fieldset.append(fields, notesLabel, save, feedback);
@@ -984,7 +1003,10 @@ export function createDashboard(document, fetchRequest = globalThis.fetch.bind(g
       );
     form.addEventListener('submit', async (event) => {
       event.preventDefault();
-      if (fieldset.disabled || !form.reportValidity()) return;
+      if (state.savingReview || fieldset.disabled || !form.reportValidity()) return;
+      // Serialize saves so a delayed response cannot restore an older aggregate summary.
+      state.savingReview = true;
+      for (const button of document.querySelectorAll('.review button')) button.disabled = true;
       fieldset.disabled = true;
       feedback.textContent = 'Saving…';
       const review = Object.fromEntries(
@@ -995,7 +1017,7 @@ export function createDashboard(document, fetchRequest = globalThis.fetch.bind(g
       );
       review.notes = notes.value || null;
       try {
-        await busy(save, () =>
+        const summary = await busy(save, () =>
           request(`/api/runs/${encodeURIComponent(runId)}/review`, 'PUT', {
             caseId: result.caseId,
             repetition: result.repetition,
@@ -1003,16 +1025,15 @@ export function createDashboard(document, fetchRequest = globalThis.fetch.bind(g
           }),
         );
         result.review = review;
-        if (state.reportId === runId) {
-          const saved = get('report').querySelector('[data-saved-report] pre');
-          if (saved) saved.textContent = JSON.stringify(report, null, 2);
-        }
+        onSaved(summary);
         feedback.textContent = 'Review saved.';
         await loadHistory().catch(showError);
       } catch (error) {
         feedback.textContent = 'Review could not be saved.';
         showError(error);
       } finally {
+        state.savingReview = false;
+        for (const button of document.querySelectorAll('.review button')) button.disabled = false;
         fieldset.disabled = !eligible || (state.active?.running && state.active.id === runId);
       }
     });
@@ -1024,12 +1045,13 @@ export function createDashboard(document, fetchRequest = globalThis.fetch.bind(g
   }
 
   /** One-glance status shared by the results index and each result header. */
-  function resultChips(evaluation) {
+  function resultChips(evaluation, position) {
     const checks = Object.values(evaluation.checks ?? {});
     const passed = checks.filter(Boolean).length;
     const generated = evaluation.generation?.contractValid;
     const reviewed = Object.keys(dimensions).filter((key) => evaluation.review?.[key] != null);
     const chips = node('ul', null, 'chips');
+    chips.dataset.result = position;
     chips.append(
       node(
         'li',
@@ -1106,6 +1128,8 @@ export function createDashboard(document, fetchRequest = globalThis.fetch.bind(g
     if (report.runNotes) heading.append(content('p', report.runNotes));
     heading.append(renderSummary(result.summary));
     heading.append(raw('Captured AI profile', report.profile));
+    if (report.retries?.length)
+      heading.append(raw('Rate-limited attempts before retry', report.retries));
     target.append(heading);
     if (report.judgeEnabled) {
       const calibrationDetails = node('details', null, 'card');
@@ -1142,7 +1166,7 @@ export function createDashboard(document, fetchRequest = globalThis.fetch.bind(g
       results.forEach((evaluation, position) => {
         const link = node('a');
         link.href = `#result-${position}`;
-        link.append(node('strong', resultName(evaluation)), resultChips(evaluation));
+        link.append(node('strong', resultName(evaluation)), resultChips(evaluation, position));
         const item = node('li');
         item.append(link);
         list.append(item);
@@ -1154,7 +1178,7 @@ export function createDashboard(document, fetchRequest = globalThis.fetch.bind(g
       const card = node('article', null, 'card result');
       card.id = `result-${position}`;
       const header = node('header', null, 'card-header');
-      header.append(node('h3', resultName(evaluation)), resultChips(evaluation));
+      header.append(node('h3', resultName(evaluation)), resultChips(evaluation, position));
       card.append(header);
       const selected = report.cases.find((item) => item.id === evaluation.caseId);
       if (selected) card.append(content('p', selected.reviewFocus));
@@ -1233,7 +1257,15 @@ export function createDashboard(document, fetchRequest = globalThis.fetch.bind(g
           return details;
         });
       if (rawData.length) card.append(block('Raw data', ...rawData));
-      card.append(renderReview(id, report, evaluation));
+      card.append(
+        renderReview(id, report, evaluation, (summary) => {
+          result.summary = summary;
+          if (state.report !== report) return;
+          for (const chips of target.querySelectorAll(`[data-result="${position}"]`))
+            chips.replaceWith(resultChips(evaluation, position));
+          savedReport.querySelector('pre').textContent = JSON.stringify(report, null, 2);
+        }),
+      );
       target.append(card);
     });
     const savedReport = raw('Raw saved report JSON', report);
@@ -1294,7 +1326,7 @@ export function createDashboard(document, fetchRequest = globalThis.fetch.bind(g
       confirmed: true,
     };
     get('confirm-message').textContent =
-      `This evaluation can make up to ${current.planned} OpenRouter calls with ${display(state.setup.profile.Model)}, with a ${current.callDelaySeconds}-second pause between calls.`;
+      `This evaluation can make up to ${Math.min(current.maxCalls, current.planned * 4)} OpenRouter calls including retries with ${display(state.setup.profile.Model)}, with a ${current.callDelaySeconds}-second pause between calls. Each 429 allows at most three retries within that total budget.`;
     if (typeof dialog.showModal === 'function') dialog.showModal();
     else dialog.setAttribute('open', '');
   });

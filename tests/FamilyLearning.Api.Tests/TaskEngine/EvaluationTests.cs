@@ -153,20 +153,40 @@ public sealed class EvaluationTests : IDisposable
         Assert.Single(report.Retries);
     }
 
-    [Fact]
-    public async Task Cancellation_during_retry_backoff_does_not_send_another_call()
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(true, false)]
+    [InlineData(false, true)]
+    [InlineData(true, true)]
+    public async Task Cancellation_during_retry_keeps_the_last_real_attempt(bool justBeforeSending, bool judge)
     {
         using var cancellation = new CancellationTokenSource();
         using var chat = new AiFixtures.ScriptedChat { FailureStatus = System.Net.HttpStatusCode.TooManyRequests };
-        var report = await RunAsync(chat, ct: cancellation.Token, progress: progress =>
+        var waiting = false;
+        var report = await RunAsync(chat, ct: cancellation.Token, judge: judge, progress: progress =>
         {
-            if (progress.Stage == "retry-wait") cancellation.Cancel();
-        }).WaitAsync(TimeSpan.FromSeconds(10));
+            if (progress.Stage == "retry-wait") waiting = true;
+            if (waiting && (!justBeforeSending || progress.Stage == (judge ? "calibration" : "authoring"))) cancellation.Cancel();
+        }, timeProvider: new ImmediateTimeProvider()).WaitAsync(TimeSpan.FromSeconds(10));
         Assert.Equal("cancelled", report.Status);
         Assert.Single(chat.Requests);
-        Assert.Single(report.Retries);
-        Assert.Equal(429, report.Retries[0].Call.StatusCode);
+        Assert.Empty(report.Retries);
+        Assert.Equal(429, judge ? Assert.Single(report.Calibration).Call.StatusCode : Assert.Single(report.Results).Authoring!.StatusCode);
         Assert.Equal(1, report.AttemptedCalls);
+        if (judge) Assert.Equal(1, EvaluationSummary.Create(report).CalibrationCompletedCount);
+        else Assert.Equal(new StageCounts(1, 0, 1, 0), EvaluationSummary.Create(report).Authoring);
+    }
+
+    [Theory]
+    [InlineData(System.Net.HttpStatusCode.BadRequest)]
+    [InlineData(System.Net.HttpStatusCode.PaymentRequired)]
+    [InlineData(System.Net.HttpStatusCode.InternalServerError)]
+    public async Task Non_rate_limit_failures_do_not_retry(System.Net.HttpStatusCode status)
+    {
+        using var chat = new AiFixtures.ScriptedChat { FailureStatus = status };
+        var report = await RunAsync(chat, timeProvider: new ImmediateTimeProvider());
+        Assert.Single(chat.Requests);
+        Assert.Empty(report.Retries);
     }
 
     [Fact]

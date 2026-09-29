@@ -2,7 +2,13 @@
   ><span class="icon-back" aria-hidden="true">→</span> חזרה למרחב שלנו</a
 >
 <app-loading-indicator [active]="template.isLoading()" variant="panel" label="טוענים את התבנית…" />
-@if (!template.isLoading() && template.error()) {
+@if (savedInstanceId(); as instanceId) {
+  <section class="panel">
+    <h1 class="mb-4">התרגול מוכן לעיון</h1>
+    <p class="mb-4" role="status">הטיוטה נשמרה. אפשר לפתוח אותה ולעיין בתוכן.</p>
+    <a class="button" [routerLink]="['/instances', instanceId]">פתיחת הטיוטה</a>
+  </section>
+} @else if (!template.isLoading() && template.error()) {
   <div class="error" role="alert">
     <p>{{ apiError(template.error()) }}</p>
     <button class="button mt-4" (click)="template.reload()">ניסיון נוסף</button>

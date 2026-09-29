@@ -28,11 +28,13 @@ public static class EvaluationFiles
         return (items, Convert.ToHexString(SHA256.HashData(bytes)));
     }
 
-    /// <summary>Writes the authoritative checkpoint first; comparison always recomputes its summary.</summary>
-    public static async Task SaveAsync(EvaluationReport report, string directory)
+    /// <summary>Writes the authoritative checkpoint first and returns its persisted, derived summary.</summary>
+    public static async Task<EvaluationSummary> SaveAsync(EvaluationReport report, string directory)
     {
         await WriteAsync("run.json", report);
-        await WriteAsync("summary.json", EvaluationSummary.Create(report));
+        var summary = EvaluationSummary.Create(report);
+        await WriteAsync("summary.json", summary);
+        return summary;
 
         async Task WriteAsync<T>(string name, T value)
         {

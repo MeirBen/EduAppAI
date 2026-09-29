@@ -77,7 +77,7 @@ public sealed class EvaluationConfigurationTests : IDisposable
         await EvaluationFiles.SaveAsync(report, Path.Combine(directory, id));
         Assert.Single(await http.GetFromJsonAsync<JsonElement[]>("/api/runs") ?? []);
         var review = new EvaluationReviewUpdate("reading", 1, new ManualReview { Hebrew = 2, Notes = "Offline review" });
-        Assert.Equal(HttpStatusCode.NoContent, (await http.PutAsJsonAsync($"/api/runs/{id}/review", review)).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await http.PutAsJsonAsync($"/api/runs/{id}/review", review)).StatusCode);
         var saved = await http.GetFromJsonAsync<JsonElement>($"/api/runs/{id}");
         Assert.Equal(2, saved.GetProperty("report").GetProperty("results")[0].GetProperty("review").GetProperty("hebrew").GetInt32());
         var comparison = await http.GetFromJsonAsync<JsonElement>($"/api/compare?baseline={id}&candidate={id}");

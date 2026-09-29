@@ -118,9 +118,9 @@ It creates no learning records and performs no runtime proofreading or rewriting
 # Four calibration controls + template, task and advisory review: seven calls.
 ./scripts/evaluate-ai.sh --live --case ants-inference --judge --max-calls 7
 
-# Compare a prompt change with an existing three-repeat reading baseline: 13 calls.
+# Three-repeat reading comparison: 13 base calls plus room for 3 retries.
 ./scripts/evaluate-ai.sh --live --case reading-grade3 --repeat 3 \
-  --judge --max-calls 13
+  --judge --max-calls 16
 
 # Repeat the full suite twice: at most 96 calls.
 ./scripts/evaluate-ai.sh --live --case all --repeat 2 --max-calls 96
@@ -152,43 +152,44 @@ expectations to hide a model failure. Preview validates all fixtures without AI
 calls. Restart `dev.sh` after editing to rebuild its dashboard's fixture copies.
 Suite changes require new baseline and candidate runs for direct comparison.
 
-The dashboard opens at `http://127.0.0.1:5180` (`--port` changes only the port).
-New run shows filterable case selection, the call plan and budget, and the app's
-nonsecret AI profile.
-Confirming Run can spend OpenRouter credits; startup, history and comparison
-make no provider calls. Only one run is active at a time; Cancel preserves partial
-results. Missing or invalid AI settings disable real runs without blocking
-history, report viewing, manual review or comparison. Fix the settings and restart
-the tool to enable real runs; configuration errors and secrets are not displayed.
+The loopback dashboard opens at `http://127.0.0.1:5180` (`--port` changes the port).
+It shows case selection, the call budget and the app's nonsecret AI profile.
+Only confirmed runs spend credits; one run may be active, and Cancel keeps partial
+results. Missing or invalid AI settings disable real runs while offline features
+remain available. Fix the settings and restart; configuration errors stay private.
 
 History renders saved tasks and findings, with collapsible request/output data.
 **Copy for AI** copies a Markdown brief of the report for AI agents: context, requests,
 outputs, findings and human reviews, including answer keys.
 Review completed results using the six scores and notes (up to 4,000 characters).
-Saves update only human review and refresh the summary. Compare shows compatibility
-before deltas; unavailable Hebrew or human evidence stays unavailable.
+Saving updates the summary, export and review badges while preserving other form
+edits. Reviews save one at a time; generated evidence stays unchanged.
 Optional run labels (120 characters) and notes (4,000) help identify baselines;
 CLI equivalents are `--label` and `--notes`.
 
-CLI and dashboard share the evaluator and JSON artifacts. The local host validates
-Host, Origin and antiforgery tokens; browser requests use run IDs, never paths.
-It binds only to loopback, loads no external assets, and is excluded from the
-production application. Keep evaluation artifacts private: they contain prompts
-and generated answer keys. `--output` configures the artifact root for either mode.
+CLI and dashboard share the evaluator and artifacts. The tool's
+[local access protections](docs/architecture.md#ai-and-persistence) are separate
+from the production app. Keep artifacts private: they contain prompts and answers.
 
-Use `--live` for billable calls. Runs are sequential, never retry, and stop on
-rate limits. A 5-second pause separates calls, including calibration and reviews.
+Use `--live` for billable calls. Runs are sequential. A 5-second pause separates
+calls, including calibration and reviews.
 Change **Pause between calls** in the dashboard or use `--call-delay-seconds N`
 (0–60; 0 disables it). Waiting is cancellable and excluded from per-call deadlines
 and latency measurements. Reports record the pause; older reports used zero.
 Paid providers can still throttle requests; spacing cannot guarantee availability.
+HTTP 429 allows up to three retries per stage, within the total call budget.
+Set Max calls above the base plan to leave retry headroom. Retries honor
+`Retry-After`, or use 5/10/20 seconds plus up to 20% jitter; the configured pause
+is also a minimum. A provider wait over five minutes stops the run rather than
+retrying early. Other failures are not retried. Every superseded 429 attempt is
+checkpointed separately in `run.json`; call and cost coverage include it.
+The production application still makes one call.
 Runs use the app's secrets, environment overrides, deadline and token cap.
 `--repeat` accepts 1–5; `--max-calls` accepts 1–100 and must cover
 the plan:
 `cases × repeats × 2`, or `cases × repeats × 3 + controls` with `--judge`.
-Controls load and run only with `--judge`; broken controls do not block basic
-evaluation. All case fixtures are validated before evaluation. Only successful
-template/task pairs receive content reviews.
+Controls load only with `--judge`; broken controls do not block basic evaluation.
+Only successful template/task pairs receive content reviews.
 This caps application calls, not currency or fallback attempts. Set an OpenRouter
 key spending limit for a monetary cap. Keep fallback empty for model comparisons;
 check the actual returned model and change one profile setting at a time.
@@ -227,17 +228,13 @@ Interpret the results separately:
   consistency. Enter 0 (unusable), 1 (needs edits), 2 (ready), or null (unreviewed),
   with evidence in notes.
 
-The stateless judge uses the same configured model. Its four controls cover
-invented words, agreement, syntax, idiom and language mixing, plus clean examples
-with intentional errors, English, quotations, names and niqqud. Expected defects
-match the field and offending token or a short containing phrase. Extra findings
-fail controlled samples; the captured ant regression explicitly permits extras.
-Regression words live only in fixtures, never detection logic. Supported kinds
-are `spelling`, `invented-word`, `agreement`, `grammar-syntax`, `language-mixing`
-and `non-idiomatic`; unknown kinds and unverifiable quotes fail validation.
-Calibration failure and generated-content findings remain separate. A same-model
-reviewer can repeat the generator's mistakes ([judge limitations][judge-limitations]);
-use human review and retain failed generations when assessing quality.
+The stateless judge uses the same model. Its [controls](tools/FamilyLearning.Evaluation/hebrew-review-samples.json)
+cover language defects and clean text, including intentional errors and mixed
+languages. Findings must quote an existing field and use a supported kind;
+expected defects match whole tokens or short containing phrases. Extra findings
+fail controls unless explicitly permitted by the sample. A same-model reviewer
+can repeat the generator's mistakes ([judge limitations][judge-limitations]);
+retain failed generations and use human review when assessing quality.
 
 Comparison rereads `run.json`, so edited human scores take effect without updating
 summary files. It reports profile changes and candidate-minus-baseline deltas,

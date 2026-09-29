@@ -31,8 +31,8 @@ public static class EvaluationCommand
             var options = EvaluationOptions.Parse(args);
             var plan = await EvaluationPlan.LoadAsync(new([options.Case], options.Repeat, options.Judge, options.MaxCalls,
                 options.Label, options.RunNotes, CallDelaySeconds: options.CallDelaySeconds));
-            Console.WriteLine($"{plan.Cases.Length} cases × {options.Repeat} repeats; at most {plan.PlannedCalls} API calls (budget {options.MaxCalls}).");
-            Console.WriteLine($"Pause between calls: {options.CallDelaySeconds} seconds; no automatic retries.");
+            Console.WriteLine($"{plan.Cases.Length} cases × {options.Repeat} repeats; {plan.PlannedCalls} base API calls (total budget including retries: {options.MaxCalls}).");
+            Console.WriteLine($"Pause between calls: {options.CallDelaySeconds} seconds; up to three retries per stage for HTTP 429 within the total budget.");
             foreach (var scenario in plan.Cases) Console.WriteLine($"  {scenario.Id}: {scenario.ReviewFocus}");
             if (!options.Live)
             {

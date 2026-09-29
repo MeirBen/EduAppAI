@@ -24,15 +24,19 @@ public sealed class EvaluationCommandTests : IDisposable
     [InlineData(true, 2, 0, 2, false)]
     [InlineData(true, 2, 0, 2, true)]
     [InlineData(true, 2, 2, 0, false, "malformed-endpoint")]
+    [InlineData(true, 3, 0, 3, false, null, true, "0")]
+    [InlineData(true, 3, 0, 3, true, null, true, "Thu, 01 Jan 1970 00:00:00 GMT")]
+    [InlineData(true, 5, 1, 1, false, null, true, "301")]
     public async Task Cli_and_dashboard_use_the_real_adapter_without_database_access(
-        bool live, int budget, int expectedExitCode, int expectedCalls, bool dashboard, string? endpoint = null)
+        bool live, int budget, int expectedExitCode, int expectedCalls, bool dashboard, string? endpoint = null,
+        bool rateLimitFirst = false, string retryAfter = "0")
     {
         var builder = WebApplication.CreateSlimBuilder();
         builder.WebHost.UseUrls("http://127.0.0.1:0");
         builder.Logging.ClearProviders();
         await using var server = builder.Build();
         var calls = 0;
-        server.MapPost("/chat/completions", async (HttpRequest incoming) =>
+        server.MapPost("/chat/completions", async (HttpRequest incoming, HttpResponse outgoing) =>
         {
             using var request = await JsonDocument.ParseAsync(incoming.Body);
             Assert.Equal("test/evaluation", request.RootElement.GetProperty("model").GetString());
@@ -40,8 +44,14 @@ public sealed class EvaluationCommandTests : IDisposable
             Assert.True(request.RootElement.GetProperty("reasoning").GetProperty("exclude").GetBoolean());
             Assert.Equal("json_schema", request.RootElement.GetProperty("response_format").GetProperty("type").GetString());
             calls++;
-            var output = calls == 1 ? AiFixtures.Definition() : AiFixtures.Content(count: 4);
-            if (calls == 1) output["instanceParameters"]![1]!["default"] = 4;
+            if (rateLimitFirst && calls == 1)
+            {
+                outgoing.Headers.RetryAfter = retryAfter;
+                return Results.Json(new { error = new { message = "provider secret", code = 429 } }, statusCode: 429);
+            }
+            var authoringCall = calls == (rateLimitFirst ? 2 : 1);
+            var output = authoringCall ? AiFixtures.Definition() : AiFixtures.Content(count: 4);
+            if (authoringCall) output["instanceParameters"]![1]!["default"] = 4;
             else
             {
                 output["contentBlocks"]![0]!["text"] = string.Join(' ', Enumerable.Repeat("מילה", 100));
@@ -122,10 +132,25 @@ public sealed class EvaluationCommandTests : IDisposable
         var json = await File.ReadAllTextAsync(Assert.Single(reports));
         Assert.DoesNotContain("isolated-test-secret", json);
         Assert.DoesNotContain("private-reasoning", json);
+        Assert.DoesNotContain("provider secret", json);
         var summaryJson = await File.ReadAllTextAsync(Path.Combine(Path.GetDirectoryName(reports[0])!, "summary.json"));
         Assert.DoesNotContain("isolated-test-secret", summaryJson);
         Assert.DoesNotContain("private-reasoning", summaryJson);
         using var report = JsonDocument.Parse(json);
+        Assert.Equal(expectedCalls, report.RootElement.GetProperty("attemptedCalls").GetInt32());
+        if (expectedCalls == 1)
+        {
+            Assert.Equal("rate-limited", report.RootElement.GetProperty("status").GetString());
+            Assert.Empty(report.RootElement.GetProperty("retries").EnumerateArray());
+            Assert.Equal(301, report.RootElement.GetProperty("results")[0].GetProperty("authoring").GetProperty("retryAfterSeconds").GetDouble());
+            return;
+        }
+        if (rateLimitFirst)
+        {
+            var retry = Assert.Single(report.RootElement.GetProperty("retries").EnumerateArray());
+            Assert.Equal(0, retry.GetProperty("call").GetProperty("retryAfterSeconds").GetDouble());
+            Assert.Equal(0, retry.GetProperty("delaySeconds").GetDouble());
+        }
         Assert.Equal(0.002m, report.RootElement.GetProperty("reportedCostCredits").GetDecimal());
         Assert.Equal(2, report.RootElement.GetProperty("callsWithReportedCost").GetInt32());
         var authoring = report.RootElement.GetProperty("results")[0].GetProperty("authoring");

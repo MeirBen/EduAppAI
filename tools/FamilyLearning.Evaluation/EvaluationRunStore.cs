@@ -52,8 +52,8 @@ public sealed partial class EvaluationRunStore(string root) : IDisposable
         return history.ToArray();
     }
 
-    /// <summary>Serializes review-only changes. Active-run exclusion belongs to the coordinator.</summary>
-    public async Task SaveReviewAsync(string id, EvaluationReviewUpdate update)
+    /// <summary>Serializes review-only changes and returns the saved summary. Active-run exclusion belongs to the coordinator.</summary>
+    public async Task<EvaluationSummary> SaveReviewAsync(string id, EvaluationReviewUpdate update)
     {
         if (update.Review is null) throw new ArgumentException("A review is required.");
         update.Review.Validate();
@@ -67,7 +67,7 @@ public sealed partial class EvaluationRunStore(string root) : IDisposable
                 throw new ArgumentException("Only completed generated results can be reviewed.");
             // Keep the captured evidence intact; only the six scores and reviewer notes are writable.
             result.Review = update.Review;
-            await EvaluationFiles.SaveAsync(report, DirectoryFor(id));
+            return await EvaluationFiles.SaveAsync(report, DirectoryFor(id));
         }
         finally { reviews.Release(); }
     }

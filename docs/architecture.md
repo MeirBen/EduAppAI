@@ -56,7 +56,10 @@ quality separately from automated contract tests.
 the engine and adapter and is not published with the API. CLI and `--ui` use the
 same validated plan, runner, judge and JSON reports, without application database
 or identity services. The runner emits structured progress and checkpoints calls;
-summary/comparison derive evidence without provider calls.
+summary/comparison derive evidence without provider calls. Evaluation calls are
+paced and may retry HTTP 429 at most three times within the hard call budget.
+Each attempt is retained; waiting is cancellable and excluded from request
+deadlines and provider latency. Production calls do not inherit these retries.
 
 The optional dashboard is a loopback-only ASP.NET host with static HTML/CSS/JS.
 Its coordinator owns one cancellable run and waits for the final checkpoint on
@@ -123,8 +126,8 @@ page and cannot redirect after destruction; the server authorizes requests.
 Forms and converts them on save. Errors retain edits; new proposals reset
 feedback. `ParameterForm` emits validated choices: empty text stays explicit,
 while blank numbers/selects are omitted for server defaults.
-Successful publication replaces the editor with a saved-template link; delayed
-or failed navigation cannot cause the same draft to be published again.
+Successful publication or task creation replaces its form with a saved-result
+link; delayed or failed navigation cannot repeat the write or AI generation.
 
 Previews read snapshots. The PWA caches assets only; API calls need a connection.
 See the [UI guide](ui-guide.md) and [verification commands](../README.md#verify).

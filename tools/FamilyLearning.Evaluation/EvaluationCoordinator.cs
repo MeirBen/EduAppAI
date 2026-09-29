@@ -90,7 +90,7 @@ public sealed class EvaluationCoordinator : IHostedService, IDisposable
         }
     }
 
-    public Task SaveReviewAsync(string id, EvaluationReviewUpdate update)
+    public Task<EvaluationSummary> SaveReviewAsync(string id, EvaluationReviewUpdate update)
     {
         lock (gate)
         {

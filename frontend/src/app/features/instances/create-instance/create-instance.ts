@@ -27,17 +27,21 @@ export class CreateInstance {
   private readonly router = inject(Router);
   private readonly lifetime = inject(DestroyRef);
   protected readonly template = this.api.template(this.templateId);
+  protected readonly savedInstanceId = signal('');
   protected readonly busy = signal(false);
   protected readonly error = signal('');
   protected readonly apiError = apiError;
 
   protected async generate(parameters: ParameterValues) {
-    if (this.busy()) return;
+    if (this.busy() || this.savedInstanceId()) return;
     this.busy.set(true);
     this.error.set('');
     try {
       const instance = await this.api.createInstance(this.templateId(), parameters, this.lifetime);
-      if (!this.lifetime.destroyed) await this.router.navigate(['/instances', instance.id]);
+      if (this.lifetime.destroyed) return;
+      // A failed preview navigation must not turn a confirmed save into another AI request.
+      this.savedInstanceId.set(instance.id);
+      await this.router.navigate(['/instances', instance.id]).catch(() => false);
     } catch (error) {
       if (!this.lifetime.destroyed) this.error.set(apiError(error));
     } finally {

@@ -158,10 +158,7 @@ public static class EvaluationDashboard
             return Results.Accepted(value: new { Status = "cancelling" });
         });
         app.MapPut("/api/runs/{id}/review", async (string id, EvaluationReviewUpdate request, EvaluationCoordinator coordinator) =>
-        {
-            await coordinator.SaveReviewAsync(id, request);
-            return Results.NoContent();
-        });
+            Results.Json(await coordinator.SaveReviewAsync(id, request)));
         app.MapGet("/api/compare", async (string baseline, string candidate, EvaluationRunStore store) =>
             Results.Json(EvaluationComparison.Compare(await store.ReadAsync(baseline), await store.ReadAsync(candidate))));
         foreach (var (route, file, type) in new[] { ("/", "index.html", "text/html"), ("/app.js", "app.js", "text/javascript"), ("/styles.css", "styles.css", "text/css") })

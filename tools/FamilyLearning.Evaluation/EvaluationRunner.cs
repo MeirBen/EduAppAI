@@ -99,6 +99,7 @@ public static class EvaluationRunner
         {
             var step = new EvaluationStep();
             setStep(step);
+            EvaluationRetry? previousAttempt = null;
             var delay = report.AttemptedCalls > 0 ? report.CallDelaySeconds : 0d;
             for (var retry = 0; ; retry++)
             {
@@ -109,8 +110,21 @@ public static class EvaluationRunner
                     await Task.Delay(TimeSpan.FromSeconds(delay), timeProvider ?? TimeProvider.System, ct);
                 }
                 ct.ThrowIfCancellationRequested();
+                if (previousAttempt is not null)
+                {
+                    report.Retries.Add(previousAttempt);
+                    step = new();
+                    setStep(step);
+                }
                 try { return await AttemptOnceAsync(step, operation); }
-                catch (AiGenerationException exception) when (exception.StatusCode == 429)
+                catch (OperationCanceledException) when (!step.RequestSent && previousAttempt is not null)
+                {
+                    // Cancellation before sending must retain the last real attempt as the stage's result.
+                    report.Retries.Remove(previousAttempt);
+                    setStep(previousAttempt.Call);
+                    throw;
+                }
+                catch (AiGenerationException exception) when (exception.StatusCode == 429 && step.RequestSent)
                 {
                     if (retry == 3) throw;
                     if (report.AttemptedCalls >= report.MaxCalls) throw new EvaluationCallLimitException();
@@ -118,9 +132,7 @@ public static class EvaluationRunner
                         step.RetryAfterSeconds ?? 5 * Math.Pow(2, retry) * (1 + Random.Shared.NextDouble() * 0.2));
                     // Never shorten a provider's long retry hint to fit a local waiting limit.
                     if (delay > 300) throw;
-                    report.Retries.Add(new(stage, caseId, currentRepetition, retry + 1, delay, step));
-                    step = new();
-                    setStep(step);
+                    previousAttempt = new(stage, caseId, currentRepetition, retry + 1, delay, step);
                     await SaveAsync();
                 }
             }

@@ -223,7 +223,7 @@ test('judge guidance separates per-result reviews from once-per-run calibration 
     assert.equal(estimate()['Template + task calls'], '2');
     assert.equal(estimate()['Additional Hebrew review calls'], '1');
     assert.equal(estimate()['Calibration calls (once per run)'], '3');
-    assert.equal(estimate()['Maximum billable application calls'], '6');
+    assert.equal(estimate()['Base calls (without retries)'], '6');
     assert.equal(document.querySelector('#start-run').disabled, true);
 
     document.querySelector('#repeat').value = '2';
@@ -234,7 +234,7 @@ test('judge guidance separates per-result reviews from once-per-run calibration 
     assert.equal(estimate()['Template + task calls'], '4');
     assert.equal(estimate()['Additional Hebrew review calls'], '2');
     assert.equal(estimate()['Calibration calls (once per run)'], '3');
-    assert.equal(estimate()['Maximum billable application calls'], '9');
+    assert.equal(estimate()['Base calls (without retries)'], '9');
     assert.equal(document.querySelector('#start-run').disabled, false);
 
     document.querySelector('#judge').checked = false;
@@ -243,7 +243,7 @@ test('judge guidance separates per-result reviews from once-per-run calibration 
       .dispatchEvent(new dom.window.Event('input', { bubbles: true }));
     assert.equal(estimate()['Additional Hebrew review calls'], '0');
     assert.equal(estimate()['Calibration calls (once per run)'], '0');
-    assert.equal(estimate()['Maximum billable application calls'], '4');
+    assert.equal(estimate()['Base calls (without retries)'], '4');
     assert.ok(app.requests.every(({ options }) => options.method === 'GET'));
   } finally {
     app.dashboard.dispose();
@@ -307,7 +307,7 @@ const runSummary = {
   averageLatencyMilliseconds: null,
 };
 /** @param {unknown} body */
-const jsonResponse = (body) => ({ ok: true, status: 200, json: async () => body });
+const jsonResponse = (body) => ({ ok: true, status: 200, json: async () => structuredClone(body) });
 
 test('history and reports distinguish unreviewed Hebrew from completed reviews with no findings', async () => {
   for (const [judgeEnabled, reviewed, findings, expected] of [
@@ -396,16 +396,38 @@ test('invalid case fixtures leave saved history and active-run polling available
 
 test('saved reports safely render retained output and submit only human review fields', async () => {
   let historyReads = 0;
+  const pending = deferred();
+  const reportData = structuredClone(completedReport);
+  reportData.results.push({ ...structuredClone(reportData.results[0]), caseId: 'second' });
+  const savedSummary = {
+    ...runSummary,
+    humanReview: { hebrew: { reviewed: 1, unreviewed: 1, average: 2 } },
+  };
+  let copied = '';
   const app = mount({
     '/api/runs': () =>
       ++historyReads === 1
         ? jsonResponse([{ id: 'run-1', label: 'Saved run', summary: runSummary }])
         : { ok: false, status: 500, json: async () => ({ title: 'History is unavailable.' }) },
-    '/api/runs/run-1': () =>
-      jsonResponse({ id: 'run-1', report: completedReport, summary: runSummary }),
-    '/api/runs/run-1/review': () => ({ ok: true, status: 204 }),
+    '/api/runs/run-1': () => jsonResponse({ id: 'run-1', report: reportData, summary: runSummary }),
+    '/api/runs/run-1/review': () => ({
+      ok: true,
+      status: 200,
+      json: async () => {
+        await pending.promise;
+        return savedSummary;
+      },
+    }),
   });
   try {
+    Object.defineProperty(app.dom.window.navigator, 'clipboard', {
+      value: {
+        /** @param {string} text */
+        writeText: async (text) => {
+          copied = text;
+        },
+      },
+    });
     await app.dashboard.ready;
     app.document.querySelector('#history-list button').click();
     await nextTurn();
@@ -415,9 +437,18 @@ test('saved reports safely render retained output and submit only human review f
     assert.match(report.textContent, /<script>request<\/script>/);
     assert.match(report.textContent, /בדיקת עברית/);
     const form = report.querySelector('.review');
+    const otherForm = report.querySelectorAll('.review')[1];
+    otherForm.querySelector('textarea').value = 'Unsaved review stays here';
     form.querySelector('select').value = '2';
     form.querySelector('textarea').value = 'הערה <b>plain text</b>';
     form.dispatchEvent(new app.dom.window.Event('submit', { bubbles: true, cancelable: true }));
+    await nextTurn();
+    otherForm.dispatchEvent(
+      new app.dom.window.Event('submit', { bubbles: true, cancelable: true }),
+    );
+    await nextTurn();
+    assert.equal(app.requests.filter(({ options }) => options.method === 'PUT').length, 1);
+    pending.resolve(null);
     await nextTurn();
     const write = app.requests.find(({ options }) => options.method === 'PUT');
     assert.ok(write);
@@ -437,12 +468,23 @@ test('saved reports safely render retained output and submit only human review f
     });
     assert.equal(write.options.headers?.['X-Evaluation-CSRF'], 'test-token');
     assert.match(form.textContent, /Review saved/);
+    assert.equal(otherForm.querySelector('textarea').value, 'Unsaved review stays here');
+    assert.equal(
+      [...report.querySelectorAll('.chip')].filter((chip) => chip.textContent === 'reviewed 1/6')
+        .length,
+      2,
+    );
+    report.querySelector('button.prominent').click();
+    await nextTurn();
+    assert.match(copied, /"humanReview"/);
+    assert.match(copied, /"average": 2/);
     assert.equal(
       JSON.parse(report.querySelector('[data-saved-report] pre').textContent).results[0].review
         .hebrew,
       2,
     );
   } finally {
+    pending.resolve(null);
     app.dashboard.dispose();
     app.dom.window.close();
   }

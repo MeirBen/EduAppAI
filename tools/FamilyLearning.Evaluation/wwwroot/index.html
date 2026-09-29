@@ -52,7 +52,8 @@
             <strong>Completed</strong> means the workflow finished, not that every check passed.
             Cancelled, rate-limited, call-limit and failed runs keep their partial results.
             Cancelling cannot stop a call already in progress, which may still cost credits. There
-            are no automatic retries, and only one run can be active.
+            are at most three retries per call for HTTP 429, within Max calls. Other failures are
+            not retried. Only one run can be active.
           </p>
         </details>
       </section>
@@ -146,8 +147,9 @@
                 /></label>
               </div>
               <p id="plan-help" class="hint">
-                Each repeat creates a fresh template and task. Max calls must cover the plan; it
-                caps calls, not money. Set an OpenRouter key limit for a spending cap.
+                Each repeat creates a fresh template and task. Max calls includes retry attempts;
+                set it above the base plan to leave retry headroom. It caps calls, not money. Set an
+                OpenRouter key limit for a spending cap.
               </p>
               <label
                 >Pause between calls (seconds)
@@ -164,7 +166,9 @@
               <p id="call-delay-help" class="hint">
                 Wait after each call before sending the next, including judge calls. Default: 5
                 seconds; 0 disables the pause. Paid providers can still return 429. Increase the
-                pause if needed; the run stops on rate limits and never retries automatically.
+                pause if needed. Temporary 429 errors allow up to three retries within Max calls,
+                using the provider's Retry-After or increasing waits of about 5, 10 and 20 seconds.
+                A provider wait over five minutes stops the run instead of retrying early.
               </p>
               <label class="switch"
                 ><input
@@ -310,7 +314,10 @@
     >
       <h2 id="confirm-heading">Start paid evaluation?</h2>
       <p id="confirm-message"></p>
-      <p class="hint">OpenRouter credits may be charged. Failed calls are not retried.</p>
+      <p class="hint">
+        OpenRouter credits may be charged. Only HTTP 429 allows retries: at most three per call,
+        within the total call budget.
+      </p>
       <div class="actions">
         <button id="dismiss-confirmation" type="button" class="secondary">Go back</button>
         <button id="confirm-run" type="button">Start evaluation</button>

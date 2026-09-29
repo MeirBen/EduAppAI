@@ -15,6 +15,7 @@ internal sealed class EvaluationCapture(IChatClient innerClient, int maxCalls) :
     public override async Task<ChatResponse> GetResponseAsync(IEnumerable<ChatMessage> messages,
         ChatOptions? options = null, CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         if (calls >= maxCalls) throw new EvaluationCallLimitException();
         var request = messages.ToArray();
         Current.Request = request.Select(message => new EvaluationMessage(message.Role.Value, message.Text)).ToArray();

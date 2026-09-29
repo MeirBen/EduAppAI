@@ -44,6 +44,12 @@ async function saveTemplate(page: Page) {
   return response.json();
 }
 
+async function generateTask(page: Page) {
+  await page.getByRole('button', { name: 'יצירת טיוטה', exact: true }).click();
+  await page.waitForURL('**/instances/*');
+  await expect(page.getByText('הטיוטה נשמרה', { exact: false })).toBeVisible();
+}
+
 test('a parent prompt becomes an editable reusable template and distinct frozen tasks', async ({
   page,
 }) => {
@@ -83,8 +89,7 @@ test('a parent prompt becomes an editable reusable template and distinct frozen 
     path: '../artifacts/create-instance-desktop.png',
     fullPage: true,
   });
-  await page.getByRole('button', { name: 'יצירת טיוטה', exact: true }).click();
-  await expect(page.getByText('הטיוטה נשמרה', { exact: false })).toBeVisible();
+  await generateTask(page);
   const originalUrl = page.url();
   const originalQuestions = await page.locator('.question-prompt').allTextContents();
   const originalContent = await page.locator('section').innerText();
@@ -101,7 +106,7 @@ test('a parent prompt becomes an editable reusable template and distinct frozen 
   await page.getByLabel('מה נחקור?', { exact: true }).fill(secondTheme);
   await page.getByLabel('רמה', { exact: true }).selectOption('מאתגרת');
   await page.getByLabel('מספר שאלות', { exact: true }).fill('3');
-  await page.getByRole('button', { name: 'יצירת טיוטה', exact: true }).click();
+  await generateTask(page);
   await expect(
     page.getByRole('heading', { name: `לומדים על ${secondTheme}`, exact: true }),
   ).toBeVisible();
@@ -155,7 +160,7 @@ test('AI template revisions preserve snapshots and concurrent edits', async ({ p
   await login(page);
   await propose(page, 'שאלות מדעים בנושאים משתנים');
   const template = await saveTemplate(page);
-  await page.getByRole('button', { name: 'יצירת טיוטה', exact: true }).click();
+  await generateTask(page);
   await expect(page.locator('.question-prompt')).toHaveCount(2);
   const frozenUrl = page.url();
   await page.goto(`/templates/${template.id}/edit`);
@@ -316,12 +321,10 @@ test.describe('library cleanup', () => {
     await page.getByRole('button', { name: 'שמירת התבנית', exact: true }).click();
     await expect(page.getByRole('button', { name: 'יצירת טיוטה', exact: true })).toBeVisible();
     const creationUrl = page.url();
-    await page.getByRole('button', { name: 'יצירת טיוטה', exact: true }).click();
-    await expect(page.getByText('הטיוטה נשמרה', { exact: false })).toBeVisible();
+    await generateTask(page);
     const draftUrl = page.url();
     await page.goto(creationUrl);
-    await page.getByRole('button', { name: 'יצירת טיוטה', exact: true }).click();
-    await expect(page.getByText('הטיוטה נשמרה', { exact: false })).toBeVisible();
+    await generateTask(page);
     await page.goto('/templates');
     const drafts = page.getByRole('region', { name: 'טיוטות שמורות' });
     const removeDraft = drafts
@@ -383,8 +386,7 @@ test.describe('library cleanup', () => {
     // Keep reset coverage independent of the earlier tests' saved content.
     await propose(page, 'תרגול קריאה חדש');
     await page.getByRole('button', { name: 'שמירת התבנית', exact: true }).click();
-    await page.getByRole('button', { name: 'יצירת טיוטה', exact: true }).click();
-    await expect(page.getByText('הטיוטה נשמרה', { exact: false })).toBeVisible();
+    await generateTask(page);
     await page.goto('/templates');
     await page.getByRole('button', { name: 'איפוס נתוני הלמידה', exact: true }).click();
     await expect(dialog).toContainText('החשבון והגדרות ה־AI יישארו');

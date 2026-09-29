@@ -132,7 +132,9 @@ public sealed class EvaluationDashboardTests : IAsyncLifetime
         var before = JsonNode.Parse(await File.ReadAllTextAsync(Path.Combine(directory, id, "run.json")))!;
         var review = new ManualReview { Hebrew = 2, Notes = "בדיקה <script> אינה HTML" };
         var response = await http.PutAsJsonAsync($"/api/runs/{id}/review", new { caseId = "reading", repetition = 1, review });
-        Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var summary = await response.Content.ReadFromJsonAsync<EvaluationSummary>();
+        Assert.Equal(new HumanScoreSummary(1, 0, 2), summary!.HumanReview["hebrew"]);
         var after = JsonNode.Parse(await File.ReadAllTextAsync(Path.Combine(directory, id, "run.json")))!;
         before["results"]![0]!["review"] = after["results"]![0]!["review"]!.DeepClone();
         Assert.True(JsonNode.DeepEquals(before, after));
