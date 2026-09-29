@@ -38,7 +38,8 @@
             ]
           },
           "required": {
-            "type": "boolean"
+            "type": "boolean",
+            "description": "Whether the parent must provide a value when no default exists."
           },
           "default": {
             "type": [
@@ -46,19 +47,29 @@
               "integer",
               "boolean",
               "null"
-            ]
+            ],
+            "description": "Default matching the field type, bounds and options; null means no default. Preserve supplied source text.",
+            "maxLength": 500,
+            "minimum": -2147483648,
+            "maximum": 2147483647
           },
           "min": {
             "type": [
               "integer",
               "null"
-            ]
+            ],
+            "description": "Inclusive integer lower bound; null when unbounded or not an integer field.",
+            "minimum": -2147483648,
+            "maximum": 2147483647
           },
           "max": {
             "type": [
               "integer",
               "null"
-            ]
+            ],
+            "description": "Inclusive integer upper bound; null when unbounded or not an integer field.",
+            "minimum": -2147483648,
+            "maximum": 2147483647
           },
           "maxLength": {
             "type": [
@@ -66,13 +77,15 @@
               "null"
             ],
             "minimum": 1,
-            "maximum": 500
+            "maximum": 500,
+            "description": "Text length limit; null uses 500 for text fields and is unused for other types."
           },
           "options": {
             "type": [
               "array",
               "null"
             ],
+            "description": "Distinct, trimmed, single-line select values; null for other field types.",
             "items": {
               "type": "string",
               "minLength": 1,
@@ -110,7 +123,9 @@
           "type": [
             "string",
             "null"
-          ]
+          ],
+          "pattern": "^[a-z][a-zA-Z0-9]{0,39}$",
+          "description": "Exact key of the required integer parameter controlling question count, bounded within 1-20; null for a fixed count."
         }
       },
       "required": [

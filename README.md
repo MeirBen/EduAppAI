@@ -116,7 +116,7 @@ The developer harness reuses the app's configured AI engine and validators.
 It creates no learning records and performs no runtime proofreading or rewriting.
 
 ```bash
-# Preview all 24 synthetic scenarios; no key or API calls.
+# Preview all 22 synthetic scenarios; no key or API calls.
 ./scripts/evaluate-ai.sh --case all
 
 # One real template + one task: at most two billable calls.
@@ -129,8 +129,8 @@ It creates no learning records and performs no runtime proofreading or rewriting
 ./scripts/evaluate-ai.sh --live --case reading-grade3 --repeat 3 \
   --judge --max-calls 16
 
-# Repeat the full suite twice: at most 96 calls.
-./scripts/evaluate-ai.sh --live --case all --repeat 2 --max-calls 96
+# Repeat the full suite twice: 88 base calls, no retry allowance.
+./scripts/evaluate-ai.sh --live --case all --repeat 2 --max-calls 88
 
 # Local developer dashboard; startup makes no AI calls.
 ./scripts/evaluate-ai.sh --ui
@@ -143,8 +143,9 @@ Maintain the synthetic requests in
 [`cases.json`](tools/FamilyLearning.Evaluation/cases.json). They cover the three
 answer types, Hebrew/niqqud/bilingual content, fixed and configurable templates,
 empty/false/zero/negative defaults, 1–20 questions, 2–6 choices, two passages,
-supplied source text and quoted instructions. One full run plans at most 48 calls,
-or 76 with the four judge controls. Select individual cases for focused checks.
+supplied source text and quoted instructions. One full run plans 44 base calls,
+or 70 with the four judge controls, before any retries. Select individual cases
+for focused checks.
 
 `reviewFocus` guides human review of field design, language, source fidelity and
 educational quality; it does not add automatic assertions. The runner uses
@@ -226,9 +227,11 @@ Interpret the results separately:
 - **Code tests:** harness/app behavior with local providers, not model quality.
 - **Automatic checks:** app contracts, defaults, parameter references,
   question/choice counts, interaction and whitespace word counts. Generated-passage
-  upper bounds allow five extra title words; `verbatim-source` uses an exact
-  length, and no-passage cases use zero. `parameterReferences` checks that every
-  key occurs as a complete, case-sensitive ASCII identifier in the instructions.
+  upper bounds allow five extra title words; `quoted-instructions` uses an exact
+  length, and no-passage cases use zero. Word counts do not establish source
+  fidelity; compare verbatim passages during human review. `parameterReferences`
+  checks that every key occurs as a complete, case-sensitive ASCII identifier in
+  the instructions.
   Presence does not prove correct usage or complete instructions. Failed checks
   retain the template and continue generation/review to preserve evidence.
 - **Calibration:** known defect detection and false alarms, not general accuracy.
@@ -241,8 +244,10 @@ Interpret the results separately:
   with evidence in notes.
 
 The stateless judge uses the same model. Its [controls](tools/FamilyLearning.Evaluation/hebrew-review-samples.json)
-cover language defects and clean text, including intentional errors and mixed
-languages. Findings must quote an existing field and use a supported kind;
+cover template and task language defects and clean text, including intentional
+errors and mixed languages. Preserve known defects when editing these controls;
+expected findings are never sent to the judge.
+Findings must quote an existing field and use a supported kind;
 expected defects match whole tokens or short containing phrases, and the suggestion
 must not retain the expected offending phrase. This checks detection, not whether
 the correction is linguistically valid. All controls must pass; one missed defect
