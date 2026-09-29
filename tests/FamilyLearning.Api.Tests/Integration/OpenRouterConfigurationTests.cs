@@ -16,17 +16,19 @@ namespace FamilyLearning.Api.Tests.Integration;
 public sealed class OpenRouterConfigurationTests
 {
     [Theory]
-    [InlineData(false, "low", 0.7f, 0.8f, "test/secondary:free", true)]
-    [InlineData(true, "medium", 1f, 0.95f, "test/secondary:free", true)]
-    [InlineData(true, "low", null, null, "", true)]
+    [InlineData(false, "low", 0.7f, 0.8f, "test/secondary:free", "json_schema")]
+    [InlineData(true, "medium", 1f, 0.95f, "test/secondary:free", "json_schema")]
+    [InlineData(null, "low", null, null, "", "json_schema")]
     [InlineData(null, null, null, null, null, null)]
-    [InlineData(true, "", 1f, 0.95f, "", false)]
-    [InlineData(true, "", 1f, 0.95f, "", true, "qwen/qwen3.8-flash", 2048, 20)]
-    [InlineData(false, "", null, null, "", true, "qwen/qwen3.8-flash", 2048)]
-    [InlineData(true, "", null, null, "qwen/qwen3.8-flash", true)]
+    [InlineData(null, "", null, null, "", "text")]
+    [InlineData(true, "", 1f, 0.95f, "", "json_object")]
+    [InlineData(null, "", 1f, 0.95f, "", "json_schema", "test/paid", 8192, 20, 16384)]
+    [InlineData(false, "", null, null, "", "json_schema", "test/paid", 2048)]
+    [InlineData(true, "", null, null, "test/paid", "json_schema")]
+    [InlineData(null, "", null, null, "", "json_object", "test/other", null, 0)]
     public async Task Generation_requests_preserve_settings_schema_guidance_and_unicode(bool? enabled, string? effort,
-        float? temperature, float? topP, string? fallbackModel, bool? useJsonSchema, string model = "test/model:free",
-        int? reasoningMaxTokens = null, int? topK = null)
+        float? temperature, float? topP, string? fallbackModel, string? responseFormat, string model = "test/model:free",
+        int? reasoningMaxTokens = null, int? topK = null, int? maxOutputTokens = null)
     {
         const string sourceText = "שָׁלוֹם, Maya! שלום־עולם";
         const string passage = sourceText + "\n\nA second paragraph.";
@@ -59,14 +61,15 @@ public sealed class OpenRouterConfigurationTests
             ["Ai:ApiKey"] = "isolated-test-key",
             ["Ai:Endpoint"] = server.Urls.Single(),
             ["Ai:Model"] = model,
-            ["Ai:UseJsonSchema"] = useJsonSchema?.ToString(),
+            ["Ai:ResponseFormat"] = responseFormat,
             ["Ai:FallbackModel"] = fallbackModel,
             ["Ai:ReasoningEnabled"] = enabled?.ToString(),
             ["Ai:ReasoningEffort"] = effort,
             ["Ai:ReasoningMaxTokens"] = reasoningMaxTokens?.ToString(CultureInfo.InvariantCulture),
             ["Ai:Temperature"] = temperature?.ToString(CultureInfo.InvariantCulture),
             ["Ai:TopP"] = topP?.ToString(CultureInfo.InvariantCulture),
-            ["Ai:TopK"] = topK?.ToString(CultureInfo.InvariantCulture)
+            ["Ai:TopK"] = topK?.ToString(CultureInfo.InvariantCulture),
+            ["Ai:MaxOutputTokens"] = (maxOutputTokens ?? 8192).ToString(CultureInfo.InvariantCulture)
         }).Build();
         var services = new ServiceCollection().AddLogging();
         services.AddTaskAi(configuration, new HostingEnvironment { EnvironmentName = "Development" });
@@ -79,37 +82,45 @@ public sealed class OpenRouterConfigurationTests
         else Assert.Equal(fallbackModel, Assert.Single(request.GetProperty("models").EnumerateArray()).GetString());
         Assert.Equal("test:free", result.Metadata.Model);
         Assert.Equal(instructions, result.Value.Generation.Instructions);
-        var reasoning = request.GetProperty("reasoning");
-        Assert.True(reasoning.GetProperty("exclude").GetBoolean());
-        if ((enabled ?? true) && reasoningMaxTokens.HasValue)
+        if (enabled is null && string.IsNullOrEmpty(effort) && reasoningMaxTokens is null)
         {
-            Assert.Equal(reasoningMaxTokens, reasoning.GetProperty("max_tokens").GetInt32());
-            Assert.False(reasoning.TryGetProperty("effort", out _));
-            Assert.False(reasoning.TryGetProperty("enabled", out _));
-        }
-        else if ((enabled ?? true) && !string.IsNullOrEmpty(effort))
-        {
-            Assert.Equal(effort, reasoning.GetProperty("effort").GetString());
-            Assert.False(reasoning.TryGetProperty("enabled", out _));
+            Assert.False(request.TryGetProperty("reasoning", out _));
         }
         else
         {
-            Assert.Equal(enabled ?? true, reasoning.GetProperty("enabled").GetBoolean());
-            Assert.False(reasoning.TryGetProperty("effort", out _));
+            var reasoning = request.GetProperty("reasoning");
+            Assert.True(reasoning.GetProperty("exclude").GetBoolean());
+            if (enabled != false && reasoningMaxTokens.HasValue)
+            {
+                Assert.Equal(reasoningMaxTokens, reasoning.GetProperty("max_tokens").GetInt32());
+                Assert.False(reasoning.TryGetProperty("effort", out _));
+                Assert.False(reasoning.TryGetProperty("enabled", out _));
+            }
+            else if (enabled != false && !string.IsNullOrEmpty(effort))
+            {
+                Assert.Equal(effort, reasoning.GetProperty("effort").GetString());
+                Assert.False(reasoning.TryGetProperty("enabled", out _));
+            }
+            else
+            {
+                Assert.Equal(enabled, reasoning.GetProperty("enabled").GetBoolean());
+                Assert.False(reasoning.TryGetProperty("effort", out _));
+            }
+            if (enabled == false || !reasoningMaxTokens.HasValue)
+                Assert.False(reasoning.TryGetProperty("max_tokens", out _));
         }
-        if (!(enabled ?? true) || !reasoningMaxTokens.HasValue)
-            Assert.False(reasoning.TryGetProperty("max_tokens", out _));
         Assert.Equal(temperature, request.TryGetProperty("temperature", out var value) ? value.GetSingle() : null);
         Assert.Equal(topP, request.TryGetProperty("top_p", out value) ? value.GetSingle() : null);
         Assert.Equal(topK, request.TryGetProperty("top_k", out value) ? value.GetInt32() : null);
-        Assert.Equal(8192, request.GetProperty("max_completion_tokens").GetInt32());
+        Assert.Equal(maxOutputTokens ?? 8192, request.GetProperty("max_completion_tokens").GetInt32());
         Assert.True(request.GetProperty("provider").GetProperty("require_parameters").GetBoolean());
-        AssertResponseSchema(request, useJsonSchema ?? false, "task generator");
+        AssertResponseSchema(request, responseFormat ?? "json_object", "task generator");
 
         var instance = await provider.GetRequiredService<AiGenerationService>().GenerateAsync(result.Value,
             new() { ["theme"] = JsonSerializer.SerializeToElement(sourceText), ["count"] = JsonSerializer.SerializeToElement(2) }, deadline.Token);
         Assert.Equal(passage, Assert.Single(instance.Value.ContentBlocks).Text);
-        AssertResponseSchema(request, useJsonSchema ?? false, "learner");
+        AssertResponseSchema(request, responseFormat ?? "json_object", "learner");
+        Assert.Equal(maxOutputTokens ?? 8192, request.GetProperty("max_completion_tokens").GetInt32());
         using var input = JsonDocument.Parse(request.GetProperty("messages")[1].GetProperty("content").GetString()!);
         Assert.Equal(sourceText, input.RootElement.GetProperty("parameters").GetProperty("theme").GetString());
 
@@ -118,15 +129,20 @@ public sealed class OpenRouterConfigurationTests
             .AuthorAsync("A learning idea", deadline.Token));
     }
 
-    private static void AssertResponseSchema(JsonElement request, bool useJsonSchema, string description)
+    private static void AssertResponseSchema(JsonElement request, string responseFormat, string description)
     {
         var prompt = request.GetProperty("messages")[0].GetProperty("content").GetString()!;
         using var schema = JsonDocument.Parse(prompt.Split("\nOutput JSON schema:\n")[1]);
         Assert.False(schema.RootElement.GetProperty("additionalProperties").GetBoolean());
         Assert.Contains(description, schema.RootElement.GetRawText());
+        if (responseFormat == "text")
+        {
+            Assert.False(request.TryGetProperty("response_format", out _));
+            return;
+        }
         var format = request.GetProperty("response_format");
-        Assert.Equal(useJsonSchema ? "json_schema" : "json_object", format.GetProperty("type").GetString());
-        if (useJsonSchema) Assert.True(format.GetProperty("json_schema").GetProperty("strict").GetBoolean());
+        Assert.Equal(responseFormat, format.GetProperty("type").GetString());
+        if (responseFormat == "json_schema") Assert.True(format.GetProperty("json_schema").GetProperty("strict").GetBoolean());
         else Assert.False(format.TryGetProperty("json_schema", out _));
     }
 
@@ -186,27 +202,29 @@ public sealed class OpenRouterConfigurationTests
     [InlineData("Ai:Temperature", "3")]
     [InlineData("Ai:TopP", "0")]
     [InlineData("Ai:TopP", "2")]
-    [InlineData("Ai:TopK", "0")]
     [InlineData("Ai:TopK", "-1")]
     [InlineData("Ai:ReasoningMaxTokens", "0")]
     [InlineData("Ai:ReasoningMaxTokens", "-1")]
     [InlineData("Ai:ReasoningMaxTokens", "8192")]
+    [InlineData("Ai:ReasoningMaxTokens", "4096", null, "4096")]
     [InlineData("Ai:ReasoningMaxTokens", "2048", "low")]
     [InlineData("Ai:ReasoningEffort", "unlimited")]
     [InlineData("Ai:ReasoningEnabled", "maybe")]
-    [InlineData("Ai:UseJsonSchema", "maybe")]
+    [InlineData("Ai:ResponseFormat", "maybe")]
     [InlineData("Ai:Model", null)]
     [InlineData("Ai:Model", "")]
     [InlineData("Ai:Model", " ")]
     [InlineData("Ai:Model", "paid/model,test:free")]
     [InlineData("Ai:FallbackModel", "paid/model,test:free")]
-    public void Invalid_generation_settings_are_rejected(string setting, string? value, string? effort = null)
+    public void Invalid_generation_settings_are_rejected(string setting, string? value, string? effort = null,
+        string maxOutputTokens = "8192")
     {
         var configuration = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
         {
             ["Ai:ApiKey"] = "isolated-test-key",
             ["Ai:Model"] = "test/model:free",
             ["Ai:ReasoningEffort"] = effort,
+            ["Ai:MaxOutputTokens"] = maxOutputTokens,
             [setting] = value
         }).Build();
         var error = Assert.Throws<InvalidOperationException>(() =>

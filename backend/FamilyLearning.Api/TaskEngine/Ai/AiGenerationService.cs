@@ -17,6 +17,7 @@ public sealed class AiGenerationService(IEnumerable<IChatClient> clients, ILogge
 {
     private readonly IChatClient? client = clients.SingleOrDefault();
     private readonly TimeSpan requestTimeout = options.Value.RequestTimeout;
+    private readonly int maxOutputTokens = options.Value.MaxOutputTokens;
     private readonly SemaphoreSlim capacity = new(2, 2);
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web)
     {
@@ -69,7 +70,7 @@ public sealed class AiGenerationService(IEnumerable<IChatClient> clients, ILogge
                 new ChatOptions
                 {
                     ResponseFormat = ChatResponseFormat.ForJsonSchema(schema, promptVersion.Replace('-', '_')),
-                    MaxOutputTokens = AiGenerationOptions.MaxOutputTokens,
+                    MaxOutputTokens = maxOutputTokens,
                     AdditionalProperties = new() { ["strict"] = true }
                 }, timeout.Token);
             var text = response.Text;

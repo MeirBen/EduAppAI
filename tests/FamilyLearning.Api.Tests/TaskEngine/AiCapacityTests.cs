@@ -67,21 +67,25 @@ public sealed class AiCapacityTests
     }
 
     [Theory]
-    [InlineData("0")]
-    [InlineData("-1")]
-    [InlineData("301")]
-    public void Invalid_timeout_configuration_is_rejected(string seconds)
+    [InlineData("0", "8192")]
+    [InlineData("-1", "8192")]
+    [InlineData("301", "8192")]
+    [InlineData("180", "0")]
+    [InlineData("180", "-1")]
+    [InlineData("180", "32769")]
+    public void Invalid_generation_limits_are_rejected(string seconds, string maxOutputTokens)
     {
         using var chat = new PausedChat();
-        using var services = CreateServices(chat, seconds);
+        using var services = CreateServices(chat, seconds, maxOutputTokens);
         Assert.Throws<OptionsValidationException>(() => services.GetRequiredService<AiGenerationService>());
     }
 
-    private static ServiceProvider CreateServices(IChatClient chat, string seconds)
+    private static ServiceProvider CreateServices(IChatClient chat, string seconds, string maxOutputTokens = "8192")
     {
         var configuration = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
         {
-            ["Ai:RequestTimeoutSeconds"] = seconds
+            ["Ai:RequestTimeoutSeconds"] = seconds,
+            ["Ai:MaxOutputTokens"] = maxOutputTokens
         }).Build();
         var services = new ServiceCollection();
         services.AddLogging();

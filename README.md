@@ -37,68 +37,66 @@ repo; it makes no AI call. Restart the server afterward. Alternatively provide
 `Ai__ApiKey` or `OPENROUTER_API_KEY` through server secrets. Production does not
 load development user secrets.
 
-Generation uses paid `qwen/qwen3.8-flash`, with no model fallback enabled.
-Fund the OpenRouter account before generating; the existing API key still works.
-Each template proposal or generated task makes one billable request. Local
-automated tests use an isolated provider and consume no OpenRouter credits.
-Model changes need configuration only: edit the `Ai` section in
-[appsettings.json](backend/FamilyLearning.Api/appsettings.json), or override
-settings with `Ai__…` environment variables or `Ai:…` development user secrets,
-then restart. `Model` is required when a key is configured; there is no hidden
-model default. Check the new endpoint's output format, reasoning and sampling
-capabilities against the settings below. Fallback models share those settings.
+The `Ai` section in [appsettings.json](backend/FamilyLearning.Api/appsettings.json)
+is the source of truth for the active model and its settings. Switch OpenRouter
+chat models by editing this configuration and restarting; no C#, prompt, UI or
+test changes are needed. Environment variables (`Ai__…`) and development user
+secrets (`Ai:…`) override the file. Review the whole profile when switching so
+sampling or reasoning settings from the previous model are not carried over.
 
-`Ai:UseJsonSchema=true` requests provider-enforced JSON schemas, supported by
-the [Qwen3.8 Flash endpoint](https://openrouter.ai/qwen/qwen3.8-flash).
-For an endpoint that supports JSON output without schema enforcement, set it to
-`false`. The full schema stays in the prompt in either mode, and the server rejects
-invalid output before it can be saved. Changing this setting never disables
-server validation.
+Choose settings supported by the model's current OpenRouter endpoint:
 
-An optional `Ai__FallbackModel` enables OpenRouter's
-[fallback routing](https://openrouter.ai/docs/guides/routing/model-fallbacks);
-an empty string disables it. Before enabling one, check its current endpoint
-supports the configured output format and reasoning parameters. Free and paid
-model IDs are accepted; paid fallbacks also consume credits.
-OpenRouter tries a configured fallback for provider errors such as
-rate limits or unavailability, not for truncated, malformed or poor-quality output.
-`openrouter/free` remains an explicit option for random compatible-model routing.
-The actual model is recorded with each result. Prompt guidance helps steer
-wording but cannot guarantee fluency. Evaluate educational correctness, Hebrew
-agreement, natural phrasing and latency on representative prompts;
-schema validation cannot guarantee language or answer quality. Saved tasks
-remain readable without AI.
+| Setting                       | Purpose                                   |
+| ----------------------------- | ----------------------------------------- |
+| `Model`                       | Required OpenRouter model ID.             |
+| `ResponseFormat`              | `json_schema`, `json_object`, or `text`.  |
+| `ReasoningEnabled`            | `true`, `false`, or `null` (unspecified). |
+| `ReasoningEffort`             | Effort level; `""` omits it.              |
+| `ReasoningMaxTokens`          | Thinking budget; `null` omits it.         |
+| `Temperature`, `TopP`, `TopK` | Sampling; `null` uses provider defaults.  |
+| `MaxOutputTokens`             | Total token cap: 1–32768; default 8192.   |
+| `RequestTimeoutSeconds`       | Deadline: 1–300 seconds; default 180.     |
+| `FallbackModel`               | Compatible model ID; `""` disables it.    |
 
-Generation waits up to three minutes. Set `Ai__RequestTimeoutSeconds` (1–300) to
-change the deadline, then restart. Requests enable reasoning with
-`Ai:ReasoningEnabled=true`; reasoning text is excluded from returned content.
-Qwen3.8 Flash supports a [reasoning token budget][reasoning].
-`Ai:ReasoningMaxTokens=2048` limits thinking within the 8192-token total, leaving
-room for the final JSON. This is an initial app budget, not a measured optimum
-for Hebrew. Reasoning tokens are billed even when excluded from the response.
-Set `Ai__ReasoningEnabled=false` to disable thinking. To use provider defaults,
-clear `Ai:ReasoningMaxTokens` and leave `Ai:ReasoningEffort` empty. For models
-that support effort selection, configure an effort instead of a token budget;
-the two settings are mutually exclusive. The token budget must be positive and
-below the total cap. Review these settings when changing models.
-A response stopped by the total cap is rejected with a distinct output-limit
-message; nothing is saved.
+Prefer `json_schema` when supported. In `text` mode, JSON is requested through
+the prompt only, so malformed output may be more common. Every mode sends the
+full schema in the prompt and applies the same strict server validation before
+saving. No mode guarantees fluent Hebrew or correct answers; review generated
+content before use. Saved tasks remain readable without AI.
 
-Sampling uses `Ai:Temperature=1.0`, `Ai:TopP=0.95` and `Ai:TopK=20`, following
-the [Qwen model guide][qwen-guide] for thinking mode. Avoid adding repetition
-penalties to fix Hebrew: the guide warns that higher presence penalties can
-cause language mixing.
-`Ai__Temperature` (0–2), `Ai__TopP` (greater than 0 through 1) and positive
-`Ai__TopK` override these;
-`null` in JSON or an empty environment override omits that parameter so the
-provider applies its default. Parameter support varies by endpoint.
-Review or clear these model-specific settings
-when changing models or returning to automatic routing. Free providers may be
-slow, unavailable or rate-limited. The app does not retry failed
-calls automatically; OpenRouter owns model and provider routing.
+For a model without reasoning support, set `ReasoningEnabled` and
+`ReasoningMaxTokens` to `null`, and `ReasoningEffort` to `""`; the request will
+omit reasoning entirely. Set a budget or an effort, never both; the budget must
+be positive and below `MaxOutputTokens`. Either enables reasoning unless
+`ReasoningEnabled=false`. Unsupported sampling controls should also be `null`.
+An empty environment override omits nullable controls. Temperature accepts 0–2,
+top-p greater than 0 through 1, and top-k 0 or higher (0 disables top-k).
+These controls follow [OpenRouter's parameter contract][parameters].
 
+Reasoning tokens are billed even when excluded from the response and generally
+share the output ceiling. A response stopped by the cap is rejected without
+saving. See [reasoning controls][reasoning] for provider differences. Tune budgets
+and sampling against representative tasks; model support does not establish an
+optimal Hebrew configuration. For example, the [Qwen guide][qwen-guide] recommends
+sampling of 1.0/0.95/20 in thinking mode. High presence penalties can cause
+language mixing.
+
+The same settings apply to an optional fallback: it must support the selected
+output format, reasoning and sampling controls. [Fallback routing][fallback]
+handles provider errors such as rate limits, not invalid or low-quality
+output. The app makes one call per generation without automatic retries and
+records the actual model. It requires support for explicitly requested parameters
+instead of silently discarding them. There is no runtime model catalog dependency
+or automatic downgrade of output constraints.
+
+Paid models require account credits; your existing OpenRouter key still works.
+Local automated tests use a fixed, isolated provider configuration and consume no
+credits. Their model IDs and settings are independent of the active model.
+
+[parameters]: https://openrouter.ai/docs/api/reference/parameters
 [reasoning]: https://openrouter.ai/docs/guides/best-practices/reasoning-tokens
 [qwen-guide]: https://huggingface.co/Qwen/Qwen3.8-Flash-Next#best-practices
+[fallback]: https://openrouter.ai/docs/guides/routing/model-fallbacks
 
 ## Verify
 

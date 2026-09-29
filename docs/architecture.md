@@ -35,11 +35,15 @@ template contract even with escaped Unicode; validators enforce field limits.
 
 `AiGenerationService` calls `IChatClient` without identity or database access.
 `AiSchemas` loads embedded schemas for both the system message and output contract.
-The provider adapter requests JSON mode or strict JSON-schema output according
-to `Ai:UseJsonSchema`; the full schema stays in the prompt in either mode.
+The provider adapter uses `Ai:ResponseFormat` to request strict JSON-schema output,
+JSON mode, or prompt-only JSON. The full schema stays in the prompt in every mode.
 Field descriptions distinguish generator instructions, learner directions,
 source passages and parent-only answers. Validators remain authoritative.
-OpenRouter requires parameter support. No tools are sent. Responses must finish
+Model selection, optional reasoning/sampling controls and output limits are
+configuration only. Tests exercise capabilities with fixed local model IDs,
+independent of the active model. Unspecified optional controls are omitted;
+OpenRouter requires support for controls that are explicitly sent. No tools are
+sent. Responses must finish
 normally and pass size/depth, required-member, unknown-field, numeric and domain
 validation before persistence.
 

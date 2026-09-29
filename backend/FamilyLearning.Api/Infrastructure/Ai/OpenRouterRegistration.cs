@@ -18,6 +18,8 @@ public static class OpenRouterRegistration
             .Bind(configuration.GetSection("Ai"))
             .Validate(options => options.RequestTimeoutSeconds is >= 1 and <= 300,
                 "Ai:RequestTimeoutSeconds must be between 1 and 300.")
+            .Validate(options => options.MaxOutputTokens is >= 1 and <= 32768,
+                "Ai:MaxOutputTokens must be between 1 and 32768.")
             .ValidateOnStart();
         services.AddSingleton<AiGenerationService>();
         var key = configuration["Ai:ApiKey"] ?? configuration["OPENROUTER_API_KEY"];
@@ -27,16 +29,19 @@ public static class OpenRouterRegistration
             throw new InvalidOperationException("Ai:Model is required when an AI API key is configured.");
         var fallbackModel = configuration["Ai:FallbackModel"];
         if (string.IsNullOrWhiteSpace(fallbackModel) || fallbackModel == model) fallbackModel = null;
-        var reasoningEnabled = configuration.GetValue("Ai:ReasoningEnabled", true);
+        var reasoningEnabled = configuration.GetValue<bool?>("Ai:ReasoningEnabled");
         var effort = configuration["Ai:ReasoningEffort"] ?? "";
         if (effort is not ("" or "minimal" or "low" or "medium" or "high" or "xhigh" or "max"))
             throw new InvalidOperationException("Ai:ReasoningEffort must be empty, minimal, low, medium, high, xhigh or max.");
         var reasoningMaxTokens = configuration.GetValue<int?>("Ai:ReasoningMaxTokens");
-        if (reasoningMaxTokens is <= 0 or >= AiGenerationOptions.MaxOutputTokens)
-            throw new InvalidOperationException($"Ai:ReasoningMaxTokens must be positive and below {AiGenerationOptions.MaxOutputTokens}.");
+        var maxOutputTokens = configuration.GetValue("Ai:MaxOutputTokens", AiGenerationOptions.DefaultMaxOutputTokens);
+        if (reasoningMaxTokens is <= 0 || reasoningMaxTokens >= maxOutputTokens)
+            throw new InvalidOperationException("Ai:ReasoningMaxTokens must be positive and below Ai:MaxOutputTokens.");
         if (reasoningMaxTokens.HasValue && effort.Length > 0)
             throw new InvalidOperationException("Set either Ai:ReasoningMaxTokens or Ai:ReasoningEffort, not both.");
-        var useJsonSchema = configuration.GetValue("Ai:UseJsonSchema", false);
+        var responseFormat = configuration["Ai:ResponseFormat"] ?? "json_object";
+        if (responseFormat is not ("json_schema" or "json_object" or "text"))
+            throw new InvalidOperationException("Ai:ResponseFormat must be json_schema, json_object or text.");
         var sampling = new ChatOptions
         {
             Temperature = configuration.GetValue<float?>("Ai:Temperature"),
@@ -47,12 +52,13 @@ public static class OpenRouterRegistration
             throw new InvalidOperationException("Ai:Temperature must be between 0 and 2.");
         if (sampling.TopP is { } topP && (!float.IsFinite(topP) || topP is <= 0 or > 1))
             throw new InvalidOperationException("Ai:TopP must be greater than 0 and at most 1.");
-        if (sampling.TopK is <= 0)
-            throw new InvalidOperationException("Ai:TopK must be positive.");
-        object reasoning = new { enabled = reasoningEnabled, exclude = true };
-        if (reasoningEnabled && reasoningMaxTokens.HasValue)
+        if (sampling.TopK is < 0)
+            throw new InvalidOperationException("Ai:TopK must be nonnegative.");
+        // Omit unsupported optional controls; a budget or effort implicitly enables reasoning.
+        object? reasoning = reasoningEnabled.HasValue ? new { enabled = reasoningEnabled.Value, exclude = true } : null;
+        if (reasoningEnabled != false && reasoningMaxTokens.HasValue)
             reasoning = new { max_tokens = reasoningMaxTokens.Value, exclude = true };
-        else if (reasoningEnabled && effort.Length > 0)
+        else if (reasoningEnabled != false && effort.Length > 0)
             reasoning = new { effort, exclude = true };
         if (model.Contains(',') || fallbackModel?.Contains(',') == true)
             throw new InvalidOperationException("Ai:Model and Ai:FallbackModel must each contain a single model ID.");
@@ -72,8 +78,8 @@ public static class OpenRouterRegistration
             };
             clientOptions.AddPolicy(new OpenRouterResponsePolicy(), PipelinePosition.PerCall);
             return new OpenRouterChatClient(new ChatClient(model, new ApiKeyCredential(key), clientOptions),
-                sampling, BinaryData.FromObjectAsJson(reasoning),
-                fallbackModel is null ? null : BinaryData.FromObjectAsJson(new[] { fallbackModel }), useJsonSchema);
+                sampling, reasoning is null ? null : BinaryData.FromObjectAsJson(reasoning),
+                fallbackModel is null ? null : BinaryData.FromObjectAsJson(new[] { fallbackModel }), responseFormat);
         });
     }
 }

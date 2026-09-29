@@ -27,7 +27,7 @@ export async function startAiProvider() {
     let body = '';
     for await (const chunk of request) body += chunk;
     const input = JSON.parse(body);
-    assert.equal(input.model, 'qwen/qwen3.8-flash');
+    assert.equal(input.model, 'test/schema-model');
     assert.equal(input.models, undefined);
     assert.deepEqual(input.reasoning, { max_tokens: 2048, exclude: true });
     assert.equal(input.temperature, 1);
