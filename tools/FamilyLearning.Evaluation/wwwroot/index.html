@@ -19,7 +19,8 @@
     <main id="main" data-dashboard>
       <p class="notice warning">
         <strong>Live evaluation can consume paid OpenRouter credits.</strong> Opening this dashboard
-        and browsing saved runs makes no AI calls.
+        and browsing saved runs makes no AI calls. This developer tool saves local reports, not
+        family templates or tasks; it does not correct content in the running application.
       </p>
       <p id="message" role="alert" hidden></p>
       <nav aria-label="Dashboard">
@@ -37,25 +38,82 @@
         </div>
         <p class="muted">
           Cancellation preserves the partial report. A call already in progress may still incur
-          cost.
+          cost. Open report to inspect saved results; completed calls and reported cost update as
+          each stage finishes. Only one run can be active.
         </p>
+        <details>
+          <summary>What do the run statuses mean?</summary>
+          <p>
+            <strong>Completed</strong> means the workflow finished, not that every check passed.
+            <strong>Rate-limited</strong>, <strong>cancelled</strong> and <strong>failed</strong>
+            runs may contain useful partial results. Inspect the report before starting another run:
+            there are no automatic retries, and a new run starts from the beginning.
+          </p>
+        </details>
       </section>
 
       <section id="view-new" aria-labelledby="new-heading">
         <h2 id="new-heading">Run evaluation</h2>
+        <details class="card">
+          <summary>New here? A practical workflow</summary>
+          <ol>
+            <li>
+              Start with one relevant case and one repeat. Leave the Hebrew judge off for a basic
+              generation check.
+            </li>
+            <li>
+              Review the call estimate, set a sufficient Max calls limit, and confirm the run.
+            </li>
+            <li>
+              Open the report in History. Read the generated content and answers, then record your
+              human review.
+            </li>
+            <li>
+              Enable the Hebrew judge when investigating language quality. It adds advisory feedback
+              and extra calls.
+            </li>
+            <li>
+              Label a baseline, change one prompt or model setting, and run the same selection again
+              before comparing.
+            </li>
+          </ol>
+        </details>
         <div class="new-layout">
           <form id="run-form" class="card">
             <fieldset id="run-controls" disabled>
               <legend>Evaluation cases</legend>
+              <p class="muted" id="cases-help">
+                Each selected case tests a parent request through AI template creation and then task
+                generation. The focus text describes what you should review; it is not an automatic
+                quality score. Start small before selecting the whole suite.
+              </p>
               <div class="actions">
                 <button id="select-all" type="button" class="secondary">Select all</button>
                 <button id="select-none" type="button" class="secondary">Clear selection</button>
               </div>
-              <div id="cases" class="cases"></div>
+              <div id="cases" class="cases" aria-describedby="cases-help"></div>
+              <details>
+                <summary>Where do these cases come from?</summary>
+                <p>
+                  They are maintained synthetic examples in <code>cases.json</code>, not your
+                  family's saved content. Add a case for a real usage gap or regression; keep its
+                  expectations aligned with the request. Restart the dashboard after editing. Task
+                  generation uses the generated defaults, or the count maximum when a case requests
+                  it; these runs do not exercise every possible field value.
+                </p>
+              </details>
               <div class="control-grid">
                 <label
                   >Repeats
-                  <input id="repeat" type="number" min="1" max="5" value="1" required dir="ltr"
+                  <input
+                    id="repeat"
+                    type="number"
+                    min="1"
+                    max="5"
+                    value="1"
+                    required
+                    dir="ltr"
+                    aria-describedby="repeats-help"
                 /></label>
                 <label
                   >Max calls
@@ -67,17 +125,60 @@
                     value="4"
                     required
                     dir="ltr"
+                    aria-describedby="calls-help budget-message"
                 /></label>
               </div>
+              <p id="repeats-help" class="muted">
+                Each repeat creates a fresh template and task. Use repeats to observe variation;
+                they do not reuse the same generated template.
+              </p>
+              <p id="calls-help" class="muted">
+                Max calls must cover the whole plan; it is not a currency or token limit. The
+                estimate is an upper bound: failed stages can skip later calls. Provider fallback
+                attempts may add cost. Use an OpenRouter key spending limit for a monetary cap.
+              </p>
               <label class="checkbox-label"
-                ><input id="judge" type="checkbox" /> Enable Hebrew judge</label
+                ><input id="judge" type="checkbox" aria-describedby="judge-help judge-message" />
+                Enable Hebrew judge</label
               >
+              <p id="judge-help" class="muted">
+                Adds AI proofreading of the generated template and task using the same AI
+                configuration, including any fallback. It reports language findings and suggested
+                corrections; it never rewrites content, fixes answers or assigns the human scores.
+              </p>
               <p id="judge-message" class="muted"></p>
+              <details class="well">
+                <summary>How the Hebrew judge works — and when to use it</summary>
+                <ol>
+                  <li>
+                    <strong>Calibration first:</strong> known examples test whether the judge
+                    catches specific errors and avoids flagging acceptable text. These calls run
+                    once per run, not once per repeat.
+                  </li>
+                  <li>
+                    <strong>Content review next:</strong> each successful template/task pair gets
+                    one review for spelling, invented words, agreement, sentence structure, idiom
+                    and unintended language mixing.
+                  </li>
+                  <li>
+                    <strong>You decide:</strong> inspect the quoted field, suggestion and
+                    explanation. The same model can miss its own mistakes. Passing calibration or
+                    reporting no findings is not proof of good Hebrew or correct teaching content.
+                  </li>
+                </ol>
+                <p>
+                  Use it when comparing language quality or investigating a Hebrew regression. Keep
+                  it off for quicker, lower-call checks of generation and structure. Human review
+                  remains available either way.
+                </p>
+              </details>
               <label
                 >Run label (optional, up to 120 characters)<input
                   id="label"
                   maxlength="120"
                   dir="auto"
+                  placeholder="Baseline · reading · current settings"
+                  aria-describedby="run-metadata-help"
               /></label>
               <label
                 >Run notes (optional, up to 4,000 characters)<textarea
@@ -85,8 +186,14 @@
                   maxlength="4000"
                   rows="3"
                   dir="auto"
+                  placeholder="What changed, what you expect, and anything to inspect."
+                  aria-describedby="run-metadata-help"
                 ></textarea>
               </label>
+              <p id="run-metadata-help" class="muted">
+                Labels and notes help you recognize experiments later. They are saved with the
+                report and do not change the AI request or comparison rules.
+              </p>
               <div id="run-estimate" class="well" aria-live="polite"></div>
               <p id="budget-message" class="muted"></p>
               <button id="start-run" type="submit" disabled>Review and run</button>
@@ -94,13 +201,47 @@
           </form>
           <aside class="card" aria-labelledby="profile-heading">
             <h3 id="profile-heading">Current AI profile</h3>
-            <p class="muted">Read-only. Loaded from the application's AI configuration.</p>
+            <p class="muted">
+              Read-only. Uses the application's AI configuration. Change settings there, then
+              restart the dashboard. Compare the actual returned model in reports, especially when a
+              fallback is configured.
+            </p>
             <div id="profile">Loading configuration…</div>
             <p id="configuration-message" class="notice" hidden></p>
             <p id="fallback-warning" class="notice warning" hidden>
               A fallback model is configured. The actual returned model can differ, making model
               comparisons less useful.
             </p>
+            <details>
+              <summary>What do these settings control?</summary>
+              <dl>
+                <dt>Model / fallback</dt>
+                <dd>
+                  The requested model and optional provider-error fallback. A fallback is not a
+                  second independent judge.
+                </dd>
+                <dt>Response format</dt>
+                <dd>
+                  How JSON is requested. The app validates every response; valid JSON does not
+                  guarantee correct content.
+                </dd>
+                <dt>Reasoning</dt>
+                <dd>
+                  Optional thinking controls. Reasoning uses time and the output-token allowance,
+                  even when its text is not displayed.
+                </dd>
+                <dt>Temperature / top-p / top-k</dt>
+                <dd>
+                  Sampling controls. Support varies by endpoint; no value guarantees fluent Hebrew.
+                  Unset controls use provider defaults.
+                </dd>
+                <dt>Tokens / timeout</dt>
+                <dd>
+                  Output and time ceilings. Reaching a ceiling can prevent a complete response.
+                  These limits are not quality targets.
+                </dd>
+              </dl>
+            </details>
           </aside>
         </div>
       </section>
@@ -110,6 +251,48 @@
           <h2 id="history-heading">Run history</h2>
           <button id="refresh-history" type="button" class="secondary">Refresh history</button>
         </div>
+        <details class="card">
+          <summary>How to read a report</summary>
+          <dl>
+            <dt>Contract passed</dt>
+            <dd>
+              The response met the app's structure and validation rules. Read the content to assess
+              language and correctness.
+            </dd>
+            <dt>Automatic checks</dt>
+            <dd>
+              Case-specific checks such as question count, choice count, interaction type and
+              passage length. A pass does not cover every instruction in the request.
+            </dd>
+            <dt>Judge calibration</dt>
+            <dd>
+              Detection of known errors and false alarms on fixed examples. Failed or unfinished
+              calibration weakens confidence in the judge; content reviews can still run.
+            </dd>
+            <dt>Hebrew findings</dt>
+            <dd>
+              Advisory language defects from the AI reviewer, separate from automatic checks and
+              your scores. No completed review means no language evidence, not zero errors.
+            </dd>
+            <dt>Human review</dt>
+            <dd>
+              Your assessment of the actual output. Score 0 for unusable, 1 for needs edits, 2 for
+              ready; leave a dimension unreviewed when you have not checked it. Record examples in
+              the notes.
+            </dd>
+            <dt>Cost / latency</dt>
+            <dd>
+              Reported cost can be incomplete; unknown does not mean free. Average latency covers
+              returned responses, including rejected content, but excludes timeouts and transport
+              failures.
+            </dd>
+          </dl>
+          <p>
+            Raw request/output sections help investigate a failure. Reports contain generated answer
+            keys; keep them private. Saving a human review changes only the local scores and notes,
+            makes no AI call and does not fix the generated content.
+          </p>
+        </details>
         <div id="history-list"></div>
         <section id="report" aria-label="Saved run report" tabindex="-1" hidden></section>
       </section>
@@ -120,15 +303,41 @@
           Descriptive changes only. Deltas mean candidate minus baseline; there is no combined score
           or winner.
         </p>
+        <details class="card">
+          <summary>How to make a useful comparison</summary>
+          <ol>
+            <li>
+              Choose an earlier reference run as the baseline and the experiment as the candidate.
+              Change one model or prompt setting at a time.
+            </li>
+            <li>
+              Keep the case suite, selected cases, repeats and judge setup the same. Incomplete runs
+              or changed fixtures can make the runs incomparable.
+            </li>
+            <li>
+              Read compatibility first. Hebrew finding deltas also require passing calibration and
+              matching reviewed results; human-score deltas need the same scored results.
+            </li>
+            <li>
+              A positive delta only means the candidate value is higher: more passes may help, more
+              failures or findings may hurt. Inspect the examples before drawing a quality
+              conclusion.
+            </li>
+          </ol>
+          <p>
+            Unknown measurements stay unknown. Comparing reports is offline and free of AI calls; it
+            never chooses a winner or updates your model settings.
+          </p>
+        </details>
         <form id="compare-form" class="card">
           <div class="control-grid">
             <label
-              >Baseline run<select id="baseline" required>
+              >Baseline run (reference)<select id="baseline" required>
                 <option value="">Choose a run</option>
               </select></label
             >
             <label
-              >Candidate run<select id="candidate" required>
+              >Candidate run (experiment)<select id="candidate" required>
                 <option value="">Choose a run</option>
               </select></label
             >

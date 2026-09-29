@@ -171,6 +171,54 @@ test('failed paid submissions are never retried automatically and expose only Pr
   }
 });
 
+test('judge guidance separates per-result reviews from once-per-run calibration without starting work', async () => {
+  const app = mount();
+  try {
+    await app.dashboard.ready;
+    const { document, dom } = app;
+    const estimate = () =>
+      Object.fromEntries(
+        [...document.querySelectorAll('#run-estimate dt')].map((label) => [
+          label.textContent,
+          label.nextElementSibling.textContent,
+        ]),
+      );
+    document.querySelector('[name="caseId"]').checked = true;
+    document.querySelector('#judge').checked = true;
+    document
+      .querySelector('#run-form')
+      .dispatchEvent(new dom.window.Event('input', { bubbles: true }));
+    assert.equal(estimate()['Template + task calls'], '2');
+    assert.equal(estimate()['Additional Hebrew review calls'], '1');
+    assert.equal(estimate()['Calibration calls (once per run)'], '3');
+    assert.equal(estimate()['Maximum billable application calls'], '6');
+    assert.equal(document.querySelector('#start-run').disabled, true);
+
+    document.querySelector('#repeat').value = '2';
+    document.querySelector('#max-calls').value = '9';
+    document
+      .querySelector('#run-form')
+      .dispatchEvent(new dom.window.Event('input', { bubbles: true }));
+    assert.equal(estimate()['Template + task calls'], '4');
+    assert.equal(estimate()['Additional Hebrew review calls'], '2');
+    assert.equal(estimate()['Calibration calls (once per run)'], '3');
+    assert.equal(estimate()['Maximum billable application calls'], '9');
+    assert.equal(document.querySelector('#start-run').disabled, false);
+
+    document.querySelector('#judge').checked = false;
+    document
+      .querySelector('#run-form')
+      .dispatchEvent(new dom.window.Event('input', { bubbles: true }));
+    assert.equal(estimate()['Additional Hebrew review calls'], '0');
+    assert.equal(estimate()['Calibration calls (once per run)'], '0');
+    assert.equal(estimate()['Maximum billable application calls'], '4');
+    assert.ok(app.requests.every(({ options }) => options.method === 'GET'));
+  } finally {
+    app.dashboard.dispose();
+    app.dom.window.close();
+  }
+});
+
 const validTask = {
   title: 'בדיקת עברית',
   instructions: 'הוראות',
@@ -228,6 +276,41 @@ const runSummary = {
 };
 /** @param {unknown} body */
 const jsonResponse = (body) => ({ ok: true, status: 200, json: async () => body });
+
+test('history and reports distinguish unreviewed Hebrew from completed reviews with no findings', async () => {
+  for (const [judgeEnabled, reviewed, findings, expected] of [
+    [false, 0, 0, 'Not reviewed (judge disabled)'],
+    [true, 0, 0, 'No completed content reviews'],
+    [true, 1, 0, '0 findings across 1 reviewed result'],
+    [true, 1, 2, '2 findings across 1 reviewed result'],
+  ]) {
+    const summary = {
+      ...runSummary,
+      judgeEnabled,
+      generatedHebrewIssueCount: findings,
+      generatedContentReviews: { succeeded: reviewed },
+    };
+    const app = mount({
+      '/api/runs': () => jsonResponse([{ id: 'run-1', summary }]),
+      '/api/runs/run-1': () =>
+        jsonResponse({ report: { ...completedReport, judgeEnabled }, summary }),
+    });
+    try {
+      await app.dashboard.ready;
+      assert.ok(app.document.querySelector('#history-list').textContent.includes(expected));
+      app.document.querySelector('#history-list button').click();
+      await nextTurn();
+      const label = [...app.document.querySelectorAll('#report dt')].find(
+        (item) => item.textContent === 'Generated Hebrew findings',
+      );
+      assert.equal(label?.nextElementSibling.textContent, expected);
+      assert.ok(app.requests.every(({ options }) => options.method === 'GET'));
+    } finally {
+      app.dashboard.dispose();
+      app.dom.window.close();
+    }
+  }
+});
 
 test('unavailable AI disables paid work while saved reports remain accessible', async () => {
   const app = mount({

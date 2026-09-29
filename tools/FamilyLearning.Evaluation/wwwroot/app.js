@@ -1,10 +1,19 @@
 const dimensions = {
-  hebrew: 'Hebrew',
-  correctness: 'Correctness',
-  ageFit: 'Age fit',
-  adherence: 'Adherence',
-  answerClarity: 'Answer clarity',
-  consistency: 'Consistency',
+  hebrew: { label: 'Hebrew', hint: 'Natural wording, real words, spelling and grammar.' },
+  correctness: {
+    label: 'Correctness',
+    hint: 'Facts, calculations and the answer key are correct.',
+  },
+  ageFit: { label: 'Age fit', hint: 'Vocabulary and difficulty suit the requested learners.' },
+  adherence: { label: 'Adherence', hint: 'Follows the parent request and selected parameters.' },
+  answerClarity: {
+    label: 'Answer clarity',
+    hint: 'Each question has a clear, objectively checkable answer.',
+  },
+  consistency: {
+    label: 'Consistency',
+    hint: 'Terminology, formatting and instructions agree throughout.',
+  },
 };
 const profileFields = {
   Model: 'Configured model',
@@ -123,6 +132,14 @@ function calibration(summary) {
     : summary.judgeCalibrationPassed === false
       ? 'Failed'
       : 'Unfinished';
+}
+
+function hebrewFindings(summary) {
+  if (!summary.judgeEnabled) return 'Not reviewed (judge disabled)';
+  const reviewed = summary.generatedContentReviews?.succeeded ?? 0;
+  return reviewed
+    ? `${summary.generatedHebrewIssueCount} findings across ${reviewed} reviewed ${reviewed === 1 ? 'result' : 'results'}`
+    : 'No completed content reviews';
 }
 
 /** Renders saved content as text, including answer keys intended for this developer tool. */
@@ -277,7 +294,7 @@ export function renderComparison(document, comparison) {
   human.append(
     table(
       ['Dimension', 'Average score delta'],
-      Object.entries(dimensions).map(([key, label]) => [
+      Object.entries(dimensions).map(([key, { label }]) => [
         label,
         delta(
           deltas[`humanReview.${key}.average`],
@@ -391,7 +408,9 @@ export function createDashboard(document, fetchRequest = globalThis.fetch.bind(g
       pairs([
         ['Selected cases', count],
         ['Repeats', Number.isInteger(repeat) ? repeat : 'Invalid'],
-        ['Judge calibration calls', calibrationCount],
+        ['Template + task calls', count * repeat * 2],
+        ['Additional Hebrew review calls', judge ? count * repeat : 0],
+        ['Calibration calls (once per run)', calibrationCount],
         ['Maximum billable application calls', planned],
         ['Configured model', state.setup?.profile.Model],
       ]),
@@ -423,7 +442,7 @@ export function createDashboard(document, fetchRequest = globalThis.fetch.bind(g
     get('run-controls').disabled = false;
     get('judge').disabled = !setup.judgeAvailable;
     get('judge-message').textContent = setup.judgeAvailable
-      ? `${setup.calibrationCount} calibration calls are included when enabled.`
+      ? `When enabled: ${setup.calibrationCount} calibration calls once per run, plus one review call for each successful template/task pair. All are included in the estimate.`
       : setup.judgeError || 'Hebrew judge calibration is unavailable.';
     get('cases').replaceChildren();
     if (setup.caseError) get('cases').append(node('p', setup.caseError, 'notice warning'));
@@ -537,7 +556,7 @@ export function createDashboard(document, fetchRequest = globalThis.fetch.bind(g
         summary.status,
         models,
         `${summary.caseCount} cases × ${summary.repeat}; ${summary.scenarioAutomaticPasses}/${summary.plannedCaseRuns} automatic passes`,
-        `Calibration: ${calibration(summary)}; ${summary.generatedHebrewIssueCount} Hebrew issues`,
+        `Calibration: ${calibration(summary)}; ${hebrewFindings(summary)}`,
         cost(summary.costCredits),
         number(summary.averageLatencyMilliseconds, ' ms'),
       ];
@@ -575,7 +594,7 @@ export function createDashboard(document, fetchRequest = globalThis.fetch.bind(g
       ['Cases / repeats', `${summary.caseCount} / ${summary.repeat}`],
       ['Automatic passes', `${summary.scenarioAutomaticPasses} / ${summary.plannedCaseRuns}`],
       ['Judge calibration', calibration(summary)],
-      ['Generated Hebrew issues', summary.generatedHebrewIssueCount],
+      ['Generated Hebrew findings', hebrewFindings(summary)],
       ['Actual returned models', summary.actualModels?.join(', ')],
       ['Reported cost subtotal', cost(summary.costCredits)],
       ['Average response latency', number(summary.averageLatencyMilliseconds, ' ms')],
@@ -608,6 +627,13 @@ export function createDashboard(document, fetchRequest = globalThis.fetch.bind(g
     const form = node('form', null, 'review');
     const fieldset = node('fieldset');
     fieldset.append(node('legend', 'Human review'));
+    fieldset.append(
+      node(
+        'p',
+        'Score what you checked: 0 unusable, 1 needs edits, 2 ready. Leave other dimensions unreviewed. Saving changes only your local scores and notes.',
+        'muted',
+      ),
+    );
     const eligible =
       result.generation?.contractValid &&
       result.generation?.finishedAtUtc &&
@@ -615,9 +641,13 @@ export function createDashboard(document, fetchRequest = globalThis.fetch.bind(g
     fieldset.disabled = !eligible || (state.active?.running && state.active.id === runId);
     const fields = node('div', null, 'review-fields');
     const controls = {};
-    for (const [key, labelText] of Object.entries(dimensions)) {
+    for (const [key, { label: labelText, hint }] of Object.entries(dimensions)) {
+      const field = node('div');
       const label = node('label', labelText);
       const select = node('select');
+      const help = node('p', hint, 'muted');
+      help.id = `review-${runId}-${result.caseId}-${result.repetition}-${key}`;
+      select.setAttribute('aria-describedby', help.id);
       for (const [value, caption] of [
         ['', 'Unreviewed'],
         ['0', '0 — unusable'],
@@ -628,7 +658,8 @@ export function createDashboard(document, fetchRequest = globalThis.fetch.bind(g
       select.value = result.review?.[key] == null ? '' : String(result.review[key]);
       controls[key] = select;
       label.append(select);
-      fields.append(label);
+      field.append(label, help);
+      fields.append(field);
     }
     const notesLabel = node('label', 'Review notes (up to 4,000 characters)');
     const notes = node('textarea');
@@ -718,8 +749,18 @@ export function createDashboard(document, fetchRequest = globalThis.fetch.bind(g
     target.append(heading);
     if (report.judgeEnabled) {
       const calibrationDetails = node('details', null, 'card');
+      const passed = result.summary.judgeCalibrationPassed;
       calibrationDetails.append(
         node('summary', `Judge calibration · ${calibration(result.summary)}`),
+        node(
+          'p',
+          passed === true
+            ? 'The judge passed the known examples. This does not prove it will catch every error; inspect content findings and complete your own review.'
+            : passed === false
+              ? 'Calibration failed: a known-example check failed or could not be evaluated. Inspect its call and findings before trusting the content reviews.'
+              : 'Calibration is unfinished. The judge has not completed the known-example checks, so its reliability has not been established for this run.',
+          passed === true ? 'muted' : 'notice warning',
+        ),
       );
       for (const sample of report.calibration ?? []) {
         const entry = node('section');
