@@ -75,11 +75,14 @@ These controls follow [OpenRouter's parameter contract][parameters].
 
 Reasoning tokens are billed even when excluded from the response and generally
 share the output ceiling. A response stopped by the cap is rejected without
-saving. See [reasoning controls][reasoning] for provider differences. Tune budgets
-and sampling against representative tasks; model support does not establish an
-optimal Hebrew configuration. For example, the [Qwen guide][qwen-guide] recommends
-sampling of 1.0/0.95/20 in thinking mode. High presence penalties can cause
-language mixing.
+saving. See [reasoning controls][reasoning] for provider differences. Token budgets
+and the deadline are application cost/latency limits, not vendor quality defaults.
+Tune them against representative tasks; a tight thinking budget can reduce quality.
+The [Qwen Flash-Next guide][qwen-guide] recommends temperature/top-p/top-k of
+1.0/0.95/20 in thinking mode, while the [hosted Flash guide][qwen-hosted] documents
+a temperature default of 0.6. These are different baselines, neither a validated
+Hebrew optimum. Local quantization and inference-engine reports do not establish
+hosted API behavior. Qwen also warns that high presence penalties can mix languages.
 
 The same settings apply to an optional fallback: it must support the selected
 output format, reasoning and sampling controls. [Fallback routing][fallback]
@@ -96,6 +99,7 @@ credits. Their model IDs and settings are independent of the active model.
 [parameters]: https://openrouter.ai/docs/api/reference/parameters
 [reasoning]: https://openrouter.ai/docs/guides/best-practices/reasoning-tokens
 [qwen-guide]: https://huggingface.co/Qwen/Qwen3.8-Flash-Next#best-practices
+[qwen-hosted]: https://docs.qwencloud.com/developer-guides/getting-started/latest-model#thinking
 [fallback]: https://openrouter.ai/docs/guides/routing/model-fallbacks
 
 ## Hebrew AI evaluation
