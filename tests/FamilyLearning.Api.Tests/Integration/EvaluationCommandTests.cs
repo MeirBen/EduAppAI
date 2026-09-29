@@ -1,12 +1,16 @@
 using System.Diagnostics;
+using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using FamilyLearning.Api.Infrastructure.Ai;
 using FamilyLearning.Api.Tests.Fixtures;
 using FamilyLearning.Api.Tests.TaskEngine;
 using FamilyLearning.Evaluation;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
 namespace FamilyLearning.Api.Tests.Integration;
@@ -16,11 +20,12 @@ public sealed class EvaluationCommandTests : IDisposable
     private readonly string directory = Path.Combine(Path.GetTempPath(), $"learning-evaluation-cli-{Guid.NewGuid():N}");
 
     [Theory]
-    [InlineData(false, 4, 0, 0)]
-    [InlineData(true, 1, 2, 0)]
-    [InlineData(true, 2, 0, 2)]
-    public async Task Cli_is_opt_in_bounded_and_uses_the_real_adapter_without_database_access(
-        bool live, int budget, int expectedExitCode, int expectedCalls)
+    [InlineData(false, 4, 0, 0, false)]
+    [InlineData(true, 1, 2, 0, false)]
+    [InlineData(true, 2, 0, 2, false)]
+    [InlineData(true, 2, 0, 2, true)]
+    public async Task Cli_and_dashboard_use_the_real_adapter_without_database_access(
+        bool live, int budget, int expectedExitCode, int expectedCalls, bool dashboard)
     {
         var builder = WebApplication.CreateSlimBuilder();
         builder.WebHost.UseUrls("http://127.0.0.1:0");
@@ -81,8 +86,32 @@ public sealed class EvaluationCommandTests : IDisposable
         start.Environment["Ai__ReasoningEffort"] = "";
         start.Environment["Ai__MaxOutputTokens"] = "8192";
         start.Environment["Storage__Directory"] = Path.Combine(directory, "must-not-exist");
-        var process = await TestProcess.RunAsync(start);
-        Assert.True(process.ExitCode == expectedExitCode, process.Output + process.Error);
+        if (dashboard)
+        {
+            var uiBuilder = WebApplication.CreateBuilder(new WebApplicationOptions { EnvironmentName = "Development" });
+            uiBuilder.Configuration.Sources.Clear();
+            uiBuilder.Configuration.AddInMemoryCollection(start.Environment.Where(pair => pair.Key.StartsWith("Ai__", StringComparison.Ordinal))
+                .Select(pair => new KeyValuePair<string, string?>(pair.Key.Replace("__", ":"), pair.Value)));
+            uiBuilder.Logging.ClearProviders();
+            uiBuilder.Services.AddTaskAi(uiBuilder.Configuration, uiBuilder.Environment);
+            await using var ui = EvaluationDashboard.Build(uiBuilder, 0, directory);
+            await ui.StartAsync();
+            using var http = new HttpClient { BaseAddress = new(ui.Urls.Single()) };
+            http.DefaultRequestHeaders.Add("Origin", http.BaseAddress.GetLeftPart(UriPartial.Authority));
+            var setup = await http.GetFromJsonAsync<JsonElement>("/api/setup");
+            http.DefaultRequestHeaders.Add("X-Evaluation-CSRF", setup.GetProperty("csrfToken").GetString());
+            Assert.Equal(0, calls);
+            var response = await http.PostAsJsonAsync("/api/runs", new EvaluationRunRequest(["reading-grade3"], 1, false, budget, Confirmed: true));
+            Assert.Equal(System.Net.HttpStatusCode.Accepted, response.StatusCode);
+            await ui.Services.GetRequiredService<EvaluationCoordinator>().WaitAsync().WaitAsync(TimeSpan.FromSeconds(10));
+            Assert.Equal("completed", ui.Services.GetRequiredService<EvaluationCoordinator>().Active!.Status);
+            await ui.StopAsync();
+        }
+        else
+        {
+            var process = await TestProcess.RunAsync(start);
+            Assert.True(process.ExitCode == expectedExitCode, process.Output + process.Error);
+        }
         Assert.Equal(expectedCalls, calls);
         Assert.False(Directory.Exists(start.Environment["Storage__Directory"]));
         var reports = Directory.GetFiles(directory, "run.json", SearchOption.AllDirectories);

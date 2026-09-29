@@ -53,10 +53,18 @@ prompt version and affect new output, never saved snapshots. Evaluate language
 quality separately from automated contract tests.
 
 `tools/FamilyLearning.Evaluation` is a separate developer executable referencing
-the engine and adapter. It composes AI services only, with no database or web host,
-and is not published with the API. The runner captures calls; the stateless judge
-reviews language; file IO validates and checkpoints reports; summary/comparison
-derive evidence without provider calls. See [evaluation usage and report
+the engine and adapter and is not published with the API. CLI and `--ui` use the
+same validated plan, runner, judge and JSON reports, without application database
+or identity services. The runner emits structured progress and checkpoints calls;
+summary/comparison derive evidence without provider calls.
+
+The optional dashboard is a loopback-only ASP.NET host with static HTML/CSS/JS.
+Its coordinator owns one cancellable run and waits for the final checkpoint on
+shutdown. The artifact store maps validated run IDs under a configured root,
+rejects links, and serializes atomic human-review edits. Polling reads immutable
+progress snapshots; history and comparison reread authoritative `run.json`.
+Host/Origin checks, antiforgery, CSP and plain-text rendering protect the local
+paid-run boundary. See [evaluation usage and report
 contracts](../README.md#hebrew-ai-evaluation).
 
 Publication atomically saves a revision and current pointer, guarded by

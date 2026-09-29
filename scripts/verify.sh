@@ -11,5 +11,7 @@ npm --prefix frontend ci
 npm --prefix frontend run format:check
 npm --prefix frontend run lint:md
 npm --prefix frontend run typecheck:e2e
+node --test frontend/e2e/evaluation-ui.test.mjs
+frontend/node_modules/.bin/prettier --check "tools/FamilyLearning.Evaluation/wwwroot/*"
 npm --prefix frontend test -- --watch=false
 npm --prefix frontend run build

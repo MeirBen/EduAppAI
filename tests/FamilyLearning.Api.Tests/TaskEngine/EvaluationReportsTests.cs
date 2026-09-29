@@ -265,11 +265,25 @@ public sealed class EvaluationReportsTests : IDisposable
         var comparison = EvaluationComparison.Compare(before, after);
         Assert.True(comparison.DirectlyComparable);
         Assert.False(comparison.HebrewFindingsComparable);
-        Assert.Equal(-1, comparison.Deltas["generatedHebrewIssues"]);
-        Assert.Equal(-1, comparison.HebrewKindDeltas["invented-word"]);
+        Assert.Null(comparison.Deltas["generatedHebrewIssues"]);
+        Assert.Null(comparison.HebrewKindDeltas);
         Assert.Null(comparison.Deltas["costCredits"]);
         Assert.False(comparison.HumanReviewComparable["hebrew"]);
         Assert.Null(comparison.Deltas["humanReview.hebrew.average"]);
+    }
+
+    [Fact]
+    public void Calibrated_matching_reviews_keep_descriptive_hebrew_deltas()
+    {
+        var baseline = CompletedJudgeReport();
+        var candidate = CompletedJudgeReport();
+        baseline.Results[0].Issues = [Issue()];
+
+        var comparison = EvaluationComparison.Compare(baseline, candidate);
+
+        Assert.True(comparison.HebrewFindingsComparable);
+        Assert.Equal(-1, comparison.Deltas["generatedHebrewIssues"]);
+        Assert.Equal(-1, comparison.HebrewKindDeltas!["invented-word"]);
     }
 
     [Theory]
@@ -312,6 +326,8 @@ public sealed class EvaluationReportsTests : IDisposable
             FinishedAtUtc = DateTime.UtcNow,
             CalibrationSha256 = calibrationHash,
             JudgeEnabled = judge,
+            JudgePromptVersion = HebrewJudge.Version,
+            JudgePrompt = HebrewJudge.Instructions,
             CalibrationSamples = [new("clean", "בקשה", [new("text", "משפט תקין.")], [])]
         };
 

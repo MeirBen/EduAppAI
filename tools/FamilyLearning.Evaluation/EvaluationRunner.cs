@@ -10,15 +10,22 @@ using Microsoft.Extensions.Options;
 
 namespace FamilyLearning.Evaluation;
 
+/// <summary>Immutable execution measurements for console and local dashboard consumers.</summary>
+public sealed record EvaluationProgress(string Stage, string? CaseId, int? Repetition, int CompletedCalls,
+    int PlannedCalls, string Status, string? Model, decimal? ReportedCostCredits, int MissingCostCalls);
+
 /// <summary>Exercises the app's prompts, schemas and validators without HTTP endpoints, identity or persistence.</summary>
 public static class EvaluationRunner
 {
     /// <summary>Runs sequentially without retries, checkpointing each stage. Cancellation retains partial results.</summary>
     public static async Task RunAsync(IChatClient client, AiGenerationOptions options, EvaluationReport report,
-        string directory, CancellationToken ct)
+        string directory, CancellationToken ct, Action<EvaluationProgress>? progress = null)
     {
         var capture = new EvaluationCapture(client, report.MaxCalls);
         using var engine = new AiGenerationService([capture], NullLogger<AiGenerationService>.Instance, Options.Create(options));
+        string stage = "starting";
+        string? caseId = null;
+        int? currentRepetition = null;
         await SaveAsync();
         try
         {
@@ -27,7 +34,8 @@ public static class EvaluationRunner
                 foreach (var sample in report.CalibrationSamples)
                 {
                     ct.ThrowIfCancellationRequested();
-                    Console.WriteLine($"Judge calibration: {sample.Id}");
+                    stage = "calibration";
+                    caseId = sample.Id;
                     var calibration = new CalibrationResult(sample, new());
                     report.Calibration.Add(calibration);
                     var review = await AttemptAsync(calibration.Call, token => HebrewJudge.ReviewAsync(
@@ -41,7 +49,9 @@ public static class EvaluationRunner
                 for (var repetition = 1; repetition <= report.Repeat; repetition++)
                 {
                     ct.ThrowIfCancellationRequested();
-                    Console.WriteLine($"{scenario.Id} [{repetition}/{report.Repeat}]");
+                    stage = "authoring";
+                    caseId = scenario.Id;
+                    currentRepetition = repetition;
                     var result = new EvaluationResult(scenario.Id, repetition);
                     report.Results.Add(result);
                     result.Authoring = new();
@@ -60,12 +70,14 @@ public static class EvaluationRunner
                     result.Checks["parameterDefaults"] = parameters.Errors.Count == 0;
                     if (parameters.Errors.Count > 0) continue;
                     result.Parameters = parameters.Values;
+                    stage = "generation";
                     result.Generation = new();
                     var content = await AttemptAsync(result.Generation, token => engine.GenerateAsync(definition, parameters.Values, token));
                     if (content is not null) CheckContent(scenario, content, result.Checks);
                     await SaveAsync();
                     if (content is not null && report.JudgeEnabled)
                     {
+                        stage = "review";
                         result.Judge = new();
                         var review = await AttemptAsync(result.Judge, token => HebrewJudge.ReviewAsync(capture,
                             scenario.Prompt, HebrewJudge.CollectTexts(definition, content), options.MaxOutputTokens, token));
@@ -89,6 +101,7 @@ public static class EvaluationRunner
         async Task<T?> AttemptAsync<T>(EvaluationStep step, Func<CancellationToken, Task<AiResult<T>>> operation) where T : class
         {
             capture.Current = step;
+            PublishProgress();
             var started = Stopwatch.GetTimestamp();
             using var deadline = CancellationTokenSource.CreateLinkedTokenSource(ct);
             deadline.CancelAfter(options.RequestTimeout);
@@ -130,7 +143,16 @@ public static class EvaluationRunner
             }
         }
 
-        Task SaveAsync() => EvaluationFiles.SaveAsync(report, directory);
+        async Task SaveAsync()
+        {
+            await EvaluationFiles.SaveAsync(report, directory);
+            PublishProgress();
+        }
+
+        void PublishProgress() => progress?.Invoke(new(stage, caseId, currentRepetition,
+            report.Steps.Count(step => step.FinishedAtUtc.HasValue && step.RequestSent), report.PlannedCalls, report.Status,
+            report.Steps.LastOrDefault(step => step.Model is not null)?.Model, report.ReportedCostCredits,
+            report.Steps.Count(step => step.RequestSent && step.FinishedAtUtc.HasValue && !step.CostCredits.HasValue)));
     }
 
     private static void CheckContent(EvaluationCase scenario, TaskContent content, Dictionary<string, bool> checks)

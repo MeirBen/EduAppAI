@@ -8,7 +8,9 @@
     <IsPackable>false</IsPackable>
   </PropertyGroup>
   <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
     <ProjectReference Include="../../backend/FamilyLearning.Api/FamilyLearning.Api.csproj" />
+    <Content Include="wwwroot/**" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="cases.json" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="hebrew-review-samples.json" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="../../backend/FamilyLearning.Api/appsettings.json" Link="appsettings.json" CopyToOutputDirectory="PreserveNewest" />

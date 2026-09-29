@@ -120,16 +120,40 @@ It creates no learning records and performs no runtime proofreading or rewriting
 # Repeat the full suite twice: at most 64 calls.
 ./scripts/evaluate-ai.sh --live --case all --repeat 2 --max-calls 64
 
+# Local developer dashboard; startup makes no AI calls.
+./scripts/evaluate-ai.sh --ui
+
 # Compare saved reports offline; no key or provider calls.
 ./scripts/evaluate-ai.sh --compare baseline/run.json candidate/run.json
 ```
+
+The dashboard opens at `http://127.0.0.1:5180` (`--port` changes only the port).
+New Run shows the app's nonsecret AI profile, case selection and call budget.
+Confirming Run can spend OpenRouter credits; startup, history and comparison
+make no provider calls. Only one run is active at a time; Cancel preserves partial
+results. Restart the tool after changing AI configuration.
+
+History renders saved tasks and findings, with collapsible request/output data.
+Review completed results using the six scores and notes (up to 4,000 characters).
+Saves update only human review and refresh the summary. Compare shows compatibility
+before deltas; unavailable Hebrew or human evidence stays unavailable.
+Optional run labels (120 characters) and notes (4,000) help identify baselines;
+CLI equivalents are `--label` and `--notes`.
+
+CLI and dashboard share the evaluator and JSON artifacts. The local host validates
+Host, Origin and antiforgery tokens; browser requests use run IDs, never paths.
+It binds only to loopback, loads no external assets, and is excluded from the
+production application. Keep evaluation artifacts private: they contain prompts
+and generated answer keys. `--output` configures the artifact root for either mode.
 
 Use `--live` for billable calls. Runs are sequential, never retry, and stop on
 rate limits. They use the app's secrets, environment overrides, deadline and
 token cap. `--repeat` accepts 1–5; `--max-calls` accepts 1–100 and must cover
 the plan:
 `cases × repeats × 2`, or `cases × repeats × 3 + controls` with `--judge`.
-Controls run once; only successful template/task pairs receive content reviews.
+Controls load and run only with `--judge`; broken controls do not block basic
+evaluation. All case fixtures are validated before evaluation. Only successful
+template/task pairs receive content reviews.
 This caps application calls, not currency or fallback attempts. Set an OpenRouter
 key spending limit for a monetary cap. Keep fallback empty for model comparisons;
 check the actual returned model and change one profile setting at a time.
@@ -138,8 +162,9 @@ Reports go to ignored `artifacts/evaluations/<run>/` or under `--output`:
 
 - **run.json** is the authoritative checkpoint, saved after each call and on
   cancellation. Format 2 captures cases, controls, fixture hashes, exact judge
-  prompt/schema/version, nonsecret profile, engine messages, final and rejected
-  outputs, actual models, generation prompt versions, finish reasons and usage.
+  prompt/schema/version when judging is enabled, nonsecret profile, engine
+  messages, final and rejected outputs, actual models, generation prompt versions,
+  finish reasons and usage.
   Secrets, raw provider errors and separate reasoning text are excluded.
 - **summary.json** separates stage outcomes, automatic check failures, calibration
   health, generated findings by kind/case, human scores, models and measurements.
@@ -198,8 +223,9 @@ a quality verdict. CI does not run live evaluation.
 ```
 
 Checks locked restores, .NET builds/tests/XML docs, source/config formatting,
-Markdown, shell syntax, browser-test and harness type checks, Angular tests and
-production build. TypeScript rejects unused locals/parameters. No AI key is needed.
+Markdown, shell syntax, browser-test and harness type checks, isolated dashboard
+tests, Angular tests and production build. TypeScript rejects unused
+locals/parameters. No AI key is needed.
 Test hosts use fixed configuration without file watchers.
 
 For the isolated browser workflow:

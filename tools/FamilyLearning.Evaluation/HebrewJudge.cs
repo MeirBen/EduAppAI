@@ -65,17 +65,20 @@ public static class HebrewJudge
         if (response.FinishReason != ChatFinishReason.Stop || response.Text.Length is 0 or > 32000)
             throw AiGenerationException.InvalidOutput();
         var review = JsonSerializer.Deserialize<HebrewReview>(response.Text, StrictJson);
-        if (review?.Issues is null || review.Issues.Length > 20) throw AiGenerationException.InvalidOutput();
-        var seen = new HashSet<(string, string)>();
-        foreach (var issue in review.Issues)
-        {
-            if (issue is null || !IsKnownKind(issue.Kind) || !Bounded(issue.Path, 200) || !Bounded(issue.Quote, 500) ||
-                !Bounded(issue.Suggestion, 500) || !Bounded(issue.Reason, 500) ||
-                issue.Quote == issue.Suggestion || !seen.Add((issue.Path, issue.Quote)) ||
-                !texts.Any(text => text.Path == issue.Path && text.Text.Contains(issue.Quote, StringComparison.Ordinal)))
-                throw AiGenerationException.InvalidOutput();
-        }
+        if (review is null || !ValidateIssues(review.Issues) ||
+            review.Issues.Any(issue => !texts.Any(text => text.Path == issue.Path && text.Text.Contains(issue.Quote, StringComparison.Ordinal))))
+            throw AiGenerationException.InvalidOutput();
         return new(review, new GenerationMetadata("OpenRouter", response.ModelId ?? "unknown", Version, DateTime.UtcNow));
+    }
+
+    /// <summary>Validates live or saved finding shape and bounds; live reviews additionally verify source quotations.</summary>
+    public static bool ValidateIssues(HebrewIssue[]? issues)
+    {
+        if (issues is null || issues.Length > 20) return false;
+        var seen = new HashSet<(string, string)>();
+        return issues.All(issue => issue is not null && IsKnownKind(issue.Kind) && Bounded(issue.Path, 200) &&
+            Bounded(issue.Quote, 500) && Bounded(issue.Suggestion, 500) && Bounded(issue.Reason, 500) &&
+            issue.Quote != issue.Suggestion && seen.Add((issue.Path, issue.Quote)));
     }
 
     /// <summary>Only human-readable fields are reviewed; IDs, schema keys and numeric answers are excluded.</summary>

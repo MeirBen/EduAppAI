@@ -19,17 +19,22 @@ public sealed class EvaluationReport(EvaluationCase[] cases, int repeat, string 
     public DateTime? FinishedAtUtc { get; set; }
     [JsonRequired] public string Status { get; set; } = "running";
     public string SuiteSha256 { get; } = suiteSha256;
+    /// <summary>Optional developer description, at most 120 characters; excluded from comparison semantics.</summary>
+    public string? Label { get; init; }
+    /// <summary>Optional developer context, at most 4,000 characters; displayed only as plain text.</summary>
+    public string? RunNotes { get; init; }
     public Dictionary<string, string?> Profile { get; } = profile;
     public EvaluationCase[] Cases { get; } = cases;
     public int Repeat { get; } = repeat;
-    [JsonRequired] public string CalibrationSha256 { get; init; } = "";
-    [JsonRequired] public CalibrationSample[] CalibrationSamples { get; init; } = [];
-    [JsonRequired] public string JudgePromptVersion { get; init; } = HebrewJudge.Version;
-    [JsonRequired] public string JudgePrompt { get; init; } = HebrewJudge.Instructions;
+    // These fields are required when judging is enabled, checked by the report reader.
+    public string CalibrationSha256 { get; init; } = "";
+    public CalibrationSample[] CalibrationSamples { get; init; } = [];
+    public string JudgePromptVersion { get; init; } = "";
+    public string JudgePrompt { get; init; } = "";
     [JsonRequired] public bool JudgeEnabled { get; init; }
     public int MaxCalls { get; init; } = 100;
     public int PlannedCalls => CountCalls(Cases.Length, Repeat, JudgeEnabled ? CalibrationSamples.Length : 0);
-    [JsonRequired] public List<CalibrationResult> Calibration { get; init; } = [];
+    public List<CalibrationResult> Calibration { get; init; } = [];
     [JsonRequired] public List<EvaluationResult> Results { get; init; } = [];
     public int AttemptedCalls => Steps.Count(step => step.RequestSent);
     public int AutomaticPasses => Results.Count(result => result.Generation?.ContractValid == true && result.Checks.Values.All(value => value));
@@ -142,6 +147,13 @@ public sealed class ManualReview
     public int? AnswerClarity { get; set; }
     public int? Consistency { get; set; }
     public string? Notes { get; set; }
+
+    /// <summary>Rejects scores outside the rubric and notes longer than 4,000 characters for files and UI edits.</summary>
+    public void Validate()
+    {
+        if (Scores().Values.Any(score => score is < 0 or > 2) || Notes?.Length > 4000)
+            throw new InvalidDataException("Human review requires scores of 0, 1, 2 or null and notes of at most 4,000 characters.");
+    }
 
     /// <summary>Stable rubric keys shared by score validation and comparison; null remains unreviewed.</summary>
     public Dictionary<string, int?> Scores() => new()

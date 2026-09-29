@@ -32,8 +32,9 @@ public sealed class EvaluationTests : IDisposable
         Assert.Null(result.Authoring.CostCredits);
         Assert.True(File.Exists(Path.Combine(directory, "run.json")));
         Assert.True(File.Exists(Path.Combine(directory, "summary.json")));
-        Assert.Equal(64, report.CalibrationSha256.Length);
-        Assert.Equal(HebrewJudge.Version, report.JudgePromptVersion);
+        Assert.Empty(report.CalibrationSamples);
+        Assert.Empty(report.CalibrationSha256);
+        Assert.Empty(report.JudgePromptVersion);
         var reloaded = await EvaluationFiles.ReadReportAsync(Path.Combine(directory, "run.json"));
         Assert.Equal(report.CalibrationSha256, reloaded.CalibrationSha256);
     }
@@ -231,9 +232,11 @@ public sealed class EvaluationTests : IDisposable
         var report = new EvaluationReport([scenario ?? Case], repeat, "test-suite", new Dictionary<string, string?>())
         {
             JudgeEnabled = judge,
+            JudgePromptVersion = judge ? HebrewJudge.Version : "",
+            JudgePrompt = judge ? HebrewJudge.Instructions : "",
             MaxCalls = maxCalls,
-            CalibrationSha256 = controls.Sha256,
-            CalibrationSamples = controls.Items
+            CalibrationSha256 = judge ? controls.Sha256 : "",
+            CalibrationSamples = judge ? controls.Items : []
         };
         await EvaluationRunner.RunAsync(chat, new AiGenerationOptions(), report, directory, ct);
         return report;

@@ -7,7 +7,7 @@ public sealed record EvaluationComparison(
     bool DirectlyComparable, string[] Incompatibilities, bool HebrewFindingsComparable,
     Dictionary<string, ProfileChange> ProfileChanges, string BaselineJudgeVersion, string CandidateJudgeVersion,
     EvaluationSummary Baseline, EvaluationSummary Candidate, Dictionary<string, decimal?> Deltas,
-    Dictionary<string, int> CheckFailureDeltas, Dictionary<string, int> HebrewKindDeltas,
+    Dictionary<string, int> CheckFailureDeltas, Dictionary<string, int>? HebrewKindDeltas,
     Dictionary<string, bool> HumanReviewComparable)
 {
     /// <summary>Reads existing reports only. Ignores cached summary.json so edited human scores are reflected.</summary>
@@ -65,10 +65,11 @@ public sealed record EvaluationComparison(
         // Fewer findings on fewer reviewed outputs is not an improvement in Hebrew quality.
         var hebrewComparable = incompatible.Count == 0 && before.JudgeCalibrationPassed == true && after.JudgeCalibrationPassed == true &&
             before.GeneratedContentReviews.Succeeded > 0 && ReviewKeys(baseline).SequenceEqual(ReviewKeys(candidate));
+        if (!hebrewComparable) deltas["generatedHebrewIssues"] = null;
         return new(incompatible.Count == 0, incompatible.ToArray(), hebrewComparable, profiles,
             baseline.JudgePromptVersion, candidate.JudgePromptVersion, before, after, deltas,
             CountDeltas(before.AutomaticFailuresByCheck, after.AutomaticFailuresByCheck),
-            CountDeltas(before.HebrewIssuesByKind, after.HebrewIssuesByKind), humanComparable);
+            hebrewComparable ? CountDeltas(before.HebrewIssuesByKind, after.HebrewIssuesByKind) : null, humanComparable);
     }
 
     private static bool IsComplete(EvaluationReport report)

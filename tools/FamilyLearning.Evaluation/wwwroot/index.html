@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Evaluation Dashboard</title>
+    <link rel="stylesheet" href="/styles.css" />
+    <script type="module" src="/app.js"></script>
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to content</a>
+    <header class="page-header">
+      <div>
+        <p class="eyebrow">Family Learning · local developer tool</p>
+        <h1>Evaluation Dashboard</h1>
+      </div>
+      <p>Read snapshots, review findings, compare evidence.</p>
+    </header>
+    <main id="main" data-dashboard>
+      <p class="notice warning">
+        <strong>Live evaluation can consume paid OpenRouter credits.</strong> Opening this dashboard
+        and browsing saved runs makes no AI calls.
+      </p>
+      <p id="message" role="alert" hidden></p>
+      <nav aria-label="Dashboard">
+        <button type="button" data-view="new" aria-current="page">New Run</button>
+        <button type="button" data-view="history">History</button>
+        <button type="button" data-view="compare">Compare</button>
+      </nav>
+
+      <section id="active-run" class="card" aria-labelledby="active-heading" hidden>
+        <h2 id="active-heading">Active run</h2>
+        <div id="active-progress" role="status" aria-live="polite"></div>
+        <div class="actions">
+          <button id="cancel-run" type="button" class="danger">Cancel run</button>
+          <button id="open-active" type="button" class="secondary">Open report</button>
+        </div>
+        <p class="muted">
+          Cancellation preserves the partial report. A call already in progress may still incur
+          cost.
+        </p>
+      </section>
+
+      <section id="view-new" aria-labelledby="new-heading">
+        <h2 id="new-heading">Run evaluation</h2>
+        <div class="new-layout">
+          <form id="run-form" class="card">
+            <fieldset id="run-controls" disabled>
+              <legend>Evaluation cases</legend>
+              <div class="actions">
+                <button id="select-all" type="button" class="secondary">Select all</button>
+                <button id="select-none" type="button" class="secondary">Clear selection</button>
+              </div>
+              <div id="cases" class="cases"></div>
+              <div class="control-grid">
+                <label
+                  >Repeats
+                  <input id="repeat" type="number" min="1" max="5" value="1" required dir="ltr"
+                /></label>
+                <label
+                  >Max calls
+                  <input
+                    id="max-calls"
+                    type="number"
+                    min="1"
+                    max="100"
+                    value="4"
+                    required
+                    dir="ltr"
+                /></label>
+              </div>
+              <label class="checkbox-label"
+                ><input id="judge" type="checkbox" /> Enable Hebrew judge</label
+              >
+              <p id="judge-message" class="muted"></p>
+              <label
+                >Run label (optional, up to 120 characters)<input
+                  id="label"
+                  maxlength="120"
+                  dir="auto"
+              /></label>
+              <label
+                >Run notes (optional, up to 4,000 characters)<textarea
+                  id="run-notes"
+                  maxlength="4000"
+                  rows="3"
+                  dir="auto"
+                ></textarea>
+              </label>
+              <div id="run-estimate" class="well" aria-live="polite"></div>
+              <p id="budget-message" class="muted"></p>
+              <button id="start-run" type="submit" disabled>Review and run</button>
+            </fieldset>
+          </form>
+          <aside class="card" aria-labelledby="profile-heading">
+            <h3 id="profile-heading">Current AI profile</h3>
+            <p class="muted">Read-only. Loaded from the application's AI configuration.</p>
+            <div id="profile">Loading configuration…</div>
+            <p id="configuration-message" class="notice" hidden></p>
+            <p id="fallback-warning" class="notice warning" hidden>
+              A fallback model is configured. The actual returned model can differ, making model
+              comparisons less useful.
+            </p>
+          </aside>
+        </div>
+      </section>
+
+      <section id="view-history" aria-labelledby="history-heading" hidden>
+        <div class="section-heading">
+          <h2 id="history-heading">Run history</h2>
+          <button id="refresh-history" type="button" class="secondary">Refresh history</button>
+        </div>
+        <div id="history-list"></div>
+        <section id="report" aria-label="Saved run report" tabindex="-1" hidden></section>
+      </section>
+
+      <section id="view-compare" aria-labelledby="compare-heading" hidden>
+        <h2 id="compare-heading">Compare saved runs</h2>
+        <p class="muted">
+          Descriptive changes only. Deltas mean candidate minus baseline; there is no combined score
+          or winner.
+        </p>
+        <form id="compare-form" class="card">
+          <div class="control-grid">
+            <label
+              >Baseline run<select id="baseline" required>
+                <option value="">Choose a run</option>
+              </select></label
+            >
+            <label
+              >Candidate run<select id="candidate" required>
+                <option value="">Choose a run</option>
+              </select></label
+            >
+          </div>
+          <button id="compare-runs" type="submit">Compare runs</button>
+        </form>
+        <div id="comparison" aria-live="polite"></div>
+      </section>
+    </main>
+
+    <dialog
+      id="run-confirmation"
+      aria-labelledby="confirm-heading"
+      aria-describedby="confirm-message"
+    >
+      <h2 id="confirm-heading">Start paid evaluation?</h2>
+      <p id="confirm-message"></p>
+      <p>OpenRouter credits may be charged. Failed calls are not retried automatically.</p>
+      <div class="actions">
+        <button id="confirm-run" type="button">Start evaluation</button>
+        <button id="dismiss-confirmation" type="button" class="secondary">Go back</button>
+      </div>
+    </dialog>
+  </body>
+</html>
