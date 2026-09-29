@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using FamilyLearning.Api.TaskEngine.Ai;
 using FamilyLearning.Api.Tests.Fixtures;
 using FamilyLearning.Evaluation;
@@ -62,6 +63,60 @@ public sealed class EvaluationTests : IDisposable
         var result = Assert.Single(report.Results);
         Assert.True(result.Generation!.ContractValid);
         Assert.Contains(false, result.Checks.Values);
+    }
+
+    [Theory]
+    [InlineData("קהל היעד הוא כיתה ג׳. עם ", false)]
+    [InlineData("יש לכתוב על theme.", false)]
+    [InlineData("יש להשתמש ב-theme וב-counter.", false)]
+    [InlineData("theme discount", false)]
+    [InlineData("theme count_extra", false)]
+    [InlineData("theme Count", false)]
+    [InlineData("יש להשתמש ב־'theme' וב־'count'.", true)]
+    [InlineData("theme: הנושא; count: מספר השאלות.", true)]
+    [InlineData("יש ליצור שתי שאלות.", true, true)]
+    public async Task Parameter_reference_check_requires_every_exact_key_without_blocking_evidence(
+        string instructions, bool expected, bool noParameters = false)
+    {
+        var definition = AiFixtures.Definition();
+        definition["generation"]!["instructions"] = instructions;
+        if (noParameters)
+        {
+            definition["instanceParameters"] = new JsonArray();
+            definition["generation"]!["questionCountParameter"] = null;
+        }
+        using var chat = new AiFixtures.ScriptedChat(definition.ToJsonString(), AiFixtures.Content().ToJsonString());
+        var report = await RunAsync(chat);
+
+        var result = Assert.Single(report.Results);
+        Assert.True(result.Authoring!.ContractValid);
+        Assert.True(result.Generation!.ContractValid);
+        Assert.Equal(expected, result.Checks["parameterReferences"]);
+        Assert.Equal(expected ? 1 : 0, report.AutomaticPasses);
+        using var output = JsonDocument.Parse(result.Authoring.Output!);
+        Assert.Equal(instructions, output.RootElement
+            .GetProperty("generation").GetProperty("instructions").GetString());
+        var saved = await EvaluationFiles.ReadReportAsync(Path.Combine(directory, "run.json"));
+        Assert.Equal(expected, Assert.Single(saved.Results).Checks["parameterReferences"]);
+    }
+
+    [Fact]
+    public async Task New_checks_do_not_make_legacy_automatic_scores_directly_comparable()
+    {
+        using var chat = new AiFixtures.ScriptedChat(AiFixtures.Definition().ToJsonString(), AiFixtures.Content().ToJsonString());
+        var current = await RunAsync(chat);
+        var path = Path.Combine(directory, "run.json");
+        var legacyJson = JsonNode.Parse(await File.ReadAllTextAsync(path))!;
+        legacyJson.AsObject().Remove("automaticChecksVersion");
+        legacyJson["results"]![0]!["checks"]!.AsObject().Remove("parameterReferences");
+        await File.WriteAllTextAsync(path, legacyJson.ToJsonString());
+        var legacy = await EvaluationFiles.ReadReportAsync(path);
+
+        var comparison = EvaluationComparison.Compare(legacy, current);
+        Assert.False(comparison.DirectlyComparable);
+        Assert.Contains("automatic-checks-version", comparison.Incompatibilities);
+        Assert.True(EvaluationComparison.Compare(legacy, legacy).DirectlyComparable);
+        Assert.True(EvaluationComparison.Compare(current, current).DirectlyComparable);
     }
 
     [Fact]

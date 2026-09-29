@@ -152,6 +152,18 @@ public sealed class EvaluationReportsTests : IDisposable
     }
 
     [Theory]
+    [InlineData(0)]
+    [InlineData(-1)]
+    public async Task Invalid_automatic_check_versions_are_rejected(int version)
+    {
+        var path = await SaveAsync("invalid-check-version", CreateReport());
+        var json = JsonNode.Parse(await File.ReadAllTextAsync(path))!;
+        json["automaticChecksVersion"] = version;
+        await File.WriteAllTextAsync(path, json.ToJsonString());
+        await Assert.ThrowsAsync<InvalidDataException>(() => EvaluationFiles.ReadReportAsync(path));
+    }
+
+    [Theory]
     [InlineData("case")]
     [InlineData("authoring")]
     [InlineData("generation")]

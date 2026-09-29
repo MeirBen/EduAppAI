@@ -193,6 +193,7 @@
                   </li>
                   <li>
                     <strong>Content review</strong> proofreads each successful template/task pair.
+                    This includes template instructions, labels and options, not just the story.
                   </li>
                   <li>
                     <strong>You decide.</strong> The same model can miss its own mistakes; no
@@ -250,7 +251,11 @@
             <dt>Contract passed</dt>
             <dd>The response met the app's structure and validation rules.</dd>
             <dt>Automatic checks</dt>
-            <dd>Case checks such as question, choice and passage counts; not every instruction.</dd>
+            <dd>
+              Case checks such as question, choice and passage counts; not every instruction.
+              Parameter references checks that each parameter key appears in template instructions,
+              not that it is used correctly. Failed checks retain the generated evidence.
+            </dd>
             <dt>Judge calibration</dt>
             <dd>Known-example detection. If it fails or is unfinished, trust findings less.</dd>
             <dt>Hebrew findings</dt>

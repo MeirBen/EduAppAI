@@ -18,6 +18,8 @@ public sealed class EvaluationReport(EvaluationCase[] cases, int repeat, string 
     public DateTime StartedAtUtc { get; init; } = DateTime.UtcNow;
     public DateTime? FinishedAtUtc { get; set; }
     [JsonRequired] public string Status { get; set; } = "running";
+    /// <summary>Version of the runner's deterministic checks; reports predating this field used version 1.</summary>
+    public int AutomaticChecksVersion { get; set; } = 1;
     public string SuiteSha256 { get; } = suiteSha256;
     /// <summary>Optional developer description, at most 120 characters; excluded from comparison semantics.</summary>
     public string? Label { get; init; }

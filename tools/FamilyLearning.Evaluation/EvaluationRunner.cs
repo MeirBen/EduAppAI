@@ -1,6 +1,7 @@
 using System.ClientModel;
 using System.Diagnostics;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using FamilyLearning.Api.TaskEngine.Ai;
 using FamilyLearning.Api.TaskEngine.Models;
 using FamilyLearning.Api.TaskEngine.Validation;
@@ -21,6 +22,7 @@ public static class EvaluationRunner
     public static async Task RunAsync(IChatClient client, AiGenerationOptions options, EvaluationReport report,
         string directory, CancellationToken ct, Action<EvaluationProgress>? progress = null, TimeProvider? timeProvider = null)
     {
+        report.AutomaticChecksVersion = 2;
         var capture = new EvaluationCapture(client, report.MaxCalls);
         using var engine = new AiGenerationService([capture], NullLogger<AiGenerationService>.Instance, Options.Create(options));
         string stage = "starting";
@@ -58,6 +60,10 @@ public static class EvaluationRunner
                     await SaveAsync();
                     if (definition is null) continue;
 
+                    // Presence is necessary, not proof of correct use. Match complete, case-sensitive ASCII identifiers.
+                    var references = Regex.Matches(definition.Generation.Instructions, "[A-Za-z0-9_]+")
+                        .Select(match => match.Value).ToHashSet(StringComparer.Ordinal);
+                    result.Checks["parameterReferences"] = definition.InstanceParameters.All(parameter => references.Contains(parameter.Key));
                     var supplied = new Dictionary<string, JsonElement>();
                     if (scenario.UseMaximumQuestionCount)
                     {

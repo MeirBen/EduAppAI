@@ -33,6 +33,7 @@ const incompatibilities = {
   'selected-cases-or-order': 'Different selected cases or order',
   'scenario-inputs': 'Different case inputs',
   'repeat-count': 'Different repeat counts',
+  'automatic-checks-version': 'Automatic checks changed; overall pass counts use different rules',
   'incomplete-run': 'At least one run is incomplete',
   'judge-mode': 'Different judge modes',
   'calibration-suite-hash': 'Different calibration suites',
@@ -422,6 +423,7 @@ export function reportBrief(id, report, summary) {
     '- "completed" means the workflow finished, not that checks passed.',
     '- Automatic checks cover app contracts and case expectations, not language or educational quality.',
     '- Hebrew findings are advisory. Failed or unfinished judge calibration weakens them. No completed review means no language evidence, not zero errors.',
+    '- Finding paths identify the source: template.* refers to the reusable blueprint; task.* refers to generated learner content.',
     '- Human scores: 0 unusable, 1 needs edits, 2 ready, null unreviewed.',
     '- Unknown cost or token measurements are unknown, not zero. Latency is in milliseconds.',
     '- Each distinct model request message appears once; repeats name their first occurrence.',
@@ -436,6 +438,7 @@ export function reportBrief(id, report, summary) {
       finishedAtUtc: report.finishedAtUtc,
       runNotes: report.runNotes,
       repeat: report.repeat,
+      automaticChecksVersion: report.automaticChecksVersion ?? 1,
       callDelaySeconds: report.callDelaySeconds ?? 0,
       judgeEnabled: report.judgeEnabled,
       judgePromptVersion: report.judgePromptVersion,
@@ -1222,6 +1225,11 @@ export function createDashboard(document, fetchRequest = globalThis.fetch.bind(g
       card.append(
         block(
           'Hebrew findings',
+          node(
+            'p',
+            'The judge reviews both the template and the task. Paths starting with template. refer to the reusable blueprint under Raw data → Template authoring; task. refers to the task above. Suggested corrections can also be wrong.',
+            'hint',
+          ),
           !evaluation.judge?.contractValid
             ? node(
                 'p',

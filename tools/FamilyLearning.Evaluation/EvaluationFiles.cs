@@ -51,7 +51,7 @@ public static class EvaluationFiles
         if (new FileInfo(path).Length > 32 * 1024 * 1024) throw new InvalidDataException("Evaluation report is too large.");
         using var document = JsonDocument.Parse(await File.ReadAllTextAsync(path), new() { MaxDepth = Json.MaxDepth });
         var report = document.RootElement.Deserialize<EvaluationReport>(Json);
-        if (report is null || report.FormatVersion != EvaluationReport.CurrentFormatVersion ||
+        if (report is null || report.FormatVersion != EvaluationReport.CurrentFormatVersion || report.AutomaticChecksVersion < 1 ||
             report.Cases is not { Length: > 0 } || report.Repeat is < 1 or > 5 || report.Profile is null || report.CallDelaySeconds is < 0 or > 60 ||
             string.IsNullOrWhiteSpace(report.SuiteSha256) || report.Results is null || report.Calibration is null || report.CalibrationSamples is null ||
             report.Retries is null || report.Retries.Count > 100 || report.Retries.Any(retry => retry is null || retry.Call is null ||

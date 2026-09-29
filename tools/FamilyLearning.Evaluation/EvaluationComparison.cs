@@ -24,6 +24,7 @@ public sealed record EvaluationComparison(
         // Compare the captured inputs too: a stale/manually edited hash cannot make different prompts comparable.
         if (!baseline.Cases.SequenceEqual(candidate.Cases)) incompatible.Add("scenario-inputs");
         if (baseline.Repeat != candidate.Repeat) incompatible.Add("repeat-count");
+        if (baseline.AutomaticChecksVersion != candidate.AutomaticChecksVersion) incompatible.Add("automatic-checks-version");
         if (!IsComplete(baseline) || !IsComplete(candidate)) incompatible.Add("incomplete-run");
         if (baseline.JudgeEnabled != candidate.JudgeEnabled) incompatible.Add("judge-mode");
         if (baseline.JudgeEnabled && candidate.JudgeEnabled)

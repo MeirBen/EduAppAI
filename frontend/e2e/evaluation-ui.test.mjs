@@ -743,6 +743,7 @@ test('the AI brief carries context, requests, outputs, findings and reviews with
   const repeated = { ...completedReport.results[0], repetition: 2 };
   const report = {
     ...completedReport,
+    automaticChecksVersion: 2,
     results: [
       {
         ...completedReport.results[0],
@@ -753,6 +754,11 @@ test('the AI brief carries context, requests, outputs, findings and reviews with
     ],
   };
   const brief = ui.reportBrief('run-1', report, runSummary);
+  assert.match(brief, /"automaticChecksVersion": 2/);
+  assert.match(
+    ui.reportBrief('legacy', completedReport, runSummary),
+    /"automaticChecksVersion": 1/,
+  );
   for (const expected of [
     'Reading rules:',
     'Contains prompts and generated answer keys.',

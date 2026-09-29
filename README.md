@@ -85,11 +85,11 @@ a temperature default of 0.6. These are different baselines, neither a validated
 Hebrew optimum. Local quantization and inference-engine reports do not establish
 hosted API behavior. Qwen also warns that high presence penalties can mix languages.
 
-The current Qwen profile allows 4,096 thinking tokens within the 8,192-token total.
-[Qwen stops thinking when its budget is reached][qwen-thinking]. This is a tuning
-candidate: compare it with 2,048 using the same prompts, cases and judge controls.
-Keep the larger budget only if manually reviewed quality justifies its extra
-latency and cost; more thinking does not guarantee better Hebrew.
+The current Qwen profile tests the hosted temperature of 0.6, retaining 4,096
+thinking tokens within the 8,192-token total. Compare with temperature 1.0 using
+the same prompts, cases, checks and judge controls. [Thinking stops at its
+budget][qwen-thinking]; more thinking or lower temperature does not guarantee
+better Hebrew. Assess manually reviewed quality alongside latency and cost.
 
 The same settings apply to an optional fallback: it must support the selected
 output format, reasoning and sampling controls. [Fallback routing][fallback]
@@ -224,13 +224,18 @@ Reports go to ignored `artifacts/evaluations/<run>/` or under `--output`:
 Interpret the results separately:
 
 - **Code tests:** harness/app behavior with local providers, not model quality.
-- **Automatic checks:** app contracts, defaults, question/choice counts,
-  interaction and whitespace word counts. Generated-passage upper bounds allow
-  five extra title words; `verbatim-source` uses an exact length, and no-passage
-  cases use zero.
+- **Automatic checks:** app contracts, defaults, parameter references,
+  question/choice counts, interaction and whitespace word counts. Generated-passage
+  upper bounds allow five extra title words; `verbatim-source` uses an exact
+  length, and no-passage cases use zero. `parameterReferences` checks that every
+  key occurs as a complete, case-sensitive ASCII identifier in the instructions.
+  Presence does not prove correct usage or complete instructions. Failed checks
+  retain the template and continue generation/review to preserve evidence.
 - **Calibration:** known defect detection and false alarms, not general accuracy.
 - **Generated findings:** exact field, quote, correction, explanation and kind;
-  advisory language review, never edits or educational scores.
+  advisory language review, never edits or educational scores. Paths beginning
+  with `template.` refer to the reusable blueprint, including its instructions;
+  `task.` refers to the generated learner content. Suggestions can also be wrong.
 - **Human review:** Hebrew, correctness, age fit, adherence, answer clarity and
   consistency. Enter 0 (unusable), 1 (needs edits), 2 (ready), or null (unreviewed),
   with evidence in notes.
@@ -246,12 +251,14 @@ retain failed generations and use human review when assessing quality.
 Comparison rereads `run.json`, so edited human scores take effect without updating
 summary files. It reports profile changes and candidate-minus-baseline deltas,
 never a winner or combined score. Direct comparison requires matching suite
-hashes, selected cases/order, captured inputs, repeats and judge setup, plus
-complete stage evidence. Hebrew comparisons also require passing calibration and
-matching reviewed cases; human-score deltas require the same scored case/repetition
-pairs. Token/cost deltas require full measurement coverage. Other deltas are null
+hashes, selected cases/order, captured inputs, repeats, automatic-check versions
+and judge setup, plus complete stage evidence. Hebrew comparisons also require
+passing calibration and matching reviewed cases; human-score deltas require the
+same scored case/repetition pairs. Token/cost deltas require full measurement
+coverage. Other deltas are null
 or explicitly qualified. Only format 2 reports are supported; mismatched embedded
-controls and invalid human scores are rejected.
+controls and invalid human scores are rejected. Older reports retain their original
+checks (version 1); new runs use version 2, adding parameter-reference coverage.
 
 Run exit codes: 0 completed automatic checks and, when enabled, calibration and
 reviews passed without findings; 1 failures/findings or stopped run; 2 invalid

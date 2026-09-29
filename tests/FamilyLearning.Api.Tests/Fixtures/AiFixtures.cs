@@ -11,7 +11,7 @@ internal static class AiFixtures
         {"schemaVersion":2,"name":"קוראים ומגלים","instanceParameters":[
           {"key":"theme","label":"נושא","type":"text","required":true,"default":"דינוזאורים","maxLength":100},
           {"key":"count","label":"מספר שאלות","type":"integer","required":true,"default":2,"min":1,"max":20}
-        ],"generation":{"instructions":"כתבו קטע קריאה חדש בנושא שנבחר ושאלות הבנה עם תשובות קצרות.","questionCountParameter":"count"}}
+        ],"generation":{"instructions":"יש ליצור קטע קריאה בנושא \"theme\" ושאלות עם תשובות קצרות לפי המספר ב־\"count\".","questionCountParameter":"count"}}
         """)!;
 
     internal static JsonNode Content(string theme = "דינוזאורים", int count = 2) => new JsonObject
