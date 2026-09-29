@@ -80,14 +80,15 @@ saving. See [reasoning controls][reasoning] for provider differences. Token budg
 and the deadline are application cost/latency limits, not vendor quality defaults.
 Tune them against representative tasks; a tight thinking budget can reduce quality.
 
-The current profile uses `deepseek/deepseek-v4.1-flash` with `high` reasoning
+The current profile uses `deepseek/deepseek-v4.1-flash` with `low` reasoning
 effort, an 8,192-token total ceiling and the default 180-second deadline.
 [OpenRouter's model metadata][model-metadata] lists `low`, `high` and `max`
 efforts for this model, without a native reasoning-token budget. `ReasoningMaxTokens`
-is therefore null: effort controls depth, not an exact token allocation. `high`
-is OpenRouter's advertised default and our starting baseline for quality evaluation.
-Compare with `low` if reasoning consumes the output budget or latency is excessive;
-neither effort level has been validated for this app's Hebrew content.
+is therefore null: effort controls depth, not an exact token allocation. The initial
+`high` evaluation exhausted the full ceiling on reasoning in a generation call and
+a calibration call. `low` keeps reasoning enabled while testing whether less
+thinking leaves room for final JSON within the same limits. Its effect on Hebrew
+quality and completion rate still needs evaluation; it is not a hard reasoning cap.
 
 Temperature/top-p are 1.0/0.95 from the [DeepSeek model card][deepseek-card];
 top-k is unset to avoid carrying over Qwen's sampling profile or unnecessarily
