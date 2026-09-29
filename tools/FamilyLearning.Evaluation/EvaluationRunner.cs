@@ -17,9 +17,9 @@ public sealed record EvaluationProgress(string Stage, string? CaseId, int? Repet
 /// <summary>Exercises the app's prompts, schemas and validators without HTTP endpoints, identity or persistence.</summary>
 public static class EvaluationRunner
 {
-    /// <summary>Runs sequentially without retries, checkpointing each stage. Cancellation retains partial results.</summary>
+    /// <summary>Runs sequentially with at most three 429 retries per stage, within the total call budget.</summary>
     public static async Task RunAsync(IChatClient client, AiGenerationOptions options, EvaluationReport report,
-        string directory, CancellationToken ct, Action<EvaluationProgress>? progress = null)
+        string directory, CancellationToken ct, Action<EvaluationProgress>? progress = null, TimeProvider? timeProvider = null)
     {
         var capture = new EvaluationCapture(client, report.MaxCalls);
         using var engine = new AiGenerationService([capture], NullLogger<AiGenerationService>.Instance, Options.Create(options));
@@ -38,7 +38,7 @@ public static class EvaluationRunner
                     caseId = sample.Id;
                     var calibration = new CalibrationResult(sample, new());
                     report.Calibration.Add(calibration);
-                    var review = await AttemptAsync(calibration.Call, token => HebrewJudge.ReviewAsync(
+                    var review = await AttemptAsync(step => calibration.Call = step, token => HebrewJudge.ReviewAsync(
                         capture, sample.Request, sample.Texts, options.MaxOutputTokens, token));
                     calibration.Issues = review?.Issues;
                     await SaveAsync();
@@ -54,8 +54,7 @@ public static class EvaluationRunner
                     currentRepetition = repetition;
                     var result = new EvaluationResult(scenario.Id, repetition);
                     report.Results.Add(result);
-                    result.Authoring = new();
-                    var definition = await AttemptAsync(result.Authoring, token => engine.AuthorAsync(scenario.Prompt, token));
+                    var definition = await AttemptAsync(step => result.Authoring = step, token => engine.AuthorAsync(scenario.Prompt, token));
                     await SaveAsync();
                     if (definition is null) continue;
 
@@ -71,15 +70,13 @@ public static class EvaluationRunner
                     if (parameters.Errors.Count > 0) continue;
                     result.Parameters = parameters.Values;
                     stage = "generation";
-                    result.Generation = new();
-                    var content = await AttemptAsync(result.Generation, token => engine.GenerateAsync(definition, parameters.Values, token));
+                    var content = await AttemptAsync(step => result.Generation = step, token => engine.GenerateAsync(definition, parameters.Values, token));
                     if (content is not null) CheckContent(scenario, content, result.Checks);
                     await SaveAsync();
                     if (content is not null && report.JudgeEnabled)
                     {
                         stage = "review";
-                        result.Judge = new();
-                        var review = await AttemptAsync(result.Judge, token => HebrewJudge.ReviewAsync(capture,
+                        var review = await AttemptAsync(step => result.Judge = step, token => HebrewJudge.ReviewAsync(capture,
                             scenario.Prompt, HebrewJudge.CollectTexts(definition, content), options.MaxOutputTokens, token));
                         result.Issues = review?.Issues;
                         await SaveAsync();
@@ -98,8 +95,40 @@ public static class EvaluationRunner
             await SaveAsync();
         }
 
-        async Task<T?> AttemptAsync<T>(EvaluationStep step, Func<CancellationToken, Task<AiResult<T>>> operation) where T : class
+        async Task<T?> AttemptAsync<T>(Action<EvaluationStep> setStep, Func<CancellationToken, Task<AiResult<T>>> operation) where T : class
         {
+            var step = new EvaluationStep();
+            setStep(step);
+            var delay = report.AttemptedCalls > 0 ? report.CallDelaySeconds : 0d;
+            for (var retry = 0; ; retry++)
+            {
+                // Scheduling waits never consume a request deadline or inflate provider latency.
+                if (delay > 0)
+                {
+                    PublishProgress(retry == 0 ? "waiting" : "retry-wait");
+                    await Task.Delay(TimeSpan.FromSeconds(delay), timeProvider ?? TimeProvider.System, ct);
+                }
+                ct.ThrowIfCancellationRequested();
+                try { return await AttemptOnceAsync(step, operation); }
+                catch (AiGenerationException exception) when (exception.StatusCode == 429)
+                {
+                    if (retry == 3) throw;
+                    if (report.AttemptedCalls >= report.MaxCalls) throw new EvaluationCallLimitException();
+                    delay = Math.Max(report.CallDelaySeconds,
+                        step.RetryAfterSeconds ?? 5 * Math.Pow(2, retry) * (1 + Random.Shared.NextDouble() * 0.2));
+                    // Never shorten a provider's long retry hint to fit a local waiting limit.
+                    if (delay > 300) throw;
+                    report.Retries.Add(new(stage, caseId, currentRepetition, retry + 1, delay, step));
+                    step = new();
+                    setStep(step);
+                    await SaveAsync();
+                }
+            }
+        }
+
+        async Task<T?> AttemptOnceAsync<T>(EvaluationStep step, Func<CancellationToken, Task<AiResult<T>>> operation) where T : class
+        {
+            step.StartedAtUtc = DateTime.UtcNow;
             capture.Current = step;
             PublishProgress();
             var started = Stopwatch.GetTimestamp();
@@ -149,8 +178,8 @@ public static class EvaluationRunner
             PublishProgress();
         }
 
-        void PublishProgress() => progress?.Invoke(new(stage, caseId, currentRepetition,
-            report.Steps.Count(step => step.FinishedAtUtc.HasValue && step.RequestSent), report.PlannedCalls, report.Status,
+        void PublishProgress(string? currentStage = null) => progress?.Invoke(new(currentStage ?? stage, caseId, currentRepetition,
+            report.Steps.Count(step => step.FinishedAtUtc.HasValue && step.RequestSent), report.PlannedCalls + report.Retries.Count, report.Status,
             report.Steps.LastOrDefault(step => step.Model is not null)?.Model, report.ReportedCostCredits,
             report.Steps.Count(step => step.RequestSent && step.FinishedAtUtc.HasValue && !step.CostCredits.HasValue)));
     }

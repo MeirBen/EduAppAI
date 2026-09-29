@@ -177,8 +177,13 @@ production application. Keep evaluation artifacts private: they contain prompts
 and generated answer keys. `--output` configures the artifact root for either mode.
 
 Use `--live` for billable calls. Runs are sequential, never retry, and stop on
-rate limits. They use the app's secrets, environment overrides, deadline and
-token cap. `--repeat` accepts 1–5; `--max-calls` accepts 1–100 and must cover
+rate limits. A 5-second pause separates calls, including calibration and reviews.
+Change **Pause between calls** in the dashboard or use `--call-delay-seconds N`
+(0–60; 0 disables it). Waiting is cancellable and excluded from per-call deadlines
+and latency measurements. Reports record the pause; older reports used zero.
+Paid providers can still throttle requests; spacing cannot guarantee availability.
+Runs use the app's secrets, environment overrides, deadline and token cap.
+`--repeat` accepts 1–5; `--max-calls` accepts 1–100 and must cover
 the plan:
 `cases × repeats × 2`, or `cases × repeats × 3 + controls` with `--judge`.
 Controls load and run only with `--judge`; broken controls do not block basic

@@ -436,6 +436,7 @@ export function reportBrief(id, report, summary) {
       finishedAtUtc: report.finishedAtUtc,
       runNotes: report.runNotes,
       repeat: report.repeat,
+      callDelaySeconds: report.callDelaySeconds ?? 0,
       judgeEnabled: report.judgeEnabled,
       judgePromptVersion: report.judgePromptVersion,
       maxCalls: report.maxCalls,
@@ -629,6 +630,7 @@ export function createDashboard(document, fetchRequest = globalThis.fetch.bind(g
     const calibrationCount = judge ? (state.setup?.calibrationCount ?? 0) : 0;
     const planned = count * repeat * (judge ? 3 : 2) + calibrationCount;
     const maxCalls = Number(get('max-calls').value);
+    const callDelaySeconds = Number(get('call-delay').value);
     const valid =
       count > 0 &&
       Number.isInteger(repeat) &&
@@ -637,6 +639,10 @@ export function createDashboard(document, fetchRequest = globalThis.fetch.bind(g
       Number.isInteger(maxCalls) &&
       maxCalls >= 1 &&
       maxCalls <= 100 &&
+      get('call-delay').value !== '' &&
+      Number.isInteger(callDelaySeconds) &&
+      callDelaySeconds >= 0 &&
+      callDelaySeconds <= 60 &&
       planned <= maxCalls;
     get('case-count').textContent = state.setup
       ? `${count} of ${state.setup.cases.length} selected`
@@ -650,6 +656,7 @@ export function createDashboard(document, fetchRequest = globalThis.fetch.bind(g
         ['Additional Hebrew review calls', judge ? count * repeat : 0],
         ['Calibration calls (once per run)', calibrationCount],
         ['Maximum billable application calls', planned],
+        ['Pause between calls (seconds)', callDelaySeconds],
       ]),
       gauge(planned, maxCalls, 'Planned calls within max calls', planned > maxCalls ? 'over' : ''),
     );
@@ -665,7 +672,7 @@ export function createDashboard(document, fetchRequest = globalThis.fetch.bind(g
       state.active?.running === true ||
       state.pending ||
       (judge && !state.setup.judgeAvailable);
-    return { valid, count, repeat, judge, planned, maxCalls };
+    return { valid, count, repeat, judge, planned, maxCalls, callDelaySeconds };
   }
 
   function renderSetup(setup) {
@@ -756,7 +763,7 @@ export function createDashboard(document, fetchRequest = globalThis.fetch.bind(g
             ],
             ['Current case', progress?.caseId],
             ['Repetition', progress?.repetition],
-            ['Stage', progress?.stage],
+            ['Stage', progress?.stage === 'waiting' ? 'Waiting between calls' : progress?.stage],
             ['Latest status', progress?.status],
             ['Returned model', progress?.model],
             [
@@ -1077,7 +1084,7 @@ export function createDashboard(document, fetchRequest = globalThis.fetch.bind(g
       title,
       node(
         'p',
-        `${timestamp(report.startedAtUtc)} · Finished: ${timestamp(report.finishedAtUtc)}`,
+        `${timestamp(report.startedAtUtc)} · Finished: ${timestamp(report.finishedAtUtc)} · Pause between calls: ${report.callDelaySeconds ?? 0}s`,
         'hint',
       ),
     );
@@ -1281,12 +1288,13 @@ export function createDashboard(document, fetchRequest = globalThis.fetch.bind(g
       repeat: current.repeat,
       judge: current.judge,
       maxCalls: current.maxCalls,
+      callDelaySeconds: current.callDelaySeconds,
       label: get('label').value || null,
       runNotes: get('run-notes').value || null,
       confirmed: true,
     };
     get('confirm-message').textContent =
-      `This evaluation can make up to ${current.planned} OpenRouter calls with ${display(state.setup.profile.Model)}.`;
+      `This evaluation can make up to ${current.planned} OpenRouter calls with ${display(state.setup.profile.Model)}, with a ${current.callDelaySeconds}-second pause between calls.`;
     if (typeof dialog.showModal === 'function') dialog.showModal();
     else dialog.setAttribute('open', '');
   });

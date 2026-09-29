@@ -88,7 +88,8 @@ public sealed class EvaluationDashboardTests : IAsyncLifetime
     [Fact]
     public async Task Start_recomputes_budget_and_requires_explicit_confirmation()
     {
-        foreach (var request in new[] { Request() with { MaxCalls = 1 }, Request() with { Confirmed = false }, Request() with { CaseIds = ["missing"] } })
+        foreach (var request in new[] { Request() with { MaxCalls = 1 }, Request() with { Confirmed = false }, Request() with { CaseIds = ["missing"] },
+            Request() with { CallDelaySeconds = -1 }, Request() with { CallDelaySeconds = 61 } })
             Assert.Equal(HttpStatusCode.BadRequest, (await http.PostAsJsonAsync("/api/runs", request)).StatusCode);
         Assert.Empty(chat.Requests);
     }
@@ -211,7 +212,7 @@ public sealed class EvaluationDashboardTests : IAsyncLifetime
     public async Task Store_rejects_traversal(string id) =>
         await Assert.ThrowsAsync<ArgumentException>(() => new EvaluationRunStore(directory).ReadAsync(id));
 
-    private static EvaluationRunRequest Request() => new(["reading-grade3"], 1, false, 2, null, null, true);
+    private static EvaluationRunRequest Request() => new(["reading-grade3"], 1, false, 2, Confirmed: true, CallDelaySeconds: 0);
 
     public async Task DisposeAsync()
     {

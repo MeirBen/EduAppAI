@@ -33,9 +33,13 @@ public sealed class EvaluationReport(EvaluationCase[] cases, int repeat, string 
     public string JudgePrompt { get; init; } = "";
     [JsonRequired] public bool JudgeEnabled { get; init; }
     public int MaxCalls { get; init; } = 100;
+    /// <summary>Pause before each call after the first, outside request timing. Older reports used no pause.</summary>
+    public int CallDelaySeconds { get; init; }
     public int PlannedCalls => CountCalls(Cases.Length, Repeat, JudgeEnabled ? CalibrationSamples.Length : 0);
     public List<CalibrationResult> Calibration { get; init; } = [];
     [JsonRequired] public List<EvaluationResult> Results { get; init; } = [];
+    /// <summary>Superseded 429 attempts; each stage retains its current or final attempt separately.</summary>
+    public List<EvaluationRetry> Retries { get; init; } = [];
     public int AttemptedCalls => Steps.Count(step => step.RequestSent);
     public int AutomaticPasses => Results.Count(result => result.Generation?.ContractValid == true && result.Checks.Values.All(value => value));
     public int CallsWithReportedCost => Steps.Count(step => step.CostCredits.HasValue);
@@ -51,7 +55,8 @@ public sealed class EvaluationReport(EvaluationCase[] cases, int repeat, string 
         .SelectMany(result => result.Issues ?? []);
     [JsonIgnore]
     public IEnumerable<EvaluationStep> Steps => Calibration.Select(result => result.Call).Concat(
-        Results.SelectMany(result => new[] { result.Authoring, result.Generation, result.Judge }).OfType<EvaluationStep>());
+        Results.SelectMany(result => new[] { result.Authoring, result.Generation, result.Judge }).OfType<EvaluationStep>())
+        .Concat(Retries.Select(retry => retry.Call));
 
     public static int CountCalls(int caseCount, int repeat, int calibrationCount) =>
         caseCount * repeat * (calibrationCount > 0 ? 3 : 2) + calibrationCount;
@@ -74,7 +79,7 @@ public sealed class EvaluationResult(string caseId, int repetition)
 /// <summary>Only final content and whitelisted diagnostics are retained, including rejected outputs.</summary>
 public sealed class EvaluationStep
 {
-    public DateTime StartedAtUtc { get; init; } = DateTime.UtcNow;
+    public DateTime StartedAtUtc { get; set; } = DateTime.UtcNow;
     [JsonRequired] public DateTime? FinishedAtUtc { get; set; }
     [JsonRequired] public bool RequestSent { get; set; }
     [JsonRequired] public bool ResponseReceived { get; set; }
@@ -92,10 +97,16 @@ public sealed class EvaluationStep
     public GenerationMetadata? Metadata { get; set; }
     [JsonRequired] public bool ContractValid { get; set; }
     public int? StatusCode { get; set; }
+    /// <summary>Sanitized Retry-After seconds, when supplied by the provider; no raw headers are retained.</summary>
+    public double? RetryAfterSeconds { get; set; }
     public string? Failure { get; set; }
 }
 
 public sealed record EvaluationMessage(string Role, string Text);
+
+/// <summary>One failed call retained before a bounded retry; delays are separate from call latency.</summary>
+public sealed record EvaluationRetry(string Stage, string? CaseId, int? Repetition, int Number,
+    double DelaySeconds, EvaluationStep Call);
 
 /// <summary>Fixed human-labelled controls measure known error detection and false alarms, not general judge accuracy.</summary>
 public sealed record CalibrationSample(string Id, string Request, ReviewText[] Texts,
@@ -130,6 +141,7 @@ public sealed record ExpectedHebrewIssue(string Path, string Quote)
 }
 public sealed record CalibrationResult(CalibrationSample Sample, EvaluationStep Call)
 {
+    public EvaluationStep Call { get; set; } = Call;
     public HebrewIssue[]? Issues { get; set; }
     public int MissingExpectedIssueCount => Sample.ExpectedIssues.Count(expected => Issues?.Any(expected.Matches) != true);
     public int UnexpectedFindingCount => Issues?.Count(issue => !Sample.ExpectedIssues.Any(expected => expected.Matches(issue))) ?? 0;

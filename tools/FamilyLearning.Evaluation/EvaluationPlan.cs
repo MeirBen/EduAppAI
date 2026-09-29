@@ -5,7 +5,7 @@ namespace FamilyLearning.Evaluation;
 
 /// <summary>Developer choices only. Confirmation authorizes a live UI run; preview never uses it.</summary>
 public sealed record EvaluationRunRequest(string[] CaseIds, int Repeat, bool Judge, int MaxCalls,
-    string? Label = null, string? RunNotes = null, bool Confirmed = false);
+    string? Label = null, string? RunNotes = null, bool Confirmed = false, int CallDelaySeconds = 5);
 
 /// <summary>Validated fixtures in their original order, shared by CLI and dashboard before provider use.</summary>
 public sealed record EvaluationPlan(EvaluationRunRequest Request, EvaluationCase[] Cases, string SuiteSha256,
@@ -16,8 +16,9 @@ public sealed record EvaluationPlan(EvaluationRunRequest Request, EvaluationCase
     public static async Task<EvaluationPlan> LoadAsync(EvaluationRunRequest request, string? fixtureDirectory = null)
     {
         if (request.CaseIds is not { Length: > 0 and <= 100 } || request.Repeat is < 1 or > 5 || request.MaxCalls is < 1 or > 100 ||
+            request.CallDelaySeconds is < 0 or > 60 ||
             request.CaseIds.Any(string.IsNullOrWhiteSpace) || request.CaseIds.Distinct().Count() != request.CaseIds.Length)
-            throw new ArgumentException("Select cases, 1–5 repeats and a call limit of 1–100.");
+            throw new ArgumentException("Select cases, 1–5 repeats, a call limit of 1–100 and a call delay of 0–60 seconds.");
         EvaluationFiles.ValidateRunMetadata(request.Label, request.RunNotes);
         var suite = await EvaluationFiles.LoadFixtureAsync<EvaluationCase>("cases.json", fixtureDirectory);
         var all = request.CaseIds is ["all"];
@@ -39,6 +40,7 @@ public sealed record EvaluationPlan(EvaluationRunRequest Request, EvaluationCase
     {
         JudgeEnabled = Request.Judge,
         MaxCalls = Request.MaxCalls,
+        CallDelaySeconds = Request.CallDelaySeconds,
         Label = Request.Label,
         RunNotes = Request.RunNotes,
         CalibrationSha256 = CalibrationSha256,

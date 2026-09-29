@@ -137,6 +137,38 @@ test('startup is read-only; live submission needs confirmation and sends one bou
     assert.equal(request.mode, 'same-origin');
     assert.deepEqual(JSON.parse(request.body).caseIds, ['first', 'second']);
     assert.equal(JSON.parse(request.body).confirmed, true);
+    assert.equal(JSON.parse(request.body).callDelaySeconds, 5);
+  } finally {
+    app.dashboard.dispose();
+    app.dom.window.close();
+  }
+});
+
+test('call spacing must be bounded and the chosen pause is included in confirmation', async () => {
+  const app = mount();
+  try {
+    await app.dashboard.ready;
+    const { document, dom } = app;
+    document.querySelector('[name="caseId"]').checked = true;
+    const delay = document.querySelector('#call-delay');
+    const form = document.querySelector('#run-form');
+    for (const value of ['', '-1', '61', '1.5']) {
+      delay.value = value;
+      form.dispatchEvent(new dom.window.Event('input', { bubbles: true }));
+      assert.equal(document.querySelector('#start-run').disabled, true);
+    }
+    for (const value of ['0', '15', '60']) {
+      delay.value = value;
+      form.dispatchEvent(new dom.window.Event('input', { bubbles: true }));
+      assert.equal(document.querySelector('#start-run').disabled, false);
+      form.dispatchEvent(new dom.window.Event('submit', { bubbles: true, cancelable: true }));
+      assert.match(
+        document.querySelector('#confirm-message').textContent,
+        new RegExp(`${value}-second pause`),
+      );
+      document.querySelector('#dismiss-confirmation').click();
+    }
+    assert.ok(app.requests.every(({ options }) => options.method === 'GET'));
   } finally {
     app.dashboard.dispose();
     app.dom.window.close();

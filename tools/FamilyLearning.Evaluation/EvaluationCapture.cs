@@ -1,3 +1,5 @@
+using System.ClientModel;
+using System.Net.Http.Headers;
 using Microsoft.Extensions.AI;
 using OpenAI.Chat;
 using ChatMessage = Microsoft.Extensions.AI.ChatMessage;
@@ -19,7 +21,16 @@ internal sealed class EvaluationCapture(IChatClient innerClient, int maxCalls) :
         Current.SchemaName = (options?.ResponseFormat as ChatResponseFormatJson)?.SchemaName;
         calls++;
         Current.RequestSent = true;
-        var response = await base.GetResponseAsync(request, options, cancellationToken);
+        ChatResponse response;
+        try { response = await base.GetResponseAsync(request, options, cancellationToken); }
+        catch (ClientResultException exception) when (exception.Status == 429)
+        {
+            if (exception.GetRawResponse()?.Headers.TryGetValue("Retry-After", out var value) == true &&
+                RetryConditionHeaderValue.TryParse(value, out var retryAfter))
+                Current.RetryAfterSeconds = Math.Max(0,
+                    (retryAfter.Delta ?? retryAfter.Date!.Value - DateTimeOffset.UtcNow).TotalSeconds);
+            throw;
+        }
         Current.ResponseReceived = true;
         Current.Output = response.Text;
         Current.Model = response.ModelId;

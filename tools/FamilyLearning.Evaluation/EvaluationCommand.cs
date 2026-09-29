@@ -30,8 +30,9 @@ public static class EvaluationCommand
             }
             var options = EvaluationOptions.Parse(args);
             var plan = await EvaluationPlan.LoadAsync(new([options.Case], options.Repeat, options.Judge, options.MaxCalls,
-                options.Label, options.RunNotes));
+                options.Label, options.RunNotes, CallDelaySeconds: options.CallDelaySeconds));
             Console.WriteLine($"{plan.Cases.Length} cases × {options.Repeat} repeats; at most {plan.PlannedCalls} API calls (budget {options.MaxCalls}).");
+            Console.WriteLine($"Pause between calls: {options.CallDelaySeconds} seconds; no automatic retries.");
             foreach (var scenario in plan.Cases) Console.WriteLine($"  {scenario.Id}: {scenario.ReviewFocus}");
             if (!options.Live)
             {
@@ -79,7 +80,7 @@ public static class EvaluationCommand
             Console.Error.WriteLine(args.Length > 0 && args[0] == "--compare"
                 ? "Cannot compare reports. Check file paths, format version 2 and human scores (0, 1, 2 or null)."
                 : "Evaluation could not start or save its report. Check arguments, AI configuration and output permissions.");
-            Console.Error.WriteLine("Usage: evaluate-ai.sh [--live] [--case ID|all] [--repeat 1..5] [--max-calls 1..100] [--judge] [--output DIR]");
+            Console.Error.WriteLine("Usage: evaluate-ai.sh [--live] [--case ID|all] [--repeat 1..5] [--max-calls 1..100] [--call-delay-seconds 0..60] [--judge] [--output DIR]");
             Console.Error.WriteLine("Dashboard: evaluate-ai.sh --ui [--port PORT] [--output DIR]");
             Console.Error.WriteLine("Offline comparison: evaluate-ai.sh --compare BASELINE/run.json CANDIDATE/run.json (format version 2)");
             return 2;
@@ -101,7 +102,8 @@ public static class EvaluationCommand
 }
 
 /// <summary>Explicit limits prevent accidentally running a large paid suite; no live calls by default.</summary>
-public sealed record EvaluationOptions(bool Live, string Case, int Repeat, int MaxCalls, bool Judge, string Output, string? Label = null, string? RunNotes = null)
+public sealed record EvaluationOptions(bool Live, string Case, int Repeat, int MaxCalls, bool Judge, string Output,
+    string? Label = null, string? RunNotes = null, int CallDelaySeconds = 5)
 {
     public static EvaluationOptions Parse(string[] args)
     {
@@ -122,6 +124,7 @@ public sealed record EvaluationOptions(bool Live, string Case, int Repeat, int M
                 "--case" => options with { Case = value },
                 "--repeat" when int.TryParse(value, out var repeat) && repeat is >= 1 and <= 5 => options with { Repeat = repeat },
                 "--max-calls" when int.TryParse(value, out var max) && max is >= 1 and <= 100 => options with { MaxCalls = max },
+                "--call-delay-seconds" when int.TryParse(value, out var delay) && delay is >= 0 and <= 60 => options with { CallDelaySeconds = delay },
                 "--output" when !string.IsNullOrWhiteSpace(value) => options with { Output = value },
                 _ => throw new ArgumentException("Unknown option or invalid value.")
             };

@@ -50,8 +50,11 @@ public static class EvaluationFiles
         using var document = JsonDocument.Parse(await File.ReadAllTextAsync(path), new() { MaxDepth = Json.MaxDepth });
         var report = document.RootElement.Deserialize<EvaluationReport>(Json);
         if (report is null || report.FormatVersion != EvaluationReport.CurrentFormatVersion ||
-            report.Cases is not { Length: > 0 } || report.Repeat is < 1 or > 5 || report.Profile is null ||
-            string.IsNullOrWhiteSpace(report.SuiteSha256) || report.Results is null || report.Calibration is null || report.CalibrationSamples is null)
+            report.Cases is not { Length: > 0 } || report.Repeat is < 1 or > 5 || report.Profile is null || report.CallDelaySeconds is < 0 or > 60 ||
+            string.IsNullOrWhiteSpace(report.SuiteSha256) || report.Results is null || report.Calibration is null || report.CalibrationSamples is null ||
+            report.Retries is null || report.Retries.Count > 100 || report.Retries.Any(retry => retry is null || retry.Call is null ||
+                retry.Number is < 1 or > 3 || !double.IsFinite(retry.DelaySeconds) || retry.DelaySeconds is < 0 or > 300 ||
+                !retry.Call.RequestSent || retry.Call.FinishedAtUtc is null || retry.Call.StatusCode != 429 || retry.Call.ContractValid))
             throw new InvalidDataException("Invalid or unsupported evaluation report; format version 2 is required.");
         // Defaults permit non-judge format-2 reports to omit controls; they must not repair missing judge evidence.
         if (report.JudgeEnabled && (string.IsNullOrWhiteSpace(report.CalibrationSha256) || report.CalibrationSamples.Length == 0 ||

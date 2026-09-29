@@ -23,6 +23,7 @@ public sealed class EvaluationPlanTests : IDisposable
         var report = plan.CreateReport([]);
         Assert.Equal("baseline", report.Label);
         Assert.Equal("notes", report.RunNotes);
+        Assert.Equal(5, report.CallDelaySeconds);
         Assert.Empty(report.JudgePrompt);
         await Assert.ThrowsAsync<JsonException>(() => EvaluationPlan.LoadAsync(request with { Judge = true }, directory));
     }

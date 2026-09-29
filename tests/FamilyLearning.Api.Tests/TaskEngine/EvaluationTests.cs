@@ -100,14 +100,73 @@ public sealed class EvaluationTests : IDisposable
     }
 
     [Fact]
-    public async Task Rate_limits_stop_the_run_without_retries_or_provider_exception_text()
+    public async Task Rate_limits_stop_after_three_retries_without_provider_exception_text()
     {
         using var chat = new AiFixtures.ScriptedChat { FailureStatus = System.Net.HttpStatusCode.TooManyRequests };
-        var report = await RunAsync(chat, repeat: 2);
+        var clock = new ImmediateTimeProvider();
+        var report = await RunAsync(chat, repeat: 2, timeProvider: clock);
 
         Assert.Equal("rate-limited", report.Status);
         Assert.Single(report.Results);
+        Assert.Equal(4, report.AttemptedCalls);
+        Assert.Equal(3, report.Retries.Count);
+        Assert.Equal(4, chat.Requests.Count);
+        Assert.Equal(3, clock.Delays.Count);
+        for (var i = 0; i < clock.Delays.Count; i++)
+            Assert.InRange(clock.Delays[i].TotalSeconds, 5 * Math.Pow(2, i), 6 * Math.Pow(2, i));
         Assert.DoesNotContain("provider secret", await File.ReadAllTextAsync(Path.Combine(directory, "run.json")));
+    }
+
+    [Fact]
+    public async Task Successful_retry_preserves_each_failed_attempt_and_counts_it_in_the_budget()
+    {
+        var calls = 0;
+        using var chat = new AiFixtures.ScriptedChat(AiFixtures.Definition().ToJsonString(), AiFixtures.Content().ToJsonString())
+        {
+            BeforeResponse = _ => ++calls <= 2
+                ? Task.FromException(new HttpRequestException("secret", null, System.Net.HttpStatusCode.TooManyRequests))
+                : Task.CompletedTask
+        };
+        var report = await RunAsync(chat, maxCalls: 4, timeProvider: new ImmediateTimeProvider());
+
+        Assert.Equal("completed", report.Status);
+        Assert.Equal(4, report.AttemptedCalls);
+        Assert.Equal(2, report.Retries.Count);
+        Assert.All(report.Retries, retry => Assert.Equal(429, retry.Call.StatusCode));
+        Assert.Equal(new[] { 1, 2 }, report.Retries.Select(retry => retry.Number));
+        Assert.True(Assert.Single(report.Results).Authoring!.ContractValid);
+        var summary = EvaluationSummary.Create(report);
+        Assert.Equal(4, summary.AttemptedCalls);
+        Assert.Equal(4, summary.CostCredits.MissingCalls);
+        var saved = await EvaluationFiles.ReadReportAsync(Path.Combine(directory, "run.json"));
+        Assert.Equal(4, saved.AttemptedCalls);
+    }
+
+    [Fact]
+    public async Task Retry_stops_at_the_total_call_budget()
+    {
+        using var chat = new AiFixtures.ScriptedChat { FailureStatus = System.Net.HttpStatusCode.TooManyRequests };
+        var report = await RunAsync(chat, maxCalls: 2, timeProvider: new ImmediateTimeProvider());
+        Assert.Equal("call-limit", report.Status);
+        Assert.Equal(2, report.AttemptedCalls);
+        Assert.Equal(2, chat.Requests.Count);
+        Assert.Single(report.Retries);
+    }
+
+    [Fact]
+    public async Task Cancellation_during_retry_backoff_does_not_send_another_call()
+    {
+        using var cancellation = new CancellationTokenSource();
+        using var chat = new AiFixtures.ScriptedChat { FailureStatus = System.Net.HttpStatusCode.TooManyRequests };
+        var report = await RunAsync(chat, ct: cancellation.Token, progress: progress =>
+        {
+            if (progress.Stage == "retry-wait") cancellation.Cancel();
+        }).WaitAsync(TimeSpan.FromSeconds(10));
+        Assert.Equal("cancelled", report.Status);
+        Assert.Single(chat.Requests);
+        Assert.Single(report.Retries);
+        Assert.Equal(429, report.Retries[0].Call.StatusCode);
+        Assert.Equal(1, report.AttemptedCalls);
     }
 
     [Fact]
@@ -123,13 +182,70 @@ public sealed class EvaluationTests : IDisposable
     }
 
     [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Pause_separates_all_provider_stages_outside_the_request_deadline(bool judge)
+    {
+        var responses = judge ? await CalibrationResponsesAsync() : [];
+        responses.AddRange([AiFixtures.Definition().ToJsonString(), AiFixtures.Content().ToJsonString()]);
+        if (judge) responses.Add("""{"issues":[]}""");
+        using var chat = new AiFixtures.ScriptedChat(responses.ToArray());
+        var progress = new List<EvaluationProgress>();
+        var report = await RunAsync(chat, judge: judge, callDelaySeconds: 1, progress: progress.Add,
+            options: new AiGenerationOptions { RequestTimeoutSeconds = 1 });
+
+        Assert.Equal("completed", report.Status);
+        Assert.Equal(responses.Count, report.AttemptedCalls);
+        Assert.Equal(responses.Count - 1, progress.Count(item => item.Stage == "waiting"));
+        var steps = report.Steps.ToArray();
+        Assert.All(steps, step => Assert.True(step.ContractValid));
+        for (var i = 1; i < steps.Length; i++)
+            Assert.True(steps[i].StartedAtUtc - steps[i - 1].FinishedAtUtc >= TimeSpan.FromMilliseconds(950));
+        var saved = await EvaluationFiles.ReadReportAsync(Path.Combine(directory, "run.json"));
+        Assert.Equal(1, saved.CallDelaySeconds);
+    }
+
+    [Fact]
+    public async Task Cancelling_the_pause_preserves_completed_work_without_sending_the_next_call()
+    {
+        using var cancellation = new CancellationTokenSource();
+        using var chat = new AiFixtures.ScriptedChat(AiFixtures.Definition().ToJsonString(), AiFixtures.Content().ToJsonString());
+        var report = await RunAsync(chat, ct: cancellation.Token, callDelaySeconds: 60, progress: progress =>
+        {
+            if (progress.Stage == "waiting") cancellation.Cancel();
+        }).WaitAsync(TimeSpan.FromSeconds(10));
+
+        Assert.Equal("cancelled", report.Status);
+        Assert.Equal(1, report.AttemptedCalls);
+        var result = Assert.Single(report.Results);
+        Assert.True(result.Authoring!.ContractValid);
+        Assert.False(result.Generation!.RequestSent);
+        Assert.Null(result.Generation.FinishedAtUtc);
+        Assert.Single(chat.Requests);
+        var saved = await EvaluationFiles.ReadReportAsync(Path.Combine(directory, "run.json"));
+        Assert.Equal("cancelled", saved.Status);
+    }
+
+    [Theory]
     [InlineData("--repeat", "0")]
     [InlineData("--repeat", "6")]
     [InlineData("--max-calls", "101")]
     [InlineData("--max-calls", "0")]
+    [InlineData("--call-delay-seconds", "-1")]
+    [InlineData("--call-delay-seconds", "61")]
+    [InlineData("--call-delay-seconds", "0.5")]
     [InlineData("--unexpected", "x")]
     public void Invalid_cli_arguments_fail_before_any_calls(string flag, string value) =>
         Assert.Throws<ArgumentException>(() => EvaluationOptions.Parse([flag, value]));
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(60)]
+    public void Call_pause_has_a_conservative_default_and_can_be_adjusted(int seconds)
+    {
+        Assert.Equal(5, EvaluationOptions.Parse([]).CallDelaySeconds);
+        Assert.Equal(seconds, EvaluationOptions.Parse(["--call-delay-seconds", seconds.ToString()]).CallDelaySeconds);
+    }
 
     [Fact]
     public async Task Call_plan_includes_each_stage_and_loaded_controls()
@@ -229,7 +345,9 @@ public sealed class EvaluationTests : IDisposable
     }
 
     private async Task<EvaluationReport> RunAsync(IChatClient chat, EvaluationCase? scenario = null,
-        int repeat = 1, CancellationToken ct = default, bool judge = false, int maxCalls = 100)
+        int repeat = 1, CancellationToken ct = default, bool judge = false, int maxCalls = 100,
+        int callDelaySeconds = 0, Action<EvaluationProgress>? progress = null, AiGenerationOptions? options = null,
+        TimeProvider? timeProvider = null)
     {
         Directory.CreateDirectory(directory);
         var controls = await EvaluationFiles.LoadFixtureAsync<CalibrationSample>("hebrew-review-samples.json");
@@ -239,10 +357,11 @@ public sealed class EvaluationTests : IDisposable
             JudgePromptVersion = judge ? HebrewJudge.Version : "",
             JudgePrompt = judge ? HebrewJudge.Instructions : "",
             MaxCalls = maxCalls,
+            CallDelaySeconds = callDelaySeconds,
             CalibrationSha256 = judge ? controls.Sha256 : "",
             CalibrationSamples = judge ? controls.Items : []
         };
-        await EvaluationRunner.RunAsync(chat, new AiGenerationOptions(), report, directory, ct);
+        await EvaluationRunner.RunAsync(chat, options ?? new AiGenerationOptions(), report, directory, ct, progress, timeProvider);
         return report;
     }
 
@@ -257,6 +376,16 @@ public sealed class EvaluationTests : IDisposable
     public void Dispose()
     {
         if (Directory.Exists(directory)) Directory.Delete(directory, recursive: true);
+    }
+
+    private sealed class ImmediateTimeProvider : TimeProvider
+    {
+        public List<TimeSpan> Delays { get; } = [];
+        public override ITimer CreateTimer(TimerCallback callback, object? state, TimeSpan dueTime, TimeSpan period)
+        {
+            Delays.Add(dueTime);
+            return System.CreateTimer(callback, state, TimeSpan.Zero, Timeout.InfiniteTimeSpan);
+        }
     }
 
 }

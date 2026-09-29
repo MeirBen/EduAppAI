@@ -68,6 +68,8 @@ public sealed class EvaluationCommandTests : IDisposable
         var start = new ProcessStartInfo("dotnet") { WorkingDirectory = directory };
         start.ArgumentList.Add(typeof(EvaluationCommand).Assembly.Location);
         if (live) start.ArgumentList.Add("--live");
+        start.ArgumentList.Add("--call-delay-seconds");
+        start.ArgumentList.Add("0");
         start.ArgumentList.Add("--max-calls");
         start.ArgumentList.Add(budget.ToString(System.Globalization.CultureInfo.InvariantCulture));
         start.ArgumentList.Add("--output");
@@ -100,7 +102,7 @@ public sealed class EvaluationCommandTests : IDisposable
             var setup = await http.GetFromJsonAsync<JsonElement>("/api/setup");
             http.DefaultRequestHeaders.Add("X-Evaluation-CSRF", setup.GetProperty("csrfToken").GetString());
             Assert.Equal(0, calls);
-            var response = await http.PostAsJsonAsync("/api/runs", new EvaluationRunRequest(["reading-grade3"], 1, false, budget, Confirmed: true));
+            var response = await http.PostAsJsonAsync("/api/runs", new EvaluationRunRequest(["reading-grade3"], 1, false, budget, Confirmed: true, CallDelaySeconds: 0));
             Assert.Equal(System.Net.HttpStatusCode.Accepted, response.StatusCode);
             await ui.Services.GetRequiredService<EvaluationCoordinator>().WaitAsync().WaitAsync(TimeSpan.FromSeconds(10));
             Assert.Equal("completed", ui.Services.GetRequiredService<EvaluationCoordinator>().Active!.Status);

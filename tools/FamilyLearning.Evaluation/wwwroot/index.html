@@ -149,6 +149,23 @@
                 Each repeat creates a fresh template and task. Max calls must cover the plan; it
                 caps calls, not money. Set an OpenRouter key limit for a spending cap.
               </p>
+              <label
+                >Pause between calls (seconds)
+                <input
+                  id="call-delay"
+                  type="number"
+                  min="0"
+                  max="60"
+                  value="5"
+                  required
+                  dir="ltr"
+                  aria-describedby="call-delay-help"
+              /></label>
+              <p id="call-delay-help" class="hint">
+                Wait after each call before sending the next, including judge calls. Default: 5
+                seconds; 0 disables the pause. Paid providers can still return 429. Increase the
+                pause if needed; the run stops on rate limits and never retries automatically.
+              </p>
               <label class="switch"
                 ><input
                   id="judge"
