@@ -1,0 +1,214 @@
+@layer base {
+  :root {
+    font-size: 100%;
+
+    /* Clears the pinned header when focus or fragment navigation scrolls content. */
+    @variant pinned-header {
+      scroll-padding-block-start: 6rem;
+    }
+  }
+
+  body {
+    @apply bg-canvas font-sans text-ink antialiased;
+    /* Gradients have no logical keywords, so the glow edges follow the reading direction here. */
+    --glow-start: right;
+    --glow-end: left;
+    background-image:
+      radial-gradient(ellipse at top var(--glow-start), var(--color-soft), transparent 42rem),
+      radial-gradient(
+        ellipse at top var(--glow-end),
+        color-mix(in oklab, var(--color-accent) 35%, transparent),
+        transparent 32rem
+      );
+    background-repeat: no-repeat;
+    line-height: 1.7;
+    overflow-wrap: anywhere;
+
+    &:dir(ltr) {
+      --glow-start: left;
+      --glow-end: right;
+    }
+  }
+
+  ::selection {
+    @apply bg-accent text-ink;
+  }
+
+  h1,
+  h2,
+  h3 {
+    @apply font-semibold;
+    line-height: 1.4;
+    text-wrap: balance;
+  }
+
+  h1 {
+    @apply text-3xl sm:text-4xl;
+  }
+  h2 {
+    @apply text-xl;
+  }
+  h3 {
+    @apply text-lg;
+  }
+  p {
+    text-wrap: pretty;
+  }
+
+  a {
+    text-underline-offset: 0.25em;
+  }
+  button,
+  summary {
+    cursor: pointer;
+  }
+  button:disabled {
+    cursor: not-allowed;
+    opacity: 0.55;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-focus);
+    outline-offset: 2px;
+  }
+  /* Script-focused landmarks, headings and alerts are announcement targets, not controls. */
+  [tabindex='-1']:focus-visible {
+    outline: none;
+  }
+
+  /* Routed pages ease in, including views restored by PageReuseStrategy. */
+  router-outlet + * {
+    @apply block motion-safe:animate-enter;
+  }
+
+  label {
+    @apply mb-2 block font-medium;
+  }
+
+  label:has(+ input[type='checkbox']),
+  label:has(input[type='checkbox']) {
+    @apply min-h-11 cursor-pointer;
+  }
+  label:has(+ input[type='checkbox']:disabled),
+  label:has(input[type='checkbox']:disabled) {
+    @apply cursor-not-allowed text-muted;
+  }
+
+  /* Fields signal focus by tinting their own edge; offset rings are for actions. */
+  input:not([type='checkbox'], [type='radio']),
+  select,
+  textarea {
+    @apply min-h-11 w-full min-w-0 rounded-lg border border-control bg-surface px-3 py-2 text-base text-ink shadow-control transition-[border-color,box-shadow] enabled:hover:border-muted focus:border-focus focus:inset-ring focus:inset-ring-focus focus:ring-4 focus:ring-focus/15 focus:outline-hidden disabled:cursor-not-allowed disabled:border-line disabled:bg-canvas disabled:text-muted disabled:shadow-none;
+    /* Native controls must inherit Hebrew typography, including on iOS. */
+    font: inherit;
+  }
+
+  /*
+   * `dir="auto"` resolves an empty field to LTR, which misplaces the caret and
+   * the Hebrew placeholder. Fields keep the page direction until typed text
+   * sets each paragraph's direction.
+   */
+  :is(input, textarea)[dir='auto'] {
+    direction: inherit;
+    unicode-bidi: plaintext;
+  }
+
+  textarea {
+    resize: vertical;
+  }
+  input::placeholder,
+  textarea::placeholder {
+    @apply text-muted;
+    opacity: 1;
+  }
+  input[aria-invalid='true'],
+  select[aria-invalid='true'],
+  textarea[aria-invalid='true'] {
+    @apply border-danger enabled:hover:border-danger focus:border-danger focus:inset-ring-danger focus:ring-danger/15;
+  }
+
+  /* The native select opens a styled listbox where the browser supports it. */
+  @supports (appearance: base-select) {
+    select,
+    ::picker(select) {
+      appearance: base-select;
+    }
+    select {
+      @apply cursor-pointer items-center gap-2;
+    }
+    /* Masks supply only a glyph's shape; theme tokens paint it. */
+    select::picker-icon {
+      content: '';
+      @apply size-4.5 bg-current text-muted motion-safe:transition-[rotate] motion-safe:duration-300;
+      mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 18 18' fill='none' stroke='%23000' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4.5 6.75 9 11.25l4.5-4.5'/%3E%3C/svg%3E")
+        center / contain no-repeat;
+    }
+    select:open::picker-icon {
+      rotate: 180deg;
+    }
+    ::picker(select) {
+      @apply mt-1 max-h-66 overflow-y-auto overscroll-contain rounded-lg border border-line bg-surface p-1 text-ink shadow-raised motion-safe:animate-fade;
+    }
+    option {
+      @apply flex min-h-11 cursor-pointer items-center rounded-md px-3 py-2 transition-colors hover:bg-canvas focus-visible:inset-ring-2 focus-visible:inset-ring-focus focus-visible:outline-hidden checked:bg-soft checked:font-medium;
+
+      &::checkmark {
+        display: none;
+      }
+    }
+  }
+
+  input[type='checkbox'] {
+    @apply m-0 grid size-6 shrink-0 cursor-pointer appearance-none place-content-center rounded-md border border-control bg-surface shadow-control transition-[background-color,border-color] enabled:hover:border-muted checked:border-brand checked:bg-brand enabled:checked:hover:border-brand-hover enabled:checked:hover:bg-brand-hover disabled:cursor-not-allowed disabled:border-line disabled:bg-canvas disabled:shadow-none disabled:checked:border-control disabled:checked:bg-control;
+
+    &::before {
+      content: '';
+      @apply size-5 scale-0 bg-on-brand transition-transform duration-300;
+      mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5.5 10.5 8.5 13.5 14.5 7'/%3E%3C/svg%3E")
+        center / contain no-repeat;
+    }
+    &:checked::before {
+      @apply scale-100;
+    }
+
+    /* Forced colors drop backgrounds; the tick must stay visible. */
+    @media (forced-colors: active) {
+      &::before {
+        background-color: CanvasText;
+      }
+    }
+  }
+
+  summary {
+    @apply min-h-11 py-2 font-medium text-brand;
+  }
+
+  /* Disclosures slide open where the browser can animate to an auto size. */
+  @media (prefers-reduced-motion: no-preference) {
+    :root {
+      interpolate-size: allow-keywords;
+    }
+
+    details::details-content {
+      block-size: 0;
+      overflow-y: clip;
+      transition:
+        block-size 0.3s var(--ease-smooth),
+        content-visibility 0.3s allow-discrete;
+    }
+
+    details[open]::details-content {
+      block-size: auto;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      scroll-behavior: auto !important;
+      animation-duration: 0.01ms !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}

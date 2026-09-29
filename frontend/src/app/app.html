@@ -1,10 +1,12 @@
 <a
-  class="fixed inset-s-4 top-4 z-50 -translate-y-32 rounded-xl bg-brand px-5 py-3 text-white focus:translate-y-0"
+  class="fixed inset-s-4 top-4 z-50 -translate-y-32 rounded-xl bg-brand px-5 py-3 text-on-brand focus:translate-y-0"
   href="#main-content"
   (click)="$event.preventDefault(); mainContent.focus()"
   >דילוג לתוכן הראשי</a
 >
-<header class="app-header border-b border-line bg-surface">
+<header
+  class="border-b border-line/70 bg-surface/85 backdrop-blur-md pinned-header:sticky pinned-header:inset-bs-0 pinned-header:z-20"
+>
   <div
     class="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-x-6 gap-y-2 px-gutter py-3 sm:px-8"
   >
@@ -14,7 +16,7 @@
       aria-label="לומדים ביחד — עמוד הבית"
     >
       <span
-        class="grid size-11 shrink-0 place-items-center rounded-2xl bg-brand text-white shadow-button"
+        class="grid size-11 shrink-0 place-items-center rounded-2xl bg-linear-to-bl from-brand to-brand-hover ltr:bg-linear-to-br text-on-brand shadow-button"
         aria-hidden="true"
       >
         <svg
@@ -29,20 +31,26 @@
       </span>
       לומדים ביחד
     </a>
-    @if (auth.signedIn()) {
-      <nav class="flex flex-wrap items-center gap-2" aria-label="ניווט ראשי">
-        <a class="text-link rounded-xl bg-soft px-4" routerLink="/templates">המרחב שלנו</a>
-        <button
-          class="text-link px-3 text-muted disabled:opacity-60"
-          (click)="logout()"
-          [disabled]="signingOut()"
-        >
-          {{ signingOut() ? 'מתנתקים…' : 'יציאה מהחשבון' }}
-        </button>
-      </nav>
-    } @else {
-      <span class="hidden text-sm text-muted sm:block">קצת תרגול. הרבה סקרנות.</span>
-    }
+    <div class="flex flex-wrap items-center gap-x-4 gap-y-2">
+      @if (auth.signedIn()) {
+        <nav class="flex flex-wrap items-center gap-2" aria-label="ניווט ראשי">
+          <a
+            class="nav-link"
+            routerLink="/templates"
+            routerLinkActive
+            [routerLinkActiveOptions]="{ exact: true }"
+            ariaCurrentWhenActive="page"
+            >המרחב שלנו</a
+          >
+          <button class="nav-link text-muted" (click)="logout()" [disabled]="signingOut()">
+            {{ signingOut() ? 'מתנתקים…' : 'יציאה מהחשבון' }}
+          </button>
+        </nav>
+      } @else {
+        <span class="hidden text-sm text-muted sm:block">קצת תרגול. הרבה סקרנות.</span>
+      }
+      <app-theme-picker />
+    </div>
   </div>
 </header>
 <main

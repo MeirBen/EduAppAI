@@ -1,5 +1,5 @@
 <a class="text-link mb-6" routerLink="/templates"
-  ><span aria-hidden="true">→</span> חזרה למרחב שלנו</a
+  ><span class="icon-back" aria-hidden="true">→</span> חזרה למרחב שלנו</a
 >
 <app-loading-indicator
   [active]="instance.isLoading()"
@@ -15,7 +15,7 @@
   @let draft = instance.value();
   <header class="mb-6 flex flex-wrap items-center justify-between gap-5">
     <div>
-      <p class="mb-3 text-sm font-medium text-brand">תצוגה מקדימה להורים</p>
+      <p class="eyebrow mb-3">תצוגה מקדימה להורים</p>
       <h1 class="mb-3">
         <bdi>{{ draft.content.title }}</bdi>
       </h1>
@@ -35,16 +35,13 @@
       {{ draft.content.instructions }}
     </p>
     @for (block of draft.content.contentBlocks; track $index) {
-      <p
-        class="my-6 whitespace-pre-wrap rounded-2xl border border-line bg-canvas p-gutter leading-loose sm:p-6"
-        dir="auto"
-      >
+      <p class="well my-6 whitespace-pre-wrap leading-loose sm:p-6" dir="auto">
         {{ block.text }}
       </p>
     }
-    <ol class="mt-6 list-decimal divide-y divide-line ps-6 marker:font-semibold marker:text-brand">
+    <ol class="steps mt-6 divide-y divide-line" role="list">
       @for (question of draft.content.questions; track question.id) {
-        <li class="py-5 ps-2">
+        <li class="py-5">
           <p dir="auto" class="question-prompt whitespace-pre-wrap text-lg font-medium">
             {{ question.prompt }}
           </p>
@@ -61,15 +58,17 @@
               }
             </ul>
           }
-          <details class="group mt-4 rounded-xl border border-line open:bg-soft">
+          <details
+            class="group mt-4 rounded-xl border border-line transition-colors duration-300 open:bg-soft"
+          >
             <summary
-              class="flex items-center justify-between gap-3 rounded-xl px-gutter py-3 hover:bg-soft [&::-webkit-details-marker]:hidden"
+              class="flex items-center justify-between gap-3 rounded-xl px-gutter py-3 transition-colors hover:bg-soft focus-visible:-outline-offset-2 [&::-webkit-details-marker]:hidden"
             >
               <span
                 >הצגת התשובה<span class="sr-only"> לשאלה {{ $index + 1 }}</span></span
               >
               <span
-                class="shrink-0 text-xl group-open:rotate-45 motion-safe:transition-transform"
+                class="shrink-0 text-xl group-open:rotate-45 motion-safe:transition-transform motion-safe:duration-300"
                 aria-hidden="true"
                 >＋</span
               >

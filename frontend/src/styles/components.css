@@ -1,0 +1,91 @@
+@layer components {
+  .button {
+    @apply inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-transparent bg-brand px-gutter py-3 text-center font-medium text-on-brand no-underline shadow-button transition-[background-color,border-color,color,box-shadow,translate,scale] not-disabled:hover:bg-brand-hover not-disabled:hover:shadow-button-raised motion-safe:not-disabled:hover:-translate-y-0.5 motion-safe:not-disabled:active:translate-y-0 motion-safe:not-disabled:active:scale-98;
+    line-height: 1.5;
+  }
+
+  .button-secondary {
+    @apply border-line bg-surface text-brand shadow-control not-disabled:hover:border-brand/30 not-disabled:hover:bg-soft not-disabled:hover:shadow-panel;
+  }
+  .button-danger {
+    @apply bg-danger text-on-danger not-disabled:hover:bg-danger/90;
+  }
+  .text-link {
+    @apply inline-flex min-h-11 items-center gap-2 rounded-md py-2 font-medium text-brand underline decoration-transparent decoration-2 transition-[color,text-decoration-color] not-disabled:hover:decoration-current;
+  }
+  .nav-link {
+    @apply inline-flex min-h-11 items-center rounded-xl px-4 py-2 font-medium text-brand transition-colors not-disabled:hover:bg-soft aria-[current=page]:bg-soft;
+  }
+
+  /* Directional glyphs nudge the way they point while their control is hovered. */
+  .icon-forward,
+  .icon-back {
+    @apply inline-block transition-transform;
+  }
+  @media (hover: hover) {
+    :is(a, button):not(:disabled):hover {
+      & > .icon-forward {
+        @apply motion-safe:ltr:translate-x-1 motion-safe:rtl:-translate-x-1;
+      }
+      & > .icon-back {
+        @apply motion-safe:ltr:-translate-x-1 motion-safe:rtl:translate-x-1;
+      }
+    }
+  }
+
+  .panel {
+    @apply rounded-3xl border border-line bg-surface p-gutter shadow-panel sm:p-6;
+  }
+  .panel-tinted {
+    @apply bg-linear-to-bl from-soft to-surface shadow-none ltr:bg-linear-to-br;
+  }
+  .panel-outline {
+    @apply bg-transparent shadow-none;
+  }
+  .panel-interactive {
+    @apply transition-[border-color,box-shadow] duration-300 hover:border-brand/30 hover:shadow-raised;
+  }
+  /* Recessed area inside a panel for source text or grouped fields. */
+  .well {
+    @apply rounded-2xl border border-line bg-canvas p-gutter;
+  }
+
+  .eyebrow {
+    @apply flex items-center gap-2 text-sm font-medium text-brand;
+
+    &::before {
+      content: '';
+      @apply h-0.5 w-5 shrink-0 rounded-full bg-brand/40;
+    }
+  }
+  .badge {
+    @apply inline-flex items-center gap-1.5 rounded-full bg-soft px-3 py-1 text-sm font-medium text-brand ring-1 ring-brand/15 ring-inset;
+  }
+  .icon-tile {
+    @apply grid shrink-0 place-items-center rounded-2xl bg-accent text-brand ring-1 ring-brand/15 ring-inset;
+  }
+
+  /* Counters replace list markers; pair with role="list" so WebKit keeps list semantics. */
+  .steps {
+    counter-reset: step;
+
+    & > li {
+      counter-increment: step;
+      @apply relative ps-10;
+    }
+    & > li::before {
+      content: counter(step);
+      @apply absolute inset-s-0 grid size-7 place-items-center rounded-full bg-soft text-sm font-semibold text-brand ring-1 ring-brand/15 ring-inset;
+    }
+  }
+
+  .field {
+    @apply my-4;
+  }
+  .field-error {
+    @apply mt-2 text-sm text-danger;
+  }
+  .error {
+    @apply my-4 rounded-xl border border-s-4 border-danger/25 border-s-danger bg-danger-soft p-4 text-danger;
+  }
+}

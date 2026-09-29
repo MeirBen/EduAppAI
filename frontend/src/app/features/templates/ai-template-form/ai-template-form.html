@@ -42,10 +42,7 @@
   </p>
   @for (parameter of model().parameters; track parameter.id; let index = $index) {
     @let field = fields.parameters[index];
-    <fieldset
-      class="mb-6 min-w-0 rounded-2xl border border-line bg-canvas p-gutter"
-      data-parameter-editor
-    >
+    <fieldset class="well mb-6 min-w-0" data-parameter-editor>
       <legend class="badge">שדה {{ index + 1 }}</legend>
       <div class="field">
         <label [for]="parameter.id + '-label'">שם השדה להורה</label>

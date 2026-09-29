@@ -6,7 +6,11 @@ async function checkNarrowLayout(page: Page, name: string) {
   await page.evaluate(() => (document.documentElement.style.fontSize = '200%'));
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await page.evaluate(() => window.scrollTo(0, 0));
-  await page.screenshot({ path: `../artifacts/${name}-mobile.png`, fullPage: true });
+  await page.screenshot({
+    animations: 'disabled',
+    path: `../artifacts/${name}-mobile.png`,
+    fullPage: true,
+  });
   await page.locator('footer').scrollIntoViewIfNeeded();
   await expect(page.locator('footer')).toBeInViewport();
   await expect(page.getByRole('banner')).not.toBeInViewport();
@@ -40,7 +44,11 @@ test('a parent prompt becomes an editable reusable template and distinct frozen 
   await expect(page.locator('html')).toHaveAttribute('dir', 'rtl');
   await expect(page.getByRole('heading', { name: 'טוב שחזרתם' })).toBeVisible();
   await checkNarrowLayout(page, 'login');
-  await page.screenshot({ path: '../artifacts/login-desktop.png', fullPage: true });
+  await page.screenshot({
+    animations: 'disabled',
+    path: '../artifacts/login-desktop.png',
+    fullPage: true,
+  });
   await page.keyboard.press('Tab');
   await expect(page.getByRole('link', { name: 'דילוג לתוכן הראשי' })).toBeFocused();
   await page.keyboard.press('Enter');
@@ -69,14 +77,22 @@ test('a parent prompt becomes an editable reusable template and distinct frozen 
   expect(template.definition.generation.instructions).toBe(definition.generation.instructions);
   await expect(page.getByLabel('מה נחקור?', { exact: true })).toHaveValue('דינוזאורים');
   await checkNarrowLayout(page, 'create-instance');
-  await page.screenshot({ path: '../artifacts/create-instance-desktop.png', fullPage: true });
+  await page.screenshot({
+    animations: 'disabled',
+    path: '../artifacts/create-instance-desktop.png',
+    fullPage: true,
+  });
   await page.getByRole('button', { name: 'יצירת טיוטה', exact: true }).click();
   await expect(page.getByText('הטיוטה נשמרה', { exact: false })).toBeVisible();
   const originalUrl = page.url();
   const originalQuestions = await page.locator('.question-prompt').allTextContents();
   const originalContent = await page.locator('section').innerText();
   await expect(page.locator('.question-prompt')).toHaveCount(2);
-  await page.screenshot({ path: '../artifacts/reading-preview-desktop.png', fullPage: true });
+  await page.screenshot({
+    animations: 'disabled',
+    path: '../artifacts/reading-preview-desktop.png',
+    fullPage: true,
+  });
   await page.reload();
   await expect(page.locator('section')).toHaveText(originalContent, { useInnerText: true });
   await page.goto(`/templates/${template.id}/create`);
@@ -96,7 +112,11 @@ test('a parent prompt becomes an editable reusable template and distinct frozen 
   await page.keyboard.press('Enter');
   await expect(page.locator('details').first()).toHaveAttribute('open', '');
   await checkNarrowLayout(page, 'ai-preview');
-  await page.screenshot({ path: '../artifacts/ai-preview-desktop.png', fullPage: true });
+  await page.screenshot({
+    animations: 'disabled',
+    path: '../artifacts/ai-preview-desktop.png',
+    fullPage: true,
+  });
   await page.goto(originalUrl);
   await expect(page.locator('.question-prompt')).toHaveText(originalQuestions);
   await expect(
@@ -105,7 +125,11 @@ test('a parent prompt becomes an editable reusable template and distinct frozen 
   await page.goto('/templates');
   await expect(page.getByRole('link', { name: 'יצירת תרגול: קוראים ומגלים' })).toBeVisible();
   await checkNarrowLayout(page, 'library');
-  await page.screenshot({ path: '../artifacts/library-desktop.png', fullPage: true });
+  await page.screenshot({
+    animations: 'disabled',
+    path: '../artifacts/library-desktop.png',
+    fullPage: true,
+  });
   await page.locator('footer').scrollIntoViewIfNeeded();
   expect(await page.evaluate(() => scrollY)).toBeGreaterThan(0);
   await expect(page.getByRole('banner')).toBeInViewport({ ratio: 1 });
@@ -113,7 +137,10 @@ test('a parent prompt becomes an editable reusable template and distinct frozen 
   await createPractice.evaluate((element) => element.scrollIntoView({ block: 'start' }));
   const header = await page.getByRole('banner').boundingBox();
   expect((await createPractice.boundingBox())!.y).toBeGreaterThan(header!.y + header!.height);
-  await page.screenshot({ path: '../artifacts/library-scrolled-desktop.png' });
+  await page.screenshot({
+    animations: 'disabled',
+    path: '../artifacts/library-scrolled-desktop.png',
+  });
   await page.setViewportSize({ width: 1280, height: 480 });
   await page.locator('footer').scrollIntoViewIfNeeded();
   await expect(page.getByRole('banner')).not.toBeInViewport();
@@ -217,7 +244,11 @@ test.describe('publication recovery', () => {
         await mark.evaluate((element) => getComputedStyle(element, '::before').animationName),
       ).not.toBe('none');
       await page.evaluate(() => window.scrollTo(0, 0));
-      await page.screenshot({ path: '../artifacts/loader-desktop.png', fullPage: true });
+      await page.screenshot({
+        animations: 'disabled',
+        path: '../artifacts/loader-desktop.png',
+        fullPage: true,
+      });
       await checkNarrowLayout(page, 'loader');
       await loading.evaluate((element) => {
         element.style.setProperty('--loader-size', '4rem');
@@ -366,7 +397,11 @@ test.describe('library cleanup', () => {
     expect(await dialog.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(
       true,
     );
-    await page.screenshot({ path: '../artifacts/library-reset-mobile.png', fullPage: true });
+    await page.screenshot({
+      animations: 'disabled',
+      path: '../artifacts/library-reset-mobile.png',
+      fullPage: true,
+    });
     await dialog.getByRole('button', { name: 'ביטול', exact: true }).click();
     await expect(page.locator('article')).not.toHaveCount(0);
     await page.getByRole('button', { name: 'איפוס נתוני הלמידה', exact: true }).click();

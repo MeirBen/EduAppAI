@@ -1,5 +1,5 @@
 <a class="text-link mb-6" routerLink="/templates"
-  ><span aria-hidden="true">→</span> חזרה למרחב שלנו</a
+  ><span class="icon-back" aria-hidden="true">→</span> חזרה למרחב שלנו</a
 >
 <app-loading-indicator [active]="template.isLoading()" variant="panel" label="טוענים את התבנית…" />
 @if (!template.isLoading() && template.error()) {
@@ -10,7 +10,7 @@
 } @else if (!template.isLoading() && template.hasValue()) {
   <header class="mb-8 flex flex-wrap items-center justify-between gap-5">
     <div>
-      <p class="mb-3 text-sm font-medium text-brand">מהרעיון למשימה חדשה</p>
+      <p class="eyebrow mb-3">מהרעיון למשימה חדשה</p>
       <h1 class="mb-3">
         <bdi>{{ template.value().definition.name }}</bdi>
       </h1>
@@ -43,11 +43,8 @@
         detail="יוצרים ובודקים את התוכן. זה עשוי לקחת כמה דקות."
       />
     </section>
-    <aside
-      class="rounded-3xl border border-line bg-soft p-gutter sm:p-8"
-      aria-labelledby="generation-title"
-    >
-      <p class="mb-3 text-sm font-medium text-brand">התבנית שלכם</p>
+    <aside class="panel panel-tinted sm:p-8" aria-labelledby="generation-title">
+      <p class="eyebrow mb-3">התבנית שלכם</p>
       <h2 id="generation-title" class="mb-5">הנחיות ליצירה</h2>
       <p class="whitespace-pre-wrap text-muted" dir="auto">
         {{ template.value().definition.generation.instructions }}

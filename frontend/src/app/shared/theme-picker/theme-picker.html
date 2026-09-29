@@ -1,0 +1,31 @@
+<fieldset class="flex items-center gap-0.5 rounded-full bg-soft p-1">
+  <legend class="sr-only">מצב תצוגה</legend>
+  @for (option of options; track option.value) {
+    <label
+      class="m-0 grid size-9 cursor-pointer place-items-center rounded-full text-muted transition-colors not-has-checked:hover:text-ink has-checked:bg-brand has-checked:text-on-brand has-focus-visible:outline-2 has-focus-visible:outline-offset-2 has-focus-visible:outline-focus"
+      [title]="option.label"
+    >
+      <input
+        class="sr-only"
+        type="radio"
+        name="theme"
+        [value]="option.value"
+        [checked]="theme.preference() === option.value"
+        (change)="theme.select(option.value)"
+      />
+      <svg
+        class="size-5"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1.6"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        aria-hidden="true"
+      >
+        <path [attr.d]="option.icon" />
+      </svg>
+      <span class="sr-only">{{ option.label }}</span>
+    </label>
+  }
+</fieldset>

@@ -1,8 +1,8 @@
 <a class="text-link mb-6" routerLink="/templates"
-  ><span aria-hidden="true">→</span> חזרה למרחב שלנו</a
+  ><span class="icon-back" aria-hidden="true">→</span> חזרה למרחב שלנו</a
 >
 <header class="mb-8">
-  <p class="mb-3 text-sm font-medium text-brand">רעיון שנשאר איתנו</p>
+  <p class="eyebrow mb-3">רעיון שנשאר איתנו</p>
   <h1 class="mb-3">{{ templateId() ? 'עריכת תבנית' : 'תבנית חדשה' }}</h1>
   <p class="text-muted">מתארים רעיון, בודקים את התבנית שה־AI בנה, ויוצרים ממנה משימות חדשות.</p>
 </header>
@@ -29,13 +29,10 @@
       <app-ai-template-author (saved)="saved($event)" />
     }
   </div>
-  <aside
-    class="rounded-3xl border border-line bg-soft p-gutter sm:p-8"
-    aria-labelledby="template-note-title"
-  >
-    <p class="mb-3 text-sm font-medium text-brand">איך זה עובד?</p>
+  <aside class="panel panel-tinted sm:p-8" aria-labelledby="template-note-title">
+    <p class="eyebrow mb-3">איך זה עובד?</p>
     <h2 id="template-note-title" class="mb-6 text-2xl">הרעיון נשמר.<br />האתגר משתנה.</h2>
-    <ol class="list-decimal space-y-5 ps-5 text-muted marker:font-semibold marker:text-brand">
+    <ol class="steps space-y-5 text-muted" role="list">
       <li>מתארים מה רוצים ללמד ובודקים את ההנחיות ואת השדות שהוצעו.</li>
       <li>שומרים תבנית רק אחרי שבדקתם והתאמתם אותה.</li>
       <li>בכל שימוש בוחרים פרטים חדשים, וה־AI יוצר משימה לעיון שלכם.</li>

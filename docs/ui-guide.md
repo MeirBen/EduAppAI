@@ -10,14 +10,17 @@ parent labels keep their original language and values.
   visible on screens at least 64rem wide and 40rem tall; let it scroll away on
   smaller screens. Reserve scroll padding for focus targets and include the
   skip link.
-- Use Tailwind theme tokens from `frontend/src/styles.css`; shared controls live
-  there and page layout uses template utilities. Keep the light green theme,
-  visible focus/error states and locally bundled Heebo. Avoid another UI layer.
+- Keep the light green theme, visible focus/error states and locally bundled
+  Heebo. Avoid another UI layer.
 - Use `panel` for raised surfaces and `button` for primary actions; add
   `button-secondary` or `button-danger` for other actions. Keep one prominent
   action per card, with quieter edit/delete links. Native disclosures reveal answers.
 - Keep hover/press feedback brief, exclude disabled controls and respect reduced
   motion. Use theme shadows and colors rather than page-specific copies.
+- Actions show a 2px offset focus ring. Fields tint their own edge instead, in
+  the danger color when invalid. Script focus targets (`tabindex="-1"`) show no
+  ring. Selects, checkboxes and fields stay native; supporting browsers open a
+  styled select listbox.
 - Use rem sizing, generous line height and wrapping for long user content.
   Use the viewport-capped `gutter` spacing for narrow containers so padding does
   not crowd enlarged text. Preserve browser zoom, iOS text scaling and the
@@ -26,13 +29,39 @@ parent labels keep their original language and values.
   focus, loading status, error alerts and distinguishable repeated
   links/disclosures.
 
+## Styles and theming
+
+`frontend/src/styles.css` imports each layer from `frontend/src/styles/`:
+
+- `theme.css` owns every token. Default Tailwind colors and shadows are
+  cleared, so templates can only use theme colors and elevations.
+- `utilities.css` owns project variants: `pinned-header`, and `dark` for an
+  explicit dark choice or a dark device without an explicit light choice.
+- `base.css` styles elements, including native form controls and focus.
+- `components.css` holds small shared primitives: panels, `well`, buttons,
+  links, `eyebrow`, `badge`, `icon-tile`, `steps` and field feedback.
+
+Single-use styling stays as utilities in the owning template; a component's own
+stylesheet uses theme variables only. Give `steps` lists `role="list"` so WebKit
+keeps list semantics.
+
+Themes redefine only the `--color-*` tokens, so templates need no `dark:`
+utilities. Keep the contrast contract in `theme.css` for every theme and check
+each token on every surface, tint and translucent layer it meets. The header's
+theme picker follows the device by default. `Theme` stores an explicit choice in
+localStorage, since no server render needs a cookie. The inline script in
+`index.html` applies it before first paint, and CSS follows device changes live.
+The brand `theme-color` suits both themes.
+
 ## Direction and copy
 
 Set `lang="he"`, `dir="rtl"` and Angular's `he-IL` locale; keep the manifest
 aligned. Use logical spacing (`ms`, `me`, `ps`, `pe`, `inset-s`, `inset-e`) and
 normal DOM order. Use `dir="auto"` for learning text and `<bdi>` for inline user
-values; isolate email and numeric inputs as LTR. Back arrows point right. Dates
-display in Hebrew while stored timestamps remain UTC.
+values; isolate email and numeric inputs as LTR. Empty `dir="auto"` fields keep
+the page direction for the caret and placeholder. Back arrows point right, and
+decorative gradients start at the reading edge. Dates display in Hebrew while
+stored timestamps remain UTC.
 
 Write concise Hebrew for labels, validation, loading and errors. Do not expose
 raw framework/provider errors. Render generated text through Angular

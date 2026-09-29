@@ -1,0 +1,110 @@
+/*
+ * Design tokens. Only these colors and elevations exist: the default palettes are
+ * cleared so every color in the app is theme-owned. Utilities read colors through
+ * CSS variables, so a theme only redefines the color tokens on the root, as the
+ * dark theme below does. Composed tokens are inlined and follow automatically.
+ *
+ * Every theme keeps this contrast on each surface, tint and translucent layer a token
+ * meets: ink ≥ 10:1; muted, brand, danger and on-* text ≥ 5.5:1; control edges, focus
+ * and filled states ≥ 3.5:1. `line` is decorative.
+ */
+@theme static {
+  --color-*: initial;
+  --shadow-*: initial;
+
+  --color-canvas: oklch(98.03% 0.0054 117.92);
+  --color-surface: oklch(100% 0 0);
+  --color-soft: oklch(95.46% 0.0143 128.63);
+  --color-accent: oklch(93.07% 0.0577 93.21);
+  --color-ink: oklch(30.5% 0.0381 174.27);
+  --color-muted: oklch(47.5% 0.0269 165.02);
+  --color-line: oklch(90.04% 0.0155 145.45);
+  --color-control: oklch(60% 0.0254 161.34);
+  --color-brand: oklch(43.16% 0.0662 173.46);
+  --color-brand-hover: oklch(35.75% 0.0567 170.27);
+  --color-on-brand: oklch(100% 0 0);
+  --color-danger: oklch(45.52% 0.1371 24.38);
+  --color-danger-soft: oklch(97.27% 0.0136 34.3);
+  --color-on-danger: oklch(100% 0 0);
+  --color-focus: oklch(53.42% 0.086 170.75);
+  /* Elevation and modal backdrop tint; keep it dark in every theme. */
+  --color-shadow: oklch(33.82% 0.0381 174.27);
+
+  --font-sans: 'Heebo Variable', Arial, sans-serif;
+  --ease-smooth: cubic-bezier(0.22, 1, 0.36, 1);
+  --default-transition-duration: 200ms;
+
+  /* Leave room for enlarged text inside nested panels on narrow screens. */
+  --spacing-gutter: min(1.25rem, 5vw);
+  --text-sm--line-height: 1.7;
+  --text-base--line-height: 1.7;
+  --text-lg--line-height: 1.7;
+  --text-xl--line-height: 1.5;
+  --text-2xl--line-height: 1.4;
+  --text-3xl--line-height: 1.4;
+  --text-4xl--line-height: 1.4;
+  --text-5xl--line-height: 1.4;
+}
+
+@theme inline {
+  --default-transition-timing-function: var(--ease-smooth);
+
+  --shadow-control: 0 1px 2px color-mix(in oklab, var(--color-shadow) 6%, transparent);
+  --shadow-panel:
+    0 1px 3px color-mix(in oklab, var(--color-shadow) 4%, transparent),
+    0 12px 36px -16px color-mix(in oklab, var(--color-shadow) 14%, transparent);
+  --shadow-raised:
+    0 2px 6px color-mix(in oklab, var(--color-shadow) 6%, transparent),
+    0 22px 44px -20px color-mix(in oklab, var(--color-shadow) 26%, transparent);
+  --shadow-button:
+    inset 0 1px 0 color-mix(in oklab, var(--color-on-brand) 16%, transparent),
+    0 1px 2px color-mix(in oklab, var(--color-shadow) 10%, transparent),
+    0 4px 10px -4px color-mix(in oklab, var(--color-shadow) 30%, transparent);
+  --shadow-button-raised:
+    inset 0 1px 0 color-mix(in oklab, var(--color-on-brand) 16%, transparent),
+    0 2px 4px color-mix(in oklab, var(--color-shadow) 10%, transparent),
+    0 12px 22px -10px color-mix(in oklab, var(--color-shadow) 40%, transparent);
+
+  --animate-enter: enter 0.4s var(--ease-smooth);
+  --animate-fade: fade 0.25s ease-out;
+
+  @keyframes enter {
+    from {
+      opacity: 0;
+      translate: 0 0.5rem;
+    }
+  }
+
+  @keyframes fade {
+    from {
+      opacity: 0;
+    }
+  }
+}
+
+/* `color-scheme` also themes native browser UI such as scrollbars and pickers. */
+@layer theme {
+  :root {
+    color-scheme: light;
+
+    @variant dark {
+      color-scheme: dark;
+      --color-canvas: oklch(19.5% 0.012 170);
+      --color-surface: oklch(23.5% 0.014 170);
+      --color-soft: oklch(28% 0.022 168);
+      --color-accent: oklch(32% 0.045 88);
+      --color-ink: oklch(94% 0.012 160);
+      --color-muted: oklch(76% 0.02 162);
+      --color-line: oklch(33.5% 0.016 168);
+      --color-control: oklch(58% 0.02 165);
+      --color-brand: oklch(80% 0.1 170);
+      --color-brand-hover: oklch(86% 0.085 170);
+      --color-on-brand: oklch(20% 0.03 172);
+      --color-danger: oklch(75% 0.13 25);
+      --color-danger-soft: oklch(26% 0.045 25);
+      --color-on-danger: oklch(20% 0.04 25);
+      --color-focus: oklch(76% 0.11 168);
+      --color-shadow: oklch(0% 0 0);
+    }
+  }
+}

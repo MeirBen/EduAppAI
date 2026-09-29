@@ -1,8 +1,6 @@
-<header
-  class="mb-6 flex flex-wrap items-center justify-between gap-4 rounded-3xl border border-line bg-linear-to-bl from-soft to-surface p-gutter sm:p-6"
->
+<header class="panel panel-tinted mb-6 flex flex-wrap items-center justify-between gap-4">
   <div>
-    <p class="mb-2 text-sm font-medium text-brand">המרחב המשפחתי</p>
+    <p class="eyebrow mb-2">המרחב המשפחתי</p>
     <h1 #heading class="mb-2" tabindex="-1">מה נלמד היום?</h1>
     <p class="max-w-xl text-muted">
       רעיונות טובים הופכים לתבניות. מתבניות יוצרים תרגול שמתאים בדיוק להיום.
@@ -27,11 +25,7 @@
     </div>
     @if (templates.value().length === 0) {
       <div class="panel border-dashed py-8 text-center shadow-none sm:py-8">
-        <span
-          class="mx-auto mb-5 grid size-14 place-items-center rounded-2xl bg-accent text-3xl"
-          aria-hidden="true"
-          >✳</span
-        >
+        <span class="icon-tile mx-auto mb-5 size-14 text-3xl" aria-hidden="true">✳</span>
         <h3 class="mb-3 text-xl">מתחילים עם רעיון אחד</h3>
         <p class="mx-auto mb-6 max-w-md text-muted">
           מתארים רעיון ללמידה וה־AI בונה ממנו תבנית. בכל שימוש בוחרים נושא ופרטים חדשים ומקבלים
@@ -42,7 +36,7 @@
     } @else {
       <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         @for (template of templates.value(); track template.id) {
-          <article class="panel flex min-w-0 flex-col items-start">
+          <article class="panel panel-interactive flex min-w-0 flex-col items-start">
             <span class="badge">תבנית · גרסה {{ template.currentVersion }}</span>
             <h3 class="mb-2 mt-3">
               <bdi>{{ template.name }}</bdi>
@@ -54,7 +48,7 @@
               class="button button-secondary mt-auto w-full justify-between"
               [routerLink]="['/templates', template.id, 'create']"
               [attr.aria-label]="'יצירת תרגול: ' + template.name"
-              >יצירת תרגול <span aria-hidden="true">←</span></a
+              >יצירת תרגול <span class="icon-forward" aria-hidden="true">←</span></a
             >
             <div
               class="mt-3 flex w-full flex-wrap items-center justify-between gap-x-4 border-t border-line pt-2 text-sm"
@@ -87,7 +81,7 @@
       <p class="text-sm text-muted">מוכנות לעיון שלכם</p>
     </div>
     @if (instances.value().length === 0) {
-      <p class="rounded-2xl border border-line p-gutter text-muted sm:p-6">
+      <p class="panel panel-outline text-muted">
         התרגולים שתיצרו יופיעו כאן. כל טיוטה שומרת את השאלות בדיוק כפי שנוצרו.
       </p>
     } @else {
@@ -118,10 +112,7 @@
       <p class="mt-4 text-sm text-muted">בכל רשימה מוצגים עד 100 הפריטים האחרונים.</p>
     }
   </section>
-  <section
-    class="mt-6 rounded-3xl border border-line p-gutter sm:p-6"
-    aria-labelledby="reset-title"
-  >
+  <section class="panel panel-outline mt-6" aria-labelledby="reset-title">
     <h2 id="reset-title" class="mb-3">מתחילים מחדש</h2>
     <p class="mb-4 text-muted">
       אפשר למחוק את כל התבניות, הגרסאות והטיוטות השמורות של המשפחה. החשבון והגדרות ה־AI יישארו.
@@ -138,7 +129,7 @@
 }
 <dialog
   #confirmation
-  class="panel fixed inset-0 m-auto max-h-[90dvh] w-[calc(100%-2rem)] max-w-lg overflow-y-auto text-ink backdrop:bg-ink/40 backdrop:backdrop-blur-xs"
+  class="panel fixed inset-0 m-auto max-h-[90dvh] w-[calc(100%-2rem)] max-w-lg overflow-y-auto text-ink backdrop:bg-shadow/40 backdrop:backdrop-blur-xs motion-safe:open:animate-enter motion-safe:backdrop:animate-fade"
   aria-labelledby="removal-title"
   aria-describedby="removal-description"
   (cancel)="onCancel($event)"

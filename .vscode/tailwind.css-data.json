@@ -8,6 +8,30 @@
     {
       "name": "@apply",
       "description": "Inlines existing Tailwind CSS utilities into a custom CSS rule."
+    },
+    {
+      "name": "@custom-variant",
+      "description": "Defines a custom Tailwind CSS variant usable in templates and with @variant."
+    },
+    {
+      "name": "@variant",
+      "description": "Applies a Tailwind CSS variant to the nested declarations."
+    },
+    {
+      "name": "@slot",
+      "description": "Marks where a @custom-variant block places the styled rule."
+    },
+    {
+      "name": "@utility",
+      "description": "Defines a custom Tailwind CSS utility that supports variants."
+    },
+    {
+      "name": "@source",
+      "description": "Adds or excludes Tailwind CSS class detection sources."
+    },
+    {
+      "name": "@reference",
+      "description": "Imports a stylesheet for @apply and theme access without emitting its CSS."
     }
   ]
 }
