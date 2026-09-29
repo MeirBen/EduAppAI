@@ -39,6 +39,11 @@ const incompatibilities = {
   'calibration-inputs': 'Different calibration inputs',
   'judge-prompt': 'Different judge prompts or versions',
 };
+const stages = [
+  ['Template authoring', 'authoring'],
+  ['Task generation', 'generation'],
+  ['Hebrew review', 'judge'],
+];
 // Completed means finished, not passed, so it stays neutral.
 const statusTones = {
   starting: 'running',
@@ -121,7 +126,7 @@ function createDom(document) {
   }
 
   /** Copies the current text, so edited blocks copy their latest content. */
-  function copyButton(read, label) {
+  function copyButton(read, label, idle = 'Copy') {
     const button = node('button', null, 'copy');
     button.type = 'button';
     button.setAttribute('aria-live', 'polite');
@@ -131,16 +136,18 @@ function createDom(document) {
     icon.setAttribute('aria-hidden', 'true');
     path.setAttribute('d', 'M9 9h11v11H9zM5 15H4V4h11v1');
     icon.append(path);
-    const caption = node('span', 'Copy');
-    button.append(icon, caption, node('span', ` ${label}`, 'sr-only'));
+    const caption = node('span', idle);
+    button.append(icon, caption);
+    if (label) button.append(node('span', ` ${label}`, 'sr-only'));
     button.addEventListener('click', async () => {
+      caption.textContent = 'Copying…';
       try {
         await document.defaultView.navigator.clipboard.writeText(read());
         caption.textContent = 'Copied';
       } catch {
         caption.textContent = 'Copy failed';
       }
-      setTimeout(() => (caption.textContent = 'Copy'), 1500);
+      setTimeout(() => (caption.textContent = idle), 1500);
     });
     return button;
   }
@@ -383,6 +390,139 @@ export function renderComparison(document, comparison) {
   );
   root.append(raw('Raw comparison JSON (includes diagnostic evidence)', comparison));
   return root;
+}
+
+/** Wraps text in a fence longer than any backtick run inside it, so content cannot break out. */
+function fence(language, text) {
+  const longest = Math.max(2, ...(String(text).match(/`+/g) ?? []).map((run) => run.length));
+  const marks = '`'.repeat(longest + 1);
+  return `${marks}${language}\n${text}\n${marks}`;
+}
+
+/**
+ * Markdown brief of a saved run for AI analysis: reading rules, context, requests, outputs,
+ * findings and human review. Repeated request messages reference their first occurrence.
+ */
+export function reportBrief(id, report, summary) {
+  const json = (value) => fence('json', JSON.stringify(value, null, 2));
+  const output = (text) => {
+    try {
+      return json(JSON.parse(text));
+    } catch {
+      return fence('text', text ?? 'Not recorded');
+    }
+  };
+  const seen = new Map();
+  const lines = [
+    `# Evaluation report: ${report.label || id}`,
+    '',
+    'A saved run from the Family Learning Hebrew AI evaluation harness. Each result sends a synthetic parent request through AI template authoring, then task generation, and, when enabled, an advisory Hebrew review by the same model.',
+    '',
+    'Reading rules:',
+    '- "completed" means the workflow finished, not that checks passed.',
+    '- Automatic checks cover app contracts and case expectations, not language or educational quality.',
+    '- Hebrew findings are advisory. Failed or unfinished judge calibration weakens them. No completed review means no language evidence, not zero errors.',
+    '- Human scores: 0 unusable, 1 needs edits, 2 ready, null unreviewed.',
+    '- Unknown cost or token measurements are unknown, not zero. Latency is in milliseconds.',
+    '- Each distinct model request message appears once; repeats name their first occurrence.',
+    '- Contains prompts and generated answer keys.',
+    '',
+    '## Run',
+    json({
+      id,
+      label: report.label,
+      status: report.status,
+      startedAtUtc: report.startedAtUtc,
+      finishedAtUtc: report.finishedAtUtc,
+      runNotes: report.runNotes,
+      repeat: report.repeat,
+      judgeEnabled: report.judgeEnabled,
+      judgePromptVersion: report.judgePromptVersion,
+      maxCalls: report.maxCalls,
+      plannedCalls: report.plannedCalls,
+      attemptedCalls: report.attemptedCalls,
+      suiteSha256: report.suiteSha256,
+    }),
+    '',
+    '## AI profile',
+    json(report.profile),
+    '',
+    '## Summary',
+    json(summary),
+    '',
+  ];
+  if (report.judgeEnabled) {
+    lines.push('## Judge prompt', fence('text', report.judgePrompt ?? 'Not recorded'), '');
+    lines.push(
+      '## Judge calibration',
+      json(
+        (report.calibration ?? []).map((item) => ({
+          id: item.sample?.id,
+          passed: item.passed,
+          missingExpectedIssueCount: item.missingExpectedIssueCount,
+          unexpectedFindingCount: item.unexpectedFindingCount,
+          texts: item.sample?.texts,
+          expectedIssues: item.sample?.expectedIssues,
+          findings: item.issues,
+          call: item.call && { ...item.call, request: undefined },
+        })),
+      ),
+      '',
+    );
+  }
+  lines.push('## Results', '');
+  (report.results ?? []).forEach((evaluation, index) => {
+    const name = `Result ${index + 1} (${evaluation.caseId} · repetition ${evaluation.repetition})`;
+    const { prompt, ...expectations } =
+      report.cases?.find((item) => item.id === evaluation.caseId) ?? {};
+    lines.push(
+      `### ${name}`,
+      '',
+      '#### Parent request',
+      fence('text', prompt ?? 'Not recorded'),
+      '',
+      '#### Case expectations and parameters',
+      json({ ...expectations, parameters: evaluation.parameters }),
+      '',
+      '#### Automatic checks',
+      json(evaluation.checks ?? {}),
+      '',
+    );
+    for (const [stage, key] of stages) {
+      const step = evaluation[key];
+      if (!step) {
+        lines.push(`#### ${stage}`, 'Not attempted.', '');
+        continue;
+      }
+      lines.push(
+        `#### ${stage}`,
+        'Call diagnostics:',
+        json({ ...step, request: undefined, output: undefined }),
+        'Output:',
+        output(step.output),
+        'Request messages:',
+      );
+      for (const message of step.request ?? []) {
+        const where = `${name} · ${stage} · ${message.role}`;
+        const first = seen.get(message.text);
+        if (first) lines.push(`- ${message.role}: same as ${first}`);
+        else {
+          seen.set(message.text, where);
+          lines.push(`- ${message.role}:`, fence('text', message.text));
+        }
+      }
+      lines.push('');
+    }
+    lines.push(
+      '#### Hebrew findings',
+      evaluation.judge?.contractValid ? json(evaluation.issues ?? []) : 'No valid Hebrew review.',
+      '',
+      '#### Human review',
+      json(evaluation.review ?? {}),
+      '',
+    );
+  });
+  return lines.join('\n');
 }
 
 /** Starts read-only loading and serialized one-second polling. Mutations are never retried. */
@@ -927,8 +1067,14 @@ export function createDashboard(document, fetchRequest = globalThis.fetch.bind(g
     target.replaceChildren();
     target.hidden = false;
     const heading = node('section', null, 'card report-header');
+    const title = node('div', null, 'card-header');
+    const brief = copyButton(() => reportBrief(id, report, result.summary), '', 'Copy for AI');
+    brief.classList.add('prominent');
+    brief.title =
+      'Copies context, requests, outputs, findings and reviews as Markdown, including answer keys.';
+    title.append(content('h2', report.label || id), brief);
     heading.append(
-      content('h2', report.label || id),
+      title,
       node(
         'p',
         `${timestamp(report.startedAtUtc)} · Finished: ${timestamp(report.finishedAtUtc)}`,
@@ -1005,14 +1151,10 @@ export function createDashboard(document, fetchRequest = globalThis.fetch.bind(g
       card.append(header);
       const selected = report.cases.find((item) => item.id === evaluation.caseId);
       if (selected) card.append(content('p', selected.reviewFocus));
-      const steps = [
-        ['Template authoring', evaluation.authoring],
-        ['Task generation', evaluation.generation],
-        ['Hebrew review', evaluation.judge],
-      ];
-      const stages = node('div', null, 'stage-grid');
-      stages.append(...steps.map(([name, step]) => renderStep(name, step)));
-      card.append(stages);
+      const steps = stages.map(([name, key]) => [name, evaluation[key]]);
+      const stageGrid = node('div', null, 'stage-grid');
+      stageGrid.append(...steps.map(([name, step]) => renderStep(name, step)));
+      card.append(stageGrid);
 
       const checks = Object.entries(evaluation.checks ?? {});
       const checkList = node('ul', null, 'chips');

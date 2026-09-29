@@ -664,3 +664,46 @@ test('opening a report shows waiting feedback until the read finishes', async ()
     app.dom.window.close();
   }
 });
+
+test('the AI brief carries context, requests, outputs, findings and reviews without repeating messages', async () => {
+  const repeated = { ...completedReport.results[0], repetition: 2 };
+  const report = {
+    ...completedReport,
+    results: [
+      {
+        ...completedReport.results[0],
+        review: { hebrew: 2, notes: 'טוב' },
+        authoring: { ...completedReport.results[0].authoring, output: '```\n# escaped' },
+      },
+      repeated,
+    ],
+  };
+  const brief = ui.reportBrief('run-1', report, runSummary);
+  for (const expected of [
+    'Reading rules:',
+    'Contains prompts and generated answer keys.',
+    '#### Parent request\n```text\nבקשה',
+    '"title": "בדיקת עברית"',
+    '<script>request</script>',
+    '"hebrew": 2',
+  ])
+    assert.ok(brief.includes(expected), expected);
+  assert.equal(brief.split('<script>request</script>').length, 2);
+  assert.match(brief, /- user: same as Result 1 \(first · repetition 1\) · Task generation · user/);
+  assert.match(brief, /````text\n```\n# escaped\n````/);
+
+  const app = mount({
+    '/api/runs': () => jsonResponse([{ id: 'run-1', label: 'Saved run', summary: runSummary }]),
+    '/api/runs/run-1': () => jsonResponse({ report: completedReport, summary: runSummary }),
+  });
+  try {
+    await app.dashboard.ready;
+    app.document.querySelector('#history-list button').click();
+    await nextTurn();
+    const buttons = [...app.document.querySelectorAll('#report button')];
+    assert.ok(buttons.some((button) => button.textContent === 'Copy for AI'));
+  } finally {
+    app.dashboard.dispose();
+    app.dom.window.close();
+  }
+});

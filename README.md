@@ -158,6 +158,8 @@ history, report viewing, manual review or comparison. Fix the settings and resta
 the tool to enable real runs; configuration errors and secrets are not displayed.
 
 History renders saved tasks and findings, with collapsible request/output data.
+**Copy for AI** copies a Markdown brief of the report for AI agents: context, requests,
+outputs, findings and human reviews, including answer keys.
 Review completed results using the six scores and notes (up to 4,000 characters).
 Saves update only human review and refresh the summary. Compare shows compatibility
 before deltas; unavailable Hebrew or human evidence stays unavailable.

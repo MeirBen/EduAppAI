@@ -863,6 +863,13 @@ button.copy:not(:disabled):hover {
   color: var(--brand);
   background: var(--soft);
 }
+button.copy.prominent {
+  min-height: 2.5rem;
+  padding-inline: var(--space-4);
+  font-size: 0.9rem;
+  color: var(--brand);
+  border-color: var(--control);
+}
 button.copy svg {
   width: 0.95rem;
   height: 0.95rem;
