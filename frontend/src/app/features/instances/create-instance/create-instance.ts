@@ -21,7 +21,6 @@ import { LoadingIndicator } from '../../../shared/loading-indicator/loading-indi
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class CreateInstance {
-  /** Bound from the route by withComponentInputBinding. */
   readonly templateId = input.required<string>();
   private readonly api = inject(LearningApi);
   private readonly router = inject(Router);

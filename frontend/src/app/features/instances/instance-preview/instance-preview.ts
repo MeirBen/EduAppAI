@@ -13,7 +13,6 @@ import { LoadingIndicator } from '../../../shared/loading-indicator/loading-indi
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class InstancePreviewPage {
-  /** Bound from the route; changing it reloads the corresponding saved snapshot. */
   readonly instanceId = input.required<string>();
   private readonly api = inject(LearningApi);
   protected readonly instance = this.api.instance(this.instanceId);

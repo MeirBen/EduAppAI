@@ -15,7 +15,7 @@ namespace FamilyLearning.Evaluation;
 public sealed record EvaluationProgress(string Stage, string? CaseId, int? Repetition, int CompletedCalls,
     int PlannedCalls, string Status, string? Model, decimal? ReportedCostCredits, int MissingCostCalls);
 
-/// <summary>Exercises the app's prompts, schemas and validators without HTTP endpoints, identity or persistence.</summary>
+/// <summary>Exercises the app's AI engine and saves evaluation artifacts without application identity or learning data.</summary>
 public static class EvaluationRunner
 {
     /// <summary>Runs sequentially with at most three 429 retries per stage, within the total call budget.</summary>

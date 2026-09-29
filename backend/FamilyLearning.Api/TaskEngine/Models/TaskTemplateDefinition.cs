@@ -20,7 +20,7 @@ public sealed record TaskTemplateDefinition(
 /// <param name="Label">Human-readable field label.</param>
 /// <param name="Type">One of text, integer, select or boolean.</param>
 /// <param name="Required">Rejects omission without a default and blank text. Defaults apply regardless of this flag.</param>
-/// <param name="Default">Value used only when the submitted dictionary omits the key.</param>
+/// <param name="Default">Used only for omitted keys; null means no default. Explicit input nulls are invalid.</param>
 /// <param name="Min">Inclusive lower bound for integers; null leaves it unbounded.</param>
 /// <param name="Max">Inclusive upper bound for integers; null leaves it unbounded.</param>
 /// <param name="MaxLength">Text length limit; null uses the validator's default limit.</param>

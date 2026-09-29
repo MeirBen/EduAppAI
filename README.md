@@ -140,12 +140,11 @@ learning records or rewriting content at runtime.
 ```
 
 Maintain synthetic requests in [`cases.json`](tools/FamilyLearning.Evaluation/cases.json).
-They cover the three
-answer types, Hebrew/niqqud/bilingual content, fixed and configurable templates,
-empty/false/zero/negative defaults, 1–20 questions, 2–6 choices, two passages,
-supplied source text and quoted instructions. One full run plans 44 base calls,
-or 70 with the four judge controls, before any retries. Select individual cases
-for focused checks.
+They cover all three answer types, Hebrew/niqqud/bilingual content, fixed and
+configurable templates, empty/false/zero/negative defaults, 1–20 questions,
+2–6 choices, two passages, supplied source text and quoted instructions. A full
+run plans 44 base calls, or 70 with the four judge controls, before retries.
+Select individual cases for focused checks.
 
 `reviewFocus` guides human review, not automatic assertions. The runner uses
 generated defaults; `useMaximumQuestionCount` selects the count field's maximum.
@@ -265,10 +264,9 @@ and judge setup, plus complete stage evidence. Hebrew comparisons also require
 passing calibration and matching reviewed cases; human-score deltas require the
 same scored case/repetition pairs. Token/cost deltas require full measurement
 coverage. Other deltas are null or explicitly qualified. Only format 2 reports
-are supported; mismatched embedded
-controls and invalid human scores are rejected. Older reports retain their original
-checks (versions 1–3); new runs use version 4. Start a new baseline for direct
-comparison after changing contracts or checks.
+are supported; mismatched embedded controls and invalid human scores are rejected.
+Reports retain their recorded check version. Start a new baseline for direct
+comparison after changing contracts, checks or fixtures.
 
 Run exit codes: 0 completed automatic checks and, when enabled, calibration and
 reviews passed without findings; 1 failures/findings or stopped run; 2 invalid

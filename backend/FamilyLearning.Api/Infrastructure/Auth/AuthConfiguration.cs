@@ -7,8 +7,7 @@ namespace FamilyLearning.Api.Infrastructure.Auth;
 public static class AuthConfiguration
 {
     /// <summary>Registers the services used by parent endpoints and local account provisioning.</summary>
-    /// <param name="services">The application's dependency injection registrations.</param>
-    /// <param name="development">Allows HTTP cookies for local development; other environments require HTTPS.</param>
+    /// <remarks><paramref name="development"/> allows HTTP cookies locally; other environments require HTTPS.</remarks>
     public static void AddParentAuthentication(this IServiceCollection services, bool development)
     {
         services.AddIdentityCore<ParentUser>(options =>

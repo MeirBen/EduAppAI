@@ -101,9 +101,9 @@ The current app ends at the parent preview. Add these only as working features:
    server-scored results. Define normalization, retry and concurrency rules
    before implementing scoring.
 4. Report completed work and per-question results from saved sessions.
-5. Add account recovery, shared-parent access, backup/restore, deployment
-   packaging and update notices. Add pagination when the 100-item lists become
-   limiting.
+5. Add account recovery, shared-parent access and update notices. Establish
+   operational backup/restore; packaging and deployment requirements are in the
+   [README](../README.md#publish). Add pagination when 100-item lists become limiting.
 
 Offline synchronization and native packaging remain deferred. Child sessions
 must stay separate from parent authentication and use answer-free,
@@ -117,10 +117,8 @@ shared-browser switching is deferred. The recommended first release completes
 one flow: parent creates a child profile, reviews and assigns an existing task,
 activates the child's device, and sees the child's submitted result.
 
-Keep the current project and feature structure. Existing parent API URLs can
-remain compatible; add an independently authorized `/api/child` group when the
-feature is built. Add feature folders as working functionality needs them;
-renaming `Instances` or introducing empty services is unnecessary.
+Keep the current feature structure and parent API contracts. Add an independently
+authorized `/api/child` group when implementing the child flow.
 
 **Access and content:**
 
@@ -176,9 +174,7 @@ renaming `Instances` or introducing empty services is unnecessary.
   scoring edge cases and unchanged historical results. Test the full flow on
   narrow RTL screens and by keyboard with isolated data and providers.
 
-Finalize the proposed grading, retry and retention rules with the child feature
-design before adding tables or endpoints. They are product behavior, not a
-reason to refactor today's working parent flow.
+Finalize grading, retry and retention rules before adding child tables or endpoints.
 
 ### Real-model evaluation
 

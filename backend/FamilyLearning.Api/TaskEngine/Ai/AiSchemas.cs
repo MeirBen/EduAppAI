@@ -2,7 +2,7 @@ using System.Text.Json;
 
 namespace FamilyLearning.Api.TaskEngine.Ai;
 
-/// <summary>Strict provider schemas owned by the application, independently checked by domain validators.</summary>
+/// <summary>Application-owned JSON schemas shared by prompts and provider output options.</summary>
 internal static class AiSchemas
 {
     public static readonly JsonElement Template = Read("template.schema.json");

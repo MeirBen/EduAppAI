@@ -483,8 +483,8 @@ function fence(language, text) {
 }
 
 /**
- * Markdown brief of a saved run for AI analysis: reading rules, context, requests, outputs,
- * findings and human review. Repeated request messages reference their first occurrence.
+ * Exports saved evidence, including calibration context and scoring policy.
+ * Repeated request messages reference their first occurrence.
  */
 export function reportBrief(id, report, summary) {
   const json = (value) => fence('json', JSON.stringify(value, null, 2));
@@ -949,7 +949,6 @@ export function createDashboard(document, fetchRequest = globalThis.fetch.bind(g
       const summary = run.summary;
       const returned = summary.actualModels?.join(', ') || 'Not reported';
       const models = node('div');
-      // One line when the returned model is the configured one; otherwise show both.
       if (returned === run.configuredModel) models.append(node('p', returned));
       else
         models.append(

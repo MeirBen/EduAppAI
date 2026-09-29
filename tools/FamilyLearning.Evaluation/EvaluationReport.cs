@@ -82,7 +82,7 @@ public sealed class EvaluationResult(string caseId, int repetition)
     [JsonRequired] public ManualReview Review { get; set; } = new();
 }
 
-/// <summary>Only final content and whitelisted diagnostics are retained, including rejected outputs.</summary>
+/// <summary>Captured request, final output and safe diagnostics; excludes separate reasoning text and raw provider errors.</summary>
 public sealed class EvaluationStep
 {
     public DateTime StartedAtUtc { get; set; } = DateTime.UtcNow;

@@ -10,8 +10,8 @@ interface ParameterEntry {
 }
 
 /**
- * Renders supported parameter metadata and emits validated values for a parent to submit.
- * Client validation provides feedback; the API validates every submitted value again.
+ * Renders reviewed field definitions with client validation; the API validates again.
+ * Cleared optional text stays explicit; blank optional numbers/selects are omitted.
  */
 @Component({
   selector: 'app-parameter-form',
@@ -22,7 +22,6 @@ interface ParameterEntry {
 export class ParameterForm {
   /** Replacing the schema resets the form to that schema's defaults. */
   readonly definitions = input.required<ParameterDefinition[]>();
-  /** Locks inputs during AI generation and saving. */
   readonly busy = input(false);
   /** Emits values only; this component neither calls the API nor creates task content. */
   readonly generated = output<ParameterValues>();

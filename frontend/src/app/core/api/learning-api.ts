@@ -12,9 +12,10 @@ import {
 } from './models';
 
 /**
- * Parent HTTP contracts. Create read resources in the caller's injection context so
- * route changes and destruction cancel reads. Commands reject on HTTP failures;
- * cancelling a write does not guarantee server rollback. No automatic retries.
+ * Parent HTTP contracts. Create resources in the caller's injection context: reads
+ * cancel when their URL changes or their owner is destroyed. Writes use the supplied
+ * lifetime and reject on failure or cancellation; cancellation cannot guarantee rollback.
+ * No automatic retries.
  * HttpClient manages same-origin authentication and XSRF cookies.
  */
 @Injectable({ providedIn: 'root' })
@@ -25,7 +26,7 @@ export class LearningApi {
   aiStatus() {
     return httpResource<{ configured: boolean }>(() => '/api/ai/status');
   }
-  /** Produces an unsaved proposal; leaving the caller cancels HTTP. Never retry automatically. */
+  /** Produces an unsaved proposal for parent review. */
   authorTemplate(prompt: string, lifetime: DestroyRef) {
     return requestResult(
       this.http.post<AiTemplateDraft>('/api/ai/template-drafts', { prompt }),
@@ -52,7 +53,7 @@ export class LearningApi {
   resetLibrary(lifetime: DestroyRef) {
     return requestResult(this.http.delete<void>('/api/templates'), lifetime);
   }
-  /** Creates the first immutable version; leaving the editor cancels the pending request. */
+  /** Creates a template and its first immutable version. */
   createTemplate(definition: TemplateDefinition, lifetime: DestroyRef) {
     return requestResult(this.http.post<TemplateDetail>('/api/templates', definition), lifetime);
   }
@@ -84,11 +85,9 @@ export class LearningApi {
     return requestResult(this.http.delete<void>(`/api/instances/${id}`), lifetime);
   }
   /**
-   * Generates and saves an AI task from the current template revision.
-   * @param templateId - The server selects and pins this template's current revision.
+   * Pins the current template revision, generates a task and returns its saved preview.
+   * Each successful request creates a new task.
    * @param parameters - Submitted values; an empty object accepts the template's defaults.
-   * @param lifetime - Cancels the pending request when the owning page is destroyed.
-   * @returns The saved preview. Each success creates a task; never retry automatically.
    */
   createInstance(templateId: string, parameters: ParameterValues, lifetime: DestroyRef) {
     return requestResult(

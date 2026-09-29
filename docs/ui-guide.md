@@ -10,8 +10,8 @@ parent labels keep their original language and values.
   visible on screens at least 64rem wide and 40rem tall; let it scroll away on
   smaller screens. Reserve scroll padding for focus targets and include the
   skip link.
-- Keep the light green theme, visible focus/error states and locally bundled
-  Heebo. Avoid another UI layer.
+- Use the shared light/dark theme tokens, visible focus/error states and locally
+  bundled Heebo.
 - Use `panel` for raised surfaces and `button` for primary actions; add
   `button-secondary` or `button-danger` for other actions. Keep one prominent
   action per card, with quieter edit/delete links. Native disclosures reveal answers.
@@ -33,7 +33,7 @@ parent labels keep their original language and values.
 
 `frontend/src/styles.css` imports each layer from `frontend/src/styles/`:
 
-- `theme.css` owns every token. Default Tailwind colors and shadows are
+- `theme.css` owns shared theme tokens. Default Tailwind colors and shadows are
   cleared, so templates can only use theme colors and elevations.
 - `utilities.css` owns project variants: `pinned-header`, and `dark` for an
   explicit dark choice or a dark device without an explicit light choice.

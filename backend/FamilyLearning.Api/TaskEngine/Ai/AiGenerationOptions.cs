@@ -1,15 +1,14 @@
 namespace FamilyLearning.Api.TaskEngine.Ai;
 
-/// <summary>Generation limits shared by generation and its transport.</summary>
+/// <summary>Output caps and request deadlines shared by the engine and transport.</summary>
 public sealed class AiGenerationOptions
 {
-    /// <summary>Default combined reasoning and final-output token ceiling per provider call.</summary>
     public const int DefaultMaxOutputTokens = 8192;
 
-    /// <summary>Per-call token ceiling; startup validation accepts 1–32768.</summary>
+    /// <summary>Combined reasoning/output token ceiling per call; configuration validation accepts 1–32768.</summary>
     public int MaxOutputTokens { get; set; } = DefaultMaxOutputTokens;
 
-    /// <summary>Defaults to three minutes; startup validation accepts 1–300 seconds.</summary>
+    /// <summary>Per-call deadline; configuration validation accepts 1–300 seconds.</summary>
     public int RequestTimeoutSeconds { get; set; } = 180;
 
     public TimeSpan RequestTimeout => TimeSpan.FromSeconds(RequestTimeoutSeconds);

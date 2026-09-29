@@ -8,7 +8,7 @@ using OpenAI.Chat;
 
 namespace FamilyLearning.Api.Infrastructure.Ai;
 
-/// <summary>OpenRouter is a replaceable transport; generation depends only on IChatClient.</summary>
+/// <summary>Registers the OpenRouter adapter behind <see cref="IChatClient"/>.</summary>
 public static class OpenRouterRegistration
 {
     /// <summary>Registers the configured provider when a server secret exists; otherwise AI stays explicitly unavailable.</summary>
@@ -54,7 +54,7 @@ public static class OpenRouterRegistration
             throw new InvalidOperationException("Ai:TopP must be greater than 0 and at most 1.");
         if (sampling.TopK is < 0)
             throw new InvalidOperationException("Ai:TopK must be nonnegative.");
-        // Omit unsupported optional controls; a budget or effort implicitly enables reasoning.
+        // Omit unset controls; a budget or effort enables reasoning unless explicitly disabled.
         object? reasoning = reasoningEnabled.HasValue ? new { enabled = reasoningEnabled.Value, exclude = true } : null;
         if (reasoningEnabled != false && reasoningMaxTokens.HasValue)
             reasoning = new { max_tokens = reasoningMaxTokens.Value, exclude = true };

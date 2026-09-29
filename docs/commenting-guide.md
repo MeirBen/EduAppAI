@@ -20,7 +20,8 @@ For C#, use `<summary>` and add `<param>`, `<returns>`, `<remarks>` or
 `<exception>` only when useful. Use compiler-checked `cref`/`paramref`
 references and valid XML. Distinguish required JSON members, nullable types and
 runtime validation; arrays inside records remain mutable. Keep the XML build
-checks; only CS1591 is suppressed.
+checks; only CS1591 is suppressed. If using `<param>` tags, cover every parameter;
+use `<paramref>` in a summary or remark for a focused note instead.
 
 For TypeScript, place JSDoc before decorators. Keep types in TypeScript;
 document promise rejection and side effects in prose. Do not imply route guards

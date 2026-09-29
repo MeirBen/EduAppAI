@@ -9,7 +9,7 @@ public static partial class TaskContentValidator
 {
     /// <summary>Validates AI content before it is saved as an immutable task.</summary>
     /// <param name="content">Untrusted generated content.</param>
-    /// <param name="expectedQuestionCount">Resolved template count; null enforces only the general 1–20 limit.</param>
+    /// <param name="expectedQuestionCount">Exact resolved count, or null to allow any count within 1–20.</param>
     /// <remarks>Accepts potentially null nested JSON members. An empty result means the content is supported.</remarks>
     public static Dictionary<string, string[]> Validate(TaskContent? content, int? expectedQuestionCount = null)
     {

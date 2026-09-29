@@ -46,11 +46,10 @@ unknown-field, numeric and domain validation before persistence.
 templates retain task-specific requirements and exact parameter references.
 Resolved values override stale defaults, including false, zero and empty text.
 
-Each operation makes one AI call. Validators enforce structure and bounds, not
-fluency or truth. The editor and persistence preserve generated instructions and
-content without translation or proofreading. Prompt changes advance the metadata's
-prompt version and affect new output, never saved snapshots. Evaluate language
-quality separately from automated contract tests.
+Each generation operation makes one AI call. Validators enforce structure and
+bounds, not fluency or truth. Parents can edit proposed instructions; the app
+does not translate or proofread them automatically. Saved content is immutable.
+Prompt changes advance the metadata's prompt version and affect new output only.
 
 `tools/FamilyLearning.Evaluation` is a separate developer executable referencing
 the engine and adapter and is not published with the API. CLI and `--ui` use the
@@ -61,7 +60,7 @@ paced and may retry HTTP 429 at most three times within the hard call budget.
 Each attempt is retained; waiting is cancellable and excluded from request
 deadlines and provider latency. Production calls do not inherit these retries.
 
-The optional dashboard is a loopback-only ASP.NET host with static HTML/CSS/JS.
+The developer dashboard is a loopback-only ASP.NET host with static HTML/CSS/JS.
 Its coordinator owns one cancellable run and waits for the final checkpoint on
 shutdown. It owns an isolated service provider using the same application AI
 registration and validators. Configuration failures disable live runs without
@@ -124,8 +123,9 @@ Route guards cancel superseded session/token checks. Sign-in belongs to its
 page and cannot redirect after destruction; the server authorizes requests.
 `AiTemplateAuthor` holds proposals; `AiTemplateForm` edits copies with Signal
 Forms and converts them on save. Errors retain edits; new proposals reset
-feedback. `ParameterForm` emits validated choices: empty text stays explicit,
-while blank numbers/selects are omitted for server defaults.
+feedback. `ParameterForm` preloads defaults; clearing required text, integer or
+select inputs is invalid. Cleared optional text stays explicit; blank optional
+numbers/selects are omitted so the server can resolve defaults.
 Successful publication or task creation replaces its form with a saved-result
 link; delayed or failed navigation cannot repeat the write or AI generation.
 
