@@ -34,10 +34,11 @@ template contract even with escaped Unicode; validators enforce field limits.
 | `DELETE /api/templates`              | Clears the family's learning library  |
 
 `AiGenerationService` calls `IChatClient` without identity or database access.
-`AiSchemas` loads embedded schemas for both the system message and strict output
-format. Field descriptions distinguish generator instructions, learner directions,
-source passages and parent-only answers. The SDK adapts some constraints;
-validators remain authoritative.
+`AiSchemas` loads embedded schemas for both the system message and output contract.
+The provider adapter requests JSON mode or strict JSON-schema output according
+to `Ai:UseJsonSchema`; the full schema stays in the prompt in either mode.
+Field descriptions distinguish generator instructions, learner directions,
+source passages and parent-only answers. Validators remain authoritative.
 OpenRouter requires parameter support. No tools are sent. Responses must finish
 normally and pass size/depth, required-member, unknown-field, numeric and domain
 validation before persistence.

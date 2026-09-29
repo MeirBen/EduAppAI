@@ -27,28 +27,21 @@ export async function startAiProvider() {
     let body = '';
     for await (const chunk of request) body += chunk;
     const input = JSON.parse(body);
-    assert.equal(input.model, 'nvidia/nemotron-3-super-120b-a12b:free');
+    assert.equal(input.model, 'google/gemma-4-31b-it:free');
     assert.equal(input.models, undefined);
-    assert.deepEqual(input.reasoning, { effort: 'low', exclude: true });
+    assert.deepEqual(input.reasoning, { enabled: true, exclude: true });
     assert.equal(input.temperature, 1);
     assert.equal(input.top_p, 0.95);
     assert.equal(input.max_completion_tokens ?? input.max_tokens, 8192);
     assert.deepEqual(input.provider, { require_parameters: true });
-    assert.equal(input.response_format.type, 'json_schema');
-    const schemaName = input.response_format.json_schema.name;
-    assert.match(schemaName, /^(template_authoring|instance_generation)_v[1-9]\d*$/);
-    const isAuthoring = schemaName.startsWith('template_authoring_');
-    assert.equal(input.response_format.json_schema.strict, true);
-    assert.equal(input.response_format.json_schema.schema.additionalProperties, false);
+    assert.deepEqual(input.response_format, { type: 'json_object' });
     assert.equal(input.tools, undefined);
     assert.equal(input.messages.length, 2);
     const schemaText = input.messages[0].content.split('\nOutput JSON schema:\n')[1];
-    assert.ok(
-      schemaText,
-      'The model must see the schema as well as the response-format constraint',
-    );
-    // The SDK adapts strict response-format constraints; prompt context must retain the full schema.
-    assert.deepEqual(JSON.parse(schemaText), isAuthoring ? templateSchema : contentSchema);
+    assert.ok(schemaText, 'JSON mode must retain the full schema in the prompt');
+    const schema = JSON.parse(schemaText);
+    const isAuthoring = Object.hasOwn(schema.properties, 'instanceParameters');
+    assert.deepEqual(schema, isAuthoring ? templateSchema : contentSchema);
     const user = input.messages[1].content;
     assert.ok(!user.includes('browser@example.test'));
     if (user.includes('בדיקת מכסה')) {

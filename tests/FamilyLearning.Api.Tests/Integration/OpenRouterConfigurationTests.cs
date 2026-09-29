@@ -16,12 +16,13 @@ namespace FamilyLearning.Api.Tests.Integration;
 public sealed class OpenRouterConfigurationTests
 {
     [Theory]
-    [InlineData(false, "low", 0.7f, 0.8f, "test/secondary:free")]
-    [InlineData(true, "medium", 1f, 0.95f, "test/secondary:free")]
-    [InlineData(true, "low", null, null, "")]
-    [InlineData(null, null, null, null, null)]
+    [InlineData(false, "low", 0.7f, 0.8f, "test/secondary:free", true)]
+    [InlineData(true, "medium", 1f, 0.95f, "test/secondary:free", true)]
+    [InlineData(true, "low", null, null, "", true)]
+    [InlineData(null, null, null, null, null, null)]
+    [InlineData(true, "", 1f, 0.95f, "", false)]
     public async Task Generation_requests_preserve_settings_schema_guidance_and_unicode(bool? enabled, string? effort,
-        float? temperature, float? topP, string? fallbackModel)
+        float? temperature, float? topP, string? fallbackModel, bool? useJsonSchema)
     {
         const string sourceText = "שָׁלוֹם, Maya! שלום־עולם";
         const string passage = sourceText + "\n\nA second paragraph.";
@@ -39,8 +40,7 @@ public sealed class OpenRouterConfigurationTests
         {
             using var body = await JsonDocument.ParseAsync(incoming.Body);
             request = body.RootElement.Clone();
-            var isInstance = request.GetProperty("response_format").GetProperty("json_schema").GetProperty("name")
-                .GetString()!.StartsWith("instance", StringComparison.Ordinal);
+            var isInstance = request.GetProperty("messages")[1].GetProperty("content").GetString()!.StartsWith('{');
             return Results.Json(new
             {
                 id = "local-test",
@@ -50,10 +50,13 @@ public sealed class OpenRouterConfigurationTests
             });
         });
         await server.StartAsync();
+        var model = useJsonSchema == true ? "nvidia/nemotron-3-super-120b-a12b:free" : "google/gemma-4-31b-it:free";
         var configuration = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
         {
             ["Ai:ApiKey"] = "isolated-test-key",
             ["Ai:Endpoint"] = server.Urls.Single(),
+            ["Ai:Model"] = model,
+            ["Ai:UseJsonSchema"] = useJsonSchema?.ToString(),
             ["Ai:FallbackModel"] = fallbackModel,
             ["Ai:ReasoningEnabled"] = enabled?.ToString(),
             ["Ai:ReasoningEffort"] = effort,
@@ -66,41 +69,50 @@ public sealed class OpenRouterConfigurationTests
         using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(10));
         var result = await provider.GetRequiredService<AiGenerationService>().AuthorAsync("A learning idea", deadline.Token);
 
-        Assert.Equal("nvidia/nemotron-3-super-120b-a12b:free", request.GetProperty("model").GetString());
+        Assert.Equal(model, request.GetProperty("model").GetString());
         if (string.IsNullOrWhiteSpace(fallbackModel)) Assert.False(request.TryGetProperty("models", out _));
         else Assert.Equal(fallbackModel, Assert.Single(request.GetProperty("models").EnumerateArray()).GetString());
         Assert.Equal("test:free", result.Metadata.Model);
         Assert.Equal(instructions, result.Value.Generation.Instructions);
         var reasoning = request.GetProperty("reasoning");
         Assert.True(reasoning.GetProperty("exclude").GetBoolean());
-        if (enabled ?? true)
+        if ((enabled ?? true) && !string.IsNullOrEmpty(effort))
         {
-            Assert.Equal(effort ?? "low", reasoning.GetProperty("effort").GetString());
+            Assert.Equal(effort, reasoning.GetProperty("effort").GetString());
             Assert.False(reasoning.TryGetProperty("enabled", out _));
         }
         else
         {
-            Assert.False(reasoning.GetProperty("enabled").GetBoolean());
+            Assert.Equal(enabled ?? true, reasoning.GetProperty("enabled").GetBoolean());
             Assert.False(reasoning.TryGetProperty("effort", out _));
         }
         Assert.Equal(temperature, request.TryGetProperty("temperature", out var value) ? value.GetSingle() : null);
         Assert.Equal(topP, request.TryGetProperty("top_p", out value) ? value.GetSingle() : null);
-        Assert.Equal("json_schema", request.GetProperty("response_format").GetProperty("type").GetString());
         Assert.True(request.GetProperty("provider").GetProperty("require_parameters").GetBoolean());
-        var schema = request.GetProperty("response_format").GetProperty("json_schema");
-        Assert.True(schema.GetProperty("strict").GetBoolean());
-        Assert.Contains("task generator", schema.GetProperty("schema").GetProperty("properties").GetProperty("generation")
-            .GetProperty("properties").GetProperty("instructions").GetProperty("description").GetString());
+        AssertResponseSchema(request, useJsonSchema ?? false, "task generator");
 
         var instance = await provider.GetRequiredService<AiGenerationService>().GenerateAsync(result.Value,
             new() { ["theme"] = JsonSerializer.SerializeToElement(sourceText), ["count"] = JsonSerializer.SerializeToElement(2) }, deadline.Token);
         Assert.Equal(passage, Assert.Single(instance.Value.ContentBlocks).Text);
-        schema = request.GetProperty("response_format").GetProperty("json_schema");
-        Assert.True(schema.GetProperty("strict").GetBoolean());
-        Assert.Contains("learner", schema.GetProperty("schema").GetProperty("properties").GetProperty("instructions")
-            .GetProperty("description").GetString());
+        AssertResponseSchema(request, useJsonSchema ?? false, "learner");
         using var input = JsonDocument.Parse(request.GetProperty("messages")[1].GetProperty("content").GetString()!);
         Assert.Equal(sourceText, input.RootElement.GetProperty("parameters").GetProperty("theme").GetString());
+
+        definition["unexpected"] = true;
+        await Assert.ThrowsAsync<AiGenerationException>(() => provider.GetRequiredService<AiGenerationService>()
+            .AuthorAsync("A learning idea", deadline.Token));
+    }
+
+    private static void AssertResponseSchema(JsonElement request, bool useJsonSchema, string description)
+    {
+        var prompt = request.GetProperty("messages")[0].GetProperty("content").GetString()!;
+        using var schema = JsonDocument.Parse(prompt.Split("\nOutput JSON schema:\n")[1]);
+        Assert.False(schema.RootElement.GetProperty("additionalProperties").GetBoolean());
+        Assert.Contains(description, schema.RootElement.GetRawText());
+        var format = request.GetProperty("response_format");
+        Assert.Equal(useJsonSchema ? "json_schema" : "json_object", format.GetProperty("type").GetString());
+        if (useJsonSchema) Assert.True(format.GetProperty("json_schema").GetProperty("strict").GetBoolean());
+        else Assert.False(format.TryGetProperty("json_schema", out _));
     }
 
     [Theory]
@@ -134,6 +146,7 @@ public sealed class OpenRouterConfigurationTests
         var configuration = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
         {
             ["Ai:ApiKey"] = "isolated-test-key",
+            ["Ai:Model"] = "test/model:free",
             ["Ai:Endpoint"] = server.Urls.Single()
         }).Build();
         var services = new ServiceCollection().AddLogging();
@@ -159,17 +172,24 @@ public sealed class OpenRouterConfigurationTests
     [InlineData("Ai:TopP", "0")]
     [InlineData("Ai:TopP", "2")]
     [InlineData("Ai:ReasoningEffort", "unlimited")]
+    [InlineData("Ai:ReasoningEnabled", "maybe")]
+    [InlineData("Ai:UseJsonSchema", "maybe")]
+    [InlineData("Ai:Model", null)]
+    [InlineData("Ai:Model", "")]
+    [InlineData("Ai:Model", " ")]
     [InlineData("Ai:Model", "paid/model")]
     [InlineData("Ai:FallbackModel", "paid/model")]
     [InlineData("Ai:FallbackModel", "paid/model,test:free")]
-    public void Invalid_generation_settings_are_rejected(string setting, string value)
+    public void Invalid_generation_settings_are_rejected(string setting, string? value)
     {
         var configuration = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
         {
             ["Ai:ApiKey"] = "isolated-test-key",
+            ["Ai:Model"] = "test/model:free",
             [setting] = value
         }).Build();
-        Assert.Throws<InvalidOperationException>(() =>
+        var error = Assert.Throws<InvalidOperationException>(() =>
             new ServiceCollection().AddTaskAi(configuration, new HostingEnvironment()));
+        Assert.Contains(setting, error.Message);
     }
 }

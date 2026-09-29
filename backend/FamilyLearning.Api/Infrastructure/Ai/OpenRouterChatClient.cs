@@ -2,11 +2,13 @@ using System.Net;
 using Microsoft.Extensions.AI;
 using OpenAI.Chat;
 using ChatMessage = Microsoft.Extensions.AI.ChatMessage;
+using ChatResponseFormat = Microsoft.Extensions.AI.ChatResponseFormat;
 
 namespace FamilyLearning.Api.Infrastructure.Ai;
 
 /// <summary>Adds OpenRouter options and normalizes malformed SDK responses at the provider boundary.</summary>
-internal sealed class OpenRouterChatClient(ChatClient client, ChatOptions sampling, BinaryData reasoning, BinaryData? fallbackModels)
+internal sealed class OpenRouterChatClient(ChatClient client, ChatOptions sampling, BinaryData reasoning,
+    BinaryData? fallbackModels, bool useJsonSchema)
     : DelegatingChatClient(client.AsIChatClient())
 {
     public override async Task<ChatResponse> GetResponseAsync(IEnumerable<ChatMessage> messages,
@@ -15,6 +17,8 @@ internal sealed class OpenRouterChatClient(ChatClient client, ChatOptions sampli
         options = options?.Clone() ?? new();
         options.Temperature = sampling.Temperature;
         options.TopP = sampling.TopP;
+        // JSON-only providers still receive the schema in the prompt; server validation remains mandatory.
+        if (!useJsonSchema) options.ResponseFormat = ChatResponseFormat.Json;
         options.RawRepresentationFactory = _ =>
         {
             var request = new ChatCompletionOptions();
