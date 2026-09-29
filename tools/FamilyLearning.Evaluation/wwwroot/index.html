@@ -168,7 +168,10 @@
                 seconds; 0 disables the pause. Paid providers can still return 429. Increase the
                 pause if needed. Temporary 429 errors allow up to three retries within Max calls,
                 using the provider's Retry-After or increasing waits of about 5, 10 and 20 seconds.
-                A provider wait over five minutes stops the run instead of retrying early.
+                A provider wait over five minutes stops the run instead of retrying early. Timeouts
+                are recorded as failed attempts, without automatic retries. The run continues with
+                the remaining planned cases and repetitions. Cost or token data may be unavailable
+                for failed calls; missing data does not mean the call was free.
               </p>
               <label class="switch"
                 ><input

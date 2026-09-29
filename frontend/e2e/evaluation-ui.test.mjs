@@ -309,6 +309,54 @@ const runSummary = {
 /** @param {unknown} body */
 const jsonResponse = (body) => ({ ok: true, status: 200, json: async () => structuredClone(body) });
 
+test('timeouts show a failure status while missing cost data stays separate from retry status', async () => {
+  for (const [knownTotal, missingCalls, expected] of [
+    [null, 1, 'Not reported for 1 call'],
+    [null, 2, 'Not reported for 2 calls'],
+    [0.25, 1, '0.25 credits reported; data missing for 1 call'],
+    [0, 0, '0 credits'],
+  ]) {
+    const summary = { ...runSummary, costCredits: { knownTotal, missingCalls } };
+    const report = {
+      ...completedReport,
+      results: [
+        {
+          ...completedReport.results[0],
+          generation: {
+            ...completedReport.results[0].generation,
+            contractValid: false,
+            statusCode: 504,
+            failure: 'timeout',
+            output: null,
+          },
+        },
+      ],
+    };
+    const app = mount({
+      '/api/runs': () => jsonResponse([{ id: 'run-1', summary }]),
+      '/api/runs/run-1': () => jsonResponse({ report, summary }),
+    });
+    try {
+      await app.dashboard.ready;
+      assert.ok(app.document.querySelector('#history-list').textContent.includes(expected));
+      app.document.querySelector('#history-list button').click();
+      await nextTurn();
+      const cost = [...app.document.querySelectorAll('#report dt')].find(
+        (item) => item.textContent === 'Reported cost',
+      );
+      assert.equal(cost.nextElementSibling.textContent, expected);
+      const generation = [...app.document.querySelectorAll('.stage')].find(
+        (item) => item.querySelector('h4').textContent === 'Task generation',
+      );
+      assert.match(generation.textContent, /Timed out/);
+      assert.doesNotMatch(generation.textContent, /retry|unknown/i);
+    } finally {
+      app.dashboard.dispose();
+      app.dom.window.close();
+    }
+  }
+});
+
 test('findings expose captured source context and measurements without treating invalid calibration as misses', async () => {
   const source = 'יש ליצור כותרת מתאימה לפחות מפסקה אחת קצרה. <img src=x onerror="alert(1)">';
   const report = {

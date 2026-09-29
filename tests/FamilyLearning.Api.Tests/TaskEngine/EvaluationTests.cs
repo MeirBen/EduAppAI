@@ -326,12 +326,36 @@ public sealed class EvaluationTests : IDisposable
     [InlineData(System.Net.HttpStatusCode.BadRequest)]
     [InlineData(System.Net.HttpStatusCode.PaymentRequired)]
     [InlineData(System.Net.HttpStatusCode.InternalServerError)]
+    [InlineData(System.Net.HttpStatusCode.GatewayTimeout)]
     public async Task Non_rate_limit_failures_do_not_retry(System.Net.HttpStatusCode status)
     {
         using var chat = new AiFixtures.ScriptedChat { FailureStatus = status };
         var report = await RunAsync(chat, timeProvider: new ImmediateTimeProvider());
         Assert.Single(chat.Requests);
         Assert.Empty(report.Retries);
+    }
+
+    [Fact]
+    public async Task Timeouts_do_not_retry_and_preserve_unknown_cost_as_the_next_repetition_runs()
+    {
+        using var chat = new AiFixtures.ScriptedChat
+        {
+            BeforeResponse = token => Task.Delay(Timeout.InfiniteTimeSpan, token)
+        };
+        var report = await RunAsync(chat, repeat: 2, options: new() { RequestTimeoutSeconds = 1 })
+            .WaitAsync(TimeSpan.FromSeconds(10));
+
+        Assert.Equal("completed", report.Status);
+        Assert.Equal(2, report.AttemptedCalls);
+        Assert.Empty(report.Retries);
+        Assert.All(report.Results, result =>
+        {
+            Assert.Equal(504, result.Authoring!.StatusCode);
+            Assert.False(result.Authoring.ContractValid);
+            Assert.Null(result.Authoring.CostCredits);
+            Assert.Null(result.Generation);
+        });
+        Assert.Equal(new ReportedTotal(null, 0, 2), EvaluationSummary.Create(report).CostCredits);
     }
 
     [Fact]

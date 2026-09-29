@@ -216,8 +216,11 @@ function duration(milliseconds) {
 
 /** Known subtotal plus the calls it misses; unknown never reads as zero. */
 function measured(total, unit = '') {
-  const known = total?.knownTotal == null ? 'Unknown' : number(total.knownTotal, unit);
-  return total?.missingCalls ? `${known} + ${plural(total.missingCalls, 'call')} unknown` : known;
+  const missing = total?.missingCalls ?? 0;
+  if (total?.knownTotal == null)
+    return missing ? `Not reported for ${plural(missing, 'call')}` : 'Not reported';
+  const known = number(total.knownTotal, unit);
+  return missing ? `${known} reported; data missing for ${plural(missing, 'call')}` : known;
 }
 
 function calibration(summary) {
@@ -1027,7 +1030,9 @@ export function createDashboard(document, fetchRequest = globalThis.fetch.bind(g
         ? ['In progress / unfinished', 'warning']
         : step.contractValid
           ? ['Contract passed', 'pass']
-          : ['Failed / rejected', 'danger'];
+          : step.statusCode === 504
+            ? ['Timed out', 'danger']
+            : ['Failed / rejected', 'danger'];
     section.append(
       node('h4', name),
       pill(status, tone),
