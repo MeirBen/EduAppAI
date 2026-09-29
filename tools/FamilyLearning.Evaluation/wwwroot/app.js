@@ -308,6 +308,7 @@ export function createDashboard(document, fetchRequest = globalThis.fetch.bind(g
     pending: false,
     reportId: null,
     report: null,
+    viewVersion: 0,
     disposed: false,
     timer: null,
     confirmation: null,
@@ -355,6 +356,7 @@ export function createDashboard(document, fetchRequest = globalThis.fetch.bind(g
   }
 
   function showView(view) {
+    state.viewVersion++;
     for (const name of ['new', 'history', 'compare']) get(`view-${name}`).hidden = name !== view;
     for (const button of document.querySelectorAll('[data-view]')) {
       if (button.dataset.view === view) button.setAttribute('aria-current', 'page');
@@ -685,8 +687,16 @@ export function createDashboard(document, fetchRequest = globalThis.fetch.bind(g
   }
 
   async function openReport(id, focus = true) {
-    const result = await request(`/api/runs/${encodeURIComponent(id)}`);
-    if (state.disposed) return;
+    // Explicit selections and navigation own the view; background refreshes never take it over.
+    const version = focus ? ++state.viewVersion : state.viewVersion;
+    let result;
+    try {
+      result = await request(`/api/runs/${encodeURIComponent(id)}`);
+    } catch (error) {
+      if (!state.disposed && version === state.viewVersion) throw error;
+      return;
+    }
+    if (state.disposed || version !== state.viewVersion) return;
     state.reportId = id;
     state.report = result.report;
     const report = result.report;
@@ -802,8 +812,10 @@ export function createDashboard(document, fetchRequest = globalThis.fetch.bind(g
     const savedReport = raw('Raw saved report JSON', report);
     savedReport.dataset.savedReport = '';
     target.append(savedReport);
-    showView('history');
-    if (focus) target.focus();
+    if (focus) {
+      showView('history');
+      target.focus();
+    }
   }
 
   for (const button of document.querySelectorAll('[data-view]'))

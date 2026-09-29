@@ -14,6 +14,14 @@ const source = await readFile(new URL('app.js', assetRoot), 'utf8');
 const ui = await import(`data:text/javascript;base64,${Buffer.from(source).toString('base64')}`);
 const html = await readFile(new URL('index.html', assetRoot), 'utf8');
 const nextTurn = () => new Promise((resolve) => setTimeout(resolve, 0));
+function deferred() {
+  /** @type {(value: unknown) => void} */
+  let resolve = () => {};
+  const promise = new Promise((complete) => {
+    resolve = complete;
+  });
+  return { promise, resolve };
+}
 const setup = {
   profile: { Model: 'fake/model', FallbackModel: null },
   configured: true,
@@ -346,6 +354,84 @@ test('active runs disable new paid work and review editing; cancellation is CSRF
   }
 });
 
+test('delayed report reads and errors cannot replace a newer selection or undo navigation', async () => {
+  let pending = deferred();
+  let failed = false;
+  /** @param {string} label */
+  const saved = (label) => ({ report: { ...completedReport, label }, summary: runSummary });
+  const app = mount({
+    '/api/runs': () => jsonResponse(['older', 'newer'].map((id) => ({ id, summary: runSummary }))),
+    '/api/runs/older': () => ({
+      ok: !failed,
+      status: failed ? 500 : 200,
+      json: () => pending.promise,
+    }),
+    '/api/runs/newer': () => jsonResponse(saved('Newer selection')),
+  });
+  try {
+    await app.dashboard.ready;
+    const [older, newer] = app.document.querySelectorAll('#history-list button');
+    older.click();
+    newer.click();
+    await nextTurn();
+    assert.equal(app.document.querySelector('#report h2').textContent, 'Newer selection');
+    pending.resolve(saved('Older selection'));
+    await nextTurn();
+    assert.equal(app.document.querySelector('#report h2').textContent, 'Newer selection');
+
+    pending = deferred();
+    older.click();
+    app.document.querySelector('[data-view="compare"]').click();
+    pending.resolve(saved('Older selection'));
+    await nextTurn();
+    assert.equal(app.document.querySelector('#view-compare').hidden, false);
+    assert.equal(app.document.querySelector('#report h2').textContent, 'Newer selection');
+
+    pending = deferred();
+    failed = true;
+    older.click();
+    app.document.querySelector('[data-view="new"]').click();
+    pending.resolve({ title: 'Obsolete failure' });
+    await nextTurn();
+    assert.equal(app.document.querySelector('#message').hidden, true);
+  } finally {
+    pending.resolve(saved('Older selection'));
+    app.dashboard.dispose();
+    app.dom.window.close();
+  }
+});
+
+test('a completed run refreshes its report without navigating away from the current view', async () => {
+  let running = true;
+  const refreshed = deferred();
+  const app = mount({
+    '/api/active': () =>
+      jsonResponse({ id: 'run-1', running, status: running ? 'running' : 'completed' }),
+    '/api/runs/run-1': () => {
+      if (!running) refreshed.resolve(undefined);
+      return jsonResponse({
+        report: { ...completedReport, status: running ? 'running' : 'completed' },
+        summary: runSummary,
+      });
+    },
+  });
+  try {
+    await app.dashboard.ready;
+    app.document.querySelector('#open-active').click();
+    await nextTurn();
+    assert.equal(app.document.querySelector('.review fieldset').disabled, true);
+    app.document.querySelector('[data-view="compare"]').click();
+    running = false;
+    await refreshed.promise;
+    await nextTurn();
+    assert.equal(app.document.querySelector('.review fieldset').disabled, false);
+    assert.equal(app.document.querySelector('#view-compare').hidden, false);
+  } finally {
+    app.dashboard.dispose();
+    app.dom.window.close();
+  }
+});
+
 test('selection budget must cover all planned calls before a confirmation can open', async () => {
   const app = mount();
   try {
@@ -370,44 +456,36 @@ test('selection budget must cover all planned calls before a confirmation can op
 
 test('a status poll started before a new run cannot hide its cancellation controls', async () => {
   let polls = 0;
-  /** @type {(value: unknown) => void} */
-  let release = () => {};
-  /** @type {() => void} */
-  let entered = () => {};
-  const pending = new Promise((resolve) => {
-    release = resolve;
-  });
-  const polling = new Promise((resolve) => {
-    entered = () => resolve(undefined);
-  });
+  const pending = deferred();
+  const polling = deferred();
   const app = mount({
     '/api/active': () => ({
       ok: true,
       status: 200,
       json: async () => {
         if (++polls === 1) return null;
-        entered();
-        return pending;
+        polling.resolve(undefined);
+        return pending.promise;
       },
     }),
     '/api/runs': (options) => jsonResponse(options.method === 'POST' ? { id: 'new-run' } : []),
   });
   try {
     await app.dashboard.ready;
-    await polling;
+    await polling.promise;
     app.document.querySelector('[name="caseId"]').checked = true;
     const form = app.document.querySelector('#run-form');
     form.dispatchEvent(new app.dom.window.Event('input', { bubbles: true }));
     form.dispatchEvent(new app.dom.window.Event('submit', { bubbles: true, cancelable: true }));
     app.document.querySelector('#confirm-run').click();
     await nextTurn();
-    release(null);
+    pending.resolve(null);
     await nextTurn();
     assert.equal(app.document.querySelector('#active-run').hidden, false);
     assert.equal(app.document.querySelector('#cancel-run').hidden, false);
     assert.equal(app.document.querySelector('#start-run').disabled, true);
   } finally {
-    release(null);
+    pending.resolve(null);
     app.dashboard.dispose();
     app.dom.window.close();
   }
