@@ -207,6 +207,19 @@ public sealed class EvaluationValidationTests : IDisposable
     }
 
     [Theory]
+    [InlineData("passageWordCount", -1)]
+    [InlineData("repeatedAnswerPosition", 0)]
+    [InlineData("repeatedAnswerPosition", 7)]
+    public async Task Report_rejects_impossible_content_measurements(string property, int value)
+    {
+        var path = await WriteReportAsync(false);
+        var json = JsonNode.Parse(await File.ReadAllTextAsync(path))!;
+        json["results"]![0]![property] = value;
+        await File.WriteAllTextAsync(path, json.ToJsonString());
+        await Assert.ThrowsAsync<InvalidDataException>(() => EvaluationFiles.ReadReportAsync(path));
+    }
+
+    [Theory]
     [InlineData("label", 121)]
     [InlineData("runNotes", 4001)]
     [InlineData("label", -1)]

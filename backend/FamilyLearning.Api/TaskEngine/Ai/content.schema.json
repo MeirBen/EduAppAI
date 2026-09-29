@@ -3,7 +3,7 @@
   "properties": {
     "title": {
       "type": "string",
-      "description": "Title of this generated task, consistent with its actual content.",
+      "description": "Main heading of this generated task, consistent with its actual content. Put the task heading here instead of repeating it in contentBlocks.",
       "minLength": 1,
       "maxLength": 100
     },
@@ -29,7 +29,7 @@
           },
           "text": {
             "type": "string",
-            "description": "Passage text in the requested language. Use newline characters for requested paragraph breaks. Preserve source text exactly when verbatim reproduction is requested.",
+            "description": "Passage body in the requested language, without repeating the task title. Use newline characters for requested paragraph breaks. Preserve source text exactly, including any headings, when verbatim reproduction is requested.",
             "minLength": 1,
             "maxLength": 4000
           }

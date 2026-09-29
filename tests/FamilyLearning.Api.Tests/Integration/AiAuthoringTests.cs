@@ -39,7 +39,7 @@ public sealed class AiAuthoringTests
         var loaded = await parent.GetFromJsonAsync<JsonElement>($"/api/instances/{frozen.GetProperty("id").GetGuid()}");
         Assert.Equal(frozen.GetProperty("content").GetRawText(), loaded.GetProperty("content").GetRawText());
         Assert.Equal("test-free-model", loaded.GetProperty("generationMetadata").GetProperty("model").GetString());
-        Assert.Equal("instance-generation-v12", loaded.GetProperty("generationMetadata").GetProperty("promptVersion").GetString());
+        Assert.Equal("instance-generation-v13", loaded.GetProperty("generationMetadata").GetProperty("promptVersion").GetString());
         Assert.Equal(3, chat.Requests.Count);
         Assert.All(chat.Requests, request =>
         {

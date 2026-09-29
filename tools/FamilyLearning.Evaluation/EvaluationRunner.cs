@@ -22,7 +22,7 @@ public static class EvaluationRunner
     public static async Task RunAsync(IChatClient client, AiGenerationOptions options, EvaluationReport report,
         string directory, CancellationToken ct, Action<EvaluationProgress>? progress = null, TimeProvider? timeProvider = null)
     {
-        report.AutomaticChecksVersion = 2;
+        report.AutomaticChecksVersion = 3;
         var capture = new EvaluationCapture(client, report.MaxCalls);
         using var engine = new AiGenerationService([capture], NullLogger<AiGenerationService>.Instance, Options.Create(options));
         string stage = "starting";
@@ -77,7 +77,7 @@ public static class EvaluationRunner
                     result.Parameters = parameters.Values;
                     stage = "generation";
                     var content = await AttemptAsync(step => result.Generation = step, token => engine.GenerateAsync(definition, parameters.Values, token));
-                    if (content is not null) CheckContent(scenario, content, result.Checks);
+                    if (content is not null) CheckContent(scenario, content, result);
                     await SaveAsync();
                     if (content is not null && report.JudgeEnabled)
                     {
@@ -202,18 +202,43 @@ public static class EvaluationRunner
             report.Steps.Count(step => step.RequestSent && step.FinishedAtUtc.HasValue && !step.CostCredits.HasValue)));
     }
 
-    private static void CheckContent(EvaluationCase scenario, TaskContent content, Dictionary<string, bool> checks)
+    private static void CheckContent(EvaluationCase scenario, TaskContent content, EvaluationResult result)
     {
+        var checks = result.Checks;
         checks["questionCount"] = content.Questions.Length == scenario.QuestionCount;
         checks["interaction"] = content.Questions.All(question => question.Interaction.Type == scenario.Interaction);
         if (scenario.ChoiceCount is { } count)
             checks["choiceCount"] = content.Questions.All(question => question.Interaction.Options?.Length == count);
-        // Whitespace-delimited words are a reproducible length signal, not a Hebrew linguistic tokenizer.
-        if (scenario.MinPassageWords.HasValue || scenario.MaxPassageWords.HasValue)
+        if (scenario.MaxPassageWords == 0)
+            checks["noPassage"] = content.ContentBlocks.Length == 0;
+        else if (scenario.MinPassageWords.HasValue || scenario.MaxPassageWords.HasValue)
         {
-            var words = content.ContentBlocks.Sum(block => block.Text.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries).Length);
-            checks["passageLength"] = (!scenario.MinPassageWords.HasValue || words >= scenario.MinPassageWords) &&
-                (!scenario.MaxPassageWords.HasValue || words <= scenario.MaxPassageWords);
+            result.PassageWordCount = CountPassageWords(content);
+            checks["passageLength"] = (!scenario.MinPassageWords.HasValue || result.PassageWordCount >= scenario.MinPassageWords) &&
+                (!scenario.MaxPassageWords.HasValue || result.PassageWordCount <= scenario.MaxPassageWords);
         }
+        var positions = content.Questions.Where(question => question.Interaction.Type == "single-choice")
+            .Select(question => Array.IndexOf(question.Interaction.Options!, question.Answer.Value) + 1).ToArray();
+        if (positions.Length >= 3 && positions[0] > 0 && positions.All(position => position == positions[0]))
+            result.RepeatedAnswerPosition = positions[0];
+    }
+
+    private static int CountPassageWords(TaskContent content)
+    {
+        var words = 0;
+        for (var i = 0; i < content.ContentBlocks.Length; i++)
+        {
+            var text = content.ContentBlocks[i].Text.Trim();
+            // The contract has no passage-heading field. Exclude only an exact standalone task title;
+            // guessing from short lines would discard real prose or supplied source text.
+            if (i == 0)
+            {
+                var newline = text.IndexOf('\n');
+                if (newline >= 0 && text[..newline].Trim() == content.Title.Trim()) text = text[(newline + 1)..];
+                else if (content.ContentBlocks.Length > 1 && text == content.Title.Trim()) text = "";
+            }
+            words += text.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries).Length;
+        }
+        return words;
     }
 }

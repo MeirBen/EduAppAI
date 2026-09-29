@@ -4,7 +4,7 @@ namespace FamilyLearning.Api.TaskEngine.Ai;
 internal static class AiPrompts
 {
     public const string AuthoringVersion = "template-authoring-v11";
-    public const string InstanceVersion = "instance-generation-v12";
+    public const string InstanceVersion = "instance-generation-v13";
 
     private const string LanguageQuality = """
         Use natural, grammatical language suited to the audience and the language requested for each part; default to Hebrew.

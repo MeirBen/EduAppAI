@@ -7,7 +7,7 @@
     "interaction": "single-choice",
     "choiceCount": 4,
     "minPassageWords": 100,
-    "maxPassageWords": 155
+    "maxPassageWords": 150
   },
   {
     "id": "reading-count-override",
@@ -17,7 +17,7 @@
     "interaction": "single-choice",
     "choiceCount": 4,
     "minPassageWords": 100,
-    "maxPassageWords": 155,
+    "maxPassageWords": 150,
     "useMaximumQuestionCount": true
   },
   {
@@ -28,7 +28,7 @@
     "interaction": "single-choice",
     "choiceCount": 4,
     "minPassageWords": 100,
-    "maxPassageWords": 155
+    "maxPassageWords": 150
   },
   {
     "id": "early-reader-nikud",
@@ -38,7 +38,7 @@
     "interaction": "single-choice",
     "choiceCount": 3,
     "minPassageWords": 40,
-    "maxPassageWords": 65
+    "maxPassageWords": 60
   },
   {
     "id": "science-grade5",
@@ -48,7 +48,7 @@
     "interaction": "single-choice",
     "choiceCount": 4,
     "minPassageWords": 100,
-    "maxPassageWords": 155
+    "maxPassageWords": 150
   },
   {
     "id": "number-gender",
@@ -82,7 +82,7 @@
     "interaction": "single-choice",
     "choiceCount": 4,
     "minPassageWords": 60,
-    "maxPassageWords": 85
+    "maxPassageWords": 80
   },
   {
     "id": "bilingual-vocabulary",
@@ -99,7 +99,7 @@
     "questionCount": 3,
     "interaction": "text-input",
     "minPassageWords": 70,
-    "maxPassageWords": 95
+    "maxPassageWords": 90
   },
   {
     "id": "causality-grade4",
@@ -109,7 +109,7 @@
     "interaction": "single-choice",
     "choiceCount": 4,
     "minPassageWords": 120,
-    "maxPassageWords": 165
+    "maxPassageWords": 160
   },
   {
     "id": "older-reader",
@@ -119,7 +119,7 @@
     "interaction": "single-choice",
     "choiceCount": 4,
     "minPassageWords": 180,
-    "maxPassageWords": 225
+    "maxPassageWords": 220
   },
   {
     "id": "optional-topic",
@@ -129,7 +129,7 @@
     "interaction": "single-choice",
     "choiceCount": 4,
     "minPassageWords": 80,
-    "maxPassageWords": 105
+    "maxPassageWords": 100
   },
   {
     "id": "fixed-single-question",

@@ -74,6 +74,10 @@ public sealed class EvaluationResult(string caseId, int repetition)
     public EvaluationStep? Judge { get; set; }
     public HebrewIssue[]? Issues { get; set; }
     public Dictionary<string, JsonElement>? Parameters { get; set; }
+    /// <summary>Whitespace words excluding an exact leading task title; null when no length check ran, including older results.</summary>
+    public int? PassageWordCount { get; set; }
+    /// <summary>One-based position shared by at least three choice answers. Advisory only; ordered options may be intentional.</summary>
+    public int? RepeatedAnswerPosition { get; set; }
     [JsonRequired] public Dictionary<string, bool> Checks { get; init; } = [];
     [JsonRequired] public ManualReview Review { get; set; } = new();
 }
@@ -145,8 +149,11 @@ public sealed record CalibrationResult(CalibrationSample Sample, EvaluationStep 
 {
     public EvaluationStep Call { get; set; } = Call;
     public HebrewIssue[]? Issues { get; set; }
-    public int MissingExpectedIssueCount => Sample.ExpectedIssues.Count(expected => Issues?.Any(expected.Matches) != true);
-    public int UnexpectedFindingCount => Issues?.Count(issue => !Sample.ExpectedIssues.Any(expected => expected.Matches(issue))) ?? 0;
+    /// <summary>Detection counts are unavailable when the judge did not return a valid review.</summary>
+    public int? MissingExpectedIssueCount => Call.ContractValid && Issues is not null
+        ? Sample.ExpectedIssues.Count(expected => !Issues.Any(expected.Matches)) : null;
+    public int? UnexpectedFindingCount => Call.ContractValid && Issues is not null
+        ? Issues.Count(issue => !Sample.ExpectedIssues.Any(expected => expected.Matches(issue))) : null;
     public bool Passed => Call.ContractValid && Issues is not null && MissingExpectedIssueCount == 0 &&
         (Sample.AllowUnexpectedFindings || UnexpectedFindingCount == 0);
 }

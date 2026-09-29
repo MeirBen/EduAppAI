@@ -226,19 +226,28 @@ Interpret the results separately:
 
 - **Code tests:** harness/app behavior with local providers, not model quality.
 - **Automatic checks:** app contracts, defaults, parameter references,
-  question/choice counts, interaction and whitespace word counts. Generated-passage
-  upper bounds allow five extra title words; `quoted-instructions` uses an exact
-  length, and no-passage cases use zero. Word counts do not establish source
-  fidelity; compare verbatim passages during human review. `parameterReferences`
-  checks that every key occurs as a complete, case-sensitive ASCII identifier in
-  the instructions.
+  question/choice counts, interaction and whitespace word counts. Checks v3
+  record the measured passage length and exclude an exact standalone task title
+  at the start of the first block. Other headings remain included; the content
+  schema does not identify them separately. Length is measured only when the case
+  requests it. Bounds match the requested lengths, with no title allowance.
+  A zero maximum instead checks that no passage blocks were generated. Word counts
+  do not establish source fidelity; compare verbatim passages during human review.
+  `parameterReferences` checks that every key occurs as a complete, case-sensitive
+  ASCII identifier in the instructions.
   Presence does not prove correct usage or complete instructions. Failed checks
   retain the template and continue generation/review to preserve evidence.
 - **Calibration:** known defect detection and false alarms, not general accuracy.
+  Invalid or unavailable reviews fail calibration but leave detection counts
+  unknown, rather than counting unmeasured defects as misses.
 - **Generated findings:** exact field, quote, correction, explanation and kind;
   advisory language review, never edits or educational scores. Paths beginning
   with `template.` refer to the reusable blueprint, including its instructions;
-  `task.` refers to the generated learner content. Suggestions can also be wrong.
+  `task.` refers to the generated learner content. Source context comes from the
+  captured judge request. Suggestions can also be wrong.
+- **Answer positions:** an advisory flags three or more choice answers all using
+  the same position. Check whether ordering is intentional; this never reorders
+  options or affects automatic scores.
 - **Human review:** Hebrew, correctness, age fit, adherence, answer clarity and
   consistency. Enter 0 (unusable), 1 (needs edits), 2 (ready), or null (unreviewed),
   with evidence in notes.
@@ -247,7 +256,8 @@ The stateless judge uses the same model. Its [controls](tools/FamilyLearning.Eva
 cover template and task language defects and clean text, including intentional
 errors and mixed languages. Preserve known defects when editing these controls;
 expected findings are never sent to the judge.
-Findings must quote an existing field and use a supported kind;
+The request schema limits finding paths to the supplied fields. Server validation
+still requires exact source quotations and a supported kind;
 expected defects match whole tokens or short containing phrases, and the suggestion
 must not retain the expected offending phrase. This checks detection, not whether
 the correction is linguistically valid. All controls must pass; one missed defect
@@ -266,7 +276,8 @@ same scored case/repetition pairs. Token/cost deltas require full measurement
 coverage. Other deltas are null
 or explicitly qualified. Only format 2 reports are supported; mismatched embedded
 controls and invalid human scores are rejected. Older reports retain their original
-checks (version 1); new runs use version 2, adding parameter-reference coverage.
+checks (versions 1/2); new runs use version 3, retaining parameter-reference
+coverage and correcting passage checks. Start a new baseline for direct comparison.
 
 Run exit codes: 0 completed automatic checks and, when enabled, calibration and
 reviews passed without findings; 1 failures/findings or stopped run; 2 invalid

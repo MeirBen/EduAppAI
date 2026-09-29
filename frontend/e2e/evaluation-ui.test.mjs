@@ -309,6 +309,79 @@ const runSummary = {
 /** @param {unknown} body */
 const jsonResponse = (body) => ({ ok: true, status: 200, json: async () => structuredClone(body) });
 
+test('findings expose captured source context and measurements without treating invalid calibration as misses', async () => {
+  const source = 'יש ליצור כותרת מתאימה לפחות מפסקה אחת קצרה. <img src=x onerror="alert(1)">';
+  const report = {
+    ...completedReport,
+    judgeEnabled: true,
+    calibration: [
+      {
+        sample: { id: 'invalid-path', texts: [], expectedIssues: [] },
+        call: { contractValid: false, responseReceived: true },
+        passed: false,
+        missingExpectedIssueCount: 3, // Legacy reports must not display this as a measured miss.
+        unexpectedFindingCount: 0,
+      },
+    ],
+    results: [
+      {
+        ...completedReport.results[0],
+        passageWordCount: 99,
+        repeatedAnswerPosition: 1,
+        judge: {
+          contractValid: true,
+          request: [
+            {
+              role: 'user',
+              text: JSON.stringify({ texts: [{ path: 'template.instructions', text: source }] }),
+            },
+          ],
+        },
+        issues: [
+          {
+            path: 'template.instructions',
+            quote: 'מתאימה לפחות',
+            suggestion: 'מתאימה ולפחות',
+            reason: 'חסר חיבור',
+            kind: 'grammar-syntax',
+          },
+        ],
+      },
+    ],
+  };
+  const app = mount({
+    '/api/runs': () => jsonResponse([{ id: 'run-1', summary: runSummary }]),
+    '/api/runs/run-1': () =>
+      jsonResponse({
+        report,
+        summary: { ...runSummary, judgeEnabled: true, judgeCalibrationPassed: false },
+      }),
+  });
+  try {
+    await app.dashboard.ready;
+    app.document.querySelector('#history-list button').click();
+    await nextTurn();
+    const rendered = app.document.querySelector('#report');
+    assert.ok(rendered.textContent.includes('Template instructions'));
+    assert.ok(rendered.textContent.includes(source));
+    assert.match(rendered.textContent, /Passage words: 99/);
+    assert.match(rendered.textContent, /same option position \(1\)/);
+    assert.match(rendered.textContent, /intentional ordering/);
+    assert.match(rendered.textContent, /Invalid judge response; detection counts unavailable/);
+    assert.equal(rendered.querySelectorAll('img, script').length, 0);
+    const brief = ui.reportBrief('run-1', report, runSummary);
+    assert.match(brief, /"passageWordCount": 99/);
+    assert.match(brief, /"repeatedAnswerPosition": 1/);
+    assert.match(brief, /"source": "Template instructions"/);
+    assert.ok(brief.includes(JSON.stringify(source)));
+    assert.match(brief, /"missingExpectedIssueCount": null/);
+    assert.doesNotMatch(brief, /"missingExpectedIssueCount": 3/);
+  } finally {
+    app.dashboard.dispose();
+    app.dom.window.close();
+  }
+});
+
 test('history and reports distinguish unreviewed Hebrew from completed reviews with no findings', async () => {
   for (const [judgeEnabled, reviewed, findings, expected] of [
     [false, 0, 0, 'Not reviewed (judge disabled)'],
@@ -336,6 +409,7 @@ test('history and reports distinguish unreviewed Hebrew from completed reviews w
         (item) => item.textContent === 'Generated Hebrew findings',
       );
       assert.equal(label?.nextElementSibling.textContent, expected);
+      assert.doesNotMatch(app.document.querySelector('#report').textContent, /Passage words:/);
       assert.ok(app.requests.every(({ options }) => options.method === 'GET'));
     } finally {
       app.dashboard.dispose();

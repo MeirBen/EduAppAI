@@ -229,6 +229,54 @@ function calibration(summary) {
       : 'Unfinished';
 }
 
+function calibrationOutcome(item) {
+  if (!item.call?.contractValid || !Array.isArray(item.issues))
+    return item.call?.responseReceived
+      ? 'Invalid judge response; detection counts unavailable'
+      : 'Review unavailable; detection counts unavailable';
+  return item.passed
+    ? 'Passed'
+    : `Missed ${item.missingExpectedIssueCount} expected; ${item.unexpectedFindingCount} unexpected findings`;
+}
+
+/** Resolve evidence from the exact judge input, without interpreting model paths as object access. */
+function findingsWithContext(evaluation) {
+  let texts = [];
+  try {
+    const input = JSON.parse(
+      evaluation.judge?.request?.find((message) => message.role === 'user')?.text,
+    );
+    if (Array.isArray(input.texts)) texts = input.texts;
+  } catch {
+    // Older or incomplete reports may not retain a readable judge request.
+  }
+  return (evaluation.issues ?? []).map((issue) => {
+    const text = texts.find((item) => item?.path === issue.path)?.text;
+    const index = typeof text === 'string' ? text.indexOf(issue.quote) : -1;
+    const start = Math.max(0, index - 100);
+    const end = index + issue.quote.length + 100;
+    return {
+      ...issue,
+      source:
+        issue.path === 'template.instructions'
+          ? 'Template instructions'
+          : issue.path.startsWith('template.')
+            ? 'Reusable template'
+            : issue.path.startsWith('task.')
+              ? 'Generated task'
+              : 'Review text',
+      context:
+        index < 0
+          ? null
+          : `${start ? '…' : ''}${text.slice(start, end)}${end < text.length ? '…' : ''}`,
+    };
+  });
+}
+
+function answerPositionWarning(evaluation) {
+  return `At least three choice answers share the same option position (${evaluation.repeatedAnswerPosition}). Check for intentional ordering before judging this pattern. Advisory only; answers and scores are unchanged.`;
+}
+
 function hebrewFindings(summary) {
   if (!summary.judgeEnabled) return 'Not reviewed (judge disabled)';
   const reviewed = summary.generatedContentReviews?.succeeded ?? 0;
@@ -503,8 +551,15 @@ export function reportBrief(id, report, summary) {
         (report.calibration ?? []).map((item) => ({
           id: item.sample?.id,
           passed: item.passed,
-          missingExpectedIssueCount: item.missingExpectedIssueCount,
-          unexpectedFindingCount: item.unexpectedFindingCount,
+          outcome: calibrationOutcome(item),
+          missingExpectedIssueCount:
+            item.call?.contractValid && Array.isArray(item.issues)
+              ? item.missingExpectedIssueCount
+              : null,
+          unexpectedFindingCount:
+            item.call?.contractValid && Array.isArray(item.issues)
+              ? item.unexpectedFindingCount
+              : null,
           texts: item.sample?.texts,
           expectedIssues: item.sample?.expectedIssues,
           findings: item.issues,
@@ -530,6 +585,15 @@ export function reportBrief(id, report, summary) {
       '',
       '#### Automatic checks',
       json(evaluation.checks ?? {}),
+      ...(evaluation.passageWordCount != null
+        ? [json({ passageWordCount: evaluation.passageWordCount })]
+        : []),
+      ...(evaluation.repeatedAnswerPosition
+        ? [
+            json({ repeatedAnswerPosition: evaluation.repeatedAnswerPosition }),
+            answerPositionWarning(evaluation),
+          ]
+        : []),
       '',
     );
     for (const [stage, key] of stages) {
@@ -559,7 +623,9 @@ export function reportBrief(id, report, summary) {
     }
     lines.push(
       '#### Hebrew findings',
-      evaluation.judge?.contractValid ? json(evaluation.issues ?? []) : 'No valid Hebrew review.',
+      evaluation.judge?.contractValid
+        ? json(findingsWithContext(evaluation))
+        : 'No valid Hebrew review.',
       '',
       '#### Human review',
       json(evaluation.review ?? {}),
@@ -1182,7 +1248,7 @@ export function createDashboard(document, fetchRequest = globalThis.fetch.bind(g
       );
       for (const sample of report.calibration ?? [])
         calibrationDetails.append(
-          raw(`${sample.sample.id} · ${sample.passed ? 'passed' : 'failed / unfinished'}`, sample),
+          raw(`${sample.sample.id} · ${calibrationOutcome(sample)}`, sample),
         );
       target.append(calibrationDetails);
     }
@@ -1231,12 +1297,23 @@ export function createDashboard(document, fetchRequest = globalThis.fetch.bind(g
             `chip ${passed ? 'pass' : 'fail'}`,
           ),
         );
-      card.append(
-        block(
-          'Automatic checks',
-          checks.length ? checkList : node('p', 'No automatic checks recorded.', 'hint'),
-        ),
+      const automaticChecks = block(
+        'Automatic checks',
+        checks.length ? checkList : node('p', 'No automatic checks recorded.', 'hint'),
       );
+      if (evaluation.passageWordCount != null)
+        automaticChecks.append(
+          node(
+            'p',
+            `Passage words: ${number(evaluation.passageWordCount)} · whitespace count across passage blocks; an exact leading task title is excluded in checks v3. Other headings remain included.`,
+            'hint',
+          ),
+        );
+      card.append(automaticChecks);
+      if (evaluation.repeatedAnswerPosition)
+        card.append(
+          block('Advisory', node('p', answerPositionWarning(evaluation), 'notice warning')),
+        );
 
       let task;
       if (evaluation.generation?.contractValid && evaluation.generation.output) {
@@ -1271,13 +1348,30 @@ export function createDashboard(document, fetchRequest = globalThis.fetch.bind(g
               )
             : evaluation.issues?.length
               ? table(
-                  ['Kind / path', 'Quoted text', 'Suggested text', 'Reason'],
-                  evaluation.issues.map((issue) => [
-                    `${issue.kind} · ${issue.path}`,
-                    content('span', issue.quote),
-                    content('span', issue.suggestion),
-                    content('span', issue.reason),
-                  ]),
+                  ['Source / kind', 'Quoted text', 'Suggested text', 'Reason'],
+                  findingsWithContext(evaluation).map((issue) => {
+                    const source = node('div');
+                    source.append(
+                      node('strong', issue.source),
+                      node('p', `${issue.kind} · ${issue.path}`, 'hint'),
+                    );
+                    const context = node('details');
+                    context.append(
+                      node('summary', 'Source context'),
+                      content(
+                        'p',
+                        issue.context ??
+                          'Source context unavailable. Inspect the retained request.',
+                      ),
+                    );
+                    source.append(context);
+                    return [
+                      source,
+                      content('span', issue.quote),
+                      content('span', issue.suggestion),
+                      content('span', issue.reason),
+                    ];
+                  }),
                 )
               : node('p', 'No findings reported. Human review is still needed.', 'hint'),
         ),

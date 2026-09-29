@@ -13,7 +13,7 @@ public sealed record HebrewReview(HebrewIssue[] Issues);
 /// <summary>Advisory, stateless proofreading. It neither rewrites content nor decides educational correctness.</summary>
 public static class HebrewJudge
 {
-    public const string Version = "hebrew-review-v3";
+    public const string Version = "hebrew-review-v4";
     private const string Prompt = """
         Review the supplied educational text for concrete Hebrew language defects only: misspellings,
         invented words, noun/adjective or subject/verb disagreement, number/gender disagreement,
@@ -44,12 +44,13 @@ public static class HebrewJudge
           "type":"array","maxItems":20,"items":{"type":"object","additionalProperties":false,
           "required":["path","quote","suggestion","reason","kind"],"properties":{
             "kind":{"type":"string","enum":["spelling","invented-word","agreement","grammar-syntax","language-mixing","non-idiomatic"]},
-            "path":{"type":"string","minLength":1,"maxLength":200},
+            "path":{"type":"string","minLength":1,"maxLength":200,"description":"Copy one supplied texts.path exactly, without added punctuation. The request schema restricts this to the supplied paths."},
             "quote":{"type":"string","minLength":1,"maxLength":500},
             "suggestion":{"type":"string","minLength":1,"maxLength":500},
             "reason":{"type":"string","minLength":1,"maxLength":500}}}}}}
         """);
-    public static string Instructions => $"{Prompt}\nOutput JSON schema:\n{Schema}";
+    /// <summary>Stable review contract; each captured request adds its source paths to the schema.</summary>
+    public static string Instructions => FormatInstructions(Schema);
     private static readonly JsonSerializerOptions StrictJson = new(JsonSerializerDefaults.Web)
     {
         UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow,
@@ -60,12 +61,18 @@ public static class HebrewJudge
     public static async Task<AiResult<HebrewReview>> ReviewAsync(IChatClient client, string request,
         ReviewText[] texts, int maxOutputTokens, CancellationToken ct)
     {
+        if (texts.Length == 0) throw new ArgumentException("Review requires source text.", nameof(texts));
+        // Build a request-local enum; never mutate the shared schema between concurrent reviews.
+        var schemaNode = JsonSerializer.SerializeToNode(Schema)!;
+        schemaNode["properties"]!["issues"]!["items"]!["properties"]!["path"]!["enum"] =
+            JsonSerializer.SerializeToNode(texts.Select(text => text.Path).Distinct());
+        var schema = JsonSerializer.SerializeToElement(schemaNode);
         var response = await client.GetResponseAsync([
-            new ChatMessage(ChatRole.System, Instructions),
+            new ChatMessage(ChatRole.System, FormatInstructions(schema)),
             new ChatMessage(ChatRole.User, JsonSerializer.Serialize(new { request, texts }, EvaluationFiles.Json))
         ], new ChatOptions
         {
-            ResponseFormat = ChatResponseFormat.ForJsonSchema(Schema, Version.Replace('-', '_')),
+            ResponseFormat = ChatResponseFormat.ForJsonSchema(schema, Version.Replace('-', '_')),
             MaxOutputTokens = maxOutputTokens,
             AdditionalProperties = new() { ["strict"] = true }
         }, ct);
@@ -120,6 +127,8 @@ public static class HebrewJudge
     }
 
     private static bool Bounded(string? value, int max) => !string.IsNullOrWhiteSpace(value) && value.Length <= max;
+
+    private static string FormatInstructions(JsonElement schema) => $"{Prompt}\nOutput JSON schema:\n{schema}";
 
     internal static bool IsKnownKind(string? kind) => kind is "spelling" or "invented-word" or "agreement" or
         "grammar-syntax" or "language-mixing" or "non-idiomatic";

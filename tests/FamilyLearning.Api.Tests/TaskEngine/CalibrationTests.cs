@@ -70,4 +70,17 @@ public sealed class CalibrationTests
         result.Issues = [Issue("question", "להסיין")];
         Assert.False(result.Passed);
     }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Invalid_or_unavailable_review_does_not_invent_detection_counts(bool hasResponse)
+    {
+        var result = new CalibrationResult(Sample, new() { ResponseReceived = hasResponse });
+        int? missing = result.MissingExpectedIssueCount;
+        int? unexpected = result.UnexpectedFindingCount;
+        Assert.Null(missing);
+        Assert.Null(unexpected);
+        Assert.False(result.Passed);
+    }
 }
