@@ -31,17 +31,62 @@ const incompatibilities = {
   'judge-prompt': 'Different judge prompts or versions',
 };
 
-function node(document, tag, text, className) {
-  const element = document.createElement(tag);
-  if (text !== undefined && text !== null) element.textContent = String(text);
-  if (className) element.className = className;
-  return element;
-}
+/** Scoped DOM helpers: all supplied strings remain text, never interpreted markup. */
+function createDom(document) {
+  function node(tag, text, className) {
+    const element = document.createElement(tag);
+    if (text !== undefined && text !== null) element.textContent = String(text);
+    if (className) element.className = className;
+    return element;
+  }
 
-function content(document, tag, text) {
-  const element = node(document, tag, text, 'content');
-  element.dir = 'auto';
-  return element;
+  function content(tag, text) {
+    const element = node(tag, text, 'content');
+    element.dir = 'auto';
+    return element;
+  }
+
+  function pairs(entries) {
+    const list = node('dl');
+    for (const [key, value] of entries) list.append(node('dt', key), content('dd', display(value)));
+    return list;
+  }
+
+  function table(headings, rows, className) {
+    const wrapper = node('div', null, 'table-scroll');
+    const tableElement = node('table', null, className);
+    const head = node('thead');
+    const headerRow = node('tr');
+    for (const heading of headings) {
+      const cell = node('th', heading);
+      cell.scope = 'col';
+      headerRow.append(cell);
+    }
+    head.append(headerRow);
+    const body = node('tbody');
+    for (const row of rows) {
+      const tr = node('tr');
+      for (const value of row) {
+        const td = node('td');
+        if (value?.nodeType) td.append(value);
+        else td.textContent = display(value);
+        tr.append(td);
+      }
+      body.append(tr);
+    }
+    tableElement.append(head, body);
+    wrapper.append(tableElement);
+    return wrapper;
+  }
+
+  function raw(heading, value) {
+    const details = node('details');
+    const text = typeof value === 'string' ? value : JSON.stringify(value, null, 2);
+    details.append(node('summary', heading), content('pre', text ?? 'Not recorded'));
+    return details;
+  }
+
+  return { node, content, pairs, table, raw };
 }
 
 function display(value) {
@@ -64,50 +109,6 @@ function timestamp(value) {
   return value ? new Date(value).toLocaleString() : 'Not finished';
 }
 
-function pairs(document, entries) {
-  const list = node(document, 'dl');
-  for (const [key, value] of entries)
-    list.append(node(document, 'dt', key), content(document, 'dd', display(value)));
-  return list;
-}
-
-function table(document, headings, rows, className) {
-  const wrapper = node(document, 'div', null, 'table-scroll');
-  const tableElement = node(document, 'table', null, className);
-  const head = node(document, 'thead');
-  const headerRow = node(document, 'tr');
-  for (const heading of headings) {
-    const cell = node(document, 'th', heading);
-    cell.scope = 'col';
-    headerRow.append(cell);
-  }
-  head.append(headerRow);
-  const body = node(document, 'tbody');
-  for (const row of rows) {
-    const tr = node(document, 'tr');
-    for (const value of row) {
-      const td = node(document, 'td');
-      if (value?.nodeType) td.append(value);
-      else td.textContent = display(value);
-      tr.append(td);
-    }
-    body.append(tr);
-  }
-  tableElement.append(head, body);
-  wrapper.append(tableElement);
-  return wrapper;
-}
-
-function raw(document, heading, value) {
-  const details = node(document, 'details');
-  const text = typeof value === 'string' ? value : JSON.stringify(value, null, 2);
-  details.append(
-    node(document, 'summary', heading),
-    content(document, 'pre', text ?? 'Not recorded'),
-  );
-  return details;
-}
-
 function cost(total) {
   if (!total) return 'Unknown cost';
   const subtotal =
@@ -126,33 +127,29 @@ function calibration(summary) {
 
 /** Renders saved content as text, including answer keys intended for this developer tool. */
 export function renderTask(document, task) {
-  const section = node(document, 'section', null, 'task');
-  section.append(content(document, 'h4', task.title));
-  if (task.instructions) section.append(content(document, 'p', task.instructions));
-  for (const block of task.contentBlocks ?? []) section.append(content(document, 'p', block.text));
+  const { node, content } = createDom(document);
+  const section = node('section', null, 'task');
+  section.append(content('h4', task.title));
+  if (task.instructions) section.append(content('p', task.instructions));
+  for (const block of task.contentBlocks ?? []) section.append(content('p', block.text));
   for (const [index, question] of (task.questions ?? []).entries()) {
-    const item = node(document, 'section', null, 'question');
+    const item = node('section', null, 'question');
     item.append(
       node(
-        document,
         'p',
         `Question ${index + 1} · ${question.id} · ${question.interaction?.type} · ${question.points} points`,
         'muted',
       ),
     );
-    item.append(content(document, 'p', question.prompt));
+    item.append(content('p', question.prompt));
     if (question.interaction?.options?.length) {
-      const options = node(document, 'ol');
+      const options = node('ol');
       options.dir = 'auto';
-      for (const option of question.interaction.options)
-        options.append(content(document, 'li', option));
+      for (const option of question.interaction.options) options.append(content('li', option));
       item.append(options);
     }
-    const answer = node(document, 'div', null, 'answer');
-    answer.append(
-      node(document, 'strong', 'Answer key'),
-      content(document, 'p', question.answer?.value),
-    );
+    const answer = node('div', null, 'answer');
+    answer.append(node('strong', 'Answer key'), content('p', question.answer?.value));
     item.append(answer);
     section.append(item);
   }
@@ -161,34 +158,27 @@ export function renderTask(document, task) {
 
 /** Uses only server-computed deltas and comparability flags; missing evidence stays unavailable. */
 export function renderComparison(document, comparison) {
-  const root = node(document, 'div');
+  const { node, pairs, table, raw } = createDom(document);
+  const root = node('div');
   const compatible = comparison.directlyComparable;
-  const compatibility = node(document, 'section', null, `card${compatible ? '' : ' warning'}`);
+  const compatibility = node('section', null, `card${compatible ? '' : ' warning'}`);
   compatibility.append(
-    node(
-      document,
-      'h3',
-      compatible ? 'Runs are directly comparable' : 'Runs are not directly comparable',
-    ),
+    node('h3', compatible ? 'Runs are directly comparable' : 'Runs are not directly comparable'),
   );
   if (!compatible) {
-    const reasons = node(document, 'ul');
+    const reasons = node('ul');
     for (const reason of comparison.incompatibilities ?? [])
-      reasons.append(node(document, 'li', incompatibilities[reason] ?? reason));
+      reasons.append(node('li', incompatibilities[reason] ?? reason));
     compatibility.append(reasons);
   }
   compatibility.append(
-    node(
-      document,
-      'p',
-      'Changes are descriptive evidence. Positive deltas mean candidate minus baseline.',
-    ),
+    node('p', 'Changes are descriptive evidence. Positive deltas mean candidate minus baseline.'),
   );
   root.append(compatibility);
   const section = (name, heading) => {
-    const element = node(document, 'section', null, 'card');
+    const element = node('section', null, 'card');
     element.dataset.section = name;
-    element.append(node(document, 'h3', heading));
+    element.append(node('h3', heading));
     root.append(element);
     return element;
   };
@@ -197,7 +187,6 @@ export function renderComparison(document, comparison) {
   profiles.append(
     changes.length
       ? table(
-          document,
           ['Setting', 'Baseline', 'Candidate'],
           changes.map(([key, value]) => [
             profileFields[key] ?? key,
@@ -205,13 +194,13 @@ export function renderComparison(document, comparison) {
             display(value.candidate),
           ]),
         )
-      : node(document, 'p', 'No profile changes.'),
+      : node('p', 'No profile changes.'),
   );
   const deltas = comparison.deltas ?? {};
   const structural = section('structural', 'Structural and adherence changes');
   if (compatible) {
     structural.append(
-      pairs(document, [
+      pairs([
         ['Automatic-pass delta', delta(deltas.scenarioAutomaticPasses)],
         ['Authoring success delta', delta(deltas.authoringSuccesses)],
         ['Generation success delta', delta(deltas.generationSuccesses)],
@@ -221,39 +210,27 @@ export function renderComparison(document, comparison) {
     structural.append(
       failures.length
         ? table(
-            document,
             ['Check', 'Failure delta'],
             failures.map(([key, value]) => [key, delta(value)]),
           )
-        : node(document, 'p', 'No automatic check failures in either run.'),
+        : node('p', 'No automatic check failures in either run.'),
     );
-  } else
-    structural.append(
-      node(document, 'p', 'Structural deltas are unavailable for incompatible runs.'),
-    );
+  } else structural.append(node('p', 'Structural deltas are unavailable for incompatible runs.'));
   const hebrew = section('hebrew', 'Hebrew quality');
   if (compatible && comparison.hebrewFindingsComparable) {
-    hebrew.append(
-      pairs(document, [['Generated Hebrew issue delta', delta(deltas.generatedHebrewIssues)]]),
-    );
+    hebrew.append(pairs([['Generated Hebrew issue delta', delta(deltas.generatedHebrewIssues)]]));
     const kinds = Object.entries(comparison.hebrewKindDeltas ?? {});
     hebrew.append(
       kinds.length
         ? table(
-            document,
             ['Issue kind', 'Issue delta'],
             kinds.map(([key, value]) => [key, delta(value)]),
           )
-        : node(document, 'p', 'No Hebrew findings in either run.'),
+        : node('p', 'No Hebrew findings in either run.'),
     );
   } else
     hebrew.append(
-      node(
-        document,
-        'p',
-        'Hebrew findings are not directly comparable for these runs.',
-        'notice warning',
-      ),
+      node('p', 'Hebrew findings are not directly comparable for these runs.', 'notice warning'),
     );
   const performance = section('performance', 'Performance and cost');
   const before = comparison.baseline ?? {};
@@ -262,7 +239,6 @@ export function renderComparison(document, comparison) {
     total ? `${number(total.knownTotal)} (${total.missingCalls} missing calls)` : 'Not reported';
   performance.append(
     table(
-      document,
       ['Measurement', 'Baseline', 'Candidate', 'Delta'],
       [
         [
@@ -292,7 +268,6 @@ export function renderComparison(document, comparison) {
   );
   performance.append(
     node(
-      document,
       'p',
       'Missing measurements remain unknown. Cost and token deltas require complete coverage in both runs.',
       'muted',
@@ -301,7 +276,6 @@ export function renderComparison(document, comparison) {
   const human = section('human', 'Human review');
   human.append(
     table(
-      document,
       ['Dimension', 'Average score delta'],
       Object.entries(dimensions).map(([key, label]) => [
         label,
@@ -314,25 +288,24 @@ export function renderComparison(document, comparison) {
   );
   human.append(
     node(
-      document,
       'p',
       'A dimension is comparable only when the same results were reviewed in both compatible runs.',
       'muted',
     ),
   );
-  root.append(raw(document, 'Raw comparison JSON (includes diagnostic evidence)', comparison));
+  root.append(raw('Raw comparison JSON (includes diagnostic evidence)', comparison));
   return root;
 }
 
 /** Starts read-only loading and serialized one-second polling. Mutations are never retried. */
 export function createDashboard(document, fetchRequest = globalThis.fetch.bind(globalThis)) {
+  const { node, content, pairs, table, raw } = createDom(document);
   const get = (id) => document.getElementById(id);
   const state = {
     setup: null,
     active: null,
     activeKnown: false,
     pending: false,
-    history: [],
     reportId: null,
     report: null,
     disposed: false,
@@ -413,7 +386,7 @@ export function createDashboard(document, fetchRequest = globalThis.fetch.bind(g
       maxCalls <= 100 &&
       planned <= maxCalls;
     get('run-estimate').replaceChildren(
-      pairs(document, [
+      pairs([
         ['Selected cases', count],
         ['Repeats', Number.isInteger(repeat) ? repeat : 'Invalid'],
         ['Judge calibration calls', calibrationCount],
@@ -439,10 +412,7 @@ export function createDashboard(document, fetchRequest = globalThis.fetch.bind(g
   function renderSetup(setup) {
     state.setup = setup;
     get('profile').replaceChildren(
-      pairs(
-        document,
-        Object.entries(profileFields).map(([key, label]) => [label, setup.profile[key]]),
-      ),
+      pairs(Object.entries(profileFields).map(([key, label]) => [label, setup.profile[key]])),
     );
     get('fallback-warning').hidden = !setup.profile.FallbackModel;
     get('configuration-message').hidden = setup.configured;
@@ -454,18 +424,17 @@ export function createDashboard(document, fetchRequest = globalThis.fetch.bind(g
       ? `${setup.calibrationCount} calibration calls are included when enabled.`
       : setup.judgeError || 'Hebrew judge calibration is unavailable.';
     get('cases').replaceChildren();
-    if (setup.caseError)
-      get('cases').append(node(document, 'p', setup.caseError, 'notice warning'));
+    if (setup.caseError) get('cases').append(node('p', setup.caseError, 'notice warning'));
     setup.cases.forEach((item, index) => {
-      const entry = node(document, 'div', null, 'case');
-      const label = node(document, 'label');
-      const checkbox = node(document, 'input');
+      const entry = node('div', null, 'case');
+      const label = node('label');
+      const checkbox = node('input');
       checkbox.type = 'checkbox';
       checkbox.name = 'caseId';
       checkbox.value = item.id;
       checkbox.id = `case-${index}`;
-      label.append(checkbox, node(document, 'strong', item.id));
-      entry.append(label, content(document, 'p', item.reviewFocus));
+      label.append(checkbox, node('strong', item.id));
+      entry.append(label, content('p', item.reviewFocus));
       const expectations = [`${item.questionCount} questions`, item.interaction];
       if (item.choiceCount != null) expectations.push(`${item.choiceCount} choices`);
       if (item.minPassageWords != null || item.maxPassageWords != null)
@@ -474,8 +443,8 @@ export function createDashboard(document, fetchRequest = globalThis.fetch.bind(g
         );
       if (item.useMaximumQuestionCount) expectations.push('maximum question count');
       entry.append(
-        node(document, 'p', expectations.join(' · '), 'expectations'),
-        raw(document, `Prompt · ${item.id}`, item.prompt),
+        node('p', expectations.join(' · '), 'expectations'),
+        raw(`Prompt · ${item.id}`, item.prompt),
       );
       get('cases').append(entry);
     });
@@ -491,7 +460,7 @@ export function createDashboard(document, fetchRequest = globalThis.fetch.bind(g
       get('cancel-run').hidden = !active.running;
       get('cancel-run').disabled = !active.running || state.pending;
       get('active-progress').replaceChildren(
-        pairs(document, [
+        pairs([
           ['Run status', active.status],
           ['Current case', progress?.caseId],
           ['Repetition', progress?.repetition],
@@ -511,8 +480,7 @@ export function createDashboard(document, fetchRequest = globalThis.fetch.bind(g
           ['Calls with unknown cost', progress?.missingCostCalls],
         ]),
       );
-      if (active.error)
-        get('active-progress').append(node(document, 'p', active.error, 'notice warning'));
+      if (active.error) get('active-progress').append(node('p', active.error, 'notice warning'));
     }
     if (state.setup) estimate();
   }
@@ -520,9 +488,11 @@ export function createDashboard(document, fetchRequest = globalThis.fetch.bind(g
   async function poll() {
     try {
       const prior = state.active;
-      state.active = await request('/api/active');
+      const active = await request('/api/active');
+      // A run started while this read was pending owns the newer state.
+      if (state.disposed || state.active !== prior) return;
+      state.active = active;
       state.activeKnown = true;
-      if (state.disposed) return;
       renderActive();
       if (prior?.running && !state.active?.running) {
         await loadHistory();
@@ -547,19 +517,18 @@ export function createDashboard(document, fetchRequest = globalThis.fetch.bind(g
   async function loadHistory() {
     const history = await request('/api/runs');
     if (state.disposed) return;
-    state.history = history;
     const rows = history.map((run) => {
-      const identity = node(document, 'div');
-      const open = node(document, 'button', run.label || run.id, 'secondary');
+      const identity = node('div');
+      const open = node('button', run.label || run.id, 'secondary');
       open.type = 'button';
       open.addEventListener('click', () => openReport(run.id).catch(showError));
-      identity.append(open, node(document, 'p', timestamp(run.startedAtUtc), 'muted'));
+      identity.append(open, node('p', timestamp(run.startedAtUtc), 'muted'));
       if (!run.summary) return [identity, run.error || 'Report unavailable', '', '', '', '', ''];
       const summary = run.summary;
-      const models = node(document, 'div');
+      const models = node('div');
       models.append(
-        node(document, 'p', `Configured: ${display(run.configuredModel)}`),
-        node(document, 'p', `Returned: ${summary.actualModels?.join(', ') || 'Not reported'}`),
+        node('p', `Configured: ${display(run.configuredModel)}`),
+        node('p', `Returned: ${summary.actualModels?.join(', ') || 'Not reported'}`),
       );
       return [
         identity,
@@ -574,7 +543,6 @@ export function createDashboard(document, fetchRequest = globalThis.fetch.bind(g
     get('history-list').replaceChildren(
       history.length
         ? table(
-            document,
             [
               'Run',
               'Status',
@@ -587,7 +555,7 @@ export function createDashboard(document, fetchRequest = globalThis.fetch.bind(g
             rows,
             'history-table',
           )
-        : node(document, 'p', 'No saved runs yet.', 'card'),
+        : node('p', 'No saved runs yet.', 'card'),
     );
     for (const id of ['baseline', 'candidate']) {
       const select = get(id);
@@ -600,7 +568,7 @@ export function createDashboard(document, fetchRequest = globalThis.fetch.bind(g
   }
 
   function renderSummary(summary) {
-    return pairs(document, [
+    return pairs([
       ['Status', summary.status],
       ['Cases / repeats', `${summary.caseCount} / ${summary.repeat}`],
       ['Automatic passes', `${summary.scenarioAutomaticPasses} / ${summary.plannedCaseRuns}`],
@@ -613,8 +581,8 @@ export function createDashboard(document, fetchRequest = globalThis.fetch.bind(g
   }
 
   function renderStep(name, step) {
-    const section = node(document, 'section', null, 'well');
-    section.append(node(document, 'h4', name));
+    const section = node('section', null, 'well');
+    section.append(node('h4', name));
     const status = !step
       ? 'Not attempted'
       : !step.finishedAtUtc
@@ -623,31 +591,31 @@ export function createDashboard(document, fetchRequest = globalThis.fetch.bind(g
           ? 'Contract passed'
           : 'Failed / rejected';
     section.append(
-      pairs(document, [
+      pairs([
         ['Status', status],
         ['Model', step?.model],
         ['Latency', number(step?.elapsedMilliseconds, ' ms')],
         ['Reported cost', number(step?.costCredits, ' credits')],
       ]),
     );
-    if (step?.failure) section.append(node(document, 'p', step.failure, 'fail'));
+    if (step?.failure) section.append(node('p', step.failure, 'fail'));
     return section;
   }
 
   function renderReview(runId, report, result) {
-    const form = node(document, 'form', null, 'review');
-    const fieldset = node(document, 'fieldset');
-    fieldset.append(node(document, 'legend', 'Human review'));
+    const form = node('form', null, 'review');
+    const fieldset = node('fieldset');
+    fieldset.append(node('legend', 'Human review'));
     const eligible =
       result.generation?.contractValid &&
       result.generation?.finishedAtUtc &&
       report.status !== 'running';
     fieldset.disabled = !eligible || (state.active?.running && state.active.id === runId);
-    const fields = node(document, 'div', null, 'review-fields');
+    const fields = node('div', null, 'review-fields');
     const controls = {};
     for (const [key, labelText] of Object.entries(dimensions)) {
-      const label = node(document, 'label', labelText);
-      const select = node(document, 'select');
+      const label = node('label', labelText);
+      const select = node('select');
       for (const [value, caption] of [
         ['', 'Unreviewed'],
         ['0', '0 — unusable'],
@@ -660,23 +628,22 @@ export function createDashboard(document, fetchRequest = globalThis.fetch.bind(g
       label.append(select);
       fields.append(label);
     }
-    const notesLabel = node(document, 'label', 'Review notes (up to 4,000 characters)');
-    const notes = node(document, 'textarea');
+    const notesLabel = node('label', 'Review notes (up to 4,000 characters)');
+    const notes = node('textarea');
     notes.maxLength = 4000;
     notes.rows = 3;
     notes.dir = 'auto';
     notes.value = result.review?.notes ?? '';
     notesLabel.append(notes);
-    const save = node(document, 'button', 'Save review');
+    const save = node('button', 'Save review');
     save.type = 'submit';
-    const feedback = node(document, 'span', '', 'save-message');
+    const feedback = node('span', '', 'save-message');
     feedback.setAttribute('role', 'status');
     fieldset.append(fields, notesLabel, save, feedback);
     form.append(fieldset);
     if (!eligible)
       form.append(
         node(
-          document,
           'p',
           'Review editing is available after a valid generated result has finished and the run is no longer active.',
           'muted',
@@ -726,72 +693,60 @@ export function createDashboard(document, fetchRequest = globalThis.fetch.bind(g
     const target = get('report');
     target.replaceChildren();
     target.hidden = false;
-    const heading = node(document, 'section', null, 'card');
+    const heading = node('section', null, 'card');
     heading.append(
-      content(document, 'h2', report.label || id),
+      content('h2', report.label || id),
       node(
-        document,
         'p',
         `${timestamp(report.startedAtUtc)} · Finished: ${timestamp(report.finishedAtUtc)}`,
         'muted',
       ),
     );
-    if (report.runNotes) heading.append(content(document, 'p', report.runNotes));
+    if (report.runNotes) heading.append(content('p', report.runNotes));
     heading.append(renderSummary(result.summary));
-    heading.append(raw(document, 'Captured AI profile', report.profile));
+    heading.append(raw('Captured AI profile', report.profile));
     target.append(heading);
     if (report.judgeEnabled) {
-      const calibrationDetails = node(document, 'details', null, 'card');
+      const calibrationDetails = node('details', null, 'card');
       calibrationDetails.append(
-        node(document, 'summary', `Judge calibration · ${calibration(result.summary)}`),
+        node('summary', `Judge calibration · ${calibration(result.summary)}`),
       );
       for (const sample of report.calibration ?? []) {
-        const entry = node(document, 'section');
+        const entry = node('section');
         entry.append(
-          node(
-            document,
-            'h4',
-            `${sample.sample.id} · ${sample.passed ? 'Passed' : 'Failed / unfinished'}`,
-          ),
+          node('h4', `${sample.sample.id} · ${sample.passed ? 'Passed' : 'Failed / unfinished'}`),
         );
-        entry.append(raw(document, 'Calibration request, findings and call', sample));
+        entry.append(raw('Calibration request, findings and call', sample));
         calibrationDetails.append(entry);
       }
       target.append(calibrationDetails);
     }
     for (const evaluation of report.results ?? []) {
-      const card = node(document, 'article', null, 'card');
-      card.append(
-        node(document, 'h3', `${evaluation.caseId} · repetition ${evaluation.repetition}`),
-      );
+      const card = node('article', null, 'card');
+      card.append(node('h3', `${evaluation.caseId} · repetition ${evaluation.repetition}`));
       const selected = report.cases.find((item) => item.id === evaluation.caseId);
-      if (selected) card.append(content(document, 'p', selected.reviewFocus));
-      const stages = node(document, 'div', null, 'stage-grid');
-      stages.append(
-        renderStep('Template authoring', evaluation.authoring),
-        renderStep('Task generation', evaluation.generation),
-        renderStep('Hebrew review', evaluation.judge),
-      );
-      card.append(stages, node(document, 'h4', 'Automatic checks'));
+      if (selected) card.append(content('p', selected.reviewFocus));
+      const stages = node('div', null, 'stage-grid');
+      const steps = [
+        ['Template authoring', evaluation.authoring],
+        ['Task generation', evaluation.generation],
+        ['Hebrew review', evaluation.judge],
+      ];
+      stages.append(...steps.map(([name, step]) => renderStep(name, step)));
+      card.append(stages, node('h4', 'Automatic checks'));
       const checks = Object.entries(evaluation.checks ?? {});
-      const checkList = node(document, 'ul', null, 'checks');
+      const checkList = node('ul', null, 'checks');
       for (const [name, passed] of checks)
         checkList.append(
-          node(
-            document,
-            'li',
-            `${passed ? 'Passed' : 'Failed'} · ${name}`,
-            passed ? 'pass' : 'fail',
-          ),
+          node('li', `${passed ? 'Passed' : 'Failed'} · ${name}`, passed ? 'pass' : 'fail'),
         );
-      card.append(checks.length ? checkList : node(document, 'p', 'No automatic checks recorded.'));
+      card.append(checks.length ? checkList : node('p', 'No automatic checks recorded.'));
       if (evaluation.generation?.contractValid && evaluation.generation.output) {
         try {
           card.append(renderTask(document, JSON.parse(evaluation.generation.output)));
         } catch {
           card.append(
             node(
-              document,
               'p',
               'Saved content could not be displayed. Inspect the retained raw output.',
               'notice warning',
@@ -800,52 +755,40 @@ export function createDashboard(document, fetchRequest = globalThis.fetch.bind(g
         }
       } else
         card.append(
-          node(
-            document,
-            'p',
-            'No valid generated task. Retained output is available below.',
-            'muted',
-          ),
+          node('p', 'No valid generated task. Retained output is available below.', 'muted'),
         );
-      card.append(node(document, 'h4', 'Hebrew findings'));
+      card.append(node('h4', 'Hebrew findings'));
       if (evaluation.judge?.contractValid) {
         if (evaluation.issues?.length)
           card.append(
             table(
-              document,
               ['Kind / path', 'Quoted text', 'Suggested text', 'Reason'],
               evaluation.issues.map((issue) => [
                 `${issue.kind} · ${issue.path}`,
-                content(document, 'span', issue.quote),
-                content(document, 'span', issue.suggestion),
-                content(document, 'span', issue.reason),
+                content('span', issue.quote),
+                content('span', issue.suggestion),
+                content('span', issue.reason),
               ]),
             ),
           );
-        else
-          card.append(node(document, 'p', 'No findings reported. Human review is still needed.'));
+        else card.append(node('p', 'No findings reported. Human review is still needed.'));
       } else
         card.append(
           node(
-            document,
             'p',
             report.judgeEnabled
               ? 'No valid Hebrew review available.'
               : 'Hebrew judge was disabled.',
           ),
         );
-      for (const [name, step] of [
-        ['Template authoring', evaluation.authoring],
-        ['Task generation', evaluation.generation],
-        ['Hebrew review', evaluation.judge],
-      ]) {
+      for (const [name, step] of steps) {
         if (!step) continue;
-        const details = node(document, 'details');
-        details.append(node(document, 'summary', `${name} · raw request / output JSON`));
+        const details = node('details');
+        details.append(node('summary', `${name} · raw request / output JSON`));
         details.append(
-          raw(document, 'Request messages', step.request),
-          raw(document, 'Retained output', step.output),
-          raw(document, 'Whitelisted call diagnostics', {
+          raw('Request messages', step.request),
+          raw('Retained output', step.output),
+          raw('Whitelisted call diagnostics', {
             ...step,
             request: undefined,
             output: undefined,
@@ -856,7 +799,7 @@ export function createDashboard(document, fetchRequest = globalThis.fetch.bind(g
       card.append(renderReview(id, report, evaluation));
       target.append(card);
     }
-    const savedReport = raw(document, 'Raw saved report JSON', report);
+    const savedReport = raw('Raw saved report JSON', report);
     savedReport.dataset.savedReport = '';
     target.append(savedReport);
     showView('history');
@@ -865,16 +808,16 @@ export function createDashboard(document, fetchRequest = globalThis.fetch.bind(g
 
   for (const button of document.querySelectorAll('[data-view]'))
     button.addEventListener('click', () => showView(button.dataset.view));
-  get('select-all').addEventListener('click', () => {
-    for (const checkbox of document.querySelectorAll('[name="caseId"]')) checkbox.checked = true;
-    estimate();
-  });
-  get('select-none').addEventListener('click', () => {
-    for (const checkbox of document.querySelectorAll('[name="caseId"]')) checkbox.checked = false;
-    estimate();
-  });
+  for (const [id, checked] of [
+    ['select-all', true],
+    ['select-none', false],
+  ])
+    get(id).addEventListener('click', () => {
+      for (const checkbox of document.querySelectorAll('[name="caseId"]'))
+        checkbox.checked = checked;
+      estimate();
+    });
   get('run-form').addEventListener('input', estimate);
-  get('run-form').addEventListener('change', estimate);
   get('refresh-history').addEventListener('click', async () => {
     get('refresh-history').disabled = true;
     try {
@@ -939,7 +882,7 @@ export function createDashboard(document, fetchRequest = globalThis.fetch.bind(g
     try {
       await request(`/api/runs/${encodeURIComponent(state.active.id)}/cancel`, 'POST', {});
       get('active-progress').append(
-        node(document, 'p', 'Cancellation requested. Waiting for the partial report to finish.'),
+        node('p', 'Cancellation requested. Waiting for the partial report to finish.'),
       );
     } catch (error) {
       showError(error);

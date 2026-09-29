@@ -112,7 +112,7 @@ test('startup is read-only; live submission needs confirmation and sends one bou
     document.querySelector('#max-calls').value = '9';
     document
       .querySelector('#run-form')
-      .dispatchEvent(new dom.window.Event('change', { bubbles: true }));
+      .dispatchEvent(new dom.window.Event('input', { bubbles: true }));
     document
       .querySelector('#run-form')
       .dispatchEvent(new dom.window.Event('submit', { bubbles: true, cancelable: true }));
@@ -324,7 +324,7 @@ test('active runs disable new paid work and review editing; cancellation is CSRF
     app.document.querySelector('[name="caseId"]').checked = true;
     app.document
       .querySelector('#run-form')
-      .dispatchEvent(new app.dom.window.Event('change', { bubbles: true }));
+      .dispatchEvent(new app.dom.window.Event('input', { bubbles: true }));
     assert.equal(app.document.querySelector('#start-run').disabled, true);
     app.document.querySelector('#open-active').click();
     await nextTurn();
@@ -354,7 +354,7 @@ test('selection budget must cover all planned calls before a confirmation can op
     app.document.querySelector('#judge').checked = true;
     app.document
       .querySelector('#run-form')
-      .dispatchEvent(new app.dom.window.Event('change', { bubbles: true }));
+      .dispatchEvent(new app.dom.window.Event('input', { bubbles: true }));
     assert.equal(app.document.querySelector('#start-run').disabled, true);
     assert.match(app.document.querySelector('#budget-message').textContent, /at least 9 calls/);
     app.document
@@ -363,6 +363,51 @@ test('selection budget must cover all planned calls before a confirmation can op
     assert.equal(app.document.querySelector('#run-confirmation').hasAttribute('open'), false);
     assert.equal(app.requests.filter(({ options }) => options.method === 'POST').length, 0);
   } finally {
+    app.dashboard.dispose();
+    app.dom.window.close();
+  }
+});
+
+test('a status poll started before a new run cannot hide its cancellation controls', async () => {
+  let polls = 0;
+  /** @type {(value: unknown) => void} */
+  let release = () => {};
+  /** @type {() => void} */
+  let entered = () => {};
+  const pending = new Promise((resolve) => {
+    release = resolve;
+  });
+  const polling = new Promise((resolve) => {
+    entered = () => resolve(undefined);
+  });
+  const app = mount({
+    '/api/active': () => ({
+      ok: true,
+      status: 200,
+      json: async () => {
+        if (++polls === 1) return null;
+        entered();
+        return pending;
+      },
+    }),
+    '/api/runs': (options) => jsonResponse(options.method === 'POST' ? { id: 'new-run' } : []),
+  });
+  try {
+    await app.dashboard.ready;
+    await polling;
+    app.document.querySelector('[name="caseId"]').checked = true;
+    const form = app.document.querySelector('#run-form');
+    form.dispatchEvent(new app.dom.window.Event('input', { bubbles: true }));
+    form.dispatchEvent(new app.dom.window.Event('submit', { bubbles: true, cancelable: true }));
+    app.document.querySelector('#confirm-run').click();
+    await nextTurn();
+    release(null);
+    await nextTurn();
+    assert.equal(app.document.querySelector('#active-run').hidden, false);
+    assert.equal(app.document.querySelector('#cancel-run').hidden, false);
+    assert.equal(app.document.querySelector('#start-run').disabled, true);
+  } finally {
+    release(null);
     app.dashboard.dispose();
     app.dom.window.close();
   }

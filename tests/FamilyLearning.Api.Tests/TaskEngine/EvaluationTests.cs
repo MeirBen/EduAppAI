@@ -132,12 +132,16 @@ public sealed class EvaluationTests : IDisposable
         Assert.Throws<ArgumentException>(() => EvaluationOptions.Parse([flag, value]));
 
     [Fact]
-    public void Call_plan_includes_each_stage_and_loaded_controls()
+    public async Task Call_plan_includes_each_stage_and_loaded_controls()
     {
         var options = EvaluationOptions.Parse(["--case", "all", "--max-calls", "4"]);
         Assert.False(options.Live);
-        Assert.Equal(32, options.PlannedCalls(16, 0));
-        Assert.Equal(7, EvaluationOptions.Parse(["--judge", "--max-calls", "7"]).PlannedCalls(1, 4));
+        var basic = await EvaluationPlan.LoadAsync(new([options.Case], options.Repeat, options.Judge, options.MaxCalls));
+        Assert.Equal(32, basic.PlannedCalls);
+        Assert.Throws<ArgumentException>(basic.ValidateBudget);
+        var judged = await EvaluationPlan.LoadAsync(new(["reading-grade3"], 1, true, 7));
+        Assert.Equal(7, judged.PlannedCalls);
+        judged.ValidateBudget();
     }
 
     [Fact]

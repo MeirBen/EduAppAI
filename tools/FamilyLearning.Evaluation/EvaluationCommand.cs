@@ -129,9 +129,4 @@ public sealed record EvaluationOptions(bool Live, string Case, int Repeat, int M
         return options;
     }
 
-    public int PlannedCalls(int caseCount, int calibrationCount)
-    {
-        if (Judge && calibrationCount <= 0) throw new ArgumentException("Judge calibration controls are required.");
-        return EvaluationReport.CountCalls(caseCount, Repeat, Judge ? calibrationCount : 0);
-    }
 }

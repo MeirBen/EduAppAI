@@ -68,7 +68,7 @@ public sealed class EvaluationResult(string caseId, int repetition)
     public HebrewIssue[]? Issues { get; set; }
     public Dictionary<string, JsonElement>? Parameters { get; set; }
     [JsonRequired] public Dictionary<string, bool> Checks { get; init; } = [];
-    [JsonRequired] public ManualReview Review { get; init; } = new();
+    [JsonRequired] public ManualReview Review { get; set; } = new();
 }
 
 /// <summary>Only final content and whitelisted diagnostics are retained, including rejected outputs.</summary>

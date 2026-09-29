@@ -66,13 +66,7 @@ public sealed partial class EvaluationRunStore(string root) : IDisposable
             if (result?.Generation is not { ContractValid: true, FinishedAtUtc: not null })
                 throw new ArgumentException("Only completed generated results can be reviewed.");
             // Keep the captured evidence intact; only the six scores and reviewer notes are writable.
-            result.Review.Hebrew = update.Review.Hebrew;
-            result.Review.Correctness = update.Review.Correctness;
-            result.Review.AgeFit = update.Review.AgeFit;
-            result.Review.Adherence = update.Review.Adherence;
-            result.Review.AnswerClarity = update.Review.AnswerClarity;
-            result.Review.Consistency = update.Review.Consistency;
-            result.Review.Notes = update.Review.Notes;
+            result.Review = update.Review;
             await EvaluationFiles.SaveAsync(report, DirectoryFor(id));
         }
         finally { reviews.Release(); }
