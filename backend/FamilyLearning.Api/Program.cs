@@ -44,8 +44,12 @@ else
 
 app.UseExceptionHandler();
 app.UseStatusCodePages();
-app.UseDefaultFiles();
-app.UseStaticFiles();
+// Angular serves the UI separately during development; publishing supplies wwwroot.
+if (Directory.Exists(app.Environment.WebRootPath))
+{
+    app.UseDefaultFiles();
+    app.UseStaticFiles();
+}
 app.UseAuthentication();
 app.UseAuthorization();
 app.UseRateLimiter();
