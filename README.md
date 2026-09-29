@@ -85,6 +85,12 @@ a temperature default of 0.6. These are different baselines, neither a validated
 Hebrew optimum. Local quantization and inference-engine reports do not establish
 hosted API behavior. Qwen also warns that high presence penalties can mix languages.
 
+The current Qwen profile allows 4,096 thinking tokens within the 8,192-token total.
+[Qwen stops thinking when its budget is reached][qwen-thinking]. This is a tuning
+candidate: compare it with 2,048 using the same prompts, cases and judge controls.
+Keep the larger budget only if manually reviewed quality justifies its extra
+latency and cost; more thinking does not guarantee better Hebrew.
+
 The same settings apply to an optional fallback: it must support the selected
 output format, reasoning and sampling controls. [Fallback routing][fallback]
 handles provider errors such as rate limits, not invalid or low-quality
@@ -101,6 +107,7 @@ credits. Their model IDs and settings are independent of the active model.
 [reasoning]: https://openrouter.ai/docs/guides/best-practices/reasoning-tokens
 [qwen-guide]: https://huggingface.co/Qwen/Qwen3.8-Flash-Next#best-practices
 [qwen-hosted]: https://docs.qwencloud.com/developer-guides/getting-started/latest-model#thinking
+[qwen-thinking]: https://docs.qwencloud.com/developer-guides/text-generation/thinking#token-budget
 [fallback]: https://openrouter.ai/docs/guides/routing/model-fallbacks
 
 ## Hebrew AI evaluation
