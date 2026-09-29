@@ -155,7 +155,7 @@ function createDom(document) {
 
   function raw(heading, value) {
     const details = node('details');
-    const text = typeof value === 'string' ? value : JSON.stringify(value, null, 2);
+    const text = typeof value === 'string' ? readable(value) : JSON.stringify(value, null, 2);
     const block = content('pre', text ?? 'Not recorded');
     const copyable = node('div', null, 'copyable');
     copyable.append(
@@ -185,6 +185,20 @@ function delta(value, available = true) {
     : `${value > 0 ? '+' : ''}${number(value)}`;
 }
 
+/** Pretty-prints JSON text; anything else, such as rejected output, stays exactly as stored. */
+function readable(text) {
+  try {
+    const parsed = JSON.parse(text);
+    return parsed && typeof parsed === 'object' ? JSON.stringify(parsed, null, 2) : text;
+  } catch {
+    return text;
+  }
+}
+
+function transcript(messages) {
+  return messages?.map((message) => `[${message.role}]\n${message.text}`).join('\n\n');
+}
+
 function plural(count, noun) {
   return `${count} ${count === 1 ? noun : `${noun}s`}`;
 }
@@ -203,7 +217,7 @@ function duration(milliseconds) {
 /** Known subtotal plus the calls it misses; unknown never reads as zero. */
 function measured(total, unit = '') {
   const known = total?.knownTotal == null ? 'Unknown' : number(total.knownTotal, unit);
-  return total?.missingCalls ? `${known} + ${total.missingCalls} calls unknown` : known;
+  return total?.missingCalls ? `${known} + ${plural(total.missingCalls, 'call')} unknown` : known;
 }
 
 function calibration(summary) {
@@ -243,7 +257,9 @@ export function renderTask(document, task) {
     if (question.interaction?.options?.length) {
       const options = node('ol');
       options.dir = 'auto';
-      for (const option of question.interaction.options) options.append(content('li', option));
+      // Items stay without dir, so the list takes its direction (and marker side) from them.
+      for (const option of question.interaction.options)
+        options.append(node('li', option, 'content'));
       item.append(options);
     }
     const answer = node('div', null, 'answer');
@@ -298,11 +314,14 @@ export function renderComparison(document, comparison) {
   const structural = section('structural', 'Structural and adherence changes');
   if (compatible) {
     structural.append(
-      pairs([
-        ['Automatic-pass delta', delta(deltas.scenarioAutomaticPasses)],
-        ['Authoring success delta', delta(deltas.authoringSuccesses)],
-        ['Generation success delta', delta(deltas.generationSuccesses)],
-      ]),
+      pairs(
+        [
+          ['Automatic-pass delta', delta(deltas.scenarioAutomaticPasses)],
+          ['Authoring success delta', delta(deltas.authoringSuccesses)],
+          ['Generation success delta', delta(deltas.generationSuccesses)],
+        ],
+        'kpis',
+      ),
     );
     const failures = Object.entries(comparison.checkFailureDeltas ?? {});
     structural.append(
@@ -310,19 +329,23 @@ export function renderComparison(document, comparison) {
         ? table(
             ['Check', 'Failure delta'],
             failures.map(([key, value]) => [key, delta(value)]),
+            'numbers',
           )
         : node('p', 'No automatic check failures in either run.'),
     );
   } else structural.append(node('p', 'Structural deltas are unavailable for incompatible runs.'));
   const hebrew = section('hebrew', 'Hebrew quality');
   if (compatible && comparison.hebrewFindingsComparable) {
-    hebrew.append(pairs([['Generated Hebrew issue delta', delta(deltas.generatedHebrewIssues)]]));
+    hebrew.append(
+      pairs([['Generated Hebrew issue delta', delta(deltas.generatedHebrewIssues)]], 'kpis'),
+    );
     const kinds = Object.entries(comparison.hebrewKindDeltas ?? {});
     hebrew.append(
       kinds.length
         ? table(
             ['Issue kind', 'Issue delta'],
             kinds.map(([key, value]) => [key, delta(value)]),
+            'numbers',
           )
         : node('p', 'No Hebrew findings in either run.'),
     );
@@ -339,9 +362,15 @@ export function renderComparison(document, comparison) {
       [
         [
           'Average latency (ms)',
-          number(before.averageLatencyMilliseconds),
-          number(after.averageLatencyMilliseconds),
-          delta(deltas.averageLatencyMilliseconds, compatible),
+          ...[
+            before.averageLatencyMilliseconds,
+            after.averageLatencyMilliseconds,
+            deltas.averageLatencyMilliseconds,
+          ].map((value, column) => {
+            // Whole milliseconds; finer digits are measurement noise.
+            const rounded = value == null ? value : Math.round(value);
+            return column === 2 ? delta(rounded, compatible) : number(rounded);
+          }),
         ],
         ...[
           ['inputTokens', 'Input tokens'],
@@ -360,6 +389,7 @@ export function renderComparison(document, comparison) {
           delta(deltas.costCredits, compatible),
         ],
       ],
+      'numbers',
     ),
   );
   performance.append(
@@ -380,6 +410,7 @@ export function renderComparison(document, comparison) {
           compatible && comparison.humanReviewComparable?.[key] === true,
         ),
       ]),
+      'numbers',
     ),
   );
   human.append(
@@ -663,6 +694,7 @@ export function createDashboard(document, fetchRequest = globalThis.fetch.bind(g
     get('run-estimate').replaceChildren(
       pairs([
         ['Configured model', state.setup?.profile.Model],
+        ['Pause between calls (seconds)', callDelaySeconds],
         ['Selected cases', count],
         ['Repeats', Number.isInteger(repeat) ? repeat : 'Invalid'],
         ['Template + task calls', count * repeat * 2],
@@ -670,7 +702,6 @@ export function createDashboard(document, fetchRequest = globalThis.fetch.bind(g
         ['Calibration calls (once per run)', calibrationCount],
         ['Base calls (without retries)', planned],
         ['Maximum application calls including retries', Math.min(maxCalls, planned * 4)],
-        ['Pause between calls (seconds)', callDelaySeconds],
       ]),
       gauge(planned, maxCalls, 'Planned calls within max calls', planned > maxCalls ? 'over' : ''),
     );
@@ -1149,14 +1180,10 @@ export function createDashboard(document, fetchRequest = globalThis.fetch.bind(g
           passed === true ? 'hint' : 'notice warning',
         ),
       );
-      for (const sample of report.calibration ?? []) {
-        const entry = node('section');
-        entry.append(
-          node('h4', `${sample.sample.id} · ${sample.passed ? 'Passed' : 'Failed / unfinished'}`),
+      for (const sample of report.calibration ?? [])
+        calibrationDetails.append(
+          raw(`${sample.sample.id} · ${sample.passed ? 'passed' : 'failed / unfinished'}`, sample),
         );
-        entry.append(raw('Calibration request, findings and call', sample));
-        calibrationDetails.append(entry);
-      }
       target.append(calibrationDetails);
     }
     const results = report.results ?? [];
@@ -1169,7 +1196,11 @@ export function createDashboard(document, fetchRequest = globalThis.fetch.bind(g
       results.forEach((evaluation, position) => {
         const link = node('a');
         link.href = `#result-${position}`;
-        link.append(node('strong', resultName(evaluation)), resultChips(evaluation, position));
+        const name = node('span', null, 'result-name');
+        const caseName = node('strong', evaluation.caseId);
+        caseName.title = evaluation.caseId;
+        name.append(caseName, node('span', `Repetition ${evaluation.repetition}`, 'hint'));
+        link.append(name, resultChips(evaluation, position));
         const item = node('li');
         item.append(link);
         list.append(item);
@@ -1184,11 +1215,11 @@ export function createDashboard(document, fetchRequest = globalThis.fetch.bind(g
       header.append(node('h3', resultName(evaluation)), resultChips(evaluation, position));
       card.append(header);
       const selected = report.cases.find((item) => item.id === evaluation.caseId);
-      if (selected) card.append(content('p', selected.reviewFocus));
+      if (selected) card.append(block('Review focus', content('p', selected.reviewFocus)));
       const steps = stages.map(([name, key]) => [name, evaluation[key]]);
       const stageGrid = node('div', null, 'stage-grid');
       stageGrid.append(...steps.map(([name, step]) => renderStep(name, step)));
-      card.append(stageGrid);
+      card.append(block('Stages', stageGrid));
 
       const checks = Object.entries(evaluation.checks ?? {});
       const checkList = node('ul', null, 'chips');
@@ -1258,7 +1289,7 @@ export function createDashboard(document, fetchRequest = globalThis.fetch.bind(g
           const details = node('details');
           details.append(
             node('summary', `${name} · request / output JSON`),
-            raw('Request messages', step.request),
+            raw('Request messages', transcript(step.request)),
             raw('Retained output', step.output),
             raw('Whitelisted call diagnostics', { ...step, request: undefined, output: undefined }),
           );
