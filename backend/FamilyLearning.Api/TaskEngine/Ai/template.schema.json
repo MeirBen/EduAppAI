@@ -128,34 +128,53 @@
           "description": "Exact key of the integer parameter controlling question count, bounded within 1-20. It must have required=true or a valid non-null default so its value always resolves. Null for a fixed count."
         },
         "contentWordCount": {
-          "type": [
-            "object",
-            "null"
-          ],
-          "description": "Fixed total word limits for text bodies in space-delimited languages, across all contentBlocks. Exclude the task title, learner directions, questions and choices. Use only for an explicitly requested total length; otherwise null. Bounds are inclusive: use at least one; min must not exceed max; equal bounds mean an exact count. Never infer limits from age or difficulty. Variable or per-passage limits stay in instructions.",
-          "properties": {
-            "min": {
-              "type": [
-                "integer",
-                "null"
-              ],
-              "minimum": 0,
-              "maximum": 4000
+          "description": "Fixed total word limits for text bodies in space-delimited languages, across all contentBlocks. Exclude the task title, learner directions, questions and choices. Copy explicitly requested total limits into numeric bounds; otherwise set this whole field to null. Bounds are inclusive; min must not exceed max; equal bounds mean an exact count. Never infer limits from age or difficulty. Variable or per-passage limits stay in instructions.",
+          "anyOf": [
+            {
+              "type": "null"
             },
-            "max": {
-              "type": [
-                "integer",
-                "null"
+            {
+              "type": "object",
+              "properties": {
+                "min": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 4000
+                },
+                "max": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ],
+                  "minimum": 0,
+                  "maximum": 4000
+                }
+              },
+              "required": [
+                "min",
+                "max"
               ],
-              "minimum": 0,
-              "maximum": 4000
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "min": {
+                  "type": "null"
+                },
+                "max": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 4000
+                }
+              },
+              "required": [
+                "min",
+                "max"
+              ],
+              "additionalProperties": false
             }
-          },
-          "required": [
-            "min",
-            "max"
-          ],
-          "additionalProperties": false
+          ]
         }
       },
       "required": [
