@@ -163,14 +163,13 @@ export function aiTemplateDefinition(draft: AiBlueprintDraft): TemplateDefinitio
     generation: {
       instructions: draft.instructions,
       questionCountParameter: draft.questionCountParameter || null,
-      ...(draft.minContentWords !== '' || draft.maxContentWords !== ''
-        ? {
-            contentWordCount: {
+      contentWordCount:
+        draft.minContentWords === '' && draft.maxContentWords === ''
+          ? undefined
+          : {
               min: draft.minContentWords === '' ? null : Number(draft.minContentWords),
               max: draft.maxContentWords === '' ? null : Number(draft.maxContentWords),
             },
-          }
-        : {}),
     },
     instanceParameters: draft.parameters.map(parameterDefinition),
   };

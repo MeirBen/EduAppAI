@@ -39,12 +39,16 @@ public sealed class CalibrationTests
         Assert.Equal(missing == 0, result.Passed);
     }
 
-    [Fact]
-    public async Task Ant_control_accepts_a_correction_that_preserves_the_attached_prefix()
+    [Theory]
+    [InlineData("reported-ants-defects", "task.questions[1].prompt", "שהנמלות", "שהנמלים")]
+    [InlineData("controlled-syntax-and-language", "task.questions[0].options[0]", ": נאמנים לבעליהם", "נאמנים לבעליהם")]
+    [InlineData("controlled-syntax-and-language", "task.questions[0].options[0]", ": נאמנים", "נאמנים")]
+    public async Task Controls_accept_minimal_corrections_preserving_meaningful_text(
+        string id, string path, string quote, string suggestion)
     {
         var controls = await EvaluationFiles.LoadFixtureAsync<CalibrationSample>("hebrew-review-samples.json");
-        var sample = Assert.Single(controls.Items, sample => sample.Id == "reported-ants-defects");
-        var issue = Issue("task.questions[1].prompt", "שהנמלות") with { Suggestion = "שהנמלים" };
+        var sample = Assert.Single(controls.Items, sample => sample.Id == id);
+        var issue = Issue(path, quote) with { Suggestion = suggestion };
 
         Assert.Contains(sample.ExpectedIssues, expected => expected.Matches(issue));
     }

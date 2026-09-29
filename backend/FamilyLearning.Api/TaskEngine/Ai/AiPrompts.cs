@@ -3,8 +3,8 @@ namespace FamilyLearning.Api.TaskEngine.Ai;
 /// <summary>Application-owned instructions; bump versions when behavior changes.</summary>
 internal static class AiPrompts
 {
-    public const string AuthoringVersion = "template-authoring-v13";
-    public const string InstanceVersion = "instance-generation-v14";
+    public const string AuthoringVersion = "template-authoring-v14";
+    public const string InstanceVersion = "instance-generation-v15";
 
     private const string LanguageQuality = """
         Use natural, grammatical language suited to the audience and the language requested for each part; default to Hebrew.
@@ -23,9 +23,10 @@ internal static class AiPrompts
         Respect explicit language, register and vowel-pointing requests over these style defaults.
         Keep schema identifiers and parameter values unchanged; preserve requested verbatim text and deliberate language exercises.
 
-        The app numbers questions and lists choices. Do not prescribe or add decorative numbers or labels such as A-D, א-ד or 1-4.
+        The app numbers questions and lists choices. Return question and option text without added list prefixes:
+        no decorative letters, numbers, bullets or separators, including a leading ": ". Do not prescribe them in templates.
         Refer to choices by their answer text, not invented letters or positions.
-        Preserve letters and numbers that are themselves answers, requested verbatim text or essential learning content.
+        Preserve symbols, letters and numbers that are themselves answers, requested verbatim text or essential learning content.
         """;
 
     public const string Authoring = """

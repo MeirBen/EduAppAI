@@ -10,14 +10,12 @@ export function apiError(error: unknown): string {
   if (error.status === 404) return 'הפריט המבוקש לא נמצא.';
   if (error.status === 409) return 'התבנית השתנתה. יש לרענן את העמוד לפני שמירת גרסה נוספת.';
   if (error.status === 429) return 'הגעתם למגבלת הבקשות. יש לנסות שוב מאוחר יותר.';
-  const problem: unknown = error.error;
+  const body: unknown = error.error;
+  const problem = body && typeof body === 'object' ? body : {};
+  const type = 'type' in problem ? problem.type : null;
+  const aiValidation = error.status === 502 && type === 'urn:family-learning:ai-validation';
   if (
-    problem &&
-    typeof problem === 'object' &&
-    (error.status < 500 ||
-      (error.status === 502 &&
-        'type' in problem &&
-        problem.type === 'urn:family-learning:ai-validation')) &&
+    (error.status < 500 || aiValidation) &&
     'errors' in problem &&
     problem.errors &&
     typeof problem.errors === 'object'
@@ -26,15 +24,10 @@ export function apiError(error: unknown): string {
       .flat()
       .filter((value): value is string => typeof value === 'string');
     if (messages.length)
-      return messages.join(' ') + (error.status === 502 ? ' לא נשמר דבר. אפשר לנסות שוב.' : '');
+      return messages.join(' ') + (aiValidation ? ' לא נשמר דבר. אפשר לנסות שוב.' : '');
   }
   if (error.status === 502) {
-    if (
-      problem &&
-      typeof problem === 'object' &&
-      'type' in problem &&
-      problem.type === 'urn:family-learning:ai-output-limit'
-    )
+    if (type === 'urn:family-learning:ai-output-limit')
       return 'המודל הגיע למגבלת הפלט לפני שהשלים את התוכן. לא נשמר דבר. אפשר לנסות שוב.';
     return 'שירות ה־AI לא החזיר תוכן תקין. לא נשמר דבר. אפשר לנסות שוב או לדייק את ההנחיות.';
   }

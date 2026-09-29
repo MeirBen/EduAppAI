@@ -318,6 +318,7 @@ test('rejected stages show field validation errors as text and retain them in th
         ...completedReport.results[0],
         authoring: {
           ...completedReport.results[0].authoring,
+          failure: 'urn:family-learning:ai-validation',
           validationErrors: { 'generation.questionCountParameter': [message] },
         },
       },
@@ -336,9 +337,13 @@ test('rejected stages show field validation errors as text and retain them in th
     );
     assert.ok(stage.textContent.includes('generation.questionCountParameter'));
     assert.ok(stage.textContent.includes(message));
+    assert.ok(!stage.textContent.includes('urn:family-learning:ai-validation'));
     assert.equal(stage.querySelectorAll('img, script').length, 0);
     assert.match(ui.reportBrief('run-1', report, runSummary), /validationErrors/);
     assert.ok(ui.reportBrief('run-1', report, runSummary).includes(JSON.stringify(message)));
+    assert.ok(
+      ui.reportBrief('run-1', report, runSummary).includes('urn:family-learning:ai-validation'),
+    );
   } finally {
     app.dashboard.dispose();
     app.dom.window.close();

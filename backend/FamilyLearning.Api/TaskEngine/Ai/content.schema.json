@@ -69,7 +69,7 @@
                 ]
               },
               "options": {
-                "description": "Distinct, trimmed, single-line answer texts for single-choice questions, without decorative labels; null for other interaction types.",
+                "description": "Distinct, trimmed, single-line answer texts for single-choice questions, without added list prefixes or separators; null for other interaction types. Preserve symbols that are part of the answer itself.",
                 "type": [
                   "array",
                   "null"

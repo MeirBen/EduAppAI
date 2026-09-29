@@ -227,10 +227,8 @@ Interpret the results separately:
 - **Automatic checks:** contracts, defaults, parameter references, question/choice
   counts and interaction types. A bound question count must be required or have
   a valid default. Declared template word limits are enforced before saving;
-  rejected output remains available with measured field errors and is not retried.
-  Evaluation also checks requested passage length, using whitespace
-  word counts and the case's bounds. An exact standalone task title at the start
-  of the first block is excluded; other headings count. A zero maximum checks for
+  evaluation checks case bounds with the same [word-count rules](docs/product-specification.md#contracts).
+  A zero maximum checks for
   no passage blocks. Counts do not establish source fidelity; review verbatim
   passages manually. `parameterReferences` checks for complete, case-sensitive
   ASCII identifiers, not correct usage or complete instructions. Failed checks
@@ -252,7 +250,8 @@ Interpret the results separately:
 
 The stateless judge uses the same model. Its [controls](tools/FamilyLearning.Evaluation/hebrew-review-samples.json)
 cover template/task defects and clean text, including accepted grammatical variants,
-intentional errors and mixed languages. Preserve planted defects when editing;
+stray answer prefixes, meaningful punctuation, intentional errors and mixed languages.
+Preserve planted defects when editing;
 expected findings are never sent to the judge. Finding paths must identify supplied
 fields, quotations must match the source, and kinds must be supported.
 Expected defects match whole tokens or short containing phrases; corrections must

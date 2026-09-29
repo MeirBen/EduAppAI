@@ -1041,7 +1041,7 @@ export function createDashboard(document, fetchRequest = globalThis.fetch.bind(g
         ['Reported cost', number(step?.costCredits, ' credits')],
       ]),
     );
-    if (step?.failure) section.append(node('p', step.failure, 'fail'));
+    if (step?.failure && !step.validationErrors) section.append(node('p', step.failure, 'fail'));
     if (step?.validationErrors)
       section.append(
         block(
