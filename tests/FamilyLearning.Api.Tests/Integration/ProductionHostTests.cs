@@ -38,6 +38,9 @@ public sealed class ProductionHostTests
 
         using var csrf = await client.GetAsync("/api/auth/csrf");
         Assert.True(csrf.Headers.Contains(HeaderNames.StrictTransportSecurity));
+        Assert.True(csrf.Headers.CacheControl?.NoCache);
+        Assert.True(csrf.Headers.CacheControl?.NoStore);
+        Assert.Contains(csrf.Headers.Pragma, value => value.Name == "no-cache");
         var cookies = SetCookieHeaderValue.ParseList(csrf.Headers.GetValues(HeaderNames.SetCookie).ToArray());
         Assert.All(cookies, cookie => Assert.True(cookie.Secure));
         Assert.True(Assert.Single(cookies, cookie => cookie.Name == "FamilyLearning.Csrf").HttpOnly);
@@ -60,6 +63,7 @@ public sealed class ProductionHostTests
 
         using var session = await client.GetAsync("/api/auth/me");
         Assert.Equal(HttpStatusCode.OK, session.StatusCode);
+        Assert.True(session.Headers.CacheControl?.NoCache);
         Assert.True(session.Headers.CacheControl?.NoStore);
         client.DefaultRequestHeaders.Remove("X-XSRF-TOKEN");
         Assert.Equal(HttpStatusCode.BadRequest, (await client.PostAsync("/api/auth/logout", null)).StatusCode);

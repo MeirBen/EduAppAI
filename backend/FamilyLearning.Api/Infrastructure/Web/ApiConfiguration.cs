@@ -42,7 +42,8 @@ public static class ApiConfiguration
         var api = app.MapGroup("/api").RequireAuthorization("Parent").AddEndpointFilter<CsrfFilter>();
         api.AddEndpointFilter(async (context, next) =>
         {
-            context.HttpContext.Response.Headers.CacheControl = "no-store";
+            // Match antiforgery's cache policy so token issuance does not need to override it.
+            context.HttpContext.Response.Headers.CacheControl = "no-cache, no-store";
             try { return await next(context); }
             catch (AiGenerationException exception)
             { return Results.Problem(statusCode: exception.StatusCode, title: exception.Message, type: exception.ProblemType); }
