@@ -78,9 +78,16 @@ test('a parent prompt becomes an editable reusable template and distinct frozen 
   await page.getByLabel('שם התבנית', { exact: true }).fill('קוראים ומגלים');
   const parameter = page.locator('[data-parameter-editor]').first();
   await parameter.getByLabel('שם השדה להורה').fill('מה נחקור?');
+  const countParameter = page.locator('[data-parameter-editor]').nth(2);
+  await expect(countParameter.getByLabel('מפתח בהנחיות')).toHaveValue('count');
+  await countParameter.getByLabel('שדה חובה').uncheck();
   await checkNarrowLayout(page, 'ai-template-review');
   const template = await saveTemplate(page);
   expect(template.definition.schemaVersion).toBe(2);
+  expect(
+    template.definition.instanceParameters.find((field: { key: string }) => field.key === 'count')
+      .required,
+  ).toBe(false);
   expect(template.definition.generation.instructions).toBe(instructions);
   await expect(page.getByLabel('מה נחקור?', { exact: true })).toHaveValue('דינוזאורים');
   await checkNarrowLayout(page, 'create-instance');
@@ -89,6 +96,7 @@ test('a parent prompt becomes an editable reusable template and distinct frozen 
     path: '../artifacts/create-instance-desktop.png',
     fullPage: true,
   });
+  await page.getByLabel('מספר שאלות').fill('');
   await generateTask(page);
   const originalUrl = page.url();
   const originalQuestions = await page.locator('.question-prompt').allTextContents();
@@ -105,7 +113,7 @@ test('a parent prompt becomes an editable reusable template and distinct frozen 
   const secondTheme = 'חלל' + 'A'.repeat(80);
   await page.getByLabel('מה נחקור?', { exact: true }).fill(secondTheme);
   await page.getByLabel('רמה', { exact: true }).selectOption('מאתגרת');
-  await page.getByLabel('מספר שאלות', { exact: true }).fill('3');
+  await page.getByLabel('מספר שאלות').fill('3');
   await generateTask(page);
   await expect(
     page.getByRole('heading', { name: `לומדים על ${secondTheme}`, exact: true }),

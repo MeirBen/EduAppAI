@@ -13,13 +13,14 @@ public sealed record HebrewReview(HebrewIssue[] Issues);
 /// <summary>Advisory, stateless proofreading. It neither rewrites content nor decides educational correctness.</summary>
 public static class HebrewJudge
 {
-    public const string Version = "hebrew-review-v4";
+    public const string Version = "hebrew-review-v5";
     private const string Prompt = """
         Review the supplied educational text for concrete Hebrew language defects only: misspellings,
         invented words, noun/adjective or subject/verb disagreement, number/gender disagreement,
         malformed sentences, clearly non-idiomatic Hebrew and unintended language mixing.
         Use contemporary standard Hebrew unless the learning request specifies another register.
         Optional stylistic rewrites, tone preferences and verbosity preferences are not defects.
+        Accept standard grammatical variants; a preferred formulation is not necessarily the only correct one.
         Use the parent's request to distinguish actual defects from intentional learning material:
         wrong answer choices in grammar exercises, quoted mistakes, requested English, names,
         vowel points, technical identifiers and source text requested verbatim are not defects.

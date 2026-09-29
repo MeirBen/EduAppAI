@@ -44,9 +44,11 @@ Parameters support text, integer, select and boolean values. Keys are unique,
 case-sensitive Latin identifiers; labels and learning content may use any
 language. Required values, defaults, bounds and options are validated on the
 server. Preserve scalar types, including `false`, zero and explicit empty
-optional-text defaults. An optional `questionCountParameter` binds to a required
-integer field bounded within 1–20; generation must return that exact count. No
-key has subject-specific meaning.
+optional-text defaults. Defaults resolve omitted values regardless of `required`;
+`required` rejects omission without a default and blank text. An optional
+`questionCountParameter` binds to an integer field bounded within 1–20 that is
+required or has a valid default, so generation always receives and returns the
+exact count. No key has subject-specific meaning.
 
 Supported task content is plain text with short-text, numeric or single-choice
 questions. Each question has an ID, prompt, answer and integer points. Numeric

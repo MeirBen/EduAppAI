@@ -19,7 +19,7 @@ public sealed record TaskTemplateDefinition(
 /// <param name="Key">Case-sensitive identifier used in submitted and stored parameter dictionaries.</param>
 /// <param name="Label">Human-readable field label.</param>
 /// <param name="Type">One of text, integer, select or boolean.</param>
-/// <param name="Required">Whether omission is invalid when no default exists.</param>
+/// <param name="Required">Rejects omission without a default and blank text. Defaults apply regardless of this flag.</param>
 /// <param name="Default">Value used only when the submitted dictionary omits the key.</param>
 /// <param name="Min">Inclusive lower bound for integers; null leaves it unbounded.</param>
 /// <param name="Max">Inclusive upper bound for integers; null leaves it unbounded.</param>

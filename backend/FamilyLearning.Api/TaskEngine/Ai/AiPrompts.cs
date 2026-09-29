@@ -3,7 +3,7 @@ namespace FamilyLearning.Api.TaskEngine.Ai;
 /// <summary>Application-owned instructions; bump versions when behavior changes.</summary>
 internal static class AiPrompts
 {
-    public const string AuthoringVersion = "template-authoring-v11";
+    public const string AuthoringVersion = "template-authoring-v12";
     public const string InstanceVersion = "instance-generation-v13";
 
     private const string LanguageQuality = """
@@ -45,11 +45,13 @@ internal static class AiPrompts
         Keep variable defaults and bounds in field definitions, not duplicated in prose.
         When explaining how select choices change the task, quote their exact option values; do not paraphrase those values.
         Preserve requested defaults, including false, zero and empty optional text. Otherwise choose a suitable scalar default,
-        or null when the choice should remain unset. Mark a field required when generation needs its value;
-        a required field without a default must be filled by the parent. Explain omitted/empty optional inputs.
+        or null when the choice should remain unset. Defaults apply to omitted values regardless of required.
+        Use required=true when omission without a default must block generation; required text also rejects blank values.
+        Explain omitted/empty optional inputs.
         Use null for irrelevant settings. Bounds are inclusive. Select options must be distinct, trimmed and single-line;
         a non-null select default must match an option exactly.
-        For variable question count, bind questionCountParameter to a required integer field bounded within 1-20.
+        For variable question count, bind questionCountParameter to an integer field bounded within 1-20;
+        it must have required=true or a valid non-null default so the count always resolves.
         Otherwise use null and state a fixed count of 1-20 in instructions.
         Tasks support text passages and numeric-input, text-input or single-choice questions with integer points.
         Text answers must be short and objectively checkable; choice questions support 2-6 options.

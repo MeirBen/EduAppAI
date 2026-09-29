@@ -35,8 +35,9 @@ public sealed class AiGenerationService(IEnumerable<IChatClient> clients, ILogge
     {
         var result = await RequestAsync<TaskTemplateDefinition>(AiPrompts.Authoring, prompt, AiSchemas.Template,
             AiPrompts.AuthoringVersion, ct);
-        if (TemplateValidator.Validate(result.Value).Count > 0)
-            throw InvalidOutput("template-validation", AiPrompts.AuthoringVersion);
+        var errors = TemplateValidator.Validate(result.Value);
+        if (errors.Count > 0)
+            throw InvalidOutput("template-validation", AiPrompts.AuthoringVersion, errors);
         return result;
     }
 
@@ -47,9 +48,11 @@ public sealed class AiGenerationService(IEnumerable<IChatClient> clients, ILogge
         int? expectedCount = definition.Generation.QuestionCountParameter is { } key ? parameters[key].GetInt32() : null;
         var input = JsonSerializer.Serialize(new { definition, parameters, expectedQuestionCount = expectedCount }, Json);
         var result = await RequestAsync<TaskContent>(AiPrompts.Instance, input, AiSchemas.Content, AiPrompts.InstanceVersion, ct);
-        if (TaskContentValidator.Validate(result.Value).Count > 0 ||
-            (expectedCount.HasValue && result.Value.Questions.Length != expectedCount.Value))
-            throw InvalidOutput("task-validation", AiPrompts.InstanceVersion);
+        var errors = TaskContentValidator.Validate(result.Value);
+        if (expectedCount.HasValue && result.Value.Questions is { } questions && questions.Length != expectedCount.Value)
+            errors["questions"] = ["מספר השאלות שנוצרו אינו תואם למספר שנבחר."];
+        if (errors.Count > 0)
+            throw InvalidOutput("task-validation", AiPrompts.InstanceVersion, errors);
         return result;
     }
 
@@ -115,10 +118,11 @@ public sealed class AiGenerationService(IEnumerable<IChatClient> clients, ILogge
         finally { capacity.Release(); }
     }
 
-    private AiGenerationException InvalidOutput(string failure, string promptVersion)
+    private AiGenerationException InvalidOutput(string failure, string promptVersion,
+        IReadOnlyDictionary<string, string[]>? errors = null)
     {
         logger.LogWarning("AI output rejected: {Failure}, prompt version {PromptVersion}", failure, promptVersion);
-        return failure == "output-limit" ? AiGenerationException.OutputLimit() : AiGenerationException.InvalidOutput();
+        return failure == "output-limit" ? AiGenerationException.OutputLimit() : AiGenerationException.InvalidOutput(errors);
     }
 
     public void Dispose() => capacity.Dispose();

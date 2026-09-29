@@ -213,7 +213,9 @@ Reports go to ignored `artifacts/evaluations/<run>/` or under `--output`:
   cancellation. Format 2 captures cases, controls, fixture hashes, exact judge
   prompt/schema/version when judging is enabled, nonsecret profile, engine
   messages, final and rejected outputs, actual models, generation prompt versions,
-  finish reasons and usage.
+  finish reasons and usage. Domain rejections include safe `validationErrors`
+  with field paths and messages, also shown beside the failed dashboard stage.
+  Older reports and non-validation failures have no field diagnostics.
   Secrets, raw provider errors and separate reasoning text are excluded.
 - **summary.json** separates stage outcomes, automatic check failures, calibration
   health, generated findings by kind/case, human scores, models and measurements.
@@ -226,7 +228,9 @@ Interpret the results separately:
 
 - **Code tests:** harness/app behavior with local providers, not model quality.
 - **Automatic checks:** app contracts, defaults, parameter references,
-  question/choice counts, interaction and whitespace word counts. Checks v3
+  question/choice counts, interaction and whitespace word counts. Checks v4
+  accept a bound count when required or defaulted, matching the app's parameter
+  resolution. Since v3, passage checks
   record the measured passage length and exclude an exact standalone task title
   at the start of the first block. Other headings remain included; the content
   schema does not identify them separately. Length is measured only when the case
@@ -253,8 +257,9 @@ Interpret the results separately:
   with evidence in notes.
 
 The stateless judge uses the same model. Its [controls](tools/FamilyLearning.Evaluation/hebrew-review-samples.json)
-cover template and task language defects and clean text, including intentional
-errors and mixed languages. Preserve known defects when editing these controls;
+cover template and task language defects and clean text, including accepted
+grammatical variants, intentional errors and mixed languages. Preserve known
+defects when editing these controls;
 expected findings are never sent to the judge.
 The request schema limits finding paths to the supplied fields. Server validation
 still requires exact source quotations and a supported kind;
@@ -276,8 +281,8 @@ same scored case/repetition pairs. Token/cost deltas require full measurement
 coverage. Other deltas are null
 or explicitly qualified. Only format 2 reports are supported; mismatched embedded
 controls and invalid human scores are rejected. Older reports retain their original
-checks (versions 1/2); new runs use version 3, retaining parameter-reference
-coverage and correcting passage checks. Start a new baseline for direct comparison.
+checks (versions 1–3); new runs use version 4. Start a new baseline for direct
+comparison after changing contracts or checks.
 
 Run exit codes: 0 completed automatic checks and, when enabled, calibration and
 reviews passed without findings; 1 failures/findings or stopped run; 2 invalid

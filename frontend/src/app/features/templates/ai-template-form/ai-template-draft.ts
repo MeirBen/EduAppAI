@@ -126,13 +126,15 @@ export function aiTemplateErrors(draft: AiBlueprintDraft): string[] {
     if (
       !count ||
       count.type !== 'integer' ||
-      !count.required ||
+      (!count.required && count.defaultValue === '') ||
       count.min === '' ||
       count.max === '' ||
       Number(count.min) < 1 ||
       Number(count.max) > 20
     )
-      errors.push('מספר השאלות חייב להיות מקושר לשדה מספרי נדרש עם גבולות בין 1 ל־20.');
+      errors.push(
+        'יש לקשר את מספר השאלות לשדה מספרי עם גבולות בין 1 ל־20, ולסמן אותו כחובה או להגדיר לו ברירת מחדל תקינה.',
+      );
   }
   return errors;
 }

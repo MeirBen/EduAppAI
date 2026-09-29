@@ -25,6 +25,30 @@ describe('AI blueprint editor', () => {
     expect(aiTemplateDefinition(draft).instanceParameters[1].default).toBeUndefined();
   });
 
+  it('accepts a bound count with a valid default without requiring the parent to enter it', () => {
+    const definition = structuredClone(readingDefinition);
+    definition.instanceParameters[1].required = false;
+    const draft = aiTemplateDraft(definition);
+    expect(aiTemplateErrors(draft)).toEqual([]);
+    expect(aiTemplateDefinition(draft)).toEqual(definition);
+  });
+
+  it.each(['', '0', '21', '1.5', 'four'])(
+    'rejects a bound optional count with a missing or invalid default %j',
+    (value) => {
+      const draft = aiTemplateDraft(readingDefinition);
+      draft.parameters[1].required = false;
+      draft.parameters[1].defaultValue = value;
+      expect(aiTemplateErrors(draft)).not.toEqual([]);
+    },
+  );
+
+  it('allows a bound count without a default when parent input is required', () => {
+    const draft = aiTemplateDraft(readingDefinition);
+    draft.parameters[1].defaultValue = '';
+    expect(aiTemplateErrors(draft)).toEqual([]);
+  });
+
   it('removes old type settings when a parameter changes type', () => {
     const draft = aiTemplateDraft(readingDefinition);
     const field = draft.parameters[1];

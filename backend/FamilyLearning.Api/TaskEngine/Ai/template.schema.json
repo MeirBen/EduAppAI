@@ -39,7 +39,7 @@
           },
           "required": {
             "type": "boolean",
-            "description": "Whether the parent must provide a value when no default exists."
+            "description": "True rejects omission when no default exists and rejects blank text. Defaults apply to omitted values regardless of this flag."
           },
           "default": {
             "type": [
@@ -125,7 +125,7 @@
             "null"
           ],
           "pattern": "^[a-z][a-zA-Z0-9]{0,39}$",
-          "description": "Exact key of the required integer parameter controlling question count, bounded within 1-20; null for a fixed count."
+          "description": "Exact key of the integer parameter controlling question count, bounded within 1-20. It must have required=true or a valid non-null default so its value always resolves. Null for a fixed count."
         }
       },
       "required": [

@@ -11,18 +11,23 @@ namespace FamilyLearning.Api.Tests.Integration;
 
 public sealed class AiAuthoringTests
 {
-    [Fact]
-    public async Task Prompt_creates_only_a_draft_then_one_template_generates_distinct_frozen_instances()
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task Prompt_creates_only_a_draft_then_one_template_generates_distinct_frozen_instances(bool countRequired)
     {
-        var chat = new ScriptedChat(Definition().ToJsonString(), Content().ToJsonString(), Content("חלל", 3).ToJsonString());
+        var proposal = Definition();
+        proposal["instanceParameters"]![1]!["required"] = countRequired;
+        var chat = new ScriptedChat(proposal.ToJsonString(), Content().ToJsonString(), Content("חלל", 3).ToJsonString());
         using var app = new ApiFactory(services => services.AddSingleton<IChatClient>(chat));
         using var parent = await app.ParentAsync();
         using var draftResponse = await parent.PostAsJsonAsync("/api/ai/template-drafts", new { prompt = "תבנית הבנת הנקרא עם נושא ומספר שאלות לבחירה" });
         Assert.Equal(HttpStatusCode.OK, draftResponse.StatusCode);
         var draft = await draftResponse.Content.ReadFromJsonAsync<JsonElement>();
-        Assert.Equal("template-authoring-v11", draft.GetProperty("generationMetadata").GetProperty("promptVersion").GetString());
+        Assert.Equal("template-authoring-v12", draft.GetProperty("generationMetadata").GetProperty("promptVersion").GetString());
         Assert.Equal(0, (await parent.GetFromJsonAsync<JsonElement>("/api/templates")).GetArrayLength());
         var definition = draft.GetProperty("definition");
+        Assert.Equal(countRequired, definition.GetProperty("instanceParameters")[1].GetProperty("required").GetBoolean());
         Assert.False(string.IsNullOrWhiteSpace(definition.GetProperty("generation").GetProperty("instructions").GetString()));
         using var save = await parent.PostAsJsonAsync("/api/templates", definition);
         Assert.Equal(HttpStatusCode.Created, save.StatusCode);

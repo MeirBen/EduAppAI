@@ -55,4 +55,74 @@ public sealed class ParameterValidationTests
 
         Assert.Contains("instanceParameters[0]", TemplateValidator.Validate(definition).Keys);
     }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Bound_count_with_a_valid_default_resolves_omission_and_preserves_explicit_values(bool required)
+    {
+        var field = new ParameterDefinition("items", "Items", "integer", required,
+            JsonSerializer.SerializeToElement(4), Min: 3, Max: 6);
+        var definition = new TaskTemplateDefinition(2, "Practice", [field], new("Use items.", "items"));
+
+        Assert.Empty(TemplateValidator.Validate(definition));
+        var defaults = ParameterValidator.Validate(definition.InstanceParameters, new Dictionary<string, JsonElement>());
+        Assert.Empty(defaults.Errors);
+        Assert.Equal(4, defaults.Values["items"].GetInt32());
+        var supplied = ParameterValidator.Validate(definition.InstanceParameters,
+            new Dictionary<string, JsonElement> { ["items"] = JsonSerializer.SerializeToElement(6) });
+        Assert.Empty(supplied.Errors);
+        Assert.Equal(6, supplied.Values["items"].GetInt32());
+        Assert.Equal(field, Assert.Single(definition.InstanceParameters));
+        var explicitNull = ParameterValidator.Validate(definition.InstanceParameters,
+            new Dictionary<string, JsonElement> { ["items"] = JsonSerializer.SerializeToElement<object?>(null) });
+        Assert.Contains("items", explicitNull.Errors.Keys);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Bound_count_without_a_default_must_require_parent_input(bool required)
+    {
+        var definition = new TaskTemplateDefinition(2, "Practice",
+            [new("items", "Items", "integer", required, Min: 1, Max: 20)], new("Use items.", "items"));
+
+        Assert.Equal(!required, TemplateValidator.Validate(definition).ContainsKey("generation.questionCountParameter"));
+        var missing = ParameterValidator.Validate(definition.InstanceParameters, new Dictionary<string, JsonElement>());
+        Assert.Equal(required, missing.Errors.ContainsKey("items"));
+        var supplied = ParameterValidator.Validate(definition.InstanceParameters,
+            new Dictionary<string, JsonElement> { ["items"] = JsonSerializer.SerializeToElement(1) });
+        Assert.Empty(supplied.Errors);
+    }
+
+    [Theory]
+    [InlineData("0")]
+    [InlineData("21")]
+    [InlineData("1.5")]
+    [InlineData("\"4\"")]
+    [InlineData("null")]
+    public void Bound_count_never_accepts_an_invalid_default(string value)
+    {
+        var definition = new TaskTemplateDefinition(2, "Practice",
+            [new("items", "Items", "integer", Default: JsonSerializer.Deserialize<JsonElement>(value), Min: 1, Max: 20)],
+            new("Use items.", "items"));
+
+        Assert.Contains("instanceParameters[0]", TemplateValidator.Validate(definition).Keys);
+    }
+
+    [Theory]
+    [InlineData("missing", "integer", 1, 20)]
+    [InlineData("items", "text", 1, 20)]
+    [InlineData("items", "integer", null, 20)]
+    [InlineData("items", "integer", 1, null)]
+    [InlineData("items", "integer", 0, 20)]
+    [InlineData("items", "integer", 1, 21)]
+    public void Bound_count_still_requires_an_existing_bounded_integer(string binding, string type, int? min, int? max)
+    {
+        var definition = new TaskTemplateDefinition(2, "Practice",
+            [new("items", "Items", type, Default: JsonSerializer.SerializeToElement(4), Min: min, Max: max)],
+            new("Use items.", binding));
+
+        Assert.Contains("generation.questionCountParameter", TemplateValidator.Validate(definition).Keys);
+    }
 }

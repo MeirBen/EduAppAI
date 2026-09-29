@@ -55,6 +55,37 @@ public sealed class EvaluationTests : IDisposable
         Assert.Single(chat.Requests);
     }
 
+    [Theory]
+    [InlineData("authoring", "generation.questionCountParameter")]
+    [InlineData("generation", "questions[0]")]
+    [InlineData("wrong-count", "questions")]
+    [InlineData("null-questions", "questions")]
+    public async Task Domain_rejections_retain_safe_field_errors_in_saved_reports(string stage, string field)
+    {
+        var definition = AiFixtures.Definition();
+        var content = AiFixtures.Content();
+        if (stage == "authoring") definition["generation"]!["questionCountParameter"] = "private-unknown-binding";
+        if (stage == "generation") content["questions"]![0]!["answer"]!["value"] = "";
+        if (stage == "wrong-count") content = AiFixtures.Content(count: 1);
+        if (stage == "null-questions") content["questions"] = null;
+        using var chat = new AiFixtures.ScriptedChat(definition.ToJsonString(), content.ToJsonString());
+        await RunAsync(chat);
+
+        var saved = await EvaluationFiles.ReadReportAsync(Path.Combine(directory, "run.json"));
+        var result = Assert.Single(saved.Results);
+        var step = stage == "authoring" ? result.Authoring! : result.Generation!;
+        Assert.False(step.ContractValid);
+        Assert.Equal(502, step.StatusCode);
+        var diagnostics = JsonSerializer.SerializeToElement(step, new JsonSerializerOptions(JsonSerializerDefaults.Web));
+        Assert.True(diagnostics.TryGetProperty("validationErrors", out var errors));
+        Assert.Equal(JsonValueKind.Object, errors.ValueKind);
+        Assert.True(errors.TryGetProperty(field, out var messages));
+        Assert.NotEmpty(messages[0].GetString()!);
+        Assert.DoesNotContain("private-unknown-binding", errors.GetRawText());
+        Assert.Equal(stage == "authoring" ? 1 : 2, chat.Requests.Count);
+        Assert.Empty(saved.Retries);
+    }
+
     [Fact]
     public async Task Measures_adherence_separately_from_contract_validity()
     {
@@ -187,6 +218,7 @@ public sealed class EvaluationTests : IDisposable
     [Theory]
     [InlineData(null)]
     [InlineData(2)]
+    [InlineData(3)]
     public async Task New_checks_do_not_make_legacy_automatic_scores_directly_comparable(int? oldVersion)
     {
         using var chat = new AiFixtures.ScriptedChat(AiFixtures.Definition().ToJsonString(), AiFixtures.Content().ToJsonString());

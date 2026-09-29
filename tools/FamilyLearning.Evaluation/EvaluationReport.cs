@@ -106,6 +106,8 @@ public sealed class EvaluationStep
     /// <summary>Sanitized Retry-After seconds, when supplied by the provider; no raw headers are retained.</summary>
     public double? RetryAfterSeconds { get; set; }
     public string? Failure { get; set; }
+    /// <summary>Safe field errors from the application validator; null for other failures and older reports.</summary>
+    public IReadOnlyDictionary<string, string[]>? ValidationErrors { get; set; }
 }
 
 public sealed record EvaluationMessage(string Role, string Text);

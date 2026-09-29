@@ -37,9 +37,13 @@ public static partial class TemplateValidator
         }
 
         var countKey = definition.Generation?.QuestionCountParameter;
-        if (countKey is not null && parameters.FirstOrDefault(p => p?.Key == countKey) is not
-            { Type: "integer", Required: true, Min: >= 1, Max: <= 20 })
-            errors["generation.questionCountParameter"] = ["יש לקשר את מספר השאלות לשדה מספרי נדרש, עם גבולות בין 1 ל־20."];
+        if (countKey is not null)
+        {
+            var count = parameters.FirstOrDefault(p => p?.Key == countKey);
+            // Resolution must always supply a count; a validated default also guarantees this for optional fields.
+            if (count is not { Type: "integer", Min: >= 1, Max: <= 20 } || (!count.Required && count.Default is null))
+                errors["generation.questionCountParameter"] = ["יש לקשר את מספר השאלות לשדה מספרי עם גבולות בין 1 ל־20, ולסמן אותו כחובה או להגדיר לו ברירת מחדל תקינה."];
+        }
         return errors;
     }
 

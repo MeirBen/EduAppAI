@@ -6,8 +6,11 @@ public sealed class AiGenerationException(int statusCode, string message, string
     public int StatusCode { get; } = statusCode;
     /// <summary>Optional stable ProblemDetails type for failures the client can distinguish safely.</summary>
     public string? ProblemType { get; } = problemType;
-    public static AiGenerationException InvalidOutput() => new(502,
-        "התוכן שהתקבל לא עבר את בדיקות התקינות. לא נשמר דבר. אפשר לנסות שוב או לדייק את ההנחיות.");
+    /// <summary>Application validator paths and fixed messages for diagnostics; never provider errors or generated values.</summary>
+    public IReadOnlyDictionary<string, string[]>? ValidationErrors { get; init; }
+    public static AiGenerationException InvalidOutput(IReadOnlyDictionary<string, string[]>? errors = null) => new(502,
+        "התוכן שהתקבל לא עבר את בדיקות התקינות. לא נשמר דבר. אפשר לנסות שוב או לדייק את ההנחיות.")
+    { ValidationErrors = errors };
     public static AiGenerationException OutputLimit() => new(502,
         "המודל הגיע למגבלת הפלט לפני שהשלים את התוכן. לא נשמר דבר. אפשר לנסות שוב.",
         "urn:family-learning:ai-output-limit");

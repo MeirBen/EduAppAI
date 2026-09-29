@@ -1043,6 +1043,15 @@ export function createDashboard(document, fetchRequest = globalThis.fetch.bind(g
       ]),
     );
     if (step?.failure) section.append(node('p', step.failure, 'fail'));
+    if (step?.validationErrors)
+      section.append(
+        block(
+          'Validation errors',
+          ...Object.entries(step.validationErrors).map(([path, messages]) =>
+            content('p', `${path}\n${messages.join('\n')}`),
+          ),
+        ),
+      );
     return section;
   }
 
@@ -1310,7 +1319,7 @@ export function createDashboard(document, fetchRequest = globalThis.fetch.bind(g
         automaticChecks.append(
           node(
             'p',
-            `Passage words: ${number(evaluation.passageWordCount)} · whitespace count across passage blocks; an exact leading task title is excluded in checks v3. Other headings remain included.`,
+            `Passage words: ${number(evaluation.passageWordCount)} · whitespace count across passage blocks; an exact leading task title is excluded since checks v3. Other headings remain included.`,
             'hint',
           ),
         );

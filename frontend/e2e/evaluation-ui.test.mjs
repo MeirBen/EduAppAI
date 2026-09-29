@@ -309,6 +309,42 @@ const runSummary = {
 /** @param {unknown} body */
 const jsonResponse = (body) => ({ ok: true, status: 200, json: async () => structuredClone(body) });
 
+test('rejected stages show field validation errors as text and retain them in the AI export', async () => {
+  const message = 'יש לבחור שדה מספרי. <img src=x onerror="alert(1)">';
+  const report = {
+    ...completedReport,
+    results: [
+      {
+        ...completedReport.results[0],
+        authoring: {
+          ...completedReport.results[0].authoring,
+          validationErrors: { 'generation.questionCountParameter': [message] },
+        },
+      },
+    ],
+  };
+  const app = mount({
+    '/api/runs': () => jsonResponse([{ id: 'run-1', summary: runSummary }]),
+    '/api/runs/run-1': () => jsonResponse({ report, summary: runSummary }),
+  });
+  try {
+    await app.dashboard.ready;
+    app.document.querySelector('#history-list button').click();
+    await nextTurn();
+    const stage = [...app.document.querySelectorAll('.stage')].find(
+      (item) => item.querySelector('h4').textContent === 'Template authoring',
+    );
+    assert.ok(stage.textContent.includes('generation.questionCountParameter'));
+    assert.ok(stage.textContent.includes(message));
+    assert.equal(stage.querySelectorAll('img, script').length, 0);
+    assert.match(ui.reportBrief('run-1', report, runSummary), /validationErrors/);
+    assert.ok(ui.reportBrief('run-1', report, runSummary).includes(JSON.stringify(message)));
+  } finally {
+    app.dashboard.dispose();
+    app.dom.window.close();
+  }
+});
+
 test('timeouts show a failure status while missing cost data stays separate from retry status', async () => {
   for (const [knownTotal, missingCalls, expected] of [
     [null, 1, 'Not reported for 1 call'],
