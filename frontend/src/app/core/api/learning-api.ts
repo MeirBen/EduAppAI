@@ -5,7 +5,7 @@ import {
   AiTemplateDraft,
   InstancePreview,
   InstanceSummary,
-  ParameterValues,
+  CreateInstanceRequest,
   TemplateDefinition,
   TemplateDetail,
   TemplateSummary,
@@ -87,11 +87,11 @@ export class LearningApi {
   /**
    * Pins the current template revision, generates a task and returns its saved preview.
    * Each successful request creates a new task.
-   * @param parameters - Submitted values; an empty object accepts the template's defaults.
+   * @param request - Exact question count and typed per-task choices.
    */
-  createInstance(templateId: string, parameters: ParameterValues, lifetime: DestroyRef) {
+  createInstance(templateId: string, request: CreateInstanceRequest, lifetime: DestroyRef) {
     return requestResult(
-      this.http.post<InstancePreview>(`/api/templates/${templateId}/instances`, { parameters }),
+      this.http.post<InstancePreview>(`/api/templates/${templateId}/instances`, request),
       lifetime,
     );
   }

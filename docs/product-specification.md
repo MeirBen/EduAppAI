@@ -45,22 +45,20 @@ case-sensitive Latin identifiers; labels and learning content may use any
 language. Required values, defaults, bounds and options are validated on the
 server. Preserve scalar types, including `false`, zero and explicit empty
 optional-text defaults. Defaults resolve omitted values regardless of `required`;
-`required` rejects omission without a default and blank text. An optional
-`questionCountParameter` binds to an integer field bounded within 1–20 that is
-required or has a valid default, so generation always receives and returns the
-exact count. No key has subject-specific meaning.
+`required` rejects omission without a default and blank text.
 
-`generation.contentWordCount` optionally declares inclusive `min`/`max` word
-limits across all text blocks. At least one bound must be set, between 0 and
-4,000; equal bounds require an exact count. A null or omitted range adds no
-word-count requirement. Counting uses whitespace, excluding an exact standalone
-task title at the beginning; other headings count as text. This suits Hebrew and
-other space-delimited languages. It does not count questions or answer choices.
-Parents review these bounds in the template editor. Out-of-range content is
-rejected before saving, with the measured count. Fixed total length is supported;
-variable and per-passage lengths remain prose instructions. Existing templates
-stay unchanged: prose-only limits are not enforced until a parent adds bounds
-and publishes a new revision.
+Blueprint schema version 3 stores a positive integer `generation.questionCount`
+as the default number of questions. Parents edit this number directly in the
+template and can change it for each task. It is separate from dynamic parameters;
+there is no count-field binding or configurable min/max range. The API resolves
+an omitted task count from the template and validates exact output count. No fixed
+20-question cap applies; token, response-size and time limits still bound generation.
+
+Requested text length belongs in the generation instructions, like other learning
+requirements. It can be fixed, approximate, per passage or parameter-driven; tasks
+without passages need no length setting. The app does not reject structurally valid
+content for missing a word target or make correction calls. Parents review the
+result. The developer evaluator measures length where a case specifies it.
 
 Supported task content is plain text with short-text, numeric or single-choice
 questions. Each question has an ID, prompt, answer and integer points. Numeric
@@ -74,7 +72,7 @@ Server limits:
   fields.
 - Text parameters: at most 500 characters; select fields: 1–20 distinct options,
   each at most 100 characters.
-- Tasks: 1–20 questions, 0–4 passages, 8,000 total text characters.
+- Tasks: at least one question, 0–4 passages, 8,000 total text characters.
 - Task title: 100; instructions: 1,000; passage: 4,000; prompt: 500;
   answer/option: 200 characters. Choice questions have 2–6 distinct options;
   points are 0–100.

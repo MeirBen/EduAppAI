@@ -11,23 +11,20 @@ namespace FamilyLearning.Api.Tests.Integration;
 
 public sealed class AiAuthoringTests
 {
-    [Theory]
-    [InlineData(true)]
-    [InlineData(false)]
-    public async Task Prompt_creates_only_a_draft_then_one_template_generates_distinct_frozen_instances(bool countRequired)
+    [Fact]
+    public async Task Prompt_creates_only_a_draft_then_one_template_generates_distinct_frozen_instances()
     {
         var proposal = Definition();
-        proposal["instanceParameters"]![1]!["required"] = countRequired;
-        var chat = new ScriptedChat(proposal.ToJsonString(), Content().ToJsonString(), Content("חלל", 3).ToJsonString());
+        var chat = new ScriptedChat(proposal.ToJsonString(), Content().ToJsonString(), Content("חלל", 25).ToJsonString());
         using var app = new ApiFactory(services => services.AddSingleton<IChatClient>(chat));
         using var parent = await app.ParentAsync();
         using var draftResponse = await parent.PostAsJsonAsync("/api/ai/template-drafts", new { prompt = "תבנית הבנת הנקרא עם נושא ומספר שאלות לבחירה" });
         Assert.Equal(HttpStatusCode.OK, draftResponse.StatusCode);
         var draft = await draftResponse.Content.ReadFromJsonAsync<JsonElement>();
-        Assert.Equal("template-authoring-v16", draft.GetProperty("generationMetadata").GetProperty("promptVersion").GetString());
+        Assert.Equal("template-authoring-v17", draft.GetProperty("generationMetadata").GetProperty("promptVersion").GetString());
         Assert.Equal(0, (await parent.GetFromJsonAsync<JsonElement>("/api/templates")).GetArrayLength());
         var definition = draft.GetProperty("definition");
-        Assert.Equal(countRequired, definition.GetProperty("instanceParameters")[1].GetProperty("required").GetBoolean());
+        Assert.Equal(2, definition.GetProperty("generation").GetProperty("questionCount").GetInt32());
         Assert.False(string.IsNullOrWhiteSpace(definition.GetProperty("generation").GetProperty("instructions").GetString()));
         using var save = await parent.PostAsJsonAsync("/api/templates", definition);
         Assert.Equal(HttpStatusCode.Created, save.StatusCode);
@@ -36,15 +33,16 @@ public sealed class AiAuthoringTests
         using var first = await parent.PostAsJsonAsync($"/api/templates/{id}/instances", new { parameters = new { } });
         Assert.Equal(HttpStatusCode.Created, first.StatusCode);
         var frozen = await first.Content.ReadFromJsonAsync<JsonElement>();
-        using var second = await parent.PostAsJsonAsync($"/api/templates/{id}/instances", new { parameters = new { theme = "חלל", count = 3 } });
+        Assert.Equal(2, frozen.GetProperty("content").GetProperty("questions").GetArrayLength());
+        using var second = await parent.PostAsJsonAsync($"/api/templates/{id}/instances", new { questionCount = 25, parameters = new { theme = "חלל" } });
         Assert.Equal(HttpStatusCode.Created, second.StatusCode);
         var next = await second.Content.ReadFromJsonAsync<JsonElement>();
-        Assert.Equal(3, next.GetProperty("content").GetProperty("questions").GetArrayLength());
+        Assert.Equal(25, next.GetProperty("content").GetProperty("questions").GetArrayLength());
         Assert.Equal("חלל", next.GetProperty("content").GetProperty("title").GetString());
         var loaded = await parent.GetFromJsonAsync<JsonElement>($"/api/instances/{frozen.GetProperty("id").GetGuid()}");
         Assert.Equal(frozen.GetProperty("content").GetRawText(), loaded.GetProperty("content").GetRawText());
         Assert.Equal("test-free-model", loaded.GetProperty("generationMetadata").GetProperty("model").GetString());
-        Assert.Equal("instance-generation-v16", loaded.GetProperty("generationMetadata").GetProperty("promptVersion").GetString());
+        Assert.Equal("instance-generation-v17", loaded.GetProperty("generationMetadata").GetProperty("promptVersion").GetString());
         Assert.Equal(3, chat.Requests.Count);
         Assert.All(chat.Requests, request =>
         {
@@ -59,6 +57,25 @@ public sealed class AiAuthoringTests
         using var stranger = await app.ParentAsync();
         Assert.Equal(HttpStatusCode.NotFound, (await stranger.PostAsJsonAsync($"/api/templates/{id}/instances", new { parameters = new { } })).StatusCode);
         Assert.Equal(3, chat.Requests.Count);
+    }
+
+    [Theory]
+    [InlineData("0")]
+    [InlineData("-1")]
+    [InlineData("1.5")]
+    [InlineData("\"3\"")]
+    public async Task Invalid_task_question_counts_are_rejected_before_calling_ai(string count)
+    {
+        using var chat = new ScriptedChat();
+        using var app = new ApiFactory(services => services.AddSingleton<IChatClient>(chat));
+        using var parent = await app.ParentAsync();
+        using var saved = await parent.PostAsJsonAsync("/api/templates", Definition());
+        var id = (await saved.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("id").GetGuid();
+        using var request = JsonDocument.Parse($"{{\"parameters\":{{}},\"questionCount\":{count}}}");
+        using var response = await parent.PostAsJsonAsync($"/api/templates/{id}/instances", request.RootElement);
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Empty(chat.Requests);
+        Assert.Equal(0, (await parent.GetFromJsonAsync<JsonElement>("/api/instances")).GetArrayLength());
     }
 
     [Theory]
@@ -125,7 +142,7 @@ public sealed class AiAuthoringTests
 
     [Theory]
     [InlineData("missing-instructions")]
-    [InlineData("bad-count-binding")]
+    [InlineData("invalid-question-count")]
     [InlineData("math-settings")]
     public async Task Rejects_invalid_ai_blueprints(string scenario)
     {
@@ -134,7 +151,7 @@ public sealed class AiAuthoringTests
         var definition = Definition();
         var generation = definition["generation"]!;
         if (scenario == "missing-instructions") generation["instructions"] = " ";
-        if (scenario == "bad-count-binding") generation["questionCountParameter"] = "theme";
+        if (scenario == "invalid-question-count") generation["questionCount"] = 0;
         if (scenario == "math-settings") generation["generator"] = "math-v1";
         Assert.Equal(HttpStatusCode.BadRequest, (await parent.PostAsJsonAsync("/api/templates", definition)).StatusCode);
     }

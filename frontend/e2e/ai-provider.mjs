@@ -62,7 +62,7 @@ export async function startAiProvider() {
     let result;
     if (isAuthoring) {
       result = {
-        schemaVersion: 2,
+        schemaVersion: 3,
         name: 'חוקרים וקוראים',
         instanceParameters: [
           {
@@ -87,27 +87,16 @@ export async function startAiProvider() {
             maxLength: null,
             options: ['קלה', 'מאתגרת'],
           },
-          {
-            key: 'count',
-            label: 'מספר שאלות',
-            type: 'integer',
-            required: true,
-            default: 2,
-            min: 1,
-            max: 20,
-            maxLength: null,
-            options: null,
-          },
         ],
         generation: {
           instructions:
-            'יש ליצור קטע קריאה חדש לפי "theme" ברמה "level", עם "count" שאלות הבנה.\n\nיש לשמור כלשונו את המשפט: שָׁלוֹם, Maya! שלום־עולם',
-          questionCountParameter: 'count',
-          contentWordCount: user.includes('בדיקת אורך') ? { min: 100, max: 150 } : null,
+            (user.includes('בדיקת אורך') ? 'יש ליצור קטע בן 100–150 מילים. ' : '') +
+            'יש ליצור קטע קריאה חדש לפי "theme" ברמה "level" ושאלות הבנה.\n\nיש לשמור כלשונו את המשפט: שָׁלוֹם, Maya! שלום־עולם',
+          questionCount: 2,
         },
       };
     } else {
-      const { parameters, expectedQuestionCount } = JSON.parse(user);
+      const { parameters, questionCount } = JSON.parse(user);
       result = {
         title: `לומדים על ${parameters.theme}`,
         instructions: 'קראו וענו על השאלות.',
@@ -117,7 +106,7 @@ export async function startAiProvider() {
             text: `קטע ${sequence}: לומדים על ${parameters.theme} ברמה ${parameters.level}.`,
           },
         ],
-        questions: Array.from({ length: expectedQuestionCount }, (_, index) => ({
+        questions: Array.from({ length: questionCount }, (_, index) => ({
           id: `q${index + 1}`,
           prompt: index % 3 === 2 ? 'כמה נושאים מופיעים בקטע?' : `מה נושא הקטע? (${index + 1})`,
           interaction: {

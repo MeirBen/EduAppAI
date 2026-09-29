@@ -13,9 +13,9 @@ test('Kestrel accepts bounded Hebrew templates and rejects oversized bodies', as
   csrf = await (await request.get('/api/auth/csrf')).json();
   const headers = { 'X-XSRF-TOKEN': csrf.token, 'Content-Type': 'application/json' };
   const definition: TemplateDefinition = {
-    schemaVersion: 2,
+    schemaVersion: 3,
     name: 'א'.repeat(100),
-    generation: { instructions: 'א'.repeat(4000) },
+    generation: { instructions: 'א'.repeat(4000), questionCount: 4 },
     instanceParameters: Array.from({ length: 16 }, (_, index) => ({
       key: `field${index}`,
       label: 'א'.repeat(100),

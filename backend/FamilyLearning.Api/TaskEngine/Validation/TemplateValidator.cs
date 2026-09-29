@@ -17,21 +17,19 @@ public static partial class TemplateValidator
             errors["definition"] = ["יש לציין את הגדרות התבנית."];
             return errors;
         }
-        if (definition.SchemaVersion != 2) errors["schemaVersion"] = ["גרסת מבנה התבנית אינה נתמכת."];
+        if (definition.SchemaVersion != 3) errors["schemaVersion"] = ["גרסת מבנה התבנית אינה נתמכת."];
         if (string.IsNullOrWhiteSpace(definition.Name) || definition.Name.Length > 100)
             errors["name"] = ["יש להזין שם באורך של 1 עד 100 תווים."];
         if (string.IsNullOrWhiteSpace(definition.Generation?.Instructions) || definition.Generation.Instructions.Length > 4000)
             errors["generation.instructions"] = ["יש להזין הנחיות ליצירת תוכן באורך של 1 עד 4,000 תווים."];
-        if (definition.Generation?.ContentWordCount is { } range &&
-            ((range.Min is null && range.Max is null) || range.Min is < 0 or > 4000 ||
-             range.Max is < 0 or > 4000 || range.Min > range.Max))
-            errors["generation.contentWordCount"] = ["יש להגדיר לפחות גבול אחד למספר המילים, בין 0 ל־4,000, כשהמינימום אינו גדול מהמקסימום."];
         if (definition.InstanceParameters is not { Length: <= 16 } parameters)
         {
             errors["instanceParameters"] = ["יש לציין רשימת שדות, עד 16 שדות."];
             return errors;
         }
 
+        if (definition.Generation?.QuestionCount is < 1)
+            errors["generation.questionCount"] = ["מספר השאלות חייב להיות גדול מאפס."];
         var keys = new HashSet<string>(StringComparer.Ordinal);
         for (var index = 0; index < parameters.Length; index++)
         {
@@ -40,13 +38,6 @@ public static partial class TemplateValidator
             if (error is not null) errors[$"instanceParameters[{index}]"] = [error];
         }
 
-        if (definition.Generation?.QuestionCountParameter is { } countKey)
-        {
-            var count = parameters.FirstOrDefault(p => p?.Key == countKey);
-            // Resolution must always supply a count; a validated default also guarantees this for optional fields.
-            if (count is not { Type: "integer", Min: >= 1, Max: <= 20 } || (!count.Required && count.Default is null))
-                errors["generation.questionCountParameter"] = ["יש לקשר את מספר השאלות לשדה מספרי עם גבולות בין 1 ל־20, ולסמן אותו כחובה או להגדיר לו ברירת מחדל תקינה."];
-        }
         return errors;
     }
 

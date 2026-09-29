@@ -7,7 +7,9 @@ using FamilyLearning.Api.TaskEngine.Models;
 namespace FamilyLearning.Api.Features.Instances;
 
 /// <summary>Values for a new draft; an empty dictionary uses template defaults, while null is invalid.</summary>
-public sealed record CreateInstanceRequest([property: JsonRequired] Dictionary<string, JsonElement> Parameters);
+/// <param name="Parameters">Per-task choices; omitted keys use field defaults.</param>
+/// <param name="QuestionCount">Positive exact count; omission uses the template default.</param>
+public sealed record CreateInstanceRequest([property: JsonRequired] Dictionary<string, JsonElement> Parameters, int? QuestionCount = null);
 /// <summary>List projection without questions, parameters or answer keys.</summary>
 public sealed record InstanceSummary(Guid Id, string Title, string Status, DateTime CreatedAtUtc);
 

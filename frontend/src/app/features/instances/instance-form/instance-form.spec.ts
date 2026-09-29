@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing';
-import { ParameterForm } from './parameter-form';
-import { ParameterDefinition, ParameterValues } from '../../../core/api/models';
+import { InstanceForm } from './instance-form';
+import { CreateInstanceRequest, ParameterDefinition } from '../../../core/api/models';
 
 const definitions: ParameterDefinition[] = [
   { key: 'theme', label: 'נושא', type: 'text', required: true, maxLength: 10 },
@@ -24,15 +24,43 @@ const definitions: ParameterDefinition[] = [
   { key: 'retry', label: 'ניסיון נוסף', type: 'boolean', default: false },
 ];
 
-describe('ParameterForm', () => {
+describe('InstanceForm', () => {
   async function render(schema = definitions) {
-    const fixture = TestBed.createComponent(ParameterForm);
+    const fixture = TestBed.createComponent(InstanceForm);
     fixture.componentRef.setInput('definitions', schema);
-    let submitted: ParameterValues | undefined;
+    fixture.componentRef.setInput('defaultQuestionCount', 4);
+    let submitted: CreateInstanceRequest | undefined;
     fixture.componentInstance.generated.subscribe((value) => (submitted = value));
     await fixture.whenStable();
     return { fixture, submitted: () => submitted };
   }
+
+  it.each(['', '0', '-1', '1.5'])(
+    'blocks an invalid question count %j even without dynamic parameters',
+    async (value) => {
+      const view = await render([]);
+      const element: HTMLElement = view.fixture.nativeElement;
+      const count = element.querySelector<HTMLInputElement>('#question-count')!;
+      count.value = value;
+      count.dispatchEvent(new Event('input'));
+      element.querySelector('form')!.dispatchEvent(new Event('submit', { cancelable: true }));
+      await view.fixture.whenStable();
+      expect(view.submitted()).toBeUndefined();
+      expect(element.textContent).toContain('יש להזין מספר שלם גדול מאפס.');
+    },
+  );
+
+  it('lets the parent override the default count without adding a parameter', async () => {
+    const view = await render([]);
+    const element: HTMLElement = view.fixture.nativeElement;
+    const count = element.querySelector<HTMLInputElement>('#question-count')!;
+    expect(count.value).toBe('4');
+    count.value = '25';
+    count.dispatchEvent(new Event('input'));
+    element.querySelector('form')!.dispatchEvent(new Event('submit', { cancelable: true }));
+    await view.fixture.whenStable();
+    expect(view.submitted()).toEqual({ questionCount: 25, parameters: {} });
+  });
 
   it('submits typed defaults and an explicit false value', async () => {
     const view = await render();
@@ -44,7 +72,8 @@ describe('ParameterForm', () => {
       .querySelector('form')
       .dispatchEvent(new Event('submit', { cancelable: true }));
     await view.fixture.whenStable();
-    expect(view.submitted()).toEqual({
+    expect(view.submitted()?.questionCount).toBe(4);
+    expect(view.submitted()?.parameters).toEqual({
       theme: 'Space',
       count: 5,
       difficulty: 'easy',
@@ -80,7 +109,7 @@ describe('ParameterForm', () => {
     await view.fixture.whenStable();
     element.querySelector('form')!.dispatchEvent(new Event('submit', { cancelable: true }));
     await view.fixture.whenStable();
-    expect(view.submitted()).toEqual({ theme: '' });
+    expect(view.submitted()?.parameters).toEqual({ theme: '' });
   });
 
   it('renders schema labels and options verbatim with appropriate input direction', async () => {
@@ -124,6 +153,6 @@ describe('ParameterForm', () => {
     input.dispatchEvent(new Event('input', { bubbles: true }));
     element.querySelector('form')!.dispatchEvent(new Event('submit', { cancelable: true }));
     await view.fixture.whenStable();
-    expect(view.submitted()).toEqual(expected);
+    expect(view.submitted()?.parameters).toEqual(expected);
   });
 });

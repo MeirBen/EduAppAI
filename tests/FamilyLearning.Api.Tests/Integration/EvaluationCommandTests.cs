@@ -53,8 +53,7 @@ public sealed class EvaluationCommandTests : IDisposable
             var output = authoringCall ? AiFixtures.Definition() : AiFixtures.Content(count: 4);
             if (authoringCall)
             {
-                output["instanceParameters"]![1]!["default"] = 4;
-                output["generation"]!["contentWordCount"] = new JsonObject { ["min"] = 100, ["max"] = 150 };
+                output["generation"]!["questionCount"] = 4;
             }
             else
             {

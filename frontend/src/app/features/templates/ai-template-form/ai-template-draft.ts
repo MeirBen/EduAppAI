@@ -21,9 +21,7 @@ interface ParameterDraft {
 interface AiBlueprintDraft {
   name: string;
   instructions: string;
-  questionCountParameter: string;
-  minContentWords: string;
-  maxContentWords: string;
+  questionCount: string;
   parameters: ParameterDraft[];
 }
 
@@ -48,9 +46,7 @@ export function aiTemplateDraft(definition: TemplateDefinition): AiBlueprintDraf
   return {
     name: definition.name,
     instructions: definition.generation.instructions,
-    questionCountParameter: definition.generation.questionCountParameter ?? '',
-    minContentWords: String(definition.generation.contentWordCount?.min ?? ''),
-    maxContentWords: String(definition.generation.contentWordCount?.max ?? ''),
+    questionCount: String(definition.generation.questionCount),
     parameters: definition.instanceParameters.map((field) => ({
       id: crypto.randomUUID(),
       key: field.key,
@@ -80,18 +76,8 @@ export function aiTemplateErrors(draft: AiBlueprintDraft): string[] {
   if (!draft.name.trim() || draft.name.length > 100) errors.push('יש להזין שם עד 100 תווים.');
   if (!draft.instructions.trim() || draft.instructions.length > 4000)
     errors.push('יש להזין הנחיות עד 4,000 תווים.');
-  if (
-    [draft.minContentWords, draft.maxContentWords].some(
-      (value) =>
-        value !== '' && (!isIntegerInput(value) || Number(value) < 0 || Number(value) > 4000),
-    ) ||
-    (draft.minContentWords !== '' &&
-      draft.maxContentWords !== '' &&
-      Number(draft.minContentWords) > Number(draft.maxContentWords))
-  )
-    errors.push(
-      'גבולות מספר המילים חייבים להיות שלמים בין 0 ל־4,000, והמינימום אינו יכול להיות גדול מהמקסימום.',
-    );
+  if (!isIntegerInput(draft.questionCount) || Number(draft.questionCount) < 1)
+    errors.push('מספר השאלות חייב להיות מספר שלם גדול מאפס.');
   if (draft.parameters.length > 16) errors.push('אפשר להגדיר עד 16 שדות.');
   const keys = new Set<string>();
   for (const [index, field] of draft.parameters.entries()) {
@@ -137,39 +123,17 @@ export function aiTemplateErrors(draft: AiBlueprintDraft): string[] {
     } else if (field.defaultValue !== '' && !['true', 'false'].includes(field.defaultValue))
       errors.push(prefix + 'יש לבחור כן או לא.');
   }
-  if (draft.questionCountParameter) {
-    const count = draft.parameters.find((field) => field.key === draft.questionCountParameter);
-    if (
-      !count ||
-      count.type !== 'integer' ||
-      (!count.required && count.defaultValue === '') ||
-      count.min === '' ||
-      count.max === '' ||
-      Number(count.min) < 1 ||
-      Number(count.max) > 20
-    )
-      errors.push(
-        'יש לקשר את מספר השאלות לשדה מספרי עם גבולות בין 1 ל־20, ולסמן אותו כחובה או להגדיר לו ברירת מחדל תקינה.',
-      );
-  }
   return errors;
 }
 
 /** Builds the public contract after validation, removing editor identities and irrelevant type settings. */
 export function aiTemplateDefinition(draft: AiBlueprintDraft): TemplateDefinition {
   return {
-    schemaVersion: 2,
+    schemaVersion: 3,
     name: draft.name.trim(),
     generation: {
       instructions: draft.instructions,
-      questionCountParameter: draft.questionCountParameter || null,
-      contentWordCount:
-        draft.minContentWords === '' && draft.maxContentWords === ''
-          ? undefined
-          : {
-              min: draft.minContentWords === '' ? null : Number(draft.minContentWords),
-              max: draft.maxContentWords === '' ? null : Number(draft.maxContentWords),
-            },
+      questionCount: Number(draft.questionCount),
     },
     instanceParameters: draft.parameters.map(parameterDefinition),
   };

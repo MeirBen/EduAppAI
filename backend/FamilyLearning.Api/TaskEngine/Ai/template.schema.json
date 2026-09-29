@@ -3,9 +3,7 @@
   "properties": {
     "schemaVersion": {
       "type": "integer",
-      "enum": [
-        2
-      ]
+      "enum": [3]
     },
     "name": {
       "type": "string",
@@ -15,7 +13,7 @@
     },
     "instanceParameters": {
       "type": "array",
-      "description": "Useful choices the parent can change each time; do not put generated learning content here.",
+      "description": "Task-specific choices the parent can change each time, excluding the separately defined question count. Do not put generated learning content here.",
       "items": {
         "type": "object",
         "properties": {
@@ -30,61 +28,39 @@
           },
           "type": {
             "type": "string",
-            "enum": [
-              "text",
-              "integer",
-              "select",
-              "boolean"
-            ]
+            "enum": ["text", "integer", "select", "boolean"]
           },
           "required": {
             "type": "boolean",
             "description": "True rejects omission when no default exists and rejects blank text. Defaults apply to omitted values regardless of this flag."
           },
           "default": {
-            "type": [
-              "string",
-              "integer",
-              "boolean",
-              "null"
-            ],
+            "type": ["string", "integer", "boolean", "null"],
             "description": "Default matching the field type, bounds and options; null means no default. Preserve supplied source text.",
             "maxLength": 500,
             "minimum": -2147483648,
             "maximum": 2147483647
           },
           "min": {
-            "type": [
-              "integer",
-              "null"
-            ],
+            "type": ["integer", "null"],
             "description": "Inclusive integer lower bound; null when unbounded or not an integer field.",
             "minimum": -2147483648,
             "maximum": 2147483647
           },
           "max": {
-            "type": [
-              "integer",
-              "null"
-            ],
+            "type": ["integer", "null"],
             "description": "Inclusive integer upper bound; null when unbounded or not an integer field.",
             "minimum": -2147483648,
             "maximum": 2147483647
           },
           "maxLength": {
-            "type": [
-              "integer",
-              "null"
-            ],
+            "type": ["integer", "null"],
             "minimum": 1,
             "maximum": 500,
             "description": "Text length limit; null uses 500 for text fields and is unused for other types."
           },
           "options": {
-            "type": [
-              "array",
-              "null"
-            ],
+            "type": ["array", "null"],
             "description": "Distinct, trimmed, single-line select values; null for other field types.",
             "items": {
               "type": "string",
@@ -119,77 +95,16 @@
           "minLength": 1,
           "maxLength": 4000
         },
-        "questionCountParameter": {
-          "type": [
-            "string",
-            "null"
-          ],
-          "pattern": "^[a-z][a-zA-Z0-9]{0,39}$",
-          "description": "Exact key of the integer parameter controlling question count, bounded within 1-20. It must have required=true or a valid non-null default so its value always resolves. Null for a fixed count."
-        },
-        "contentWordCount": {
-          "description": "Fixed total word limits for text bodies in space-delimited languages, across all contentBlocks. Exclude the task title, learner directions, questions and choices. Copy explicitly requested total limits into numeric bounds; otherwise set this whole field to null. Bounds are inclusive; min must not exceed max; equal bounds mean an exact count. Never infer limits from age or difficulty. Variable or per-passage limits stay in instructions.",
-          "anyOf": [
-            {
-              "type": "null"
-            },
-            {
-              "type": "object",
-              "properties": {
-                "min": {
-                  "type": "integer",
-                  "minimum": 0,
-                  "maximum": 4000
-                },
-                "max": {
-                  "type": [
-                    "integer",
-                    "null"
-                  ],
-                  "minimum": 0,
-                  "maximum": 4000
-                }
-              },
-              "required": [
-                "min",
-                "max"
-              ],
-              "additionalProperties": false
-            },
-            {
-              "type": "object",
-              "properties": {
-                "min": {
-                  "type": "null"
-                },
-                "max": {
-                  "type": "integer",
-                  "minimum": 0,
-                  "maximum": 4000
-                }
-              },
-              "required": [
-                "min",
-                "max"
-              ],
-              "additionalProperties": false
-            }
-          ]
+        "questionCount": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Default number of questions, adjustable by the parent for each task."
         }
       },
-      "required": [
-        "instructions",
-        "questionCountParameter",
-        "contentWordCount"
-      ],
+      "required": ["instructions", "questionCount"],
       "additionalProperties": false
     }
   },
-  "required": [
-    "schemaVersion",
-    "name",
-    "instanceParameters",
-    "generation"
-  ],
+  "required": ["schemaVersion", "name", "instanceParameters", "generation"],
   "additionalProperties": false
 }

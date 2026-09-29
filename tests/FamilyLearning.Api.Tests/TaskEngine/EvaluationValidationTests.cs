@@ -18,7 +18,7 @@ public sealed class EvaluationValidationTests : IDisposable
     [InlineData("focus-empty")]
     [InlineData("focus-long")]
     [InlineData("questions-zero")]
-    [InlineData("questions-many")]
+    [InlineData("questions-negative")]
     [InlineData("interaction")]
     [InlineData("choices-text")]
     [InlineData("choices-small")]
@@ -26,8 +26,8 @@ public sealed class EvaluationValidationTests : IDisposable
     [InlineData("passage-min-negative")]
     [InlineData("passage-max-negative")]
     [InlineData("passage-inverted")]
-    [InlineData("maximum-not-adjustable")]
-    [InlineData("word-constraint-without-bounds")]
+    [InlineData("count-override-zero")]
+    [InlineData("count-override-negative")]
     public async Task Malformed_case_fixture_is_rejected_when_loaded(string invalid)
     {
         var scenario = invalid switch
@@ -40,7 +40,7 @@ public sealed class EvaluationValidationTests : IDisposable
             "focus-empty" => ValidCase with { ReviewFocus = " " },
             "focus-long" => ValidCase with { ReviewFocus = new('א', 1001) },
             "questions-zero" => ValidCase with { QuestionCount = 0 },
-            "questions-many" => ValidCase with { QuestionCount = 21 },
+            "questions-negative" => ValidCase with { QuestionCount = -1 },
             "interaction" => ValidCase with { Interaction = "essay" },
             "choices-text" => ValidCase with { ChoiceCount = 4 },
             "choices-small" => ValidCase with { Interaction = "single-choice", ChoiceCount = 1 },
@@ -48,8 +48,8 @@ public sealed class EvaluationValidationTests : IDisposable
             "passage-min-negative" => ValidCase with { MinPassageWords = -1 },
             "passage-max-negative" => ValidCase with { MaxPassageWords = -1 },
             "passage-inverted" => ValidCase with { MinPassageWords = 20, MaxPassageWords = 10 },
-            "word-constraint-without-bounds" => ValidCase with { RequireWordCountConstraint = true },
-            _ => ValidCase with { UseMaximumQuestionCount = true, QuestionCount = 1 }
+            "count-override-negative" => ValidCase with { QuestionCountOverride = -1 },
+            _ => ValidCase with { QuestionCountOverride = 0 }
         };
         var path = await WriteFixtureAsync([scenario]);
 
@@ -79,7 +79,7 @@ public sealed class EvaluationValidationTests : IDisposable
             Interaction = interaction,
             ChoiceCount = choices,
             QuestionCount = 20,
-            UseMaximumQuestionCount = true,
+            QuestionCountOverride = 20,
             MinPassageWords = 0,
             MaxPassageWords = 0
         };

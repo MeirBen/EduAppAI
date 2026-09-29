@@ -9,10 +9,7 @@
     },
     "instructions": {
       "description": "Directions for the learner completing this task, in the requested language; not generation steps, parameter keys or answer-key details.",
-      "type": [
-        "string",
-        "null"
-      ],
+      "type": ["string", "null"],
       "maxLength": 1000
     },
     "contentBlocks": {
@@ -23,9 +20,7 @@
         "properties": {
           "type": {
             "type": "string",
-            "enum": [
-              "text"
-            ]
+            "enum": ["text"]
           },
           "text": {
             "type": "string",
@@ -34,10 +29,7 @@
             "maxLength": 4000
           }
         },
-        "required": [
-          "type",
-          "text"
-        ],
+        "required": ["type", "text"],
         "additionalProperties": false
       },
       "maxItems": 4
@@ -62,18 +54,11 @@
             "properties": {
               "type": {
                 "type": "string",
-                "enum": [
-                  "numeric-input",
-                  "text-input",
-                  "single-choice"
-                ]
+                "enum": ["numeric-input", "text-input", "single-choice"]
               },
               "options": {
                 "description": "Distinct, trimmed, single-line answer texts for single-choice questions, without added list prefixes or separators; null for other interaction types. Preserve symbols that are part of the answer itself.",
-                "type": [
-                  "array",
-                  "null"
-                ],
+                "type": ["array", "null"],
                 "items": {
                   "type": "string",
                   "minLength": 1,
@@ -83,10 +68,7 @@
                 "maxItems": 6
               }
             },
-            "required": [
-              "type",
-              "options"
-            ],
+            "required": ["type", "options"],
             "additionalProperties": false
           },
           "answer": {
@@ -99,9 +81,7 @@
                 "maxLength": 200
               }
             },
-            "required": [
-              "value"
-            ],
+            "required": ["value"],
             "additionalProperties": false
           },
           "points": {
@@ -110,24 +90,12 @@
             "maximum": 100
           }
         },
-        "required": [
-          "id",
-          "prompt",
-          "interaction",
-          "answer",
-          "points"
-        ],
+        "required": ["id", "prompt", "interaction", "answer", "points"],
         "additionalProperties": false
       },
-      "minItems": 1,
-      "maxItems": 20
+      "minItems": 1
     }
   },
-  "required": [
-    "title",
-    "instructions",
-    "contentBlocks",
-    "questions"
-  ],
+  "required": ["title", "instructions", "contentBlocks", "questions"],
   "additionalProperties": false
 }

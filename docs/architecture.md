@@ -47,11 +47,12 @@ language and presentation rules. Schemas describe field constraints; prompts
 explain task semantics and cross-field priorities. Templates retain task-specific
 requirements and exact parameter references, rather than repeating engine rules.
 Resolved values override stale defaults, including false, zero and empty text.
-Optional reviewed `contentWordCount` bounds override prose length instructions.
-`TaskContentValidator` owns counting and enforcement; evaluation reuses the same
-counter. Domain failures expose application-authored field messages and measured
-counts through a typed ProblemDetails response, without a correction call or
-parsing requirements from prose.
+The instance endpoint resolves the requested question count from the explicit
+integer or template default. Dynamic parameters remain independent.
+Text length is instructional guidance. Production validation owns structural safety,
+answer consistency and exact requested question counts; the evaluator owns word-count
+measurement and case adherence. Domain failures expose application-authored field
+messages through typed ProblemDetails, without correction calls or parsing prose.
 
 Each generation operation makes one AI call. Validators enforce structure and
 bounds, not fluency or truth. Parents can edit proposed instructions; the app
@@ -126,23 +127,22 @@ Cancellation does not guarantee server rollback.
 Changing route parameters destroys the old page and cancels its pending writes;
 query and fragment changes preserve the current page and its edits.
 
-Route guards cancel superseded session/token checks. Sign-in belongs to its
-page and cannot redirect after destruction; the server authorizes requests.
+Route guards cancel superseded session/token checks. Sign-in belongs to its page
+and cannot redirect after destruction; the server authorizes requests.
 `AiTemplateAuthor` holds proposals; `AiTemplateForm` edits copies with Signal
 Forms and converts them on save. Errors retain edits; new proposals reset
-feedback. `ParameterForm` preloads defaults; clearing required text, integer or
-select inputs is invalid. Cleared optional text stays explicit; blank optional
-numbers/selects are omitted so the server can resolve defaults.
-Successful publication or task creation replaces its form with a saved-result
-link; delayed or failed navigation cannot repeat the write or AI generation.
+feedback. `InstanceForm` collects a positive question count and preloads
+parameter defaults. Clearing required text, integer or select inputs is invalid.
+Cleared optional text stays explicit; blank optional numbers/selects are omitted
+so the server can resolve defaults. Successful publication or task creation
+replaces its form with a saved-result link; delayed or failed navigation cannot
+repeat the write or AI generation.
 
 Previews read snapshots. The PWA caches assets only; API calls need a connection.
 See the [UI guide](ui-guide.md) and [verification commands](../README.md#verify).
 
-References: [IChatClient][chat], [structured output][output],
-[Qwen prompting guidance][prompting], [Signal Forms][forms].
+References: [IChatClient][chat], [structured output][output], [Signal Forms][forms].
 
 [chat]: https://learn.microsoft.com/en-us/dotnet/ai/ichatclient
 [output]: https://openrouter.ai/docs/guides/features/structured-outputs
-[prompting]: https://docs.qwencloud.com/developer-guides/accuracy-tuning/text-generation
 [forms]: https://angular.dev/guide/forms/signals/overview

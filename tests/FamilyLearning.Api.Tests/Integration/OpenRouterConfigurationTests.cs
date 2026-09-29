@@ -117,7 +117,7 @@ public sealed class OpenRouterConfigurationTests
         AssertResponseSchema(request, responseFormat ?? "json_object", "task generator");
 
         var instance = await provider.GetRequiredService<AiGenerationService>().GenerateAsync(result.Value,
-            new() { ["theme"] = JsonSerializer.SerializeToElement(sourceText), ["count"] = JsonSerializer.SerializeToElement(2) }, deadline.Token);
+            new() { ["theme"] = JsonSerializer.SerializeToElement(sourceText) }, result.Value.Generation.QuestionCount, deadline.Token);
         Assert.Equal(passage, Assert.Single(instance.Value.ContentBlocks).Text);
         AssertResponseSchema(request, responseFormat ?? "json_object", "learner");
         Assert.Equal(maxOutputTokens ?? 8192, request.GetProperty("max_completion_tokens").GetInt32());

@@ -2,17 +2,17 @@ import { TemplateDefinition } from '../../../core/api/models';
 
 /** Test-only blueprint; production templates come from AI and parent review. */
 export const readingDefinition: TemplateDefinition = {
-  schemaVersion: 2,
+  schemaVersion: 3,
   name: 'הבנת הנקרא',
   generation: {
-    instructions: 'צרו קטע לפי theme עם count שאלות.',
-    questionCountParameter: 'count',
+    instructions: 'צרו קטע לפי theme, age, level ו-hints.',
+    questionCount: 5,
   },
   instanceParameters: [
     { key: 'theme', label: 'נושא', type: 'text', required: true, default: 'חלל', maxLength: 100 },
     {
-      key: 'count',
-      label: 'מספר שאלות',
+      key: 'age',
+      label: 'גיל',
       type: 'integer',
       required: true,
       default: 5,

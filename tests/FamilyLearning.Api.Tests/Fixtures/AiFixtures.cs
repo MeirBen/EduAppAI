@@ -8,10 +8,9 @@ namespace FamilyLearning.Api.Tests.Fixtures;
 internal static class AiFixtures
 {
     internal static JsonNode Definition() => JsonNode.Parse("""
-        {"schemaVersion":2,"name":"קוראים ומגלים","instanceParameters":[
-          {"key":"theme","label":"נושא","type":"text","required":true,"default":"דינוזאורים","maxLength":100},
-          {"key":"count","label":"מספר שאלות","type":"integer","required":true,"default":2,"min":1,"max":20}
-        ],"generation":{"instructions":"יש ליצור קטע קריאה בנושא \"theme\" ושאלות עם תשובות קצרות לפי המספר ב־\"count\".","questionCountParameter":"count"}}
+        {"schemaVersion":3,"name":"קוראים ומגלים","instanceParameters":[
+          {"key":"theme","label":"נושא","type":"text","required":true,"default":"דינוזאורים","maxLength":100}
+        ],"generation":{"instructions":"יש ליצור קטע קריאה בנושא \"theme\" ושאלות עם תשובות קצרות.","questionCount":2}}
         """)!;
 
     internal static JsonNode Content(string theme = "דינוזאורים", int count = 2) => new JsonObject

@@ -22,9 +22,14 @@ public sealed class RequestValidationTests
             definition[member] = null;
             await AssertBadRequestAsync(parent, "/api/templates", definition.ToJsonString());
         }
-        var invalidInstructions = AiFixtures.Definition();
-        invalidInstructions["generation"]!["instructions"] = null;
-        await AssertBadRequestAsync(parent, "/api/templates", invalidInstructions.ToJsonString());
+        foreach (var member in new[] { "instructions", "questionCount" })
+        {
+            var definition = AiFixtures.Definition();
+            definition["generation"]!.AsObject().Remove(member);
+            await AssertBadRequestAsync(parent, "/api/templates", definition.ToJsonString());
+            definition["generation"]![member] = null;
+            await AssertBadRequestAsync(parent, "/api/templates", definition.ToJsonString());
+        }
         Assert.Equal(0, (await parent.GetFromJsonAsync<JsonElement>("/api/templates")).GetArrayLength());
     }
 

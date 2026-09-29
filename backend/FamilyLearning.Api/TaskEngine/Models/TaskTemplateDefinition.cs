@@ -8,7 +8,7 @@ namespace FamilyLearning.Api.TaskEngine.Models;
 /// <param name="SchemaVersion">The JSON contract version, independent of the template revision number.</param>
 /// <param name="Name">The parent-facing name of this reusable learning idea.</param>
 /// <param name="InstanceParameters">Fields a parent can supply for each new instance.</param>
-/// <param name="Generation">Instructions and count binding fixed by this template version.</param>
+/// <param name="Generation">Instructions and default question count fixed by this template version.</param>
 public sealed record TaskTemplateDefinition(
     [property: JsonRequired] int SchemaVersion,
     [property: JsonRequired] string Name,
@@ -36,12 +36,7 @@ public sealed record ParameterDefinition(
     int? MaxLength = null,
     string[]? Options = null);
 
-/// <summary>Reusable AI instructions with optional question-count binding and fixed text-length limits.</summary>
+/// <summary>Reusable AI instructions and a positive default question count, adjustable for each task.</summary>
 public sealed record GenerationDefinition(
     [property: JsonRequired] string Instructions,
-    string? QuestionCountParameter = null,
-    WordCountRange? ContentWordCount = null);
-
-/// <summary>Inclusive word limits across content blocks; null bounds are open. Omit the range when no length is required.</summary>
-/// <remarks>Counts whitespace-separated words, excluding an exact leading task title. At least one bound is required.</remarks>
-public sealed record WordCountRange(int? Min = null, int? Max = null);
+    [property: JsonRequired] int QuestionCount);

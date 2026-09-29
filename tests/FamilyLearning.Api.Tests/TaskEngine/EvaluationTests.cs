@@ -56,7 +56,7 @@ public sealed class EvaluationTests : IDisposable
     }
 
     [Theory]
-    [InlineData("authoring", "generation.questionCountParameter")]
+    [InlineData("authoring", "generation.questionCount")]
     [InlineData("generation", "questions[0]")]
     [InlineData("wrong-count", "questions")]
     [InlineData("null-questions", "questions")]
@@ -64,7 +64,7 @@ public sealed class EvaluationTests : IDisposable
     {
         var definition = AiFixtures.Definition();
         var content = AiFixtures.Content();
-        if (stage == "authoring") definition["generation"]!["questionCountParameter"] = "private-unknown-binding";
+        if (stage == "authoring") definition["generation"]!["questionCount"] = 0;
         if (stage == "generation") content["questions"]![0]!["answer"]!["value"] = "";
         if (stage == "wrong-count") content = AiFixtures.Content(count: 1);
         if (stage == "null-questions") content["questions"] = null;
@@ -80,7 +80,7 @@ public sealed class EvaluationTests : IDisposable
         Assert.Equal(field, error.Key);
         var message = Assert.Single(error.Value);
         Assert.NotEmpty(message);
-        Assert.DoesNotContain("private-unknown-binding", message);
+        Assert.DoesNotContain("provider secret", message);
         Assert.Equal(stage == "authoring" ? 1 : 2, chat.Requests.Count);
         Assert.Empty(saved.Retries);
     }
@@ -109,7 +109,9 @@ public sealed class EvaluationTests : IDisposable
         var content = AiFixtures.Content();
         content["title"] = "כותרת";
         content["contentBlocks"]![0]!["text"] = prefix + string.Join(' ', Enumerable.Repeat("מילה", bodyWords));
-        using var chat = new AiFixtures.ScriptedChat(AiFixtures.Definition().ToJsonString(), content.ToJsonString());
+        var definition = AiFixtures.Definition();
+        definition["generation"]!["instructions"] = definition["generation"]!["instructions"]!.GetValue<string>() + " יש ליצור קטע בן 100–150 מילים.";
+        using var chat = new AiFixtures.ScriptedChat(definition.ToJsonString(), content.ToJsonString());
         var report = await RunAsync(chat, Case with { MinPassageWords = 100, MaxPassageWords = 150 });
 
         var result = Assert.Single(report.Results);
@@ -130,8 +132,8 @@ public sealed class EvaluationTests : IDisposable
         content["title"] = "כותרת";
         content["contentBlocks"] = hasPassages ? new JsonArray(
             new JsonObject { ["type"] = "text", ["text"] = "כותרת" },
-            new JsonObject { ["type"] = "text", ["text"] = "קטע ראשון." },
-            new JsonObject { ["type"] = "text", ["text"] = "קטע שני קצר." }) : new JsonArray();
+            new JsonObject { ["type"] = "text", ["text"] = "קֶטַע־רִאשׁוֹן.\tמילה" },
+            new JsonObject { ["type"] = "text", ["text"] = "קטע\u00a0שני קצר." }) : new JsonArray();
         using var chat = new AiFixtures.ScriptedChat(AiFixtures.Definition().ToJsonString(), content.ToJsonString());
         var report = await RunAsync(chat, Case with { MinPassageWords = expectedWords, MaxPassageWords = expectedWords });
 
@@ -161,7 +163,7 @@ public sealed class EvaluationTests : IDisposable
     {
         var content = AiFixtures.Content(count: count);
         var definition = AiFixtures.Definition();
-        definition["instanceParameters"]![1]!["default"] = count;
+        definition["generation"]!["questionCount"] = count;
         foreach (var question in content["questions"]!.AsArray())
         {
             question!["interaction"] = new JsonObject { ["type"] = "single-choice", ["options"] = new JsonArray("א", "ב", "ג") };
@@ -194,10 +196,16 @@ public sealed class EvaluationTests : IDisposable
     {
         var definition = AiFixtures.Definition();
         definition["generation"]!["instructions"] = instructions;
+        definition["instanceParameters"]!.AsArray().Add(new JsonObject
+        {
+            ["key"] = "count",
+            ["label"] = "מספר דוגמאות",
+            ["type"] = "integer",
+            ["default"] = 1
+        });
         if (noParameters)
         {
             definition["instanceParameters"] = new JsonArray();
-            definition["generation"]!["questionCountParameter"] = null;
         }
         using var chat = new AiFixtures.ScriptedChat(definition.ToJsonString(), AiFixtures.Content().ToJsonString());
         var report = await RunAsync(chat);
@@ -219,6 +227,7 @@ public sealed class EvaluationTests : IDisposable
     [InlineData(2)]
     [InlineData(3)]
     [InlineData(4)]
+    [InlineData(5)]
     public async Task New_checks_do_not_make_legacy_automatic_scores_directly_comparable(int? oldVersion)
     {
         using var chat = new AiFixtures.ScriptedChat(AiFixtures.Definition().ToJsonString(), AiFixtures.Content().ToJsonString());
@@ -233,7 +242,6 @@ public sealed class EvaluationTests : IDisposable
         await File.WriteAllTextAsync(path, legacyJson.ToJsonString());
         var legacy = await EvaluationFiles.ReadReportAsync(path);
         Assert.Null(Assert.Single(legacy.Results).PassageWordCount);
-
         var comparison = EvaluationComparison.Compare(legacy, current);
         Assert.False(comparison.DirectlyComparable);
         Assert.Contains("automatic-checks-version", comparison.Incompatibilities);
@@ -241,41 +249,15 @@ public sealed class EvaluationTests : IDisposable
         Assert.True(EvaluationComparison.Compare(current, current).DirectlyComparable);
     }
 
-    [Theory]
-    [InlineData(false, 100, false, true)]
-    [InlineData(true, 79, true, false)]
-    [InlineData(true, 100, true, true)]
-    public async Task Explicit_length_requests_check_both_the_blueprint_and_generated_content(
-        bool hasConstraint, int words, bool constraintPasses, bool generationPasses)
-    {
-        var definition = AiFixtures.Definition();
-        if (hasConstraint)
-            definition["generation"]!["contentWordCount"] = new JsonObject { ["min"] = 100, ["max"] = 150 };
-        var content = AiFixtures.Content();
-        content["contentBlocks"]![0]!["text"] = string.Join(' ', Enumerable.Repeat("מילה", words));
-        using var chat = new AiFixtures.ScriptedChat(definition.ToJsonString(), content.ToJsonString());
-        var report = await RunAsync(chat, Case with { MinPassageWords = 100, MaxPassageWords = 150, RequireWordCountConstraint = true });
-        var saved = await EvaluationFiles.ReadReportAsync(Path.Combine(directory, "run.json"));
-        var result = Assert.Single(saved.Results);
-
-        Assert.Equal(constraintPasses, result.Checks["contentWordCountConstraint"]);
-        Assert.Equal(generationPasses, result.Generation!.ContractValid);
-        Assert.Equal(content.ToJsonString(), result.Generation.Output);
-        Assert.Equal(constraintPasses && generationPasses ? 1 : 0, report.AutomaticPasses);
-        Assert.Equal(2, chat.Requests.Count);
-        Assert.Empty(report.Retries);
-        if (!generationPasses)
-            Assert.Contains("79", Assert.Single(result.Generation.ValidationErrors!["contentBlocks.wordCount"]));
-    }
-
     [Fact]
-    public async Task Maximum_count_uses_the_generated_binding_and_app_parameter_validator()
+    public async Task Question_count_override_reaches_generation_without_a_dynamic_field()
     {
         using var chat = new AiFixtures.ScriptedChat(AiFixtures.Definition().ToJsonString(), AiFixtures.Content(count: 20).ToJsonString());
-        var report = await RunAsync(chat, Case with { UseMaximumQuestionCount = true, QuestionCount = 20 });
+        var report = await RunAsync(chat, Case with { QuestionCountOverride = 20, QuestionCount = 20 });
 
         var result = Assert.Single(report.Results);
-        Assert.Equal(20, result.Parameters!["count"].GetInt32());
+        Assert.False(result.Parameters!.ContainsKey("count"));
+        Assert.Contains("\"questionCount\":20", chat.Requests[1].Input);
         Assert.True(result.Generation!.ContractValid);
     }
 

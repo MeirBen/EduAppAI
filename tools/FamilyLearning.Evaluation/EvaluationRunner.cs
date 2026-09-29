@@ -22,7 +22,7 @@ public static class EvaluationRunner
     public static async Task RunAsync(IChatClient client, AiGenerationOptions options, EvaluationReport report,
         string directory, CancellationToken ct, Action<EvaluationProgress>? progress = null, TimeProvider? timeProvider = null)
     {
-        report.AutomaticChecksVersion = 5;
+        report.AutomaticChecksVersion = 6;
         var capture = new EvaluationCapture(client, report.MaxCalls);
         using var engine = new AiGenerationService([capture], NullLogger<AiGenerationService>.Instance, Options.Create(options));
         string stage = "starting";
@@ -64,25 +64,13 @@ public static class EvaluationRunner
                     var references = Regex.Matches(definition.Generation.Instructions, "[A-Za-z0-9_]+")
                         .Select(match => match.Value).ToHashSet(StringComparer.Ordinal);
                     result.Checks["parameterReferences"] = definition.InstanceParameters.All(parameter => references.Contains(parameter.Key));
-                    if (scenario.RequireWordCountConstraint)
-                    {
-                        var range = definition.Generation.ContentWordCount;
-                        result.Checks["contentWordCountConstraint"] = range is not null &&
-                            range.Min == scenario.MinPassageWords && range.Max == scenario.MaxPassageWords;
-                    }
-                    var supplied = new Dictionary<string, JsonElement>();
-                    if (scenario.UseMaximumQuestionCount)
-                    {
-                        var count = definition.InstanceParameters.FirstOrDefault(parameter => parameter.Key == definition.Generation.QuestionCountParameter);
-                        result.Checks["adjustableQuestionCount"] = count?.Max is not null;
-                        if (count?.Max is { } maximum) supplied[count.Key] = JsonSerializer.SerializeToElement(maximum);
-                    }
-                    var parameters = ParameterValidator.Validate(definition.InstanceParameters, supplied);
+                    var parameters = ParameterValidator.Validate(definition.InstanceParameters, new Dictionary<string, JsonElement>());
+                    var questionCount = scenario.QuestionCountOverride ?? definition.Generation.QuestionCount;
                     result.Checks["parameterDefaults"] = parameters.Errors.Count == 0;
                     if (parameters.Errors.Count > 0) continue;
                     result.Parameters = parameters.Values;
                     stage = "generation";
-                    var content = await AttemptAsync(step => result.Generation = step, token => engine.GenerateAsync(definition, parameters.Values, token));
+                    var content = await AttemptAsync(step => result.Generation = step, token => engine.GenerateAsync(definition, parameters.Values, questionCount, token));
                     if (content is not null) CheckContent(scenario, content, result);
                     await SaveAsync();
                     if (content is not null && report.JudgeEnabled)
@@ -209,6 +197,25 @@ public static class EvaluationRunner
             report.Steps.Count(step => step.RequestSent && step.FinishedAtUtc.HasValue && !step.CostCredits.HasValue)));
     }
 
+    // Evaluation-only adherence metric: whitespace-delimited body words, excluding an exact leading task title.
+    private static int CountPassageWords(TaskContent content)
+    {
+        var words = 0;
+        var title = content.Title?.Trim();
+        for (var i = 0; i < content.ContentBlocks.Length; i++)
+        {
+            var text = content.ContentBlocks[i].Text.Trim();
+            if (i == 0)
+            {
+                var newline = text.IndexOf('\n');
+                if (newline >= 0 && text[..newline].Trim() == title) text = text[(newline + 1)..];
+                else if (text == title) text = "";
+            }
+            words += text.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries).Length;
+        }
+        return words;
+    }
+
     private static void CheckContent(EvaluationCase scenario, TaskContent content, EvaluationResult result)
     {
         var checks = result.Checks;
@@ -220,7 +227,7 @@ public static class EvaluationRunner
             checks["noPassage"] = content.ContentBlocks.Length == 0;
         else if (scenario.MinPassageWords.HasValue || scenario.MaxPassageWords.HasValue)
         {
-            result.PassageWordCount = TaskContentValidator.CountContentWords(content);
+            result.PassageWordCount = CountPassageWords(content);
             checks["passageLength"] = (!scenario.MinPassageWords.HasValue || result.PassageWordCount >= scenario.MinPassageWords) &&
                 (!scenario.MaxPassageWords.HasValue || result.PassageWordCount <= scenario.MaxPassageWords);
         }

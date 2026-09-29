@@ -97,11 +97,10 @@ public static class EvaluationFiles
                 item.Id.Any(character => !char.IsAsciiLetterOrDigit(character) && character is not ('_' or '-')) || !ids.Add(item.Id) ||
                 string.IsNullOrWhiteSpace(item.Prompt) || item.Prompt.Length > 4000 ||
                 string.IsNullOrWhiteSpace(item.ReviewFocus) || item.ReviewFocus.Length > 1000 ||
-                item.QuestionCount is < 1 or > 20 || item.Interaction is not ("single-choice" or "text-input" or "numeric-input") ||
+                item.QuestionCount < 1 || item.Interaction is not ("single-choice" or "text-input" or "numeric-input") ||
                 (item.ChoiceCount.HasValue && (item.Interaction != "single-choice" || item.ChoiceCount is < 2 or > 6)) ||
                 item.MinPassageWords < 0 || item.MaxPassageWords < 0 || item.MinPassageWords > item.MaxPassageWords ||
-                (item.RequireWordCountConstraint && item.MinPassageWords is null && item.MaxPassageWords is null) ||
-                (item.UseMaximumQuestionCount && item.QuestionCount < 2))
+                item.QuestionCountOverride < 1)
                 throw new InvalidDataException("Evaluation cases require unique safe IDs, bounded text and supported, consistent expectations.");
         }
     }

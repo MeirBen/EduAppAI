@@ -3,6 +3,12 @@ type ParameterValue = string | number | boolean;
 /** Values keyed by case-sensitive schema keys. Omitted keys allow server defaults. */
 export type ParameterValues = Record<string, ParameterValue>;
 
+/** Choices for a new task; the form sends an explicit count and typed parameter values. */
+export interface CreateInstanceRequest {
+  questionCount: number;
+  parameters: ParameterValues;
+}
+
 /** Field metadata shared with the backend's ParameterDefinition contract. */
 export interface ParameterDefinition {
   key: string;
@@ -19,14 +25,13 @@ export interface ParameterDefinition {
 
 /** Published blueprint; schemaVersion describes the JSON format, not the template revision. */
 export interface TemplateDefinition {
-  schemaVersion: 2;
+  schemaVersion: 3;
   name: string;
   instanceParameters: ParameterDefinition[];
   generation: {
     instructions: string;
-    questionCountParameter?: string | null;
-    /** Optional inclusive word limits across all text blocks; an omitted bound is open. */
-    contentWordCount?: { min?: number | null; max?: number | null } | null;
+    /** Positive default count, adjustable for each task. */
+    questionCount: number;
   };
 }
 

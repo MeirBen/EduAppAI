@@ -1,6 +1,26 @@
 <form (submit)="generate($event)" novalidate [attr.aria-busy]="busy()">
+  <div class="field">
+    <label for="question-count">מספר שאלות</label>
+    <input
+      id="question-count"
+      [formField]="fields.questionCount"
+      aria-required="true"
+      inputmode="numeric"
+      dir="ltr"
+      aria-describedby="question-count-help"
+      [attr.aria-invalid]="fields.questionCount().touched() && fields.questionCount().invalid()"
+    />
+    <div id="question-count-help">
+      <p class="mt-2 text-sm text-muted">המספר שנבחר חל על המשימה הזאת בלבד.</p>
+      @if (fields.questionCount().touched()) {
+        @for (error of fields.questionCount().errors(); track error.kind) {
+          <p class="field-error">{{ error.message }}</p>
+        }
+      }
+    </div>
+  </div>
   @for (definition of definitions(); track definition.key; let index = $index) {
-    @let entry = fields[index];
+    @let entry = fields.parameters[index];
     <div class="field">
       <label [for]="'parameter-' + definition.key"
         ><bdi>{{ definition.label }}</bdi>

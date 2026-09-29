@@ -47,8 +47,10 @@ public static class InstanceEndpoints
         if (version is null) return Results.NotFound();
         var definition = StoredJson.Read<TaskTemplateDefinition>(version.DefinitionJson);
         var parameters = ParameterValidator.Validate(definition.InstanceParameters, request.Parameters);
+        var questionCount = request.QuestionCount ?? definition.Generation.QuestionCount;
+        if (questionCount is < 1) parameters.Errors["questionCount"] = ["מספר השאלות חייב להיות גדול מאפס."];
         if (parameters.Errors.Count > 0) return Results.ValidationProblem(parameters.Errors);
-        var generated = await ai.GenerateAsync(definition, parameters.Values, ct);
+        var generated = await ai.GenerateAsync(definition, parameters.Values, questionCount, ct);
         var instance = new TaskInstance(user.FamilyId(), version.Id, generated.Value.Title,
             StoredJson.Write(parameters.Values), StoredJson.Write(generated.Value), StoredJson.Write(generated.Metadata));
         db.TaskInstances.Add(instance);

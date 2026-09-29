@@ -147,16 +147,16 @@ learning records or rewriting content at runtime.
 
 Maintain synthetic requests in [`cases.json`](tools/FamilyLearning.Evaluation/cases.json).
 They cover all three answer types, Hebrew/niqqud/bilingual content, fixed and
-configurable templates, empty/false/zero/negative defaults, 1–20 questions,
+configurable templates, empty/false/zero/negative defaults, varied question counts,
 2–6 choices, two passages, supplied source text and quoted instructions. A full
 run plans 44 base calls, or 70 with the four judge controls, before retries.
 Select individual cases for focused checks.
 
 `reviewFocus` guides human review, not automatic assertions. The runner uses
-generated defaults; `useMaximumQuestionCount` selects the count field's maximum.
-`requireWordCountConstraint` checks that authoring captured the case's requested
-word bounds as template data. Verbatim-source checks can measure length without
-requiring a constraint the parent never requested.
+generated defaults; `questionCountOverride` supplies an explicit per-task count.
+`minPassageWords` and `maxPassageWords` measure adherence to a case's requested
+length after generation; they are evaluation expectations, not application fields.
+Length checks do not reject otherwise valid content or prevent language review.
 Fixtures do not exercise arbitrary input values or repeated tasks from one
 template. HTTP, persistence and UI behavior have separate automated tests.
 
@@ -165,6 +165,8 @@ and its measurable expectations consistent with the parent request. Do not relax
 expectations to hide a model failure. Preview validates all fixtures without AI
 calls. Restart `dev.sh` after editing to rebuild its dashboard's fixture copies.
 Suite changes require new baseline and candidate runs for direct comparison.
+The current blueprint uses schema version 3 with a direct question count. Regenerate
+older templates and evaluation baselines; no legacy conversion is included.
 
 The loopback dashboard runs at `http://127.0.0.1:5180` (change with `--port`).
 It shows cases, call budget and nonsecret AI settings. Runs require confirmation;
@@ -231,14 +233,16 @@ Interpret the results separately:
 
 - **Code tests:** harness/app behavior with local providers, not model quality.
 - **Automatic checks:** contracts, defaults, parameter references, question/choice
-  counts and interaction types. A bound question count must be required or have
-  a valid default. Declared template word limits are enforced before saving;
-  evaluation checks case bounds with the same [word-count rules](docs/product-specification.md#contracts).
-  A zero maximum checks for
-  no passage blocks. Counts do not establish source fidelity; review verbatim
-  passages manually. `parameterReferences` checks for complete, case-sensitive
-  ASCII identifiers, not correct usage or complete instructions. Failed checks
-  retain valid templates and continue generation/review to preserve evidence.
+  counts and interaction types. Generation must return exactly the requested
+  positive question count. Passage length counts whitespace-separated words across
+  text blocks, excluding only an exact standalone task title at the beginning. Other
+  headings count as text; directions, questions and answers do not. A zero maximum
+  checks for no passage blocks. Length checks run only for cases with expectations;
+  they suit space-delimited text, not every language. Counts do not establish source
+  fidelity; review verbatim passages manually. `parameterReferences` checks for
+  complete, case-sensitive ASCII identifiers, not correct usage or complete
+  instructions. Failed checks retain valid templates and continue generation/review
+  to preserve evidence.
 - **Calibration:** known defect detection and false alarms, not general accuracy.
   Invalid or unavailable reviews fail calibration but leave detection counts
   unknown, rather than counting unmeasured defects as misses.

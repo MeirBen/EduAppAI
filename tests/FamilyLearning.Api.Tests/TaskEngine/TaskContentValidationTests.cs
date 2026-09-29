@@ -8,24 +8,6 @@ namespace FamilyLearning.Api.Tests.TaskEngine;
 
 public sealed class TaskContentValidationTests
 {
-    [Fact]
-    public void A_repeated_task_title_alone_does_not_satisfy_a_minimum_word_count()
-    {
-        var content = new TaskContent("כותרת בלבד", "", [new("text", "כותרת בלבד")], []);
-        Assert.Equal(0, TaskContentValidator.CountContentWords(content));
-        Assert.Contains("contentBlocks.wordCount", TaskContentValidator.Validate(content, contentWordCount: new(1)).Keys);
-    }
-
-    [Fact]
-    public void Word_limits_count_whitespace_and_vowel_points_across_text_blocks_only()
-    {
-        var content = new TaskContent("כותרת שלא נספרת", "הוראות שלא נספרות",
-            [new("text", "כותרת שלא נספרת\r\n\nשָׁלוֹם־עוֹלָם\tמילה\u00a0נוספת"), new("text", "שתי מילים")], []);
-        Assert.Equal(5, TaskContentValidator.CountContentWords(content));
-        Assert.DoesNotContain("contentBlocks.wordCount", TaskContentValidator.Validate(content, contentWordCount: new(5, 5)).Keys);
-        Assert.Contains("contentBlocks.wordCount", TaskContentValidator.Validate(content, contentWordCount: new(6, 6)).Keys);
-    }
-
     [Theory]
     [InlineData("missing-points")]
     [InlineData("null-question")]
@@ -42,7 +24,6 @@ public sealed class TaskContentValidationTests
     [InlineData("fractional-points")]
     [InlineData("null-content")]
     [InlineData("unknown-block")]
-    [InlineData("too-many-questions")]
     [InlineData("oversize-total")]
     public void Rejects_invalid_generated_content(string scenario)
     {
@@ -69,14 +50,6 @@ public sealed class TaskContentValidationTests
             case "fractional-points": questions[0]!["points"] = 1.5; break;
             case "null-content": content = null!; break;
             case "unknown-block": content["contentBlocks"]![0]!["type"] = "html"; break;
-            case "too-many-questions":
-                while (questions.Count < 21)
-                {
-                    var question = questions[0]!.DeepClone();
-                    question["id"] = $"q{questions.Count}";
-                    questions.Add(question);
-                }
-                break;
             case "oversize-total": content["contentBlocks"] = new JsonArray(Enumerable.Range(0, 3).Select(_ => (JsonNode)new JsonObject { ["type"] = "text", ["text"] = new string('a', 3000) }).ToArray()); break;
         }
         try

@@ -36,8 +36,9 @@
       @if (template.value().definition.instanceParameters.length === 0) {
         <p class="my-5 text-muted">התוכן ייווצר לפי ההנחיות הקבועות בתבנית.</p>
       }
-      <app-parameter-form
+      <app-instance-form
         [definitions]="template.value().definition.instanceParameters"
+        [defaultQuestionCount]="template.value().definition.generation.questionCount"
         [busy]="busy()"
         (generated)="generate($event)"
       />
@@ -52,23 +53,6 @@
     <aside class="panel panel-tinted sm:p-8" aria-labelledby="generation-title">
       <p class="eyebrow mb-3">התבנית שלכם</p>
       <h2 id="generation-title" class="mb-5">הנחיות ליצירה</h2>
-      @if (template.value().definition.generation.contentWordCount; as range) {
-        <p class="mb-4 text-sm text-brand">
-          מספר המילים בתוכן המקדים:
-          @if (range.min != null) {
-            לפחות <bdi>{{ range.min }}</bdi>
-          }
-          @if (range.min != null && range.max != null) {
-            ועד
-          } @else if (range.max != null) {
-            לכל היותר
-          }
-          @if (range.max != null) {
-            <bdi>{{ range.max }}</bdi>
-          }
-          מילים.
-        </p>
-      }
       <p class="whitespace-pre-wrap text-muted" dir="auto">
         {{ template.value().definition.generation.instructions }}
       </p>

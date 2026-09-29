@@ -32,42 +32,26 @@
       aria-describedby="instructions-hint"
     ></textarea>
     <p id="instructions-hint" class="mt-2 text-sm text-muted">
-      המטרה, גיל הלומדים, סוגי השאלות והשפה. השתמשו במפתחות השדות כדי להתייחס לבחירות המשתנות.
+      המטרה, גיל הלומדים, סוגי השאלות, השפה ואורך התוכן הרצוי, אם רלוונטי. השתמשו במפתחות השדות כדי
+      להתייחס לבחירות המשתנות.
     </p>
   </div>
-  <details class="well mt-6" [open]="definition().generation.contentWordCount != null">
-    <summary>בדיקת אורך התוכן המקדים — לא חובה</summary>
-    <p id="word-count-hint" class="mt-2 text-sm text-muted">
-      הטווח חל על כל קטעי הטקסט יחד, בלי הכותרת, ההוראות, השאלות והתשובות. הספירה נעשית לפי רווחים.
-      המשימה תישמר רק אם היא עומדת בטווח. גבול ריק אינו מגביל. טווח שכתוב בהנחיות בלבד אינו נאכף.
-    </p>
-    <div class="grid gap-x-4 sm:grid-cols-2">
-      <div class="field">
-        <label for="content-min-words">מספר מילים מינימלי</label>
-        <input
-          id="content-min-words"
-          [formField]="fields.minContentWords"
-          aria-describedby="word-count-hint"
-          inputmode="numeric"
-          dir="ltr"
-        />
-      </div>
-      <div class="field">
-        <label for="content-max-words">מספר מילים מרבי</label>
-        <input
-          id="content-max-words"
-          [formField]="fields.maxContentWords"
-          aria-describedby="word-count-hint"
-          inputmode="numeric"
-          dir="ltr"
-        />
-      </div>
-    </div>
-  </details>
+  <div class="field">
+    <label for="default-question-count">מספר שאלות כברירת מחדל</label>
+    <input
+      id="default-question-count"
+      [formField]="fields.questionCount"
+      aria-required="true"
+      inputmode="numeric"
+      dir="ltr"
+      aria-describedby="question-count-hint"
+    />
+    <p id="question-count-hint" class="mt-2 text-sm text-muted">אפשר לשנות לפני כל יצירת משימה.</p>
+  </div>
   <h3 class="mb-3 mt-8">מה בוחרים בכל שימוש?</h3>
   <p class="mb-5 text-sm text-muted">
-    למשל נושא, רמת קושי, אורך קטע או מספר שאלות. ברירת מחדל ריקה משאירה את הבחירה לשימוש הבא. בשדה
-    טקסט לא חובה אפשר לבחור במפורש בטקסט ריק.
+    למשל נושא, רמת קושי או אורך קטע. ברירת מחדל ריקה משאירה את הבחירה לשימוש הבא. בשדה טקסט לא חובה
+    אפשר לבחור במפורש בטקסט ריק.
   </p>
   @for (parameter of model().parameters; track parameter.id; let index = $index) {
     @let field = fields.parameters[index];
@@ -77,71 +61,6 @@
         <label [for]="parameter.id + '-label'">שם השדה להורה</label>
         <input [id]="parameter.id + '-label'" [formField]="field.label" dir="auto" />
       </div>
-      <div class="grid gap-x-4 sm:grid-cols-2">
-        <div class="field">
-          <label [for]="parameter.id + '-key'">מפתח בהנחיות</label>
-          <input
-            [id]="parameter.id + '-key'"
-            [formField]="field.key"
-            dir="ltr"
-            autocapitalize="off"
-            spellcheck="false"
-          />
-        </div>
-        <div class="field">
-          <label [for]="parameter.id + '-type'">סוג השדה</label>
-          <select [id]="parameter.id + '-type'" [formField]="field.type">
-            <option value="text">טקסט</option>
-            <option value="integer">מספר שלם</option>
-            <option value="select">בחירה מרשימה</option>
-            <option value="boolean">כן או לא</option>
-          </select>
-        </div>
-      </div>
-      @if (parameter.type === 'select') {
-        <div class="field">
-          <label [for]="parameter.id + '-options'">אפשרויות — אפשרות בכל שורה</label>
-          <textarea
-            [id]="parameter.id + '-options'"
-            [formField]="field.options"
-            rows="3"
-            dir="auto"
-          ></textarea>
-        </div>
-      }
-      @if (parameter.type === 'integer') {
-        <div class="grid gap-x-4 sm:grid-cols-2">
-          <div class="field">
-            <label [for]="parameter.id + '-min'">מינימום</label
-            ><input
-              [id]="parameter.id + '-min'"
-              [formField]="field.min"
-              inputmode="numeric"
-              dir="ltr"
-            />
-          </div>
-          <div class="field">
-            <label [for]="parameter.id + '-max'">מקסימום</label
-            ><input
-              [id]="parameter.id + '-max'"
-              [formField]="field.max"
-              inputmode="numeric"
-              dir="ltr"
-            />
-          </div>
-        </div>
-      }
-      @if (parameter.type === 'text') {
-        <div class="field">
-          <label [for]="parameter.id + '-length'">אורך מרבי (עד 500 תווים)</label
-          ><input
-            [id]="parameter.id + '-length'"
-            [formField]="field.maxLength"
-            inputmode="numeric"
-            dir="ltr"
-          />
-        </div>
-      }
       <div class="field">
         <label [for]="parameter.id + '-default'">ברירת מחדל</label>
         @if (parameter.type === 'boolean') {
@@ -165,18 +84,86 @@
           שימוש בטקסט ריק כברירת מחדל
         </label>
       }
-      <label class="mb-4 flex items-center gap-3"
-        ><input type="checkbox" [formField]="field.required" />שדה חובה</label
-      >
-      <button
-        type="button"
-        class="text-link text-danger"
-        [disabled]="saving() || busy()"
-        [attr.aria-label]="'הסרת שדה ' + (index + 1)"
-        (click)="removeParameter(index)"
-      >
-        הסרת השדה
-      </button>
+      <details [open]="attempted() && fields().invalid()">
+        <summary>הגדרות מתקדמות של השדה</summary>
+        <div class="grid gap-x-4 sm:grid-cols-2">
+          <div class="field">
+            <label [for]="parameter.id + '-key'">מפתח בהנחיות</label>
+            <input
+              [id]="parameter.id + '-key'"
+              [formField]="field.key"
+              dir="ltr"
+              autocapitalize="off"
+              spellcheck="false"
+            />
+          </div>
+          <div class="field">
+            <label [for]="parameter.id + '-type'">סוג השדה</label>
+            <select [id]="parameter.id + '-type'" [formField]="field.type">
+              <option value="text">טקסט</option>
+              <option value="integer">מספר שלם</option>
+              <option value="select">בחירה מרשימה</option>
+              <option value="boolean">כן או לא</option>
+            </select>
+          </div>
+        </div>
+        @if (parameter.type === 'select') {
+          <div class="field">
+            <label [for]="parameter.id + '-options'">אפשרויות — אפשרות בכל שורה</label>
+            <textarea
+              [id]="parameter.id + '-options'"
+              [formField]="field.options"
+              rows="3"
+              dir="auto"
+            ></textarea>
+          </div>
+        }
+        @if (parameter.type === 'integer') {
+          <div class="grid gap-x-4 sm:grid-cols-2">
+            <div class="field">
+              <label [for]="parameter.id + '-min'">מינימום</label
+              ><input
+                [id]="parameter.id + '-min'"
+                [formField]="field.min"
+                inputmode="numeric"
+                dir="ltr"
+              />
+            </div>
+            <div class="field">
+              <label [for]="parameter.id + '-max'">מקסימום</label
+              ><input
+                [id]="parameter.id + '-max'"
+                [formField]="field.max"
+                inputmode="numeric"
+                dir="ltr"
+              />
+            </div>
+          </div>
+        }
+        @if (parameter.type === 'text') {
+          <div class="field">
+            <label [for]="parameter.id + '-length'">אורך מרבי (עד 500 תווים)</label
+            ><input
+              [id]="parameter.id + '-length'"
+              [formField]="field.maxLength"
+              inputmode="numeric"
+              dir="ltr"
+            />
+          </div>
+        }
+        <label class="mb-4 flex items-center gap-3"
+          ><input type="checkbox" [formField]="field.required" />שדה חובה</label
+        >
+        <button
+          type="button"
+          class="text-link text-danger"
+          [disabled]="saving() || busy()"
+          [attr.aria-label]="'הסרת שדה ' + (index + 1)"
+          (click)="removeParameter(index)"
+        >
+          הסרת השדה
+        </button>
+      </details>
     </fieldset>
   }
   <button
@@ -188,21 +175,6 @@
   >
     הוספת שדה
   </button>
-  <div class="field">
-    <label for="count-binding">שדה שקובע את מספר השאלות</label>
-    <select id="count-binding" [formField]="fields.questionCountParameter">
-      <option value="">לפי ההנחיות הקבועות</option>
-      @for (parameter of model().parameters; track parameter.id) {
-        @if (parameter.type === 'integer' && parameter.key) {
-          <option [value]="parameter.key">{{ parameter.label || parameter.key }}</option>
-        }
-      }
-    </select>
-    <p class="text-sm text-muted">
-      השדה המקושר צריך להיות מספרי ובטווח 1–20, עם ברירת מחדל תקינה או סימון כשדה חובה. השרת יוודא
-      שהתקבל מספר השאלות שנבחר.
-    </p>
-  </div>
   <button class="button" type="submit" [disabled]="saving() || busy()">
     {{ saving() ? 'שומרים…' : existing() ? 'פרסום גרסה חדשה' : 'שמירת התבנית' }}
   </button>

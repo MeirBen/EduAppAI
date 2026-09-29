@@ -824,9 +824,8 @@ export function createDashboard(document, fetchRequest = globalThis.fetch.bind(g
         expectations.push(
           `passage words: ${item.minPassageWords ?? 0}–${item.maxPassageWords ?? 'unbounded'}`,
         );
-      if (item.useMaximumQuestionCount) expectations.push('maximum question count');
-      if (item.requireWordCountConstraint)
-        expectations.push('template must retain word-count bounds');
+      if (item.questionCountOverride != null)
+        expectations.push(`count override: ${item.questionCountOverride}`);
       const chips = node('ul', null, 'chips');
       for (const expectation of expectations) chips.append(node('li', expectation, 'chip'));
       entry.append(chips, raw(`Prompt · ${item.id}`, item.prompt));

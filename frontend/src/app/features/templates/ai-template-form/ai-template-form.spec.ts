@@ -11,6 +11,28 @@ describe('Blueprint review', () => {
     }),
   );
 
+  it('edits one default question count without changing dynamic parameters or the original template', async () => {
+    const definition = structuredClone(readingDefinition);
+    const fixture = TestBed.createComponent(AiTemplateForm);
+    fixture.componentRef.setInput('definition', definition);
+    await fixture.whenStable();
+    const element: HTMLElement = fixture.nativeElement;
+    const count = element.querySelector<HTMLInputElement>('#default-question-count')!;
+    expect(count.value).toBe('5');
+    expect(count.closest('details')).toBeNull();
+    count.value = '4';
+    count.dispatchEvent(new Event('input'));
+    element.querySelector('form')!.dispatchEvent(new Event('submit', { cancelable: true }));
+    const http = TestBed.inject(HttpTestingController);
+    const publication = http.expectOne('/api/templates');
+    expect(publication.request.body.generation.questionCount).toBe(4);
+    expect(publication.request.body.instanceParameters).toEqual(definition.instanceParameters);
+    expect(definition.generation.questionCount).toBe(5);
+    publication.flush({ id: 'template', definition: publication.request.body, currentVersion: 1 });
+    await fixture.whenStable();
+    http.verify();
+  });
+
   it.each([false, true])(
     'cancels a pending publication when leaving the editor (revision: %s)',
     async (revision) => {

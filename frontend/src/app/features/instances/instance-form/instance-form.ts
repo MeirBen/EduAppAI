@@ -1,6 +1,10 @@
 import { ChangeDetectionStrategy, Component, input, linkedSignal, output } from '@angular/core';
 import { applyEach, disabled, form, FormField, submit, validate } from '@angular/forms/signals';
-import { ParameterDefinition, ParameterValues } from '../../../core/api/models';
+import {
+  CreateInstanceRequest,
+  ParameterDefinition,
+  ParameterValues,
+} from '../../../core/api/models';
 import { isIntegerInput } from '../../../shared/forms/integer-input';
 
 /** Numeric input stays as text so an empty optional field cannot silently become zero. */
@@ -10,30 +14,37 @@ interface ParameterEntry {
 }
 
 /**
- * Renders reviewed field definitions with client validation; the API validates again.
+ * Collects an exact question count and reviewed parameter values; the API validates again.
  * Cleared optional text stays explicit; blank optional numbers/selects are omitted.
  */
 @Component({
-  selector: 'app-parameter-form',
+  selector: 'app-instance-form',
   imports: [FormField],
-  templateUrl: './parameter-form.html',
+  templateUrl: './instance-form.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class ParameterForm {
+export class InstanceForm {
   /** Replacing the schema resets the form to that schema's defaults. */
   readonly definitions = input.required<ParameterDefinition[]>();
+  readonly defaultQuestionCount = input.required<number>();
   readonly busy = input(false);
-  /** Emits values only; this component neither calls the API nor creates task content. */
-  readonly generated = output<ParameterValues>();
-  protected readonly model = linkedSignal(() =>
-    this.definitions().map((definition) => ({
+  /** Collects the requested count and parameters without calling AI or persisting content. */
+  readonly generated = output<CreateInstanceRequest>();
+  protected readonly model = linkedSignal(() => ({
+    questionCount: String(this.defaultQuestionCount()),
+    parameters: this.definitions().map((definition) => ({
       text: definition.default == null ? '' : String(definition.default),
       checked: definition.default === true,
     })),
-  );
+  }));
   protected readonly fields = form(this.model, (path) => {
-    applyEach(path, (entry) => {
-      disabled(entry, { when: () => this.busy() });
+    disabled(path, { when: () => this.busy() });
+    validate(path.questionCount, ({ value }) =>
+      isIntegerInput(value()) && Number(value()) >= 1
+        ? undefined
+        : { kind: 'questionCount', message: 'יש להזין מספר שלם גדול מאפס.' },
+    );
+    applyEach(path.parameters, (entry) => {
       validate(entry, ({ value, state }) => {
         const definition = this.definitions()[Number(state.keyInParent())];
         const message = parameterError(definition, value());
@@ -49,13 +60,16 @@ export class ParameterForm {
       const values: ParameterValues = {};
       // Empty optional text is an explicit value; omitting it would restore a cleared default.
       this.definitions().forEach((definition, index) => {
-        const entry = this.model()[index];
+        const entry = this.model().parameters[index];
         if (definition.type === 'boolean') values[definition.key] = entry.checked;
         else if (definition.type === 'text') values[definition.key] = entry.text;
         else if (entry.text !== '')
           values[definition.key] = definition.type === 'integer' ? Number(entry.text) : entry.text;
       });
-      this.generated.emit(values);
+      this.generated.emit({
+        parameters: values,
+        questionCount: Number(this.model().questionCount),
+      });
     });
   }
 }
