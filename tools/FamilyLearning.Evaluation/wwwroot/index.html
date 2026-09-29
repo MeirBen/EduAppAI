@@ -9,99 +9,116 @@
   </head>
   <body>
     <a class="skip-link" href="#main">Skip to content</a>
-    <header class="page-header">
-      <div>
-        <p class="eyebrow">Family Learning · local developer tool</p>
-        <h1>Evaluation Dashboard</h1>
+    <header class="topbar">
+      <div class="topbar-inner">
+        <div class="brand">
+          <span class="brand-mark" aria-hidden="true">✦</span>
+          <div>
+            <h1>Evaluation Dashboard</h1>
+            <p>Family Learning · local developer tool</p>
+          </div>
+        </div>
+        <div class="topbar-status">
+          <a id="run-indicator" class="pill running" href="#active-run" hidden></a>
+          <nav class="tabs" aria-label="Dashboard">
+            <button type="button" data-view="new" aria-current="page">New run</button>
+            <button type="button" data-view="history">
+              History <span id="history-count" class="count"></span>
+            </button>
+            <button type="button" data-view="compare">Compare</button>
+          </nav>
+        </div>
       </div>
-      <p>Read snapshots, review findings, compare evidence.</p>
     </header>
     <main id="main" data-dashboard>
       <p class="notice warning">
-        <strong>Live evaluation can consume paid OpenRouter credits.</strong> Opening this dashboard
-        and browsing saved runs makes no AI calls. This developer tool saves local reports, not
-        family templates or tasks; it does not correct content in the running application.
+        <strong>Runs can spend OpenRouter credits.</strong> Browsing, reviewing and comparing saved
+        runs make no AI calls. Reports stay local and never change family templates or tasks.
       </p>
-      <p id="message" role="alert" hidden></p>
-      <nav aria-label="Dashboard">
-        <button type="button" data-view="new" aria-current="page">New Run</button>
-        <button type="button" data-view="history">History</button>
-        <button type="button" data-view="compare">Compare</button>
-      </nav>
+      <p id="message" class="notice danger" role="alert" hidden></p>
 
       <section id="active-run" class="card" aria-labelledby="active-heading" hidden>
-        <h2 id="active-heading">Active run</h2>
-        <div id="active-progress" role="status" aria-live="polite"></div>
-        <div class="actions">
-          <button id="cancel-run" type="button" class="danger">Cancel run</button>
-          <button id="open-active" type="button" class="secondary">Open report</button>
+        <div class="card-header">
+          <h2 id="active-heading">Active run</h2>
+          <div class="actions">
+            <button id="open-active" type="button" class="secondary">Open report</button>
+            <button id="cancel-run" type="button" class="danger">Cancel run</button>
+          </div>
         </div>
-        <p class="muted">
-          Cancellation preserves the partial report. A call already in progress may still incur
-          cost. Open report to inspect saved results; completed calls and reported cost update as
-          each stage finishes. Only one run can be active.
-        </p>
+        <div id="active-progress" role="status" aria-live="polite"></div>
         <details>
-          <summary>What do the run statuses mean?</summary>
+          <summary>What do run statuses mean?</summary>
           <p>
             <strong>Completed</strong> means the workflow finished, not that every check passed.
-            <strong>Rate-limited</strong>, <strong>cancelled</strong> and <strong>failed</strong>
-            runs may contain useful partial results. Inspect the report before starting another run:
-            there are no automatic retries, and a new run starts from the beginning.
+            Cancelled, rate-limited, call-limit and failed runs keep their partial results.
+            Cancelling cannot stop a call already in progress, which may still cost credits. There
+            are no automatic retries, and only one run can be active.
           </p>
         </details>
       </section>
 
-      <section id="view-new" aria-labelledby="new-heading">
-        <h2 id="new-heading">Run evaluation</h2>
+      <section id="view-new" class="view" aria-labelledby="new-heading">
+        <div class="section-heading">
+          <div>
+            <h2 id="new-heading">New run</h2>
+            <p class="hint">Pick cases, check the plan, then confirm. Nothing runs before that.</p>
+          </div>
+        </div>
         <details class="card">
           <summary>New here? A practical workflow</summary>
           <ol>
+            <li>Start with one relevant case, one repeat and the Hebrew judge off.</li>
             <li>
-              Start with one relevant case and one repeat. Leave the Hebrew judge off for a basic
-              generation check.
+              Open the report in History, read the content and answers, and record your review.
             </li>
+            <li>Enable the judge when investigating language quality; it adds calls.</li>
             <li>
-              Review the call estimate, set a sufficient Max calls limit, and confirm the run.
-            </li>
-            <li>
-              Open the report in History. Read the generated content and answers, then record your
-              human review.
-            </li>
-            <li>
-              Enable the Hebrew judge when investigating language quality. It adds advisory feedback
-              and extra calls.
-            </li>
-            <li>
-              Label a baseline, change one prompt or model setting, and run the same selection again
+              Label a baseline, change one prompt or model setting, and rerun the same selection
               before comparing.
             </li>
           </ol>
         </details>
-        <div class="new-layout">
-          <form id="run-form" class="card">
-            <fieldset id="run-controls" disabled>
-              <legend>Evaluation cases</legend>
-              <p class="muted" id="cases-help">
-                Each selected case tests a parent request through AI template creation and then task
-                generation. The focus text describes what you should review; it is not an automatic
-                quality score. Start small before selecting the whole suite.
+        <form id="run-form">
+          <fieldset id="run-controls" class="new-layout" disabled>
+            <legend class="sr-only">Evaluation run</legend>
+            <section class="card" aria-labelledby="cases-heading">
+              <div class="card-header">
+                <h3 id="cases-heading">Cases</h3>
+                <span id="case-count" class="hint"></span>
+              </div>
+              <p id="cases-help" class="hint">
+                Each case sends a synthetic parent request through template creation, then task
+                generation. Its focus says what to review; it is not a score.
               </p>
-              <div class="actions">
-                <button id="select-all" type="button" class="secondary">Select all</button>
-                <button id="select-none" type="button" class="secondary">Clear selection</button>
+              <div class="toolbar">
+                <input
+                  id="case-filter"
+                  type="search"
+                  placeholder="Filter by name, focus or prompt"
+                  aria-label="Filter cases"
+                  aria-controls="cases"
+                />
+                <button id="select-all" type="button" class="secondary">Select shown</button>
+                <button id="select-none" type="button" class="secondary">Clear</button>
               </div>
               <div id="cases" class="cases" aria-describedby="cases-help"></div>
+              <p id="cases-empty" class="hint" hidden>No cases match this filter.</p>
               <details>
                 <summary>Where do these cases come from?</summary>
                 <p>
-                  They are maintained synthetic examples in <code>cases.json</code>, not your
-                  family's saved content. Add a case for a real usage gap or regression; keep its
-                  expectations aligned with the request. Restart the dashboard after editing. Task
-                  generation uses the generated defaults, or the count maximum when a case requests
-                  it; these runs do not exercise every possible field value.
+                  Maintained examples in <code>cases.json</code>, not family content. Add one for a
+                  real gap or regression and restart the dashboard. Tasks use generated defaults, or
+                  the maximum count when a case asks for it.
                 </p>
               </details>
+            </section>
+            <section class="card plan" aria-labelledby="plan-heading">
+              <h3 id="plan-heading">Run plan</h3>
+              <p id="configuration-message" class="notice warning" hidden></p>
+              <p id="fallback-warning" class="notice warning" hidden>
+                A fallback model is configured, so the returned model can differ. Check it in
+                reports before comparing models.
+              </p>
               <div class="control-grid">
                 <label
                   >Repeats
@@ -113,7 +130,7 @@
                     value="1"
                     required
                     dir="ltr"
-                    aria-describedby="repeats-help"
+                    aria-describedby="plan-help"
                 /></label>
                 <label
                   >Max calls
@@ -125,224 +142,145 @@
                     value="4"
                     required
                     dir="ltr"
-                    aria-describedby="calls-help budget-message"
+                    aria-describedby="plan-help budget-message"
                 /></label>
               </div>
-              <p id="repeats-help" class="muted">
-                Each repeat creates a fresh template and task. Use repeats to observe variation;
-                they do not reuse the same generated template.
+              <p id="plan-help" class="hint">
+                Each repeat creates a fresh template and task. Max calls must cover the plan; it
+                caps calls, not money. Set an OpenRouter key limit for a spending cap.
               </p>
-              <p id="calls-help" class="muted">
-                Max calls must cover the whole plan; it is not a currency or token limit. The
-                estimate is an upper bound: failed stages can skip later calls. Provider fallback
-                attempts may add cost. Use an OpenRouter key spending limit for a monetary cap.
-              </p>
-              <label class="checkbox-label"
-                ><input id="judge" type="checkbox" aria-describedby="judge-help judge-message" />
-                Enable Hebrew judge</label
+              <label class="switch"
+                ><input
+                  id="judge"
+                  type="checkbox"
+                  role="switch"
+                  aria-describedby="judge-help judge-message"
+                />
+                Hebrew judge</label
               >
-              <p id="judge-help" class="muted">
-                Adds AI proofreading of the generated template and task using the same AI
-                configuration, including any fallback. It reports language findings and suggested
-                corrections; it never rewrites content, fixes answers or assigns the human scores.
+              <p id="judge-help" class="hint">
+                Advisory proofreading with the same AI configuration. It reports findings; it never
+                rewrites content, fixes answers or scores results.
               </p>
-              <p id="judge-message" class="muted"></p>
-              <details class="well">
-                <summary>How the Hebrew judge works — and when to use it</summary>
+              <p id="judge-message" class="hint"></p>
+              <details>
+                <summary>How the judge works</summary>
                 <ol>
                   <li>
-                    <strong>Calibration first:</strong> known examples test whether the judge
-                    catches specific errors and avoids flagging acceptable text. These calls run
-                    once per run, not once per repeat.
+                    <strong>Calibration</strong> checks known examples for missed errors and false
+                    alarms, once per run.
                   </li>
                   <li>
-                    <strong>Content review next:</strong> each successful template/task pair gets
-                    one review for spelling, invented words, agreement, sentence structure, idiom
-                    and unintended language mixing.
+                    <strong>Content review</strong> proofreads each successful template/task pair.
                   </li>
                   <li>
-                    <strong>You decide:</strong> inspect the quoted field, suggestion and
-                    explanation. The same model can miss its own mistakes. Passing calibration or
-                    reporting no findings is not proof of good Hebrew or correct teaching content.
+                    <strong>You decide.</strong> The same model can miss its own mistakes; no
+                    findings is not proof of good Hebrew.
                   </li>
                 </ol>
-                <p>
-                  Use it when comparing language quality or investigating a Hebrew regression. Keep
-                  it off for quicker, lower-call checks of generation and structure. Human review
-                  remains available either way.
-                </p>
               </details>
-              <label
-                >Run label (optional, up to 120 characters)<input
-                  id="label"
-                  maxlength="120"
-                  dir="auto"
-                  placeholder="Baseline · reading · current settings"
-                  aria-describedby="run-metadata-help"
-              /></label>
-              <label
-                >Run notes (optional, up to 4,000 characters)<textarea
-                  id="run-notes"
-                  maxlength="4000"
-                  rows="3"
-                  dir="auto"
-                  placeholder="What changed, what you expect, and anything to inspect."
-                  aria-describedby="run-metadata-help"
-                ></textarea>
-              </label>
-              <p id="run-metadata-help" class="muted">
-                Labels and notes help you recognize experiments later. They are saved with the
-                report and do not change the AI request or comparison rules.
-              </p>
-              <div id="run-estimate" class="well" aria-live="polite"></div>
-              <p id="budget-message" class="muted"></p>
-              <button id="start-run" type="submit" disabled>Review and run</button>
-            </fieldset>
-          </form>
-          <aside class="card" aria-labelledby="profile-heading">
-            <h3 id="profile-heading">Current AI profile</h3>
-            <p class="muted">
-              Read-only. Uses the application's AI configuration. Change settings there, then
-              restart the dashboard. Compare the actual returned model in reports, especially when a
-              fallback is configured.
-            </p>
-            <div id="profile">Loading configuration…</div>
-            <p id="configuration-message" class="notice" hidden></p>
-            <p id="fallback-warning" class="notice warning" hidden>
-              A fallback model is configured. The actual returned model can differ, making model
-              comparisons less useful.
-            </p>
-            <details>
-              <summary>What do these settings control?</summary>
-              <dl>
-                <dt>Model / fallback</dt>
-                <dd>
-                  The requested model and optional provider-error fallback. A fallback is not a
-                  second independent judge.
-                </dd>
-                <dt>Response format</dt>
-                <dd>
-                  How JSON is requested. The app validates every response; valid JSON does not
-                  guarantee correct content.
-                </dd>
-                <dt>Reasoning</dt>
-                <dd>
-                  Optional thinking controls. Reasoning uses time and the output-token allowance,
-                  even when its text is not displayed.
-                </dd>
-                <dt>Temperature / top-p / top-k</dt>
-                <dd>
-                  Sampling controls. Support varies by endpoint; no value guarantees fluent Hebrew.
-                  Unset controls use provider defaults.
-                </dd>
-                <dt>Tokens / timeout</dt>
-                <dd>
-                  Output and time ceilings. Reaching a ceiling can prevent a complete response.
-                  These limits are not quality targets.
-                </dd>
-              </dl>
-            </details>
-          </aside>
-        </div>
+              <details>
+                <summary>Label and notes <span class="hint">(optional)</span></summary>
+                <label
+                  >Run label<input
+                    id="label"
+                    maxlength="120"
+                    dir="auto"
+                    placeholder="Baseline · reading · current settings"
+                /></label>
+                <label
+                  >Run notes<textarea
+                    id="run-notes"
+                    maxlength="4000"
+                    rows="3"
+                    dir="auto"
+                    placeholder="What changed, what you expect, what to inspect."
+                  ></textarea>
+                </label>
+                <p class="hint">Saved with the report to recognize experiments later.</p>
+              </details>
+              <details>
+                <summary>AI profile</summary>
+                <p class="hint">
+                  Read-only, from the app's AI configuration. Change it there, then restart the
+                  dashboard.
+                </p>
+                <div id="profile">Loading configuration…</div>
+              </details>
+              <div id="run-estimate" class="estimate" aria-live="polite"></div>
+              <p id="budget-message" class="hint"></p>
+              <button id="start-run" type="submit" class="wide" disabled>Review and run</button>
+            </section>
+          </fieldset>
+        </form>
       </section>
 
-      <section id="view-history" aria-labelledby="history-heading" hidden>
+      <section id="view-history" class="view" aria-labelledby="history-heading" hidden>
         <div class="section-heading">
-          <h2 id="history-heading">Run history</h2>
-          <button id="refresh-history" type="button" class="secondary">Refresh history</button>
+          <div>
+            <h2 id="history-heading">History</h2>
+            <p class="hint">Open a run to read its content, findings and human review.</p>
+          </div>
+          <button id="refresh-history" type="button" class="secondary">Refresh</button>
         </div>
         <details class="card">
           <summary>How to read a report</summary>
-          <dl>
+          <dl class="glossary">
             <dt>Contract passed</dt>
-            <dd>
-              The response met the app's structure and validation rules. Read the content to assess
-              language and correctness.
-            </dd>
+            <dd>The response met the app's structure and validation rules.</dd>
             <dt>Automatic checks</dt>
-            <dd>
-              Case-specific checks such as question count, choice count, interaction type and
-              passage length. A pass does not cover every instruction in the request.
-            </dd>
+            <dd>Case checks such as question, choice and passage counts; not every instruction.</dd>
             <dt>Judge calibration</dt>
-            <dd>
-              Detection of known errors and false alarms on fixed examples. Failed or unfinished
-              calibration weakens confidence in the judge; content reviews can still run.
-            </dd>
+            <dd>Known-example detection. If it fails or is unfinished, trust findings less.</dd>
             <dt>Hebrew findings</dt>
-            <dd>
-              Advisory language defects from the AI reviewer, separate from automatic checks and
-              your scores. No completed review means no language evidence, not zero errors.
-            </dd>
+            <dd>Advisory. No completed review means no language evidence, not zero errors.</dd>
             <dt>Human review</dt>
-            <dd>
-              Your assessment of the actual output. Score 0 for unusable, 1 for needs edits, 2 for
-              ready; leave a dimension unreviewed when you have not checked it. Record examples in
-              the notes.
-            </dd>
+            <dd>0 unusable, 1 needs edits, 2 ready. Leave unchecked dimensions unreviewed.</dd>
             <dt>Cost / latency</dt>
-            <dd>
-              Reported cost can be incomplete; unknown does not mean free. Average latency covers
-              returned responses, including rejected content, but excludes timeouts and transport
-              failures.
-            </dd>
+            <dd>Cost can be incomplete; unknown is not free. Latency excludes timeouts.</dd>
           </dl>
-          <p>
-            Raw request/output sections help investigate a failure. Reports contain generated answer
-            keys; keep them private. Saving a human review changes only the local scores and notes,
-            makes no AI call and does not fix the generated content.
+          <p class="hint">
+            Reports include generated answer keys; keep them private. Saving a review changes only
+            your local scores and notes.
           </p>
         </details>
         <div id="history-list"></div>
         <section id="report" aria-label="Saved run report" tabindex="-1" hidden></section>
       </section>
 
-      <section id="view-compare" aria-labelledby="compare-heading" hidden>
-        <h2 id="compare-heading">Compare saved runs</h2>
-        <p class="muted">
-          Descriptive changes only. Deltas mean candidate minus baseline; there is no combined score
-          or winner.
-        </p>
+      <section id="view-compare" class="view" aria-labelledby="compare-heading" hidden>
+        <div class="section-heading">
+          <div>
+            <h2 id="compare-heading">Compare</h2>
+            <p class="hint">
+              Deltas are candidate minus baseline. They describe changes; there is no winner.
+            </p>
+          </div>
+        </div>
         <details class="card">
           <summary>How to make a useful comparison</summary>
           <ol>
+            <li>Change one model or prompt setting between the baseline and the candidate.</li>
+            <li>Keep cases, repeats and judge setup identical; otherwise runs are incomparable.</li>
             <li>
-              Choose an earlier reference run as the baseline and the experiment as the candidate.
-              Change one model or prompt setting at a time.
+              Read compatibility first. Hebrew and human deltas need matching reviewed results.
             </li>
-            <li>
-              Keep the case suite, selected cases, repeats and judge setup the same. Incomplete runs
-              or changed fixtures can make the runs incomparable.
-            </li>
-            <li>
-              Read compatibility first. Hebrew finding deltas also require passing calibration and
-              matching reviewed results; human-score deltas need the same scored results.
-            </li>
-            <li>
-              A positive delta only means the candidate value is higher: more passes may help, more
-              failures or findings may hurt. Inspect the examples before drawing a quality
-              conclusion.
-            </li>
+            <li>A positive delta only means higher; inspect examples before concluding.</li>
           </ol>
-          <p>
-            Unknown measurements stay unknown. Comparing reports is offline and free of AI calls; it
-            never chooses a winner or updates your model settings.
-          </p>
         </details>
-        <form id="compare-form" class="card">
-          <div class="control-grid">
-            <label
-              >Baseline run (reference)<select id="baseline" required>
-                <option value="">Choose a run</option>
-              </select></label
-            >
-            <label
-              >Candidate run (experiment)<select id="candidate" required>
-                <option value="">Choose a run</option>
-              </select></label
-            >
-          </div>
-          <button id="compare-runs" type="submit">Compare runs</button>
+        <form id="compare-form" class="card compare-form">
+          <label
+            >Baseline (reference)<select id="baseline" required>
+              <option value="">Choose a run</option>
+            </select></label
+          >
+          <button id="swap-runs" type="button" class="secondary" aria-label="Swap runs">⇄</button>
+          <label
+            >Candidate (experiment)<select id="candidate" required>
+              <option value="">Choose a run</option>
+            </select></label
+          >
+          <button id="compare-runs" type="submit">Compare</button>
         </form>
         <div id="comparison" aria-live="polite"></div>
       </section>
@@ -355,10 +293,10 @@
     >
       <h2 id="confirm-heading">Start paid evaluation?</h2>
       <p id="confirm-message"></p>
-      <p>OpenRouter credits may be charged. Failed calls are not retried automatically.</p>
+      <p class="hint">OpenRouter credits may be charged. Failed calls are not retried.</p>
       <div class="actions">
-        <button id="confirm-run" type="button">Start evaluation</button>
         <button id="dismiss-confirmation" type="button" class="secondary">Go back</button>
+        <button id="confirm-run" type="button">Start evaluation</button>
       </div>
     </dialog>
   </body>

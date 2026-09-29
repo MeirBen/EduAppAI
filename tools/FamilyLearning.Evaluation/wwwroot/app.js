@@ -39,6 +39,17 @@ const incompatibilities = {
   'calibration-inputs': 'Different calibration inputs',
   'judge-prompt': 'Different judge prompts or versions',
 };
+// Completed means finished, not passed, so it stays neutral.
+const statusTones = {
+  starting: 'running',
+  running: 'running',
+  cancelling: 'running',
+  cancelled: 'warning',
+  'rate-limited': 'warning',
+  'call-limit': 'warning',
+  failed: 'danger',
+};
+const dateTime = new Intl.DateTimeFormat('en', { dateStyle: 'medium', timeStyle: 'medium' });
 
 /** Scoped DOM helpers: all supplied strings remain text, never interpreted markup. */
 function createDom(document) {
@@ -55,10 +66,31 @@ function createDom(document) {
     return element;
   }
 
-  function pairs(entries) {
-    const list = node('dl');
-    for (const [key, value] of entries) list.append(node('dt', key), content('dd', display(value)));
+  /** Values may be nodes; each pair gets a row so layouts can style it as one unit. */
+  function pairs(entries, className) {
+    const list = node('dl', null, className);
+    for (const [key, value] of entries) {
+      const row = node('div');
+      const detail = content('dd', value?.nodeType ? null : display(value));
+      if (value?.nodeType) detail.append(value);
+      row.append(node('dt', key), detail);
+      list.append(row);
+    }
     return list;
+  }
+
+  function pill(status, tone = statusTones[status]) {
+    return node('span', display(status), tone ? `pill ${tone}` : 'pill');
+  }
+
+  /** A native meter: the numbers stay in adjacent text, so it only reinforces them. */
+  function gauge(value, max, label, className) {
+    const meter = node('meter', null, className);
+    meter.setAttribute('min', '0');
+    meter.setAttribute('max', String(Math.max(max || 0, 1)));
+    meter.setAttribute('value', String(value || 0));
+    meter.setAttribute('aria-label', label);
+    return meter;
   }
 
   function table(headings, rows, className) {
@@ -88,14 +120,45 @@ function createDom(document) {
     return wrapper;
   }
 
+  /** Copies the current text, so edited blocks copy their latest content. */
+  function copyButton(read, label) {
+    const button = node('button', null, 'copy');
+    button.type = 'button';
+    button.setAttribute('aria-live', 'polite');
+    const icon = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    icon.setAttribute('viewBox', '0 0 24 24');
+    icon.setAttribute('aria-hidden', 'true');
+    path.setAttribute('d', 'M9 9h11v11H9zM5 15H4V4h11v1');
+    icon.append(path);
+    const caption = node('span', 'Copy');
+    button.append(icon, caption, node('span', ` ${label}`, 'sr-only'));
+    button.addEventListener('click', async () => {
+      try {
+        await document.defaultView.navigator.clipboard.writeText(read());
+        caption.textContent = 'Copied';
+      } catch {
+        caption.textContent = 'Copy failed';
+      }
+      setTimeout(() => (caption.textContent = 'Copy'), 1500);
+    });
+    return button;
+  }
+
   function raw(heading, value) {
     const details = node('details');
     const text = typeof value === 'string' ? value : JSON.stringify(value, null, 2);
-    details.append(node('summary', heading), content('pre', text ?? 'Not recorded'));
+    const block = content('pre', text ?? 'Not recorded');
+    const copyable = node('div', null, 'copyable');
+    copyable.append(
+      copyButton(() => block.textContent, heading),
+      block,
+    );
+    details.append(node('summary', heading), copyable);
     return details;
   }
 
-  return { node, content, pairs, table, raw };
+  return { node, content, pairs, pill, gauge, copyButton, table, raw };
 }
 
 function display(value) {
@@ -114,15 +177,25 @@ function delta(value, available = true) {
     : `${value > 0 ? '+' : ''}${number(value)}`;
 }
 
-function timestamp(value) {
-  return value ? new Date(value).toLocaleString() : 'Not finished';
+function plural(count, noun) {
+  return `${count} ${count === 1 ? noun : `${noun}s`}`;
 }
 
-function cost(total) {
-  if (!total) return 'Unknown cost';
-  const subtotal =
-    total.knownTotal == null ? 'Unknown subtotal' : `${number(total.knownTotal)} credits reported`;
-  return `${subtotal}; ${total.missingCalls ?? 0} calls with unknown cost`;
+function timestamp(value) {
+  return value ? dateTime.format(new Date(value)) : 'Not finished';
+}
+
+function duration(milliseconds) {
+  if (milliseconds === null || milliseconds === undefined) return 'Not reported';
+  return milliseconds < 1000
+    ? `${Math.round(milliseconds)} ms`
+    : number(Math.round(milliseconds / 100) / 10, ' s');
+}
+
+/** Known subtotal plus the calls it misses; unknown never reads as zero. */
+function measured(total, unit = '') {
+  const known = total?.knownTotal == null ? 'Unknown' : number(total.knownTotal, unit);
+  return total?.missingCalls ? `${known} + ${total.missingCalls} calls unknown` : known;
 }
 
 function calibration(summary) {
@@ -138,7 +211,7 @@ function hebrewFindings(summary) {
   if (!summary.judgeEnabled) return 'Not reviewed (judge disabled)';
   const reviewed = summary.generatedContentReviews?.succeeded ?? 0;
   return reviewed
-    ? `${summary.generatedHebrewIssueCount} findings across ${reviewed} reviewed ${reviewed === 1 ? 'result' : 'results'}`
+    ? `${plural(summary.generatedHebrewIssueCount, 'finding')} across ${plural(reviewed, 'reviewed result')}`
     : 'No completed content reviews';
 }
 
@@ -154,8 +227,8 @@ export function renderTask(document, task) {
     item.append(
       node(
         'p',
-        `Question ${index + 1} · ${question.id} · ${question.interaction?.type} · ${question.points} points`,
-        'muted',
+        `Question ${index + 1} · ${question.id} · ${question.interaction?.type} · ${plural(question.points, 'point')}`,
+        'hint',
       ),
     );
     item.append(content('p', question.prompt));
@@ -252,8 +325,6 @@ export function renderComparison(document, comparison) {
   const performance = section('performance', 'Performance and cost');
   const before = comparison.baseline ?? {};
   const after = comparison.candidate ?? {};
-  const measurement = (total) =>
-    total ? `${number(total.knownTotal)} (${total.missingCalls} missing calls)` : 'Not reported';
   performance.append(
     table(
       ['Measurement', 'Baseline', 'Candidate', 'Delta'],
@@ -270,14 +341,14 @@ export function renderComparison(document, comparison) {
           ['reasoningTokens', 'Reasoning tokens'],
         ].map(([key, label]) => [
           label,
-          measurement(before[key]),
-          measurement(after[key]),
+          measured(before[key]),
+          measured(after[key]),
           delta(deltas[key], compatible),
         ]),
         [
           'Reported cost (credits)',
-          cost(before.costCredits),
-          cost(after.costCredits),
+          measured(before.costCredits),
+          measured(after.costCredits),
           delta(deltas.costCredits, compatible),
         ],
       ],
@@ -287,7 +358,7 @@ export function renderComparison(document, comparison) {
     node(
       'p',
       'Missing measurements remain unknown. Cost and token deltas require complete coverage in both runs.',
-      'muted',
+      'hint',
     ),
   );
   const human = section('human', 'Human review');
@@ -307,7 +378,7 @@ export function renderComparison(document, comparison) {
     node(
       'p',
       'A dimension is comparable only when the same results were reviewed in both compatible runs.',
-      'muted',
+      'hint',
     ),
   );
   root.append(raw('Raw comparison JSON (includes diagnostic evidence)', comparison));
@@ -316,7 +387,7 @@ export function renderComparison(document, comparison) {
 
 /** Starts read-only loading and serialized one-second polling. Mutations are never retried. */
 export function createDashboard(document, fetchRequest = globalThis.fetch.bind(globalThis)) {
-  const { node, content, pairs, table, raw } = createDom(document);
+  const { node, content, pairs, pill, gauge, copyButton, table, raw } = createDom(document);
   const get = (id) => document.getElementById(id);
   const state = {
     setup: null,
@@ -329,6 +400,7 @@ export function createDashboard(document, fetchRequest = globalThis.fetch.bind(g
     disposed: false,
     timer: null,
     confirmation: null,
+    loading: 0,
   };
   const showError = (error) => {
     get('message').textContent = error?.message || 'The request could not be completed.';
@@ -352,24 +424,46 @@ export function createDashboard(document, fetchRequest = globalThis.fetch.bind(g
       options.headers['X-Evaluation-CSRF'] = state.setup.csrfToken;
       options.body = JSON.stringify(body);
     }
-    let response;
+    // Background status polling never shows the loading bar.
+    const foreground = path !== '/api/active';
+    if (foreground) trackLoading(1);
     try {
-      response = await fetchRequest(path, options);
-    } catch {
-      throw new Error(
-        'The local dashboard could not be reached. Check that the evaluation tool is running.',
-      );
-    }
-    let result = null;
-    if (response.status !== 204) {
+      let response;
       try {
-        result = await response.json();
+        response = await fetchRequest(path, options);
       } catch {
-        throw new Error('The local dashboard returned an unreadable response.');
+        throw new Error(
+          'The local dashboard could not be reached. Check that the evaluation tool is running.',
+        );
       }
+      let result = null;
+      if (response.status !== 204) {
+        try {
+          result = await response.json();
+        } catch {
+          throw new Error('The local dashboard returned an unreadable response.');
+        }
+      }
+      if (!response.ok) throw new Error(result?.title || 'The request could not be completed.');
+      return result;
+    } finally {
+      if (foreground) trackLoading(-1);
     }
-    if (!response.ok) throw new Error(result?.title || 'The request could not be completed.');
-    return result;
+  }
+
+  function trackLoading(change) {
+    state.loading += change;
+    document.body.toggleAttribute('data-loading', state.loading > 0);
+  }
+
+  /** Shows a spinner on the control that started the work; the control itself stays usable. */
+  async function busy(control, work) {
+    control.setAttribute('aria-busy', 'true');
+    try {
+      return await work();
+    } finally {
+      control.removeAttribute('aria-busy');
+    }
   }
 
   function showView(view) {
@@ -404,16 +498,20 @@ export function createDashboard(document, fetchRequest = globalThis.fetch.bind(g
       maxCalls >= 1 &&
       maxCalls <= 100 &&
       planned <= maxCalls;
+    get('case-count').textContent = state.setup
+      ? `${count} of ${state.setup.cases.length} selected`
+      : '';
     get('run-estimate').replaceChildren(
       pairs([
+        ['Configured model', state.setup?.profile.Model],
         ['Selected cases', count],
         ['Repeats', Number.isInteger(repeat) ? repeat : 'Invalid'],
         ['Template + task calls', count * repeat * 2],
         ['Additional Hebrew review calls', judge ? count * repeat : 0],
         ['Calibration calls (once per run)', calibrationCount],
         ['Maximum billable application calls', planned],
-        ['Configured model', state.setup?.profile.Model],
       ]),
+      gauge(planned, maxCalls, 'Planned calls within max calls', planned > maxCalls ? 'over' : ''),
     );
     get('budget-message').textContent = !count
       ? 'Select at least one case.'
@@ -433,7 +531,12 @@ export function createDashboard(document, fetchRequest = globalThis.fetch.bind(g
   function renderSetup(setup) {
     state.setup = setup;
     get('profile').replaceChildren(
-      pairs(Object.entries(profileFields).map(([key, label]) => [label, setup.profile[key]])),
+      pairs(
+        Object.entries(profileFields).map(([key, label]) => [
+          label,
+          setup.profile[key] ?? 'Not set',
+        ]),
+      ),
     );
     get('fallback-warning').hidden = !setup.profile.FallbackModel;
     get('configuration-message').hidden = setup.configured;
@@ -454,7 +557,7 @@ export function createDashboard(document, fetchRequest = globalThis.fetch.bind(g
       checkbox.name = 'caseId';
       checkbox.value = item.id;
       checkbox.id = `case-${index}`;
-      label.append(checkbox, node('strong', item.id));
+      label.append(checkbox, node('span', item.id));
       entry.append(label, content('p', item.reviewFocus));
       const expectations = [`${item.questionCount} questions`, item.interaction];
       if (item.choiceCount != null) expectations.push(`${item.choiceCount} choices`);
@@ -463,43 +566,72 @@ export function createDashboard(document, fetchRequest = globalThis.fetch.bind(g
           `passage words: ${item.minPassageWords ?? 0}–${item.maxPassageWords ?? 'unbounded'}`,
         );
       if (item.useMaximumQuestionCount) expectations.push('maximum question count');
-      entry.append(
-        node('p', expectations.join(' · '), 'expectations'),
-        raw(`Prompt · ${item.id}`, item.prompt),
-      );
+      const chips = node('ul', null, 'chips');
+      for (const expectation of expectations) chips.append(node('li', expectation, 'chip'));
+      entry.append(chips, raw(`Prompt · ${item.id}`, item.prompt));
       get('cases').append(entry);
     });
+    filterCases();
     estimate();
+  }
+
+  function filterCases() {
+    const query = get('case-filter').value.trim().toLowerCase();
+    let shown = 0;
+    for (const entry of get('cases').querySelectorAll('.case')) {
+      entry.hidden = Boolean(query) && !entry.textContent.toLowerCase().includes(query);
+      if (!entry.hidden) shown++;
+    }
+    get('cases-empty').hidden = shown > 0 || !state.setup?.cases.length;
   }
 
   function renderActive() {
     const active = state.active;
+    const progress = active?.progress;
+    const indicator = get('run-indicator');
+    indicator.hidden = !active?.running;
+    indicator.textContent = progress
+      ? `Run in progress · ${progress.completedCalls}/${progress.plannedCalls} calls`
+      : 'Run starting';
     get('active-run').hidden = !active;
     if (active) {
-      const progress = active.progress;
       get('active-heading').textContent = active.running ? 'Active run' : 'Latest run';
       get('cancel-run').hidden = !active.running;
       get('cancel-run').disabled = !active.running || state.pending;
+      // Without progress the bar stays indeterminate while the run prepares.
+      const bar = node('progress');
+      bar.setAttribute('aria-label', 'Completed calls');
+      if (progress) {
+        bar.setAttribute('max', String(Math.max(progress.plannedCalls, 1)));
+        bar.setAttribute('value', String(progress.completedCalls));
+      }
       get('active-progress').replaceChildren(
-        pairs([
-          ['Run status', active.status],
-          ['Current case', progress?.caseId],
-          ['Repetition', progress?.repetition],
-          ['Stage', progress?.stage],
+        pill(active.status),
+        bar,
+        pairs(
           [
-            'Completed / planned calls',
-            progress ? `${progress.completedCalls} / ${progress.plannedCalls}` : 'Preparing',
+            [
+              'Completed / planned calls',
+              progress ? `${progress.completedCalls} / ${progress.plannedCalls}` : 'Preparing',
+            ],
+            ['Current case', progress?.caseId],
+            ['Repetition', progress?.repetition],
+            ['Stage', progress?.stage],
+            ['Latest status', progress?.status],
+            ['Returned model', progress?.model],
+            [
+              'Reported cost',
+              measured(
+                {
+                  knownTotal: progress?.reportedCostCredits,
+                  missingCalls: progress?.missingCostCalls,
+                },
+                ' credits',
+              ),
+            ],
           ],
-          ['Latest status', progress?.status],
-          ['Returned model', progress?.model],
-          [
-            'Reported cost subtotal',
-            progress?.reportedCostCredits == null
-              ? 'Unknown'
-              : `${number(progress.reportedCostCredits)} credits`,
-          ],
-          ['Calls with unknown cost', progress?.missingCostCalls],
-        ]),
+          'kpis',
+        ),
       );
       if (active.error) get('active-progress').append(node('p', active.error, 'notice warning'));
     }
@@ -540,39 +672,52 @@ export function createDashboard(document, fetchRequest = globalThis.fetch.bind(g
     if (state.disposed) return;
     const rows = history.map((run) => {
       const identity = node('div');
-      const open = node('button', run.label || run.id, 'secondary');
+      const open = node('button', null, 'run-link');
+      open.append(node('span', run.label || run.id));
       open.type = 'button';
-      open.addEventListener('click', () => openReport(run.id).catch(showError));
-      identity.append(open, node('p', timestamp(run.startedAtUtc), 'muted'));
-      if (!run.summary) return [identity, run.error || 'Report unavailable', '', '', '', '', ''];
+      open.title = run.id;
+      open.addEventListener('click', () => busy(open, () => openReport(run.id)).catch(showError));
+      identity.append(open, node('p', timestamp(run.startedAtUtc), 'hint'));
+      if (!run.summary)
+        return [identity, node('p', run.error || 'Report unavailable', 'fail'), '', '', '', '', ''];
       const summary = run.summary;
+      const returned = summary.actualModels?.join(', ') || 'Not reported';
       const models = node('div');
-      models.append(
-        node('p', `Configured: ${display(run.configuredModel)}`),
-        node('p', `Returned: ${summary.actualModels?.join(', ') || 'Not reported'}`),
+      // One line when the returned model is the configured one; otherwise show both.
+      if (returned === run.configuredModel) models.append(node('p', returned));
+      else
+        models.append(
+          node('p', `Configured: ${display(run.configuredModel)}`),
+          node('p', `Returned: ${returned}`, 'hint'),
+        );
+      const checks = node('div', null, 'rate');
+      checks.append(
+        node(
+          'span',
+          `${summary.scenarioAutomaticPasses}/${summary.plannedCaseRuns} passed · ${plural(summary.caseCount, 'case')} × ${summary.repeat}`,
+        ),
+        gauge(summary.scenarioAutomaticPasses, summary.plannedCaseRuns, 'Automatic passes'),
+      );
+      const judge = node('div');
+      judge.append(
+        node('p', `Calibration: ${calibration(summary)}`),
+        node('p', hebrewFindings(summary), 'hint'),
       );
       return [
         identity,
-        summary.status,
+        pill(summary.status),
         models,
-        `${summary.caseCount} cases × ${summary.repeat}; ${summary.scenarioAutomaticPasses}/${summary.plannedCaseRuns} automatic passes`,
-        `Calibration: ${calibration(summary)}; ${hebrewFindings(summary)}`,
-        cost(summary.costCredits),
-        number(summary.averageLatencyMilliseconds, ' ms'),
+        checks,
+        judge,
+        measured(summary.costCredits, ' credits'),
+        duration(summary.averageLatencyMilliseconds),
       ];
     });
+    get('history-count').textContent = history.length || '';
     get('history-list').replaceChildren(
       history.length
         ? table(
-            [
-              'Run',
-              'Status',
-              'Models',
-              'Cases / checks',
-              'Judge',
-              'Reported cost',
-              'Average latency',
-            ],
+            ['Run', 'Status', 'Models', 'Automatic checks', 'Judge', 'Reported cost', 'Latency'],
             rows,
             'history-table',
           )
@@ -589,33 +734,41 @@ export function createDashboard(document, fetchRequest = globalThis.fetch.bind(g
   }
 
   function renderSummary(summary) {
-    return pairs([
-      ['Status', summary.status],
-      ['Cases / repeats', `${summary.caseCount} / ${summary.repeat}`],
-      ['Automatic passes', `${summary.scenarioAutomaticPasses} / ${summary.plannedCaseRuns}`],
-      ['Judge calibration', calibration(summary)],
-      ['Generated Hebrew findings', hebrewFindings(summary)],
-      ['Actual returned models', summary.actualModels?.join(', ')],
-      ['Reported cost subtotal', cost(summary.costCredits)],
-      ['Average response latency', number(summary.averageLatencyMilliseconds, ' ms')],
-    ]);
+    const passes = node('div', null, 'rate');
+    passes.append(
+      node('span', `${summary.scenarioAutomaticPasses} / ${summary.plannedCaseRuns}`),
+      gauge(summary.scenarioAutomaticPasses, summary.plannedCaseRuns, 'Automatic passes'),
+    );
+    return pairs(
+      [
+        ['Status', pill(summary.status)],
+        ['Automatic passes', passes],
+        ['Cases / repeats', `${summary.caseCount} / ${summary.repeat}`],
+        ['Judge calibration', calibration(summary)],
+        ['Generated Hebrew findings', hebrewFindings(summary)],
+        ['Actual returned models', summary.actualModels?.join(', ')],
+        ['Reported cost', measured(summary.costCredits, ' credits')],
+        ['Average latency', duration(summary.averageLatencyMilliseconds)],
+      ],
+      'kpis',
+    );
   }
 
   function renderStep(name, step) {
-    const section = node('section', null, 'well');
-    section.append(node('h4', name));
-    const status = !step
-      ? 'Not attempted'
+    const section = node('section', null, 'stage');
+    const [status, tone] = !step
+      ? ['Not attempted']
       : !step.finishedAtUtc
-        ? 'In progress / unfinished'
+        ? ['In progress / unfinished', 'warning']
         : step.contractValid
-          ? 'Contract passed'
-          : 'Failed / rejected';
+          ? ['Contract passed', 'pass']
+          : ['Failed / rejected', 'danger'];
     section.append(
+      node('h4', name),
+      pill(status, tone),
       pairs([
-        ['Status', status],
         ['Model', step?.model],
-        ['Latency', number(step?.elapsedMilliseconds, ' ms')],
+        ['Latency', duration(step?.elapsedMilliseconds)],
         ['Reported cost', number(step?.costCredits, ' credits')],
       ]),
     );
@@ -631,7 +784,7 @@ export function createDashboard(document, fetchRequest = globalThis.fetch.bind(g
       node(
         'p',
         'Score what you checked: 0 unusable, 1 needs edits, 2 ready. Leave other dimensions unreviewed. Saving changes only your local scores and notes.',
-        'muted',
+        'hint',
       ),
     );
     const eligible =
@@ -645,7 +798,7 @@ export function createDashboard(document, fetchRequest = globalThis.fetch.bind(g
       const field = node('div');
       const label = node('label', labelText);
       const select = node('select');
-      const help = node('p', hint, 'muted');
+      const help = node('p', hint, 'hint');
       help.id = `review-${runId}-${result.caseId}-${result.repetition}-${key}`;
       select.setAttribute('aria-describedby', help.id);
       for (const [value, caption] of [
@@ -679,7 +832,7 @@ export function createDashboard(document, fetchRequest = globalThis.fetch.bind(g
         node(
           'p',
           'Review editing is available after a valid generated result has finished and the run is no longer active.',
-          'muted',
+          'hint',
         ),
       );
     form.addEventListener('submit', async (event) => {
@@ -695,11 +848,13 @@ export function createDashboard(document, fetchRequest = globalThis.fetch.bind(g
       );
       review.notes = notes.value || null;
       try {
-        await request(`/api/runs/${encodeURIComponent(runId)}/review`, 'PUT', {
-          caseId: result.caseId,
-          repetition: result.repetition,
-          review,
-        });
+        await busy(save, () =>
+          request(`/api/runs/${encodeURIComponent(runId)}/review`, 'PUT', {
+            caseId: result.caseId,
+            repetition: result.repetition,
+            review,
+          }),
+        );
         result.review = review;
         if (state.reportId === runId) {
           const saved = get('report').querySelector('[data-saved-report] pre');
@@ -715,6 +870,43 @@ export function createDashboard(document, fetchRequest = globalThis.fetch.bind(g
       }
     });
     return form;
+  }
+
+  function resultName(evaluation) {
+    return `${evaluation.caseId} · repetition ${evaluation.repetition}`;
+  }
+
+  /** One-glance status shared by the results index and each result header. */
+  function resultChips(evaluation) {
+    const checks = Object.values(evaluation.checks ?? {});
+    const passed = checks.filter(Boolean).length;
+    const generated = evaluation.generation?.contractValid;
+    const reviewed = Object.keys(dimensions).filter((key) => evaluation.review?.[key] != null);
+    const chips = node('ul', null, 'chips');
+    chips.append(
+      node(
+        'li',
+        `checks ${passed}/${checks.length}`,
+        `chip ${passed === checks.length ? 'pass' : 'fail'}`,
+      ),
+      node(
+        'li',
+        generated ? 'task generated' : 'no valid task',
+        `chip ${generated ? 'pass' : 'fail'}`,
+      ),
+    );
+    if (evaluation.judge?.contractValid)
+      chips.append(node('li', plural(evaluation.issues?.length ?? 0, 'finding'), 'chip'));
+    chips.append(
+      node('li', `reviewed ${reviewed.length}/${Object.keys(dimensions).length}`, 'chip'),
+    );
+    return chips;
+  }
+
+  function block(title, ...children) {
+    const section = node('section', null, 'block');
+    section.append(node('h4', title), ...children);
+    return section;
   }
 
   async function openReport(id, focus = true) {
@@ -734,15 +926,30 @@ export function createDashboard(document, fetchRequest = globalThis.fetch.bind(g
     const target = get('report');
     target.replaceChildren();
     target.hidden = false;
-    const heading = node('section', null, 'card');
+    const heading = node('section', null, 'card report-header');
     heading.append(
       content('h2', report.label || id),
       node(
         'p',
         `${timestamp(report.startedAtUtc)} · Finished: ${timestamp(report.finishedAtUtc)}`,
-        'muted',
+        'hint',
       ),
     );
+    const runId = node('p', null, 'run-id hint');
+    runId.append(
+      'Run ID ',
+      node('code', id),
+      copyButton(() => id, 'run ID'),
+    );
+    heading.append(runId);
+    if (report.status === 'running')
+      heading.append(
+        node(
+          'p',
+          'This run is still in progress. The report refreshes when it finishes.',
+          'notice',
+        ),
+      );
     if (report.runNotes) heading.append(content('p', report.runNotes));
     heading.append(renderSummary(result.summary));
     heading.append(raw('Captured AI profile', report.profile));
@@ -759,7 +966,7 @@ export function createDashboard(document, fetchRequest = globalThis.fetch.bind(g
             : passed === false
               ? 'Calibration failed: a known-example check failed or could not be evaluated. Inspect its call and findings before trusting the content reviews.'
               : 'Calibration is unfinished. The judge has not completed the known-example checks, so its reliability has not been established for this run.',
-          passed === true ? 'muted' : 'notice warning',
+          passed === true ? 'hint' : 'notice warning',
         ),
       );
       for (const sample of report.calibration ?? []) {
@@ -772,84 +979,114 @@ export function createDashboard(document, fetchRequest = globalThis.fetch.bind(g
       }
       target.append(calibrationDetails);
     }
-    for (const evaluation of report.results ?? []) {
-      const card = node('article', null, 'card');
-      card.append(node('h3', `${evaluation.caseId} · repetition ${evaluation.repetition}`));
+    const results = report.results ?? [];
+    if (results.length > 1) {
+      const index = node('nav', null, 'card');
+      index.setAttribute('aria-labelledby', 'results-heading');
+      const title = node('h3', 'Results');
+      title.id = 'results-heading';
+      const list = node('ul', null, 'results-index');
+      results.forEach((evaluation, position) => {
+        const link = node('a');
+        link.href = `#result-${position}`;
+        link.append(node('strong', resultName(evaluation)), resultChips(evaluation));
+        const item = node('li');
+        item.append(link);
+        list.append(item);
+      });
+      index.append(title, list);
+      target.append(index);
+    }
+    results.forEach((evaluation, position) => {
+      const card = node('article', null, 'card result');
+      card.id = `result-${position}`;
+      const header = node('header', null, 'card-header');
+      header.append(node('h3', resultName(evaluation)), resultChips(evaluation));
+      card.append(header);
       const selected = report.cases.find((item) => item.id === evaluation.caseId);
       if (selected) card.append(content('p', selected.reviewFocus));
-      const stages = node('div', null, 'stage-grid');
       const steps = [
         ['Template authoring', evaluation.authoring],
         ['Task generation', evaluation.generation],
         ['Hebrew review', evaluation.judge],
       ];
+      const stages = node('div', null, 'stage-grid');
       stages.append(...steps.map(([name, step]) => renderStep(name, step)));
-      card.append(stages, node('h4', 'Automatic checks'));
+      card.append(stages);
+
       const checks = Object.entries(evaluation.checks ?? {});
-      const checkList = node('ul', null, 'checks');
+      const checkList = node('ul', null, 'chips');
       for (const [name, passed] of checks)
         checkList.append(
-          node('li', `${passed ? 'Passed' : 'Failed'} · ${name}`, passed ? 'pass' : 'fail'),
+          node(
+            'li',
+            `${name} · ${passed ? 'passed' : 'failed'}`,
+            `chip ${passed ? 'pass' : 'fail'}`,
+          ),
         );
-      card.append(checks.length ? checkList : node('p', 'No automatic checks recorded.'));
+      card.append(
+        block(
+          'Automatic checks',
+          checks.length ? checkList : node('p', 'No automatic checks recorded.', 'hint'),
+        ),
+      );
+
+      let task;
       if (evaluation.generation?.contractValid && evaluation.generation.output) {
         try {
-          card.append(renderTask(document, JSON.parse(evaluation.generation.output)));
+          task = renderTask(document, JSON.parse(evaluation.generation.output));
         } catch {
-          card.append(
-            node(
-              'p',
-              'Saved content could not be displayed. Inspect the retained raw output.',
-              'notice warning',
-            ),
+          task = node(
+            'p',
+            'Saved content could not be displayed. Inspect the retained raw output.',
+            'notice warning',
           );
         }
       } else
-        card.append(
-          node('p', 'No valid generated task. Retained output is available below.', 'muted'),
-        );
-      card.append(node('h4', 'Hebrew findings'));
-      if (evaluation.judge?.contractValid) {
-        if (evaluation.issues?.length)
-          card.append(
-            table(
-              ['Kind / path', 'Quoted text', 'Suggested text', 'Reason'],
-              evaluation.issues.map((issue) => [
-                `${issue.kind} · ${issue.path}`,
-                content('span', issue.quote),
-                content('span', issue.suggestion),
-                content('span', issue.reason),
-              ]),
-            ),
+        task = node('p', 'No valid generated task. Retained output is under Raw data.', 'hint');
+      card.append(block('Generated task', task));
+
+      card.append(
+        block(
+          'Hebrew findings',
+          !evaluation.judge?.contractValid
+            ? node(
+                'p',
+                report.judgeEnabled
+                  ? 'No valid Hebrew review available.'
+                  : 'Hebrew judge was disabled.',
+                'hint',
+              )
+            : evaluation.issues?.length
+              ? table(
+                  ['Kind / path', 'Quoted text', 'Suggested text', 'Reason'],
+                  evaluation.issues.map((issue) => [
+                    `${issue.kind} · ${issue.path}`,
+                    content('span', issue.quote),
+                    content('span', issue.suggestion),
+                    content('span', issue.reason),
+                  ]),
+                )
+              : node('p', 'No findings reported. Human review is still needed.', 'hint'),
+        ),
+      );
+
+      const rawData = steps
+        .filter(([, step]) => step)
+        .map(([name, step]) => {
+          const details = node('details');
+          details.append(
+            node('summary', `${name} · request / output JSON`),
+            raw('Request messages', step.request),
+            raw('Retained output', step.output),
+            raw('Whitelisted call diagnostics', { ...step, request: undefined, output: undefined }),
           );
-        else card.append(node('p', 'No findings reported. Human review is still needed.'));
-      } else
-        card.append(
-          node(
-            'p',
-            report.judgeEnabled
-              ? 'No valid Hebrew review available.'
-              : 'Hebrew judge was disabled.',
-          ),
-        );
-      for (const [name, step] of steps) {
-        if (!step) continue;
-        const details = node('details');
-        details.append(node('summary', `${name} · raw request / output JSON`));
-        details.append(
-          raw('Request messages', step.request),
-          raw('Retained output', step.output),
-          raw('Whitelisted call diagnostics', {
-            ...step,
-            request: undefined,
-            output: undefined,
-          }),
-        );
-        card.append(details);
-      }
+          return details;
+        });
+      if (rawData.length) card.append(block('Raw data', ...rawData));
       card.append(renderReview(id, report, evaluation));
       target.append(card);
-    }
+    });
     const savedReport = raw('Raw saved report JSON', report);
     savedReport.dataset.savedReport = '';
     target.append(savedReport);
@@ -861,20 +1098,21 @@ export function createDashboard(document, fetchRequest = globalThis.fetch.bind(g
 
   for (const button of document.querySelectorAll('[data-view]'))
     button.addEventListener('click', () => showView(button.dataset.view));
-  for (const [id, checked] of [
-    ['select-all', true],
-    ['select-none', false],
+  // Selecting follows the filter; clearing always empties the whole selection.
+  for (const [id, selector, checked] of [
+    ['select-all', '.case:not([hidden]) [name="caseId"]', true],
+    ['select-none', '[name="caseId"]', false],
   ])
     get(id).addEventListener('click', () => {
-      for (const checkbox of document.querySelectorAll('[name="caseId"]'))
-        checkbox.checked = checked;
+      for (const checkbox of document.querySelectorAll(selector)) checkbox.checked = checked;
       estimate();
     });
+  get('case-filter').addEventListener('input', filterCases);
   get('run-form').addEventListener('input', estimate);
   get('refresh-history').addEventListener('click', async () => {
     get('refresh-history').disabled = true;
     try {
-      await loadHistory();
+      await busy(get('refresh-history'), loadHistory);
     } catch (error) {
       showError(error);
     } finally {
@@ -906,7 +1144,7 @@ export function createDashboard(document, fetchRequest = globalThis.fetch.bind(g
       confirmed: true,
     };
     get('confirm-message').textContent =
-      `This evaluation can make up to ${current.planned} OpenRouter calls.`;
+      `This evaluation can make up to ${current.planned} OpenRouter calls with ${display(state.setup.profile.Model)}.`;
     if (typeof dialog.showModal === 'function') dialog.showModal();
     else dialog.setAttribute('open', '');
   });
@@ -918,7 +1156,7 @@ export function createDashboard(document, fetchRequest = globalThis.fetch.bind(g
     clearError();
     estimate();
     try {
-      const created = await request('/api/runs', 'POST', body);
+      const created = await busy(get('start-run'), () => request('/api/runs', 'POST', body));
       state.active = { id: created.id, running: true, status: 'starting', progress: null };
       renderActive();
     } catch (error) {
@@ -933,7 +1171,9 @@ export function createDashboard(document, fetchRequest = globalThis.fetch.bind(g
     state.pending = true;
     get('cancel-run').disabled = true;
     try {
-      await request(`/api/runs/${encodeURIComponent(state.active.id)}/cancel`, 'POST', {});
+      await busy(get('cancel-run'), () =>
+        request(`/api/runs/${encodeURIComponent(state.active.id)}/cancel`, 'POST', {}),
+      );
       get('active-progress').append(
         node('p', 'Cancellation requested. Waiting for the partial report to finish.'),
       );
@@ -944,7 +1184,11 @@ export function createDashboard(document, fetchRequest = globalThis.fetch.bind(g
     }
   });
   get('open-active').addEventListener('click', () => {
-    if (state.active) openReport(state.active.id).catch(showError);
+    if (state.active) busy(get('open-active'), () => openReport(state.active.id)).catch(showError);
+  });
+  get('swap-runs').addEventListener('click', () => {
+    const [baseline, candidate] = [get('baseline'), get('candidate')];
+    [baseline.value, candidate.value] = [candidate.value, baseline.value];
   });
   get('compare-form').addEventListener('submit', async (event) => {
     event.preventDefault();
@@ -952,8 +1196,10 @@ export function createDashboard(document, fetchRequest = globalThis.fetch.bind(g
     get('compare-runs').disabled = true;
     clearError();
     try {
-      const comparison = await request(
-        `/api/compare?baseline=${encodeURIComponent(get('baseline').value)}&candidate=${encodeURIComponent(get('candidate').value)}`,
+      const comparison = await busy(get('compare-runs'), () =>
+        request(
+          `/api/compare?baseline=${encodeURIComponent(get('baseline').value)}&candidate=${encodeURIComponent(get('candidate').value)}`,
+        ),
       );
       get('comparison').replaceChildren(renderComparison(document, comparison));
     } catch (error) {

@@ -149,7 +149,8 @@ calls. Restart `dev.sh` after editing to rebuild its dashboard's fixture copies.
 Suite changes require new baseline and candidate runs for direct comparison.
 
 The dashboard opens at `http://127.0.0.1:5180` (`--port` changes only the port).
-New Run shows the app's nonsecret AI profile, case selection and call budget.
+New run shows filterable case selection, the call plan and budget, and the app's
+nonsecret AI profile.
 Confirming Run can spend OpenRouter credits; startup, history and comparison
 make no provider calls. Only one run is active at a time; Cancel preserves partial
 results. Missing or invalid AI settings disable real runs without blocking

@@ -601,3 +601,66 @@ test('a status poll started before a new run cannot hide its cancellation contro
     app.dom.window.close();
   }
 });
+
+test('the case filter narrows the list and selecting follows it while clearing empties everything', async () => {
+  const app = mount();
+  try {
+    await app.dashboard.ready;
+    const { document, dom } = app;
+    const filter = /** @type {HTMLInputElement} */ (document.querySelector('#case-filter'));
+    filter.value = 'SECOND';
+    filter.dispatchEvent(new dom.window.Event('input', { bubbles: true }));
+    const visible = [...document.querySelectorAll('.case:not([hidden])')];
+    assert.deepEqual(
+      visible.map((entry) => entry.querySelector('input')?.value),
+      ['second'],
+    );
+    document.querySelector('#select-all').click();
+    const checked = () =>
+      [...document.querySelectorAll('[name="caseId"]:checked')].map(
+        (input) => /** @type {HTMLInputElement} */ (input).value,
+      );
+    assert.deepEqual(checked(), ['second']);
+    assert.match(document.querySelector('#case-count').textContent, /1 of 2 selected/);
+    filter.value = 'no such case';
+    filter.dispatchEvent(new dom.window.Event('input', { bubbles: true }));
+    assert.equal(document.querySelector('#cases-empty').hidden, false);
+    document.querySelector('#select-none').click();
+    assert.deepEqual(checked(), []);
+  } finally {
+    app.dashboard.dispose();
+    app.dom.window.close();
+  }
+});
+
+test('opening a report shows waiting feedback until the read finishes', async () => {
+  const pending = deferred();
+  const app = mount({
+    '/api/runs': () => jsonResponse([{ id: 'run-1', label: 'Saved run', summary: runSummary }]),
+    '/api/runs/run-1': () => ({
+      ok: true,
+      status: 200,
+      json: async () => {
+        await pending.promise;
+        return { report: completedReport, summary: runSummary };
+      },
+    }),
+  });
+  try {
+    await app.dashboard.ready;
+    const open = app.document.querySelector('#history-list button');
+    open.click();
+    await nextTurn();
+    assert.equal(open.getAttribute('aria-busy'), 'true');
+    assert.ok(app.document.body.hasAttribute('data-loading'));
+    pending.resolve(null);
+    await nextTurn();
+    await nextTurn();
+    assert.equal(open.hasAttribute('aria-busy'), false);
+    assert.equal(app.document.body.hasAttribute('data-loading'), false);
+    assert.equal(app.document.querySelector('#report h2').textContent, 'Reviewed run');
+  } finally {
+    app.dashboard.dispose();
+    app.dom.window.close();
+  }
+});
