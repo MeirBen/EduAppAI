@@ -80,22 +80,21 @@ saving. See [reasoning controls][reasoning] for provider differences. Token budg
 and the deadline are application cost/latency limits, not vendor quality defaults.
 Tune them against representative tasks; a tight thinking budget can reduce quality.
 
-The current profile uses hosted `qwen/qwen3.8-flash`, strict JSON-schema output,
-a 4,096-token reasoning budget, a 16,384-token total ceiling and the default
-180-second deadline. [OpenRouter's model metadata][model-metadata] advertises
-reasoning-budget support; `ReasoningEffort` is empty so only the budget is sent.
-The larger total ceiling leaves room for final JSON after thinking. These are
-bounded application settings to evaluate, not a measured Hebrew-quality optimum;
-providers can still truncate responses or exceed the deadline.
+The current profile uses `deepseek/deepseek-v4.1-flash`, strict JSON-schema output,
+low reasoning effort, a 16,384-token total ceiling and the default 180-second
+deadline. [OpenRouter's model metadata][model-metadata] advertises effort control,
+not a hard reasoning-token budget, so `ReasoningMaxTokens` is null. Low effort
+does not reserve tokens for final JSON. The ceiling is a bounded application
+setting to evaluate; it cannot fix analysis returned as answer text or guarantee
+completion within the deadline.
 
-Temperature is 0.6, the [hosted model's documented thinking default][qwen-model].
-Top-p and top-k are unset: the [native API guidance][qwen-chat] advises tuning
-temperature or top-p, rather than both. Do not substitute sampling advice for
-the separate open-weight Flash-Next model. [Qwen's structured-output guide][qwen-json]
-lists this hosted model's JSON Schema support; server validation remains mandatory.
-Compare the same cases and manually review Hebrew and answer correctness.
-Changing the model also changes the evaluation judge, so its findings are not
-independent evidence and failed calibration cannot certify Hebrew quality.
+Temperature 1.0 and top-p 0.95 follow the [model's serving recipe][deepseek-model];
+top-k is unset. The [native thinking API][deepseek-thinking] ignores temperature;
+third-party serving behavior can differ. JSON-schema enforcement is a capability
+of eligible OpenRouter endpoints; native DeepSeek Chat Completions documents
+[JSON-object output][deepseek-json]. Keep server validation and compare the same
+cases with manual Hebrew and answer review. Changing the model also changes the
+evaluation judge; failed calibration cannot certify Hebrew quality.
 
 The same settings apply to an optional fallback: it must support the selected
 output format, reasoning and sampling controls. [Fallback routing][fallback]
@@ -112,9 +111,9 @@ credits. Their model IDs and settings are independent of the active model.
 [parameters]: https://openrouter.ai/docs/api/reference/parameters
 [reasoning]: https://openrouter.ai/docs/guides/best-practices/reasoning-tokens
 [model-metadata]: https://openrouter.ai/api/v1/models
-[qwen-model]: https://docs.qwencloud.com/developer-guides/getting-started/latest-model
-[qwen-chat]: https://www.alibabacloud.com/help/en/model-studio/qwen-api-via-openai-chat-completions
-[qwen-json]: https://docs.qwencloud.com/developer-guides/text-generation/structured-output
+[deepseek-model]: https://huggingface.co/deepseek-ai/DeepSeek-V4.1-Flash
+[deepseek-thinking]: https://api-docs.deepseek.com/guides/thinking_mode/
+[deepseek-json]: https://api-docs.deepseek.com/guides/json_mode/
 [fallback]: https://openrouter.ai/docs/guides/routing/model-fallbacks
 
 ## Hebrew AI evaluation
