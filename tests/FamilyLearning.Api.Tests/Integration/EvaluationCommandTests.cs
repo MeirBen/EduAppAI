@@ -60,12 +60,7 @@ public sealed class EvaluationCommandTests : IDisposable
         });
         await server.StartAsync();
         Directory.CreateDirectory(directory);
-        var start = new ProcessStartInfo("dotnet")
-        {
-            WorkingDirectory = directory,
-            RedirectStandardOutput = true,
-            RedirectStandardError = true
-        };
+        var start = new ProcessStartInfo("dotnet") { WorkingDirectory = directory };
         start.ArgumentList.Add(typeof(EvaluationCommand).Assembly.Location);
         if (live) start.ArgumentList.Add("--live");
         start.ArgumentList.Add("--max-calls");
@@ -86,13 +81,8 @@ public sealed class EvaluationCommandTests : IDisposable
         start.Environment["Ai__ReasoningEffort"] = "";
         start.Environment["Ai__MaxOutputTokens"] = "8192";
         start.Environment["Storage__Directory"] = Path.Combine(directory, "must-not-exist");
-        using var process = Process.Start(start)!;
-        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
-        var stdout = process.StandardOutput.ReadToEndAsync(timeout.Token);
-        var stderr = process.StandardError.ReadToEndAsync(timeout.Token);
-        try { await process.WaitForExitAsync(timeout.Token); }
-        finally { if (!process.HasExited) process.Kill(entireProcessTree: true); }
-        Assert.True(process.ExitCode == expectedExitCode, await stdout + await stderr);
+        var process = await TestProcess.RunAsync(start);
+        Assert.True(process.ExitCode == expectedExitCode, process.Output + process.Error);
         Assert.Equal(expectedCalls, calls);
         Assert.False(Directory.Exists(start.Environment["Storage__Directory"]));
         var reports = Directory.GetFiles(directory, "run.json", SearchOption.AllDirectories);
@@ -132,32 +122,20 @@ public sealed class EvaluationCommandTests : IDisposable
             json["formatVersion"] = 1;
             await File.WriteAllTextAsync(path, json.ToJsonString());
         }
-        var start = new ProcessStartInfo("dotnet")
-        {
-            WorkingDirectory = directory,
-            RedirectStandardOutput = true,
-            RedirectStandardError = true
-        };
+        var start = new ProcessStartInfo("dotnet") { WorkingDirectory = directory };
         foreach (var argument in new[] { typeof(EvaluationCommand).Assembly.Location, "--compare", path, path }) start.ArgumentList.Add(argument);
         if (extraLiveFlag) start.ArgumentList.Add("--live");
         // Resolving AI would fail this configuration. Comparison must not even compose the provider.
         start.Environment["Ai__ApiKey"] = "isolated-secret";
         start.Environment["Ai__Model"] = "";
         start.Environment["Ai__Endpoint"] = "https://invalid.example";
-        using var process = Process.Start(start)!;
-        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
-        var stdout = process.StandardOutput.ReadToEndAsync(timeout.Token);
-        var stderr = process.StandardError.ReadToEndAsync(timeout.Token);
-        try { await process.WaitForExitAsync(timeout.Token); }
-        finally { if (!process.HasExited) process.Kill(entireProcessTree: true); }
-        var output = await stdout;
-        var errors = await stderr;
-        Assert.True(process.ExitCode == expectedExit, output + errors);
-        Assert.DoesNotContain("isolated-secret", output + errors);
-        Assert.DoesNotContain("Exception", errors);
+        var process = await TestProcess.RunAsync(start);
+        Assert.True(process.ExitCode == expectedExit, process.Output + process.Error);
+        Assert.DoesNotContain("isolated-secret", process.Output + process.Error);
+        Assert.DoesNotContain("Exception", process.Error);
         if (expectedExit == 0)
         {
-            using var comparison = JsonDocument.Parse(output);
+            using var comparison = JsonDocument.Parse(process.Output);
             Assert.True(comparison.RootElement.GetProperty("directlyComparable").GetBoolean());
             Assert.Equal(0, comparison.RootElement.GetProperty("deltas").GetProperty("scenarioAutomaticPasses").GetInt32());
         }

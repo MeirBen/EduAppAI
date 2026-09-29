@@ -1,3 +1,4 @@
+using System.Net;
 using System.Text.Json.Nodes;
 using Microsoft.Extensions.AI;
 
@@ -33,13 +34,13 @@ internal static class AiFixtures
         private readonly Queue<string> responses = new(responses);
         public List<(string Input, ChatOptions? Options)> Requests { get; } = [];
         public ChatFinishReason FinishReason { get; init; } = ChatFinishReason.Stop;
-        public bool Fail { get; init; }
-        public bool WaitForCancellation { get; init; }
+        public HttpStatusCode? FailureStatus { get; init; }
+        public Func<CancellationToken, Task>? BeforeResponse { get; init; }
         public async Task<ChatResponse> GetResponseAsync(IEnumerable<ChatMessage> messages, ChatOptions? options = null, CancellationToken cancellationToken = default)
         {
             Requests.Add((string.Join("\n", messages.Select(m => m.Text)), options));
-            if (Fail) throw new HttpRequestException("provider secret");
-            if (WaitForCancellation) await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+            if (FailureStatus is { } status) throw new HttpRequestException("provider secret", null, status);
+            if (BeforeResponse is not null) await BeforeResponse(cancellationToken);
             return new ChatResponse(new ChatMessage(ChatRole.Assistant, responses.Dequeue()))
             { ModelId = "test-free-model", FinishReason = FinishReason };
         }

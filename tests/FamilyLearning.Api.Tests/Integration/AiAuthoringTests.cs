@@ -71,8 +71,8 @@ public sealed class AiAuthoringTests
         var chat = new ScriptedChat(scenario == "invalid-json" ? "not JSON" : content.ToJsonString())
         {
             FinishReason = scenario == "truncated" ? ChatFinishReason.Length : ChatFinishReason.Stop,
-            Fail = scenario == "provider-error",
-            WaitForCancellation = scenario == "timeout"
+            FailureStatus = scenario == "provider-error" ? HttpStatusCode.BadGateway : null,
+            BeforeResponse = scenario == "timeout" ? token => Task.Delay(Timeout.InfiniteTimeSpan, token) : null
         };
         using var app = new ApiFactory(services =>
         {

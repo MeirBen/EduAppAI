@@ -4,6 +4,7 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using FamilyLearning.Api.Infrastructure.Auth;
 using FamilyLearning.Api.Infrastructure.Persistence;
+using FamilyLearning.Api.Tests.Fixtures;
 using Microsoft.AspNetCore.HttpsPolicy;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -19,13 +20,7 @@ public sealed class ProductionHostTests
     public async Task Management_commands_do_not_depend_on_AI_configuration(string command)
     {
         var dataDirectory = Path.Combine(Path.GetTempPath(), "family-learning-management", Guid.NewGuid().ToString());
-        var start = new ProcessStartInfo("dotnet")
-        {
-            RedirectStandardInput = true,
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            UseShellExecute = false
-        };
+        var start = new ProcessStartInfo("dotnet");
         start.ArgumentList.Add(typeof(Program).Assembly.Location);
         start.ArgumentList.Add(command);
         if (command == "--create-parent") start.ArgumentList.Add("management@example.test");
@@ -35,15 +30,8 @@ public sealed class ProductionHostTests
         start.Environment["Ai__Model"] = " ";
         try
         {
-            using var process = Process.Start(start)!;
-            var output = process.StandardOutput.ReadToEndAsync();
-            var error = process.StandardError.ReadToEndAsync();
-            await process.StandardInput.WriteAsync("TestOnly!Parent12345\nTestOnly!Parent12345\n");
-            process.StandardInput.Close();
-            using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(30));
-            try { await process.WaitForExitAsync(deadline.Token); }
-            finally { if (!process.HasExited) process.Kill(entireProcessTree: true); }
-            Assert.True(process.ExitCode == 0, await output + await error);
+            var process = await TestProcess.RunAsync(start, "TestOnly!Parent12345\nTestOnly!Parent12345\n");
+            Assert.True(process.ExitCode == 0, process.Output + process.Error);
             Assert.True(File.Exists(Path.Combine(dataDirectory, "family-learning.db")));
         }
         finally

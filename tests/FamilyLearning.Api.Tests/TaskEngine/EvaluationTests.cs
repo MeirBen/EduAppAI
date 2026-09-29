@@ -77,9 +77,16 @@ public sealed class EvaluationTests : IDisposable
     [Fact]
     public async Task Cancellation_flushes_the_current_attempt_and_stops()
     {
-        using var chat = new AiFixtures.ScriptedChat() { WaitForCancellation = true };
-        using var cancellation = new CancellationTokenSource(TimeSpan.FromMilliseconds(100));
-        var report = await RunAsync(chat, ct: cancellation.Token);
+        using var cancellation = new CancellationTokenSource();
+        using var chat = new AiFixtures.ScriptedChat
+        {
+            BeforeResponse = token =>
+            {
+                cancellation.Cancel();
+                return Task.Delay(Timeout.InfiniteTimeSpan, token);
+            }
+        };
+        var report = await RunAsync(chat, ct: cancellation.Token).WaitAsync(TimeSpan.FromSeconds(10));
 
         Assert.Equal("cancelled", report.Status);
         Assert.Single(chat.Requests);
@@ -94,7 +101,7 @@ public sealed class EvaluationTests : IDisposable
     [Fact]
     public async Task Rate_limits_stop_the_run_without_retries_or_provider_exception_text()
     {
-        using var chat = new RateLimitedChat();
+        using var chat = new AiFixtures.ScriptedChat { FailureStatus = System.Net.HttpStatusCode.TooManyRequests };
         var report = await RunAsync(chat, repeat: 2);
 
         Assert.Equal("rate-limited", report.Status);
@@ -124,12 +131,12 @@ public sealed class EvaluationTests : IDisposable
         Assert.Throws<ArgumentException>(() => EvaluationOptions.Parse([flag, value]));
 
     [Fact]
-    public void Planned_calls_must_fit_the_explicit_budget()
+    public void Call_plan_includes_each_stage_and_loaded_controls()
     {
         var options = EvaluationOptions.Parse(["--case", "all", "--max-calls", "4"]);
         Assert.False(options.Live);
-        Assert.Throws<ArgumentException>(() => options.ValidateCallBudget(16));
-        Assert.Equal(7, EvaluationOptions.Parse(["--judge", "--max-calls", "7"]).ValidateCallBudget(1, 4));
+        Assert.Equal(32, options.PlannedCalls(16, 0));
+        Assert.Equal(7, EvaluationOptions.Parse(["--judge", "--max-calls", "7"]).PlannedCalls(1, 4));
     }
 
     [Fact]
@@ -245,11 +252,4 @@ public sealed class EvaluationTests : IDisposable
         if (Directory.Exists(directory)) Directory.Delete(directory, recursive: true);
     }
 
-    private sealed class RateLimitedChat : DelegatingChatClient
-    {
-        public RateLimitedChat() : base(new AiFixtures.ScriptedChat()) { }
-        public override Task<ChatResponse> GetResponseAsync(IEnumerable<ChatMessage> messages,
-            ChatOptions? options = null, CancellationToken cancellationToken = default) =>
-            throw new HttpRequestException("provider secret", null, System.Net.HttpStatusCode.TooManyRequests);
-    }
 }

@@ -39,7 +39,7 @@ public static class EvaluationCommand
                 Console.WriteLine("Preview only. Add --live to make billable calls using the app's Ai configuration.");
                 return 0;
             }
-            options.ValidateCallBudget(cases.Length, controls.Items.Length);
+            if (calls > options.MaxCalls) throw new ArgumentException("Planned calls exceed --max-calls.");
 
             // Compose only the shared AI adapter, never the web host, authentication or database.
             var builder = Host.CreateApplicationBuilder(new HostApplicationBuilderSettings
@@ -138,13 +138,6 @@ public sealed record EvaluationOptions(bool Live, string Case, int Repeat, int M
             };
         }
         return options;
-    }
-
-    public int ValidateCallBudget(int caseCount, int calibrationCount = 0)
-    {
-        var planned = PlannedCalls(caseCount, calibrationCount);
-        if (planned > MaxCalls) throw new ArgumentException("Planned calls exceed --max-calls.");
-        return planned;
     }
 
     public int PlannedCalls(int caseCount, int calibrationCount)

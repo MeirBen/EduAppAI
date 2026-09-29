@@ -140,17 +140,22 @@ public sealed class LibraryDeletionTests
     [InlineData(true)]
     public async Task Deletion_during_generation_does_not_restore_deleted_data(bool reset)
     {
-        using var chat = new PausedChat();
+        var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var resume = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        using var chat = new AiFixtures.ScriptedChat(AiFixtures.Content().ToJsonString())
+        {
+            BeforeResponse = token => { entered.TrySetResult(); return resume.Task.WaitAsync(token); }
+        };
         using var app = new ApiFactory(services => services.AddSingleton<IChatClient>(chat));
         using var parent = await app.ParentAsync();
         var id = await SaveTemplateAsync(parent);
         var generation = parent.PostAsJsonAsync($"/api/templates/{id}/instances", new { parameters = new { } });
         try
         {
-            await chat.Entered.Task.WaitAsync(TimeSpan.FromSeconds(10));
+            await entered.Task.WaitAsync(TimeSpan.FromSeconds(10));
             Assert.Equal(HttpStatusCode.NoContent, (await parent.DeleteAsync(reset ? "/api/templates" : $"/api/templates/{id}")).StatusCode);
         }
-        finally { chat.Resume.TrySetResult(); }
+        finally { resume.TrySetResult(); }
         var result = await generation;
         Assert.Equal(HttpStatusCode.NotFound, result.StatusCode);
         Assert.Equal(0, (await parent.GetFromJsonAsync<JsonElement>("/api/instances")).GetArrayLength());
@@ -199,20 +204,6 @@ public sealed class LibraryDeletionTests
         var response = await parent.PostAsJsonAsync($"/api/templates/{id}/instances", new { parameters = new { } });
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
         return (await response.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("id").GetGuid();
-    }
-
-    private sealed class PausedChat() : DelegatingChatClient(new AiFixtures.ScriptedChat(AiFixtures.Content().ToJsonString()))
-    {
-        public TaskCompletionSource Entered { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
-        public TaskCompletionSource Resume { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
-
-        public override async Task<ChatResponse> GetResponseAsync(IEnumerable<ChatMessage> messages,
-            ChatOptions? options = null, CancellationToken cancellationToken = default)
-        {
-            Entered.TrySetResult();
-            await Resume.Task.WaitAsync(cancellationToken);
-            return await base.GetResponseAsync(messages, options, cancellationToken);
-        }
     }
 
     private sealed class PausedPublication : SaveChangesInterceptor
