@@ -31,7 +31,7 @@
       dir="auto"
       aria-describedby="instructions-hint"
     ></textarea>
-    <p id="instructions-hint" class="text-sm text-muted">
+    <p id="instructions-hint" class="mt-2 text-sm text-muted">
       המטרה, גיל הלומדים, סוגי השאלות והשפה. השתמשו במפתחות השדות כדי להתייחס לבחירות המשתנות.
     </p>
   </div>
@@ -42,8 +42,11 @@
   </p>
   @for (parameter of model().parameters; track parameter.id; let index = $index) {
     @let field = fields.parameters[index];
-    <fieldset class="mb-5 min-w-0 rounded-xl border border-line p-4" data-parameter-editor>
-      <legend class="px-2 font-medium">שדה {{ index + 1 }}</legend>
+    <fieldset
+      class="mb-6 min-w-0 rounded-2xl border border-line bg-canvas p-gutter"
+      data-parameter-editor
+    >
+      <legend class="badge">שדה {{ index + 1 }}</legend>
       <div class="field">
         <label [for]="parameter.id + '-label'">שם השדה להורה</label>
         <input [id]="parameter.id + '-label'" [formField]="field.label" dir="auto" />
@@ -141,7 +144,7 @@
       >
       <button
         type="button"
-        class="text-link"
+        class="text-link text-danger"
         [disabled]="saving() || busy()"
         [attr.aria-label]="'הסרת שדה ' + (index + 1)"
         (click)="removeParameter(index)"

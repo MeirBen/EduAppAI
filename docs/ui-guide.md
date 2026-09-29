@@ -11,8 +11,15 @@ parent labels keep their original language and values.
 - Use Tailwind theme tokens from `frontend/src/styles.css`; shared controls live
   there and page layout uses template utilities. Keep the light green theme,
   visible focus/error states and locally bundled Heebo. Avoid another UI layer.
+- Use `panel` for raised surfaces and `button` for primary actions; add
+  `button-secondary` or `button-danger` for other actions. Keep one prominent
+  action per card, with quieter edit/delete links. Native disclosures reveal answers.
+- Keep hover/press feedback brief, exclude disabled controls and respect reduced
+  motion. Use theme shadows and colors rather than page-specific copies.
 - Use rem sizing, generous line height and wrapping for long user content.
-  Preserve browser zoom, iOS text scaling and the production bundle budgets.
+  Use the viewport-capped `gutter` spacing for narrow containers so padding does
+  not crowd enlarged text. Preserve browser zoom, iOS text scaling and the
+  production bundle budgets.
 - Label controls; associate errors with fields. Provide keyboard access, visible
   focus, loading status, error alerts and distinguishable repeated
   links/disclosures.
@@ -20,8 +27,8 @@ parent labels keep their original language and values.
 ## Direction and copy
 
 Set `lang="he"`, `dir="rtl"` and Angular's `he-IL` locale; keep the manifest
-aligned. Use logical spacing (`ms`, `me`, `ps`, `pe`, `start`, `end`) and normal
-DOM order. Use `dir="auto"` for learning text and `<bdi>` for inline user
+aligned. Use logical spacing (`ms`, `me`, `ps`, `pe`, `inset-s`, `inset-e`) and
+normal DOM order. Use `dir="auto"` for learning text and `<bdi>` for inline user
 values; isolate email and numeric inputs as LTR. Back arrows point right. Dates
 display in Hebrew while stored timestamps remain UTC.
 

@@ -37,12 +37,16 @@ test('a parent prompt becomes an editable reusable template and distinct frozen 
   await page.goto('/');
   await expect(page.locator('html')).toHaveAttribute('lang', 'he');
   await expect(page.locator('html')).toHaveAttribute('dir', 'rtl');
+  await expect(page.getByRole('heading', { name: 'טוב שחזרתם' })).toBeVisible();
+  await checkNarrowLayout(page, 'login');
+  await page.screenshot({ path: '../artifacts/login-desktop.png', fullPage: true });
   await page.keyboard.press('Tab');
   await expect(page.getByRole('link', { name: 'דילוג לתוכן הראשי' })).toBeFocused();
   await page.keyboard.press('Enter');
   await expect(page.locator('main')).toBeFocused();
   await login(page);
   await expect(page.getByRole('heading', { name: 'מתחילים עם רעיון אחד' })).toBeVisible();
+  await checkNarrowLayout(page, 'empty-library');
   const proposalResponse = page.waitForResponse('/api/ai/template-drafts');
   await propose(page, 'קטעי קריאה לכיתה ג׳ עם נושא ורמה לבחירה ושאלות מעורבות');
   const { definition } = await (await proposalResponse).json();
@@ -63,12 +67,15 @@ test('a parent prompt becomes an editable reusable template and distinct frozen 
   expect(template.definition.schemaVersion).toBe(2);
   expect(template.definition.generation.instructions).toBe(definition.generation.instructions);
   await expect(page.getByLabel('מה נחקור?', { exact: true })).toHaveValue('דינוזאורים');
+  await checkNarrowLayout(page, 'create-instance');
+  await page.screenshot({ path: '../artifacts/create-instance-desktop.png', fullPage: true });
   await page.getByRole('button', { name: 'יצירת טיוטה', exact: true }).click();
   await expect(page.getByText('הטיוטה נשמרה', { exact: false })).toBeVisible();
   const originalUrl = page.url();
   const originalQuestions = await page.locator('.question-prompt').allTextContents();
   const originalContent = await page.locator('section').innerText();
   await expect(page.locator('.question-prompt')).toHaveCount(2);
+  await page.screenshot({ path: '../artifacts/reading-preview-desktop.png', fullPage: true });
   await page.reload();
   await expect(page.locator('section')).toHaveText(originalContent, { useInnerText: true });
   await page.goto(`/templates/${template.id}/create`);
@@ -83,6 +90,10 @@ test('a parent prompt becomes an editable reusable template and distinct frozen 
   await expect(page.locator('.question-prompt')).toHaveCount(3);
   await page.getByText('הצגת התשובה לשאלה 1', { exact: true }).click();
   await expect(page.locator('details').first()).toHaveAttribute('open', '');
+  await page.keyboard.press('Space');
+  await expect(page.locator('details').first()).not.toHaveAttribute('open');
+  await page.keyboard.press('Enter');
+  await expect(page.locator('details').first()).toHaveAttribute('open', '');
   await checkNarrowLayout(page, 'ai-preview');
   await page.screenshot({ path: '../artifacts/ai-preview-desktop.png', fullPage: true });
   await page.goto(originalUrl);
@@ -90,6 +101,10 @@ test('a parent prompt becomes an editable reusable template and distinct frozen 
   await expect(
     page.getByRole('heading', { name: 'לומדים על דינוזאורים', exact: true }),
   ).toBeVisible();
+  await page.goto('/templates');
+  await expect(page.getByRole('link', { name: 'יצירת תרגול: קוראים ומגלים' })).toBeVisible();
+  await checkNarrowLayout(page, 'library');
+  await page.screenshot({ path: '../artifacts/library-desktop.png', fullPage: true });
   await page.getByRole('button', { name: 'יציאה מהחשבון', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'טוב שחזרתם' })).toBeVisible();
   expect(errors).toEqual([]);
@@ -188,6 +203,7 @@ test.describe('publication recovery', () => {
       expect(
         await mark.evaluate((element) => getComputedStyle(element, '::before').animationName),
       ).not.toBe('none');
+      await page.evaluate(() => window.scrollTo(0, 0));
       await page.screenshot({ path: '../artifacts/loader-desktop.png', fullPage: true });
       await checkNarrowLayout(page, 'loader');
       await loading.evaluate((element) => {

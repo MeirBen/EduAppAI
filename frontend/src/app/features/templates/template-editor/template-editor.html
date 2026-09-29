@@ -29,10 +29,13 @@
       <app-ai-template-author (saved)="saved($event)" />
     }
   </div>
-  <aside class="rounded-2xl bg-soft p-6 sm:p-8" aria-labelledby="template-note-title">
+  <aside
+    class="rounded-3xl border border-line bg-soft p-gutter sm:p-8"
+    aria-labelledby="template-note-title"
+  >
     <p class="mb-3 text-sm font-medium text-brand">איך זה עובד?</p>
-    <h2 id="template-note-title" class="mb-4">הרעיון נשמר.<br />האתגר משתנה.</h2>
-    <ol class="list-decimal space-y-4 ps-5 text-muted">
+    <h2 id="template-note-title" class="mb-6 text-2xl">הרעיון נשמר.<br />האתגר משתנה.</h2>
+    <ol class="list-decimal space-y-5 ps-5 text-muted marker:font-semibold marker:text-brand">
       <li>מתארים מה רוצים ללמד ובודקים את ההנחיות ואת השדות שהוצעו.</li>
       <li>שומרים תבנית רק אחרי שבדקתם והתאמתם אותה.</li>
       <li>בכל שימוש בוחרים פרטים חדשים, וה־AI יוצר משימה לעיון שלכם.</li>

@@ -16,6 +16,10 @@
   --color-danger: #942e2e;
   --color-danger-soft: #fff3f0;
   --color-focus: #9c5100;
+  --shadow-panel: 0 2px 4px #213e3603, 0 12px 36px -16px #213e361c;
+  --shadow-button: 0 2px 3px #213e3614, 0 4px 8px -3px #213e3633;
+  /* Leave room for enlarged text inside nested panels on narrow screens. */
+  --spacing-gutter: min(1.25rem, 5vw);
   --text-sm--line-height: 1.7;
   --text-base--line-height: 1.7;
   --text-lg--line-height: 1.7;
@@ -34,6 +38,8 @@
 
   body {
     @apply bg-canvas font-sans text-ink antialiased;
+    background-image: radial-gradient(ellipse at top right, var(--color-soft), transparent 42rem);
+    background-repeat: no-repeat;
     line-height: 1.7;
     overflow-wrap: anywhere;
   }
@@ -43,6 +49,7 @@
   h3 {
     @apply font-semibold;
     line-height: 1.4;
+    text-wrap: balance;
   }
 
   h1 {
@@ -76,14 +83,15 @@
     @apply mb-2 block font-medium;
   }
 
-  label:has(+ input[type='checkbox']) {
-    @apply min-h-11;
+  label:has(+ input[type='checkbox']),
+  label:has(input[type='checkbox']) {
+    @apply min-h-11 cursor-pointer;
   }
 
   input:not([type='checkbox']),
   select,
   textarea {
-    @apply min-h-12 w-full min-w-0 rounded-xl border border-control bg-surface px-4 py-3 text-base text-ink;
+    @apply min-h-12 w-full min-w-0 rounded-xl border border-control bg-surface px-gutter py-3 text-base text-ink transition-[border-color,box-shadow] duration-150 enabled:hover:border-brand focus-visible:border-brand focus-visible:shadow-button;
     /* Native controls must inherit Hebrew typography, including on iOS. */
     font: inherit;
   }
@@ -100,14 +108,20 @@
   select[aria-invalid='true'],
   textarea[aria-invalid='true'] {
     @apply border-danger;
+
+    &:enabled:hover,
+    &:focus-visible {
+      @apply border-danger;
+    }
   }
   input:disabled,
   select:disabled,
   textarea:disabled {
+    @apply bg-canvas;
     opacity: 0.65;
   }
   input[type='checkbox'] {
-    @apply size-6 accent-brand;
+    @apply size-6 shrink-0 accent-brand;
   }
   summary {
     @apply min-h-11 py-2 font-medium text-brand;
@@ -126,21 +140,24 @@
 
 @layer components {
   .button {
-    @apply inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-transparent bg-brand px-5 py-3 text-center font-medium text-white no-underline transition-colors hover:bg-brand-hover disabled:opacity-60;
+    @apply inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-transparent bg-brand px-gutter py-3 text-center font-medium text-white no-underline shadow-button transition-[background-color,border-color,translate] duration-150 not-disabled:hover:bg-brand-hover motion-safe:not-disabled:hover:-translate-y-0.5 motion-safe:not-disabled:active:translate-y-0 disabled:opacity-60;
     line-height: 1.5;
   }
 
   .button-secondary {
-    @apply border-line bg-surface text-brand hover:bg-soft;
+    @apply border-line bg-surface text-brand shadow-none not-disabled:hover:border-control not-disabled:hover:bg-soft;
+  }
+  .button-danger {
+    @apply bg-danger not-disabled:hover:bg-danger/90;
   }
   .text-link {
-    @apply inline-flex min-h-11 items-center gap-2 py-2 font-medium text-brand hover:underline;
+    @apply inline-flex min-h-11 items-center gap-2 rounded-md py-2 font-medium text-brand decoration-2 not-disabled:hover:underline;
   }
   .panel {
-    @apply rounded-2xl border border-line bg-surface p-5 sm:p-8;
+    @apply rounded-3xl border border-line bg-surface p-gutter shadow-panel sm:p-8;
   }
   .badge {
-    @apply inline-flex items-center gap-1 rounded-lg bg-soft px-3 py-1 text-sm font-medium text-brand;
+    @apply inline-flex items-center gap-1.5 rounded-full bg-soft px-3 py-1 text-sm font-medium text-brand;
   }
   .field {
     @apply my-6;

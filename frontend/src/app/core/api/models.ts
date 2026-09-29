@@ -1,10 +1,7 @@
 /** JSON scalar parameter value; the server validates type and bounds. */
-export type ParameterValue = string | number | boolean;
+type ParameterValue = string | number | boolean;
 /** Values keyed by case-sensitive schema keys. Omitted keys allow server defaults. */
 export type ParameterValues = Record<string, ParameterValue>;
-
-/** Question controls supported across all subjects. */
-export type QuestionType = 'numeric-input' | 'text-input' | 'single-choice';
 
 /** Field metadata shared with the backend's ParameterDefinition contract. */
 export interface ParameterDefinition {
@@ -29,7 +26,7 @@ export interface TemplateDefinition {
 }
 
 /** Server-recorded generation diagnostics; excludes prompts, identity and model reasoning. */
-export interface GenerationMetadata {
+interface GenerationMetadata {
   provider: string;
   model: string;
   promptVersion: string;
@@ -59,7 +56,7 @@ export interface TemplateDetail {
 }
 
 /** Frozen parent-preview content, including answer keys. Never reuse for a child response. */
-export interface TaskContent {
+interface TaskContent {
   title: string;
   instructions: string | null;
   contentBlocks: { type: 'text'; text: string }[];
@@ -67,7 +64,7 @@ export interface TaskContent {
     id: string;
     prompt: string;
     interaction: {
-      type: QuestionType;
+      type: 'numeric-input' | 'text-input' | 'single-choice';
       options: string[] | null;
     };
     answer: { value: string };

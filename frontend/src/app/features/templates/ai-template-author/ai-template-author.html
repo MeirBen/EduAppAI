@@ -1,5 +1,12 @@
 <form class="panel mb-6" (submit)="generate($event)" novalidate [attr.aria-busy]="busy()">
-  <h2 class="mb-3">מה תרצו ללמוד?</h2>
+  <h2 class="mb-3 flex items-center gap-3">
+    <span
+      class="grid size-10 shrink-0 place-items-center rounded-xl bg-accent text-brand"
+      aria-hidden="true"
+      >✦</span
+    >
+    מה תרצו ללמוד?
+  </h2>
   <p class="mb-5 text-muted">
     תארו במילים שלכם את הרעיון, גיל הלומדים ומה תרצו לתרגל. ה־AI יבנה תבנית שתוכלו להתאים ולהשתמש בה
     שוב.
@@ -32,7 +39,7 @@
       aria-describedby="prompt-hint prompt-errors"
       placeholder="למשל: קטעי קריאה בעברית לכיתה ג׳, עם שאלות הבנה. בכל פעם ארצה לבחור את הנושא, אורך הקטע ומספר השאלות."
     ></textarea>
-    <p id="prompt-hint" class="text-sm text-muted">
+    <p id="prompt-hint" class="mt-2 text-sm text-muted">
       אפשר לבקש כל נושא, עם קטעי טקסט, תשובות קצרות, תשובות מספריות או שאלות בחירה.
     </p>
     <div id="prompt-errors">

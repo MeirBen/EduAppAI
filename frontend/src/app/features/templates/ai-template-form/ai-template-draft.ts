@@ -2,7 +2,7 @@ import { ParameterDefinition, TemplateDefinition } from '../../../core/api/model
 import { isIntegerInput } from '../../../shared/forms/integer-input';
 
 /** Editor-only strings retain empty and invalid numeric inputs until validation. */
-export interface ParameterDraft {
+interface ParameterDraft {
   id: string;
   key: string;
   label: string;
@@ -18,7 +18,7 @@ export interface ParameterDraft {
 }
 
 /** Reusable instructions and field definitions, never a generated task or published snapshot. */
-export interface AiBlueprintDraft {
+interface AiBlueprintDraft {
   name: string;
   instructions: string;
   questionCountParameter: string;

@@ -1,4 +1,6 @@
-<header class="mb-10 flex flex-wrap items-center justify-between gap-6">
+<header
+  class="mb-10 flex flex-wrap items-center justify-between gap-6 rounded-3xl border border-line bg-linear-to-bl from-soft to-surface p-gutter sm:p-8"
+>
   <div>
     <p class="mb-3 text-sm font-medium text-brand">המרחב המשפחתי</p>
     <h1 #heading class="mb-3" tabindex="-1">מה נלמד היום?</h1>
@@ -24,7 +26,7 @@
       <p class="text-sm text-muted">רעיון שאפשר לחזור אליו</p>
     </div>
     @if (templates.value().length === 0) {
-      <div class="panel border-dashed py-10 text-center sm:py-12">
+      <div class="panel border-dashed py-10 text-center shadow-none sm:py-12">
         <span
           class="mx-auto mb-5 grid size-14 place-items-center rounded-2xl bg-accent text-3xl"
           aria-hidden="true"
@@ -40,7 +42,7 @@
     } @else {
       <div class="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
         @for (template of templates.value(); track template.id) {
-          <article class="panel flex min-w-0 flex-col items-start border-t-4 border-t-brand/30">
+          <article class="panel flex min-w-0 flex-col items-start">
             <span class="badge">תבנית · גרסה {{ template.currentVersion }}</span>
             <h3 class="mb-2 mt-5">
               <bdi>{{ template.name }}</bdi>
@@ -49,25 +51,29 @@
               יוצרים תרגול מהתבנית השמורה או מעדכנים אותה לגרסה חדשה.
             </p>
             <a
-              class="text-link mt-auto"
+              class="button button-secondary mt-auto w-full justify-between"
               [routerLink]="['/templates', template.id, 'create']"
               [attr.aria-label]="'יצירת תרגול: ' + template.name"
               >יצירת תרגול <span aria-hidden="true">←</span></a
             >
-            <a
-              class="text-link mt-2"
-              [routerLink]="['/templates', template.id, 'edit']"
-              [attr.aria-label]="'עריכת תבנית: ' + template.name"
-              >עריכת התבנית</a
+            <div
+              class="mt-4 flex w-full flex-wrap items-center justify-between gap-x-4 border-t border-line pt-2 text-sm"
             >
-            <button
-              class="text-link mt-2 text-danger"
-              type="button"
-              [attr.aria-label]="'מחיקת תבנית: ' + template.name"
-              (click)="requestRemoval('template', template.id, template.name)"
-            >
-              מחיקת התבנית
-            </button>
+              <a
+                class="text-link"
+                [routerLink]="['/templates', template.id, 'edit']"
+                [attr.aria-label]="'עריכת תבנית: ' + template.name"
+                >עריכת התבנית</a
+              >
+              <button
+                class="text-link text-danger"
+                type="button"
+                [attr.aria-label]="'מחיקת תבנית: ' + template.name"
+                (click)="requestRemoval('template', template.id, template.name)"
+              >
+                מחיקת התבנית
+              </button>
+            </div>
           </article>
         }
       </div>
@@ -81,11 +87,11 @@
       <p class="text-sm text-muted">מוכנות לעיון שלכם</p>
     </div>
     @if (instances.value().length === 0) {
-      <p class="rounded-2xl border border-line p-6 text-muted">
+      <p class="rounded-2xl border border-line p-gutter text-muted sm:p-6">
         התרגולים שתיצרו יופיעו כאן. כל טיוטה שומרת את השאלות בדיוק כפי שנוצרו.
       </p>
     } @else {
-      <ul class="divide-y divide-line rounded-2xl border border-line bg-surface px-5 sm:px-8">
+      <ul class="panel divide-y divide-line py-1 sm:py-1">
         @for (instance of instances.value(); track instance.id) {
           <li class="flex flex-wrap items-center justify-between gap-x-5 gap-y-2 py-4">
             <div class="min-w-0">
@@ -113,7 +119,7 @@
     }
   </section>
   <section
-    class="mt-10 rounded-2xl border border-danger/25 p-5 sm:p-8"
+    class="mt-10 rounded-3xl border border-line p-gutter sm:p-8"
     aria-labelledby="reset-title"
   >
     <h2 id="reset-title" class="mb-3">מתחילים מחדש</h2>
@@ -132,7 +138,7 @@
 }
 <dialog
   #confirmation
-  class="panel fixed inset-0 m-auto max-h-[90dvh] w-[calc(100%-2rem)] max-w-lg overflow-y-auto text-ink backdrop:bg-ink/40"
+  class="panel fixed inset-0 m-auto max-h-[90dvh] w-[calc(100%-2rem)] max-w-lg overflow-y-auto text-ink backdrop:bg-ink/40 backdrop:backdrop-blur-xs"
   aria-labelledby="removal-title"
   aria-describedby="removal-description"
   (cancel)="onCancel($event)"
@@ -175,12 +181,7 @@
     >
       ביטול
     </button>
-    <button
-      class="button bg-danger hover:bg-danger"
-      type="button"
-      [disabled]="deleting()"
-      (click)="remove()"
-    >
+    <button class="button button-danger" type="button" [disabled]="deleting()" (click)="remove()">
       {{ deleting() ? 'מוחקים…' : 'מחיקה לצמיתות' }}
     </button>
   </div>

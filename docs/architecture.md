@@ -96,6 +96,8 @@ injection context and cancel on route changes/destruction. Check `hasValue()`
 before reading; render errors independently. Writes use HttpClient through
 `requestResult`, bound to the caller's lifetime, without automatic retries.
 Cancellation does not guarantee server rollback.
+Changing route parameters destroys the old page and cancels its pending writes;
+query and fragment changes preserve the current page and its edits.
 
 Route guards cancel superseded session/token checks. Sign-in belongs to its
 page and cannot redirect after destruction; the server authorizes requests.
