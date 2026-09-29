@@ -112,8 +112,8 @@ credits. Their model IDs and settings are independent of the active model.
 
 ## Hebrew AI evaluation
 
-The developer harness reuses the app's configured AI engine and validators.
-It creates no learning records and performs no runtime proofreading or rewriting.
+The developer harness uses the app's AI engine and validators without creating
+learning records or rewriting content at runtime.
 
 ```bash
 # Preview all 22 synthetic scenarios; no key or API calls.
@@ -139,20 +139,18 @@ It creates no learning records and performs no runtime proofreading or rewriting
 ./scripts/evaluate-ai.sh --compare baseline/run.json candidate/run.json
 ```
 
-Maintain the synthetic requests in
-[`cases.json`](tools/FamilyLearning.Evaluation/cases.json). They cover the three
+Maintain synthetic requests in [`cases.json`](tools/FamilyLearning.Evaluation/cases.json).
+They cover the three
 answer types, Hebrew/niqqud/bilingual content, fixed and configurable templates,
 empty/false/zero/negative defaults, 1–20 questions, 2–6 choices, two passages,
 supplied source text and quoted instructions. One full run plans 44 base calls,
 or 70 with the four judge controls, before any retries. Select individual cases
 for focused checks.
 
-`reviewFocus` guides human review of field design, language, source fidelity and
-educational quality; it does not add automatic assertions. The runner uses
-generated defaults, except `useMaximumQuestionCount`, which selects the generated
-count field's maximum. Arbitrary user-entered values and repeated tasks from the
-same template are not exercised by these fixtures. HTTP, persistence and UI
-behavior have separate automated tests.
+`reviewFocus` guides human review, not automatic assertions. The runner uses
+generated defaults; `useMaximumQuestionCount` selects the count field's maximum.
+Fixtures do not exercise arbitrary input values or repeated tasks from one
+template. HTTP, persistence and UI behavior have separate automated tests.
 
 Add a distinct case for a real coverage gap or reported failure; keep its ID stable
 and its measurable expectations consistent with the parent request. Do not relax
@@ -160,47 +158,44 @@ expectations to hide a model failure. Preview validates all fixtures without AI
 calls. Restart `dev.sh` after editing to rebuild its dashboard's fixture copies.
 Suite changes require new baseline and candidate runs for direct comparison.
 
-The loopback dashboard opens at `http://127.0.0.1:5180` (`--port` changes the port).
-It shows case selection, the call budget and the app's nonsecret AI profile.
-Only confirmed runs spend credits; one run may be active, and Cancel keeps partial
-results. Missing or invalid AI settings disable real runs while offline features
-remain available. Fix the settings and restart; configuration errors stay private.
+The loopback dashboard runs at `http://127.0.0.1:5180` (change with `--port`).
+It shows cases, call budget and nonsecret AI settings. Runs require confirmation;
+only one may be active, and Cancel preserves partial results. Invalid AI settings
+disable real runs but leave offline features available; fix settings and restart.
+Configuration errors stay private.
 
-History renders saved tasks and findings, with collapsible request/output data.
-**Copy for AI** copies a Markdown brief of the report for AI agents: context, requests,
-outputs, findings and human reviews, including answer keys.
-Review completed results using the six scores and notes (up to 4,000 characters).
-Saving updates the summary, export and review badges while preserving other form
-edits. Reviews save one at a time; generated evidence stays unchanged.
-Optional run labels (120 characters) and notes (4,000) help identify baselines;
-CLI equivalents are `--label` and `--notes`.
+History shows saved tasks, findings and collapsible request/output data.
+**Copy for AI** exports a Markdown brief with requests, outputs, calibration
+context and expectations, findings and human reviews, including answer keys.
+Review completed results using six scores and notes (up to 4,000 characters).
+Reviews save one at a time, update summaries and exports, and preserve other
+edits and generated evidence. Run labels (120 characters) and notes (4,000)
+identify baselines; CLI equivalents are `--label` and `--notes`.
 
 CLI and dashboard share the evaluator and artifacts. The tool's
 [local access protections](docs/architecture.md#ai-and-persistence) are separate
 from the production app. Keep artifacts private: they contain prompts and answers.
 
-Use `--live` for billable calls. Runs are sequential. A 5-second pause separates
-calls, including calibration and reviews.
-Change **Pause between calls** in the dashboard or use `--call-delay-seconds N`
-(0–60; 0 disables it). Waiting is cancellable and excluded from per-call deadlines
-and latency measurements. Reports record the pause; older reports used zero.
-Paid providers can still throttle requests; spacing cannot guarantee availability.
-HTTP 429 allows up to three retries per stage, within the total call budget.
-Set Max calls above the base plan to leave retry headroom. Retries honor
-`Retry-After`, or use 5/10/20 seconds plus up to 20% jitter; the configured pause
-is also a minimum. A provider wait over five minutes stops the run rather than
-retrying early. Other failures are not retried. Every superseded 429 attempt is
-checkpointed separately in `run.json`; call and cost coverage include it.
-The production application still makes one call.
-Runs use the app's secrets, environment overrides, deadline and token cap.
-`--repeat` accepts 1–5; `--max-calls` accepts 1–100 and must cover
-the plan:
+Billable CLI runs require `--live` and use the app's secrets, environment
+overrides, deadline and token cap. Calls run sequentially with a 5-second pause,
+including calibration and reviews. Set **Pause between calls** or
+`--call-delay-seconds N` to 0–60 (0 disables it). Waiting is cancellable and
+excluded from deadlines and latency. Reports record the pause; older reports
+used zero. Spacing cannot guarantee provider availability.
+
+Only HTTP 429 is retried, at most three times per stage within the call budget.
+Retries honor `Retry-After`, otherwise 5/10/20 seconds plus up to 20% jitter,
+with the configured pause as a minimum. A wait over five minutes stops the run.
+Superseded attempts are checkpointed in `run.json` and included in call/cost
+coverage. Production still makes one call.
+
+`--repeat` accepts 1–5; `--max-calls` accepts 1–100 and must cover the base plan:
 `cases × repeats × 2`, or `cases × repeats × 3 + controls` with `--judge`.
-Controls load only with `--judge`; broken controls do not block basic evaluation.
-Only successful template/task pairs receive content reviews.
-This caps application calls, not currency or fallback attempts. Set an OpenRouter
-key spending limit for a monetary cap. Keep fallback empty for model comparisons;
-check the actual returned model and change one profile setting at a time.
+Increase the budget to allow retries. Controls load only with `--judge`, so broken
+controls do not block basic evaluation. Only valid template/task pairs get reviews.
+The budget caps application calls, not currency or provider fallback attempts;
+use an OpenRouter key spending limit for a monetary cap. For model comparisons,
+disable fallback, check the returned model and change one profile setting at a time.
 
 For prompt experiments, keep the model profile, cases, repeats and judge setup
 fixed; change one generation stage at a time and label the candidate run. Compare
@@ -227,20 +222,15 @@ Reports go to ignored `artifacts/evaluations/<run>/` or under `--output`:
 Interpret the results separately:
 
 - **Code tests:** harness/app behavior with local providers, not model quality.
-- **Automatic checks:** app contracts, defaults, parameter references,
-  question/choice counts, interaction and whitespace word counts. Checks v4
-  accept a bound count when required or defaulted, matching the app's parameter
-  resolution. Since v3, passage checks
-  record the measured passage length and exclude an exact standalone task title
-  at the start of the first block. Other headings remain included; the content
-  schema does not identify them separately. Length is measured only when the case
-  requests it. Bounds match the requested lengths, with no title allowance.
-  A zero maximum instead checks that no passage blocks were generated. Word counts
-  do not establish source fidelity; compare verbatim passages during human review.
-  `parameterReferences` checks that every key occurs as a complete, case-sensitive
-  ASCII identifier in the instructions.
-  Presence does not prove correct usage or complete instructions. Failed checks
-  retain the template and continue generation/review to preserve evidence.
+- **Automatic checks:** contracts, defaults, parameter references, question/choice
+  counts and interaction types. A bound question count must be required or have
+  a valid default. Passage length is checked only when requested, using whitespace
+  word counts and the case's bounds. An exact standalone task title at the start
+  of the first block is excluded; other headings count. A zero maximum checks for
+  no passage blocks. Counts do not establish source fidelity; review verbatim
+  passages manually. `parameterReferences` checks for complete, case-sensitive
+  ASCII identifiers, not correct usage or complete instructions. Failed checks
+  retain valid templates and continue generation/review to preserve evidence.
 - **Calibration:** known defect detection and false alarms, not general accuracy.
   Invalid or unavailable reviews fail calibration but leave detection counts
   unknown, rather than counting unmeasured defects as misses.
@@ -257,19 +247,15 @@ Interpret the results separately:
   with evidence in notes.
 
 The stateless judge uses the same model. Its [controls](tools/FamilyLearning.Evaluation/hebrew-review-samples.json)
-cover template and task language defects and clean text, including accepted
-grammatical variants, intentional errors and mixed languages. Preserve known
-defects when editing these controls;
-expected findings are never sent to the judge.
-The request schema limits finding paths to the supplied fields. Server validation
-still requires exact source quotations and a supported kind;
-expected defects match whole tokens or short containing phrases, and the suggestion
-must not retain the expected offending phrase. This checks detection, not whether
-the correction is linguistically valid. All controls must pass; one missed defect
-can fail a control even when its other defects were found. Extra findings
-fail controls unless explicitly permitted by the sample. A same-model reviewer
-can repeat the generator's mistakes ([judge limitations][judge-limitations]);
-retain failed generations and use human review when assessing quality.
+cover template/task defects and clean text, including accepted grammatical variants,
+intentional errors and mixed languages. Preserve planted defects when editing;
+expected findings are never sent to the judge. Finding paths must identify supplied
+fields, quotations must match the source, and kinds must be supported.
+Expected defects match whole tokens or short containing phrases; corrections must
+remove the offending phrase. This measures detection, not correction quality.
+All controls must pass: each expected defect must be found, and extra findings
+fail unless the sample permits them. A same-model reviewer can repeat generation
+mistakes ([judge limitations][judge-limitations]); human review remains necessary.
 
 Comparison rereads `run.json`, so edited human scores take effect without updating
 summary files. It reports profile changes and candidate-minus-baseline deltas,
@@ -278,8 +264,8 @@ hashes, selected cases/order, captured inputs, repeats, automatic-check versions
 and judge setup, plus complete stage evidence. Hebrew comparisons also require
 passing calibration and matching reviewed cases; human-score deltas require the
 same scored case/repetition pairs. Token/cost deltas require full measurement
-coverage. Other deltas are null
-or explicitly qualified. Only format 2 reports are supported; mismatched embedded
+coverage. Other deltas are null or explicitly qualified. Only format 2 reports
+are supported; mismatched embedded
 controls and invalid human scores are rejected. Older reports retain their original
 checks (versions 1–3); new runs use version 4. Start a new baseline for direct
 comparison after changing contracts or checks.

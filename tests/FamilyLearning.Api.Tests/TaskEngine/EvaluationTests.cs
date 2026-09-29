@@ -76,12 +76,11 @@ public sealed class EvaluationTests : IDisposable
         var step = stage == "authoring" ? result.Authoring! : result.Generation!;
         Assert.False(step.ContractValid);
         Assert.Equal(502, step.StatusCode);
-        var diagnostics = JsonSerializer.SerializeToElement(step, new JsonSerializerOptions(JsonSerializerDefaults.Web));
-        Assert.True(diagnostics.TryGetProperty("validationErrors", out var errors));
-        Assert.Equal(JsonValueKind.Object, errors.ValueKind);
-        Assert.True(errors.TryGetProperty(field, out var messages));
-        Assert.NotEmpty(messages[0].GetString()!);
-        Assert.DoesNotContain("private-unknown-binding", errors.GetRawText());
+        var error = Assert.Single(step.ValidationErrors!);
+        Assert.Equal(field, error.Key);
+        var message = Assert.Single(error.Value);
+        Assert.NotEmpty(message);
+        Assert.DoesNotContain("private-unknown-binding", message);
         Assert.Equal(stage == "authoring" ? 1 : 2, chat.Requests.Count);
         Assert.Empty(saved.Retries);
     }

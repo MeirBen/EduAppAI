@@ -48,9 +48,7 @@ public sealed class AiGenerationService(IEnumerable<IChatClient> clients, ILogge
         int? expectedCount = definition.Generation.QuestionCountParameter is { } key ? parameters[key].GetInt32() : null;
         var input = JsonSerializer.Serialize(new { definition, parameters, expectedQuestionCount = expectedCount }, Json);
         var result = await RequestAsync<TaskContent>(AiPrompts.Instance, input, AiSchemas.Content, AiPrompts.InstanceVersion, ct);
-        var errors = TaskContentValidator.Validate(result.Value);
-        if (expectedCount.HasValue && result.Value.Questions is { } questions && questions.Length != expectedCount.Value)
-            errors["questions"] = ["מספר השאלות שנוצרו אינו תואם למספר שנבחר."];
+        var errors = TaskContentValidator.Validate(result.Value, expectedCount);
         if (errors.Count > 0)
             throw InvalidOutput("task-validation", AiPrompts.InstanceVersion, errors);
         return result;

@@ -8,8 +8,10 @@ namespace FamilyLearning.Api.TaskEngine.Validation;
 public static partial class TaskContentValidator
 {
     /// <summary>Validates AI content before it is saved as an immutable task.</summary>
+    /// <param name="content">Untrusted generated content.</param>
+    /// <param name="expectedQuestionCount">Resolved template count; null enforces only the general 1–20 limit.</param>
     /// <remarks>Accepts potentially null nested JSON members. An empty result means the content is supported.</remarks>
-    public static Dictionary<string, string[]> Validate(TaskContent? content)
+    public static Dictionary<string, string[]> Validate(TaskContent? content, int? expectedQuestionCount = null)
     {
         var errors = new Dictionary<string, string[]>();
         if (content is null)
@@ -47,6 +49,8 @@ public static partial class TaskContentValidator
             }
         }
         if (length > 8000) errors["content"] = ["התוכן כולו מוגבל ל־8,000 תווים, כולל שאלות ותשובות."];
+        if (expectedQuestionCount.HasValue && content.Questions is { } questions && questions.Length != expectedQuestionCount.Value)
+            errors["questions"] = ["מספר השאלות שנוצרו אינו תואם למספר שנבחר."];
         return errors;
     }
 

@@ -552,7 +552,7 @@ export function reportBrief(id, report, summary) {
       '## Judge calibration',
       json(
         (report.calibration ?? []).map((item) => ({
-          id: item.sample?.id,
+          ...item.sample,
           passed: item.passed,
           outcome: calibrationOutcome(item),
           missingExpectedIssueCount:
@@ -563,8 +563,6 @@ export function reportBrief(id, report, summary) {
             item.call?.contractValid && Array.isArray(item.issues)
               ? item.unexpectedFindingCount
               : null,
-          texts: item.sample?.texts,
-          expectedIssues: item.sample?.expectedIssues,
           findings: item.issues,
           call: item.call && { ...item.call, request: undefined },
         })),

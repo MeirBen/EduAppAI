@@ -36,8 +36,7 @@ public static partial class TemplateValidator
             if (error is not null) errors[$"instanceParameters[{index}]"] = [error];
         }
 
-        var countKey = definition.Generation?.QuestionCountParameter;
-        if (countKey is not null)
+        if (definition.Generation?.QuestionCountParameter is { } countKey)
         {
             var count = parameters.FirstOrDefault(p => p?.Key == countKey);
             // Resolution must always supply a count; a validated default also guarantees this for optional fields.

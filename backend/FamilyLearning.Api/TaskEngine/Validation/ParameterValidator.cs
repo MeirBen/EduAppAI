@@ -37,20 +37,17 @@ public static class ParameterValidator
 
         foreach (var definition in definitions)
         {
-            if (!supplied.TryGetValue(definition.Key, out var value))
+            var value = supplied.TryGetValue(definition.Key, out var input) ? input : definition.Default;
+            if (value is not { } resolved)
             {
-                if (definition.Default is { } defaultValue) value = defaultValue;
-                else
-                {
-                    if (definition.Required) errors[definition.Key] = ["יש למלא את השדה הזה."];
-                    continue;
-                }
+                if (definition.Required) errors[definition.Key] = ["יש למלא את השדה הזה."];
+                continue;
             }
 
             // Clone accepted values so the result survives disposal of the caller's JSON document.
-            var error = ValidateValue(definition, value);
+            var error = ValidateValue(definition, resolved);
             if (error is not null) errors[definition.Key] = [error];
-            else values.Add(definition.Key, value.Clone());
+            else values.Add(definition.Key, resolved.Clone());
         }
 
         return new(values, errors);

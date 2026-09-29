@@ -19,6 +19,7 @@ public sealed class ParameterValidationTests
     [InlineData("{\"theme\":\"   \"}", "theme")]
     [InlineData("{\"theme\":\"12345678901\"}", "theme")]
     [InlineData("{\"theme\":null}", "theme")]
+    [InlineData("{\"theme\":\"Space\",\"count\":null}", "count")]
     [InlineData("{\"theme\":\"Space\",\"count\":1.5}", "count")]
     [InlineData("{\"theme\":\"Space\",\"count\":21}", "count")]
     [InlineData("{\"theme\":\"Space\",\"count\":\"5\"}", "count")]
@@ -57,26 +58,21 @@ public sealed class ParameterValidationTests
     }
 
     [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public void Bound_count_with_a_valid_default_resolves_omission_and_preserves_explicit_values(bool required)
+    [InlineData(false, "{}", 4)]
+    [InlineData(true, "{}", 4)]
+    [InlineData(false, "{\"items\":6}", 6)]
+    [InlineData(true, "{\"items\":6}", 6)]
+    public void Bound_count_with_a_valid_default_resolves_omission_and_preserves_explicit_values(bool required, string json, int expected)
     {
         var field = new ParameterDefinition("items", "Items", "integer", required,
             JsonSerializer.SerializeToElement(4), Min: 3, Max: 6);
         var definition = new TaskTemplateDefinition(2, "Practice", [field], new("Use items.", "items"));
 
         Assert.Empty(TemplateValidator.Validate(definition));
-        var defaults = ParameterValidator.Validate(definition.InstanceParameters, new Dictionary<string, JsonElement>());
-        Assert.Empty(defaults.Errors);
-        Assert.Equal(4, defaults.Values["items"].GetInt32());
-        var supplied = ParameterValidator.Validate(definition.InstanceParameters,
-            new Dictionary<string, JsonElement> { ["items"] = JsonSerializer.SerializeToElement(6) });
-        Assert.Empty(supplied.Errors);
-        Assert.Equal(6, supplied.Values["items"].GetInt32());
-        Assert.Equal(field, Assert.Single(definition.InstanceParameters));
-        var explicitNull = ParameterValidator.Validate(definition.InstanceParameters,
-            new Dictionary<string, JsonElement> { ["items"] = JsonSerializer.SerializeToElement<object?>(null) });
-        Assert.Contains("items", explicitNull.Errors.Keys);
+        var supplied = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(json)!;
+        var result = ParameterValidator.Validate(definition.InstanceParameters, supplied);
+        Assert.Empty(result.Errors);
+        Assert.Equal(expected, result.Values["items"].GetInt32());
     }
 
     [Theory]

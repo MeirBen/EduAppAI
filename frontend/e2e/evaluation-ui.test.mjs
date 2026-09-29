@@ -902,6 +902,21 @@ test('the AI brief carries context, requests, outputs, findings and reviews with
   const report = {
     ...completedReport,
     automaticChecksVersion: 2,
+    judgeEnabled: true,
+    calibration: [
+      {
+        sample: {
+          id: 'intentional-errors',
+          request: 'הטעויות באפשרויות התשובה מכוונות.',
+          texts: [{ path: 'task.options[0]', text: 'שלושה ילדות' }],
+          expectedIssues: [],
+          allowUnexpectedFindings: false,
+        },
+        call: { contractValid: true, request: [], output: '{"issues":[]}' },
+        issues: [],
+        passed: true,
+      },
+    ],
     results: [
       {
         ...completedReport.results[0],
@@ -924,6 +939,8 @@ test('the AI brief carries context, requests, outputs, findings and reviews with
     '"title": "בדיקת עברית"',
     '<script>request</script>',
     '"hebrew": 2',
+    'הטעויות באפשרויות התשובה מכוונות.',
+    '"allowUnexpectedFindings": false',
   ])
     assert.ok(brief.includes(expected), expected);
   assert.equal(brief.split('<script>request</script>').length, 2);
