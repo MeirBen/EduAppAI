@@ -76,7 +76,6 @@
     outline: none;
   }
 
-  /* Routed pages ease in, including views restored by PageReuseStrategy. */
   router-outlet + * {
     @apply block motion-safe:animate-enter;
   }
