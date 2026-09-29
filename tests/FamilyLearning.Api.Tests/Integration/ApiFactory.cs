@@ -23,8 +23,6 @@ public sealed class ApiFactory(Action<IServiceCollection>? configureServices = n
         // Developer secrets/environment must never enable a real provider in automated tests.
         builder.UseSetting("Ai:ApiKey", "");
         builder.UseSetting("OPENROUTER_API_KEY", "");
-        builder.UseSetting("Ai:Model", "openrouter/free");
-        builder.UseSetting("Ai:Endpoint", "https://openrouter.ai/api/v1");
         builder.UseSetting("Ai:RequestTimeoutSeconds", "180");
         builder.UseSetting("Ai:MaxOutputTokens", "8192");
         builder.ConfigureServices(services => services.RemoveAll<IChatClient>());

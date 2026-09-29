@@ -34,6 +34,16 @@ async function propose(page: Page, prompt: string) {
   await expect(page.getByRole('heading', { name: 'בדיקה ועריכת התבנית' })).toBeVisible();
 }
 
+async function saveTemplate(page: Page) {
+  await page.getByRole('button', { name: 'שמירת התבנית', exact: true }).click();
+  await page.waitForURL('**/templates/*/create');
+  // Read the saved snapshot directly, avoiding response-body capture through the PWA worker.
+  const path = new URL(page.url()).pathname.replace(/\/create$/, '');
+  const response = await page.request.get(`/api${path}`);
+  expect(response.status()).toBe(200);
+  return response.json();
+}
+
 test('a parent prompt becomes an editable reusable template and distinct frozen tasks', async ({
   page,
 }) => {
@@ -56,25 +66,16 @@ test('a parent prompt becomes an editable reusable template and distinct frozen 
   await login(page);
   await expect(page.getByRole('heading', { name: 'מתחילים עם רעיון אחד' })).toBeVisible();
   await checkNarrowLayout(page, 'empty-library');
-  const proposalResponse = page.waitForResponse('/api/ai/template-drafts');
   await propose(page, 'קטעי קריאה לכיתה ג׳ עם נושא ורמה לבחירה ושאלות מעורבות');
-  const { definition } = await (await proposalResponse).json();
-  await expect(page.getByLabel('הנחיות ליצירת המשימות')).toHaveValue(
-    definition.generation.instructions,
-  );
+  const instructions = await page.getByLabel('הנחיות ליצירת המשימות').inputValue();
   expect((await (await page.request.get('/api/templates')).json()).length).toBe(0);
   await page.getByLabel('שם התבנית', { exact: true }).fill('קוראים ומגלים');
   const parameter = page.locator('[data-parameter-editor]').first();
   await parameter.getByLabel('שם השדה להורה').fill('מה נחקור?');
   await checkNarrowLayout(page, 'ai-template-review');
-  const createdResponse = page.waitForResponse(
-    (response) =>
-      response.url().endsWith('/api/templates') && response.request().method() === 'POST',
-  );
-  await page.getByRole('button', { name: 'שמירת התבנית', exact: true }).click();
-  const template = await (await createdResponse).json();
+  const template = await saveTemplate(page);
   expect(template.definition.schemaVersion).toBe(2);
-  expect(template.definition.generation.instructions).toBe(definition.generation.instructions);
+  expect(template.definition.generation.instructions).toBe(instructions);
   await expect(page.getByLabel('מה נחקור?', { exact: true })).toHaveValue('דינוזאורים');
   await checkNarrowLayout(page, 'create-instance');
   await page.screenshot({
@@ -153,12 +154,7 @@ test('a parent prompt becomes an editable reusable template and distinct frozen 
 test('AI template revisions preserve snapshots and concurrent edits', async ({ page, context }) => {
   await login(page);
   await propose(page, 'שאלות מדעים בנושאים משתנים');
-  const createdResponse = page.waitForResponse(
-    (response) =>
-      response.url().endsWith('/api/templates') && response.request().method() === 'POST',
-  );
-  await page.getByRole('button', { name: 'שמירת התבנית', exact: true }).click();
-  const template = await (await createdResponse).json();
+  const template = await saveTemplate(page);
   await page.getByRole('button', { name: 'יצירת טיוטה', exact: true }).click();
   await expect(page.locator('.question-prompt')).toHaveCount(2);
   const frozenUrl = page.url();

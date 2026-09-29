@@ -72,10 +72,10 @@ validates and persists output, authorizes access and versions templates. Invalid
 or unavailable responses produce errors, never substitute content. Parents
 review educational correctness and age suitability.
 
-OpenRouter uses only free models and may fall back to another configured free
-model on provider errors. The application does not retry requests. Send only
-learning inputs. Logs exclude prompts, answers, identities, credentials,
-reasoning text and raw provider errors.
+OpenRouter model selection and optional fallback are configuration-driven. Free
+and paid models are supported; paid use requires account credits. The application
+does not retry requests. Send only learning inputs. Logs exclude prompts,
+answers, identities, credentials, reasoning text and raw provider errors.
 
 The server enforces family ownership, CSRF and atomic, concurrency-safe
 publication. Generation pins its revision before AI. Parent answer keys must
@@ -90,8 +90,8 @@ Automated tests use isolated databases and a test provider, never live AI.
 
 The current app ends at the parent preview. Add these only as working features:
 
-1. Evaluate correctness, schema reliability and latency with free OpenRouter
-   models.
+1. Evaluate correctness, Hebrew quality, schema reliability, latency and cost
+   with representative tasks on the configured model.
 2. Add family-owned child profiles, expiring device activation and revocable
    access.
 3. Add reviewed assignments and a generic child player. A `TaskSession`

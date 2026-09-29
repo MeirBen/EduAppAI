@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
@@ -12,6 +13,45 @@ namespace FamilyLearning.Api.Tests.Integration;
 
 public sealed class ProductionHostTests
 {
+    [Theory]
+    [InlineData("--migrate")]
+    [InlineData("--create-parent")]
+    public async Task Management_commands_do_not_depend_on_AI_configuration(string command)
+    {
+        var dataDirectory = Path.Combine(Path.GetTempPath(), "family-learning-management", Guid.NewGuid().ToString());
+        var start = new ProcessStartInfo("dotnet")
+        {
+            RedirectStandardInput = true,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            UseShellExecute = false
+        };
+        start.ArgumentList.Add(typeof(Program).Assembly.Location);
+        start.ArgumentList.Add(command);
+        if (command == "--create-parent") start.ArgumentList.Add("management@example.test");
+        start.Environment["ASPNETCORE_ENVIRONMENT"] = "Production";
+        start.Environment["Storage__Directory"] = dataDirectory;
+        start.Environment["Ai__ApiKey"] = "isolated-test-key";
+        start.Environment["Ai__Model"] = " ";
+        try
+        {
+            using var process = Process.Start(start)!;
+            var output = process.StandardOutput.ReadToEndAsync();
+            var error = process.StandardError.ReadToEndAsync();
+            await process.StandardInput.WriteAsync("TestOnly!Parent12345\nTestOnly!Parent12345\n");
+            process.StandardInput.Close();
+            using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            try { await process.WaitForExitAsync(deadline.Token); }
+            finally { if (!process.HasExited) process.Kill(entireProcessTree: true); }
+            Assert.True(process.ExitCode == 0, await output + await error);
+            Assert.True(File.Exists(Path.Combine(dataDirectory, "family-learning.db")));
+        }
+        finally
+        {
+            if (Directory.Exists(dataDirectory)) Directory.Delete(dataDirectory, recursive: true);
+        }
+    }
+
     [Fact]
     public async Task Schema_changes_require_explicit_management_command()
     {

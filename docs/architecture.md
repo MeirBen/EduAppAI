@@ -34,18 +34,13 @@ template contract even with escaped Unicode; validators enforce field limits.
 | `DELETE /api/templates`              | Clears the family's learning library  |
 
 `AiGenerationService` calls `IChatClient` without identity or database access.
-`AiSchemas` loads embedded schemas for both the system message and output contract.
-The provider adapter uses `Ai:ResponseFormat` to request strict JSON-schema output,
-JSON mode, or prompt-only JSON. The full schema stays in the prompt in every mode.
-Field descriptions distinguish generator instructions, learner directions,
-source passages and parent-only answers. Validators remain authoritative.
-Model selection, optional reasoning/sampling controls and output limits are
-configuration only. Tests exercise capabilities with fixed local model IDs,
-independent of the active model. Unspecified optional controls are omitted;
-OpenRouter requires support for controls that are explicitly sent. No tools are
-sent. Responses must finish
-normally and pass size/depth, required-member, unknown-field, numeric and domain
-validation before persistence.
+`AiSchemas` supplies embedded schemas for the prompt and provider output format.
+The OpenRouter adapter owns transport and configuration; generation owns prompts,
+schemas and validation. See [AI configuration](../README.md#ai-configuration) for
+model capabilities, output modes, reasoning, sampling and limits. Tests exercise
+these with fixed local model IDs, independently of the active model. No tools
+are sent. Responses must finish normally and pass size/depth, required-member,
+unknown-field, numeric and domain validation before persistence.
 
 `AiPrompts` owns shared language, presentation and question-quality guidance;
 templates retain task-specific requirements and exact parameter references.
@@ -72,13 +67,11 @@ Server claims determine family ownership; missing and foreign records both
 return 404 before content reads or AI calls. Authenticated API responses use
 `no-store`. Parent preview DTOs contain answers and must not serve child access.
 
-AI has a configurable three-minute deadline, two concurrent calls per process
-and ten requests per family per minute. Cancellation reaches the provider and
-always releases capacity. Transport timeout adds five seconds so application
-cancellation wins. The OpenRouter adapter owns routing, reasoning and sampling;
-generation owns schemas and validation. See [AI configuration](../README.md#ai-configuration)
-for model settings, deadlines and token limits. SDK retries are disabled;
-OpenRouter's optional fallback handles provider errors, not failed app validation.
+AI permits two concurrent calls per process and ten requests per family per
+minute. Cancellation reaches the provider and always releases capacity.
+Transport timeout adds five seconds to the application deadline so its
+cancellation wins. SDK retries are disabled; OpenRouter's optional fallback
+handles provider errors, not failed app validation.
 Failures return safe ProblemDetails without saving, including 429 for provider
 rate limits. Output-limit failures use
 `urn:family-learning:ai-output-limit` so the UI can distinguish them from invalid
@@ -90,9 +83,11 @@ Rejections log a failure category; transport failures log exception type, status
 prompt version and elapsed time. Prompts, answers and reasoning text stay out of
 logs. `/api/ai/status` checks configuration without a call.
 
-Production requires explicit migrations and HTTPS; tests cover migration,
-redirect, HSTS, secure-cookie and CSRF behavior. `/health` reports process
-availability only. Deployment requirements live in [README](../README.md#publish).
+Local management commands compose only persistence and authentication; migrations
+and account provisioning work even with incomplete AI configuration. Production
+requires explicit migrations and HTTPS; tests cover migration, redirect, HSTS,
+secure-cookie and CSRF behavior. `/health` reports process availability only.
+Deployment requirements live in [README](../README.md#publish).
 
 ## Client state
 
@@ -114,10 +109,8 @@ while blank numbers/selects are omitted for server defaults.
 Previews read snapshots. The PWA caches assets only; API calls need a connection.
 See the [UI guide](ui-guide.md) and [verification commands](../README.md#verify).
 
-References: [IChatClient][chat], [structured output][output], [free
-router][free], [Signal Forms][forms].
+References: [IChatClient][chat], [structured output][output], [Signal Forms][forms].
 
 [chat]: https://learn.microsoft.com/en-us/dotnet/ai/ichatclient
 [output]: https://openrouter.ai/docs/guides/features/structured-outputs
-[free]: https://openrouter.ai/docs/guides/routing/routers/free-router
 [forms]: https://angular.dev/guide/forms/signals/overview

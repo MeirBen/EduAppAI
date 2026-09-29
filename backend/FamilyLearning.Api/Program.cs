@@ -21,16 +21,18 @@ builder.Services.AddDbContext<LearningDbContext>(options => options.UseSqlite(
 builder.Services.AddDataProtection().SetApplicationName("FamilyLearning")
     .PersistKeysToFileSystem(new DirectoryInfo(Path.Combine(dataDirectory, "keys")));
 builder.Services.AddParentAuthentication(builder.Environment.IsDevelopment());
+if (management)
+{
+    // Local database/account operations must not depend on a working AI profile or HTTP policies.
+    await using var managementHost = builder.Build();
+    Environment.ExitCode = await ManagementCommand.RunAsync(managementHost.Services, args);
+    return;
+}
 builder.Services.AddTaskAi(builder.Configuration, builder.Environment);
 builder.Services.AddApplicationApi();
 // Allow all bounded template fields even when Hebrew characters use six-byte JSON escapes.
 builder.WebHost.ConfigureKestrel(options => options.Limits.MaxRequestBodySize = 256 * 1024);
 var app = builder.Build();
-if (management)
-{
-    Environment.ExitCode = await ManagementCommand.RunAsync(app.Services, args);
-    return;
-}
 if (app.Environment.IsDevelopment())
 {
     using var scope = app.Services.CreateScope();
