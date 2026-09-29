@@ -1,14 +1,34 @@
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
+import { DestroyRef } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { firstValueFrom } from 'rxjs';
 import { Auth } from './auth';
 
-describe('Auth logout', () => {
-  it('finishes sign-out even when a subsequent token refresh would fail', async () => {
+describe('Auth session state', () => {
+  beforeEach(() =>
     TestBed.configureTestingModule({
       providers: [provideHttpClient(), provideHttpClientTesting()],
-    });
+    }),
+  );
+  afterEach(() => TestBed.inject(HttpTestingController).verify());
+
+  it('keeps sign-in incomplete when the identity-bound token refresh fails', async () => {
+    const auth = TestBed.inject(Auth);
+    const http = TestBed.inject(HttpTestingController);
+    const failedLogin = expect(
+      auth.login('parent@example.test', 'TestOnly!Parent12345', TestBed.inject(DestroyRef)),
+    ).rejects.toMatchObject({ status: 503 });
+    http.expectOne('/api/auth/csrf').flush({ token: 'anonymous' });
+    const credentials = await vi.waitFor(() => http.expectOne('/api/auth/login'));
+    credentials.flush(null);
+    const token = await vi.waitFor(() => http.expectOne('/api/auth/csrf'));
+    token.flush({}, { status: 503, statusText: 'Unavailable' });
+    await failedLogin;
+    expect(auth.signedIn()).toBe(false);
+  });
+
+  it('finishes sign-out even when a subsequent token refresh would fail', async () => {
     const auth = TestBed.inject(Auth);
     const http = TestBed.inject(HttpTestingController);
     const session = firstValueFrom(auth.loadSession());
@@ -24,6 +44,5 @@ describe('Auth logout', () => {
     await expect(logout).resolves.toBeUndefined();
     http.expectNone('/api/auth/csrf');
     expect(auth.signedIn()).toBe(false);
-    http.verify();
   });
 });

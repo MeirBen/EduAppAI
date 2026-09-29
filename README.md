@@ -9,9 +9,9 @@ implementation.
 
 ## Start
 
-Use **.NET 8 SDK** and **Node 24.15+ LTS or 26+** with npm. `global.json`
-selects an installed stable 8.0 SDK. Dependencies and lockfiles pin the
-application stack.
+Use **.NET 8 SDK** and a Node version allowed by `engines.node` in
+[package.json](frontend/package.json), with npm. CI uses Node 24. `global.json`
+selects an installed stable 8.0 SDK. Dependencies and lockfiles pin the stack.
 
 ```bash
 ./scripts/create-parent.sh # First run only
@@ -181,7 +181,11 @@ Storage__Directory=/absolute/persistent/data dotnet \
 ```
 
 The PWA caches assets only; task operations require a connection. Before a live
-deployment, verify HTTPS and trusted proxy handling if applicable, persistent
-storage permissions, a tested backup/restore procedure and operational monitoring.
+deployment, set `AllowedHosts` to the real hostnames and verify HTTPS.
+Behind a reverse proxy, configure its trusted addresses/networks. Process
+forwarded headers before HTTPS redirection, authentication and rate limiting;
+follow
+[Microsoft's proxy guidance](https://learn.microsoft.com/en-us/aspnet/core/host-and-deploy/proxy-load-balancer?view=aspnetcore-8.0).
+Also verify storage permissions, backup/restore and operational monitoring.
 `/health` checks process availability, not database or AI readiness. Account
 recovery and real-model evaluation remain in the [next steps](docs/product-specification.md#next-steps).

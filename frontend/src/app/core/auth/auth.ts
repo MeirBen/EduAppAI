@@ -28,12 +28,12 @@ export class Auth {
     );
   }
 
-  /** Signs in and refreshes the identity-bound token; leaving the login page cancels the remaining requests. */
+  /** Completes sign-in after the identity-bound token is ready; leaving the page cancels remaining requests. */
   async login(email: string, password: string, lifetime: DestroyRef): Promise<void> {
     await requestResult(this.refreshCsrf(), lifetime);
     await requestResult(this.http.post('/api/auth/login', { email, password }), lifetime);
-    this.session.set(true);
     await requestResult(this.refreshCsrf(), lifetime);
+    this.session.set(true);
   }
 
   /** Sends a protected sign-out request and clears local state only after the server accepts it. */

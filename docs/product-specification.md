@@ -108,5 +108,92 @@ must stay separate from parent authentication and use answer-free,
 assignment-checked responses. Do not expose placeholder controls for unfinished
 features.
 
+### Child flow proposal
+
+Not implemented. The agreed first target is a separately activated child device;
+shared-browser switching is deferred. The recommended first release completes
+one flow: parent creates a child profile, reviews and assigns an existing task,
+activates the child's device, and sees the child's submitted result.
+
+Keep the current project and feature structure. Existing parent API URLs can
+remain compatible; add an independently authorized `/api/child` group when the
+feature is built. Add feature folders as working functionality needs them;
+renaming `Instances` or introducing empty services is unnecessary.
+
+**Access and content:**
+
+- Bind parent and child policies to their respective authentication schemes;
+  a child cookie must never satisfy parent access. The child identity, family
+  and device grant come from the server, not submitted IDs. Check assignment
+  ownership, grant expiry and revocation on each request. See
+  [scheme-specific authorization][auth-schemes].
+- A parent creates a short-lived, single-use activation credential for one
+  child. Store its hash, consume it atomically, rate-limit activation, and issue
+  a separate HttpOnly cookie, Secure in production. Keep credentials out of
+  logs. Parents can revoke a device; child access needs no email or password.
+- Cookie-based child writes and activation need [CSRF protection][csrf], with
+  tokens bound to the correct identity. Reject activation in a browser with an
+  active parent session; separate route names do not isolate shared cookies.
+- Build explicit child DTOs containing only learner-facing text, questions,
+  options and points. Never reuse `InstancePreview` or send answer keys,
+  generation instructions, parameters or model metadata. Generate nothing when
+  assigning, opening, answering or reporting on a task.
+
+**Records and completion:**
+
+- Keep `TaskInstance` as frozen content. `Child` belongs to a family;
+  `Assignment` links one child to one reviewed instance. `TaskSession` records
+  work on that assignment; its answers and scored result become immutable on
+  submission. Device grants are separate from learning sessions.
+- Start with one resumable session and one final submission per assignment.
+  Save bounded draft answers with concurrency checks. Commit final answers,
+  per-question points, totals, scoring-policy version and completion together.
+  Repeating the same submission returns the saved result; different answers
+  after completion conflict. Withdrawal and submission must check assignment
+  state in the same transaction, including concurrent requests.
+- Grade deterministically on the server using the frozen answer key. Proposed
+  initial rules: match a valid frozen choice; compare invariant decimal values;
+  compare short text after trimming and Unicode NFC normalization, preserving
+  case, punctuation and Hebrew vowel points. No synonym guessing or AI grading.
+  Missing answers earn zero; unknown or duplicate question IDs are invalid.
+  Show earned/max points, with no percentage when max points is zero.
+- Parent reports read saved results, never rescore history using newer rules.
+  Child completion responses may acknowledge submission but contain no answer
+  key. Reattempts, detailed child feedback and aggregate dashboards can follow.
+
+**Retention and acceptance:**
+
+- Ordinary deletion must retain tasks referenced by assignments and their
+  reports; use archival for those records. Disabling a child revokes access
+  while retaining results. Before enabling assignments, extend explicit family
+  reset, its confirmation and its transaction to cover learning history. These
+  are proposed changes to today's draft-only deletion behavior.
+- Verify cross-family and sibling isolation, parent/child cookie separation,
+  expired/replayed activation, revocation, missing CSRF, answer-free JSON,
+  resume/conflict behavior, duplicate submission, withdrawal/deletion races,
+  scoring edge cases and unchanged historical results. Test the full flow on
+  narrow RTL screens and by keyboard with isolated data and providers.
+
+Finalize the proposed grading, retry and retention rules with the child feature
+design before adding tables or endpoints. They are product behavior, not a
+reason to refactor today's working parent flow.
+
+### Real-model evaluation
+
+Contract tests do not measure educational quality. Before relying on generated
+work for children, repeat a small set of representative Hebrew and bilingual
+requests across subjects, ages and difficulty levels. Review language,
+correctness, age fit, instruction adherence and answer ambiguity; record failures
+as well as successes, the model/profile, prompt version, latency, token use and
+actual cost when available. Use synthetic requests, never child identities.
+
+Any evaluation runner should reuse the configured generation path and its
+validators, remain outside normal CI, require an explicit live invocation and
+bound the number of calls. It must not create learning records or copy the
+prompts/provider implementation into a second engine. A Qwen-specific test
+framework is unnecessary; model quality is still unverified by local tests.
+
 [template]: ../backend/FamilyLearning.Api/TaskEngine/Models/TaskTemplateDefinition.cs
 [content]: ../backend/FamilyLearning.Api/TaskEngine/Models/TaskContent.cs
+[auth-schemes]: https://learn.microsoft.com/en-us/aspnet/core/security/authorization/authorize-with-a-specific-scheme?view=aspnetcore-8.0
+[csrf]: https://learn.microsoft.com/en-us/aspnet/core/security/anti-request-forgery?view=aspnetcore-8.0
