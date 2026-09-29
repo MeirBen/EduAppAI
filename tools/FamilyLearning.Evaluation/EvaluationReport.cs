@@ -94,7 +94,14 @@ public sealed record EvaluationMessage(string Role, string Text);
 
 /// <summary>Fixed human-labelled controls measure known error detection and false alarms, not general judge accuracy.</summary>
 public sealed record CalibrationSample(string Id, string Request, ReviewText[] Texts,
-    ExpectedHebrewIssue[] ExpectedIssues, bool AllowUnexpectedFindings = false);
+    ExpectedHebrewIssue[] ExpectedIssues, bool AllowUnexpectedFindings = false)
+{
+    // Record equality compares arrays by reference; reports need the captured fields and policy to match.
+    internal bool HasSameContent(CalibrationSample? other) => other is not null &&
+        Id == other.Id && Request == other.Request && AllowUnexpectedFindings == other.AllowUnexpectedFindings &&
+        other.Texts is not null && Texts.SequenceEqual(other.Texts) &&
+        other.ExpectedIssues is not null && ExpectedIssues.SequenceEqual(other.ExpectedIssues);
+}
 public sealed record ExpectedHebrewIssue(string Path, string Quote)
 {
     /// <summary>Match whole tokens or a short containing phrase on the same field; never an unrelated path.</summary>

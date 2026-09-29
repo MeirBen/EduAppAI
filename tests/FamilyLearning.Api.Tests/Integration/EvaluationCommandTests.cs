@@ -112,9 +112,10 @@ public sealed class EvaluationCommandTests : IDisposable
     }
 
     [Theory]
-    [InlineData(false, 0)]
-    [InlineData(true, 2)]
-    public async Task Compare_is_offline_and_cannot_be_combined_with_live_generation(bool extraLiveFlag, int expectedExit)
+    [InlineData(false, false, 0)]
+    [InlineData(true, false, 2)]
+    [InlineData(false, true, 2)]
+    public async Task Compare_is_offline_and_reports_invalid_inputs_safely(bool extraLiveFlag, bool invalidReport, int expectedExit)
     {
         Directory.CreateDirectory(directory);
         var report = EvaluationReportsTests.CreateReport();
@@ -125,6 +126,12 @@ public sealed class EvaluationCommandTests : IDisposable
         });
         await EvaluationFiles.SaveAsync(report, directory);
         var path = Path.Combine(directory, "run.json");
+        if (invalidReport)
+        {
+            var json = JsonNode.Parse(await File.ReadAllTextAsync(path))!;
+            json["formatVersion"] = 1;
+            await File.WriteAllTextAsync(path, json.ToJsonString());
+        }
         var start = new ProcessStartInfo("dotnet")
         {
             WorkingDirectory = directory,
@@ -144,9 +151,11 @@ public sealed class EvaluationCommandTests : IDisposable
         try { await process.WaitForExitAsync(timeout.Token); }
         finally { if (!process.HasExited) process.Kill(entireProcessTree: true); }
         var output = await stdout;
-        Assert.True(process.ExitCode == expectedExit, output + await stderr);
-        Assert.DoesNotContain("isolated-secret", output);
-        if (!extraLiveFlag)
+        var errors = await stderr;
+        Assert.True(process.ExitCode == expectedExit, output + errors);
+        Assert.DoesNotContain("isolated-secret", output + errors);
+        Assert.DoesNotContain("Exception", errors);
+        if (expectedExit == 0)
         {
             using var comparison = JsonDocument.Parse(output);
             Assert.True(comparison.RootElement.GetProperty("directlyComparable").GetBoolean());

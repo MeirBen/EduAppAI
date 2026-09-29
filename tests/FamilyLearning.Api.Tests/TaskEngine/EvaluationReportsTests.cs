@@ -1,6 +1,5 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
-using FamilyLearning.Api.TaskEngine.Ai;
 using FamilyLearning.Evaluation;
 
 namespace FamilyLearning.Api.Tests.TaskEngine;
@@ -152,6 +151,103 @@ public sealed class EvaluationReportsTests : IDisposable
         await Assert.ThrowsAsync<JsonException>(() => EvaluationFiles.ReadReportAsync(path));
     }
 
+    [Theory]
+    [InlineData("case")]
+    [InlineData("authoring")]
+    [InlineData("generation")]
+    [InlineData("review")]
+    [InlineData("calibration")]
+    [InlineData("unfinished-call")]
+    [InlineData("unfinished-run")]
+    public void Completed_status_alone_does_not_make_missing_evidence_comparable(string missing)
+    {
+        var baseline = CompletedJudgeReport();
+        var candidate = CompletedJudgeReport();
+        switch (missing)
+        {
+            case "case": candidate.Results.Clear(); break;
+            case "authoring": candidate.Results[0].Authoring = null; break;
+            case "generation": candidate.Results[0].Generation = null; break;
+            case "review": candidate.Results[0].Judge = null; break;
+            case "calibration": candidate.Calibration.Clear(); break;
+            case "unfinished-call": candidate.Results[0].Generation!.FinishedAtUtc = null; break;
+            case "unfinished-run": candidate.FinishedAtUtc = null; break;
+        }
+
+        var comparison = EvaluationComparison.Compare(baseline, candidate);
+
+        Assert.False(comparison.DirectlyComparable);
+        Assert.Contains("incomplete-run", comparison.Incompatibilities);
+        Assert.False(comparison.HebrewFindingsComparable);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Completed_failures_remain_comparable_when_later_stages_cannot_run(bool invalidDefaults)
+    {
+        var baseline = CreateReport();
+        var candidate = CreateReport();
+        foreach (var report in new[] { baseline, candidate })
+        {
+            var result = new EvaluationResult("reading", 1) { Authoring = Step() };
+            if (invalidDefaults) result.Checks["parameterDefaults"] = false;
+            else result.Authoring.ContractValid = false;
+            report.Results.Add(result);
+        }
+
+        Assert.True(EvaluationComparison.Compare(baseline, candidate).DirectlyComparable);
+    }
+
+    [Fact]
+    public void Changed_calibration_inputs_are_visible_even_with_an_unchanged_hash()
+    {
+        var baseline = CompletedJudgeReport();
+        var candidate = CompletedJudgeReport();
+        candidate.CalibrationSamples[0] = candidate.CalibrationSamples[0] with { Request = "בקשה אחרת" };
+        candidate.Calibration[0] = new(candidate.CalibrationSamples[0], Step()) { Issues = [] };
+
+        var comparison = EvaluationComparison.Compare(baseline, candidate);
+
+        Assert.False(comparison.DirectlyComparable);
+        Assert.Contains("calibration-inputs", comparison.Incompatibilities);
+    }
+
+    [Theory]
+    [InlineData("request")]
+    [InlineData("text")]
+    [InlineData("expectations")]
+    [InlineData("policy")]
+    public async Task Calibration_result_must_use_the_captured_control(string change)
+    {
+        var report = CompletedJudgeReport();
+        var sample = report.CalibrationSamples[0];
+        var changed = change switch
+        {
+            "request" => sample with { Request = "בקשה אחרת" },
+            "text" => sample with { Texts = [new("text", "טקסט אחר.")] },
+            "expectations" => sample with { ExpectedIssues = [new("text", "משפט")] },
+            _ => sample with { AllowUnexpectedFindings = true }
+        };
+        report.Calibration[0] = new(changed, Step()) { Issues = [] };
+        var path = await SaveAsync("changed-control", report);
+
+        await Assert.ThrowsAsync<InvalidDataException>(() => EvaluationFiles.ReadReportAsync(path));
+    }
+
+    [Fact]
+    public async Task Numeric_strings_are_not_silently_coerced_into_human_scores()
+    {
+        var report = CreateReport();
+        report.Results.Add(new("reading", 1) { Authoring = Step(), Generation = Step() });
+        var path = await SaveAsync("quoted-score", report);
+        var json = JsonNode.Parse(await File.ReadAllTextAsync(path))!;
+        json["results"]![0]!["review"]!["hebrew"] = "2";
+        await File.WriteAllTextAsync(path, json.ToJsonString());
+
+        await Assert.ThrowsAsync<JsonException>(() => EvaluationFiles.ReadReportAsync(path));
+    }
+
     [Fact]
     public void Partial_usage_or_different_review_coverage_does_not_produce_misleading_deltas()
     {
@@ -198,6 +294,14 @@ public sealed class EvaluationReportsTests : IDisposable
         Directory.CreateDirectory(output);
         await EvaluationFiles.SaveAsync(report, output);
         return Path.Combine(output, "run.json");
+    }
+
+    private static EvaluationReport CompletedJudgeReport()
+    {
+        var report = CreateReport(judge: true);
+        report.Calibration.Add(new(report.CalibrationSamples[0], Step()) { Issues = [] });
+        report.Results.Add(new("reading", 1) { Authoring = Step(), Generation = Step(), Judge = Step(), Issues = [] });
+        return report;
     }
 
     internal static EvaluationReport CreateReport(string model = "test/a", string suite = "suite", int repeat = 1,

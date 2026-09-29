@@ -12,6 +12,7 @@ public static class EvaluationFiles
     {
         WriteIndented = true,
         MaxDepth = 32,
+        NumberHandling = JsonNumberHandling.Strict,
         UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow,
         // Local JSON, never interpolated into HTML; keep Hebrew readable for reviewers.
         Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping
@@ -61,11 +62,10 @@ public static class EvaluationFiles
             report.Results.Select(result => (result.CaseId, result.Repetition)).Distinct().Count() != report.Results.Count)
             throw new InvalidDataException("Invalid evaluation results or human scores; use 0, 1, 2 or null.");
         ValidateCalibrationSamples(report.CalibrationSamples);
-        if (report.Calibration.Any(result => result is null || result.Sample is null || result.Call is null ||
-                !report.CalibrationSamples.Any(sample => sample.Id == result.Sample.Id)) ||
+        if (report.Calibration.Any(result => result is null || result.Call is null ||
+                !report.CalibrationSamples.Any(sample => sample.HasSameContent(result.Sample))) ||
             report.Calibration.Select(result => result.Sample.Id).Distinct().Count() != report.Calibration.Count)
             throw new InvalidDataException("Invalid calibration results.");
-        ValidateCalibrationSamples(report.Calibration.Select(result => result.Sample).ToArray());
         if (report.Results.SelectMany(result => result.Issues ?? []).Concat(report.Calibration.SelectMany(result => result.Issues ?? []))
             .Any(issue => issue is null || !HebrewJudge.IsKnownKind(issue.Kind) || string.IsNullOrWhiteSpace(issue.Path) || string.IsNullOrWhiteSpace(issue.Quote)) ||
             report.Steps.Any(step => !double.IsFinite(step.ElapsedMilliseconds) || step.ElapsedMilliseconds < 0 ||

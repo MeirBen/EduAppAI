@@ -1,5 +1,3 @@
-using System.Text.Json;
-
 namespace FamilyLearning.Evaluation;
 
 public sealed record ProfileChange(string? Baseline, string? Candidate);
@@ -24,14 +22,16 @@ public sealed record EvaluationComparison(
         if (baseline.SuiteSha256 != candidate.SuiteSha256) incompatible.Add("case-suite-hash");
         if (!baseline.Cases.Select(item => item.Id).SequenceEqual(candidate.Cases.Select(item => item.Id))) incompatible.Add("selected-cases-or-order");
         // Compare the captured inputs too: a stale/manually edited hash cannot make different prompts comparable.
-        if (JsonSerializer.Serialize(baseline.Cases, EvaluationFiles.Json) != JsonSerializer.Serialize(candidate.Cases, EvaluationFiles.Json))
-            incompatible.Add("scenario-inputs");
+        if (!baseline.Cases.SequenceEqual(candidate.Cases)) incompatible.Add("scenario-inputs");
         if (baseline.Repeat != candidate.Repeat) incompatible.Add("repeat-count");
-        if (baseline.Status != "completed" || candidate.Status != "completed") incompatible.Add("incomplete-run");
+        if (!IsComplete(baseline) || !IsComplete(candidate)) incompatible.Add("incomplete-run");
         if (baseline.JudgeEnabled != candidate.JudgeEnabled) incompatible.Add("judge-mode");
         if (baseline.JudgeEnabled && candidate.JudgeEnabled)
         {
             if (baseline.CalibrationSha256 != candidate.CalibrationSha256) incompatible.Add("calibration-suite-hash");
+            if (baseline.CalibrationSamples.Length != candidate.CalibrationSamples.Length ||
+                baseline.CalibrationSamples.Zip(candidate.CalibrationSamples).Any(pair => !pair.First.HasSameContent(pair.Second)))
+                incompatible.Add("calibration-inputs");
             if (baseline.JudgePromptVersion != candidate.JudgePromptVersion || baseline.JudgePrompt != candidate.JudgePrompt)
                 incompatible.Add("judge-prompt");
         }
@@ -69,6 +69,17 @@ public sealed record EvaluationComparison(
             baseline.JudgePromptVersion, candidate.JudgePromptVersion, before, after, deltas,
             CountDeltas(before.AutomaticFailuresByCheck, after.AutomaticFailuresByCheck),
             CountDeltas(before.HebrewIssuesByKind, after.HebrewIssuesByKind), humanComparable);
+    }
+
+    private static bool IsComplete(EvaluationReport report)
+    {
+        if (report.Status != "completed" || report.FinishedAtUtc is null || report.Results.Count != report.Cases.Length * report.Repeat ||
+            report.Steps.Any(step => !step.RequestSent || step.FinishedAtUtc is null) ||
+            (report.JudgeEnabled && report.Calibration.Count != report.CalibrationSamples.Length)) return false;
+        // Completed failures count as evidence; absent follow-up calls are valid only when an earlier stage prevented them.
+        return report.Results.All(result => result.Authoring is not null &&
+            (!result.Authoring.ContractValid || result.Checks.GetValueOrDefault("parameterDefaults", true) == false || result.Generation is not null) &&
+            (!report.JudgeEnabled || result.Generation?.ContractValid != true || result.Judge is not null));
     }
 
     private static decimal? CompleteDelta(ReportedTotal before, ReportedTotal after) =>
