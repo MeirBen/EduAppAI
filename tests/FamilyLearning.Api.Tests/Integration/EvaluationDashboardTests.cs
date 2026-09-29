@@ -2,7 +2,6 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Nodes;
-using FamilyLearning.Api.Infrastructure.Ai;
 using FamilyLearning.Api.Tests.Fixtures;
 using FamilyLearning.Api.Tests.TaskEngine;
 using FamilyLearning.Evaluation;
@@ -38,10 +37,11 @@ public sealed class EvaluationDashboardTests : IAsyncLifetime
             ["urls"] = "http://0.0.0.0:0"
         });
         builder.Logging.ClearProviders();
-        builder.Services.AddTaskAi(builder.Configuration, builder.Environment);
-        builder.Services.RemoveAll<IChatClient>();
-        builder.Services.AddSingleton<IChatClient>(chat);
-        app = EvaluationDashboard.Build(builder, 0, directory);
+        app = EvaluationDashboard.Build(builder, 0, directory, services =>
+        {
+            services.RemoveAll<IChatClient>();
+            services.AddSingleton<IChatClient>(chat);
+        });
         await app.StartAsync();
         http = new HttpClient(new HttpClientHandler { UseCookies = true }) { BaseAddress = new(app.Urls.Single()) };
         http.DefaultRequestHeaders.Add("Origin", http.BaseAddress.GetLeftPart(UriPartial.Authority));

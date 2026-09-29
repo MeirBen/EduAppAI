@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, inject, input } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject, input, signal } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { LearningApi } from '../../../core/api/learning-api';
 import { apiError } from '../../../core/api/api-error';
@@ -21,8 +21,11 @@ export class TemplateEditor {
   readonly templateId = input<string>();
   protected readonly template = this.api.template(this.templateId);
   protected readonly apiError = apiError;
+  protected readonly published = signal<TemplateDetail | undefined>(undefined);
 
   protected async saved(template: TemplateDetail) {
-    await this.router.navigate(['/templates', template.id, 'create']);
+    this.published.set(template);
+    // Failed navigation leaves a link to the saved template, never a second publication attempt.
+    await this.router.navigate(['/templates', template.id, 'create']).catch(() => false);
   }
 }

@@ -13,7 +13,12 @@
       variant="panel"
       label="טוענים את התבנית לעריכה…"
     />
-    @if (!template.isLoading() && templateId() && template.error()) {
+    @if (published(); as savedTemplate) {
+      <section class="panel">
+        <p class="mb-4" role="status">התבנית נשמרה. אפשר להמשיך ליצירת תרגול.</p>
+        <a class="button" [routerLink]="['/templates', savedTemplate.id, 'create']">יצירת תרגול</a>
+      </section>
+    } @else if (!template.isLoading() && templateId() && template.error()) {
       <div class="error" role="alert">
         <p>{{ apiError(template.error()) }}</p>
         <button class="button mt-4" (click)="template.reload()">ניסיון נוסף</button>

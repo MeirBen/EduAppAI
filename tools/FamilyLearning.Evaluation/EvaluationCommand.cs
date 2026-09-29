@@ -73,7 +73,7 @@ public static class EvaluationCommand
                     summary.GeneratedContentReviews.Succeeded == summary.PlannedCaseRuns && !report.HasHebrewFindings) ? 0 : 1;
         }
         catch (Exception exception) when (exception is ArgumentException or InvalidOperationException or
-            OptionsValidationException or IOException or InvalidDataException or UnauthorizedAccessException or JsonException)
+            OptionsValidationException or FormatException or IOException or InvalidDataException or UnauthorizedAccessException or JsonException)
         {
             // Configuration/IO exceptions can contain secret values or paths; don't print their bodies.
             Console.Error.WriteLine(args.Length > 0 && args[0] == "--compare"

@@ -1,7 +1,7 @@
 using System.Net;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using FamilyLearning.Api.Infrastructure.Ai;
+using FamilyLearning.Api.TaskEngine.Ai;
 using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.DataProtection;
@@ -39,15 +39,15 @@ public static class EvaluationDashboard
             ApplicationName = typeof(EvaluationDashboard).Assembly.GetName().Name
         });
         builder.Logging.ClearProviders();
-        builder.Services.AddTaskAi(builder.Configuration, builder.Environment);
         await using var app = Build(builder, port, root);
         await app.StartAsync();
         Console.WriteLine($"Evaluation dashboard: http://127.0.0.1:{port} (no calls until a run is confirmed)");
         await app.WaitForShutdownAsync();
     }
 
-    /// <summary>Composes local services after AI registration. Port zero is supported for isolated tests.</summary>
-    public static WebApplication Build(WebApplicationBuilder builder, int port, string root)
+    /// <summary>Composes local services with isolated AI configuration. Port zero and AI overrides support isolated tests.</summary>
+    public static WebApplication Build(WebApplicationBuilder builder, int port, string root,
+        Action<IServiceCollection>? configureAi = null)
     {
         builder.WebHost.ConfigureKestrel(server =>
         {
@@ -71,7 +71,8 @@ public static class EvaluationDashboard
             options.Cookie.HttpOnly = true;
         });
         builder.Services.AddSingleton(_ => new EvaluationRunStore(root));
-        builder.Services.AddSingleton<EvaluationCoordinator>();
+        builder.Services.AddSingleton(services => new EvaluationCoordinator(builder.Configuration, builder.Environment,
+            services.GetRequiredService<EvaluationRunStore>(), configureAi));
         builder.Services.AddHostedService(services => services.GetRequiredService<EvaluationCoordinator>());
         var app = builder.Build();
         app.Use(async (context, next) =>
@@ -102,7 +103,8 @@ public static class EvaluationDashboard
                     AntiforgeryValidationException => (400, "Refresh the dashboard before submitting."),
                     ArgumentException or InvalidDataException or JsonException or BadHttpRequestException => (400, "Invalid request or evaluation data."),
                     FileNotFoundException or DirectoryNotFoundException => (404, "Run not found."),
-                    InvalidOperationException => (409, "The operation is unavailable while a run is active or AI is unconfigured."),
+                    AiGenerationException failure => (failure.StatusCode, failure.Message),
+                    InvalidOperationException => (409, "The operation is unavailable while a run is active or the host is stopping."),
                     _ => (500, "The evaluation operation failed. Check configuration and artifact permissions.")
                 };
                 await Results.Problem(statusCode: status, title: title).ExecuteAsync(context);

@@ -152,7 +152,9 @@ The dashboard opens at `http://127.0.0.1:5180` (`--port` changes only the port).
 New Run shows the app's nonsecret AI profile, case selection and call budget.
 Confirming Run can spend OpenRouter credits; startup, history and comparison
 make no provider calls. Only one run is active at a time; Cancel preserves partial
-results. Restart the tool after changing AI configuration.
+results. Missing or invalid AI settings disable real runs without blocking
+history, report viewing, manual review or comparison. Fix the settings and restart
+the tool to enable real runs; configuration errors and secrets are not displayed.
 
 History renders saved tasks and findings, with collapsible request/output data.
 Review completed results using the six scores and notes (up to 4,000 characters).

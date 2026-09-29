@@ -60,7 +60,10 @@ summary/comparison derive evidence without provider calls.
 
 The optional dashboard is a loopback-only ASP.NET host with static HTML/CSS/JS.
 Its coordinator owns one cancellable run and waits for the final checkpoint on
-shutdown. The artifact store maps validated run IDs under a configured root,
+shutdown. It owns an isolated service provider using the same application AI
+registration and validators. Configuration failures disable live runs without
+blocking offline routes or exposing invalid settings; restarting reloads the
+configuration. The artifact store maps validated run IDs under a configured root,
 rejects links, and serializes atomic human-review edits. Polling reads immutable
 progress snapshots; history and comparison reread authoritative `run.json`.
 Host/Origin checks, antiforgery, CSP and plain-text rendering protect the local
@@ -120,6 +123,8 @@ page and cannot redirect after destruction; the server authorizes requests.
 Forms and converts them on save. Errors retain edits; new proposals reset
 feedback. `ParameterForm` emits validated choices: empty text stays explicit,
 while blank numbers/selects are omitted for server defaults.
+Successful publication replaces the editor with a saved-template link; delayed
+or failed navigation cannot cause the same draft to be published again.
 
 Previews read snapshots. The PWA caches assets only; API calls need a connection.
 See the [UI guide](ui-guide.md) and [verification commands](../README.md#verify).

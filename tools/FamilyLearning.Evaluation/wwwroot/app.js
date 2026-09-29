@@ -419,7 +419,7 @@ export function createDashboard(document, fetchRequest = globalThis.fetch.bind(g
     get('fallback-warning').hidden = !setup.profile.FallbackModel;
     get('configuration-message').hidden = setup.configured;
     get('configuration-message').textContent =
-      'AI configuration is unavailable. Saved runs can still be browsed and reviewed.';
+      'AI configuration is missing or invalid. Saved runs remain available. Fix the configuration and restart the dashboard to enable real evaluations.';
     get('run-controls').disabled = false;
     get('judge').disabled = !setup.judgeAvailable;
     get('judge-message').textContent = setup.judgeAvailable

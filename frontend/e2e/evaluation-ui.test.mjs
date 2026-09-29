@@ -229,6 +229,34 @@ const runSummary = {
 /** @param {unknown} body */
 const jsonResponse = (body) => ({ ok: true, status: 200, json: async () => body });
 
+test('unavailable AI disables paid work while saved reports remain accessible', async () => {
+  const app = mount({
+    '/api/setup': () => jsonResponse({ ...setup, configured: false, profile: {} }),
+    '/api/runs': () => jsonResponse([{ id: 'run-1', label: 'Saved run', summary: runSummary }]),
+    '/api/runs/run-1': () => jsonResponse({ report: completedReport, summary: runSummary }),
+  });
+  try {
+    await app.dashboard.ready;
+    app.document.querySelector('#select-all').click();
+    assert.equal(app.document.querySelector('#start-run').disabled, true);
+    assert.match(
+      app.document.querySelector('#configuration-message').textContent,
+      /missing or invalid/,
+    );
+    app.document
+      .querySelector('#run-form')
+      .dispatchEvent(new app.dom.window.Event('submit', { bubbles: true, cancelable: true }));
+    assert.equal(app.document.querySelector('#run-confirmation').hasAttribute('open'), false);
+    app.document.querySelector('#history-list button').click();
+    await nextTurn();
+    assert.equal(app.document.querySelector('.review fieldset').disabled, false);
+    assert.ok(app.requests.every(({ options }) => options.method === 'GET'));
+  } finally {
+    app.dashboard.dispose();
+    app.dom.window.close();
+  }
+});
+
 test('invalid case fixtures leave saved history and active-run polling available without enabling paid work', async () => {
   const caseError = 'Evaluation cases are unavailable or invalid. Saved runs remain available.';
   const app = mount({

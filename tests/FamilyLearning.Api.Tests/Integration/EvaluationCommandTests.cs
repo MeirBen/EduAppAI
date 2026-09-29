@@ -2,7 +2,6 @@ using System.Diagnostics;
 using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Nodes;
-using FamilyLearning.Api.Infrastructure.Ai;
 using FamilyLearning.Api.Tests.Fixtures;
 using FamilyLearning.Api.Tests.TaskEngine;
 using FamilyLearning.Evaluation;
@@ -24,8 +23,9 @@ public sealed class EvaluationCommandTests : IDisposable
     [InlineData(true, 1, 2, 0, false)]
     [InlineData(true, 2, 0, 2, false)]
     [InlineData(true, 2, 0, 2, true)]
+    [InlineData(true, 2, 2, 0, false, "malformed-endpoint")]
     public async Task Cli_and_dashboard_use_the_real_adapter_without_database_access(
-        bool live, int budget, int expectedExitCode, int expectedCalls, bool dashboard)
+        bool live, int budget, int expectedExitCode, int expectedCalls, bool dashboard, string? endpoint = null)
     {
         var builder = WebApplication.CreateSlimBuilder();
         builder.WebHost.UseUrls("http://127.0.0.1:0");
@@ -74,7 +74,7 @@ public sealed class EvaluationCommandTests : IDisposable
         start.ArgumentList.Add(directory);
         start.Environment["DOTNET_ENVIRONMENT"] = "Development";
         start.Environment["Ai__ApiKey"] = "isolated-test-secret";
-        start.Environment["Ai__Endpoint"] = server.Urls.Single();
+        start.Environment["Ai__Endpoint"] = endpoint ?? server.Urls.Single();
         start.Environment["Ai__Model"] = "test/evaluation";
         start.Environment["Ai__FallbackModel"] = "";
         start.Environment["Ai__ResponseFormat"] = "json_schema";
@@ -93,7 +93,6 @@ public sealed class EvaluationCommandTests : IDisposable
             uiBuilder.Configuration.AddInMemoryCollection(start.Environment.Where(pair => pair.Key.StartsWith("Ai__", StringComparison.Ordinal))
                 .Select(pair => new KeyValuePair<string, string?>(pair.Key.Replace("__", ":"), pair.Value)));
             uiBuilder.Logging.ClearProviders();
-            uiBuilder.Services.AddTaskAi(uiBuilder.Configuration, uiBuilder.Environment);
             await using var ui = EvaluationDashboard.Build(uiBuilder, 0, directory);
             await ui.StartAsync();
             using var http = new HttpClient { BaseAddress = new(ui.Urls.Single()) };
@@ -111,6 +110,8 @@ public sealed class EvaluationCommandTests : IDisposable
         {
             var process = await TestProcess.RunAsync(start);
             Assert.True(process.ExitCode == expectedExitCode, process.Output + process.Error);
+            Assert.DoesNotContain("isolated-test-secret", process.Output + process.Error);
+            Assert.DoesNotContain("Exception", process.Error);
         }
         Assert.Equal(expectedCalls, calls);
         Assert.False(Directory.Exists(start.Environment["Storage__Directory"]));

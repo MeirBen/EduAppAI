@@ -33,6 +33,7 @@ internal static class AiFixtures
     {
         private readonly Queue<string> responses = new(responses);
         public List<(string Input, ChatOptions? Options)> Requests { get; } = [];
+        public int DisposeCalls { get; private set; }
         public ChatFinishReason FinishReason { get; init; } = ChatFinishReason.Stop;
         public HttpStatusCode? FailureStatus { get; init; }
         public Func<CancellationToken, Task>? BeforeResponse { get; init; }
@@ -46,6 +47,6 @@ internal static class AiFixtures
         }
         public IAsyncEnumerable<ChatResponseUpdate> GetStreamingResponseAsync(IEnumerable<ChatMessage> messages, ChatOptions? options = null, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public object? GetService(Type serviceType, object? serviceKey = null) => null;
-        public void Dispose() { }
+        public void Dispose() => DisposeCalls++;
     }
 }
