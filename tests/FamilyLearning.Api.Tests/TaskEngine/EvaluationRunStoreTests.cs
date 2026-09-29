@@ -10,21 +10,31 @@ public sealed class EvaluationRunStoreTests : IDisposable
     [Theory]
     [InlineData("directory")]
     [InlineData("run.json")]
+    [InlineData("summary.json")]
     [InlineData("run.json.tmp")]
-    public async Task Links_cannot_escape_the_artifact_root_including_dangling_write_targets(string link)
+    [InlineData("summary.json.tmp")]
+    public async Task Review_saves_reject_linked_artifacts_including_dangling_temporary_files(string link)
     {
-        Directory.CreateDirectory(root);
+        using var store = new EvaluationRunStore(Path.Combine(root, "runs"));
         var id = EvaluationRunStore.NewId();
-        var directory = Path.Combine(root, id);
-        if (link == "directory") Directory.CreateSymbolicLink(directory, Path.Combine(root, "missing"));
+        var directory = store.DirectoryFor(id);
+        Directory.CreateDirectory(directory);
+        var report = EvaluationReportsTests.CreateReport();
+        report.Results.Add(new("reading", 1) { Authoring = EvaluationReportsTests.Step(), Generation = EvaluationReportsTests.Step() });
+        await EvaluationFiles.SaveAsync(report, directory);
+        var target = Path.Combine(root, "outside-artifacts");
+        if (link == "directory")
+        {
+            Directory.Delete(directory, true);
+            Directory.CreateSymbolicLink(directory, target);
+        }
         else
         {
-            Directory.CreateDirectory(directory);
-            File.CreateSymbolicLink(Path.Combine(directory, link), Path.Combine(root, "missing"));
+            File.Delete(Path.Combine(directory, link));
+            File.CreateSymbolicLink(Path.Combine(directory, link), target);
         }
-        using var store = new EvaluationRunStore(root);
-        await Assert.ThrowsAsync<IOException>(() => store.ReadAsync(id));
-        Assert.False(File.Exists(Path.Combine(root, "missing")));
+        await Assert.ThrowsAsync<IOException>(() => store.SaveReviewAsync(id, new("reading", 1, new() { Hebrew = 2 })));
+        Assert.False(Path.Exists(target));
     }
 
     [Fact]
