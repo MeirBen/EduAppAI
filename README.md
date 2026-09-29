@@ -109,7 +109,7 @@ The developer harness reuses the app's configured AI engine and validators.
 It creates no learning records and performs no runtime proofreading or rewriting.
 
 ```bash
-# Preview all 16 synthetic scenarios; no key or API calls.
+# Preview all 24 synthetic scenarios; no key or API calls.
 ./scripts/evaluate-ai.sh --case all
 
 # One real template + one task: at most two billable calls.
@@ -118,8 +118,8 @@ It creates no learning records and performs no runtime proofreading or rewriting
 # Four calibration controls + template, task and advisory review: seven calls.
 ./scripts/evaluate-ai.sh --live --case ants-inference --judge --max-calls 7
 
-# Repeat the full suite twice: at most 64 calls.
-./scripts/evaluate-ai.sh --live --case all --repeat 2 --max-calls 64
+# Repeat the full suite twice: at most 96 calls.
+./scripts/evaluate-ai.sh --live --case all --repeat 2 --max-calls 96
 
 # Local developer dashboard; startup makes no AI calls.
 ./scripts/evaluate-ai.sh --ui
@@ -127,6 +127,26 @@ It creates no learning records and performs no runtime proofreading or rewriting
 # Compare saved reports offline; no key or provider calls.
 ./scripts/evaluate-ai.sh --compare baseline/run.json candidate/run.json
 ```
+
+Maintain the synthetic requests in
+[`cases.json`](tools/FamilyLearning.Evaluation/cases.json). They cover the three
+answer types, Hebrew/niqqud/bilingual content, fixed and configurable templates,
+empty/false/zero/negative defaults, 1–20 questions, 2–6 choices, two passages,
+supplied source text and quoted instructions. One full run plans at most 48 calls,
+or 76 with the four judge controls. Select individual cases for focused checks.
+
+`reviewFocus` guides human review of field design, language, source fidelity and
+educational quality; it does not add automatic assertions. The runner uses
+generated defaults, except `useMaximumQuestionCount`, which selects the generated
+count field's maximum. Arbitrary user-entered values and repeated tasks from the
+same template are not exercised by these fixtures. HTTP, persistence and UI
+behavior have separate automated tests.
+
+Add a distinct case for a real coverage gap or reported failure; keep its ID stable
+and its measurable expectations consistent with the parent request. Do not relax
+expectations to hide a model failure. Preview validates all fixtures without AI
+calls. Restart `dev.sh` after editing to rebuild its dashboard's fixture copies.
+Suite changes require new baseline and candidate runs for direct comparison.
 
 The dashboard opens at `http://127.0.0.1:5180` (`--port` changes only the port).
 New Run shows the app's nonsecret AI profile, case selection and call budget.
@@ -178,7 +198,9 @@ Interpret the results separately:
 
 - **Code tests:** harness/app behavior with local providers, not model quality.
 - **Automatic checks:** app contracts, defaults, question/choice counts,
-  interaction and whitespace word counts. Passage bounds allow five title words.
+  interaction and whitespace word counts. Generated-passage upper bounds allow
+  five extra title words; `verbatim-source` uses an exact length, and no-passage
+  cases use zero.
 - **Calibration:** known defect detection and false alarms, not general accuracy.
 - **Generated findings:** exact field, quote, correction, explanation and kind;
   advisory language review, never edits or educational scores.
