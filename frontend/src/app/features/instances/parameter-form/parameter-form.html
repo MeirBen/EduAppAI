@@ -1,6 +1,6 @@
 <form (submit)="generate($event)" novalidate [attr.aria-busy]="busy()">
   @for (definition of definitions(); track definition.key; let index = $index) {
-    @let entry = fields.entries[index];
+    @let entry = fields[index];
     <div class="field">
       <label [for]="'parameter-' + definition.key"
         ><bdi>{{ definition.label }}</bdi>

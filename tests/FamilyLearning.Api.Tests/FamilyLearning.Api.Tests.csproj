@@ -3,6 +3,7 @@
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
     <IsPackable>false</IsPackable>
+    <RunSettingsFilePath>$(MSBuildProjectDirectory)/tests.runsettings</RunSettingsFilePath>
   </PropertyGroup>
 
   <ItemGroup>

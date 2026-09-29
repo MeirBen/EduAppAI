@@ -1,19 +1,11 @@
 namespace FamilyLearning.Api.Features.Templates;
 
 /// <summary>The family's stable template identity, pointing at its latest published revision.</summary>
-public sealed class TaskTemplate
+public sealed class TaskTemplate(Guid familyId, string name)
 {
-    private TaskTemplate() { }
-
-    public TaskTemplate(Guid familyId, string name)
-    {
-        FamilyId = familyId;
-        Name = name;
-    }
-
     public Guid Id { get; private set; } = Guid.NewGuid();
-    public Guid FamilyId { get; private set; }
-    public string Name { get; private set; } = "";
+    public Guid FamilyId { get; private set; } = familyId;
+    public string Name { get; private set; } = name;
     /// <summary>One-based revision number used by EF as an optimistic concurrency token.</summary>
     public int CurrentVersion { get; private set; } = 1;
     public DateTime CreatedAtUtc { get; private set; } = DateTime.UtcNow;

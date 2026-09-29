@@ -9,8 +9,7 @@ public static class AuthConfiguration
     /// <summary>Registers the services used by parent endpoints and local account provisioning.</summary>
     /// <param name="services">The application's dependency injection registrations.</param>
     /// <param name="development">Allows HTTP cookies for local development; other environments require HTTPS.</param>
-    /// <returns>The supplied service collection.</returns>
-    public static IServiceCollection AddParentAuthentication(this IServiceCollection services, bool development)
+    public static void AddParentAuthentication(this IServiceCollection services, bool development)
     {
         services.AddIdentityCore<ParentUser>(options =>
         {
@@ -45,6 +44,5 @@ public static class AuthConfiguration
             options.Cookie.SecurePolicy = development ? CookieSecurePolicy.SameAsRequest : CookieSecurePolicy.Always;
         });
         services.AddScoped<ParentAccount>();
-        return services;
     }
 }

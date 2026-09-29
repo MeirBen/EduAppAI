@@ -1,0 +1,8 @@
+<RunSettings>
+  <RunConfiguration>
+    <EnvironmentVariables>
+      <!-- Fixed test configuration needs no file watchers, which can exhaust Linux inotify limits. -->
+      <DOTNET_HOSTBUILDER__RELOADCONFIGONCHANGE>false</DOTNET_HOSTBUILDER__RELOADCONFIGONCHANGE>
+    </EnvironmentVariables>
+  </RunConfiguration>
+</RunSettings>

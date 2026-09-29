@@ -9,6 +9,7 @@ const dataDirectory = mkdtempSync(resolve(tmpdir(), 'family-learning-e2e-'));
 const provider = await startAiProvider();
 const environment = {
   ...process.env,
+  DOTNET_HOSTBUILDER__RELOADCONFIGONCHANGE: 'false',
   ASPNETCORE_ENVIRONMENT: 'Development',
   ASPNETCORE_URLS: 'http://localhost:5199',
   Storage__Directory: dataDirectory,

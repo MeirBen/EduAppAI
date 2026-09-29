@@ -84,6 +84,7 @@ calls automatically; OpenRouter owns model and provider routing.
 Checks locked restores, .NET builds/tests/XML docs, source/config formatting,
 Markdown, shell syntax, browser-test and harness type checks, Angular tests and
 production build. TypeScript rejects unused locals/parameters. No AI key is needed.
+Test hosts use fixed configuration without file watchers.
 
 For the isolated browser workflow:
 

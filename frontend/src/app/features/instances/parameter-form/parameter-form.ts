@@ -26,17 +26,17 @@ export class ParameterForm {
   readonly busy = input(false);
   /** Emits values only; this component neither calls the API nor creates task content. */
   readonly generated = output<ParameterValues>();
-  protected readonly model = linkedSignal(() => ({
-    entries: this.definitions().map((definition) => ({
+  protected readonly model = linkedSignal(() =>
+    this.definitions().map((definition) => ({
       text: definition.default == null ? '' : String(definition.default),
       checked: definition.default === true,
     })),
-  }));
+  );
   protected readonly fields = form(this.model, (path) => {
-    applyEach(path.entries, (entry) => {
+    applyEach(path, (entry) => {
       disabled(entry, { when: () => this.busy() });
-      validate(entry, ({ value, pathKeys }) => {
-        const definition = this.definitions()[Number(pathKeys()[1])];
+      validate(entry, ({ value, state }) => {
+        const definition = this.definitions()[Number(state.keyInParent())];
         const message = parameterError(definition, value());
         return message ? { kind: 'parameter', message } : undefined;
       });
@@ -50,7 +50,7 @@ export class ParameterForm {
       const values: ParameterValues = {};
       // Empty optional text is an explicit value; omitting it would restore a cleared default.
       this.definitions().forEach((definition, index) => {
-        const entry = this.model().entries[index];
+        const entry = this.model()[index];
         if (definition.type === 'boolean') values[definition.key] = entry.checked;
         else if (definition.type === 'text') values[definition.key] = entry.text;
         else if (entry.text !== '')

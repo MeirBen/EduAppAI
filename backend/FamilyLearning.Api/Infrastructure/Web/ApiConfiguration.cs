@@ -13,7 +13,7 @@ namespace FamilyLearning.Api.Infrastructure.Web;
 public static class ApiConfiguration
 {
     /// <summary>Registers strict JSON, safe problem responses and per-process request limits.</summary>
-    public static IServiceCollection AddApplicationApi(this IServiceCollection services)
+    public static void AddApplicationApi(this IServiceCollection services)
     {
         // Keep malformed JSON a 400 response in Development as well as Production.
         services.Configure<RouteHandlerOptions>(options => options.ThrowOnBadRequest = false);
@@ -34,7 +34,6 @@ public static class ApiConfiguration
                 context.Connection.RemoteIpAddress?.ToString() ?? "unknown", _ => new FixedWindowRateLimiterOptions
                 { PermitLimit = 10, Window = TimeSpan.FromMinutes(1), QueueLimit = 0 }));
         });
-        return services;
     }
 
     /// <summary>Maps parent APIs; only sign-in and token issuance explicitly allow anonymous access.</summary>
