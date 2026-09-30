@@ -12,8 +12,8 @@
           [attr.aria-invalid]="field().touched() && field().invalid()"
           [attr.aria-describedby]="id + '-help'"
         >
-          @for (level of levels; track level) {
-            <option [value]="level">{{ difficultyLabels[level] }}</option>
+          @for (option of difficultyOptions; track option[0]) {
+            <option [value]="option[0]">{{ option[1] }}</option>
           }
         </select>
       } @else {

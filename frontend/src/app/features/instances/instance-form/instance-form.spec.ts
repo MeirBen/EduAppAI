@@ -12,8 +12,8 @@ const defaults: TaskSettings = {
 const definitions: ParameterDefinition[] = [
   { key: 'sourceText', label: 'טקסט מקור', type: 'text', required: true, maxLength: 10 },
   {
-    key: 'count',
-    label: 'שאלות',
+    key: 'paragraphs',
+    label: 'מספר פסקאות',
     type: 'integer',
     required: true,
     default: 5,
@@ -25,10 +25,10 @@ const definitions: ParameterDefinition[] = [
     label: 'Style',
     type: 'select',
     required: true,
-    default: 'easy',
-    options: ['easy', 'hard'],
+    default: 'story',
+    options: ['story', 'article'],
   },
-  { key: 'retry', label: 'ניסיון נוסף', type: 'boolean', default: false },
+  { key: 'hints', label: 'רמזים', type: 'boolean', default: false },
 ];
 
 describe('InstanceForm', () => {
@@ -127,15 +127,17 @@ describe('InstanceForm', () => {
     expect(view.submitted()?.settings.questionCount).toBe(4);
     expect(view.submitted()?.parameters).toEqual({
       sourceText: 'Space',
-      count: 5,
-      style: 'easy',
-      retry: false,
+      paragraphs: 5,
+      style: 'story',
+      hints: false,
     });
   });
 
   it('blocks missing required text and out-of-range numbers', async () => {
     const view = await render();
-    const count = view.fixture.nativeElement.querySelector('#parameter-count') as HTMLInputElement;
+    const count = view.fixture.nativeElement.querySelector(
+      '#parameter-paragraphs',
+    ) as HTMLInputElement;
     count.value = '21';
     count.dispatchEvent(new Event('input', { bubbles: true }));
     view.fixture.nativeElement
@@ -145,7 +147,7 @@ describe('InstanceForm', () => {
     expect(view.submitted()).toBeUndefined();
     expect(view.fixture.nativeElement.textContent).toContain('יש למלא את השדה „טקסט מקור”.');
     expect(view.fixture.nativeElement.textContent).toContain(
-      'הערך בשדה „שאלות” חייב להיות לכל היותר 20.',
+      'הערך בשדה „מספר פסקאות” חייב להיות לכל היותר 20.',
     );
   });
 
@@ -175,19 +177,19 @@ describe('InstanceForm', () => {
     const element: HTMLElement = view.fixture.nativeElement;
     expect(element.querySelector('label[for="parameter-style"]')?.textContent).toContain('Style');
     const option = element.querySelector<HTMLOptionElement>('#parameter-style option:checked');
-    expect(option?.textContent).toContain('easy');
-    expect(option?.value).toBe('easy');
+    expect(option?.textContent).toContain('story');
+    expect(option?.value).toBe('story');
     expect(definitions[2].label).toBe('Style');
     expect(element.querySelector('#parameter-sourceText')?.getAttribute('dir')).toBe('auto');
-    expect(element.querySelector('#parameter-count')?.getAttribute('dir')).toBe('ltr');
+    expect(element.querySelector('#parameter-paragraphs')?.getAttribute('dir')).toBe('ltr');
   });
 
   it.each([' ', '2147483648', '-2147483649'])(
     'rejects optional integer input %j instead of emitting an invalid or coerced value',
     async (value) => {
-      const view = await render([{ key: 'count', label: 'שאלות', type: 'integer' }]);
+      const view = await render([{ key: 'offset', label: 'היסט', type: 'integer' }]);
       const element: HTMLElement = view.fixture.nativeElement;
-      const input = element.querySelector<HTMLInputElement>('#parameter-count')!;
+      const input = element.querySelector<HTMLInputElement>('#parameter-offset')!;
       input.value = value;
       input.dispatchEvent(new Event('input', { bubbles: true }));
       element.querySelector('form')!.dispatchEvent(new Event('submit', { cancelable: true }));
@@ -199,12 +201,12 @@ describe('InstanceForm', () => {
 
   it.each([
     ['', {}],
-    ['-2147483648', { count: -2147483648 }],
-    ['2147483647', { count: 2147483647 }],
+    ['-2147483648', { offset: -2147483648 }],
+    ['2147483647', { offset: 2147483647 }],
   ])('preserves blank omission and valid integer boundary %j', async (value, expected) => {
-    const view = await render([{ key: 'count', label: 'שאלות', type: 'integer' }]);
+    const view = await render([{ key: 'offset', label: 'היסט', type: 'integer' }]);
     const element: HTMLElement = view.fixture.nativeElement;
-    const input = element.querySelector<HTMLInputElement>('#parameter-count')!;
+    const input = element.querySelector<HTMLInputElement>('#parameter-offset')!;
     input.value = value as string;
     input.dispatchEvent(new Event('input', { bubbles: true }));
     element.querySelector('form')!.dispatchEvent(new Event('submit', { cancelable: true }));

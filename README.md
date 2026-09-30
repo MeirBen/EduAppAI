@@ -1,11 +1,10 @@
 # Family Learning
 
 **Parent prompt → AI template → parent review → saved template → AI tasks.**
-Parents reuse a template with different parameter choices. Generated content and
-answers are saved snapshots; template edits publish new revisions. Every subject
-uses the same flow. See the [core specification](docs/product-specification.md)
-for scope and next steps, and [architecture](docs/architecture.md) for
-implementation.
+Parents reuse a template with different settings and task-specific choices.
+Generated content and answers are saved snapshots; template edits publish new
+revisions. See the [core specification](docs/product-specification.md) for scope
+and next steps, and [architecture](docs/architecture.md) for implementation.
 
 ## Start
 
@@ -29,7 +28,8 @@ and starts the evaluation dashboard at <http://127.0.0.1:5180> without AI calls.
 **Ctrl+C** stops all three. Restart after configuration or evaluation-tool changes.
 Run `npm --prefix frontend ci` after dependency changes. Angular proxies `/api`
 to `http://localhost:5124`. Use `localhost` consistently for cookies. Development
-applies migrations automatically and starts with an empty learning library.
+applies migrations automatically. The schema 4 migration clears older learning
+content while preserving parent accounts.
 
 ## AI configuration
 
@@ -134,10 +134,9 @@ learning records or rewriting content at runtime.
 Maintain synthetic requests in [`cases.json`](tools/FamilyLearning.Evaluation/cases.json).
 They cover all three answer types, Hebrew/niqqud/bilingual content, templates
 with and without extra fields, empty/false/zero/negative defaults, shared-setting
-overrides and varied question counts,
-2–6 choices, two passages, supplied source text and quoted instructions. A full
-run plans 44 base calls, or 70 with the four judge controls, before retries.
-Select individual cases for focused checks.
+overrides, varied question counts, 2–6 choices, two passages, supplied source text
+and quoted instructions. A full run plans 44 base calls, or 70 with the four judge
+controls, before retries. Select individual cases for focused checks.
 
 `reviewFocus` guides human review, not automatic assertions. The runner uses
 generated defaults; optional `settingsOverride` supplies all four per-task settings,
@@ -153,10 +152,6 @@ and its measurable expectations consistent with the parent request. Do not relax
 expectations to hide a model failure. Preview validates all fixtures without AI
 calls. Restart `dev.sh` after editing to rebuild its dashboard's fixture copies.
 Suite changes require new baseline and candidate runs for direct comparison.
-Blueprint schema version 4 stores shared topic, audience, difficulty and question-count
-defaults. The migration clears older learning content and preserves parent accounts.
-Evaluation reports use format version 3 to capture the complete task input.
-Regenerate templates and evaluation baselines; no legacy conversion is included.
 
 The loopback dashboard runs at `http://127.0.0.1:5180` (change with `--port`).
 It shows cases, call budget and nonsecret AI settings. Runs require confirmation;
@@ -205,8 +200,8 @@ A prompt's self-check is an instruction, not a deterministic quality guarantee.
 Reports go to ignored `artifacts/evaluations/<run>/` or under `--output`:
 
 - **run.json** is the authoritative checkpoint, saved after each call and on
-  cancellation. Format 2 captures cases, controls, fixture hashes, exact judge
-  prompt/schema/version when judging is enabled, nonsecret profile, engine
+  cancellation. Format 3 captures cases, resolved task inputs, controls, fixture
+  hashes, exact judge prompt/schema/version when enabled, nonsecret profile, engine
   messages, final and rejected outputs, actual models, generation prompt versions,
   finish reasons and usage. Domain rejections include safe `validationErrors`
   with field paths and messages, also shown beside the failed dashboard stage.
@@ -267,7 +262,7 @@ hashes, selected cases/order, captured inputs, repeats, automatic-check versions
 and judge setup, plus complete stage evidence. Hebrew comparisons also require
 passing calibration and matching reviewed cases; human-score deltas require the
 same scored case/repetition pairs. Token/cost deltas require full measurement
-coverage. Other deltas are null or explicitly qualified. Only format 2 reports
+coverage. Other deltas are null or explicitly qualified. Only format 3 reports
 are supported; mismatched embedded controls and invalid human scores are rejected.
 Reports require their recorded check version, call delay and calibration results
 (an empty array when unused). Start a new baseline for direct comparison after

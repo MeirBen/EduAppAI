@@ -11,7 +11,7 @@ export interface TaskSettings {
   questionCount: number;
 }
 
-/** Resolved task choices, preserved alongside the generated content. */
+/** Task choices; the server resolves omitted parameter defaults before generation and storage. */
 export interface TaskInput {
   settings: TaskSettings;
   parameters: ParameterValues;

@@ -12,8 +12,7 @@ import { difficultyLabels, TaskSettingsDraft } from './task-settings';
 export class TaskSettingsFields {
   readonly fields = input.required<FieldTree<TaskSettingsDraft>>();
   readonly prefix = input.required<string>();
-  protected readonly levels = ['easy', 'medium', 'hard'] as const;
-  protected readonly difficultyLabels = difficultyLabels;
+  protected readonly difficultyOptions = Object.entries(difficultyLabels);
   protected readonly controls = [
     { key: 'topic', label: 'נושא' },
     { key: 'audience', label: 'קהל יעד', hint: 'למשל כיתה ג׳, או מבוגרים ללא ידע קודם.' },

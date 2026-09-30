@@ -13,8 +13,8 @@ Published template + chosen settings and parameters → AI content → validatio
 ## Current workflow
 
 1. Describe the goal, audience and requirements in a prompt.
-2. Review the AI proposal: name, instructions and parameter definitions. Edit,
-   regenerate or cancel. A proposal is not saved automatically.
+2. Review the AI proposal: name, instructions, task defaults and additional
+   parameter definitions. Edit, regenerate or cancel; it is not saved automatically.
 3. Explicitly save the template. Later edits publish a new immutable revision.
 4. Choose task settings and any additional values. The server validates them,
    resolves additional parameter defaults, and asks AI for content using the
@@ -34,7 +34,7 @@ Unsaved proposals can be discarded and are never stored as drafts.
 ## Contracts
 
 - **TaskTemplate:** family-owned identity pointing to the current revision.
-- **TaskTemplateVersion:** immutable instructions and parameter definitions.
+- **TaskTemplateVersion:** immutable instructions, task defaults and parameter definitions.
 - **TaskInstance:** immutable generated content pinned to a template revision,
   initially saved with status `Draft`.
 
@@ -61,10 +61,9 @@ The task request contains complete `settings` and additional `parameters`. The
 server validates both before calling AI and saves the resolved input alongside
 the immutable output. Chosen settings override stale defaults in instructions;
 requested verbatim source text stays intact. Dynamic fields represent
-additional choices only and cannot use the four reserved setting keys. No
-count-field binding, configurable count range or fixed 20-question cap
-applies; token, response-size and time limits still bound generation. Exact
-output question count is validated.
+additional choices only and cannot use the four reserved setting keys. The
+output must contain exactly the chosen number of questions; token, response-size
+and time limits still bound generation.
 
 Requested text length belongs in the generation instructions, like other learning
 requirements. It can be fixed, approximate, per passage or parameter-driven; tasks

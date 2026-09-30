@@ -5,7 +5,10 @@ import { isIntegerInput } from './integer-input';
 /** Keep numeric input as text until submission so blank or fractional values stay invalid. */
 export type TaskSettingsDraft = Omit<TaskSettings, 'questionCount'> & { questionCount: string };
 
-export const difficultyLabels = { easy: 'קלה', medium: 'בינונית', hard: 'קשה' } as const;
+export const difficultyLabels = { easy: 'קלה', medium: 'בינונית', hard: 'קשה' } satisfies Record<
+  TaskSettings['difficulty'],
+  string
+>;
 
 /** Shared by template defaults and per-task choices; the API validates independently. */
 export const taskSettingsSchema = schema<TaskSettingsDraft>((path) => {
