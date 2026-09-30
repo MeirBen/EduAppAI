@@ -1,4 +1,3 @@
-using System.Globalization;
 using System.Text.RegularExpressions;
 using FamilyLearning.Api.TaskEngine.Models;
 
@@ -67,19 +66,13 @@ public static partial class TaskContentValidator
             return "יש לבחור סוג תשובה נתמך.";
         if (interaction.Type == "single-choice")
         {
-            if (interaction.Options is not { Length: >= 2 and <= 6 } options ||
-                options.Any(option => !HasText(option, 200) || option != option.Trim() ||
-                    option.Contains('\r') || option.Contains('\n')) ||
-                options.Distinct(StringComparer.Ordinal).Count() != options.Length)
+            if (!QuestionRules.ValidOptions(interaction.Options))
                 return "יש להזין בין שתיים לשש אפשרויות שונות, כל אחת בשורה אחת וללא רווחים בקצוות, עד 200 תווים.";
-            if (!options.Contains(question.Answer.Value, StringComparer.Ordinal))
+            if (!interaction.Options!.Contains(question.Answer.Value, StringComparer.Ordinal))
                 return "התשובה הנכונה חייבת להיות אחת מהאפשרויות.";
         }
         else if (interaction.Options is not null) return "אפשרויות תשובה מתאימות רק לשאלת בחירה.";
-        if (interaction.Type == "numeric-input" &&
-            (!NumericAnswer().IsMatch(question.Answer.Value) ||
-             !decimal.TryParse(question.Answer.Value, NumberStyles.AllowLeadingSign | NumberStyles.AllowDecimalPoint,
-                 CultureInfo.InvariantCulture, out _)))
+        if (interaction.Type == "numeric-input" && !QuestionRules.ValidNumericAnswer(question.Answer.Value))
             return "יש להזין תשובה מספרית רגילה, עם נקודה עשרונית לפי הצורך וללא מפרידי אלפים.";
         return null;
     }
@@ -89,7 +82,4 @@ public static partial class TaskContentValidator
 
     [GeneratedRegex("\\A[a-zA-Z0-9_-]{1,64}\\z", RegexOptions.CultureInvariant)]
     private static partial Regex QuestionId();
-
-    [GeneratedRegex("\\A[+-]?[0-9]+(?:\\.[0-9]+)?\\z", RegexOptions.CultureInvariant)]
-    private static partial Regex NumericAnswer();
 }

@@ -1,8 +1,6 @@
 using System.ClientModel;
 using System.Diagnostics;
-using System.Text.Encodings.Web;
 using System.Text.Json;
-using System.Text.Json.Serialization;
 using FamilyLearning.Api.TaskEngine.Models;
 using FamilyLearning.Api.TaskEngine.Validation;
 using Microsoft.Extensions.AI;
@@ -19,14 +17,7 @@ public sealed class AiGenerationService(IEnumerable<IChatClient> clients, ILogge
     private readonly TimeSpan requestTimeout = options.Value.RequestTimeout;
     private readonly int maxOutputTokens = options.Value.MaxOutputTokens;
     private readonly SemaphoreSlim capacity = new(2, 2);
-    private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web)
-    {
-        UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow,
-        NumberHandling = JsonNumberHandling.Strict,
-        MaxDepth = 16,
-        // These messages are sent as JSON to the provider, never inserted into HTML.
-        Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping
-    };
+    private static readonly JsonSerializerOptions Json = EngineJson.Options;
 
     public bool Configured => client is not null;
 

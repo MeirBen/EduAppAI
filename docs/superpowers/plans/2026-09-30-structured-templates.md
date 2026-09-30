@@ -152,11 +152,11 @@ scaffolds, pass-through services or a generic service framework:
 - `Engine/Models/LearningPlan.cs`: Canonical plan, scoped controls,
   material/question/length requirements.
 - `Engine/Models/TaskRequest.cs`: TaskRequest, TaskResolution,
-  ResolvedTaskRequest and stage-input records.
+  ResolvedTaskRequest; add stage-input records with their task 2 consumers.
 - `Engine/Models/TaskDocument.cs`: Editable/frozen shared content shape,
   candidate batches, measurements and origin/dependency records.
 - `Engine/Models/TemplateAuthoring.cs`: Proposal/clarification envelope and
-  PlanChange.
+  request contracts, introduced with authoring in task 2.
 - `Engine/EngineVersions.cs`: Sole schema-version and engine-revision constants;
   prompt stage labels derive from the engine revision.
 - `Engine/Validation/LearningPlanValidator.cs`: Canonical plan and limits.
@@ -168,7 +168,7 @@ scaffolds, pass-through services or a generic service framework:
   validated candidate application for runtime and evaluation.
 - `Engine/TextLength.cs`: Shared Unicode word measurement.
 - `Engine/PlanChanges.cs`: Proposal identity normalization and actual change
-  calculation.
+  calculation, including the PlanChange result record.
 - `Features/Activities/ActivityDraft.cs`: Bounded draft entity and application
   revision.
 - `Features/Activities/ActivityContracts.cs`: Parent draft/save/adopt/release
@@ -271,8 +271,9 @@ isolated check passes. No temporary prototype becomes a second deployed path.
 `TaskAssemblyTests.cs`, `TextLengthTests.cs` and `PlanChangesTests.cs`.
 
 **Interfaces:** Produce the pure signatures above and the spec sections 3–4/8
-contracts. Stage inputs contain the one resolved request plus accepted material
-revisions and an app-selected target where relevant.
+contracts. Following the Task 1 cleanup review, keep only contracts consumed by
+the canonical core. Authoring/stage DTOs and provider metadata belong in task 2,
+when their consumers and verification are implemented.
 
 - [ ] Add failing canonical fixtures for generated Hebrew reading with an
       explicitly adjustable target/story type; no-material numeric questions;
@@ -317,7 +318,10 @@ revisions and an app-selected target where relevant.
 
 **Files:** Modify `Engine/Ai/AiGenerationService.cs`, `AiPrompts.cs`,
 `AiSchemas.cs`, `AiGenerationOptions.cs`, `AiGenerationException.cs`,
-`template.schema.json`; create `materials.schema.json`, `questions.schema.json`
+`template.schema.json`; create `Engine/Models/TemplateAuthoring.cs`, add the
+stage-input records to `Engine/Models/TaskRequest.cs`, and introduce provider
+provenance in `Engine/Models/TaskDocument.cs` with its actual consumers. Create
+`materials.schema.json`, `questions.schema.json`
 alongside them. Replacement schemas specialize the same material/question
 definitions. Modify `backend/FamilyLearning.Api/appsettings.json` and
 `backend/FamilyLearning.Api/Infrastructure/Ai/OpenRouterRegistration.cs` for
@@ -335,7 +339,9 @@ modify `Evaluation/EvaluationCommand.cs`, `EvaluationPlan.cs`,
 consumes fixed LearningPlan/TaskRequest and a one-shot/split variant; both use
 same source assembly, checks, provider configuration and evidence capture. The
 worker and evaluator also use TaskAssembly's same finite stage-selection
-methods; only scheduling, storage and evaluation retries differ.
+methods; only scheduling, storage and evaluation retries differ. Stage inputs
+contain one resolved request, accepted material revisions and an app-selected
+target where relevant.
 
 - [ ] Add isolated wire tests proving author/refine interprets only the plan;
       material stage returns generated bodies/titles only; question stage sees

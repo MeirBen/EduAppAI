@@ -102,11 +102,11 @@ endpoint's capabilities and be covered by request-wire tests.
 
 Keep two small constants files, each owned by the code it describes:
 
-- **TaskEngine/EngineVersions.cs** owns `SchemaVersion` and `Revision`, both
-  starting at 1 for this new contract. SchemaVersion identifies the LearningPlan
-  JSON shape. Revision covers engine behavior, including prompts, resolution,
-  assembly, validation and word measurement; these do not need separate
-  counters.
+- [**TaskEngine/EngineVersions.cs**][engine-versions] owns `SchemaVersion` and
+  `Revision`, both starting at 1 for this new contract. SchemaVersion identifies
+  the LearningPlan JSON shape. Revision covers engine behavior, including
+  prompts, resolution, assembly, validation and word measurement; these do not
+  need separate counters.
 - **Evaluation/EvaluationVersions.cs** owns report-format, automatic-check and
   Hebrew-review versions. Consolidation preserves their existing values; advance
   only the affected value when its format or semantics actually change. These
@@ -885,3 +885,4 @@ These sources inform the design; they do not establish improved Hebrew quality:
 [code-quality]: ../plans/2026-09-30-structured-templates.md#code-quality
 [review-milestones]: ../plans/2026-09-30-structured-templates.md#review-milestones
 [implementation-discoveries]: ../plans/2026-09-30-structured-templates.md#implementation-discoveries
+[engine-versions]: ../../../backend/FamilyLearning.Api/TaskEngine/EngineVersions.cs
