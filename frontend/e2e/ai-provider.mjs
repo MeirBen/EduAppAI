@@ -5,8 +5,8 @@ import assert from 'node:assert/strict';
 
 /** Test-only OpenRouter-compatible transport. Never imported by production code. */
 export async function startAiProvider() {
-  const [templateSchema, contentSchema] = await Promise.all(
-    ['template', 'content'].map(async (name) =>
+  const [blueprintSchema, contentSchema] = await Promise.all(
+    ['blueprint', 'content'].map(async (name) =>
       JSON.parse(
         await readFile(
           new URL(
@@ -47,7 +47,7 @@ export async function startAiProvider() {
     const schema = JSON.parse(schemaText);
     const isAuthoring = schemaName.startsWith('template_authoring_');
     const user = input.messages[1].content;
-    const expectedSchema = structuredClone(isAuthoring ? templateSchema : contentSchema);
+    const expectedSchema = structuredClone(isAuthoring ? blueprintSchema : contentSchema);
     if (!isAuthoring) {
       const count = JSON.parse(user).settings.questionCount;
       expectedSchema.properties.questions.minItems = count;

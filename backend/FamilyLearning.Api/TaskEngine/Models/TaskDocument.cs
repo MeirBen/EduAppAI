@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using FamilyLearning.Api.TaskEngine.Ai;
 
 namespace FamilyLearning.Api.TaskEngine.Models;
 
@@ -19,7 +20,8 @@ public sealed record DocumentQuestion(string Id, string Prompt, QuestionInteract
     int Points, ContentOrigin Origin, ContentAcceptance? Acceptance);
 
 /// <summary>Original generation or manual/source provenance; adoption never rewrites this record.</summary>
-public sealed record ContentOrigin(string Kind, int? EngineRevision = null, string? InputFingerprint = null);
+public sealed record ContentOrigin(string Kind, int? EngineRevision = null, string? InputFingerprint = null,
+    GenerationMetadata? Generation = null);
 
 /// <summary>Current acceptance basis, independent of original provenance. No persisted stale/readiness flag is needed.</summary>
 public sealed record ContentAcceptance(string InputFingerprint, MaterialRevision[] Sources, DateTime? AdoptedAtUtc = null);

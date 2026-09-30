@@ -23,17 +23,16 @@ export function apiError(error: unknown): string {
     const messages = Object.values(problem.errors)
       .flat()
       .filter((value): value is string => typeof value === 'string');
-    if (messages.length)
-      return messages.join(' ') + (aiValidation ? ' לא נשמר דבר. אפשר לנסות שוב.' : '');
+    if (messages.length) return messages.join(' ') + (aiValidation ? ' אפשר לנסות שוב.' : '');
   }
   if (error.status === 502) {
     if (type === 'urn:family-learning:ai-output-limit')
-      return 'המודל הגיע למגבלת הפלט לפני שהשלים את התוכן. לא נשמר דבר. אפשר לנסות שוב.';
-    return 'שירות ה־AI לא החזיר תוכן תקין. לא נשמר דבר. אפשר לנסות שוב או לדייק את ההנחיות.';
+      return 'המודל הגיע למגבלת הפלט לפני שהשלים את התוכן. אפשר לנסות שוב.';
+    return 'שירות ה־AI לא החזיר תוכן תקין. אפשר לנסות שוב או לדייק את ההנחיות.';
   }
   if (error.status === 503)
     return 'שירות ה־AI אינו זמין כרגע. יש לבדוק את החיבור לשירות או לנסות שוב בעוד רגע.';
-  if (error.status === 504) return 'יצירת התוכן ארכה יותר מדי זמן. לא נשמר דבר. אפשר לנסות שוב.';
+  if (error.status === 504) return 'יצירת התוכן ארכה יותר מדי זמן. אפשר לנסות שוב.';
   if (error.status >= 500) return 'השרת לא הצליח להשלים את הבקשה. אפשר לנסות שוב בעוד רגע.';
   return 'הבקשה לא התקבלה. יש לבדוק את הפרטים או לרענן את העמוד ולנסות שוב.';
 }

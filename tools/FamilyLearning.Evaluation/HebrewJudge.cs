@@ -14,7 +14,7 @@ public sealed record HebrewReview(HebrewIssue[] Issues);
 public static class HebrewJudge
 {
     /// <summary>Review contract version; advance when instructions or output constraints change.</summary>
-    public const string Version = "hebrew-review-v8";
+    public static readonly string Version = $"hebrew-review-v{EvaluationVersions.HebrewReview}";
     private const string Prompt = """
         ## Review scope
         Review every supplied template and task field for concrete Hebrew language defects.

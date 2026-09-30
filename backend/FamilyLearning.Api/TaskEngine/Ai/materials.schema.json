@@ -1,0 +1,41 @@
+{
+  "type": "object",
+  "properties": {
+    "materials": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{32}$"
+          },
+          "title": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 100
+          },
+          "body": {
+            "type": "string",
+            "maxLength": 4000,
+            "minLength": 1
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "body"
+        ],
+        "additionalProperties": false
+      },
+      "minItems": 0,
+      "maxItems": 4
+    }
+  },
+  "required": [
+    "materials"
+  ],
+  "additionalProperties": false
+}

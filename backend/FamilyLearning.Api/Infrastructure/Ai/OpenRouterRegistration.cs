@@ -20,6 +20,10 @@ public static class OpenRouterRegistration
                 "Ai:RequestTimeoutSeconds must be between 1 and 300.")
             .Validate(options => options.MaxOutputTokens is >= 1 and <= 32768,
                 "Ai:MaxOutputTokens must be between 1 and 32768.")
+            .Validate(options => options.MaxRequestBytes is >= 1 and <= AiGenerationOptions.RequestByteLimit,
+                "Ai:MaxRequestBytes must be positive and at most 512 KiB.")
+            .Validate(options => options.MaxSchemaBytes is >= 1 and <= AiGenerationOptions.SchemaByteLimit,
+                "Ai:MaxSchemaBytes must be positive and at most 64 KiB.")
             .ValidateOnStart();
         services.AddSingleton<AiGenerationService>();
         var key = configuration["Ai:ApiKey"] ?? configuration["OPENROUTER_API_KEY"];
@@ -69,17 +73,19 @@ public static class OpenRouterRegistration
             throw new InvalidOperationException("Ai:Endpoint must be OpenRouter, or a loopback HTTP endpoint in Development.");
         services.AddSingleton<IChatClient>(provider =>
         {
+            var limits = provider.GetRequiredService<IOptions<AiGenerationOptions>>().Value;
             var clientOptions = new OpenAIClientOptions
             {
                 Endpoint = endpoint,
                 RetryPolicy = new ClientRetryPolicy(maxRetries: 0),
                 // Let the application deadline cancel first so timeouts consistently return 504.
-                NetworkTimeout = provider.GetRequiredService<IOptions<AiGenerationOptions>>().Value.RequestTimeout + TimeSpan.FromSeconds(5)
+                NetworkTimeout = limits.RequestTimeout + TimeSpan.FromSeconds(5)
             };
+            clientOptions.AddPolicy(new OpenRouterRequestLimitPolicy(limits.MaxRequestBytes), PipelinePosition.PerCall);
             clientOptions.AddPolicy(new OpenRouterResponsePolicy(), PipelinePosition.PerCall);
             return new OpenRouterChatClient(new ChatClient(model, new ApiKeyCredential(key), clientOptions),
                 sampling, reasoning is null ? null : BinaryData.FromObjectAsJson(reasoning),
-                fallbackModel is null ? null : BinaryData.FromObjectAsJson(new[] { fallbackModel }), responseFormat);
+                fallbackModel is null ? null : BinaryData.FromObjectAsJson(new[] { fallbackModel }), responseFormat, limits.MaxSchemaBytes);
         });
     }
 }

@@ -57,6 +57,8 @@ Choose settings supported by the model's current OpenRouter endpoint:
 | `Temperature`, `TopP`, `TopK` | Sampling; `null` uses provider defaults.  |
 | `MaxOutputTokens`             | Total token cap: 1–32768; default 8192.   |
 | `RequestTimeoutSeconds`       | Deadline: 1–300 seconds; default 180.     |
+| `MaxRequestBytes`             | Compiled HTTP body cap; at most 512 KiB.  |
+| `MaxSchemaBytes`              | Output schema cap; at most 64 KiB.        |
 | `FallbackModel`               | Compatible model ID; `""` disables it.    |
 
 Prefer `json_schema` when supported. In `text` mode, JSON is requested through
@@ -206,8 +208,8 @@ A prompt's self-check is an instruction, not a deterministic quality guarantee.
 Reports go to ignored `artifacts/evaluations/<run>/` or under `--output`:
 
 - **run.json** is the authoritative checkpoint, saved after each call and on
-  cancellation. Format 3 captures cases, resolved task inputs, controls, fixture
-  hashes, exact judge prompt/schema/version when enabled, nonsecret profile, engine
+  cancellation. The current format captures cases, resolved inputs, controls,
+  fixture hashes, exact judge prompt/schema/version, nonsecret profile, engine
   messages, final and rejected outputs, actual models, generation prompt versions,
   finish reasons and usage. Domain rejections include safe `validationErrors`
   with field paths and messages, also shown beside the failed dashboard stage.
@@ -283,6 +285,42 @@ a quality verdict. CI does not run live evaluation.
 
 [usage-accounting]: https://openrouter.ai/docs/cookbook/administration/usage-accounting
 [judge-limitations]: https://arxiv.org/abs/2306.05685
+
+## Fixed-plan comparison prototype
+
+Task 2 adds a CLI-only experiment over three fixed learning plans. It compares
+one-shot generation with material/question stages through the same provider,
+source assembly and validators. It does not change the deployed parent workflow.
+
+```bash
+# Validate the three fixed cases and preview 21 calls; no provider is resolved.
+./scripts/evaluate-ai.sh --prototype --repeat 3 --max-calls 21
+
+# Paid trials require explicit authorization and a pre-registered experiment file.
+./scripts/evaluate-ai.sh --prototype --repeat 3 --max-calls 21 \
+  --experiment /path/to/experiment.json --live
+```
+
+The [experiment contract](tools/FamilyLearning.Evaluation/PrototypeExperiment.cs)
+requires the configured model, call/dollar budget, conservative current input/output
+prices, sample design, held-out cases, usable-task rubric, blinded review protocol
+and acceptable cost/latency/control/recovery outcomes. Fallback must be disabled.
+Before each call, the tool reserves a conservative input/output cost; unknown usage
+keeps its reservation. Capture current endpoint price ceilings before a trial and
+use a provider key spending limit when an external billing cap is needed.
+
+`run.json` retains matched inputs, accepted checkpoints, every attempted stage,
+raw output, exact schemas, hashes, measured lengths and partial usage. These
+prototype runs make no automatic retries or repairs. `blind-review.json` contains
+randomized content and empty human scores without generation provenance; keep
+`blind-key.json` separate until review ends. Failures remain in the sample.
+The current dashboard continues to run the authoring suite; prototype start and
+review use the CLI/artifacts until the later evaluator milestone.
+
+Passing fixtures or structural checks does not establish better Hebrew or useful
+comparative value. If added cost buys no measured quality, control or recovery
+benefit, reconsider the split before final cutover. Human review and held-out
+confirmation remain required.
 
 ## Verify
 

@@ -8,17 +8,24 @@ public sealed class AiGenerationException(int statusCode, string message, string
     public string? ProblemType { get; } = problemType;
     /// <summary>Application validator paths, messages and measured counts; never provider errors or generated text.</summary>
     public IReadOnlyDictionary<string, string[]>? ValidationErrors { get; init; }
+    /// <summary>Safe call outcome, independent of whether the caller already persisted earlier stages.</summary>
+    public string Category { get; init; } = "provider";
+    internal static AiGenerationException InputLimit(string category) => new(413,
+        "הבקשה ליצירה גדולה מדי. יש לצמצם את התכנית או את התוכן.", "urn:family-learning:ai-input-limit")
+    { Category = category };
     public static AiGenerationException InvalidOutput(IReadOnlyDictionary<string, string[]>? errors = null) => new(502,
-        "התוכן שהתקבל לא עבר את בדיקות התקינות. לא נשמר דבר. אפשר לנסות שוב או לדייק את ההנחיות.",
+        "התוכן שהתקבל לא עבר את בדיקות התקינות. אפשר לנסות שוב או לדייק את ההנחיות.",
         errors is null ? null : "urn:family-learning:ai-validation")
-    { ValidationErrors = errors };
+    { ValidationErrors = errors, Category = errors is null ? "invalid-output" : "validation" };
     public static AiGenerationException OutputLimit() => new(502,
-        "המודל הגיע למגבלת הפלט לפני שהשלים את התוכן. לא נשמר דבר. אפשר לנסות שוב.",
-        "urn:family-learning:ai-output-limit");
+        "המודל הגיע למגבלת הפלט לפני שהשלים את התוכן. אפשר לנסות שוב.",
+        "urn:family-learning:ai-output-limit")
+    { Category = "output-limit" };
 }
 
 /// <summary>Diagnostics only: no prompt, identity, answers, reasoning or credentials.</summary>
-public sealed record GenerationMetadata(string Provider, string Model, string PromptVersion, DateTime GeneratedAtUtc);
+public sealed record GenerationMetadata(string Provider, string Model, string PromptVersion, DateTime GeneratedAtUtc,
+    int? EngineRevision = null, int? SchemaVersion = null);
 
 /// <summary>Validated output and generation metadata; persistence belongs to the caller.</summary>
 public sealed record AiResult<T>(T Value, GenerationMetadata Metadata);

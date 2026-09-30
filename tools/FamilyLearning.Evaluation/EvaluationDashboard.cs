@@ -114,7 +114,7 @@ public static class EvaluationDashboard
         {
             EvaluationCase[] cases = [];
             string? caseError = null;
-            try { cases = (await EvaluationFiles.LoadFixtureAsync<EvaluationCase>("cases.json")).Items; }
+            try { cases = (await EvaluationFiles.LoadFixtureAsync<EvaluationCase>("cases.json")).Items.Where(item => item.InitialPlan is null).ToArray(); }
             catch (Exception exception) when (exception is IOException or InvalidDataException or JsonException or UnauthorizedAccessException)
             { caseError = "Evaluation cases are unavailable or invalid. Saved runs remain available."; }
             var calibrationCount = 0;

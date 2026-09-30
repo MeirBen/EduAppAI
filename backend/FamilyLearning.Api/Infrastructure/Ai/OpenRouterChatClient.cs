@@ -1,4 +1,6 @@
 using System.Net;
+using System.Text;
+using FamilyLearning.Api.TaskEngine.Ai;
 using Microsoft.Extensions.AI;
 using OpenAI.Chat;
 using ChatMessage = Microsoft.Extensions.AI.ChatMessage;
@@ -8,13 +10,16 @@ namespace FamilyLearning.Api.Infrastructure.Ai;
 
 /// <summary>Adds OpenRouter options and normalizes malformed SDK responses at the provider boundary.</summary>
 internal sealed class OpenRouterChatClient(ChatClient client, ChatOptions sampling, BinaryData? reasoning,
-    BinaryData? fallbackModels, string responseFormat)
+    BinaryData? fallbackModels, string responseFormat, int maxSchemaBytes)
     : DelegatingChatClient(client.AsIChatClient())
 {
     public override async Task<ChatResponse> GetResponseAsync(IEnumerable<ChatMessage> messages,
         ChatOptions? options = null, CancellationToken cancellationToken = default)
     {
         options = options?.Clone() ?? new();
+        if (options.ResponseFormat is ChatResponseFormatJson { Schema: { } outputSchema } &&
+            Encoding.UTF8.GetByteCount(outputSchema.GetRawText()) > maxSchemaBytes)
+            throw AiGenerationException.InputLimit("schema-limit");
         options.Temperature = sampling.Temperature;
         options.TopP = sampling.TopP;
         // Every mode retains the prompt's schema and mandatory server validation.

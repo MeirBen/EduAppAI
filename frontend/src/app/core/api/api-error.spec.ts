@@ -10,7 +10,7 @@ describe('Hebrew API feedback', () => {
     };
     const message = apiError(new HttpErrorResponse({ status: 502, error }));
     expect(message).toContain('מספר השאלות');
-    expect(message).toContain('לא נשמר דבר');
+    expect(message).not.toContain('לא נשמר');
     expect(message).not.toContain('private diagnostic');
     expect(
       apiError(new HttpErrorResponse({ status: 502, error: { ...error, type: 'provider-error' } })),
@@ -43,9 +43,13 @@ describe('Hebrew API feedback', () => {
     };
     const message = apiError(new HttpErrorResponse({ status: 502, error }));
     expect(message).toContain('מגבלת הפלט');
-    expect(message).toContain('לא נשמר דבר');
+    expect(message).not.toContain('לא נשמר');
     expect(message).not.toContain('private provider');
     expect(apiError(new HttpErrorResponse({ status: 504, error }))).not.toContain('מגבלת הפלט');
     expect(apiError(new HttpErrorResponse({ status: 502, error: {} }))).not.toContain('מגבלת הפלט');
+  });
+
+  it.each([502, 503, 504])('does not infer persistence from a failed AI call (%s)', (status) => {
+    expect(apiError(new HttpErrorResponse({ status }))).not.toContain('לא נשמר');
   });
 });

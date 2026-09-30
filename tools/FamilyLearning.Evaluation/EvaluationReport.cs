@@ -1,4 +1,6 @@
+using System.Text.Json;
 using System.Text.Json.Serialization;
+using FamilyLearning.Api.TaskEngine;
 using FamilyLearning.Api.TaskEngine.Ai;
 using FamilyLearning.Api.TaskEngine.Models;
 
@@ -8,19 +10,27 @@ namespace FamilyLearning.Evaluation;
 /// <remarks>AdditionalParameterCount excludes shared settings; null skips that adherence check.</remarks>
 public sealed record EvaluationCase(string Id, string Prompt, string ReviewFocus, int QuestionCount,
     string Interaction, int? ChoiceCount, int? MinPassageWords, int? MaxPassageWords,
-    TaskSettings? SettingsOverride = null, int? AdditionalParameterCount = null);
+    TaskSettings? SettingsOverride = null, int? AdditionalParameterCount = null,
+    LearningPlan? InitialPlan = null, TaskRequest? InitialInput = null);
 
 /// <summary>Local evaluation artifact. Contract success never implies educational or language quality.</summary>
 public sealed class EvaluationReport(EvaluationCase[] cases, int repeat, string suiteSha256,
     Dictionary<string, string?> profile)
 {
-    public const int CurrentFormatVersion = 3;
-    [JsonRequired] public int FormatVersion { get; init; } = CurrentFormatVersion;
+    [JsonRequired] public int FormatVersion { get; init; } = EvaluationVersions.ReportFormat;
     public DateTime StartedAtUtc { get; init; } = DateTime.UtcNow;
     public DateTime? FinishedAtUtc { get; set; }
     [JsonRequired] public string Status { get; set; } = "running";
     /// <summary>Recorded deterministic-check version; required for meaningful comparison.</summary>
-    [JsonRequired] public int AutomaticChecksVersion { get; init; } = 8;
+    [JsonRequired] public int AutomaticChecksVersion { get; init; } = EvaluationVersions.AutomaticChecks;
+    /// <summary>Temporary fixed-plan comparison; the normal authoring/evaluation suite remains separately selectable.</summary>
+    public bool Prototype { get; init; }
+    public List<PrototypeResult> PrototypeResults { get; init; } = [];
+    public PrototypeExperiment? Experiment { get; init; }
+    /// <summary>Conservative reserve retained for attempts with unknown usage; not a claim of actual cost.</summary>
+    public decimal ReservedCostUsd { get; set; }
+    /// <summary>Automated and mock trials cannot establish the human-reviewed comparative-value gate.</summary>
+    public bool ComparativeValueEstablished => false;
     public string SuiteSha256 { get; } = suiteSha256;
     /// <summary>Optional developer description, at most 120 characters; excluded from comparison semantics.</summary>
     public string? Label { get; init; }
@@ -38,13 +48,13 @@ public sealed class EvaluationReport(EvaluationCase[] cases, int repeat, string 
     public int MaxCalls { get; init; } = 100;
     /// <summary>Recorded pause before each call after the first, outside request timing.</summary>
     [JsonRequired] public int CallDelaySeconds { get; init; }
-    public int PlannedCalls => CountCalls(Cases.Length, Repeat, JudgeEnabled ? CalibrationSamples.Length : 0);
+    public int PlannedCalls => Prototype ? ContentWorkflowPrototype.CountCalls(Cases, Repeat) : CountCalls(Cases.Length, Repeat, JudgeEnabled ? CalibrationSamples.Length : 0);
     [JsonRequired] public List<CalibrationResult> Calibration { get; init; } = [];
     [JsonRequired] public List<EvaluationResult> Results { get; init; } = [];
     /// <summary>Superseded 429 attempts; each stage retains its current or final attempt separately.</summary>
     public List<EvaluationRetry> Retries { get; init; } = [];
     public int AttemptedCalls => Steps.Count(step => step.RequestSent);
-    public int AutomaticPasses => Results.Count(result => result.Generation?.ContractValid == true && result.Checks.Values.All(value => value));
+    public int AutomaticPasses => Prototype ? PrototypeResults.Count(result => result.Passed) : Results.Count(result => result.Generation?.ContractValid == true && result.Checks.Values.All(value => value));
     public int CallsWithReportedCost => Steps.Count(step => step.CostCredits.HasValue);
     public decimal? ReportedCostCredits => CallsWithReportedCost == 0 ? null : Steps.Sum(step => step.CostCredits ?? 0);
     /// <summary>Null means disabled or unfinished, never a pass. Content findings do not affect calibration.</summary>
@@ -59,7 +69,8 @@ public sealed class EvaluationReport(EvaluationCase[] cases, int repeat, string 
     [JsonIgnore]
     public IEnumerable<EvaluationStep> Steps => Calibration.Select(result => result.Call).Concat(
         Results.SelectMany(result => new[] { result.Authoring, result.Generation, result.Judge }).OfType<EvaluationStep>())
-        .Concat(Retries.Select(retry => retry.Call));
+        .Concat(Retries.Select(retry => retry.Call))
+        .Concat(PrototypeResults.SelectMany(result => result.Stages).Select(stage => stage.Call).OfType<EvaluationStep>());
 
     public static int CountCalls(int caseCount, int repeat, int calibrationCount) =>
         caseCount * repeat * (calibrationCount > 0 ? 3 : 2) + calibrationCount;
@@ -93,6 +104,9 @@ public sealed class EvaluationStep
     [JsonRequired] public double ElapsedMilliseconds { get; set; }
     public EvaluationMessage[] Request { get; set; } = [];
     public string? SchemaName { get; set; }
+    public JsonElement? Schema { get; set; }
+    public string? RequestSha256 { get; set; }
+    public string? SchemaSha256 { get; set; }
     public string? Output { get; set; }
     public string? Model { get; set; }
     public string? ResponseId { get; set; }
@@ -109,6 +123,31 @@ public sealed class EvaluationStep
     public string? Failure { get; set; }
     /// <summary>Safe field errors from the application validator; null for other failures.</summary>
     public IReadOnlyDictionary<string, string[]>? ValidationErrors { get; set; }
+}
+
+/// <summary>One matched fixed-plan variant with retained checkpoints. Human review stays unscored until explicitly recorded.</summary>
+public sealed class PrototypeResult(string caseId, int repetition, string variant, ResolvedTaskRequest input)
+{
+    public string CaseId { get; } = caseId;
+    public int Repetition { get; } = repetition;
+    public string Variant { get; } = variant;
+    public ResolvedTaskRequest Input { get; } = input;
+    public string InputFingerprint { get; init; } = TaskRequestResolver.Fingerprint(input);
+    [JsonRequired] public TaskDocument Document { get; set; } = TaskAssembly.CreateDocument(input);
+    [JsonRequired] public List<PrototypeStage> Stages { get; init; } = [];
+    public LengthMeasurement[] Measurements { get; set; } = [];
+    public bool Passed { get; set; }
+    public ManualReview Review { get; set; } = new();
+}
+
+/// <summary>Explicit skipped, accepted or failed stage; raw responses and partial usage stay in Call even after rejection.</summary>
+public sealed class PrototypeStage(string stage)
+{
+    public string Stage { get; } = stage;
+    [JsonRequired] public int EngineRevision { get; init; } = EngineVersions.Revision;
+    [JsonRequired] public int SchemaVersion { get; init; } = EngineVersions.SchemaVersion;
+    public string Outcome { get; set; } = "pending";
+    public EvaluationStep? Call { get; set; }
 }
 
 public sealed record EvaluationMessage(string Role, string Text);

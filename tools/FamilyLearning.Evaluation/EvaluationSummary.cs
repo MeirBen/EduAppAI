@@ -56,11 +56,12 @@ public sealed record EvaluationSummary
 
     public static EvaluationSummary Create(EvaluationReport report)
     {
-        var planned = report.Cases.Length * report.Repeat;
+        var planned = report.Cases.Length * report.Repeat * (report.Prototype ? 2 : 1);
         var calls = report.Steps.Where(step => step.RequestSent).ToArray();
         var responses = calls.Where(step => step.ResponseReceived && step.FinishedAtUtc.HasValue).ToArray();
-        var generationSteps = report.Results.SelectMany(result => new[] { result.Authoring, result.Generation }).OfType<EvaluationStep>();
-        var reviews = report.Results.Select(result => result.Review.Scores()).ToArray();
+        var prototypeSteps = report.PrototypeResults.SelectMany(result => result.Stages).Select(stage => stage.Call).OfType<EvaluationStep>();
+        var generationSteps = report.Results.SelectMany(result => new[] { result.Authoring, result.Generation }).OfType<EvaluationStep>().Concat(prototypeSteps);
+        var reviews = report.Results.Select(result => result.Review.Scores()).Concat(report.PrototypeResults.Select(result => result.Review.Scores())).ToArray();
         var humanScores = new Dictionary<string, HumanScoreSummary>();
         foreach (var key in new ManualReview().Scores().Keys)
         {
@@ -73,10 +74,10 @@ public sealed record EvaluationSummary
             CaseCount = report.Cases.Length,
             Repeat = report.Repeat,
             PlannedCaseRuns = planned,
-            RecordedCaseRuns = report.Results.Count,
+            RecordedCaseRuns = report.Results.Count + report.PrototypeResults.Count,
             AttemptedCalls = calls.Length,
-            Authoring = StageCounts.From(report.Results.Select(result => result.Authoring), planned),
-            Generation = StageCounts.From(report.Results.Select(result => result.Generation), planned),
+            Authoring = StageCounts.From(report.Results.Select(result => result.Authoring), report.Prototype ? 0 : planned),
+            Generation = report.Prototype ? StageCounts.From(prototypeSteps, report.PlannedCalls) : StageCounts.From(report.Results.Select(result => result.Generation), planned),
             GeneratedContentReviews = StageCounts.From(report.Results.Select(result => result.Judge), report.JudgeEnabled ? planned : 0),
             ScenarioAutomaticPasses = report.AutomaticPasses,
             AutomaticFailuresByCheck = Count(report.Results.SelectMany(result => result.Checks).Where(check => !check.Value).Select(check => check.Key)),

@@ -30,9 +30,11 @@ public static class EvaluationCommand
             }
             var options = EvaluationOptions.Parse(args);
             var plan = await EvaluationPlan.LoadAsync(new([options.Case], options.Repeat, options.Judge, options.MaxCalls,
-                options.Label, options.RunNotes, CallDelaySeconds: options.CallDelaySeconds));
-            Console.WriteLine($"{plan.Cases.Length} cases × {options.Repeat} repeats; {plan.PlannedCalls} base API calls (total budget including retries: {options.MaxCalls}).");
-            Console.WriteLine($"Pause between calls: {options.CallDelaySeconds} seconds; up to three retries per stage for HTTP 429 within the total budget.");
+                options.Label, options.RunNotes, CallDelaySeconds: options.CallDelaySeconds, Prototype: options.Prototype));
+            Console.WriteLine($"{plan.Cases.Length} cases × {options.Repeat} repeats; {plan.PlannedCalls} base API calls (total budget: {options.MaxCalls}).");
+            Console.WriteLine($"Pause between calls: {options.CallDelaySeconds} seconds; " + (options.Prototype
+                ? "no automatic retries or repairs in the matched prototype."
+                : "up to three retries per stage for HTTP 429 within the total budget."));
             foreach (var scenario in plan.Cases) Console.WriteLine($"  {scenario.Id}: {scenario.ReviewFocus}");
             if (!options.Live)
             {
@@ -40,6 +42,15 @@ public static class EvaluationCommand
                 return 0;
             }
             plan.ValidateBudget();
+            PrototypeExperiment? experiment = null;
+            if (options.Prototype)
+            {
+                if (options.Experiment is null) throw new ArgumentException("Live prototype requires --experiment with a pre-registered call/cost budget.");
+                experiment = JsonSerializer.Deserialize<PrototypeExperiment>(await File.ReadAllTextAsync(options.Experiment), EvaluationFiles.Json)
+                    ?? throw new InvalidDataException("Missing experiment.");
+                experiment.Validate();
+                if (options.MaxCalls > experiment.MaxCalls) throw new ArgumentException("Call limit exceeds the registered budget.");
+            }
 
             // Compose only the shared AI adapter, never the web host, authentication or database.
             var builder = Host.CreateApplicationBuilder(new HostApplicationBuilderSettings
@@ -53,7 +64,10 @@ public static class EvaluationCommand
             var client = host.Services.GetService<IChatClient>() ??
                 throw new ArgumentException("Configure the app's OpenRouter API key before using --live.");
             var aiOptions = host.Services.GetRequiredService<IOptions<AiGenerationOptions>>().Value;
-            var report = plan.CreateReport(EvaluationPlan.CaptureProfile(builder.Configuration, aiOptions));
+            var profile = EvaluationPlan.CaptureProfile(builder.Configuration, aiOptions);
+            if (experiment is not null && (profile["Model"] != experiment.Model || !string.IsNullOrWhiteSpace(profile["FallbackModel"])))
+                throw new ArgumentException("Prototype model must match pre-registration without fallback.");
+            var report = plan.CreateReport(profile, experiment);
             var directory = Path.GetFullPath(Path.Combine(options.Output, EvaluationRunStore.NewId()));
             Directory.CreateDirectory(directory);
             Console.WriteLine($"Model: {report.Profile["Model"]}; report: {Path.Combine(directory, "run.json")}");
@@ -78,11 +92,12 @@ public static class EvaluationCommand
         {
             // Configuration/IO exceptions can contain secret values or paths; don't print their bodies.
             Console.Error.WriteLine(args.Length > 0 && args[0] == "--compare"
-                ? $"Cannot compare reports. Check file paths, format version {EvaluationReport.CurrentFormatVersion} and human scores (0, 1, 2 or null)."
+                ? $"Cannot compare reports. Check file paths, format version {EvaluationVersions.ReportFormat} and human scores (0, 1, 2 or null)."
                 : "Evaluation could not start or save its report. Check arguments, AI configuration and output permissions.");
             Console.Error.WriteLine("Usage: evaluate-ai.sh [--live] [--case ID|all] [--repeat 1..5] [--max-calls 1..100] [--call-delay-seconds 0..60] [--judge] [--output DIR]");
             Console.Error.WriteLine("Dashboard: evaluate-ai.sh --ui [--port PORT] [--output DIR]");
-            Console.Error.WriteLine($"Offline comparison: evaluate-ai.sh --compare BASELINE/run.json CANDIDATE/run.json (format version {EvaluationReport.CurrentFormatVersion})");
+            Console.Error.WriteLine("Fixed-plan comparison: evaluate-ai.sh --prototype [--repeat 1..5] [--max-calls 1..100] [--experiment FILE --live]");
+            Console.Error.WriteLine($"Offline comparison: evaluate-ai.sh --compare BASELINE/run.json CANDIDATE/run.json (format version {EvaluationVersions.ReportFormat})");
             return 2;
         }
     }
@@ -103,7 +118,7 @@ public static class EvaluationCommand
 
 /// <summary>Explicit limits prevent accidentally running a large paid suite; no live calls by default.</summary>
 public sealed record EvaluationOptions(bool Live, string Case, int Repeat, int MaxCalls, bool Judge, string Output,
-    string? Label = null, string? RunNotes = null, int CallDelaySeconds = 5)
+    string? Label = null, string? RunNotes = null, int CallDelaySeconds = 5, bool Prototype = false, string? Experiment = null)
 {
     public static EvaluationOptions Parse(string[] args)
     {
@@ -115,12 +130,14 @@ public sealed record EvaluationOptions(bool Live, string Case, int Repeat, int M
             if (!seen.Add(flag)) throw new ArgumentException("Duplicate option.");
             if (flag == "--live") { options = options with { Live = true }; continue; }
             if (flag == "--judge") { options = options with { Judge = true }; continue; }
+            if (flag == "--prototype") { options = options with { Prototype = true }; continue; }
             if (++i >= args.Length) throw new ArgumentException("Missing option value.");
             var value = args[i];
             options = flag switch
             {
                 "--label" => options with { Label = value },
                 "--notes" => options with { RunNotes = value },
+                "--experiment" => options with { Experiment = value },
                 "--case" => options with { Case = value },
                 "--repeat" when int.TryParse(value, out var repeat) && repeat is >= 1 and <= 5 => options with { Repeat = repeat },
                 "--max-calls" when int.TryParse(value, out var max) && max is >= 1 and <= 100 => options with { MaxCalls = max },
@@ -129,7 +146,7 @@ public sealed record EvaluationOptions(bool Live, string Case, int Repeat, int M
                 _ => throw new ArgumentException("Unknown option or invalid value.")
             };
         }
-        return options;
+        return options.Prototype && !seen.Contains("--case") ? options with { Case = "all" } : options;
     }
 
 }

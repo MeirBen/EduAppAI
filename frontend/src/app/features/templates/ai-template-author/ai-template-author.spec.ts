@@ -94,7 +94,8 @@ describe('Prompt-first authoring', () => {
     expect(element.querySelector('app-ai-template-form')).toBeNull();
     await vi.waitFor(() => {
       TestBed.tick();
-      expect(element.querySelector('[role="alert"]')?.textContent).toContain('לא נשמר דבר');
+      expect(element.querySelector('[role="alert"]')?.textContent).toContain('לא החזיר תוכן תקין');
+      expect(element.querySelector('[role="alert"]')?.textContent).not.toContain('לא נשמר');
       expect(element.querySelector('.loader-mark')).toBeNull();
     });
     http.expectNone('/api/templates');

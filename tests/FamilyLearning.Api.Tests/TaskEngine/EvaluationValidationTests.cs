@@ -293,7 +293,7 @@ public sealed class EvaluationValidationTests : IDisposable
 
         var isolated = await EvaluationFiles.LoadFixtureAsync<EvaluationCase>("cases.json", directory);
 
-        Assert.Equal(suite.Items, isolated.Items);
+        Assert.Equal(JsonSerializer.Serialize(suite.Items), JsonSerializer.Serialize(isolated.Items));
     }
 
     [Fact]

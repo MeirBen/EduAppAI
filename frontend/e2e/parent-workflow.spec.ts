@@ -221,12 +221,12 @@ test('AI failures preserve the prompt and explicit retry can recover', async ({ 
   await page.goto('/templates/new');
   await page.getByLabel('הרעיון שלכם לתבנית').fill('בדיקת כשל');
   await page.getByRole('button', { name: 'יצירת תבנית בעזרת AI', exact: true }).click();
-  await expect(page.getByRole('alert')).toContainText('לא נשמר דבר');
+  await expect(page.getByRole('alert')).not.toContainText('לא נשמר');
   await expect(page.getByLabel('הרעיון שלכם לתבנית')).toHaveValue('בדיקת כשל');
   await page.getByLabel('הרעיון שלכם לתבנית').fill('בדיקת מגבלת פלט');
   await page.getByRole('button', { name: 'יצירת תבנית בעזרת AI', exact: true }).click();
   await expect(page.getByRole('alert')).toContainText('מגבלת הפלט');
-  await expect(page.getByRole('alert')).toContainText('לא נשמר דבר');
+  await expect(page.getByRole('alert')).not.toContainText('לא נשמר');
   await expect(page.getByLabel('הרעיון שלכם לתבנית')).toHaveValue('בדיקת מגבלת פלט');
   for (const prompt of ['בדיקת מכסה', 'בדיקת מכסה בגוף התשובה']) {
     await page.getByLabel('הרעיון שלכם לתבנית').fill(prompt);

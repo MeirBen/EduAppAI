@@ -121,8 +121,9 @@ minute. Cancellation reaches the provider and always releases capacity.
 Transport timeout adds five seconds to the application deadline so its
 cancellation wins. SDK retries are disabled; OpenRouter's optional fallback
 handles provider errors, not failed app validation.
-Failures return safe ProblemDetails without saving, including 429 for provider
-rate limits. Output-limit failures use
+Failures describe the failed AI call through safe ProblemDetails, including 429
+for provider rate limits. Callers own persisted-state recovery; shared AI errors
+do not claim that earlier work was or was not saved. Output-limit failures use
 `urn:family-learning:ai-output-limit` so the UI can distinguish them from invalid
 JSON without displaying provider text. The transport checks HTTP 200 bodies for
 provider errors; the adapter normalizes missing or malformed SDK responses to

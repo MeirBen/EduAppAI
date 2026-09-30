@@ -4,6 +4,15 @@ namespace FamilyLearning.Api.TaskEngine.Ai;
 public sealed class AiGenerationOptions
 {
     public const int DefaultMaxOutputTokens = 8192;
+    public const int RequestByteLimit = 512 * 1024;
+    public const int SchemaByteLimit = 64 * 1024;
+    public const int OutputCharacterLimit = 32000;
+
+    /// <summary>Serialized UTF-8 HTTP body limit, including every schema occurrence; may be lowered by configuration.</summary>
+    public int MaxRequestBytes { get; set; } = RequestByteLimit;
+
+    /// <summary>Serialized UTF-8 output-schema limit in every output mode; may be lowered by configuration.</summary>
+    public int MaxSchemaBytes { get; set; } = SchemaByteLimit;
 
     /// <summary>Combined reasoning/output token ceiling per call; configuration validation accepts 1–32768.</summary>
     public int MaxOutputTokens { get; set; } = DefaultMaxOutputTokens;

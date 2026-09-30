@@ -22,6 +22,11 @@ public static class EvaluationRunner
     public static async Task RunAsync(IChatClient client, AiGenerationOptions options, EvaluationReport report,
         string directory, CancellationToken ct, Action<EvaluationProgress>? progress = null, TimeProvider? timeProvider = null)
     {
+        if (report.Prototype)
+        {
+            await ContentWorkflowPrototype.RunAsync(client, options, report, directory, ct, progress, timeProvider);
+            return;
+        }
         var capture = new EvaluationCapture(client, report.MaxCalls);
         using var engine = new AiGenerationService([capture], NullLogger<AiGenerationService>.Instance, Options.Create(options));
         string stage = "starting";

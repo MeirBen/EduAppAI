@@ -1,6 +1,8 @@
 using System.Collections.Concurrent;
 using FamilyLearning.Api.Infrastructure.Ai;
+using FamilyLearning.Api.TaskEngine;
 using FamilyLearning.Api.TaskEngine.Ai;
+using FamilyLearning.Api.TaskEngine.Models;
 using FamilyLearning.Api.Tests.Fixtures;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Configuration;
@@ -12,6 +14,26 @@ namespace FamilyLearning.Api.Tests.TaskEngine;
 
 public sealed class AiCapacityTests
 {
+    [Fact]
+    public async Task Scoped_content_and_authoring_share_capacity_and_cancellation_releases_it()
+    {
+        using var chat = new PausedChat();
+        using var services = CreateServices(chat, "5");
+        var service = services.GetRequiredService<AiGenerationService>();
+        var request = LearningPlanFixture.Resolve(LearningPlanFixture.Numeric());
+        using var cancellation = new CancellationTokenSource();
+        var author = service.AuthorAsync(new TemplateAuthoringInput("רעיון"), cancellation.Token);
+        var content = service.GenerateQuestionsAsync(TaskAssembly.PrepareQuestions(request, TaskAssembly.CreateDocument(request)), cancellation.Token);
+        var error = await Assert.ThrowsAsync<AiGenerationException>(() => service.AuthorAsync(new TemplateAuthoringInput("עוד"), default));
+        Assert.Equal(503, error.StatusCode);
+        cancellation.Cancel();
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => Task.WhenAll(author, content));
+        chat.Response = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        var next = service.AuthorAsync(new TemplateAuthoringInput("שוב"), default);
+        chat.Response.SetResult(Response("""{"proposal":null,"clarification":"איזה גיל?","assumptions":[]}"""));
+        Assert.Equal("איזה גיל?", (await next).Value.Clarification);
+    }
+
     [Theory]
     [InlineData("cancellation")]
     [InlineData("invalid-json")]

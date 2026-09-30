@@ -1,136 +1,510 @@
 {
   "type": "object",
   "properties": {
-    "schemaVersion": {
-      "type": "integer",
-      "enum": [4]
-    },
-    "name": {
-      "type": "string",
-      "description": "Parent-facing name of the reusable template, not a finished task or passage title.",
-      "minLength": 1,
-      "maxLength": 100
-    },
-    "instanceParameters": {
-      "type": "array",
-      "description": "Only additional inputs the parent explicitly asks to supply or change per task; otherwise []. Fixed requirements stay in instructions. Do not duplicate topic, audience, difficulty or question count, including aliases.",
-      "items": {
-        "type": "object",
-        "properties": {
-          "key": {
-            "type": "string",
-            "pattern": "^[a-z][a-zA-Z0-9]{0,39}$"
-          },
-          "label": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 100
-          },
-          "type": {
-            "type": "string",
-            "enum": ["text", "integer", "select", "boolean"]
-          },
-          "required": {
-            "type": "boolean",
-            "description": "True rejects omission when no default exists and rejects blank text. Defaults apply to omitted values regardless of this flag."
-          },
-          "default": {
-            "type": ["string", "integer", "boolean", "null"],
-            "description": "Default matching the field type, bounds and options; null means no default. Preserve requested values.",
-            "maxLength": 500,
-            "minimum": -2147483648,
-            "maximum": 2147483647
-          },
-          "min": {
-            "type": ["integer", "null"],
-            "description": "Requested inclusive integer lower bound; null when unspecified or for other field types.",
-            "minimum": -2147483648,
-            "maximum": 2147483647
-          },
-          "max": {
-            "type": ["integer", "null"],
-            "description": "Requested inclusive integer upper bound; null when unspecified or for other field types.",
-            "minimum": -2147483648,
-            "maximum": 2147483647
-          },
-          "maxLength": {
-            "type": ["integer", "null"],
-            "minimum": 1,
-            "maximum": 500,
-            "description": "Requested text length limit; null uses the application's 500-character limit for text fields. Use null for other types."
-          },
-          "options": {
-            "type": ["array", "null"],
-            "description": "Distinct, trimmed, single-line select values; null for other field types.",
-            "items": {
-              "type": "string",
-              "minLength": 1,
-              "maxLength": 100
-            },
-            "minItems": 1,
-            "maxItems": 20
-          }
+    "proposal": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/plan"
         },
-        "required": [
-          "key",
-          "label",
-          "type",
-          "required",
-          "default",
-          "min",
-          "max",
-          "maxLength",
-          "options"
-        ],
-        "additionalProperties": false
-      },
-      "maxItems": 16
+        {
+          "type": "null"
+        }
+      ]
     },
-    "generation": {
+    "clarification": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 1000,
+      "minLength": 1
+    },
+    "assumptions": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "maxLength": 200,
+        "minLength": 1
+      },
+      "minItems": 0,
+      "maxItems": 8
+    }
+  },
+  "required": [
+    "proposal",
+    "clarification",
+    "assumptions"
+  ],
+  "additionalProperties": false,
+  "$defs": {
+    "plan": {
       "type": "object",
       "properties": {
-        "instructions": {
+        "schemaVersion": {
+          "type": "integer"
+        },
+        "name": {
           "type": "string",
-          "description": "Directions to create a learner task, not another template. Order: goal and activity; content and source requirements; additional parameter effects; task-specific question requirements. Omit inapplicable parts and engine rules. Keep shared setting values in defaults.",
-          "minLength": 1,
+          "maxLength": 100,
+          "minLength": 1
+        },
+        "goal": {
+          "type": "string",
+          "maxLength": 500,
+          "minLength": 1
+        },
+        "guidance": {
+          "type": "string",
           "maxLength": 4000
         },
         "defaults": {
           "type": "object",
-          "description": "Shared settings that the parent can change for each task.",
           "properties": {
             "topic": {
               "type": "string",
-              "minLength": 1,
               "maxLength": 200,
-              "description": "Default subject or theme, in the requested language."
+              "minLength": 1
             },
             "audience": {
               "type": "string",
-              "minLength": 1,
               "maxLength": 200,
-              "description": "Intended learners: age, grade or experience, in the requested language."
+              "minLength": 1
             },
             "difficulty": {
               "type": "string",
-              "enum": ["easy", "medium", "hard"],
-              "description": "Challenge relative to the audience: guided recall, application, or deeper reasoning."
+              "enum": [
+                "easy",
+                "medium",
+                "hard"
+              ]
             },
             "questionCount": {
               "type": "integer",
               "minimum": 1,
-              "maximum": 2147483647,
-              "description": "Default number of questions, adjustable for each task."
+              "maximum": 2147483647
             }
           },
-          "required": ["topic", "audience", "difficulty", "questionCount"],
+          "required": [
+            "topic",
+            "audience",
+            "difficulty",
+            "questionCount"
+          ],
           "additionalProperties": false
+        },
+        "materials": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/material"
+          },
+          "minItems": 0,
+          "maxItems": 4
+        },
+        "questions": {
+          "$ref": "#/$defs/questionPlan"
+        },
+        "controls": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/control"
+          },
+          "minItems": 0,
+          "maxItems": 16
+        },
+        "totalLength": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/length"
+            },
+            {
+              "type": "null"
+            }
+          ]
         }
       },
-      "required": ["instructions", "defaults"],
+      "required": [
+        "schemaVersion",
+        "name",
+        "goal",
+        "guidance",
+        "defaults",
+        "materials",
+        "questions",
+        "controls",
+        "totalLength"
+      ],
+      "additionalProperties": false
+    },
+    "material": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^[a-f0-9]{32}$"
+        },
+        "label": {
+          "type": "string",
+          "maxLength": 100,
+          "minLength": 1
+        },
+        "source": {
+          "type": "string",
+          "enum": [
+            "generated",
+            "fixed",
+            "per-task"
+          ]
+        },
+        "guidance": {
+          "type": "string",
+          "maxLength": 1000
+        },
+        "text": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 4000
+        },
+        "length": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/length"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "controls": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/control"
+          },
+          "minItems": 0,
+          "maxItems": 16
+        }
+      },
+      "required": [
+        "id",
+        "label",
+        "source",
+        "guidance",
+        "text",
+        "length",
+        "controls"
+      ],
+      "additionalProperties": false
+    },
+    "questionPlan": {
+      "type": "object",
+      "properties": {
+        "formats": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "numeric-input",
+              "text-input",
+              "single-choice"
+            ]
+          },
+          "minItems": 1,
+          "maxItems": 3
+        },
+        "selectableFormat": {
+          "type": "boolean"
+        },
+        "defaultFormat": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "enum": [
+            "numeric-input",
+            "text-input",
+            "single-choice",
+            null
+          ]
+        },
+        "choiceCount": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/integerChoice"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "countBounds": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/bounds"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "guidance": {
+          "type": "string",
+          "maxLength": 1000
+        },
+        "controls": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/control"
+          },
+          "minItems": 0,
+          "maxItems": 16
+        }
+      },
+      "required": [
+        "formats",
+        "selectableFormat",
+        "defaultFormat",
+        "choiceCount",
+        "countBounds",
+        "guidance",
+        "controls"
+      ],
+      "additionalProperties": false
+    },
+    "control": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^[a-f0-9]{32}$"
+        },
+        "label": {
+          "type": "string",
+          "maxLength": 100,
+          "minLength": 1
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "text",
+            "integer",
+            "select",
+            "boolean"
+          ]
+        },
+        "meaning": {
+          "type": "string",
+          "maxLength": 500,
+          "minLength": 1
+        },
+        "required": {
+          "type": "boolean"
+        },
+        "default": {
+          "type": [
+            "string",
+            "integer",
+            "boolean",
+            "null"
+          ]
+        },
+        "unit": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 100
+        },
+        "min": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": -2147483648,
+          "maximum": 2147483647
+        },
+        "max": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": -2147483648,
+          "maximum": 2147483647
+        },
+        "maxLength": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": -2147483648,
+          "maximum": 2147483647
+        },
+        "options": {
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/option"
+              },
+              "minItems": 1,
+              "maxItems": 20
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "id",
+        "label",
+        "type",
+        "meaning",
+        "required",
+        "default",
+        "unit",
+        "min",
+        "max",
+        "maxLength",
+        "options"
+      ],
+      "additionalProperties": false
+    },
+    "option": {
+      "type": "object",
+      "properties": {
+        "value": {
+          "type": "string",
+          "maxLength": 100,
+          "minLength": 1
+        },
+        "meaning": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 200
+        }
+      },
+      "required": [
+        "value",
+        "meaning"
+      ],
+      "additionalProperties": false
+    },
+    "integerChoice": {
+      "type": "object",
+      "properties": {
+        "value": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 2147483647
+        },
+        "adjustable": {
+          "type": "boolean"
+        },
+        "min": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": -2147483648,
+          "maximum": 2147483647
+        },
+        "max": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": -2147483648,
+          "maximum": 2147483647
+        }
+      },
+      "required": [
+        "value",
+        "adjustable",
+        "min",
+        "max"
+      ],
+      "additionalProperties": false
+    },
+    "bounds": {
+      "type": "object",
+      "properties": {
+        "min": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": -2147483648,
+          "maximum": 2147483647
+        },
+        "max": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": -2147483648,
+          "maximum": 2147483647
+        }
+      },
+      "required": [
+        "min",
+        "max"
+      ],
+      "additionalProperties": false
+    },
+    "length": {
+      "type": "object",
+      "properties": {
+        "mode": {
+          "type": "string",
+          "enum": [
+            "target",
+            "exact",
+            "range"
+          ]
+        },
+        "count": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/integerChoice"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "lower": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": -2147483648,
+          "maximum": 2147483647
+        },
+        "upper": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": -2147483648,
+          "maximum": 2147483647
+        }
+      },
+      "required": [
+        "mode",
+        "count",
+        "lower",
+        "upper"
+      ],
       "additionalProperties": false
     }
-  },
-  "required": ["schemaVersion", "name", "instanceParameters", "generation"],
-  "additionalProperties": false
+  }
 }

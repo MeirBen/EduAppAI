@@ -19,6 +19,7 @@ public sealed record EvaluationComparison(
         var before = EvaluationSummary.Create(baseline);
         var after = EvaluationSummary.Create(candidate);
         var incompatible = new List<string>();
+        if (baseline.Prototype || candidate.Prototype) incompatible.Add("prototype-requires-matched-variant-review");
         if (baseline.SuiteSha256 != candidate.SuiteSha256) incompatible.Add("case-suite-hash");
         if (!baseline.Cases.Select(item => item.Id).SequenceEqual(candidate.Cases.Select(item => item.Id))) incompatible.Add("selected-cases-or-order");
         // Compare the captured inputs too: a stale/manually edited hash cannot make different prompts comparable.

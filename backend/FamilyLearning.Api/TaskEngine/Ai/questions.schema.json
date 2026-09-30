@@ -1,0 +1,95 @@
+{
+  "type": "object",
+  "properties": {
+    "title": {
+      "type": "string",
+      "maxLength": 100,
+      "minLength": 1
+    },
+    "instructions": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 1000
+    },
+    "questions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "prompt": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          },
+          "interaction": {
+            "type": "object",
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "numeric-input",
+                  "text-input",
+                  "single-choice"
+                ]
+              },
+              "options": {
+                "type": [
+                  "array",
+                  "null"
+                ],
+                "items": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 200
+                },
+                "minItems": 2,
+                "maxItems": 6
+              }
+            },
+            "required": [
+              "type",
+              "options"
+            ],
+            "additionalProperties": false
+          },
+          "answer": {
+            "type": "object",
+            "properties": {
+              "value": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200
+              }
+            },
+            "required": [
+              "value"
+            ],
+            "additionalProperties": false
+          },
+          "points": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 100
+          }
+        },
+        "required": [
+          "prompt",
+          "interaction",
+          "answer",
+          "points"
+        ],
+        "additionalProperties": false
+      },
+      "minItems": 1,
+      "maxItems": 3999
+    }
+  },
+  "required": [
+    "title",
+    "instructions",
+    "questions"
+  ],
+  "additionalProperties": false
+}

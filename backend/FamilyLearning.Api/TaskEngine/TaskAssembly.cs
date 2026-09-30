@@ -1,3 +1,4 @@
+using FamilyLearning.Api.TaskEngine.Ai;
 using FamilyLearning.Api.TaskEngine.Models;
 using FamilyLearning.Api.TaskEngine.Validation;
 using static FamilyLearning.Api.TaskEngine.Validation.EngineValidation;
@@ -9,12 +10,36 @@ namespace FamilyLearning.Api.TaskEngine;
 /// without unsafe-input errors. Repairable draft diagnostics may remain.</remarks>
 public static class TaskAssembly
 {
+    /// <summary>Starts a fresh activity with accepted supplied sources and no generated content.</summary>
+    public static TaskDocument CreateDocument(ResolvedTaskRequest request) =>
+        new("", null, RestoreSources(request, []), []);
+
+    /// <summary>Regenerates all generated materials together when any is absent or stale; null means explicit reuse.</summary>
+    public static MaterialGenerationInput? PrepareMaterials(ResolvedTaskRequest request, TaskDocument current)
+    {
+        RequireSafe(request, current);
+        var fingerprint = TaskRequestResolver.Fingerprint(request);
+        return request.Materials.Any(m => m.Source == "generated" && NeedsMaterial(current, m.Id, fingerprint))
+            ? new(request, RestoreSources(request, current.Materials)) : null;
+    }
+
+    /// <summary>Allows question work only against exact, current, strict-valid materials, including manual edits.</summary>
+    public static QuestionGenerationInput PrepareQuestions(ResolvedTaskRequest request, TaskDocument current)
+    {
+        RequireSafe(request, current);
+        var document = current with { Materials = RestoreSources(request, current.Materials) };
+        RequireMaterials(TaskDocumentValidator.ValidateMaterials(request, document));
+        return new(request, document.Materials);
+    }
+
     /// <summary>Applies only a complete valid generated batch, restoring supplied originals and plan order.</summary>
-    public static MaterialAcceptance AcceptMaterials(ResolvedTaskRequest request, TaskDocument current, MaterialCandidateBatch candidate)
+    public static MaterialAcceptance AcceptMaterials(ResolvedTaskRequest request, TaskDocument current, MaterialCandidateBatch candidate,
+        GenerationMetadata? metadata = null)
     {
         var errors = new Dictionary<string, string[]>();
         var fingerprint = TaskRequestResolver.Fingerprint(request);
-        var expected = request.Materials.Where(m => m.Source == "generated" && NeedsMaterial(current, m.Id, fingerprint)).ToArray();
+        var needsMaterials = request.Materials.Any(m => m.Source == "generated" && NeedsMaterial(current, m.Id, fingerprint));
+        var expected = request.Materials.Where(m => m.Source == "generated" && needsMaterials).ToArray();
         if (candidate is null)
         {
             errors.AddError("candidate", "יש לציין חומרים שנוצרו.");
@@ -39,7 +64,7 @@ public static class TaskAssembly
             var item = items.FirstOrDefault(m => m.Id == requirement.Id);
             var previous = existingMaterials.FirstOrDefault(m => m.Id == requirement.Id);
             materials.Add(item is null ? previous! : new(item.Id, checked((previous?.Revision ?? 0) + 1), item.Title, item.Body,
-                new("generated", request.EngineRevision, fingerprint), new(fingerprint, [])));
+                new("generated", request.EngineRevision, fingerprint, metadata), new(fingerprint, [])));
         }
         var document = current with { Materials = materials.ToArray(), Questions = CopyQuestions(current.Questions) };
         var materialCheck = TaskDocumentValidator.ValidateMaterials(request, document);
@@ -50,7 +75,8 @@ public static class TaskAssembly
     }
 
     /// <summary>Validates the entire batch before allocating question IDs; preserves accepted materials.</summary>
-    public static TaskDocument AcceptQuestions(ResolvedTaskRequest request, TaskDocument current, QuestionCandidateBatch candidate)
+    public static TaskDocument AcceptQuestions(ResolvedTaskRequest request, TaskDocument current, QuestionCandidateBatch candidate,
+        GenerationMetadata? metadata = null)
     {
         var document = current with { Materials = RestoreSources(request, current.Materials) };
         RequireMaterials(TaskDocumentValidator.ValidateMaterials(request, document));
@@ -60,9 +86,68 @@ public static class TaskAssembly
         var sources = document.Materials.Select(m => new MaterialRevision(m.Id, m.Revision)).ToArray();
         // No IDs are allocated until the entire untrusted batch and its assembled size have passed.
         var questions = candidate.Questions.Select(q => new DocumentQuestion(Guid.NewGuid().ToString("N"), q.Prompt,
-            CopyInteraction(q.Interaction), q.Answer, q.Points, new("generated", request.EngineRevision, fingerprint),
+            CopyInteraction(q.Interaction), q.Answer, q.Points, new("generated", request.EngineRevision, fingerprint, metadata),
             new(fingerprint, sources.ToArray()))).ToArray();
         return document with { Title = candidate.Title, Instructions = candidate.Instructions, Questions = questions };
+    }
+
+    /// <summary>Checks the app-selected target before a material call; supplied originals can never be replaced by AI.</summary>
+    public static MaterialContent MaterialTarget(MaterialReplacementInput input)
+    {
+        RequireSafe(input.Request, input.Current);
+        RequireInstruction(input.Instruction);
+        var target = input.Current.Materials.FirstOrDefault(m => m.Id == input.MaterialId);
+        if (target is null || !input.Request.Materials.Any(m => m.Id == input.MaterialId && m.Source == "generated"))
+            throw TargetError("materials");
+        return target;
+    }
+
+    /// <summary>Checks the selected question and material preflight before a question repair call.</summary>
+    public static DocumentQuestion QuestionTarget(QuestionReplacementInput input)
+    {
+        RequireSafe(input.Request, input.Current);
+        RequireMaterials(TaskDocumentValidator.ValidateMaterials(input.Request, input.Current));
+        RequireInstruction(input.Instruction);
+        return input.Current.Questions.FirstOrDefault(q => q.Id == input.QuestionId) ?? throw TargetError("questions");
+    }
+
+    /// <summary>Replaces one complete generated material, preserving unrelated content and invalidating dependencies by revision.</summary>
+    public static TaskDocument ReplaceMaterial(MaterialReplacementInput input, MaterialCandidate candidate, GenerationMetadata? metadata = null)
+    {
+        var target = MaterialTarget(input);
+        if (candidate is null || candidate.Id != target.Id || !HasText(candidate.Body, BodyLimit) || candidate.Title?.Length > 100)
+            throw TargetError("materials");
+        var fingerprint = TaskRequestResolver.Fingerprint(input.Request);
+        var document = input.Current with
+        {
+            Materials = input.Current.Materials.Select(m => m.Id == target.Id
+                ? new MaterialContent(m.Id, checked(m.Revision + 1), candidate.Title, candidate.Body,
+                    new("generated", input.Request.EngineRevision, fingerprint, metadata), new(fingerprint, []))
+                : m with { Acceptance = CopyAcceptance(m.Acceptance) }).ToArray(),
+            Questions = CopyQuestions(input.Current.Questions)
+        };
+        var check = TaskDocumentValidator.ValidateMaterials(input.Request, document);
+        var errors = TaskDocumentValidator.ValidateAdoption(input.Request, document, [target.Id], [], check);
+        if (errors.Count > 0) throw new TaskValidationException(errors);
+        return document;
+    }
+
+    /// <summary>Replaces one complete question and its acceptance evidence, preserving the target ID and task-level fields.</summary>
+    public static TaskDocument ReplaceQuestion(QuestionReplacementInput input, QuestionCandidate candidate, GenerationMetadata? metadata = null)
+    {
+        var target = QuestionTarget(input);
+        if (candidate is null) throw TargetError("questions");
+        var materials = RestoreSources(input.Request, input.Current.Materials);
+        var fingerprint = TaskRequestResolver.Fingerprint(input.Request);
+        var document = input.Current with { Materials = materials, Questions = CopyQuestions(input.Current.Questions) };
+        var index = Array.FindIndex(document.Questions, q => q.Id == target.Id);
+        document.Questions[index] = new(target.Id, candidate.Prompt, candidate.Interaction is null ? null! : CopyInteraction(candidate.Interaction),
+            candidate.Answer, candidate.Points, new("generated", input.Request.EngineRevision, fingerprint, metadata),
+            new(fingerprint, materials.Select(m => new MaterialRevision(m.Id, m.Revision)).ToArray()));
+        var check = TaskDocumentValidator.ValidateMaterials(input.Request, document);
+        var errors = TaskDocumentValidator.ValidateAdoption(input.Request, document, [], [target.Id], check);
+        if (errors.Count > 0) throw new TaskValidationException(errors);
+        return document;
     }
 
     /// <summary>Updates selected acceptance bases after strict checks, preserving original generation provenance.</summary>
@@ -107,6 +192,19 @@ public static class TaskAssembly
 
     private static bool NeedsMaterial(TaskDocument current, string id, string fingerprint) =>
         current.Materials.FirstOrDefault(m => m.Id == id)?.Acceptance?.InputFingerprint != fingerprint;
+
+    private static void RequireSafe(ResolvedTaskRequest request, TaskDocument current)
+    {
+        var errors = TaskDocumentValidator.ValidateDraft(request, current).Errors;
+        if (errors.Count > 0) throw new TaskValidationException(errors);
+    }
+
+    private static void RequireInstruction(string? instruction)
+    {
+        if (instruction?.Length > 4000) throw new TaskValidationException(new Dictionary<string, string[]>() { ["instruction"] = ["ההנחיה מוגבלת ל־4,000 תווים."] });
+    }
+
+    private static TaskValidationException TargetError(string field) => new(new Dictionary<string, string[]>() { [field] = ["יש לבחור פריט מתאים ולהחזיר אותו במלואו."] });
 
     private static void RequireMaterials(DraftDocumentCheck check)
     {

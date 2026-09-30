@@ -676,8 +676,9 @@ behavior is implemented.
 **Delete after callers move:** `Engine/Models/TaskTemplateDefinition.cs`,
 `TaskContent.cs`, `Engine/Validation/ParameterValidator.cs`,
 `TemplateValidator.cs`, `TaskContentValidator.cs`,
-`Engine/Ai/content.schema.json`, `Features/Instances/TaskInstance.cs`, and the
-old TaskInput record from TaskSettings. Delete obsolete
+`Engine/Ai/content.schema.json`, the retained legacy `blueprint.schema.json`,
+`Features/Instances/TaskInstance.cs`, and the old TaskInput record from
+TaskSettings. Delete obsolete
 `Client/features/templates/template-editor/`, `ai-template-author/`,
 `ai-template-form/`, `Client/features/instances/create-instance/` and
 `instance-form/` after transferring valuable tests. Remove

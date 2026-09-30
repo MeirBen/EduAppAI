@@ -2,6 +2,7 @@ using System.Security.Cryptography;
 using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using FamilyLearning.Api.TaskEngine;
 using FamilyLearning.Api.TaskEngine.Validation;
 
 namespace FamilyLearning.Evaluation;
@@ -54,17 +55,43 @@ public static class EvaluationFiles
         await using var stream = File.OpenRead(path);
         if (stream.Length > 32 * 1024 * 1024) throw new InvalidDataException("Evaluation report is too large.");
         var report = await JsonSerializer.DeserializeAsync<EvaluationReport>(stream, Json);
-        if (report is null || report.FormatVersion != EvaluationReport.CurrentFormatVersion || report.AutomaticChecksVersion < 1 ||
+        if (report is null || report.FormatVersion != EvaluationVersions.ReportFormat || report.AutomaticChecksVersion < 1 ||
             report.Cases is not { Length: > 0 } || report.Repeat is < 1 or > 5 || report.Profile is null || report.CallDelaySeconds is < 0 or > 60 ||
             string.IsNullOrWhiteSpace(report.SuiteSha256) || report.Results is null || report.Calibration is null || report.CalibrationSamples is null ||
-            report.Retries is null || report.Retries.Count > 100 || report.Retries.Any(retry => retry is null || retry.Call is null ||
+            report.PrototypeResults is null || report.Retries is null || report.Retries.Count > 100 || report.Retries.Any(retry => retry is null || retry.Call is null ||
                 retry.Number is < 1 or > 3 || !double.IsFinite(retry.DelaySeconds) || retry.DelaySeconds is < 0 or > 300 ||
                 !retry.Call.RequestSent || retry.Call.FinishedAtUtc is null || retry.Call.StatusCode != 429 || retry.Call.ContractValid))
-            throw new InvalidDataException($"Invalid or unsupported evaluation report; format version {EvaluationReport.CurrentFormatVersion} is required.");
+            throw new InvalidDataException($"Invalid or unsupported evaluation report; format version {EvaluationVersions.ReportFormat} is required.");
         if (report.JudgeEnabled && (string.IsNullOrWhiteSpace(report.CalibrationSha256) || report.CalibrationSamples.Length == 0 ||
             string.IsNullOrWhiteSpace(report.JudgePromptVersion) || string.IsNullOrWhiteSpace(report.JudgePrompt)))
             throw new InvalidDataException("Judge-enabled reports require captured calibration and judge metadata.");
         ValidateCases(report.Cases);
+        if (report.Cases.Any(c => (c.InitialPlan is not null) != report.Prototype) || report.Prototype && report.JudgeEnabled ||
+            !report.Prototype && report.PrototypeResults.Count > 0 || report.Prototype && report.Results.Count > 0 ||
+            report.PrototypeResults.Count > report.Cases.Length * report.Repeat * 2 || report.ReservedCostUsd < 0)
+            throw new InvalidDataException("Invalid evaluation suite selection.");
+        report.Experiment?.Validate();
+        var trials = new HashSet<(string CaseId, int Repetition, string Variant)>();
+        foreach (var result in report.PrototypeResults)
+        {
+            if (result is null || !report.Cases.Any(c => c.Id == result.CaseId) || result.Repetition < 1 || result.Repetition > report.Repeat ||
+                result.Variant is not ("one-shot" or "split") || result.Input is null || result.Document is null ||
+                !trials.Add((result.CaseId, result.Repetition, result.Variant)) ||
+                result.Stages is null || result.Stages.Count > (result.Variant == "split" ? 2 : 1) || result.Review is null ||
+                result.Stages.Any(stage => stage is null || stage.EngineRevision < 1 || stage.SchemaVersion < 1 ||
+                    stage.Outcome is not ("pending" or "accepted" or "failed" or "skipped" or "cancelled" or "not-started") ||
+                    (result.Variant == "split" ? stage.Stage is not ("materials" or "questions") : stage.Stage != "one-shot") ||
+                    (stage.Outcome == "skipped" ? stage.Stage != "materials" || stage.Call is not null : stage.Call is null) ||
+                    stage.Outcome == "accepted" && stage.Call?.ContractValid != true) ||
+                result.Stages.Select(stage => stage.Stage).Distinct().Count() != result.Stages.Count ||
+                result.InputFingerprint != TaskRequestResolver.Fingerprint(result.Input))
+                throw new InvalidDataException("Invalid prototype evidence.");
+            var scenario = report.Cases.Single(c => c.Id == result.CaseId);
+            var resolved = TaskRequestResolver.Resolve(scenario.InitialPlan!, scenario.InitialInput ?? new(scenario.InitialPlan!.Defaults));
+            if (resolved.Value is null || result.InputFingerprint != TaskRequestResolver.Fingerprint(resolved.Value))
+                throw new InvalidDataException("Prototype inputs must match the captured fixed-plan case.");
+            result.Review.Validate();
+        }
         ValidateRunMetadata(report.Label, report.RunNotes);
         if (report.Results.Any(result => result is null || !report.Cases.Any(item => item.Id == result.CaseId) ||
                 result.Repetition < 1 || result.Repetition > report.Repeat || result.Checks is null || result.Review is null ||
@@ -96,7 +123,7 @@ public static class EvaluationFiles
         {
             if (item is null || string.IsNullOrWhiteSpace(item.Id) || item.Id.Length > 100 ||
                 item.Id.Any(character => !char.IsAsciiLetterOrDigit(character) && character is not ('_' or '-')) || !ids.Add(item.Id) ||
-                string.IsNullOrWhiteSpace(item.Prompt) || item.Prompt.Length > 4000 ||
+                (item.InitialPlan is null ? string.IsNullOrWhiteSpace(item.Prompt) || item.Prompt.Length > 4000 : !string.IsNullOrEmpty(item.Prompt)) ||
                 string.IsNullOrWhiteSpace(item.ReviewFocus) || item.ReviewFocus.Length > 1000 ||
                 item.QuestionCount < 1 || item.Interaction is not ("single-choice" or "text-input" or "numeric-input") ||
                 item.AdditionalParameterCount is < 0 or > 16 ||
@@ -105,6 +132,14 @@ public static class EvaluationFiles
                 (item.SettingsOverride is { } settings &&
                     (TaskSettingsValidator.Validate(settings).Count > 0 || settings.QuestionCount != item.QuestionCount)))
                 throw new InvalidDataException("Evaluation cases require unique safe IDs, bounded text and supported, consistent expectations.");
+            if (item.InitialPlan is { } plan)
+            {
+                var resolved = TaskRequestResolver.Resolve(plan, item.InitialInput ?? new(plan.Defaults));
+                if (resolved.Value is not { } input || input.Settings.QuestionCount != item.QuestionCount ||
+                    !input.Questions.Formats.Contains(item.Interaction) || item.ChoiceCount != input.Questions.ChoiceCount)
+                    throw new InvalidDataException("Fixed-plan expectations must match valid effective input.");
+            }
+            else if (item.InitialInput is not null) throw new InvalidDataException("Initial input requires a fixed plan.");
         }
     }
 

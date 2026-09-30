@@ -230,5 +230,143 @@
     "choiceCount": 4,
     "minPassageWords": 24,
     "maxPassageWords": 24
+  },
+  {
+    "id": "prototype-reading",
+    "prompt": "",
+    "reviewFocus": "עברית טבעית, התאמה לגיל, ביסוס תשובות ומסיחים; טווח 100–150 מילים נשמר.",
+    "questionCount": 3,
+    "interaction": "single-choice",
+    "choiceCount": 3,
+    "minPassageWords": 100,
+    "maxPassageWords": 150,
+    "initialPlan": {
+      "schemaVersion": 1,
+      "name": "סיפור על עזרה הדדית",
+      "goal": "הבנת סיפור והסקת מסקנות",
+      "guidance": "הוראות ושאלות בעברית. תשובות קצרות ומדויקות.",
+      "defaults": {
+        "topic": "עזרה הדדית",
+        "audience": "כיתה ג׳",
+        "difficulty": "medium",
+        "questionCount": 3
+      },
+      "materials": [
+        {
+          "id": "11111111111111111111111111111111",
+          "label": "סיפור",
+          "source": "generated",
+          "guidance": "סיפור חדש על ילדים שעוזרים זה לזה; תשובות ניתנות לביסוס בטקסט.",
+          "text": null,
+          "length": {
+            "mode": "range",
+            "count": null,
+            "lower": 100,
+            "upper": 150
+          },
+          "controls": []
+        }
+      ],
+      "questions": {
+        "formats": [
+          "single-choice"
+        ],
+        "selectableFormat": false,
+        "defaultFormat": null,
+        "choiceCount": {
+          "value": 3,
+          "adjustable": false,
+          "min": null,
+          "max": null
+        },
+        "countBounds": null,
+        "guidance": "שאלה אחת של איתור מידע, שאלה אחת של הסקת מסקנה ושאלה אחת של קשר בין פרטים.",
+        "controls": []
+      },
+      "controls": [],
+      "totalLength": null
+    }
+  },
+  {
+    "id": "prototype-bilingual",
+    "prompt": "",
+    "reviewFocus": "המקור נשמר בדיוק, לרבות ניקוד, ציטוטים ומעברים בין שפות; השאלות בעברית.",
+    "questionCount": 3,
+    "interaction": "text-input",
+    "choiceCount": null,
+    "minPassageWords": null,
+    "maxPassageWords": null,
+    "initialPlan": {
+      "schemaVersion": 1,
+      "name": "קריאה בשתי שפות",
+      "goal": "להבין פרטי מקור דו־לשוני תוך שמירה על המקור",
+      "guidance": "הוראות ושאלות בעברית. תשובות קצרות ומדויקות.",
+      "defaults": {
+        "topic": "הגן הקהילתי",
+        "audience": "כיתה ג׳",
+        "difficulty": "medium",
+        "questionCount": 3
+      },
+      "materials": [
+        {
+          "id": "11111111111111111111111111111111",
+          "label": "מקור מאושר",
+          "source": "fixed",
+          "guidance": "",
+          "text": "\"שָׁלוֹם, Maya!\" קראה נועה.\nOn Tuesday, Maya and Noa planted three tomato seedlings in the community garden.\nלמחרת השקו השתיים את השתילים. נועה סימנה כל שתיל בשלט קטן.\nMaya wrote: \"Plants need water and sunlight.\"\nהן החליטו לחזור ביום שישי כדי לבדוק אם השתילים גדלו.",
+          "length": null,
+          "controls": []
+        }
+      ],
+      "questions": {
+        "formats": [
+          "text-input"
+        ],
+        "selectableFormat": false,
+        "defaultFormat": null,
+        "choiceCount": null,
+        "countBounds": null,
+        "guidance": "שאלה אחת של איתור מידע, שאלה אחת של הסקת מסקנה ושאלה אחת של קשר בין פרטים.",
+        "controls": []
+      },
+      "controls": [],
+      "totalLength": null
+    }
+  },
+  {
+    "id": "prototype-numeric",
+    "prompt": "",
+    "reviewFocus": "אין קטע קריאה; תשובות מספריות נכונות והוראות ברורות.",
+    "questionCount": 3,
+    "interaction": "numeric-input",
+    "choiceCount": null,
+    "minPassageWords": null,
+    "maxPassageWords": null,
+    "initialPlan": {
+      "schemaVersion": 1,
+      "name": "מספרים",
+      "goal": "תרגול חיבור וחיסור ללא קטע קריאה",
+      "guidance": "הוראות ושאלות בעברית. תשובות קצרות ומדויקות.",
+      "defaults": {
+        "topic": "מספרים עד 100",
+        "audience": "כיתה ג׳",
+        "difficulty": "medium",
+        "questionCount": 3
+      },
+      "materials": [],
+      "questions": {
+        "formats": [
+          "numeric-input"
+        ],
+        "selectableFormat": false,
+        "defaultFormat": null,
+        "choiceCount": null,
+        "countBounds": null,
+        "guidance": "תרגילי חיבור וחיסור במספרים שלמים.",
+        "controls": []
+      },
+      "controls": [],
+      "totalLength": null
+    }
   }
 ]
