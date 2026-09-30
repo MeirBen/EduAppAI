@@ -1,10 +1,12 @@
 using System.Text.Json.Serialization;
 using System.Threading.RateLimiting;
+using FamilyLearning.Api.Features.Activities;
 using FamilyLearning.Api.Features.Ai;
 using FamilyLearning.Api.Features.Auth;
 using FamilyLearning.Api.Features.Instances;
 using FamilyLearning.Api.Features.Templates;
 using FamilyLearning.Api.TaskEngine.Ai;
+using FamilyLearning.Api.TaskEngine.Validation;
 using Microsoft.AspNetCore.RateLimiting;
 
 namespace FamilyLearning.Api.Infrastructure.Web;
@@ -39,6 +41,23 @@ public static class ApiConfiguration
     /// <summary>Maps parent APIs; only sign-in and token issuance explicitly allow anonymous access.</summary>
     public static void MapApplicationApi(this WebApplication app)
     {
+        var api = ParentApi(app);
+        api.MapAiEndpoints();
+        api.MapTemplateEndpoints();
+        api.MapInstanceEndpoints();
+    }
+
+    /// <summary>Content-first persistence routes, staged in the isolated host until the gated application cutover.</summary>
+    public static void MapContentFirstApi(this WebApplication app)
+    {
+        var api = ParentApi(app);
+        api.MapActivityEndpoints();
+        api.MapPlanTemplateEndpoints();
+        api.MapSnapshotEndpoints();
+    }
+
+    private static RouteGroupBuilder ParentApi(WebApplication app)
+    {
         var api = app.MapGroup("/api").RequireAuthorization("Parent").AddEndpointFilter<CsrfFilter>();
         api.AddEndpointFilter(async (context, next) =>
         {
@@ -50,12 +69,14 @@ public static class ApiConfiguration
                 return Results.Problem(statusCode: exception.StatusCode, title: exception.Message, type: exception.ProblemType,
                     extensions: exception.ValidationErrors is null ? null : new Dictionary<string, object?> { ["errors"] = exception.ValidationErrors });
             }
+            catch (TaskValidationException exception)
+            {
+                return Results.ValidationProblem(exception.Errors.ToDictionary(pair => pair.Key, pair => pair.Value));
+            }
         });
         api.MapAuthEndpoints();
-        api.MapAiEndpoints();
-        api.MapTemplateEndpoints();
-        api.MapInstanceEndpoints();
         // An unknown API route must remain a 404 instead of returning Angular's HTML fallback.
         app.Map("/api/{**path}", () => Results.NotFound());
+        return api;
     }
 }

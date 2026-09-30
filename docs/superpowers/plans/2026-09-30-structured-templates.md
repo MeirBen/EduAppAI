@@ -420,18 +420,29 @@ plan/input/content. Release accepts one expectedRevision as the explicit parent
 review action and returns snapshot ID/preview. TaskSnapshot uses existing
 `/api/instances/{id}` previews.
 
-- [ ] Add failing tests for creation from an unsaved valid plan with no AI;
+**Accepted staging decision (1 October 2026):** Implement the new lifecycle in
+a separate API composition exercised by an isolated test host with a fresh
+database. Keep the deployed route composition and schema-4 screens unchanged
+until the gated cutover. Do not add schema compatibility readers, a runtime
+lifecycle switch or a second production project. The new composition shares
+the application's authentication, CSRF, JSON and ProblemDetails policies.
+Task 8 switches the host composition, replaces migrations for the final model,
+and removes the superseded route/contracts code after its callers move.
+An additive Task 3 schema migration keeps the EF model and migration snapshot
+consistent in the meantime; it performs no old-data conversion.
+
+- [x] Add failing tests for creation from an unsaved valid plan with no AI;
       owned-template copy pinned to expectedVersion; owned-snapshot copy with
       cleared review; 404 family boundaries; raw omitted/null/false/zero/empty
       input behavior. Canonical source submissions are parent-accepted without a
       confirmation flag; enforce source identity/kind and preservation.
-- [ ] Add lenient-save and adoption tests. Missing/invalid answer associations
+- [x] Add lenient-save and adoption tests. Missing/invalid answer associations
       produce diagnostics; unbounded/unsafe input fails. Generated material
       edits bump revisions and stale every dependent question. Replace source
       updates copied plan/input atomically, preserves published template,
       resolves again and invalidates dependencies. Plan/settings changes cannot
       keep content silently current; adoption cannot waive strict requirements.
-- [ ] Add release tests for counts/formats/keys/strict lengths/staleness/current
+- [x] Add release tests for counts/formats/keys/strict lengths/staleness/current
       review and active-operation blocking. A target-length mismatch alone must
       not block release; exact/range mismatches must block it. Assert
       plan/input/content/keys/policies/provenance and measurements are frozen,
@@ -440,16 +451,16 @@ review action and returns snapshot ID/preview. TaskSnapshot uses existing
       writes. Deleting that snapshot leaves the draft terminal: exact release
       replay returns 410 Gone, never recreates content; deleted draft
       returns 404.
-- [ ] Add simultaneous save/release tests proving one revision wins. Released
+- [x] Add simultaneous save/release tests proving one revision wins. Released
       drafts reject edits; cloning starts a new draft. Template deletion retains
       independent drafts/snapshots; draft deletion retains its snapshot; family
       reset clears learning records and preserves accounts/configuration.
-- [ ] Run failing tests, implement direct DbContext short
+- [x] Run failing tests, implement direct DbContext short
       transactions/concurrency tokens and server-owned metadata. Derive ordinary
       diagnostics instead of adding competing persisted readiness flags. Use
       disposable databases with the new schema; do not implement old-data
       conversion or compatibility paths.
-- [ ] Run
+- [x] Run
       `dotnet test --filter 'FullyQualifiedName~ActivityDraftTests|FullyQualifiedName~ActivityReleaseTests|FullyQualifiedName~LibraryDeletionTests'`;
       require pass and zero provider calls for save/adopt/release/preview.
 
@@ -685,6 +696,10 @@ TaskSettings. Delete obsolete
 `Evaluation/ContentWorkflowPrototype.cs` and temporary one-shot dispatch after
 capturing the decision; retain comparison artifacts and supported stage
 evidence.
+
+Following the accepted Task 3 staging decision, also remove the superseded
+`TemplateEndpoints` and `InstanceEndpoints` route composition and their schema-4
+DTOs when the canonical plan/snapshot endpoints become the deployed composition.
 
 **Interfaces:** One deployed content-first lifecycle; no compatibility reader,
 dual production path or mutable historical TaskInstance.

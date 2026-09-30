@@ -19,3 +19,13 @@ public sealed record TemplateDetail(Guid Id, int CurrentVersion, Guid VersionId,
 public sealed record CreateVersionRequest(
     [property: JsonRequired] int ExpectedVersion,
     [property: JsonRequired] TaskTemplateDefinition Definition);
+
+/// <summary>Immutable canonical version for the content-first lifecycle, pinned by the current template pointer.</summary>
+public sealed record PlanTemplateDetail(Guid Id, int CurrentVersion, Guid VersionId, LearningPlan Definition)
+{
+    internal static PlanTemplateDetail From(TaskTemplateVersion version) => new(version.TemplateId, version.Version, version.Id,
+        StoredJson.Read<LearningPlan>(version.DefinitionJson));
+}
+
+/// <summary>Canonical plan publication guarded against concurrent edits.</summary>
+public sealed record PublishPlanRequest([property: JsonRequired] int ExpectedVersion, [property: JsonRequired] LearningPlan Definition);

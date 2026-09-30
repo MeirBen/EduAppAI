@@ -13,6 +13,27 @@ namespace FamilyLearning.Api.Tests.Integration;
 public sealed class ParentWorkflowTests
 {
     [Fact]
+    public async Task Content_first_routes_share_real_auth_csrf_no_store_and_family_boundaries()
+    {
+        await using var app = new ActivityApiFactory();
+        using var owner = await app.ParentAsync();
+        using var stranger = await app.ParentAsync();
+        var draft = await ActivityReleaseTests.ReadyDraft(owner);
+        var path = ActivityDraftTests.Path(draft);
+        Assert.Equal(HttpStatusCode.NotFound, (await stranger.PutAsJsonAsync(path, ActivityDraftTests.Edit(draft))).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await stranger.PostAsJsonAsync(path + "/release", new { expectedRevision = 2 })).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await stranger.PostAsJsonAsync(path + "/adopt-content", new { expectedRevision = 2, materialIds = Array.Empty<string>(), questionIds = Array.Empty<string>() })).StatusCode);
+        using var read = await owner.GetAsync(path);
+        Assert.True(read.Headers.CacheControl!.NoStore);
+        owner.DefaultRequestHeaders.Remove("X-XSRF-TOKEN");
+        Assert.Equal(HttpStatusCode.BadRequest, (await owner.PostAsJsonAsync(path + "/release", new { expectedRevision = 2 })).StatusCode);
+        owner.DefaultRequestHeaders.Remove("Cookie");
+        Assert.Equal(HttpStatusCode.Unauthorized, (await owner.GetAsync(path)).StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, (await owner.DeleteAsync(path)).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await stranger.PostAsJsonAsync("/api/templates/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa/instances", new { })).StatusCode);
+    }
+
+    [Fact]
     public async Task Requires_authentication_and_csrf_and_logout_removes_access()
     {
         using var app = new ApiFactory();

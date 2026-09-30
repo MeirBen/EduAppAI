@@ -1,3 +1,4 @@
+using FamilyLearning.Api.Features.Activities;
 using FamilyLearning.Api.Features.Instances;
 using FamilyLearning.Api.Features.Templates;
 using FamilyLearning.Api.Infrastructure.Auth;
@@ -16,6 +17,8 @@ public sealed class LearningDbContext(DbContextOptions<LearningDbContext> option
     public DbSet<TaskTemplate> TaskTemplates => Set<TaskTemplate>();
     public DbSet<TaskTemplateVersion> TaskTemplateVersions => Set<TaskTemplateVersion>();
     public DbSet<TaskInstance> TaskInstances => Set<TaskInstance>();
+    public DbSet<ActivityDraft> ActivityDrafts => Set<ActivityDraft>();
+    public DbSet<TaskSnapshot> TaskSnapshots => Set<TaskSnapshot>();
 
     /// <inheritdoc />
     protected override void OnModelCreating(ModelBuilder model)
@@ -51,6 +54,24 @@ public sealed class LearningDbContext(DbContextOptions<LearningDbContext> option
             entity.HasOne<Family>().WithMany().HasForeignKey(i => i.FamilyId).OnDelete(DeleteBehavior.Restrict);
             entity.HasOne<TaskTemplateVersion>().WithMany().HasForeignKey(i => i.TemplateVersionId)
                 .OnDelete(DeleteBehavior.Restrict);
+        });
+        model.Entity<ActivityDraft>(entity =>
+        {
+            entity.Property(d => d.Name).HasMaxLength(100);
+            entity.Property(d => d.Revision).IsConcurrencyToken();
+            entity.Property(d => d.CreatedAtUtc).HasConversion(utcTimestamp);
+            entity.Property(d => d.UpdatedAtUtc).HasConversion(utcTimestamp);
+            entity.HasIndex(d => new { d.FamilyId, d.UpdatedAtUtc });
+            entity.HasOne<Family>().WithMany().HasForeignKey(d => d.FamilyId).OnDelete(DeleteBehavior.Restrict);
+        });
+        model.Entity<TaskSnapshot>(entity =>
+        {
+            entity.Property(s => s.Title).HasMaxLength(100);
+            entity.Property(s => s.DraftCreatedAtUtc).HasConversion(utcTimestamp);
+            entity.Property(s => s.ReviewedAtUtc).HasConversion(utcTimestamp);
+            entity.HasIndex(s => s.SourceDraftId).IsUnique();
+            entity.HasIndex(s => new { s.FamilyId, s.ReviewedAtUtc });
+            entity.HasOne<Family>().WithMany().HasForeignKey(s => s.FamilyId).OnDelete(DeleteBehavior.Restrict);
         });
     }
 }

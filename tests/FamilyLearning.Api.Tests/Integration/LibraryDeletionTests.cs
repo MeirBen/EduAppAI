@@ -14,6 +14,60 @@ namespace FamilyLearning.Api.Tests.Integration;
 
 public sealed class LibraryDeletionTests
 {
+    [Fact]
+    public async Task Content_first_template_deletion_preserves_independent_drafts_and_snapshots_and_reset_is_family_scoped()
+    {
+        await using var app = new ActivityApiFactory();
+        using var owner = await app.ParentAsync();
+        using var stranger = await app.ParentAsync();
+        var plan = TaskEngine.LearningPlanFixture.Numeric(1);
+        using var published = await owner.PostAsJsonAsync("/api/templates", plan);
+        var template = await published.Content.ReadFromJsonAsync<JsonElement>();
+        var templateId = template.GetProperty("id").GetGuid();
+        using var copied = await owner.PostAsJsonAsync("/api/activity-drafts", new { templateId, expectedVersion = 1, input = new Api.TaskEngine.Models.TaskRequest(plan.Defaults) });
+        var draft = (await copied.Content.ReadFromJsonAsync<System.Text.Json.Nodes.JsonNode>())!;
+        var edit = ActivityDraftTests.Edit(draft);
+        edit["document"] = ActivityDraftTests.Document();
+        draft = await ActivityDraftTests.Save(owner, draft, edit);
+        using var released = await owner.PostAsJsonAsync(ActivityDraftTests.Path(draft) + "/release", new { expectedRevision = 2 });
+        var snapshot = await released.Content.ReadFromJsonAsync<JsonElement>();
+        var snapshotId = snapshot.GetProperty("id").GetGuid();
+        var foreign = await ActivityReleaseTests.ReadyDraft(stranger);
+        Assert.Equal(HttpStatusCode.NoContent, (await owner.DeleteAsync($"/api/templates/{templateId}")).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await owner.GetAsync(ActivityDraftTests.Path(draft))).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await owner.GetAsync($"/api/instances/{snapshotId}")).StatusCode);
+        Assert.Equal(HttpStatusCode.NoContent, (await owner.DeleteAsync("/api/templates")).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await owner.GetAsync(ActivityDraftTests.Path(draft))).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await owner.GetAsync($"/api/instances/{snapshotId}")).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await stranger.GetAsync(ActivityDraftTests.Path(foreign))).StatusCode);
+        using var scope = app.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<LearningDbContext>();
+        Assert.Equal(2, await db.Users.CountAsync());
+        Assert.Equal(2, await db.Families.CountAsync());
+        Assert.Single(await db.ActivityDrafts.ToListAsync());
+        Assert.Empty(await db.TaskSnapshots.ToListAsync());
+        Assert.Empty(await db.TaskTemplates.ToListAsync());
+        Assert.Empty(await db.TaskTemplateVersions.ToListAsync());
+    }
+
+    [Fact]
+    public async Task Content_first_reset_failure_rolls_back_draft_and_snapshot_deletion()
+    {
+        await using var app = new ActivityApiFactory();
+        using var parent = await app.ParentAsync();
+        var draft = await ActivityReleaseTests.ReadyDraft(parent);
+        using var released = await parent.PostAsJsonAsync(ActivityDraftTests.Path(draft) + "/release", new { expectedRevision = 2 });
+        Assert.Equal(HttpStatusCode.Created, released.StatusCode);
+        using (var scope = app.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<LearningDbContext>();
+            await db.Database.ExecuteSqlRawAsync("CREATE TRIGGER RejectSnapshotDeletion BEFORE DELETE ON TaskSnapshots BEGIN SELECT RAISE(ABORT, 'private'); END;");
+        }
+        Assert.Equal(HttpStatusCode.InternalServerError, (await parent.DeleteAsync("/api/templates")).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await parent.GetAsync(ActivityDraftTests.Path(draft))).StatusCode);
+        Assert.Equal(1, (await parent.GetFromJsonAsync<JsonElement>("/api/instances")).GetArrayLength());
+    }
+
     [Theory]
     [InlineData("/api/templates")]
     [InlineData("/api/templates/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa")]

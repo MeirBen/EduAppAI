@@ -167,6 +167,34 @@ See the [UI guide](ui-guide.md) and [verification commands](../README.md#verify)
 
 References: [IChatClient][chat], [structured output][output], [Signal Forms][forms].
 
+## Staged activity persistence
+
+The content-first API is implemented separately in
+`ApiConfiguration.MapContentFirstApi` and exercised by an isolated integration
+host. The deployed host still selects `MapApplicationApi` until the accepted
+cutover gate; it has no runtime lifecycle switch or schema compatibility reader.
+
+`Features/Activities` owns saved plan/input/document checkpoints, server-owned
+content identity and revision updates, explicit adoption, and release. Shared
+TaskEngine validators derive diagnostics and readiness. Direct edits never call
+AI or republish the source template. The editable DTO excludes provenance and
+acceptance metadata; changing a source updates its canonical plan/input and
+document together. Questions remain stale until edited or adopted; removing a
+source clears its dependent questions' acceptance while preserving their origin.
+
+An application-managed EF concurrency token guards each draft write. One
+`SaveChanges` transaction creates the immutable snapshot and marks the draft
+terminal, with a unique source-draft index preventing duplicate releases. Exact
+release replay returns the original snapshot; if deleted, it returns 410.
+Template and source-draft IDs are detached provenance, so independent deletion
+does not erase snapshots. Family reset deletes owned learning records atomically
+and preserves accounts. No scoring policy or child DTO is introduced here.
+
+The additive migration creates draft/snapshot tables without converting old
+learning data. The final cutover task replaces prototype migrations with the
+clean initial model. Integration tests use disposable databases and real
+authentication/CSRF policies; no AI client is registered in their activity host.
+
 [chat]: https://learn.microsoft.com/en-us/dotnet/ai/ichatclient
 [output]: https://openrouter.ai/docs/guides/features/structured-outputs
 [forms]: https://angular.dev/guide/forms/signals/schemas
