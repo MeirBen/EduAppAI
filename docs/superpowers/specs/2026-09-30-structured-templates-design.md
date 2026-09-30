@@ -37,8 +37,10 @@ JSON, placeholders, internal paths or provider prompts. Hide inapplicable
 controls; a question-only math or logic activity has no mandatory passage
 fields.
 
-1. Describe the activity. AI proposes a plan or asks one focused clarification.
-   Valid proposals apply locally with actual computed changes and Undo.
+1. Describe the activity. Each AI reply proposes a plan or asks one focused
+   clarification. Further parent replies may lead to more clarification or
+   refinement until the parent is satisfied. Valid proposals apply locally with
+   actual computed changes and Undo.
 2. Adjust the plan/settings and confirm any source extracted from chat. Direct
    editing costs no AI call. Select **יצירת פעילות** to save an ActivityDraft
    before starting generation.
@@ -640,13 +642,22 @@ external promise.
 
 POST /api/ai/template-drafts evolves in place: message (4,000 characters),
 optional baseDefinition, baseRevision, requestId and unresolved context (six
-turns/12,000 characters). Retain the original request while clarifying; require
-consolidation instead of silently truncating it. The provider receives no
-request/revision/family metadata. AuthoringReply contains either a proposal or
-one clarification (1,000 characters), plus at most eight assumptions of 200
-characters. Operative assumptions must also occur in the plan. Normalize IDs,
-validate and compute real ordered changes including removals; do not trust the
-model's summary. Identical proposals are no-ops.
+turns/12,000 characters). This bounds the context of each request, not the total
+conversation. After a valid proposal applies, the current plan carries the
+agreed requirements and unresolved context starts afresh. Until then retain the
+original request and answers; if the cap is reached, ask the parent to
+consolidate pending requirements before the next request rather than silently
+truncating them. The provider receives no request/revision/family metadata.
+
+AuthoringReply contains either a proposal or at most one focused clarification
+question (1,000 characters) per reply, plus at most eight assumptions of 200
+characters. Clarification may repeat across parent-initiated exchanges; there is
+no one-question or lifetime turn quota. Ask only when missing information
+materially affects the plan, not as a mandatory step. Each submitted parent
+message permits one authoring call; clarification waits for an answer and never
+starts another call automatically. Operative assumptions must also occur in the
+plan. Normalize IDs, validate and compute real ordered changes including
+removals; do not trust the model's summary. Identical proposals are no-ops.
 
 Plan chat can propose a complete plan; expose all changes and avoid claiming
 unrelated content is preserved by prompting. Scoped content actions have

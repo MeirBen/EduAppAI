@@ -452,10 +452,16 @@ client revision, baseline, clarification and twenty-entry Undo. Presentation
 children emit edits without owning another draft. Saved template publication
 keeps expectedVersion.
 
-- [ ] Test initial proposal/refinement/one-question clarification, six-turn and
-      12,000-character context cap, operative assumptions present in the plan,
-      identity preservation and computed removals. Retained fixed source cannot
-      change through AI; direct source edits are explicit and confirmed.
+- [ ] Test initial proposal/refinement and successive clarification exchanges:
+      at most one question per reply, one call per submitted parent message and
+      no automatic follow-up call or mandatory clarification. Preserve original
+      intent and answers until a proposal applies, then use the current plan as
+      the agreed context. The six-turn/12,000-character request cap requires
+      explicit consolidation when reached; it is not a lifetime conversation
+      quota. Test further refinement after consolidation without silent context
+      loss. Keep operative assumptions in the plan, identity preservation and
+      computed removals. Retained fixed source cannot change through AI; direct
+      source edits are explicit and confirmed.
 - [ ] Test workspace-only source confirmation: an unconfirmed AI-extracted
       source blocks publication, draft creation/update and generation before
       HTTP submission. Confirming or directly editing it enables submission; the
@@ -537,6 +543,7 @@ and `frontend/e2e/evaluation-ui.test.mjs`.
 
 **Interfaces:** A case selects Prompt or InitialPlan, never both. Prompt permits
 at most three 4,000-character refinements; fixed-plan trials omit authoring.
+This bounds the evaluation fixture and call budget, not workspace conversation.
 Stage records carry role and engine/schema versions, exact effective
 input/schema + stable hashes, raw output, candidate acceptance/application state
 and optional usage. Skipped stages are explicit. Separate interpretation,
