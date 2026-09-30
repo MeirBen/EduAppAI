@@ -41,7 +41,9 @@ tests and delivery order. Read both before implementation.
   counters in schemas, prompts, client code, fixture builders or documentation.
 - Retain answer.value, parent-only keys, family authorization, CSRF,
   ProblemDetails, UTC, cancellation and the existing adapter/profile.
-- No destructive migration before comparative-value and isolated-test gates.
+- Follow the spec's [disposable development-data policy][data-policy]: no data
+  migration or backward compatibility. Local database recreation is authorized
+  during implementation; final cutover still requires the value/test gates.
   Current product/architecture/README behavior remains current until cutover.
 
 ## Review focus
@@ -315,8 +317,9 @@ methods; only scheduling, storage and evaluation retries differ.
       control/recovery gains. Obtain the user's explicit paid-call/cost budget.
       Without it, make no live calls and leave the comparative-value gate unmet.
 - [ ] Record the falsifiable decision: added cost without useful quality,
-      control or recovery benefit requires reconsideration before migration. A
-      passing mock or external STACK case is not evidence of Hebrew improvement.
+      control or recovery benefit requires reconsideration before final cutover.
+      A passing mock or external STACK case is not evidence of Hebrew
+      improvement.
 
 ### Task 3: Persist editable drafts and release immutable snapshots
 
@@ -364,7 +367,8 @@ review action and returns snapshot ID/preview. TaskSnapshot uses existing
 - [ ] Run failing tests, implement direct DbContext short
       transactions/concurrency tokens and server-owned metadata. Derive ordinary
       diagnostics instead of adding competing persisted readiness flags. Use
-      disposable test schema creation while migration remains gated.
+      disposable databases with the new schema; do not implement old-data
+      conversion or compatibility paths.
 - [ ] Run
       `dotnet test --filter 'FullyQualifiedName~ActivityDraftTests|FullyQualifiedName~ActivityReleaseTests|FullyQualifiedName~LibraryDeletionTests'`;
       require pass and zero provider calls for save/adopt/release/preview.
@@ -583,10 +587,11 @@ reuse one provider profile and judge.
 
 **Files:** Modify `frontend/e2e/ai-provider.mjs`, `parent-workflow.spec.ts`,
 `http-boundaries.spec.ts`, `theme.spec.ts` and
-`Tests/Integration/MigrationTests.cs`. Generate a new `ContentFirstActivities`
-migration under Persistence/Migrations. Update README,
-docs/product-specification.md, docs/architecture.md, docs/ui-guide.md and
-touched contract comments only when behavior is implemented.
+`Tests/Integration/MigrationTests.cs`. Replace obsolete prototype migrations
+under Persistence/Migrations with a fresh `InitialCreate` migration and model
+snapshot for the final model. Update README, docs/product-specification.md,
+docs/architecture.md, docs/ui-guide.md and touched contract comments only when
+behavior is implemented.
 
 **Delete after callers move:** `Engine/Models/TaskTemplateDefinition.cs`,
 `TaskContent.cs`, `Engine/Validation/ParameterValidator.cs`,
@@ -613,15 +618,15 @@ dual production path or mutable historical TaskInstance.
       failure keeps material; answer deletion blocks release; unsaved
       typing/Undo survive late output; cancel/unknown/409 preserve work; no
       placeholder child delivery.
-- [ ] Verify generated migration on disposable schema-4 data: clear learning
-      records, preserve identities/accounts/configuration and create fresh new
-      records. Keep historical migrations intact. No user's database is migrated
-      during tests or while the comparative gate is unmet.
+- [ ] Verify the initial migration on an empty disposable SQLite database,
+      repeat startup without data loss and provision a parent through the
+      existing command. Remove old-schema upgrade/preservation fixtures; retain
+      fresh-installation, ownership and normal family-reset coverage. Automated
+      tests never reset the user's database.
 - [ ] Review prototype evidence against the pre-registered rubric/budget and
       record proceed/reconsider. If extra cost bought no useful benefit, stop
-      destructive cutover and revise the split. If no live evidence was
-      authorized, leave this gate visibly incomplete rather than inventing
-      proof.
+      final cutover and revise the split. If no live evidence was authorized,
+      leave this gate visibly incomplete rather than inventing proof.
 - [ ] Remove obsolete callers/contracts/UI only after isolated checks cover
       their meaningful boundaries. Update current docs and real fixture-derived
       call examples; remove planned-design banners when behavior actually lands.
@@ -629,10 +634,13 @@ dual production path or mutable historical TaskInstance.
       `git diff --check`; require exit 0. Inspect 360px/200% text/keyboard/RTL,
       ownership, source fidelity, races and artifact limits. Review the diff for
       unrelated changes, credentials, DBs, keys or generated outputs.
-- [ ] Only after both gates pass, stop development watchers, take a local backup
-      and apply the already-authorized development-learning reset using normal
-      migration tooling. Preserve accounts/configuration/keys and report what
-      changed. Do not commit, deploy or delete unrelated data.
+- [ ] When local setup needs the new schema, stop this project's watchers and
+      connections, delete only its configured local SQLite database and related
+      journal/WAL files, then initialize from the new baseline. No backup or
+      record preservation is required. Keep external configuration/credentials/
+      keys, recreate a parent if needed and report the reset. This authorization
+      does not require repeating approval or bypass the final value/test gates.
+      Do not commit, deploy or delete unrelated data.
 
 Child activation, assignment, attempts, scoring and reports require a later
 separate vertical-slice plan. This plan prepares immutable self-contained
@@ -640,3 +648,4 @@ content and answer keys; the child slice owns scoring policy and its versions.
 
 [design]: ../specs/2026-09-30-structured-templates-design.md
 [versions]: ../specs/2026-09-30-structured-templates-design.md#version-ownership
+[data-policy]: ../specs/2026-09-30-structured-templates-design.md#development-data-and-compatibility

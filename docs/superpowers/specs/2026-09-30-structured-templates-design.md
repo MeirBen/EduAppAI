@@ -759,25 +759,26 @@ parent-only cutover.
 
 ## 9. Comparative prototype and implementation gate
 
-Before destructive migration, use the existing evaluator/provider with fixed
-canonical plans for generated Hebrew reading, exact supplied bilingual source,
-and a question-only control. Compare one-shot versus the conditional split on
-matched model/settings, source strings, effective inputs and check policies.
-Keep source assembly equally authoritative in both variants. Use repeated,
-blinded randomized human review for Hebrew naturalness, age fit, answer-key
-correctness, grounding, distractors and requested pedagogy; preserve all
-failures, corrections, retries, call counts, usage coverage, actual costs and
-total latency. Keep unseen cases for holdout evaluation. A mock proves
+Before finalizing the new workflow, use the existing evaluator/provider with
+fixed canonical plans for generated Hebrew reading, exact supplied bilingual
+source, and a question-only control. Compare one-shot versus the conditional
+split on matched model/settings, source strings, effective inputs and check
+policies. Keep source assembly equally authoritative in both variants. Use
+repeated, blinded randomized human review for Hebrew naturalness, age fit,
+answer-key correctness, grounding, distractors and requested pedagogy; preserve
+all failures, corrections, retries, call counts, usage coverage, actual costs
+and total latency. Keep unseen cases for holdout evaluation. A mock proves
 mechanics, not language quality. No live run without an explicit user-approved
 paid-call/cost budget.
 
 Pre-register sample count, repeats, usable-task rubric, acceptable extra cost
 and latency, and recovery/control outcomes in the experiment artifact before
 calls. The gate is falsifiable: if the extra call adds cost without useful
-control, recovery or quality benefit, reconsider the split before migration. Do
-not claim split improves Hebrew on the strength of architecture or outside case
-studies. If no paid evidence is authorized, the live-value gate remains unmet;
-complete isolated implementation work without destructive cutover.
+control, recovery or quality benefit, reconsider the split before final cutover.
+Do not claim split improves Hebrew on the strength of architecture or outside
+case studies. If no paid evidence is authorized, the live-value gate remains
+unmet; continue isolated implementation work without claiming the value gate
+passed. Resetting disposable development data is independently authorized below.
 
 Reuse the evaluator for interpretation/refinement, fixed-plan generation, scoped
 replacement and end-to-end readiness. Distinguish those suites and retain raw
@@ -814,17 +815,10 @@ generator.
 The implementation plan stages minimal domain contracts and the comparative
 prototype before persisted draft/release, durable worker, workspace/scoped
 editing, evaluator and cutover. Remove the old schema-4 authoring/content path
-only after isolated unit, fixture, migration and browser checks plus the
+only after isolated unit, fixture, fresh-database and browser checks plus the
 evidence gate pass. No deployed dual lifecycle or compatibility reader. Preserve
 existing application/evaluator baseline tests during this documentation-only
 change.
-
-The user has allowed a development learning-data reset for the eventual verified
-cutover. Generate a new migration rather than rewriting migration history; clear
-learning rows while preserving accounts/configuration/keys. Stop watchers, take
-a backup and apply it only after the prototype gate and all checks. This design
-update runs no migration or destructive command. Current README, architecture
-and product behavior text remains current until implementation.
 
 Completion requires generation from an unsaved plan; exact supplied sources;
 editable reloadable drafts; scoped edits that preserve unrelated content; strict
@@ -833,6 +827,28 @@ restart; replay-safe starts/releases; no live AI in isolated tests; and usable
 narrow RTL/keyboard/enlarged-text behavior. Run scripts/verify.sh and the
 isolated browser workflow for implementation. Neither code tests nor this design
 establish measured educational quality.
+
+### Development data and compatibility
+
+This is a new side project with disposable local data. No existing database
+content, local accounts or sessions need to survive this redesign. During
+implementation, deleting and recreating this project's local SQLite database and
+its associated journal/WAL files is authorized when needed. Stop its
+watchers/connections first and scope deletion to that database. No backup, data
+conversion, account transfer or old-schema upgrade path is required.
+
+Replace obsolete prototype migrations with a clean initial EF Core migration and
+model snapshot for the final model. Keep normal EF migration tooling for fresh
+installations and future schema changes; do not add automatic startup database
+deletion. Remove obsolete contracts, compatibility readers, adapters, fallback
+paths and old-schema migration tests after their replacements are verified. The
+normal in-app family reset still preserves accounts as defined in section 5; it
+is separate from this implementation-time database reset.
+
+Preserve unrelated files, configuration, external credentials and keys. Recreate
+a local parent through the existing provisioning command when needed. This
+documentation change deletes no database. Current README, architecture and
+product behavior text remains current until implementation.
 
 ## 11. Research references
 
