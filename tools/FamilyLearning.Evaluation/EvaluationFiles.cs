@@ -41,7 +41,8 @@ public static class EvaluationFiles
         {
             var path = Path.Combine(directory, name);
             // Deliberately uncancellable: retain partial results after Ctrl+C. A failed summary cannot corrupt the run.
-            await File.WriteAllTextAsync(path + ".tmp", JsonSerializer.Serialize(value, Json));
+            await using (var stream = File.Create(path + ".tmp"))
+                await JsonSerializer.SerializeAsync(stream, value, Json);
             File.Move(path + ".tmp", path, overwrite: true);
         }
     }

@@ -61,10 +61,11 @@ public sealed record EvaluationSummary
         var calls = report.Steps.Where(step => step.RequestSent).ToArray();
         var responses = calls.Where(step => step.ResponseReceived && step.FinishedAtUtc.HasValue).ToArray();
         var generationSteps = report.Results.SelectMany(result => new[] { result.Authoring, result.Generation }).OfType<EvaluationStep>();
+        var reviews = report.Results.Select(result => result.Review.Scores()).ToArray();
         var humanScores = new Dictionary<string, HumanScoreSummary>();
         foreach (var key in new ManualReview().Scores().Keys)
         {
-            var scores = report.Results.Select(result => result.Review.Scores()[key]).OfType<int>().ToArray();
+            var scores = reviews.Select(review => review[key]).OfType<int>().ToArray();
             humanScores[key] = new(scores.Length, planned - scores.Length, scores.Length == 0 ? null : scores.Average());
         }
         return new()
