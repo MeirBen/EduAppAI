@@ -38,7 +38,7 @@ public sealed class EvaluationReport(EvaluationCase[] cases, int repeat, string 
     /// <summary>Recorded pause before each call after the first, outside request timing.</summary>
     [JsonRequired] public int CallDelaySeconds { get; init; }
     public int PlannedCalls => CountCalls(Cases.Length, Repeat, JudgeEnabled ? CalibrationSamples.Length : 0);
-    public List<CalibrationResult> Calibration { get; init; } = [];
+    [JsonRequired] public List<CalibrationResult> Calibration { get; init; } = [];
     [JsonRequired] public List<EvaluationResult> Results { get; init; } = [];
     /// <summary>Superseded 429 attempts; each stage retains its current or final attempt separately.</summary>
     public List<EvaluationRetry> Retries { get; init; } = [];

@@ -18,13 +18,14 @@ public static class EvaluationFiles
         Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping
     };
 
-    /// <summary>Reads and hashes the same bytes, so fixture changes during a run cannot alter its controls.</summary>
+    /// <summary>Validates fixtures and hashes the same bytes, so changes during a run cannot alter its inputs.</summary>
     public static async Task<(T[] Items, string Sha256)> LoadFixtureAsync<T>(string name, string? directory = null)
     {
         var bytes = await File.ReadAllBytesAsync(Path.Combine(directory ?? AppContext.BaseDirectory, name));
         var items = JsonSerializer.Deserialize<T[]>(bytes, Json);
         if (items is not { Length: > 0 } || items.Any(item => item is null)) throw new InvalidDataException("Empty or null evaluation fixture.");
         if (items is EvaluationCase[] cases) ValidateCases(cases);
+        if (items is CalibrationSample[] samples) ValidateCalibrationSamples(samples);
         return (items, Convert.ToHexString(SHA256.HashData(bytes)));
     }
 
@@ -48,9 +49,9 @@ public static class EvaluationFiles
     /// <summary>Rejects unsupported reports and invalid human scores instead of inventing missing measurements.</summary>
     public static async Task<EvaluationReport> ReadReportAsync(string path)
     {
-        if (new FileInfo(path).Length > 32 * 1024 * 1024) throw new InvalidDataException("Evaluation report is too large.");
-        using var document = JsonDocument.Parse(await File.ReadAllTextAsync(path), new() { MaxDepth = Json.MaxDepth });
-        var report = document.RootElement.Deserialize<EvaluationReport>(Json);
+        await using var stream = File.OpenRead(path);
+        if (stream.Length > 32 * 1024 * 1024) throw new InvalidDataException("Evaluation report is too large.");
+        var report = await JsonSerializer.DeserializeAsync<EvaluationReport>(stream, Json);
         if (report is null || report.FormatVersion != EvaluationReport.CurrentFormatVersion || report.AutomaticChecksVersion < 1 ||
             report.Cases is not { Length: > 0 } || report.Repeat is < 1 or > 5 || report.Profile is null || report.CallDelaySeconds is < 0 or > 60 ||
             string.IsNullOrWhiteSpace(report.SuiteSha256) || report.Results is null || report.Calibration is null || report.CalibrationSamples is null ||
@@ -58,10 +59,8 @@ public static class EvaluationFiles
                 retry.Number is < 1 or > 3 || !double.IsFinite(retry.DelaySeconds) || retry.DelaySeconds is < 0 or > 300 ||
                 !retry.Call.RequestSent || retry.Call.FinishedAtUtc is null || retry.Call.StatusCode != 429 || retry.Call.ContractValid))
             throw new InvalidDataException("Invalid or unsupported evaluation report; format version 2 is required.");
-        // Defaults permit non-judge format-2 reports to omit controls; they must not repair missing judge evidence.
         if (report.JudgeEnabled && (string.IsNullOrWhiteSpace(report.CalibrationSha256) || report.CalibrationSamples.Length == 0 ||
-            string.IsNullOrWhiteSpace(report.JudgePromptVersion) || string.IsNullOrWhiteSpace(report.JudgePrompt) ||
-            !document.RootElement.EnumerateObject().Any(property => property.Name.Equals("calibration", StringComparison.OrdinalIgnoreCase))))
+            string.IsNullOrWhiteSpace(report.JudgePromptVersion) || string.IsNullOrWhiteSpace(report.JudgePrompt)))
             throw new InvalidDataException("Judge-enabled reports require captured calibration and judge metadata.");
         ValidateCases(report.Cases);
         ValidateRunMetadata(report.Label, report.RunNotes);
@@ -114,7 +113,7 @@ public static class EvaluationFiles
     }
 
     /// <summary>Rejects unusable expectations before a live run can spend calls on them.</summary>
-    public static void ValidateCalibrationSamples(CalibrationSample[] samples)
+    private static void ValidateCalibrationSamples(CalibrationSample[] samples)
     {
         if (samples is not { Length: > 0 } || samples.Any(sample => sample is null || string.IsNullOrWhiteSpace(sample.Id) || string.IsNullOrWhiteSpace(sample.Request) ||
             sample.Texts is not { Length: > 0 } || sample.ExpectedIssues is null || sample.ExpectedIssues.Length > 20 ||

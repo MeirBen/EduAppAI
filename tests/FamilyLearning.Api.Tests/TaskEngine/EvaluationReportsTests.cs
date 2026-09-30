@@ -154,7 +154,8 @@ public sealed class EvaluationReportsTests : IDisposable
     [Theory]
     [InlineData("automaticChecksVersion")]
     [InlineData("callDelaySeconds")]
-    public async Task Missing_run_settings_are_rejected_instead_of_assuming_legacy_defaults(string property)
+    [InlineData("calibration")]
+    public async Task Missing_run_evidence_is_rejected_instead_of_assuming_defaults(string property)
     {
         var path = await SaveAsync("missing-run-setting", CreateReport());
         var json = JsonNode.Parse(await File.ReadAllTextAsync(path))!.AsObject();

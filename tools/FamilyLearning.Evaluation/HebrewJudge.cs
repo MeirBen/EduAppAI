@@ -133,6 +133,6 @@ public static class HebrewJudge
 
     private static string FormatInstructions(JsonElement schema) => $"{Prompt}\nOutput JSON schema:\n{schema}";
 
-    internal static bool IsKnownKind(string? kind) => kind is "spelling" or "invented-word" or "agreement" or
+    private static bool IsKnownKind(string? kind) => kind is "spelling" or "invented-word" or "agreement" or
         "grammar-syntax" or "language-mixing" or "non-idiomatic";
 }

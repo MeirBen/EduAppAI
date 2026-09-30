@@ -122,7 +122,6 @@ public static class EvaluationDashboard
             try
             {
                 var controls = await EvaluationFiles.LoadFixtureAsync<CalibrationSample>("hebrew-review-samples.json");
-                EvaluationFiles.ValidateCalibrationSamples(controls.Items);
                 calibrationCount = controls.Items.Length;
             }
             catch (Exception exception) when (exception is IOException or InvalidDataException or JsonException or UnauthorizedAccessException)

@@ -27,7 +27,6 @@ public sealed record EvaluationPlan(EvaluationRunRequest Request, EvaluationCase
         var controls = request.Judge
             ? await EvaluationFiles.LoadFixtureAsync<CalibrationSample>("hebrew-review-samples.json", fixtureDirectory)
             : (Items: Array.Empty<CalibrationSample>(), Sha256: "");
-        if (request.Judge) EvaluationFiles.ValidateCalibrationSamples(controls.Items);
         return new(request, cases, suite.Sha256, controls.Items, controls.Sha256);
     }
 

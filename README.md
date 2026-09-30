@@ -80,21 +80,11 @@ saving. See [reasoning controls][reasoning] for provider differences. Token budg
 and the deadline are application cost/latency limits, not vendor quality defaults.
 Tune them against representative tasks; a tight thinking budget can reduce quality.
 
-The current profile uses `deepseek/deepseek-v4.1-flash`, strict JSON-schema output,
-low reasoning effort, a 16,384-token total ceiling and the default 180-second
-deadline. [OpenRouter's model metadata][model-metadata] advertises effort control,
-not a hard reasoning-token budget, so `ReasoningMaxTokens` is null. Low effort
-does not reserve tokens for final JSON. The ceiling is a bounded application
-setting to evaluate; it cannot fix analysis returned as answer text or guarantee
-completion within the deadline.
-
-Temperature 1.0 and top-p 0.95 follow the [model's serving recipe][deepseek-model];
-top-k is unset. The [native thinking API][deepseek-thinking] ignores temperature;
-third-party serving behavior can differ. JSON-schema enforcement is a capability
-of eligible OpenRouter endpoints; native DeepSeek Chat Completions documents
-[JSON-object output][deepseek-json]. Keep server validation and compare the same
-cases with manual Hebrew and answer review. Changing the model also changes the
-evaluation judge; failed calibration cannot certify Hebrew quality.
+Check [OpenRouter's model metadata][model-metadata] and the serving provider's
+documentation when changing profiles. Reasoning effort is not a hard token budget;
+it does not reserve room for final JSON. Keep the active values in `appsettings.json`
+and evaluate them with representative cases. Changing the model also changes the
+evaluation judge, so repeat calibration and manual review.
 
 The same settings apply to an optional fallback: it must support the selected
 output format, reasoning and sampling controls. [Fallback routing][fallback]
@@ -104,16 +94,12 @@ records the actual model. It requires support for explicitly requested parameter
 instead of silently discarding them. There is no runtime model catalog dependency
 or automatic downgrade of output constraints.
 
-Paid models require account credits; your existing OpenRouter key still works.
-Local automated tests use a fixed, isolated provider configuration and consume no
-credits. Their model IDs and settings are independent of the active model.
+Paid models require account credits. Automated tests use an isolated provider
+configuration, independently of the active model, and consume no credits.
 
 [parameters]: https://openrouter.ai/docs/api/reference/parameters
 [reasoning]: https://openrouter.ai/docs/guides/best-practices/reasoning-tokens
 [model-metadata]: https://openrouter.ai/api/v1/models
-[deepseek-model]: https://huggingface.co/deepseek-ai/DeepSeek-V4.1-Flash
-[deepseek-thinking]: https://api-docs.deepseek.com/guides/thinking_mode/
-[deepseek-json]: https://api-docs.deepseek.com/guides/json_mode/
 [fallback]: https://openrouter.ai/docs/guides/routing/model-fallbacks
 
 ## Hebrew AI evaluation
@@ -280,8 +266,9 @@ passing calibration and matching reviewed cases; human-score deltas require the
 same scored case/repetition pairs. Token/cost deltas require full measurement
 coverage. Other deltas are null or explicitly qualified. Only format 2 reports
 are supported; mismatched embedded controls and invalid human scores are rejected.
-Reports require their recorded check version and call delay. Start a new baseline
-for direct comparison after changing contracts, checks or fixtures.
+Reports require their recorded check version, call delay and calibration results
+(an empty array when unused). Start a new baseline for direct comparison after
+changing contracts, checks or fixtures.
 
 Run exit codes: 0 completed automatic checks and, when enabled, calibration and
 reviews passed without findings; 1 failures/findings or stopped run; 2 invalid

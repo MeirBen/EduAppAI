@@ -98,7 +98,7 @@ public sealed class EvaluationValidationTests : IDisposable
     {
         var path = await WriteReportAsync(false);
         var json = JsonNode.Parse(await File.ReadAllTextAsync(path))!.AsObject();
-        foreach (var property in new[] { "calibrationSha256", "calibrationSamples", "judgePromptVersion", "judgePrompt", "calibration" })
+        foreach (var property in new[] { "calibrationSha256", "calibrationSamples", "judgePromptVersion", "judgePrompt" })
             json.Remove(property);
         await File.WriteAllTextAsync(path, json.ToJsonString());
 
@@ -108,6 +108,17 @@ public sealed class EvaluationValidationTests : IDisposable
         Assert.Empty(loaded.CalibrationSamples);
         Assert.Empty(loaded.Calibration);
         Assert.Equal(2, loaded.PlannedCalls);
+    }
+
+    [Fact]
+    public async Task Calibration_fixture_rejects_expectations_that_are_not_quoted_from_its_text()
+    {
+        Directory.CreateDirectory(directory);
+        var path = Path.Combine(directory, "controls.json");
+        CalibrationSample[] samples = [new("control", "בקשת לימוד", [new("question", "מילה תקינה")], [new("question", "מילה חסרה")])];
+        await File.WriteAllTextAsync(path, JsonSerializer.Serialize(samples));
+
+        await Assert.ThrowsAsync<InvalidDataException>(() => EvaluationFiles.LoadFixtureAsync<CalibrationSample>(path));
     }
 
     [Theory]
@@ -266,7 +277,6 @@ public sealed class EvaluationValidationTests : IDisposable
     public async Task Current_suite_and_isolated_fixture_directory_are_supported()
     {
         var suite = await EvaluationFiles.LoadFixtureAsync<EvaluationCase>("cases.json");
-        EvaluationFiles.ValidateCases(suite.Items);
         await WriteFixtureAsync(suite.Items);
 
         var isolated = await EvaluationFiles.LoadFixtureAsync<EvaluationCase>("cases.json", directory);
