@@ -6,7 +6,17 @@ namespace FamilyLearning.Api.TaskEngine.Ai;
 internal static class AiSchemas
 {
     public static readonly JsonElement Template = Read("template.schema.json");
-    public static readonly JsonElement Content = Read("content.schema.json");
+    private static readonly JsonElement Content = Read("content.schema.json");
+
+    /// <summary>Constrains generation to the validated input count without changing the shared schema.</summary>
+    public static JsonElement ContentFor(int questionCount)
+    {
+        var schema = JsonSerializer.SerializeToNode(Content)!;
+        var questions = schema["properties"]!["questions"]!;
+        questions["minItems"] = questionCount;
+        questions["maxItems"] = questionCount;
+        return JsonSerializer.SerializeToElement(schema);
+    }
 
     private static JsonElement Read(string name)
     {

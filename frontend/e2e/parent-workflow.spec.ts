@@ -72,7 +72,10 @@ test('a parent prompt becomes an editable reusable template and distinct frozen 
   await login(page);
   await expect(page.getByRole('heading', { name: 'מתחילים עם רעיון אחד' })).toBeVisible();
   await checkNarrowLayout(page, 'empty-library');
-  await propose(page, 'קטעי קריאה לכיתה ג׳ עם נושא ורמה לבחירה ושאלות מעורבות');
+  await propose(
+    page,
+    'קטעי קריאה לכיתה ג׳ עם שאלות מעורבות. אפשר להורה להזין דגשים לתרגול ולבחור סגנון: מידעי או סיפורי.',
+  );
   const instructions = await page.getByLabel('הנחיות ליצירת המשימות').inputValue();
   expect((await (await page.request.get('/api/templates')).json()).length).toBe(0);
   await page.getByLabel('שם התבנית', { exact: true }).fill('קוראים ומגלים');

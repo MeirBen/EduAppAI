@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using FamilyLearning.Api.TaskEngine.Ai;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
@@ -21,7 +22,7 @@ public sealed class AiAuthoringTests
         using var draftResponse = await parent.PostAsJsonAsync("/api/ai/template-drafts", new { prompt = "תבנית הבנת הנקרא עם נושא ומספר שאלות לבחירה" });
         Assert.Equal(HttpStatusCode.OK, draftResponse.StatusCode);
         var draft = await draftResponse.Content.ReadFromJsonAsync<JsonElement>();
-        Assert.Equal("template-authoring-v20", draft.GetProperty("generationMetadata").GetProperty("promptVersion").GetString());
+        Assert.Equal("template-authoring-v22", draft.GetProperty("generationMetadata").GetProperty("promptVersion").GetString());
         Assert.Equal(0, (await parent.GetFromJsonAsync<JsonElement>("/api/templates")).GetArrayLength());
         var definition = draft.GetProperty("definition");
         Assert.Equal(2, definition.GetProperty("generation").GetProperty("defaults").GetProperty("questionCount").GetInt32());
@@ -42,18 +43,27 @@ public sealed class AiAuthoringTests
         var loaded = await parent.GetFromJsonAsync<JsonElement>($"/api/instances/{frozen.GetProperty("id").GetGuid()}");
         Assert.Equal(frozen.GetProperty("content").GetRawText(), loaded.GetProperty("content").GetRawText());
         Assert.Equal("test-free-model", loaded.GetProperty("generationMetadata").GetProperty("model").GetString());
-        Assert.Equal("instance-generation-v18", loaded.GetProperty("generationMetadata").GetProperty("promptVersion").GetString());
+        Assert.Equal("instance-generation-v19", loaded.GetProperty("generationMetadata").GetProperty("promptVersion").GetString());
         Assert.Equal(3, chat.Requests.Count);
         Assert.All(chat.Requests, request =>
         {
             var format = Assert.IsType<ChatResponseFormatJson>(request.Options!.ResponseFormat);
-            Assert.Contains(JsonSerializer.Serialize(format.Schema), request.Input);
+            var promptSchema = request.Input.Split("\nOutput JSON schema:\n")[1].Split('\n')[0];
+            // Compare decoded schemas: provider and prompt serialization may escape characters differently.
+            Assert.True(JsonNode.DeepEquals(JsonSerializer.SerializeToNode(format.Schema), JsonNode.Parse(promptSchema)));
             Assert.Null(request.Options.Tools);
             Assert.Equal(8192, request.Options.MaxOutputTokens);
             Assert.DoesNotContain("@example.test", request.Input);
             Assert.DoesNotContain("familyId", request.Input);
         });
         Assert.Contains("חלל", chat.Requests[2].Input);
+        foreach (var (request, count) in new[] { (chat.Requests[1], 2), (chat.Requests[2], 25) })
+        {
+            var schema = Assert.IsType<ChatResponseFormatJson>(request.Options!.ResponseFormat).Schema!.Value;
+            var questions = schema.GetProperty("properties").GetProperty("questions");
+            Assert.Equal(count, questions.GetProperty("minItems").GetInt32());
+            Assert.Equal(count, questions.GetProperty("maxItems").GetInt32());
+        }
         using var stranger = await app.ParentAsync();
         Assert.Equal(HttpStatusCode.NotFound, (await stranger.PostAsJsonAsync($"/api/templates/{id}/instances", Input())).StatusCode);
         Assert.Equal(3, chat.Requests.Count);

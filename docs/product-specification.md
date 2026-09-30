@@ -57,6 +57,12 @@ Parents review these defaults and can change all four when creating a task.
 Unspecified values are proposed by AI for parent review; difficulty defaults
 to medium.
 
+AI adds extra fields only when the parent explicitly requests additional inputs
+to supply or change per task. Otherwise `instanceParameters` is empty. Fixed
+requirements, including text length, stay in instructions. Parents can still
+add or remove fields during review. AI leaves unrequested field limits unset;
+the application's type and size limits still apply.
+
 The task request contains complete `settings` and additional `parameters`. The
 server validates both before calling AI and saves the resolved input alongside
 the immutable output. Chosen settings override stale defaults in instructions;

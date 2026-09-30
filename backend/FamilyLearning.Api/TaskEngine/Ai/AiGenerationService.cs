@@ -52,7 +52,8 @@ public sealed class AiGenerationService(IEnumerable<IChatClient> clients, ILogge
             parameterDefinitions = definition.InstanceParameters,
             input.Parameters
         }, Json);
-        var result = await RequestAsync<TaskContent>(AiPrompts.Instance, request, AiSchemas.Content, AiPrompts.InstanceVersion, ct);
+        var result = await RequestAsync<TaskContent>(AiPrompts.Instance, request,
+            AiSchemas.ContentFor(input.Settings.QuestionCount), AiPrompts.InstanceVersion, ct);
         var errors = TaskContentValidator.Validate(result.Value, input.Settings.QuestionCount);
         if (errors.Count > 0)
             throw InvalidOutput("task-validation", AiPrompts.InstanceVersion, errors);

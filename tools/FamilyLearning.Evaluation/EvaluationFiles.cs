@@ -99,6 +99,7 @@ public static class EvaluationFiles
                 string.IsNullOrWhiteSpace(item.Prompt) || item.Prompt.Length > 4000 ||
                 string.IsNullOrWhiteSpace(item.ReviewFocus) || item.ReviewFocus.Length > 1000 ||
                 item.QuestionCount < 1 || item.Interaction is not ("single-choice" or "text-input" or "numeric-input") ||
+                item.AdditionalParameterCount is < 0 or > 16 ||
                 (item.ChoiceCount.HasValue && (item.Interaction != "single-choice" || item.ChoiceCount is < 2 or > 6)) ||
                 item.MinPassageWords < 0 || item.MaxPassageWords < 0 || item.MinPassageWords > item.MaxPassageWords ||
                 (item.SettingsOverride is { } settings &&

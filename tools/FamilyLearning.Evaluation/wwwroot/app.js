@@ -819,6 +819,10 @@ export function createDashboard(document, fetchRequest = globalThis.fetch.bind(g
       label.append(checkbox, node('span', item.id));
       entry.append(label, content('p', item.reviewFocus));
       const expectations = [`${item.questionCount} questions`, item.interaction];
+      if (item.additionalParameterCount != null)
+        expectations.push(
+          `additional fields: ${item.additionalParameterCount} (excluding shared settings)`,
+        );
       if (item.choiceCount != null) expectations.push(`${item.choiceCount} choices`);
       if (item.minPassageWords != null || item.maxPassageWords != null)
         expectations.push(

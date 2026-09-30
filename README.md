@@ -62,7 +62,10 @@ Choose settings supported by the model's current OpenRouter endpoint:
 Prefer `json_schema` when supported. In `text` mode, JSON is requested through
 the prompt only, so malformed output may be more common. Every mode sends the
 full schema in the prompt and applies the same strict server validation before
-saving. No mode guarantees fluent Hebrew or correct answers; review generated
+saving. Schema mode sends the same constraints to the provider without SDK
+rewriting. The endpoint must support those schema keywords; use `json_object`
+for providers with a more limited schema implementation.
+No mode guarantees fluent Hebrew or correct answers; review generated
 content before use. Saved tasks remain readable without AI.
 
 For a model without reasoning support, set `ReasoningEnabled` and
@@ -141,6 +144,9 @@ controls, before retries. Select individual cases for focused checks.
 `reviewFocus` guides human review, not automatic assertions. The runner uses
 generated defaults; optional `settingsOverride` supplies all four per-task settings,
 and its count must match the case's expected `questionCount`.
+`additionalParameterCount` checks the expected number of extra fields, excluding
+the four shared settings; zero expects no extra fields, and omission skips this
+check. Counts catch unwanted or missing fields; review their meaning and types manually.
 `minPassageWords` and `maxPassageWords` measure adherence to a case's requested
 length after generation; they are evaluation expectations, not application fields.
 Length checks do not reject otherwise valid content or prevent language review.
@@ -217,9 +223,10 @@ Reports go to ignored `artifacts/evaluations/<run>/` or under `--output`:
 Interpret the results separately:
 
 - **Code tests:** harness/app behavior with local providers, not model quality.
-- **Automatic checks:** contracts, defaults, parameter references, question/choice
-  counts and interaction types. Generation must return exactly the requested
-  positive question count. Passage length counts whitespace-separated words across
+- **Automatic checks:** contracts, defaults, additional-field counts, parameter
+  references, question/choice counts and interaction types. Generation must return
+  exactly the requested positive question count. Passage length counts words
+  separated by whitespace across
   text blocks, excluding only an exact standalone task title at the beginning. Other
   headings count as text; directions, questions and answers do not. A zero maximum
   checks for no passage blocks. Length checks run only for cases with expectations;
@@ -310,8 +317,7 @@ Before editing, read the [comment rules](docs/commenting-guide.md) and
 
 Remove saved drafts and templates from the library. **איפוס נתוני הלמידה**
 (reset learning data) clears your family's templates, revisions and drafts after
-confirmation; your login and AI configuration remain. This also removes old
-content retained from earlier development.
+confirmation; your login and AI configuration remain.
 
 Development stores SQLite and Data Protection keys in
 `backend/FamilyLearning.Api/data/`, ignored by Git. Set `Storage__Directory` to

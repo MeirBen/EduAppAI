@@ -25,11 +25,12 @@ function deferred() {
 const setup = {
   profile: { Model: 'fake/model', FallbackModel: null },
   configured: true,
-  cases: ['first', 'second'].map((id) => ({
+  cases: ['first', 'second'].map((id, index) => ({
     id,
     prompt: 'בקשה',
     reviewFocus: 'עברית',
     questionCount: 2,
+    additionalParameterCount: index,
     interaction: 'text-input',
   })),
   calibrationCount: 3,
@@ -114,6 +115,8 @@ test('startup is read-only; live submission needs confirmation and sends one bou
     await app.dashboard.ready;
     assert.ok(app.requests.every(({ options }) => !options.method || options.method === 'GET'));
     const { document, dom } = app;
+    assert.match(document.querySelector('#cases').textContent, /additional fields: 0/);
+    assert.match(document.querySelector('#cases').textContent, /additional fields: 1/);
     for (const checkbox of [...document.querySelectorAll('[name="caseId"]')].reverse())
       checkbox.checked = true;
     document.querySelector('#judge').checked = true;

@@ -33,6 +33,8 @@ public sealed class EvaluationValidationTests : IDisposable
     [InlineData("count-override-zero")]
     [InlineData("count-override-negative")]
     [InlineData("count-override-mismatch")]
+    [InlineData("parameters-negative")]
+    [InlineData("parameters-too-many")]
     public async Task Malformed_case_fixture_is_rejected_when_loaded(string invalid)
     {
         var scenario = invalid switch
@@ -58,6 +60,8 @@ public sealed class EvaluationValidationTests : IDisposable
             "settings-difficulty" => ValidCase with { SettingsOverride = AiFixtures.Settings() with { Difficulty = "unknown" } },
             "count-override-negative" => ValidCase with { SettingsOverride = AiFixtures.Settings(-1) },
             "count-override-mismatch" => ValidCase with { SettingsOverride = AiFixtures.Settings(3) },
+            "parameters-negative" => ValidCase with { AdditionalParameterCount = -1 },
+            "parameters-too-many" => ValidCase with { AdditionalParameterCount = 17 },
             _ => ValidCase with { SettingsOverride = AiFixtures.Settings(0) }
         };
         var path = await WriteFixtureAsync([scenario]);
@@ -87,6 +91,7 @@ public sealed class EvaluationValidationTests : IDisposable
             ReviewFocus = new('א', 1000),
             Interaction = interaction,
             ChoiceCount = choices,
+            AdditionalParameterCount = 16,
             QuestionCount = 20,
             SettingsOverride = AiFixtures.Settings(20),
             MinPassageWords = 0,

@@ -3,8 +3,8 @@ namespace FamilyLearning.Api.TaskEngine.Ai;
 /// <summary>Application-owned instructions; bump versions when behavior changes.</summary>
 internal static class AiPrompts
 {
-    public const string AuthoringVersion = "template-authoring-v20";
-    public const string InstanceVersion = "instance-generation-v18";
+    public const string AuthoringVersion = "template-authoring-v22";
+    public const string InstanceVersion = "instance-generation-v19";
 
     private const string LanguageQuality = """
         ## Language and presentation
@@ -54,22 +54,29 @@ internal static class AiPrompts
         settings.difficulty and settings.questionCount. Preserve requested source text even when settings change.
 
         ## Additional per-task choices
-        Parameterize only useful additional choices that vary per task; do not put generated task content in defaults.
-        Use text for open-ended choices and select for finite lists. Use unique keys matching the schema.
+        Create instanceParameters only for additional inputs the parent explicitly asks to supply or change on each use.
+        Otherwise return an empty array. Reusability alone does not request extra controls.
+        Keep fixed requirements in instructions. Do not invent optional fields, menus or configuration for added flexibility.
+        Use text for requested open-ended input, integer for whole numbers, boolean for yes/no,
+        and select for an explicitly requested finite choice. Do not put generated task content in defaults.
+        Use unique keys matching the schema.
         In instructions, explain how each parameter changes the task, using its quoted exact key, never only its display label.
         When explaining select choices, use their exact option values. Keep defaults and bounds in field definitions only.
-        Preserve requested defaults, including false, zero and empty optional text. Otherwise choose a suitable default
-        or null for an unset choice. Use required=true when generation needs a value; defaults still apply to omitted values.
+        Preserve requested defaults, bounds and option values, including false, zero and empty optional text.
+        Leave unrequested min, max and maxLength null instead of inventing field-specific limits.
+        When no default is requested, choose a suitable default or null for an unset choice.
+        Use required=true when generation needs a value; defaults still apply to omitted values.
         For optional fields, explain how an absent or empty value affects generation.
         Set irrelevant field settings to null; defaults must match their field's type, bounds and options.
 
         ## Text length
         Keep requested text length in instructions, specifying whether it applies to each passage or the total.
+        A fixed target or range is not a request for an input field; add one only when per-task length selection is requested.
         Do not invent a passage or length requirement for tasks that do not need one.
         """ + "\n\n" + LanguageQuality + """
 
 
-        Before returning, check that the blueprint preserves the request, explains every additional parameter,
+        Before returning, check that the blueprint preserves the request and explains only explicitly requested additional parameters,
         and contains no repeated engine rules or instructions to create another template.
         """;
 

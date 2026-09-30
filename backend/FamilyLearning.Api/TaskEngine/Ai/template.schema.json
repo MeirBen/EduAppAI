@@ -13,7 +13,7 @@
     },
     "instanceParameters": {
       "type": "array",
-      "description": "Additional task-specific choices only. Do not duplicate topic, audience, difficulty or question count, including equivalent fields under other names.",
+      "description": "Only additional inputs the parent explicitly asks to supply or change per task; otherwise []. Fixed requirements stay in instructions. Do not duplicate topic, audience, difficulty or question count, including aliases.",
       "items": {
         "type": "object",
         "properties": {
@@ -36,20 +36,20 @@
           },
           "default": {
             "type": ["string", "integer", "boolean", "null"],
-            "description": "Default matching the field type, bounds and options; null means no default. Preserve supplied source text.",
+            "description": "Default matching the field type, bounds and options; null means no default. Preserve requested values.",
             "maxLength": 500,
             "minimum": -2147483648,
             "maximum": 2147483647
           },
           "min": {
             "type": ["integer", "null"],
-            "description": "Inclusive integer lower bound; null when unbounded or not an integer field.",
+            "description": "Requested inclusive integer lower bound; null when unspecified or for other field types.",
             "minimum": -2147483648,
             "maximum": 2147483647
           },
           "max": {
             "type": ["integer", "null"],
-            "description": "Inclusive integer upper bound; null when unbounded or not an integer field.",
+            "description": "Requested inclusive integer upper bound; null when unspecified or for other field types.",
             "minimum": -2147483648,
             "maximum": 2147483647
           },
@@ -57,7 +57,7 @@
             "type": ["integer", "null"],
             "minimum": 1,
             "maximum": 500,
-            "description": "Text length limit; null uses 500 for text fields. Use null for other types."
+            "description": "Requested text length limit; null uses the application's 500-character limit for text fields. Use null for other types."
           },
           "options": {
             "type": ["array", "null"],

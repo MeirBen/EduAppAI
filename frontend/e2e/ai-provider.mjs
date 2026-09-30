@@ -46,8 +46,15 @@ export async function startAiProvider() {
     assert.ok(schemaText, 'The model must see the full schema in the prompt');
     const schema = JSON.parse(schemaText);
     const isAuthoring = schemaName.startsWith('template_authoring_');
-    assert.deepEqual(schema, isAuthoring ? templateSchema : contentSchema);
     const user = input.messages[1].content;
+    const expectedSchema = structuredClone(isAuthoring ? templateSchema : contentSchema);
+    if (!isAuthoring) {
+      const count = JSON.parse(user).settings.questionCount;
+      expectedSchema.properties.questions.minItems = count;
+      expectedSchema.properties.questions.maxItems = count;
+    }
+    assert.deepEqual(schema, expectedSchema);
+    assert.deepEqual(input.response_format.json_schema.schema, schema);
     assert.ok(!user.includes('browser@example.test'));
     if (user.includes('בדיקת מכסה')) {
       response.writeHead(user.includes('בגוף התשובה') ? 200 : 429, {

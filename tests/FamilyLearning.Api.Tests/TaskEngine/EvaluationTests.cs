@@ -182,6 +182,31 @@ public sealed class EvaluationTests : IDisposable
     }
 
     [Theory]
+    [InlineData(0, 0, true)]
+    [InlineData(1, 0, false)]
+    [InlineData(0, 1, false)]
+    [InlineData(1, 1, true)]
+    [InlineData(1, null, true)]
+    public async Task Additional_fields_are_checked_against_the_request_without_discarding_output(
+        int actualCount, int? expectedCount, bool passes)
+    {
+        var definition = AiFixtures.Definition();
+        if (actualCount == 0) definition["instanceParameters"] = new JsonArray();
+        using var chat = new AiFixtures.ScriptedChat(definition.ToJsonString(), AiFixtures.Content().ToJsonString());
+        var report = await RunAsync(chat, Case with { AdditionalParameterCount = expectedCount });
+
+        var saved = await EvaluationFiles.ReadReportAsync(Path.Combine(directory, "run.json"));
+        var result = Assert.Single(saved.Results);
+        Assert.True(result.Authoring!.ContractValid);
+        Assert.True(result.Generation!.ContractValid);
+        Assert.Equal(definition.ToJsonString(), result.Authoring.Output);
+        Assert.Equal(expectedCount, Assert.Single(saved.Cases).AdditionalParameterCount);
+        if (expectedCount.HasValue) Assert.Equal(passes, result.Checks["additionalParameterCount"]);
+        else Assert.False(result.Checks.ContainsKey("additionalParameterCount"));
+        Assert.Equal(passes ? 1 : 0, report.AutomaticPasses);
+    }
+
+    [Theory]
     [InlineData("קהל היעד הוא כיתה ג׳. עם ", false)]
     [InlineData("יש לכתוב על sourceText.", false)]
     [InlineData("יש להשתמש ב-sourceText וב-counter.", false)]

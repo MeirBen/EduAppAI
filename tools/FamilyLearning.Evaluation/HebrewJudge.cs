@@ -13,7 +13,8 @@ public sealed record HebrewReview(HebrewIssue[] Issues);
 /// <summary>Advisory, stateless proofreading. It neither rewrites content nor decides educational correctness.</summary>
 public static class HebrewJudge
 {
-    public const string Version = "hebrew-review-v7";
+    /// <summary>Review contract version; advance when instructions or output constraints change.</summary>
+    public const string Version = "hebrew-review-v8";
     private const string Prompt = """
         ## Review scope
         Review every supplied template and task field for concrete Hebrew language defects.

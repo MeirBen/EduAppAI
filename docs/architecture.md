@@ -35,8 +35,14 @@ template contract even with escaped Unicode; validators enforce field limits.
 
 `AiGenerationService` calls `IChatClient` without identity or database access.
 `AiSchemas` supplies embedded schemas for the prompt and provider output format.
+Each task request uses its chosen question count as the schema's minimum and
+maximum array length. The request owns this schema; concurrent calls cannot alter
+each other's constraints. Server validation still checks the returned count.
 The OpenRouter adapter owns transport and configuration; generation owns prompts,
-schemas and validation. See [AI configuration](../README.md#ai-configuration) for
+schemas and validation. In schema mode the adapter supplies the schema through
+the SDK's native response-format option, preserving constraints that MEAI's
+OpenAI subset conversion would turn into descriptions.
+See [AI configuration](../README.md#ai-configuration) for
 model capabilities, output modes, reasoning, sampling and limits. Tests exercise
 these with fixed local model IDs, independently of the active model. No tools
 are sent. Responses must finish normally and pass size/depth, required-member,
@@ -48,17 +54,19 @@ explain task semantics and cross-field priorities. Authoring requests concise
 task instructions ordered by goal, content, additional parameters and questions,
 omitting inapplicable parts and repeated engine rules. Generation has no prior-task
 history, so fresh content is requested without a cross-run uniqueness guarantee.
+Extra fields require an explicit request for per-task input; fixed requirements
+remain in instructions. This is an authoring policy, not a natural-language rule
+in the validator. The evaluator checks expected field counts for synthetic cases.
 Resolved values override stale defaults, including false, zero and empty text.
-`TaskSettings` owns topic, audience, difficulty
-and question count. Templates store these under `generation.defaults`; each
+`TaskSettings` owns topic, audience, difficulty and question count.
+Templates store these under `generation.defaults`; each
 task submits a complete `TaskInput` with chosen settings and additional
 parameters. `TaskSettingsValidator` validates both template defaults and task
 settings. The endpoint resolves dynamic defaults and persists the input with
 the output. The AI request includes instructions, chosen settings, parameter
 definitions and resolved values; template settings defaults are not sent
 again. Shared settings take precedence over stale prose; dynamic fields cannot
-reuse their keys. Learning data predating schema 4 is cleared by migration;
-parent accounts remain.
+reuse their keys.
 
 Text length is instructional guidance. Production validation owns structural
 safety, answer consistency and exact requested question counts; the evaluator

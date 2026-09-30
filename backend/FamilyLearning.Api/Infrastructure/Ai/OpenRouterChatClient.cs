@@ -27,6 +27,11 @@ internal sealed class OpenRouterChatClient(ChatClient client, ChatOptions sampli
         options.RawRepresentationFactory = _ =>
         {
             var request = new ChatCompletionOptions();
+            // OpenRouter schemas must retain their bounds; MEAI's OpenAI subset conversion moves them into descriptions.
+            if (options.ResponseFormat is ChatResponseFormatJson { Schema: { } schema } format)
+                request.ResponseFormat = OpenAI.Chat.ChatResponseFormat.CreateJsonSchemaFormat(
+                    format.SchemaName ?? "json_schema", BinaryData.FromString(schema.GetRawText()), format.SchemaDescription,
+                    options.AdditionalProperties?.TryGetValue("strict", out var strict) == true && strict is true);
 #pragma warning disable SCME0001 // The SDK's JSON extension point carries OpenRouter-specific parameters.
             if (reasoning is not null) request.Patch.Set("$.reasoning"u8, reasoning);
             if (sampling.TopK is { } topK) request.Patch.Set("$.top_k"u8, BinaryData.FromObjectAsJson(topK));

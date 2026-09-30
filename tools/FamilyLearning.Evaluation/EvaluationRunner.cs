@@ -59,6 +59,8 @@ public static class EvaluationRunner
                     await SaveAsync();
                     if (definition is null) continue;
 
+                    if (scenario.AdditionalParameterCount is { } parameterCount)
+                        result.Checks["additionalParameterCount"] = definition.InstanceParameters.Length == parameterCount;
                     // Presence is necessary, not proof of correct use. Match complete, case-sensitive ASCII identifiers.
                     var references = Regex.Matches(definition.Generation.Instructions, "[A-Za-z0-9_]+")
                         .Select(match => match.Value).ToHashSet(StringComparer.Ordinal);

@@ -5,9 +5,10 @@ using FamilyLearning.Api.TaskEngine.Models;
 namespace FamilyLearning.Evaluation;
 
 /// <summary>Synthetic parent request, measurable expectations and a case-specific human review focus.</summary>
+/// <remarks>AdditionalParameterCount excludes shared settings; null skips that adherence check.</remarks>
 public sealed record EvaluationCase(string Id, string Prompt, string ReviewFocus, int QuestionCount,
     string Interaction, int? ChoiceCount, int? MinPassageWords, int? MaxPassageWords,
-    TaskSettings? SettingsOverride = null);
+    TaskSettings? SettingsOverride = null, int? AdditionalParameterCount = null);
 
 /// <summary>Local evaluation artifact. Contract success never implies educational or language quality.</summary>
 public sealed class EvaluationReport(EvaluationCase[] cases, int repeat, string suiteSha256,
@@ -19,7 +20,7 @@ public sealed class EvaluationReport(EvaluationCase[] cases, int repeat, string 
     public DateTime? FinishedAtUtc { get; set; }
     [JsonRequired] public string Status { get; set; } = "running";
     /// <summary>Recorded deterministic-check version; required for meaningful comparison.</summary>
-    [JsonRequired] public int AutomaticChecksVersion { get; init; } = 7;
+    [JsonRequired] public int AutomaticChecksVersion { get; init; } = 8;
     public string SuiteSha256 { get; } = suiteSha256;
     /// <summary>Optional developer description, at most 120 characters; excluded from comparison semantics.</summary>
     public string? Label { get; init; }

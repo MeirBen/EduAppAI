@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using FamilyLearning.Api.Infrastructure.Ai;
 using FamilyLearning.Api.TaskEngine.Ai;
 using FamilyLearning.Api.Tests.Fixtures;
@@ -119,7 +120,7 @@ public sealed class OpenRouterConfigurationTests
         var instance = await provider.GetRequiredService<AiGenerationService>().GenerateAsync(result.Value,
             new(result.Value.Generation.Defaults, new() { ["sourceText"] = JsonSerializer.SerializeToElement(sourceText) }), deadline.Token);
         Assert.Equal(passage, Assert.Single(instance.Value.ContentBlocks).Text);
-        AssertResponseSchema(request, responseFormat ?? "json_object", "learner");
+        AssertResponseSchema(request, responseFormat ?? "json_object", "learner", questionCount: 2);
         Assert.Equal(maxOutputTokens ?? 8192, request.GetProperty("max_completion_tokens").GetInt32());
         using var input = JsonDocument.Parse(request.GetProperty("messages")[1].GetProperty("content").GetString()!);
         Assert.Equal(sourceText, input.RootElement.GetProperty("parameters").GetProperty("sourceText").GetString());
@@ -129,12 +130,18 @@ public sealed class OpenRouterConfigurationTests
             .AuthorAsync("A learning idea", deadline.Token));
     }
 
-    private static void AssertResponseSchema(JsonElement request, string responseFormat, string description)
+    private static void AssertResponseSchema(JsonElement request, string responseFormat, string description, int? questionCount = null)
     {
         var prompt = request.GetProperty("messages")[0].GetProperty("content").GetString()!;
         using var schema = JsonDocument.Parse(prompt.Split("\nOutput JSON schema:\n")[1]);
         Assert.False(schema.RootElement.GetProperty("additionalProperties").GetBoolean());
         Assert.Contains(description, schema.RootElement.GetRawText());
+        if (questionCount.HasValue)
+        {
+            var questions = schema.RootElement.GetProperty("properties").GetProperty("questions");
+            Assert.Equal(questionCount, questions.GetProperty("minItems").GetInt32());
+            Assert.Equal(questionCount, questions.GetProperty("maxItems").GetInt32());
+        }
         if (responseFormat == "text")
         {
             Assert.False(request.TryGetProperty("response_format", out _));
@@ -142,7 +149,13 @@ public sealed class OpenRouterConfigurationTests
         }
         var format = request.GetProperty("response_format");
         Assert.Equal(responseFormat, format.GetProperty("type").GetString());
-        if (responseFormat == "json_schema") Assert.True(format.GetProperty("json_schema").GetProperty("strict").GetBoolean());
+        if (responseFormat == "json_schema")
+        {
+            var constraint = format.GetProperty("json_schema");
+            Assert.True(constraint.GetProperty("strict").GetBoolean());
+            Assert.True(JsonNode.DeepEquals(JsonNode.Parse(schema.RootElement.GetRawText()),
+                JsonNode.Parse(constraint.GetProperty("schema").GetRawText())), "Provider schema must preserve prompt constraints.");
+        }
         else Assert.False(format.TryGetProperty("json_schema", out _));
     }
 

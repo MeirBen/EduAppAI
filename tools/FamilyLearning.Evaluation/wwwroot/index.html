@@ -255,11 +255,13 @@
             <dd>The response met the app's structure and validation rules.</dd>
             <dt>Automatic checks</dt>
             <dd>
-              Case checks such as question counts, choices and requested passage length; not every
-              instruction. Word counts measure text blocks only, excluding an exact leading task
-              title. A length failure keeps valid content available for language and human review;
-              the app does not reject tasks for missing a word target. Parameter references checks
-              that each key appears in template instructions, not that it is used correctly.
+              Case checks such as extra-field counts, question counts, choices and requested passage
+              length; not every instruction. Extra-field counts exclude the four shared settings;
+              zero means no extra fields were requested. Word counts measure text blocks only,
+              excluding an exact leading task title. A length failure keeps valid content available
+              for language and human review; the app does not reject tasks for missing a word
+              target. Parameter references checks that each key appears in template instructions,
+              not that it is used correctly.
             </dd>
             <dt>Judge calibration</dt>
             <dd>Known-example detection. If it fails or is unfinished, trust findings less.</dd>

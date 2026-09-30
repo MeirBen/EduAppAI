@@ -53,6 +53,7 @@ public sealed class EvaluationCommandTests : IDisposable
             var output = authoringCall ? AiFixtures.Definition() : AiFixtures.Content(count: 4);
             if (authoringCall)
             {
+                output["instanceParameters"] = new JsonArray();
                 output["generation"]!["defaults"]!["questionCount"] = 4;
             }
             else
@@ -156,6 +157,7 @@ public sealed class EvaluationCommandTests : IDisposable
         }
         Assert.Equal(0.002m, report.RootElement.GetProperty("reportedCostCredits").GetDecimal());
         Assert.Equal(2, report.RootElement.GetProperty("callsWithReportedCost").GetInt32());
+        Assert.Equal(1, report.RootElement.GetProperty("automaticPasses").GetInt32());
         var authoring = report.RootElement.GetProperty("results")[0].GetProperty("authoring");
         Assert.Equal(10, authoring.GetProperty("reasoningTokens").GetInt32());
         Assert.Equal("test/actual", authoring.GetProperty("model").GetString());

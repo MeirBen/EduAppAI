@@ -42,7 +42,6 @@ public sealed record EvaluationSummary
     public int CalibrationCompletedCount { get; init; }
     public int CalibrationPlannedCount { get; init; }
     public int GeneratedHebrewIssueCount { get; init; }
-    public bool HasHebrewFindings => GeneratedHebrewIssueCount > 0;
     public required Dictionary<string, int> HebrewIssuesByKind { get; init; }
     public required string[] CasesWithHebrewFindings { get; init; }
     public required ReportedTotal InputTokens { get; init; }
