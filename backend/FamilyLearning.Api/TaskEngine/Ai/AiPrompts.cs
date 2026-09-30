@@ -3,7 +3,7 @@ namespace FamilyLearning.Api.TaskEngine.Ai;
 /// <summary>Application-owned instructions; bump versions when behavior changes.</summary>
 internal static class AiPrompts
 {
-    public const string AuthoringVersion = "template-authoring-v19";
+    public const string AuthoringVersion = "template-authoring-v20";
     public const string InstanceVersion = "instance-generation-v18";
 
     private const string LanguageQuality = """
@@ -32,10 +32,14 @@ internal static class AiPrompts
         text-input, or single-choice with 2-6 options, plus integer points. Stay within these capabilities for every subject.
 
         ## Reusable instructions
-        The task generator receives only this blueprint, chosen settings and resolved additional parameters, not the parent's original request.
-        Preserve task-specific requirements and exceptions: learning goal, language, activity, length,
-        answer-choice count, style and fixed source text. Put reusable directions in short generation.instructions paragraphs.
-        General language, presentation, question-quality and answer-key rules are supplied by the engine; do not copy them.
+        generation.instructions addresses the task generator: direct it to create learner content, never another template.
+        It receives these instructions, chosen settings and additional parameters, not the parent's request or previous tasks.
+        Request fresh content when needed, but do not promise uniqueness across runs or depend on unseen history.
+        Use short paragraphs in this order: learning goal and activity; content and source requirements;
+        effects of additional parameters; task-specific question requirements. Omit inapplicable parts and state each requirement once.
+        Preserve explicit language, length, answer-choice count, style, fixed source text and requested exceptions.
+        The engine supplies shared-setting behavior, language, presentation, question-quality and answer-key rules.
+        Apply these rules to the blueprint's text; do not copy them into generation.instructions. Include only task-specific additions or exceptions.
         Keep implementation details and JSON paths out of the prose, except the exact keys or shared-setting references needed for generation.
         For Hebrew template instructions, use impersonal phrasing such as "יש ליצור" and "יש לבחור".
 
@@ -65,7 +69,8 @@ internal static class AiPrompts
         """ + "\n\n" + LanguageQuality + """
 
 
-        Before returning, check that the blueprint carries every task-specific requirement and explains every parameter.
+        Before returning, check that the blueprint preserves the request, explains every additional parameter,
+        and contains no repeated engine rules or instructions to create another template.
         """;
 
     public const string Instance = """

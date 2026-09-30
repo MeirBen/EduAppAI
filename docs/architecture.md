@@ -44,10 +44,12 @@ unknown-field, numeric and domain validation before persistence.
 
 `AiPrompts` separates reusable template design from task generation, sharing
 language and presentation rules. Schemas describe field constraints; prompts
-explain task semantics and cross-field priorities. Templates retain
-task-specific requirements and exact parameter references, rather than
-repeating engine rules. Resolved values override stale defaults, including
-false, zero and empty text. `TaskSettings` owns topic, audience, difficulty
+explain task semantics and cross-field priorities. Authoring requests concise
+task instructions ordered by goal, content, additional parameters and questions,
+omitting inapplicable parts and repeated engine rules. Generation has no prior-task
+history, so fresh content is requested without a cross-run uniqueness guarantee.
+Resolved values override stale defaults, including false, zero and empty text.
+`TaskSettings` owns topic, audience, difficulty
 and question count. Templates store these under `generation.defaults`; each
 task submits a complete `TaskInput` with chosen settings and additional
 parameters. `TaskSettingsValidator` validates both template defaults and task

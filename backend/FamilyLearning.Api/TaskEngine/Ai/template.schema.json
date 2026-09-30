@@ -91,7 +91,7 @@
       "properties": {
         "instructions": {
           "type": "string",
-          "description": "Reusable teaching instructions: learning goal, language, activity, length, source text and how additional parameter keys affect the task. Keep shared setting values in defaults, not in prose.",
+          "description": "Directions to create a learner task, not another template. Order: goal and activity; content and source requirements; additional parameter effects; task-specific question requirements. Omit inapplicable parts and engine rules. Keep shared setting values in defaults.",
           "minLength": 1,
           "maxLength": 4000
         },
