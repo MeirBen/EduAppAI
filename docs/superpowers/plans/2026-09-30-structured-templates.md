@@ -95,6 +95,31 @@ user's requested workflow; routine decisions within the authorized milestone do
 not require repeated permission. Editing this plan does not start
 implementation.
 
+### Implementation discoveries
+
+If implementation reveals a specification gap, conflicting requirement,
+pre-existing bug or worthwhile improvement/optimization beyond the agreed task,
+investigate enough to make the decision concrete, then ask the user how to
+proceed before changing the affected design, behavior or scope. Do not silently
+expand the task or add a workaround.
+
+Present a concise decision brief:
+
+- What was found, with relevant code, test or official-documentation evidence,
+  and its practical impact.
+- The feasible options, usually two or three, with their scope, complexity,
+  effort and risks; include deferral only when it is safe.
+- The recommended option and why, plus any spec/plan changes it requires.
+
+Wait for the user's answer before implementing the affected change. Continue
+only independent work already authorized within the current milestone; silence
+does not authorize a choice. Record the agreed decision in the relevant spec or
+plan before proceeding, and keep comments/tests aligned with the implementation.
+
+Routine implementation choices and correcting defects introduced in the current
+task within its agreed contract remain authorized; explain them in the milestone
+review. A correction that requires changing that contract uses this checkpoint.
+
 ## Review focus
 
 1. A replay after an operation advanced its draft must return the original

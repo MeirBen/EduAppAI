@@ -825,6 +825,11 @@ Follow the implementation plan's [code-quality requirements][code-quality] and
 its code and verification, then wait for the user's explicit continuation before
 starting the next milestone.
 
+Use the plan's [implementation-discovery checkpoint][implementation-discoveries]
+for newly found gaps, bugs or proposed improvements that change the agreed
+contract or scope: present evidence, options and a recommendation, then obtain
+the user's decision before implementing that change.
+
 Completion requires generation from an unsaved plan; exact supplied sources;
 editable reloadable drafts; scoped edits that preserve unrelated content; strict
 release blocking; no stale overwrite after save, unsaved typing, Undo, cancel or
@@ -879,3 +884,4 @@ These sources inform the design; they do not establish improved Hebrew quality:
 [routes]: https://angular.dev/guide/routing/define-routes#associating-data-with-routes
 [code-quality]: ../plans/2026-09-30-structured-templates.md#code-quality
 [review-milestones]: ../plans/2026-09-30-structured-templates.md#review-milestones
+[implementation-discoveries]: ../plans/2026-09-30-structured-templates.md#implementation-discoveries
