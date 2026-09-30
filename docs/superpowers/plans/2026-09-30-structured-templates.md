@@ -1,11 +1,5 @@
 # Content-first activities implementation plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use
-> `superpowers:subagent-driven-development` or `superpowers:executing-plans` to
-> implement task by task. Steps use checkboxes. Repository instructions prohibit
-> commits, staging, branching and every other Git mutation; the user handles
-> Git.
-
 **Goal:** Let a parent generate an editable activity from an unsaved valid plan,
 repair it and freeze a reviewed snapshot, with independent template publication.
 
@@ -42,10 +36,9 @@ tests and delivery order. Read both before implementation.
 - Retain the spec's exact content/input/queue budgets, source rules and null
   semantics. Operation idempotency lasts for the draft lifetime; no external
   exactly-once billing claim.
-- Schema 5; authoring v23; materials/questions/replace-material/replace-question
-  v1; Hebrew review v9; report format 4; checks 9; resolution/assembly,
-  validation and measurement policy 1. Temporary one-shot experiment:
-  prototype-one-shot-v1.
+- Follow the spec's [version ownership][versions]: one source per value, a
+  shared engine revision and distinct evaluation versions. Do not duplicate
+  counters in schemas, prompts, client code, fixture builders or documentation.
 - Retain answer.value, parent-only keys, family authorization, CSRF,
   ProblemDetails, UTC, cancellation and the existing adapter/profile.
 - No destructive migration before comparative-value and isolated-test gates.
@@ -77,7 +70,8 @@ The following roots abbreviate exact repository paths in the tasks:
 | Tests       | tests/FamilyLearning.Api.Tests                        |
 | Evaluation  | tools/FamilyLearning.Evaluation                       |
 
-Create focused files, not a generic service framework:
+Create focused files when their delivery task needs them, without empty
+scaffolds, pass-through services or a generic service framework:
 
 - `Engine/Models/LearningPlan.cs`: Canonical plan, scoped controls,
   material/question/length requirements.
@@ -87,14 +81,16 @@ Create focused files, not a generic service framework:
   candidate batches, measurements and origin/dependency records.
 - `Engine/Models/TemplateAuthoring.cs`: Proposal/clarification envelope and
   PlanChange.
+- `Engine/EngineVersions.cs`: Sole schema-version and engine-revision constants;
+  prompt stage labels derive from the engine revision.
 - `Engine/Validation/LearningPlanValidator.cs`: Canonical plan and limits.
 - `Engine/Validation/TaskDocumentValidator.cs`: Safe draft shape, strict
   candidate and release content checks.
 - `Engine/TaskRequestResolver.cs`: Pure defaults, applicability, presence and
   effective requirements.
-- `Engine/TaskAssembly.cs`: Authoritative source insertion and validated
-  candidate application.
-- `Engine/TextLength.cs`: Versioned Unicode word measurement.
+- `Engine/TaskAssembly.cs`: Shared stage selection, source insertion and
+  validated candidate application for runtime and evaluation.
+- `Engine/TextLength.cs`: Shared Unicode word measurement.
 - `Engine/PlanChanges.cs`: Proposal identity normalization and actual change
   calculation.
 - `Features/Activities/ActivityDraft.cs`: Bounded draft entity and application
@@ -103,8 +99,8 @@ Create focused files, not a generic service framework:
   DTOs.
 - `Features/Activities/ActivityEndpoints.cs`: Owned draft CRUD, adoption and
   atomic release.
-- `Features/Activities/ActivityDraftChanges.cs`: Content/source differences,
-  app-owned revisions and conservative staleness.
+- `Features/Activities/ActivityDraftChanges.cs`: Content/source differences and
+  app-owned revision/acceptance-basis updates; validation derives staleness.
 - `Features/Activities/GenerationOperation.cs`: Operation/step state and bounded
   evidence.
 - `Features/Activities/GenerationOperationOptions.cs`: Queue, record, payload
@@ -117,6 +113,8 @@ Create focused files, not a generic service framework:
   entity.
 - `Evaluation/ContentWorkflowPrototype.cs`: Temporary matched one-shot/split
   experiment over the shared engine.
+- `Evaluation/EvaluationVersions.cs`: Sole report-format, automatic-check and
+  Hebrew-review counters, consumed only by the evaluator.
 
 Reuse the existing AI service/adapter, shared settings fields, template feature,
 instance preview and evaluation files. Task 8 lists obsolete files to remove. No
@@ -172,6 +170,14 @@ diagnostics; only operation failures and release measurements need durable
 evidence. Server fields (revision, origin, dependency and review metadata) never
 come from an editable-content payload.
 
+Ownership stays concrete: TaskRequestResolver resolves values; validators own
+acceptance and derived diagnostics; TaskAssembly selects bounded stages and
+applies content; AiGenerationService owns prompts, schemas and one provider
+call. Features own authorization, persistence and operation transitions. The
+evaluator reuses the engine without an application database. Angular owns form
+state and presentation, never authoritative content checks. Share actual rules;
+do not force HTTP writes and the worker through a generic command pipeline.
+
 ## Delivery sequence
 
 Tasks 1–2 provide the minimal shared core and comparison prototype before
@@ -196,6 +202,9 @@ revisions and an app-selected target where relevant.
       explicitly adjustable target/story type; no-material numeric questions;
       supplied bilingual source; fixed mixed formats; selectable format. Use
       synthetic developer fixtures, never production seed content.
+- [ ] Use EngineVersions for plan defaults, validation and evidence. Reject an
+      unsupported schema version; preserve historical evidence instead of
+      relabeling it. No per-helper policy counters or client-owned version.
 - [ ] Pin presence tests: omitted default resolves; false/zero/empty optional
       text survive; null maps/members, numeric strings, unknown/inapplicable
       IDs, fixed overrides and blank required text fail. Cover raw HTTP JSON
@@ -217,31 +226,40 @@ revisions and an app-selected target where relevant.
       new answer. A strict material mismatch returns an unapplied candidate;
       missing/duplicate IDs or a bad question batch apply nothing and allocate
       no accepted question IDs.
+- [ ] Pin generated-material and question acceptance fingerprints plus source
+      revisions. Changed effective input or source derives stale content;
+      adoption updates that basis without rewriting generation provenance. No
+      persisted stale/readiness flag can disagree with the shared validator. An
+      engine-revision-only change does not stale unchanged requirements; current
+      validators still enforce generation and release rules.
 - [ ] Run `dotnet test --filter FullyQualifiedName~TaskEngine`; observe new
       assertions fail, implement the pure units, then rerun until they pass.
-      Verify input collections are not mutated and identical inputs/policy
-      versions yield identical requirements/measurements, excluding IDs/time.
+      Verify input collections are not mutated and identical inputs/engine
+      revision yield identical requirements/measurements, excluding IDs/time.
 
 ### Task 2: Prove scoped generation and the comparative prototype
 
 **Files:** Modify `Engine/Ai/AiGenerationService.cs`, `AiPrompts.cs`,
-`AiSchemas.cs`, `AiGenerationOptions.cs`, `template.schema.json`; create
-`materials.schema.json`, `questions.schema.json` alongside them. Replacement
-schemas specialize the same material/question definitions. Modify
-`backend/FamilyLearning.Api/appsettings.json` and
+`AiSchemas.cs`, `AiGenerationOptions.cs`, `AiGenerationException.cs`,
+`template.schema.json`; create `materials.schema.json`, `questions.schema.json`
+alongside them. Replacement schemas specialize the same material/question
+definitions. Modify `backend/FamilyLearning.Api/appsettings.json` and
 `backend/FamilyLearning.Api/Infrastructure/Ai/OpenRouterRegistration.cs` for
 named request/schema limits. Create
 `Tests/TaskEngine/ContentGenerationTests.cs`; modify
 `Tests/Fixtures/AiFixtures.cs`, `Tests/TaskEngine/AiDiagnosticsTests.cs`,
 `Tests/TaskEngine/AiCapacityTests.cs`, and
 `Tests/Integration/OpenRouterConfigurationTests.cs`. Create
-`Evaluation/ContentWorkflowPrototype.cs`; modify
-`Evaluation/EvaluationCommand.cs`, `EvaluationPlan.cs`, `EvaluationRunner.cs`,
-`EvaluationReport.cs` and `cases.json`.
+`Evaluation/ContentWorkflowPrototype.cs` and `Evaluation/EvaluationVersions.cs`;
+modify `Evaluation/EvaluationCommand.cs`, `EvaluationPlan.cs`,
+`EvaluationRunner.cs`, `EvaluationReport.cs`, existing version consumers and
+`cases.json`.
 
 **Interfaces:** Implement the five AiGenerationService signatures. Prototype
 consumes fixed LearningPlan/TaskRequest and a one-shot/split variant; both use
-same source assembly, checks, provider configuration and evidence capture.
+same source assembly, checks, provider configuration and evidence capture. The
+worker and evaluator also use TaskAssembly's same finite stage-selection
+methods; only scheduling, storage and evaluation retries differ.
 
 - [ ] Add isolated wire tests proving author/refine interprets only the plan;
       material stage returns generated bodies/titles only; question stage sees
@@ -250,6 +268,14 @@ same source assembly, checks, provider configuration and evidence capture.
       metadata, unresolved defaults, hidden model reviewer or chain-of-thought
       request goes to the provider. Keep schema rules in schemas and shared
       semantic/presentation rules in one prompt fragment.
+- [ ] Wire AiSchemas to the central schema constant and derive prompt labels
+      from stable stage names plus the engine revision. Test that metadata and
+      the actual wire schema agree with those owners, including the temporary
+      one-shot stage. Remove superseded prompt counters; preserve immutable
+      shared schemas during per-request specialization.
+- [ ] Move evaluator format/check/judge counters into EvaluationVersions without
+      changing their meaning. All existing consumers reference this owner;
+      advance affected values as prototype/report contracts actually change.
 - [ ] Add call-count and checkpoint-independent tests: generated reading needs
       at most two calls; supplied source/question-only needs one; material
       structural or strict-length failure prevents questions; target mismatch
@@ -274,6 +300,10 @@ same source assembly, checks, provider configuration and evidence capture.
       through the unchanged adapter, then require passing isolated tests in
       schema and JSON-only modes. Refusal/truncation/transport errors stay safe;
       no new production retry, provider or model profile.
+- [ ] Make AI failures independent of persistence: safe call failure/category
+      and field diagnostics must not claim "nothing was saved." Test a failed
+      question call after accepted material and a synchronous authoring failure;
+      each caller renders recovery from its own saved state, not string patches.
 - [ ] Add three fixed-plan prototype cases: generated Hebrew reading, exact
       supplied bilingual source and question-only control. Preserve case/source
       identity, matched model/settings, all attempts/failures, stage output,
@@ -303,9 +333,9 @@ ActivityDraftChanges and TaskSnapshot from the map. Modify
 **Interfaces:** Implement spec section 5 draft/create/save/adopt/release routes.
 Create accepts plan/input plus optional templateId/expectedVersion, or owned
 snapshotId (mutually exclusive). PUT accepts expectedRevision and editable
-plan/input/content. Release accepts expectedRevision/reviewedRevision and
-returns snapshot ID/preview. TaskSnapshot uses existing `/api/instances/{id}`
-previews.
+plan/input/content. Release accepts one expectedRevision as the explicit parent
+review action and returns snapshot ID/preview. TaskSnapshot uses existing
+`/api/instances/{id}` previews.
 
 - [ ] Add failing tests for creation from an unsaved valid plan with no AI;
       owned-template copy pinned to expectedVersion; owned-snapshot copy with
@@ -377,11 +407,21 @@ fresh scopes; no DbContext is shared with provider calls or between threads.
       wins locally before transport cancellation, retains terminal cancelled
       status and allows only known usage metadata to arrive later. No provider
       transaction stays open.
+- [ ] Test expected provider/validation failures terminate only their operation,
+      release its active reference and let the next queued operation run. Saved
+      material survives and the UI does not claim a full rollback. Distinguish
+      user cancellation, provider timeout and host shutdown. Do not globally
+      ignore unexpected BackgroundService exceptions or reuse a failed
+      DbContext.
 - [ ] Add restart fixtures: queued resumes; accepted material + queued questions
       resumes only questions; calling without accepted checkpoint becomes
       unknown and is never replayed. Preserve known response metadata versus
       unknown usage. Repeated GET/poll/reload makes zero starts. Test lost
       start/release responses.
+- [ ] Test queued work after an engine/schema or nonsecret AI-profile change
+      stops without a provider call and retains accepted content. Credential
+      rotation alone remains resumable. No legacy engine registry or silent
+      model switch is introduced to recover old operations.
 - [ ] Add seven-day artifact expiration tests with an injected clock. Purge at
       most 32 terminal artifacts per pass; preserve
       key/fingerprints/status/known usage for draft lifetime. An expired
@@ -394,23 +434,21 @@ fresh scopes; no DbContext is shared with provider calls or between threads.
 ### Task 5: Replace the blueprint editor with plan chat and native controls
 
 **Files:** Modify `Features/Ai/AiEndpoints.cs`, `Client/core/api/models.ts`,
-`learning-api.ts`,
-`Client/features/templates/template-editor/template-editor.{ts,html,spec.ts}`
-and `Client/app.routes.ts`. Create
-`Client/features/templates/plan-editor/plan-editor.{ts,html,spec.ts}`,
-`template-chat/template-chat.{ts,html,spec.ts}` and `learning-plan.fixture.ts`.
-Create
-`Client/features/activities/activity-workspace/activity-workspace.{ts,html,spec.ts}`
-as the single route state owner from the start; keep TemplateEditor a thin
-template-route adapter that supplies initial context. Modify
+`learning-api.ts` and `Client/app.routes.ts`. Under
+`Client/features/activities/`, create
+`plan-editor/plan-editor.{ts,html,spec.ts}`,
+`template-chat/template-chat.{ts,html,spec.ts}`, `learning-plan.fixture.ts` and
+`activity-workspace/activity-workspace.{ts,html,spec.ts}`. Route existing
+template URLs and activity URLs directly to ActivityWorkspace with route
+context; do not retain a pass-through TemplateEditor component. Modify
 `Tests/Integration/AiAuthoringTests.cs` and shared settings fields as needed.
 
 **Interfaces:** Author endpoint uses TemplateAuthoringInput/AuthoringReply and
 returns app-computed PlanChange[], echoed requestId/baseRevision and metadata.
 ActivityWorkspace owns raw plan/input, valid projection, source confirmation,
-client revision, baseline, clarification and twenty-entry Undo. TemplateEditor
-and presentation children hold no competing draft; they only supply context or
-emit events. Saved template publication keeps expectedVersion.
+client revision, baseline, clarification and twenty-entry Undo. Presentation
+children emit edits without owning another draft. Saved template publication
+keeps expectedVersion.
 
 - [ ] Test initial proposal/refinement/one-question clarification, six-turn and
       12,000-character context cap, operative assumptions present in the plan,
@@ -429,6 +467,11 @@ emit events. Saved template publication keeps expectedVersion.
       inline source confirmation and meaningful Hebrew change labels. No raw key
       editor or generated prompt textarea. AI-unavailable state allows direct
       editing/publication. Do not expose unrequested passage/story controls.
+- [ ] Use initialized, control-friendly form values rather than binding partial
+      domain/HTTP records directly. Test the boundary mapping for blank optional
+      numbers/selects, empty text, false and zero, and conditional control
+      changes. Reuse the current native input helpers and Signal Forms; no new
+      form engine.
 - [ ] Run `dotnet test --filter FullyQualifiedName~AiAuthoringTests` and
       `npm --prefix frontend test -- --watch=false`; require isolated passes.
 
@@ -438,9 +481,9 @@ emit events. Saved template publication keeps expectedVersion.
 `Client/features/activities/activity-workspace/activity-workspace.{ts,html,spec.ts}`.
 Create `activity-document-editor/activity-document-editor.{ts,html,spec.ts}` and
 `generation-status/generation-status.{ts,html,spec.ts}` under that feature.
-Extend the existing ActivityWorkspace using PlanEditor/TemplateChat in the same
-route. TemplateEditor remains its thin adapter; no draft state moves or
-duplicates. Modify API models/LearningApi, app.routes.ts, library files and
+Extend ActivityWorkspace using its PlanEditor/TemplateChat in the same feature;
+no draft state moves or duplicates. Modify API models/LearningApi,
+app.routes.ts, library files and
 `Client/features/instances/instance-preview/instance-preview.{ts,html}`.
 
 **Interfaces:** ActivityWorkspace owns raw local plan/input/content, saved
@@ -480,36 +523,41 @@ targets, status component polls through its owner and never starts work.
 **Files:** Modify `Evaluation/EvaluationReport.cs`, `EvaluationRunner.cs`,
 `EvaluationPlan.cs`, `EvaluationComparison.cs`, `EvaluationSummary.cs`,
 `EvaluationRunStore.cs`, `EvaluationFiles.cs`, `EvaluationCapture.cs`,
-`HebrewJudge.cs`, `cases.json`, `hebrew-review-samples.json`, `wwwroot/app.js`
-and `wwwroot/index.html`. Modify existing evaluation tests under
-`Tests/TaskEngine`, dashboard integration tests and
-`frontend/e2e/evaluation-ui.test.mjs`.
+`HebrewJudge.cs`, `EvaluationVersions.cs`, `cases.json`,
+`hebrew-review-samples.json`, `wwwroot/app.js` and `wwwroot/index.html`. Modify
+existing evaluation tests under `Tests/TaskEngine`, dashboard integration tests
+and `frontend/e2e/evaluation-ui.test.mjs`.
 
 **Interfaces:** A case selects Prompt or InitialPlan, never both. Prompt permits
 at most three 4,000-character refinements; fixed-plan trials omit authoring.
-Stage records carry role/version/policy, exact effective input/schema + stable
-hashes, raw output, candidate acceptance/application state and optional usage.
-Skipped stages are explicit. Separate interpretation, generation, replacement
-and end-to-end outcomes in format 4; reuse one provider profile and judge.
+Stage records carry role and engine/schema versions, exact effective
+input/schema + stable hashes, raw output, candidate acceptance/application state
+and optional usage. Skipped stages are explicit. Separate interpretation,
+generation, replacement and end-to-end outcomes in the updated report format;
+reuse one provider profile and judge.
 
+- [ ] Advance only affected EvaluationVersions values for contract/behavior
+      changes; keep defaults, readers, messages and judge metadata derived. Test
+      unsupported report rejection and check/judge comparison boundaries; an
+      engine revision difference alone must not block a generation experiment.
 - [ ] Add fixture tests for author/refine/clarification, fixed-plan generation,
       supplied-source skip, scoped repair and early stop. All real attempts and
       evaluator-only 429 retries consume budget; planned totals sum actual
       applicable stages plus optional judge/calibration, not cases × two.
 - [ ] Preserve every failed/unapplied candidate and known partial usage; null
       means unknown. Capture exact input/schema evidence with fingerprints,
-      source revisions, actual model/provider and policy tags; no content or
+      source revisions, actual model/provider and engine revision; no content or
       answers in ordinary logs. Keep parent corrections/time-to-ready evidence.
 - [ ] Update comparison tests: matched plans/inputs/sources/settings and
-      policies for generator trials, matched edit sequences for authoring.
-      Reject incompatible old report formats safely. If judge
+      automatic-check rules for generator trials, matched edit sequences for
+      authoring. Reject incompatible old report formats safely. If judge
       identity/config/prompt/ rubric/coverage or calibration differs, suppress
       judge-quality deltas while retaining independently valid
       deterministic/human comparisons.
 - [ ] Reuse TextLength and independent case expectations. Keep
       fixed/range/target meanings, including the historical 100–150 regression;
-      authoring that drops a demand fails adherence. Update judge source
-      paths/policy version while preserving planted defects and auditing
+      authoring that drops a demand fails adherence. Update judge source paths
+      and its owned version while preserving planted defects and auditing
       disputed Hebrew labels with humans.
 - [ ] Run existing evaluation test filters,
       `node --test frontend/e2e/evaluation-ui.test.mjs` and
@@ -531,14 +579,15 @@ touched contract comments only when behavior is implemented.
 `TemplateValidator.cs`, `TaskContentValidator.cs`,
 `Engine/Ai/content.schema.json`, `Features/Instances/TaskInstance.cs`, and the
 old TaskInput record from TaskSettings. Delete obsolete
-`Client/features/templates/ai-template-author/`, `ai-template-form/`,
-`Client/features/instances/create-instance/` and `instance-form/` after
-transferring valuable tests. Remove `Evaluation/ContentWorkflowPrototype.cs` and
-temporary one-shot dispatch after capturing the decision; retain comparison
-artifacts and supported stage evidence.
+`Client/features/templates/template-editor/`, `ai-template-author/`,
+`ai-template-form/`, `Client/features/instances/create-instance/` and
+`instance-form/` after transferring valuable tests. Remove
+`Evaluation/ContentWorkflowPrototype.cs` and temporary one-shot dispatch after
+capturing the decision; retain comparison artifacts and supported stage
+evidence.
 
-**Interfaces:** One deployed schema-5 content-first lifecycle; no compatibility
-reader, dual production path or mutable historical TaskInstance.
+**Interfaces:** One deployed content-first lifecycle; no compatibility reader,
+dual production path or mutable historical TaskInstance.
 
 - [ ] Add isolated browser acceptance: prompt → requested controls → generate
       without template Save → edit/replace question → Save draft → parent review
@@ -572,7 +621,8 @@ reader, dual production path or mutable historical TaskInstance.
       changed. Do not commit, deploy or delete unrelated data.
 
 Child activation, assignment, attempts, scoring and reports require a later
-separate vertical-slice plan. This plan prepares an immutable self-contained
-snapshot and policy contract, not a claim that child delivery is available.
+separate vertical-slice plan. This plan prepares immutable self-contained
+content and answer keys; the child slice owns scoring policy and its versions.
 
 [design]: ../specs/2026-09-30-structured-templates-design.md
+[versions]: ../specs/2026-09-30-structured-templates-design.md#version-ownership

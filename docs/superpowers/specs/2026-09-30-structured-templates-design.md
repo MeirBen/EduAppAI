@@ -81,11 +81,10 @@ plan/input/content of an activity. Both remain visibly separate actions.
 
 ## 3. One application-owned contract
 
-Use a new LearningPlan contract, schemaVersion 5. Retain embedded JSON schemas,
-typed C# and TypeScript models and explicit domain validation. The model
-produces instances of that contract, never executable schemas or UI code. Manual
-changes and normalized AI proposals pass the same plan validator before
-publication.
+Use a new LearningPlan contract. Retain embedded JSON schemas, typed C# and
+TypeScript models and explicit domain validation. The model produces instances
+of that contract, never executable schemas or UI code. Manual changes and
+normalized AI proposals pass the same plan validator before publication.
 
 Distinguish untrusted provider proposals, canonical plans and resolved requests
 without duplicating their shared records. Only proposals allow new null IDs;
@@ -96,6 +95,48 @@ clamps values, invents semantics or guesses an old identity from a label.
 The following are logical field names and invariants, not a second handwritten
 schema implementation. Concrete provider schemas must stay within the selected
 endpoint's capabilities and be covered by request-wire tests.
+
+### Version ownership
+
+Keep two small constants files, each owned by the code it describes:
+
+- **TaskEngine/EngineVersions.cs** owns `SchemaVersion` and `Revision`, both
+  starting at 1 for this new contract. SchemaVersion identifies the LearningPlan
+  JSON shape. Revision covers engine behavior, including prompts, resolution,
+  assembly, validation and word measurement; these do not need separate
+  counters.
+- **Evaluation/EvaluationVersions.cs** owns report-format, automatic-check and
+  Hebrew-review versions. Consolidation preserves their existing values; advance
+  only the affected value when its format or semantics actually change. These
+  remain separate so a judge change does not invalidate independent automatic
+  comparisons. The application never depends on evaluation metadata.
+
+All consumers reference their owner: model defaults, validators, schemas,
+metadata, report readers and test builders. AiSchemas applies SchemaVersion to
+the embedded plan schema once when loading it; do not repeat its numeric enum in
+JSON or prose prompts. Reuse that finalized schema in the prompt and provider
+format. Angular preserves the server-supplied version without its own counter.
+Fixed regression artifacts retain their recorded versions; do not rewrite
+history or introduce compatibility readers.
+
+Use stable, distinct stage names under the new content-first identity and derive
+their prompt labels from the shared engine Revision. The temporary one-shot
+experiment is another stage name, not another version counter. Record the exact
+prompts and schemas alongside these labels. Bump Revision for changed engine
+behavior, not formatting or behavior-preserving refactors. Engine revisions may
+differ in a comparison experiment; report that difference and retain the matched
+input/check/judge rules in section 9. If shared validation or measurement
+changes the meaning of evaluation checks, advance the automatic-check version
+too.
+
+Documentation describes this policy and links to the owning files after they
+exist; it does not repeat current numeric values. Keep these as ordinary
+constants, without a registry, configuration setting or versioning framework.
+Parent template versions and draft concurrency revisions remain per-record
+values, independent of these software revisions. Engine revision is provenance,
+not a learning requirement: changing it alone does not mark accepted content
+stale. Current validation still applies before generation or release, and queued
+work keeps the configuration-change guard in section 6.
 
 ### Plan and shared settings
 
@@ -296,24 +337,26 @@ guidance. Do not parse prose to invent executable requirements.
 TaskRequestResolver.Resolve(plan, input) is pure and returns either errors or
 one ResolvedTaskRequest. This is the sole effective generation contract:
 settings, scoped meanings/values, exact accepted sources, material identities,
-allowed formats/counts, lengths and resolution/assembly policyVersion 1. Exclude
-competing defaults, adjustable flags, chat, family identity and database
-revision fields. Stage preparation adds only its target and source revisions; it
-does not reinterpret defaults. The effective request drives payload, schema,
-validation, assembly, measurements and evidence. Copy mutable collections at
-boundaries; request-specific schema changes must not mutate shared state.
+allowed formats/counts and lengths. Exclude competing defaults, adjustable
+flags, chat, family identity and database or engine revision fields. Stage
+preparation adds only its target and source revisions; it does not reinterpret
+defaults. The effective request drives payload, schema, validation, assembly,
+measurements and evidence. Copy mutable collections at boundaries;
+request-specific schema changes must not mutate shared state.
 
 ### One TaskDocument, three validation boundaries
 
 TaskDocument contains title, learner instructions, ordered materials and ordered
 questions. A material has an app-owned ID/revision, optional title, body and
 origin. A question has an app-owned ID, prompt, interaction/options,
-answer.value, points, dependency material ID/revisions, effective-input
-fingerprint and staleness. Provenance is server-owned at material/question or
-step level. Preserve current plain-text and answer contracts: numeric answers
-are invariant decimal strings; single-choice answers match exactly one distinct
-option; choice counts are 2–6 and points are integers 0–100. There is no
-option-ID refactor.
+answer.value and points. Generated materials and questions record the effective
+input fingerprint under which they were accepted; questions also record source
+material ID/revisions. Derive staleness from these values and the current input
+and sources; do not persist a competing stale flag. Provenance is server-owned
+at material/question or step level. Preserve current plain-text and answer
+contracts: numeric answers are invariant decimal strings; single-choice answers
+match exactly one distinct option; choice counts are 2–6 and points are integers
+0–100. There is no option-ID refactor.
 
 MaterialCandidateBatch contains only generated material {id, title?, body}.
 QuestionCandidateBatch contains the task title, learner instructions and
@@ -379,7 +422,7 @@ versions:
   plan, accepted TaskRequest, document, revision, activeOperationId, UTC times
   and optional template provenance.
 - **TaskSnapshot**: Immutable released plan/input/document/keys, measured
-  expectations, policy versions, provenance and parent review at
+  expectations, engine revision, provenance and parent review at
   sourceDraftId/sourceDraftRevision.
 - **GenerationOperation**: Bounded immutable request/effective-input evidence,
   steps, candidates, status, timestamps, safe diagnostics and known provider
@@ -432,9 +475,9 @@ conflicts return 409. The planned API replaces POST /templates/{id}/instances:
   status/checkpoints/diagnostics; never initiates work.
 - `POST /api/activity-drafts/{id}/operations/{operationId}/cancel`: Cancel the
   named operation; repeated cancellation is harmless.
-- `POST /api/activity-drafts/{id}/release`: Release(expectedRevision,
-  reviewedRevision); both must equal the saved revision. Returns immutable
-  snapshot.
+- `POST /api/activity-drafts/{id}/release`: Release(expectedRevision) is the
+  explicit parent review action for that saved revision. Returns an immutable
+  snapshot; no second identical review-revision field is needed.
 - `DELETE /api/activity-drafts/{id}`: Delete owned draft and operation records;
   fence late apply.
 - `GET /api/instances/{id}`: Existing parent preview route reads the new
@@ -454,6 +497,14 @@ sequentially. SQLite is the queue/source of truth; an optional in-memory wake
 signal only reduces polling. No broker, leases, event log or distributed
 workflow engine. This deployment runs one API process; multiple replicas require
 a new claim/lease design before deployment, not accidental concurrent workers.
+
+TaskAssembly owns the small in-memory stage-selection rules: which generated
+materials need work and whether questions can run. Runtime and evaluation use
+those same rules and validators. The worker owns scheduling, checkpoints and
+database transitions; the evaluator owns experiments and its call budget.
+Neither reimplements content acceptance or defaults. This needs ordinary methods
+over the four actions below, not a workflow interface, registry or configurable
+graph.
 
 - **GenerateActivity**: One batch for absent or stale required generated
   materials if needed, then one question batch: at most 2.
@@ -481,6 +532,15 @@ chain-of-thought. A judge is evaluation-only. All calls use the existing
 IChatClient and provider adapter/profile; production has no application retry or
 automatic repair. OpenRouter fallback may route a single application call; the
 application budget is not a billing guarantee.
+
+AI failures describe the failed call, never whether application data was saved.
+The worker records safe failure categories and preserves accepted checkpoints;
+the parent UI derives recovery wording from that state. Replace today's blanket
+"nothing was saved" AI messages rather than masking them in the UI. Handle
+expected provider, validation and cancellation outcomes per operation so they do
+not terminate the host; clear only that operation's active reference. Unexpected
+worker/database defects retain the host's normal failure behavior and restart
+recovery, rather than being swallowed or globally ignored.
 
 ### Admission, retention and idempotency
 
@@ -558,12 +618,17 @@ no active operation. Deletion/reset similarly fences late results. Propagate
 cancellation to transport without claiming remote work or billing stopped.
 
 On startup resume only queued work and the next queued stage of an accepted
-checkpoint. A durably calling step without an accepted checkpoint becomes
-unknown, with active ID cleared atomically; preserve accepted earlier material.
-Explain that the provider may have completed and another explicit attempt may
-incur another charge. Never silently replay it. Preserve any durably recorded
-completed-call metadata; missing usage/cost stays unknown. A local database
-checkpoint is the recovery boundary, not an exactly-once external promise.
+checkpoint whose recorded engine/schema versions and nonsecret AI profile still
+match the running configuration. Otherwise stop with a safe configuration-change
+conflict and preserve accepted work for an explicit new operation; do not load
+old engines or silently switch models mid-operation. Credential rotation alone
+does not change this fingerprint. A durably calling step without an accepted
+checkpoint becomes unknown, with active ID cleared atomically; preserve accepted
+earlier material. Explain that the provider may have completed and another
+explicit attempt may incur another charge. Never silently replay it. Preserve
+any durably recorded completed-call metadata; missing usage/cost stays unknown.
+A local database checkpoint is the recovery boundary, not an exactly-once
+external promise.
 
 ## 7. Editing, chat and client conflict safety
 
@@ -589,6 +654,13 @@ client revision match. Cancel invalidates identity before transport
 cancellation. A changed draft invalidates old clarification. Do not stream
 partial JSON.
 
+Keep a focused form model with initialized fields and control-appropriate empty
+values, separate from the transport/domain records. A boundary mapping omits
+applicable unset overrides and preserves explicit empty text, false and zero; it
+does not forward form-only nulls or metadata. Reuse native Signal Forms and
+existing input helpers, without a form/schema framework or a second editable
+copy of the same draft.
+
 During content work, direct edits remain available. Server revision protects
 saved changes; a captured client revision also protects **unsaved** keystrokes.
 Polling/operation completion must not replace a dirty local buffer even if its
@@ -612,13 +684,13 @@ scaling usable. Render source and generated text as text only.
 
 ## 8. Measurement, review and immutable release
 
-Measurement version 1 counts whitespace-separated tokens containing at least one
-Unicode letter or number, ignoring punctuation-only tokens. Count material
-bodies only; total scope sums generated bodies, excluding supplied sources.
-Never strip headings or rewrite text. “שלום עולם” and “שלום — עולם” count 2;
-“בעלי־חיים” and “don't” count 1; standalone emoji counts 0. Cover niqqud,
-newlines, mixed scripts and supplementary Unicode letters in the shared
-TextLength implementation used by runtime and evaluation.
+TextLength counts whitespace-separated tokens containing at least one Unicode
+letter or number, ignoring punctuation-only tokens. Count material bodies only;
+total scope sums generated bodies, excluding supplied sources. Never strip
+headings or rewrite text. “שלום עולם” and “שלום — עולם” count 2; “בעלי־חיים” and
+“don't” count 1; standalone emoji counts 0. Cover niqqud, newlines, mixed
+scripts and supplementary Unicode letters in the shared TextLength
+implementation used by runtime and evaluation.
 
 LengthMeasurement stores scope, expected, actual and nullable satisfied. Target
 has no invented tolerance/pass flag (satisfied=null). Exact/range uses the
@@ -636,30 +708,30 @@ blocking diagnostics. Review records a human action, not certified truth.
 
 In one short revision-protected transaction, validate those conditions, create
 TaskSnapshot and mark the draft released. Copy the canonical plan, resolved
-input, final materials/questions/keys, measurement policy/results, validation
-and resolution versions, scoring-policy identifier and creation/review
-provenance. Use scoring policy `objective-answer-v1` as a frozen contract
-reservation: choice exact value; invariant decimal value; short text trim +
-Unicode NFC, preserving case, punctuation and niqqud. This slice implements no
-scoring route. A future change requires a new policy, never reinterpretation of
-saved content.
+input, final materials/questions/keys, measurements, the shared engine revision
+and creation/review provenance. Record the reviewed revision from the successful
+release request. Do not store a placeholder scoring policy: scoring belongs to
+the later child slice, which must pin its implemented policy on the assignment
+and persist it with submitted results.
 
 A unique sourceDraftId allows one release. After authorization, a duplicate
-release with the original sourceDraftRevision/reviewedRevision returns the same
-snapshot, even if the successful HTTP response was lost. A different/stale
-revision returns 409. The terminal draft retains releasedSnapshotId and released
-source revision. If the snapshot was explicitly deleted, an exact replay returns
-410 Gone, never recreates it; a deleted draft returns 404. A transaction/race
-test must prove one winner between edit/release/cancel, with no mixed revisions.
-The snapshot remains self-contained if template, draft or diagnostic operation
-evidence is later deleted.
+release with expectedRevision equal to the original sourceDraftRevision returns
+the same snapshot, even if the successful HTTP response was lost. A
+different/stale revision returns 409. The terminal draft retains
+releasedSnapshotId and released source revision. If the snapshot was explicitly
+deleted, an exact replay returns 410 Gone, never recreates it; a deleted draft
+returns 404. A transaction/race test must prove one winner between
+edit/release/cancel, with no mixed revisions. The snapshot remains
+self-contained if template, draft or diagnostic operation evidence is later
+deleted.
 
 A later separate child slice may implement separately activated child access →
 snapshot assignment → resumable attempt → immutable submitted result. Use
-answer-free child DTOs, deterministic server scoring under the frozen policy and
-persisted reports; no AI when assigning, opening, answering, scoring or reading
-reports. Define child ownership/device/CSRF/retention and submission concurrency
-then. Do not add placeholder delivery controls in this parent-only cutover.
+answer-free child DTOs, deterministic server scoring under the assignment's
+pinned policy and persisted reports; no AI when assigning, opening, answering,
+scoring or reading reports. Define child ownership/device/CSRF/retention and
+submission concurrency then. Do not add placeholder delivery controls in this
+parent-only cutover.
 
 ## 9. Comparative prototype and implementation gate
 
@@ -694,12 +766,10 @@ retries. Keep the historical 100–150-word range regression unchanged in meanin
 A dropped authoring requirement remains an adherence failure even if the
 resulting weaker plan passes its own checks.
 
-At cutover use schema 5, authoring v23, materials v1, questions v1,
-replace-material v1, replace-question v1, Hebrew review v9, report format 4,
-automatic checks 9, resolution/assembly 1, validation 1 and measurement 1.
-Temporary comparison-only one-shot uses `prototype-one-shot-v1`; remove that
-production capability after the decision. Exact roles/policy tags travel with
-each artifact. Advance versions when semantics change. Do not add another model
+Apply the [version ownership](#version-ownership) rules when adapting the
+evaluation format, checks and judge. Record stage identity, engine/schema
+versions and evaluation versions with each artifact. Remove the temporary
+one-shot capability after the comparison decision. Do not add another model
 profile, judge provider or configuration source.
 
 Compare judge findings only with matched judge model/profile/prompt/rubric,
@@ -746,7 +816,10 @@ These sources inform the design; they do not establish improved Hebrew quality:
 
 - [Bounded AI workflows][workflows] and [evaluation guidance][evaluations].
 - [Structured output and semantic correctness][structured-output].
-- [Hosted background work][hosted-services] and [EF concurrency][concurrency].
+- [Hosted background work][hosted-services], [failure behavior][worker-failures]
+  and [EF concurrency][concurrency].
+- [Angular form-model design][form-model], [route data][routes] and [endpoint
+  schema support][schemas].
 - [OpenRouter caching and duplicate request billing][caching].
 
 [workflows]: https://www.anthropic.com/engineering/building-effective-agents
@@ -755,3 +828,7 @@ These sources inform the design; they do not establish improved Hebrew quality:
 [hosted-services]: https://learn.microsoft.com/en-us/aspnet/core/fundamentals/host/hosted-services?view=aspnetcore-8.0
 [concurrency]: https://learn.microsoft.com/en-us/ef/core/saving/concurrency
 [caching]: https://openrouter.ai/docs/guides/features/response-caching
+[worker-failures]: https://learn.microsoft.com/en-us/dotnet/core/compatibility/core-libraries/6.0/hosting-exception-handling
+[form-model]: https://angular.dev/guide/forms/signals/model-design
+[schemas]: https://openrouter.ai/docs/guides/features/structured-outputs
+[routes]: https://angular.dev/guide/routing/define-routes#associating-data-with-routes
