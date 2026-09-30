@@ -314,6 +314,7 @@ public sealed class EvaluationReportsTests : IDisposable
 
     [Theory]
     [InlineData("formatVersion", "1")]
+    [InlineData("formatVersion", "2")]
     [InlineData("results[0].review.hebrew", "3")]
     [InlineData("results[0].review.hebrew", "-1")]
     public async Task Unsupported_reports_and_invalid_human_scores_fail_explicitly(string field, string value)

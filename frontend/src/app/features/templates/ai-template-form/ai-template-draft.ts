@@ -1,4 +1,9 @@
 import { ParameterDefinition, TemplateDefinition } from '../../../core/api/models';
+import {
+  TaskSettingsDraft,
+  taskSettingsDraft,
+  taskSettingsValue,
+} from '../../../shared/forms/task-settings';
 import { isIntegerInput } from '../../../shared/forms/integer-input';
 
 /** Editor-only strings retain empty and invalid numeric inputs until validation. */
@@ -21,7 +26,7 @@ interface ParameterDraft {
 interface AiBlueprintDraft {
   name: string;
   instructions: string;
-  questionCount: string;
+  settings: TaskSettingsDraft;
   parameters: ParameterDraft[];
 }
 
@@ -46,7 +51,7 @@ export function aiTemplateDraft(definition: TemplateDefinition): AiBlueprintDraf
   return {
     name: definition.name,
     instructions: definition.generation.instructions,
-    questionCount: String(definition.generation.questionCount),
+    settings: taskSettingsDraft(definition.generation.defaults),
     parameters: definition.instanceParameters.map((field) => ({
       id: crypto.randomUUID(),
       key: field.key,
@@ -76,14 +81,14 @@ export function aiTemplateErrors(draft: AiBlueprintDraft): string[] {
   if (!draft.name.trim() || draft.name.length > 100) errors.push('יש להזין שם עד 100 תווים.');
   if (!draft.instructions.trim() || draft.instructions.length > 4000)
     errors.push('יש להזין הנחיות עד 4,000 תווים.');
-  if (!isIntegerInput(draft.questionCount) || Number(draft.questionCount) < 1)
-    errors.push('מספר השאלות חייב להיות מספר שלם גדול מאפס.');
   if (draft.parameters.length > 16) errors.push('אפשר להגדיר עד 16 שדות.');
   const keys = new Set<string>();
   for (const [index, field] of draft.parameters.entries()) {
     const prefix = `שדה ${index + 1}: `;
     if (!/^[a-z][a-zA-Z0-9]{0,39}$/.test(field.key) || keys.has(field.key))
       errors.push(prefix + 'נדרש מפתח ייחודי באותיות לטיניות, ללא רווחים.');
+    if (['topic', 'audience', 'difficulty', 'questionCount'].includes(field.key))
+      errors.push(prefix + 'המפתח שייך להגדרות המשימה המשותפות.');
     keys.add(field.key);
     if (!field.label.trim() || field.label.length > 100)
       errors.push(prefix + 'נדרשת תווית עד 100 תווים.');
@@ -129,11 +134,11 @@ export function aiTemplateErrors(draft: AiBlueprintDraft): string[] {
 /** Builds the public contract after validation, removing editor identities and irrelevant type settings. */
 export function aiTemplateDefinition(draft: AiBlueprintDraft): TemplateDefinition {
   return {
-    schemaVersion: 3,
+    schemaVersion: 4,
     name: draft.name.trim(),
     generation: {
       instructions: draft.instructions,
-      questionCount: Number(draft.questionCount),
+      defaults: taskSettingsValue(draft.settings),
     },
     instanceParameters: draft.parameters.map(parameterDefinition),
   };

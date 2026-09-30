@@ -139,8 +139,8 @@ run plans 44 base calls, or 70 with the four judge controls, before retries.
 Select individual cases for focused checks.
 
 `reviewFocus` guides human review, not automatic assertions. The runner uses
-generated defaults; `questionCountOverride` supplies an explicit per-task count
-and must match the case's expected `questionCount`.
+generated defaults; optional `settingsOverride` supplies all four per-task settings,
+and its count must match the case's expected `questionCount`.
 `minPassageWords` and `maxPassageWords` measure adherence to a case's requested
 length after generation; they are evaluation expectations, not application fields.
 Length checks do not reject otherwise valid content or prevent language review.
@@ -152,8 +152,10 @@ and its measurable expectations consistent with the parent request. Do not relax
 expectations to hide a model failure. Preview validates all fixtures without AI
 calls. Restart `dev.sh` after editing to rebuild its dashboard's fixture copies.
 Suite changes require new baseline and candidate runs for direct comparison.
-The current blueprint uses schema version 3 with a direct question count. Regenerate
-older templates and evaluation baselines; no legacy conversion is included.
+Blueprint schema version 4 stores shared topic, audience, difficulty and question-count
+defaults. The migration clears older learning content and preserves parent accounts.
+Evaluation reports use format version 3 to capture the complete task input.
+Regenerate templates and evaluation baselines; no legacy conversion is included.
 
 The loopback dashboard runs at `http://127.0.0.1:5180` (change with `--port`).
 It shows cases, call budget and nonsecret AI settings. Runs require confirmation;

@@ -581,8 +581,8 @@ export function reportBrief(id, report, summary) {
       '#### Parent request',
       fence('text', prompt ?? 'Not recorded'),
       '',
-      '#### Case expectations and parameters',
-      json({ ...expectations, parameters: evaluation.parameters }),
+      '#### Case expectations and task input',
+      json({ ...expectations, input: evaluation.input }),
       '',
       '#### Automatic checks',
       json(evaluation.checks ?? {}),
@@ -824,8 +824,8 @@ export function createDashboard(document, fetchRequest = globalThis.fetch.bind(g
         expectations.push(
           `passage words: ${item.minPassageWords ?? 0}–${item.maxPassageWords ?? 'unbounded'}`,
         );
-      if (item.questionCountOverride != null)
-        expectations.push(`count override: ${item.questionCountOverride}`);
+      if (item.settingsOverride != null)
+        expectations.push(`task settings override: ${JSON.stringify(item.settingsOverride)}`);
       const chips = node('ul', null, 'chips');
       for (const expectation of expectations) chips.append(node('li', expectation, 'chip'));
       entry.append(chips, raw(`Prompt · ${item.id}`, item.prompt));

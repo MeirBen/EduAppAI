@@ -56,7 +56,7 @@ public sealed class EvaluationTests : IDisposable
     }
 
     [Theory]
-    [InlineData("authoring", "generation.questionCount")]
+    [InlineData("authoring", "generation.defaults.questionCount")]
     [InlineData("generation", "questions[0]")]
     [InlineData("wrong-count", "questions")]
     [InlineData("null-questions", "questions")]
@@ -64,7 +64,7 @@ public sealed class EvaluationTests : IDisposable
     {
         var definition = AiFixtures.Definition();
         var content = AiFixtures.Content();
-        if (stage == "authoring") definition["generation"]!["questionCount"] = 0;
+        if (stage == "authoring") definition["generation"]!["defaults"]!["questionCount"] = 0;
         if (stage == "generation") content["questions"]![0]!["answer"]!["value"] = "";
         if (stage == "wrong-count") content = AiFixtures.Content(count: 1);
         if (stage == "null-questions") content["questions"] = null;
@@ -163,7 +163,7 @@ public sealed class EvaluationTests : IDisposable
     {
         var content = AiFixtures.Content(count: count);
         var definition = AiFixtures.Definition();
-        definition["generation"]!["questionCount"] = count;
+        definition["generation"]!["defaults"]!["questionCount"] = count;
         foreach (var question in content["questions"]!.AsArray())
         {
             question!["interaction"] = new JsonObject { ["type"] = "single-choice", ["options"] = new JsonArray("א", "ב", "ג") };
@@ -183,13 +183,13 @@ public sealed class EvaluationTests : IDisposable
 
     [Theory]
     [InlineData("קהל היעד הוא כיתה ג׳. עם ", false)]
-    [InlineData("יש לכתוב על theme.", false)]
-    [InlineData("יש להשתמש ב-theme וב-counter.", false)]
-    [InlineData("theme discount", false)]
-    [InlineData("theme count_extra", false)]
-    [InlineData("theme Count", false)]
-    [InlineData("יש להשתמש ב־'theme' וב־'count'.", true)]
-    [InlineData("theme: הנושא; count: מספר השאלות.", true)]
+    [InlineData("יש לכתוב על sourceText.", false)]
+    [InlineData("יש להשתמש ב-sourceText וב-counter.", false)]
+    [InlineData("sourceText discount", false)]
+    [InlineData("sourceText count_extra", false)]
+    [InlineData("sourceText Count", false)]
+    [InlineData("יש להשתמש ב־'sourceText' וב־'count'.", true)]
+    [InlineData("sourceText: הנושא; count: מספר השאלות.", true)]
     [InlineData("יש ליצור שתי שאלות.", true, true)]
     public async Task Parameter_reference_check_requires_every_exact_key_without_blocking_evidence(
         string instructions, bool expected, bool noParameters = false)
@@ -241,13 +241,17 @@ public sealed class EvaluationTests : IDisposable
     }
 
     [Fact]
-    public async Task Question_count_override_reaches_generation_without_a_dynamic_field()
+    public async Task Shared_settings_override_reaches_generation_without_dynamic_fields()
     {
         using var chat = new AiFixtures.ScriptedChat(AiFixtures.Definition().ToJsonString(), AiFixtures.Content(count: 20).ToJsonString());
-        var report = await RunAsync(chat, Case with { QuestionCountOverride = 20, QuestionCount = 20 });
+        var report = await RunAsync(chat, Case with { SettingsOverride = new("חלל", "מבוגרים", "hard", 20), QuestionCount = 20 });
 
         var result = Assert.Single(report.Results);
-        Assert.False(result.Parameters!.ContainsKey("count"));
+        Assert.Equal(new("חלל", "מבוגרים", "hard", 20), result.Input!.Settings);
+        Assert.False(result.Input.Parameters.ContainsKey("count"));
+        Assert.Contains("\"topic\":\"חלל\"", chat.Requests[1].Input);
+        Assert.Contains("\"audience\":\"מבוגרים\"", chat.Requests[1].Input);
+        Assert.Contains("\"difficulty\":\"hard\"", chat.Requests[1].Input);
         Assert.Contains("\"questionCount\":20", chat.Requests[1].Input);
         Assert.True(result.Generation!.ContractValid);
     }

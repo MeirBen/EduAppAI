@@ -3,9 +3,17 @@ type ParameterValue = string | number | boolean;
 /** Values keyed by case-sensitive schema keys. Omitted keys allow server defaults. */
 export type ParameterValues = Record<string, ParameterValue>;
 
-/** Choices for a new task; the form sends an explicit count and typed parameter values. */
-export interface CreateInstanceRequest {
+/** Shared task choices; difficulty is relative to the audience. */
+export interface TaskSettings {
+  topic: string;
+  audience: string;
+  difficulty: 'easy' | 'medium' | 'hard';
   questionCount: number;
+}
+
+/** Resolved task choices, preserved alongside the generated content. */
+export interface TaskInput {
+  settings: TaskSettings;
   parameters: ParameterValues;
 }
 
@@ -25,13 +33,13 @@ export interface ParameterDefinition {
 
 /** Published blueprint; schemaVersion describes the JSON format, not the template revision. */
 export interface TemplateDefinition {
-  schemaVersion: 3;
+  schemaVersion: 4;
   name: string;
   instanceParameters: ParameterDefinition[];
   generation: {
     instructions: string;
-    /** Positive default count, adjustable for each task. */
-    questionCount: number;
+    /** Reviewed starting values, adjustable for each task. */
+    defaults: TaskSettings;
   };
 }
 
@@ -98,6 +106,6 @@ export interface InstancePreview {
   generationMetadata: GenerationMetadata | null;
   templateVersionId: string;
   templateVersion: number;
-  parameters: ParameterValues;
+  input: TaskInput;
   content: TaskContent;
 }

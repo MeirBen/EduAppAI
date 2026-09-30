@@ -15,7 +15,7 @@ public sealed class TemplateLengthGuidanceTests
     public async Task Length_guidance_reaches_generation_without_rejecting_valid_short_content()
     {
         var definition = Definition();
-        const string instructions = "יש ליצור קטע בן 100–150 מילים בנושא \"theme\".";
+        const string instructions = "יש ליצור קטע בן 100–150 מילים בנושא \"sourceText\".";
         definition["generation"]!["instructions"] = instructions;
         var content = Content();
         using var chat = new ScriptedChat(content.ToJsonString());
@@ -27,7 +27,7 @@ public sealed class TemplateLengthGuidanceTests
         Assert.Equal(instructions, template.GetProperty("definition").GetProperty("generation").GetProperty("instructions").GetString());
         var id = template.GetProperty("id").GetGuid();
 
-        using var created = await parent.PostAsJsonAsync($"/api/templates/{id}/instances", new { parameters = new { } });
+        using var created = await parent.PostAsJsonAsync($"/api/templates/{id}/instances", Input());
         Assert.Equal(HttpStatusCode.Created, created.StatusCode);
         Assert.Single(chat.Requests);
         Assert.Contains(JsonSerializer.Serialize(instructions, new JsonSerializerOptions { Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping }), chat.Requests[0].Input);

@@ -321,7 +321,7 @@ test('rejected stages show field validation errors as text and retain them in th
         authoring: {
           ...completedReport.results[0].authoring,
           failure: 'urn:family-learning:ai-validation',
-          validationErrors: { 'generation.questionCount': [message] },
+          validationErrors: { 'generation.defaults.questionCount': [message] },
         },
       },
     ],
@@ -337,7 +337,7 @@ test('rejected stages show field validation errors as text and retain them in th
     const stage = [...app.document.querySelectorAll('.stage')].find(
       (item) => item.querySelector('h4').textContent === 'Template authoring',
     );
-    assert.ok(stage.textContent.includes('generation.questionCount'));
+    assert.ok(stage.textContent.includes('generation.defaults.questionCount'));
     assert.ok(stage.textContent.includes(message));
     assert.ok(!stage.textContent.includes('urn:family-learning:ai-validation'));
     assert.equal(stage.querySelectorAll('img, script').length, 0);
@@ -927,6 +927,10 @@ test('the AI brief carries context, requests, outputs, findings and reviews with
     results: [
       {
         ...completedReport.results[0],
+        input: {
+          settings: { topic: 'חלל', audience: 'מבוגרים', difficulty: 'hard', questionCount: 2 },
+          parameters: {},
+        },
         review: { hebrew: 2, notes: 'טוב' },
         authoring: { ...completedReport.results[0].authoring, output: '```\n# escaped' },
       },
@@ -942,6 +946,10 @@ test('the AI brief carries context, requests, outputs, findings and reviews with
     '"title": "בדיקת עברית"',
     '<script>request</script>',
     '"hebrew": 2',
+    '#### Case expectations and task input',
+    '"topic": "חלל"',
+    '"audience": "מבוגרים"',
+    '"difficulty": "hard"',
     'הטעויות באפשרויות התשובה מכוונות.',
     '"allowUnexpectedFindings": false',
   ])

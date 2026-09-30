@@ -24,6 +24,13 @@
     <span class="badge"><span aria-hidden="true">✓</span> הטיוטה נשמרה</span>
   </header>
   <div class="mb-6 flex flex-wrap gap-x-6 gap-y-2 text-sm text-muted">
+    <span
+      >נושא: <bdi>{{ draft.input.settings.topic }}</bdi></span
+    >
+    <span
+      >קהל יעד: <bdi>{{ draft.input.settings.audience }}</bdi></span
+    >
+    <span>רמת קושי: {{ difficultyLabels[draft.input.settings.difficulty] }}</span>
     <span>גרסת תבנית {{ draft.templateVersion }}</span>
     <span
       ><bdi>{{ draft.createdAtUtc | date: 'd בMMMM y, HH:mm' }}</bdi></span

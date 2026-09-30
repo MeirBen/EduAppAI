@@ -5,7 +5,7 @@ import {
   AiTemplateDraft,
   InstancePreview,
   InstanceSummary,
-  CreateInstanceRequest,
+  TaskInput,
   TemplateDefinition,
   TemplateDetail,
   TemplateSummary,
@@ -89,7 +89,7 @@ export class LearningApi {
    * Each successful request creates a new task.
    * @param request - Exact question count and typed per-task choices.
    */
-  createInstance(templateId: string, request: CreateInstanceRequest, lifetime: DestroyRef) {
+  createInstance(templateId: string, request: TaskInput, lifetime: DestroyRef) {
     return requestResult(
       this.http.post<InstancePreview>(`/api/templates/${templateId}/instances`, request),
       lifetime,

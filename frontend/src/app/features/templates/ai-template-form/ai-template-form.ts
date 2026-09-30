@@ -11,7 +11,7 @@ import {
   linkedSignal,
   output,
 } from '@angular/core';
-import { disabled, form, FormField, submit, validate } from '@angular/forms/signals';
+import { apply, disabled, form, FormField, submit, validate } from '@angular/forms/signals';
 import { LearningApi } from '../../../core/api/learning-api';
 import { apiError } from '../../../core/api/api-error';
 import { TemplateDefinition, TemplateDetail } from '../../../core/api/models';
@@ -21,12 +21,14 @@ import {
   aiTemplateErrors,
   blankParameter,
 } from './ai-template-draft';
+import { taskSettingsSchema } from '../../../shared/forms/task-settings';
+import { TaskSettingsFields } from '../../../shared/forms/task-settings-fields';
 import { LoadingIndicator } from '../../../shared/loading-indicator/loading-indicator';
 
 /** Reviews AI instructions and dynamic fields before explicit publication; failures retain local edits. */
 @Component({
   selector: 'app-ai-template-form',
-  imports: [LoadingIndicator, FormField],
+  imports: [LoadingIndicator, FormField, TaskSettingsFields],
   templateUrl: './ai-template-form.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
@@ -52,6 +54,7 @@ export class AiTemplateForm {
   protected readonly conflict = linkedSignal({ source: this.definition, computation: () => false });
   protected readonly fields = form(this.model, (path) => {
     disabled(path, ({ state }) => state.submitting() || this.busy());
+    apply(path.settings, taskSettingsSchema);
     validate(path, ({ value }) =>
       aiTemplateErrors(value()).map((message, index) => ({ kind: `blueprint-${index}`, message })),
     );

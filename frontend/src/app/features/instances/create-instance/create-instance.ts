@@ -9,7 +9,7 @@ import {
 import { Router, RouterLink } from '@angular/router';
 import { LearningApi } from '../../../core/api/learning-api';
 import { apiError } from '../../../core/api/api-error';
-import { CreateInstanceRequest } from '../../../core/api/models';
+import { TaskInput } from '../../../core/api/models';
 import { InstanceForm } from '../instance-form/instance-form';
 import { LoadingIndicator } from '../../../shared/loading-indicator/loading-indicator';
 
@@ -31,7 +31,7 @@ export class CreateInstance {
   protected readonly error = signal('');
   protected readonly apiError = apiError;
 
-  protected async generate(request: CreateInstanceRequest) {
+  protected async generate(request: TaskInput) {
     if (this.busy() || this.savedInstanceId()) return;
     this.busy.set(true);
     this.error.set('');

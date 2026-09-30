@@ -8,7 +8,7 @@
       @if (error()) {
         <p>{{ error() }}</p>
       }
-      @for (error of fields().errors(); track error.kind) {
+      @for (error of fields().errorSummary(); track error.kind) {
         <p>{{ error.message }}</p>
       }
       @if (conflict()) {
@@ -32,26 +32,17 @@
       aria-describedby="instructions-hint"
     ></textarea>
     <p id="instructions-hint" class="mt-2 text-sm text-muted">
-      המטרה, גיל הלומדים, סוגי השאלות, השפה ואורך התוכן הרצוי, אם רלוונטי. השתמשו במפתחות השדות כדי
-      להתייחס לבחירות המשתנות.
+      מטרת הלמידה, סוגי השאלות, השפה ואורך התוכן הרצוי, אם רלוונטי. השתמשו במפתחות השדות כדי להתייחס
+      לבחירות המשתנות.
     </p>
   </div>
-  <div class="field">
-    <label for="default-question-count">מספר שאלות כברירת מחדל</label>
-    <input
-      id="default-question-count"
-      [formField]="fields.questionCount"
-      aria-required="true"
-      inputmode="numeric"
-      dir="ltr"
-      aria-describedby="question-count-hint"
-    />
-    <p id="question-count-hint" class="mt-2 text-sm text-muted">אפשר לשנות לפני כל יצירת משימה.</p>
-  </div>
-  <h3 class="mb-3 mt-8">מה בוחרים בכל שימוש?</h3>
+  <h3 class="mb-3 mt-6">ברירות מחדל למשימות</h3>
+  <p class="mb-4 text-sm text-muted">אלו ערכי הפתיחה. אפשר לשנות אותם לפני כל יצירת משימה.</p>
+  <app-task-settings-fields [fields]="fields.settings" prefix="default" />
+  <h3 class="mb-3 mt-6">בחירות נוספות לתבנית הזאת</h3>
   <p class="mb-5 text-sm text-muted">
-    למשל נושא, רמת קושי או אורך קטע. ברירת מחדל ריקה משאירה את הבחירה לשימוש הבא. בשדה טקסט לא חובה
-    אפשר לבחור במפורש בטקסט ריק.
+    רק פרטים נוספים שהמשימה צריכה, כמו טקסט מקור או סגנון כתיבה. אין צורך לחזור על ההגדרות שמעל.
+    ברירת מחדל ריקה משאירה את הבחירה לשימוש הבא. בשדה טקסט לא חובה אפשר לבחור במפורש בטקסט ריק.
   </p>
   @for (parameter of model().parameters; track parameter.id; let index = $index) {
     @let field = fields.parameters[index];

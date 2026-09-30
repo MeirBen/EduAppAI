@@ -39,7 +39,7 @@ public sealed class ParentWorkflowTests
         var template = await created.Content.ReadFromJsonAsync<JsonElement>();
         var id = template.GetProperty("id").GetGuid();
         var generated = await parent.PostAsJsonAsync($"/api/templates/{id}/instances",
-            new { questionCount = 3, parameters = new { theme = "חלל" } });
+            new { settings = AiFixtures.Settings(3), parameters = new { sourceText = "חלל" } });
         Assert.Equal(HttpStatusCode.Created, generated.StatusCode);
         var instance = await generated.Content.ReadFromJsonAsync<JsonElement>();
         var instanceId = instance.GetProperty("id").GetGuid();
@@ -70,12 +70,12 @@ public sealed class ParentWorkflowTests
         var response = await owner.PostAsJsonAsync("/api/templates", AiFixtures.Definition());
         var template = await response.Content.ReadFromJsonAsync<JsonElement>();
         var id = template.GetProperty("id").GetGuid();
-        var draftResponse = await owner.PostAsJsonAsync($"/api/templates/{id}/instances", new { questionCount = 3, parameters = new { } });
+        var draftResponse = await owner.PostAsJsonAsync($"/api/templates/{id}/instances", new { settings = AiFixtures.Settings(3), parameters = new { } });
         var draft = await draftResponse.Content.ReadFromJsonAsync<JsonElement>();
         Assert.Equal(HttpStatusCode.NotFound, (await stranger.GetAsync($"/api/templates/{id}")).StatusCode);
         Assert.Equal(HttpStatusCode.NotFound, (await stranger.GetAsync($"/api/instances/{draft.GetProperty("id").GetGuid()}")).StatusCode);
         Assert.Equal(HttpStatusCode.NotFound,
-            (await stranger.PostAsJsonAsync($"/api/templates/{id}/instances", new { questionCount = 3, parameters = new { } })).StatusCode);
+            (await stranger.PostAsJsonAsync($"/api/templates/{id}/instances", new { settings = AiFixtures.Settings(3), parameters = new { } })).StatusCode);
         Assert.Equal(0, (await stranger.GetFromJsonAsync<JsonElement>("/api/instances")).GetArrayLength());
     }
 
@@ -152,7 +152,7 @@ public sealed class ParentWorkflowTests
         var template = await response.Content.ReadFromJsonAsync<JsonElement>();
         var id = template.GetProperty("id").GetGuid();
         Assert.Equal(HttpStatusCode.BadRequest,
-            (await parent.PostAsJsonAsync($"/api/templates/{id}/instances", new { questionCount = 0, parameters = new { } })).StatusCode);
+            (await parent.PostAsJsonAsync($"/api/templates/{id}/instances", new { settings = AiFixtures.Settings(0), parameters = new { } })).StatusCode);
         Assert.Equal(0, (await parent.GetFromJsonAsync<JsonElement>("/api/instances")).GetArrayLength());
         var unknown = await parent.GetAsync("/api/does-not-exist");
         Assert.Equal(HttpStatusCode.NotFound, unknown.StatusCode);

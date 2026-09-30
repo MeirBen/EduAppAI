@@ -36,7 +36,7 @@ public static class InstanceEndpoints
         });
     }
 
-    private static async Task<IResult> CreateAsync(Guid id, CreateInstanceRequest request, ClaimsPrincipal user,
+    private static async Task<IResult> CreateAsync(Guid id, TaskInput request, ClaimsPrincipal user,
         LearningDbContext db, AiGenerationService ai, CancellationToken ct)
     {
         // Resolve ownership and pin the current immutable revision in one database read.
@@ -47,12 +47,13 @@ public static class InstanceEndpoints
         if (version is null) return Results.NotFound();
         var definition = StoredJson.Read<TaskTemplateDefinition>(version.DefinitionJson);
         var parameters = ParameterValidator.Validate(definition.InstanceParameters, request.Parameters);
-        var questionCount = request.QuestionCount ?? definition.Generation.QuestionCount;
-        if (questionCount is < 1) parameters.Errors["questionCount"] = ["מספר השאלות חייב להיות גדול מאפס."];
-        if (parameters.Errors.Count > 0) return Results.ValidationProblem(parameters.Errors);
-        var generated = await ai.GenerateAsync(definition, parameters.Values, questionCount, ct);
+        var errors = TaskSettingsValidator.Validate(request.Settings);
+        foreach (var error in parameters.Errors) errors[$"parameters.{error.Key}"] = error.Value;
+        if (errors.Count > 0) return Results.ValidationProblem(errors);
+        var input = new TaskInput(request.Settings, parameters.Values);
+        var generated = await ai.GenerateAsync(definition, input, ct);
         var instance = new TaskInstance(user.FamilyId(), version.Id, generated.Value.Title,
-            StoredJson.Write(parameters.Values), StoredJson.Write(generated.Value), StoredJson.Write(generated.Metadata));
+            StoredJson.Write(input), StoredJson.Write(generated.Value), StoredJson.Write(generated.Metadata));
         db.TaskInstances.Add(instance);
         try { await db.SaveChangesAsync(ct); }
         catch (DbUpdateException exception) when (exception.InnerException is SqliteException { SqliteExtendedErrorCode: 787 })

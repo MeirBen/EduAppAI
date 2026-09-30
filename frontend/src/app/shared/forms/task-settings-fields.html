@@ -1,0 +1,42 @@
+<div class="grid gap-x-4 sm:grid-cols-2">
+  @for (control of controls; track control.key) {
+    @let field = fields()[control.key];
+    @let id = prefix() + '-' + control.key;
+    <div class="field">
+      <label [for]="id">{{ control.label }}</label>
+      @if (control.key === 'difficulty') {
+        <select
+          [id]="id"
+          [formField]="fields().difficulty"
+          aria-required="true"
+          [attr.aria-invalid]="field().touched() && field().invalid()"
+          [attr.aria-describedby]="id + '-help'"
+        >
+          @for (level of levels; track level) {
+            <option [value]="level">{{ difficultyLabels[level] }}</option>
+          }
+        </select>
+      } @else {
+        <input
+          [id]="id"
+          [formField]="fields()[control.key]"
+          aria-required="true"
+          [attr.dir]="control.key === 'questionCount' ? 'ltr' : 'auto'"
+          [attr.inputmode]="control.key === 'questionCount' ? 'numeric' : 'text'"
+          [attr.aria-invalid]="field().touched() && field().invalid()"
+          [attr.aria-describedby]="id + '-help'"
+        />
+      }
+      <div [id]="id + '-help'">
+        @if ('hint' in control) {
+          <p class="mt-2 text-sm text-muted">{{ control.hint }}</p>
+        }
+        @if (field().touched()) {
+          @for (error of field().errors(); track error.kind) {
+            <p class="field-error">{{ error.message }}</p>
+          }
+        }
+      </div>
+    </div>
+  }
+</div>

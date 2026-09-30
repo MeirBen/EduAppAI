@@ -11,12 +11,11 @@ describe('AI blueprint editor', () => {
     expect(readingDefinition).toEqual(original);
   });
 
-  it('rejects duplicate keys, invalid defaults and an invalid question count', () => {
+  it('rejects duplicate keys and invalid defaults', () => {
     const draft = aiTemplateDraft(readingDefinition);
-    draft.parameters[0].key = 'age';
+    draft.parameters[0].key = 'paragraphs';
     draft.parameters[1].defaultValue = '1.5';
-    draft.questionCount = '0';
-    expect(aiTemplateErrors(draft).length).toBeGreaterThanOrEqual(3);
+    expect(aiTemplateErrors(draft).length).toBeGreaterThanOrEqual(2);
   });
 
   it('does not coerce an empty numeric default to zero', () => {
@@ -25,11 +24,11 @@ describe('AI blueprint editor', () => {
     expect(aiTemplateDefinition(draft).instanceParameters[1].default).toBeUndefined();
   });
 
-  it.each(['', '0', '-1', '1.5', 'four'])(
-    'rejects an invalid default question count %j',
-    (value) => {
+  it.each(['topic', 'audience', 'difficulty', 'questionCount'])(
+    'rejects reserved key %s',
+    (key) => {
       const draft = aiTemplateDraft(readingDefinition);
-      draft.questionCount = value;
+      draft.parameters[0].key = key;
       expect(aiTemplateErrors(draft)).not.toEqual([]);
     },
   );
@@ -40,7 +39,7 @@ describe('AI blueprint editor', () => {
     field.type = 'boolean';
     field.defaultValue = 'false';
     expect(aiTemplateDefinition(draft).instanceParameters[1]).toEqual({
-      key: 'age',
+      key: 'paragraphs',
       label: field.label,
       type: 'boolean',
       required: true,
@@ -48,7 +47,7 @@ describe('AI blueprint editor', () => {
     });
   });
 
-  it.each(['theme\n', 'theme\r', 'theme\r\n'])(
+  it.each(['sourceText\n', 'sourceText\r', 'sourceText\r\n'])(
     'rejects a key with trailing line breaks: %j',
     (key) => {
       const draft = aiTemplateDraft(readingDefinition);

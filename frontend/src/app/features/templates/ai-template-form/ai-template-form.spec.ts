@@ -17,7 +17,7 @@ describe('Blueprint review', () => {
     fixture.componentRef.setInput('definition', definition);
     await fixture.whenStable();
     const element: HTMLElement = fixture.nativeElement;
-    const count = element.querySelector<HTMLInputElement>('#default-question-count')!;
+    const count = element.querySelector<HTMLInputElement>('#default-questionCount')!;
     expect(count.value).toBe('5');
     expect(count.closest('details')).toBeNull();
     count.value = '4';
@@ -25,12 +25,28 @@ describe('Blueprint review', () => {
     element.querySelector('form')!.dispatchEvent(new Event('submit', { cancelable: true }));
     const http = TestBed.inject(HttpTestingController);
     const publication = http.expectOne('/api/templates');
-    expect(publication.request.body.generation.questionCount).toBe(4);
+    expect(publication.request.body.generation.defaults.questionCount).toBe(4);
     expect(publication.request.body.instanceParameters).toEqual(definition.instanceParameters);
-    expect(definition.generation.questionCount).toBe(5);
+    expect(definition.generation.defaults.questionCount).toBe(5);
     publication.flush({ id: 'template', definition: publication.request.body, currentVersion: 1 });
     await fixture.whenStable();
     http.verify();
+  });
+
+  it.each(['', '0', '-1', '1.5', 'four'])('blocks invalid default count %j', async (value) => {
+    const fixture = TestBed.createComponent(AiTemplateForm);
+    fixture.componentRef.setInput('definition', readingDefinition);
+    await fixture.whenStable();
+    const element: HTMLElement = fixture.nativeElement;
+    const input = element.querySelector<HTMLInputElement>('#default-questionCount')!;
+    input.value = value;
+    input.dispatchEvent(new Event('input'));
+    element.querySelector('form')!.dispatchEvent(new Event('submit', { cancelable: true }));
+    await fixture.whenStable();
+    TestBed.inject(HttpTestingController).expectNone('/api/templates');
+    expect(element.querySelector('[role="alert"]')?.textContent).toContain(
+      'יש להזין מספר שלם גדול מאפס.',
+    );
   });
 
   it.each([false, true])(

@@ -22,7 +22,7 @@ public sealed class RequestValidationTests
             definition[member] = null;
             await AssertBadRequestAsync(parent, "/api/templates", definition.ToJsonString());
         }
-        foreach (var member in new[] { "instructions", "questionCount" })
+        foreach (var member in new[] { "instructions", "defaults" })
         {
             var definition = AiFixtures.Definition();
             definition["generation"]!.AsObject().Remove(member);
@@ -30,19 +30,26 @@ public sealed class RequestValidationTests
             definition["generation"]![member] = null;
             await AssertBadRequestAsync(parent, "/api/templates", definition.ToJsonString());
         }
+        foreach (var member in new[] { "topic", "audience", "difficulty", "questionCount" })
+        {
+            var definition = AiFixtures.Definition();
+            var defaults = definition["generation"]!["defaults"]!.AsObject();
+            defaults.Remove(member);
+            await AssertBadRequestAsync(parent, "/api/templates", definition.ToJsonString());
+            defaults[member] = null;
+            await AssertBadRequestAsync(parent, "/api/templates", definition.ToJsonString());
+        }
         Assert.Equal(0, (await parent.GetFromJsonAsync<JsonElement>("/api/templates")).GetArrayLength());
     }
 
     [Fact]
-    public async Task Missing_or_null_instance_and_version_members_do_not_change_data()
+    public async Task Missing_or_null_version_members_do_not_change_data()
     {
         using var app = new ApiFactory();
         using var parent = await app.ParentAsync();
         var created = await parent.PostAsJsonAsync("/api/templates", AiFixtures.Definition());
         var template = await created.Content.ReadFromJsonAsync<JsonElement>();
         var id = template.GetProperty("id").GetGuid();
-        foreach (var body in new[] { "{}", """{"parameters":null}""" })
-            await AssertBadRequestAsync(parent, $"/api/templates/{id}/instances", body);
         foreach (var body in new[] { "{}", """{"expectedVersion":1}""", """{"expectedVersion":1,"definition":null}""" })
             await AssertBadRequestAsync(parent, $"/api/templates/{id}/versions", body);
         var missingExpectedVersion = new JsonObject
@@ -53,6 +60,28 @@ public sealed class RequestValidationTests
         Assert.Equal(0, (await parent.GetFromJsonAsync<JsonElement>("/api/instances")).GetArrayLength());
         var unchanged = await parent.GetFromJsonAsync<JsonElement>($"/api/templates/{id}");
         Assert.Equal(1, unchanged.GetProperty("currentVersion").GetInt32());
+    }
+
+    [Theory]
+    [InlineData("settings")]
+    [InlineData("parameters")]
+    [InlineData("topic")]
+    [InlineData("audience")]
+    [InlineData("difficulty")]
+    [InlineData("questionCount")]
+    public async Task Missing_or_null_task_input_is_rejected_without_creating_a_draft(string member)
+    {
+        using var app = new ApiFactory();
+        using var parent = await app.ParentAsync();
+        using var created = await parent.PostAsJsonAsync("/api/templates", AiFixtures.Definition());
+        var id = (await created.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("id").GetGuid();
+        var input = JsonSerializer.SerializeToNode(AiFixtures.Input(), new JsonSerializerOptions(JsonSerializerDefaults.Web))!;
+        var section = (member is "settings" or "parameters" ? input : input["settings"]!).AsObject();
+        section.Remove(member);
+        await AssertBadRequestAsync(parent, $"/api/templates/{id}/instances", input.ToJsonString());
+        section[member] = null;
+        await AssertBadRequestAsync(parent, $"/api/templates/{id}/instances", input.ToJsonString());
+        Assert.Equal(0, (await parent.GetFromJsonAsync<JsonElement>("/api/instances")).GetArrayLength());
     }
 
     private static async Task AssertBadRequestAsync(HttpClient client, string path, string json)

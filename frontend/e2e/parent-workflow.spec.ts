@@ -77,15 +77,15 @@ test('a parent prompt becomes an editable reusable template and distinct frozen 
   expect((await (await page.request.get('/api/templates')).json()).length).toBe(0);
   await page.getByLabel('שם התבנית', { exact: true }).fill('קוראים ומגלים');
   const parameter = page.locator('[data-parameter-editor]').first();
-  await parameter.getByLabel('שם השדה להורה').fill('מה נחקור?');
-  await expect(page.getByLabel('מספר שאלות כברירת מחדל')).toHaveValue('2');
-  await page.getByLabel('מספר שאלות כברירת מחדל').fill('4');
+  await parameter.getByLabel('שם השדה להורה').fill('דגשים לתרגול');
+  await expect(page.getByLabel('מספר שאלות')).toHaveValue('2');
+  await page.getByLabel('מספר שאלות').fill('4');
   await checkNarrowLayout(page, 'ai-template-review');
   const template = await saveTemplate(page);
-  expect(template.definition.schemaVersion).toBe(3);
-  expect(template.definition.generation.questionCount).toBe(4);
+  expect(template.definition.schemaVersion).toBe(4);
+  expect(template.definition.generation.defaults.questionCount).toBe(4);
   expect(template.definition.generation.instructions).toBe(instructions);
-  await expect(page.getByLabel('מה נחקור?', { exact: true })).toHaveValue('דינוזאורים');
+  await expect(page.getByLabel('דגשים לתרגול', { exact: true })).toHaveValue('הסקת מסקנות');
   await checkNarrowLayout(page, 'create-instance');
   await page.screenshot({
     animations: 'disabled',
@@ -107,8 +107,8 @@ test('a parent prompt becomes an editable reusable template and distinct frozen 
   await expect(page.locator('section')).toHaveText(originalContent, { useInnerText: true });
   await page.goto(`/templates/${template.id}/create`);
   const secondTheme = 'חלל' + 'A'.repeat(80);
-  await page.getByLabel('מה נחקור?', { exact: true }).fill(secondTheme);
-  await page.getByLabel('רמה', { exact: true }).selectOption('מאתגרת');
+  await page.getByLabel('נושא', { exact: true }).fill(secondTheme);
+  await page.getByLabel('רמת קושי', { exact: true }).selectOption('hard');
   await page.getByLabel('מספר שאלות').fill('3');
   await generateTask(page);
   await expect(
@@ -173,7 +173,9 @@ test('length guidance stays in instructions and valid content remains available 
   await expect(page.getByText('גרסת תבנית 1', { exact: true })).toBeVisible();
   const originalUrl = page.url();
   await page.goto(`/templates/${template.id}/edit`);
-  await page.getByLabel('הנחיות ליצירת המשימות').fill('יש ליצור קטע קצר לפי "theme" ברמה "level".');
+  await page
+    .getByLabel('הנחיות ליצירת המשימות')
+    .fill('יש ליצור קטע קצר לפי "focus" ובסגנון "style".');
   await page.getByRole('button', { name: 'פרסום גרסה חדשה', exact: true }).click();
   await page.waitForURL(`**/templates/${template.id}/create`);
   await generateTask(page);

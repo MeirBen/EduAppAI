@@ -33,7 +33,7 @@ public sealed class OpenRouterConfigurationTests
         const string sourceText = "שָׁלוֹם, Maya! שלום־עולם";
         const string passage = sourceText + "\n\nA second paragraph.";
         var definition = AiFixtures.Definition();
-        var instructions = "יש ליצור משימה לפי \"theme\".\n\n" + sourceText;
+        var instructions = "יש ליצור משימה לפי \"sourceText\".\n\n" + sourceText;
         definition["generation"]!["instructions"] = instructions;
         var generated = AiFixtures.Content();
         generated["contentBlocks"]![0]!["text"] = passage;
@@ -114,15 +114,15 @@ public sealed class OpenRouterConfigurationTests
         Assert.Equal(topK, request.TryGetProperty("top_k", out value) ? value.GetInt32() : null);
         Assert.Equal(maxOutputTokens ?? 8192, request.GetProperty("max_completion_tokens").GetInt32());
         Assert.True(request.GetProperty("provider").GetProperty("require_parameters").GetBoolean());
-        AssertResponseSchema(request, responseFormat ?? "json_object", "task generator");
+        AssertResponseSchema(request, responseFormat ?? "json_object", "Shared settings");
 
         var instance = await provider.GetRequiredService<AiGenerationService>().GenerateAsync(result.Value,
-            new() { ["theme"] = JsonSerializer.SerializeToElement(sourceText) }, result.Value.Generation.QuestionCount, deadline.Token);
+            new(result.Value.Generation.Defaults, new() { ["sourceText"] = JsonSerializer.SerializeToElement(sourceText) }), deadline.Token);
         Assert.Equal(passage, Assert.Single(instance.Value.ContentBlocks).Text);
         AssertResponseSchema(request, responseFormat ?? "json_object", "learner");
         Assert.Equal(maxOutputTokens ?? 8192, request.GetProperty("max_completion_tokens").GetInt32());
         using var input = JsonDocument.Parse(request.GetProperty("messages")[1].GetProperty("content").GetString()!);
-        Assert.Equal(sourceText, input.RootElement.GetProperty("parameters").GetProperty("theme").GetString());
+        Assert.Equal(sourceText, input.RootElement.GetProperty("parameters").GetProperty("sourceText").GetString());
 
         definition["unexpected"] = true;
         await Assert.ThrowsAsync<AiGenerationException>(() => provider.GetRequiredService<AiGenerationService>()

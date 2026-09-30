@@ -51,8 +51,8 @@ public sealed class ParameterValidationTests
     [InlineData("theme\r\n")]
     public void Template_parameter_keys_reject_trailing_newlines(string key)
     {
-        var definition = new TaskTemplateDefinition(3, "Reading",
-            [new(key, "Theme", "text")], new("Create reading questions.", 2));
+        var definition = new TaskTemplateDefinition(4, "Reading",
+            [new(key, "Theme", "text")], new("Create reading questions.", new("Space", "Children", "easy", 2)));
 
         Assert.Contains("instanceParameters[0]", TemplateValidator.Validate(definition).Keys);
     }
@@ -77,7 +77,7 @@ public sealed class ParameterValidationTests
             "maxLength" => field with { MaxLength = 100 },
             _ => field with { Options = ["unused"] }
         };
-        var definition = new TaskTemplateDefinition(3, "Practice", [field], new("Use choice.", 2));
+        var definition = new TaskTemplateDefinition(4, "Practice", [field], new("Use choice.", new("Space", "Children", "easy", 2)));
 
         Assert.Contains("instanceParameters[0]", TemplateValidator.Validate(definition).Keys);
     }
@@ -91,7 +91,7 @@ public sealed class ParameterValidationTests
     {
         var field = new ParameterDefinition("items", "Items", "integer", required,
             JsonSerializer.SerializeToElement(4), Min: 3, Max: 6);
-        var definition = new TaskTemplateDefinition(3, "Practice", [field], new("Use items.", 2));
+        var definition = new TaskTemplateDefinition(4, "Practice", [field], new("Use items.", new("Space", "Children", "easy", 2)));
 
         Assert.Empty(TemplateValidator.Validate(definition));
         var supplied = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(json)!;
@@ -108,9 +108,9 @@ public sealed class ParameterValidationTests
     [InlineData("null")]
     public void Integer_field_rejects_an_invalid_default(string value)
     {
-        var definition = new TaskTemplateDefinition(3, "Practice",
+        var definition = new TaskTemplateDefinition(4, "Practice",
             [new("items", "Items", "integer", Default: JsonSerializer.Deserialize<JsonElement>(value), Min: 1, Max: 20)],
-            new("Use items.", 2));
+            new("Use items.", new("Space", "Children", "easy", 2)));
 
         Assert.Contains("instanceParameters[0]", TemplateValidator.Validate(definition).Keys);
     }
@@ -122,7 +122,7 @@ public sealed class ParameterValidationTests
     [InlineData(25, true)]
     public void Template_question_count_is_a_positive_integer(int count, bool valid)
     {
-        var definition = new TaskTemplateDefinition(3, "Practice", [], new("Create questions.", count));
-        Assert.Equal(!valid, TemplateValidator.Validate(definition).ContainsKey("generation.questionCount"));
+        var definition = new TaskTemplateDefinition(4, "Practice", [], new("Create questions.", new("Space", "Children", "easy", count)));
+        Assert.Equal(!valid, TemplateValidator.Validate(definition).ContainsKey("generation.defaults.questionCount"));
     }
 }

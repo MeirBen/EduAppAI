@@ -149,7 +149,7 @@ public sealed class LibraryDeletionTests
         using var app = new ApiFactory(services => services.AddSingleton<IChatClient>(chat));
         using var parent = await app.ParentAsync();
         var id = await SaveTemplateAsync(parent);
-        var generation = parent.PostAsJsonAsync($"/api/templates/{id}/instances", new { parameters = new { } });
+        var generation = parent.PostAsJsonAsync($"/api/templates/{id}/instances", AiFixtures.Input());
         try
         {
             await entered.Task.WaitAsync(TimeSpan.FromSeconds(10));
@@ -201,7 +201,7 @@ public sealed class LibraryDeletionTests
 
     private static async Task<Guid> GenerateAsync(HttpClient parent, Guid id)
     {
-        var response = await parent.PostAsJsonAsync($"/api/templates/{id}/instances", new { parameters = new { } });
+        var response = await parent.PostAsJsonAsync($"/api/templates/{id}/instances", AiFixtures.Input());
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
         return (await response.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("id").GetGuid();
     }

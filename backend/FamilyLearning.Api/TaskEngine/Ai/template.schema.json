@@ -3,7 +3,7 @@
   "properties": {
     "schemaVersion": {
       "type": "integer",
-      "enum": [3]
+      "enum": [4]
     },
     "name": {
       "type": "string",
@@ -13,7 +13,7 @@
     },
     "instanceParameters": {
       "type": "array",
-      "description": "Task-specific choices the parent can change each time, excluding the separately defined question count. Do not put generated learning content here.",
+      "description": "Additional task-specific choices only. Do not duplicate topic, audience, difficulty or question count, including equivalent fields under other names.",
       "items": {
         "type": "object",
         "properties": {
@@ -91,17 +91,42 @@
       "properties": {
         "instructions": {
           "type": "string",
-          "description": "Reusable teaching instructions for the task generator: audience, language for each part, fixed requirements and how exact parameter keys affect the task. Do not generate the task here.",
+          "description": "Reusable teaching instructions: learning goal, language, activity, length, source text and how additional parameter keys affect the task. Keep shared setting values in defaults, not in prose.",
           "minLength": 1,
           "maxLength": 4000
         },
-        "questionCount": {
-          "type": "integer",
-          "minimum": 1,
-          "description": "Default number of questions, adjustable by the parent for each task."
+        "defaults": {
+          "type": "object",
+          "description": "Shared settings that the parent can change for each task.",
+          "properties": {
+            "topic": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200,
+              "description": "Default subject or theme, in the requested language."
+            },
+            "audience": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200,
+              "description": "Intended learners: age, grade or experience, in the requested language."
+            },
+            "difficulty": {
+              "type": "string",
+              "enum": ["easy", "medium", "hard"],
+              "description": "Challenge relative to the audience: guided recall, application, or deeper reasoning."
+            },
+            "questionCount": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "Default number of questions, adjustable for each task."
+            }
+          },
+          "required": ["topic", "audience", "difficulty", "questionCount"],
+          "additionalProperties": false
         }
       },
-      "required": ["instructions", "questionCount"],
+      "required": ["instructions", "defaults"],
       "additionalProperties": false
     }
   },

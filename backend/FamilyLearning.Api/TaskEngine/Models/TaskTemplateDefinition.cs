@@ -3,12 +3,12 @@ using System.Text.Json.Serialization;
 
 namespace FamilyLearning.Api.TaskEngine.Models;
 
-/// <summary>Reusable AI instructions and parameters published as one immutable revision.</summary>
+/// <summary>Reusable AI instructions, shared defaults and additional parameters published as one immutable revision.</summary>
 /// <remarks>Validate before storage. Treat nested arrays as immutable once published.</remarks>
 /// <param name="SchemaVersion">The JSON contract version, independent of the template revision number.</param>
 /// <param name="Name">The parent-facing name of this reusable learning idea.</param>
-/// <param name="InstanceParameters">Fields a parent can supply for each new instance.</param>
-/// <param name="Generation">Instructions and default question count fixed by this template version.</param>
+/// <param name="InstanceParameters">Additional choices a parent can supply for each new instance; shared setting keys are reserved.</param>
+/// <param name="Generation">Instructions and shared defaults fixed by this template version.</param>
 public sealed record TaskTemplateDefinition(
     [property: JsonRequired] int SchemaVersion,
     [property: JsonRequired] string Name,
@@ -37,7 +37,7 @@ public sealed record ParameterDefinition(
     int? MaxLength = null,
     string[]? Options = null);
 
-/// <summary>Reusable AI instructions and a positive default question count, adjustable for each task.</summary>
+/// <summary>Reusable AI instructions and shared settings, adjustable for each task.</summary>
 public sealed record GenerationDefinition(
     [property: JsonRequired] string Instructions,
-    [property: JsonRequired] int QuestionCount);
+    [property: JsonRequired] TaskSettings Defaults);

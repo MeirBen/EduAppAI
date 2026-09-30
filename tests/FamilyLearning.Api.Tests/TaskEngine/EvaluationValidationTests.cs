@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using FamilyLearning.Api.Tests.Fixtures;
 using FamilyLearning.Evaluation;
 
 namespace FamilyLearning.Api.Tests.TaskEngine;
@@ -26,6 +27,9 @@ public sealed class EvaluationValidationTests : IDisposable
     [InlineData("passage-min-negative")]
     [InlineData("passage-max-negative")]
     [InlineData("passage-inverted")]
+    [InlineData("settings-topic")]
+    [InlineData("settings-audience")]
+    [InlineData("settings-difficulty")]
     [InlineData("count-override-zero")]
     [InlineData("count-override-negative")]
     [InlineData("count-override-mismatch")]
@@ -49,9 +53,12 @@ public sealed class EvaluationValidationTests : IDisposable
             "passage-min-negative" => ValidCase with { MinPassageWords = -1 },
             "passage-max-negative" => ValidCase with { MaxPassageWords = -1 },
             "passage-inverted" => ValidCase with { MinPassageWords = 20, MaxPassageWords = 10 },
-            "count-override-negative" => ValidCase with { QuestionCountOverride = -1 },
-            "count-override-mismatch" => ValidCase with { QuestionCountOverride = 3 },
-            _ => ValidCase with { QuestionCountOverride = 0 }
+            "settings-topic" => ValidCase with { SettingsOverride = AiFixtures.Settings() with { Topic = " " } },
+            "settings-audience" => ValidCase with { SettingsOverride = AiFixtures.Settings() with { Audience = "" } },
+            "settings-difficulty" => ValidCase with { SettingsOverride = AiFixtures.Settings() with { Difficulty = "unknown" } },
+            "count-override-negative" => ValidCase with { SettingsOverride = AiFixtures.Settings(-1) },
+            "count-override-mismatch" => ValidCase with { SettingsOverride = AiFixtures.Settings(3) },
+            _ => ValidCase with { SettingsOverride = AiFixtures.Settings(0) }
         };
         var path = await WriteFixtureAsync([scenario]);
 
@@ -81,7 +88,7 @@ public sealed class EvaluationValidationTests : IDisposable
             Interaction = interaction,
             ChoiceCount = choices,
             QuestionCount = 20,
-            QuestionCountOverride = 20,
+            SettingsOverride = AiFixtures.Settings(20),
             MinPassageWords = 0,
             MaxPassageWords = 0
         };
@@ -94,7 +101,7 @@ public sealed class EvaluationValidationTests : IDisposable
     }
 
     [Fact]
-    public async Task Nonjudge_format_two_report_can_omit_calibration_metadata()
+    public async Task Nonjudge_report_can_omit_calibration_metadata()
     {
         var path = await WriteReportAsync(false);
         var json = JsonNode.Parse(await File.ReadAllTextAsync(path))!.AsObject();

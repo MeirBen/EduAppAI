@@ -1,10 +1,25 @@
 import { ChangeDetectionStrategy, Component, input, linkedSignal, output } from '@angular/core';
-import { applyEach, disabled, form, FormField, submit, validate } from '@angular/forms/signals';
 import {
-  CreateInstanceRequest,
+  apply,
+  applyEach,
+  disabled,
+  form,
+  FormField,
+  submit,
+  validate,
+} from '@angular/forms/signals';
+import {
+  TaskInput,
+  TaskSettings,
   ParameterDefinition,
   ParameterValues,
 } from '../../../core/api/models';
+import { TaskSettingsFields } from '../../../shared/forms/task-settings-fields';
+import {
+  taskSettingsDraft,
+  taskSettingsSchema,
+  taskSettingsValue,
+} from '../../../shared/forms/task-settings';
 import { isIntegerInput } from '../../../shared/forms/integer-input';
 
 /** Numeric input stays as text so an empty optional field cannot silently become zero. */
@@ -14,24 +29,24 @@ interface ParameterEntry {
 }
 
 /**
- * Collects an exact question count and reviewed parameter values; the API validates again.
+ * Collects shared settings and reviewed additional parameter values; the API validates again.
  * Cleared optional text stays explicit; blank optional numbers/selects are omitted.
  */
 @Component({
   selector: 'app-instance-form',
-  imports: [FormField],
+  imports: [FormField, TaskSettingsFields],
   templateUrl: './instance-form.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class InstanceForm {
   /** Replacing the schema resets the form to that schema's defaults. */
   readonly definitions = input.required<ParameterDefinition[]>();
-  readonly defaultQuestionCount = input.required<number>();
+  readonly defaults = input.required<TaskSettings>();
   readonly busy = input(false);
-  /** Collects the requested count and parameters without calling AI or persisting content. */
-  readonly generated = output<CreateInstanceRequest>();
+  /** Emits complete task input without calling AI or persisting content. */
+  readonly generated = output<TaskInput>();
   protected readonly model = linkedSignal(() => ({
-    questionCount: String(this.defaultQuestionCount()),
+    settings: taskSettingsDraft(this.defaults()),
     parameters: this.definitions().map((definition) => ({
       text: definition.default == null ? '' : String(definition.default),
       checked: definition.default === true,
@@ -39,11 +54,7 @@ export class InstanceForm {
   }));
   protected readonly fields = form(this.model, (path) => {
     disabled(path, { when: () => this.busy() });
-    validate(path.questionCount, ({ value }) =>
-      isIntegerInput(value()) && Number(value()) >= 1
-        ? undefined
-        : { kind: 'questionCount', message: 'יש להזין מספר שלם גדול מאפס.' },
-    );
+    apply(path.settings, taskSettingsSchema);
     applyEach(path.parameters, (entry) => {
       validate(entry, ({ value, state }) => {
         const definition = this.definitions()[Number(state.keyInParent())];
@@ -68,7 +79,7 @@ export class InstanceForm {
       });
       this.generated.emit({
         parameters: values,
-        questionCount: Number(this.model().questionCount),
+        settings: taskSettingsValue(this.model().settings),
       });
     });
   }

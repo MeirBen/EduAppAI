@@ -102,7 +102,8 @@ public static class HebrewJudge
     /// <summary>Only human-readable fields are reviewed; IDs, schema keys and numeric answers are excluded.</summary>
     public static ReviewText[] CollectTexts(TaskTemplateDefinition definition, TaskContent content)
     {
-        var texts = new List<ReviewText> { new("template.name", definition.Name), new("template.instructions", definition.Generation.Instructions) };
+        var texts = new List<ReviewText> { new("template.name", definition.Name), new("template.instructions", definition.Generation.Instructions),
+            new("template.defaults.topic", definition.Generation.Defaults.Topic), new("template.defaults.audience", definition.Generation.Defaults.Audience) };
         for (var i = 0; i < definition.InstanceParameters.Length; i++)
         {
             var parameter = definition.InstanceParameters[i];

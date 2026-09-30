@@ -33,12 +33,9 @@
       @if (error()) {
         <p class="error mb-5" role="alert">{{ error() }}</p>
       }
-      @if (template.value().definition.instanceParameters.length === 0) {
-        <p class="my-5 text-muted">התוכן ייווצר לפי ההנחיות הקבועות בתבנית.</p>
-      }
       <app-instance-form
         [definitions]="template.value().definition.instanceParameters"
-        [defaultQuestionCount]="template.value().definition.generation.questionCount"
+        [defaults]="template.value().definition.generation.defaults"
         [busy]="busy()"
         (generated)="generate($event)"
       />

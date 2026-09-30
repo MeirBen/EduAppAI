@@ -1,25 +1,25 @@
-using System.Text.Json;
 using System.Text.Json.Serialization;
 using FamilyLearning.Api.TaskEngine.Ai;
+using FamilyLearning.Api.TaskEngine.Models;
 
 namespace FamilyLearning.Evaluation;
 
 /// <summary>Synthetic parent request, measurable expectations and a case-specific human review focus.</summary>
 public sealed record EvaluationCase(string Id, string Prompt, string ReviewFocus, int QuestionCount,
     string Interaction, int? ChoiceCount, int? MinPassageWords, int? MaxPassageWords,
-    int? QuestionCountOverride = null);
+    TaskSettings? SettingsOverride = null);
 
 /// <summary>Local evaluation artifact. Contract success never implies educational or language quality.</summary>
 public sealed class EvaluationReport(EvaluationCase[] cases, int repeat, string suiteSha256,
     Dictionary<string, string?> profile)
 {
-    public const int CurrentFormatVersion = 2;
+    public const int CurrentFormatVersion = 3;
     [JsonRequired] public int FormatVersion { get; init; } = CurrentFormatVersion;
     public DateTime StartedAtUtc { get; init; } = DateTime.UtcNow;
     public DateTime? FinishedAtUtc { get; set; }
     [JsonRequired] public string Status { get; set; } = "running";
     /// <summary>Recorded deterministic-check version; required for meaningful comparison.</summary>
-    [JsonRequired] public int AutomaticChecksVersion { get; init; } = 6;
+    [JsonRequired] public int AutomaticChecksVersion { get; init; } = 7;
     public string SuiteSha256 { get; } = suiteSha256;
     /// <summary>Optional developer description, at most 120 characters; excluded from comparison semantics.</summary>
     public string? Label { get; init; }
@@ -73,7 +73,7 @@ public sealed class EvaluationResult(string caseId, int repetition)
     public EvaluationStep? Generation { get; set; }
     public EvaluationStep? Judge { get; set; }
     public HebrewIssue[]? Issues { get; set; }
-    public Dictionary<string, JsonElement>? Parameters { get; set; }
+    public TaskInput? Input { get; set; }
     /// <summary>Whitespace words excluding an exact leading task title; null when no length check ran.</summary>
     public int? PassageWordCount { get; set; }
     /// <summary>One-based position shared by at least three choice answers. Advisory only; ordered options may be intentional.</summary>

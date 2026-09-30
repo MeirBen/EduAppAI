@@ -1,9 +1,16 @@
 import { TestBed } from '@angular/core/testing';
 import { InstanceForm } from './instance-form';
-import { CreateInstanceRequest, ParameterDefinition } from '../../../core/api/models';
+import { TaskInput, ParameterDefinition, TaskSettings } from '../../../core/api/models';
+
+const defaults: TaskSettings = {
+  topic: 'חלל',
+  audience: 'כיתה ג׳',
+  difficulty: 'easy',
+  questionCount: 4,
+};
 
 const definitions: ParameterDefinition[] = [
-  { key: 'theme', label: 'נושא', type: 'text', required: true, maxLength: 10 },
+  { key: 'sourceText', label: 'טקסט מקור', type: 'text', required: true, maxLength: 10 },
   {
     key: 'count',
     label: 'שאלות',
@@ -14,8 +21,8 @@ const definitions: ParameterDefinition[] = [
     max: 20,
   },
   {
-    key: 'difficulty',
-    label: 'Difficulty',
+    key: 'style',
+    label: 'Style',
     type: 'select',
     required: true,
     default: 'easy',
@@ -28,8 +35,8 @@ describe('InstanceForm', () => {
   async function render(schema = definitions) {
     const fixture = TestBed.createComponent(InstanceForm);
     fixture.componentRef.setInput('definitions', schema);
-    fixture.componentRef.setInput('defaultQuestionCount', 4);
-    let submitted: CreateInstanceRequest | undefined;
+    fixture.componentRef.setInput('defaults', defaults);
+    let submitted: TaskInput | undefined;
     fixture.componentInstance.generated.subscribe((value) => (submitted = value));
     await fixture.whenStable();
     return { fixture, submitted: () => submitted };
@@ -40,7 +47,7 @@ describe('InstanceForm', () => {
     async (value) => {
       const view = await render([]);
       const element: HTMLElement = view.fixture.nativeElement;
-      const count = element.querySelector<HTMLInputElement>('#question-count')!;
+      const count = element.querySelector<HTMLInputElement>('#task-questionCount')!;
       count.value = value;
       count.dispatchEvent(new Event('input'));
       element.querySelector('form')!.dispatchEvent(new Event('submit', { cancelable: true }));
@@ -53,18 +60,63 @@ describe('InstanceForm', () => {
   it('lets the parent override the default count without adding a parameter', async () => {
     const view = await render([]);
     const element: HTMLElement = view.fixture.nativeElement;
-    const count = element.querySelector<HTMLInputElement>('#question-count')!;
+    const count = element.querySelector<HTMLInputElement>('#task-questionCount')!;
     expect(count.value).toBe('4');
     count.value = '25';
     count.dispatchEvent(new Event('input'));
     element.querySelector('form')!.dispatchEvent(new Event('submit', { cancelable: true }));
     await view.fixture.whenStable();
-    expect(view.submitted()).toEqual({ questionCount: 25, parameters: {} });
+    expect(view.submitted()).toEqual({
+      settings: { ...defaults, questionCount: 25 },
+      parameters: {},
+    });
+  });
+
+  it('submits changed settings without mutating defaults or creating dynamic fields', async () => {
+    const view = await render([]);
+    const element: HTMLElement = view.fixture.nativeElement;
+    for (const [key, value] of Object.entries({
+      topic: 'צמחים',
+      audience: 'מבוגרים',
+      difficulty: 'hard',
+    })) {
+      const control = element.querySelector<HTMLInputElement | HTMLSelectElement>('#task-' + key)!;
+      control.value = value;
+      control.dispatchEvent(new Event('input'));
+    }
+    element.querySelector('form')!.dispatchEvent(new Event('submit', { cancelable: true }));
+    await view.fixture.whenStable();
+    expect(view.submitted()).toEqual({
+      settings: { topic: 'צמחים', audience: 'מבוגרים', difficulty: 'hard', questionCount: 4 },
+      parameters: {},
+    });
+    expect(defaults).toEqual({
+      topic: 'חלל',
+      audience: 'כיתה ג׳',
+      difficulty: 'easy',
+      questionCount: 4,
+    });
+  });
+
+  it.each(['topic', 'audience'])('rejects blank or oversized %s', async (key) => {
+    const view = await render([]);
+    const element: HTMLElement = view.fixture.nativeElement;
+    const control = element.querySelector<HTMLInputElement>('#task-' + key)!;
+    for (const value of [' ', 'א'.repeat(201)]) {
+      control.value = value;
+      control.dispatchEvent(new Event('input'));
+      element.querySelector('form')!.dispatchEvent(new Event('submit', { cancelable: true }));
+      await view.fixture.whenStable();
+      expect(view.submitted()).toBeUndefined();
+      expect(control.getAttribute('aria-invalid')).toBe('true');
+    }
   });
 
   it('submits typed defaults and an explicit false value', async () => {
     const view = await render();
-    const input = view.fixture.nativeElement.querySelector('#parameter-theme') as HTMLInputElement;
+    const input = view.fixture.nativeElement.querySelector(
+      '#parameter-sourceText',
+    ) as HTMLInputElement;
     input.value = 'Space';
     input.dispatchEvent(new Event('input', { bubbles: true }));
     await view.fixture.whenStable();
@@ -72,11 +124,11 @@ describe('InstanceForm', () => {
       .querySelector('form')
       .dispatchEvent(new Event('submit', { cancelable: true }));
     await view.fixture.whenStable();
-    expect(view.submitted()?.questionCount).toBe(4);
+    expect(view.submitted()?.settings.questionCount).toBe(4);
     expect(view.submitted()?.parameters).toEqual({
-      theme: 'Space',
+      sourceText: 'Space',
       count: 5,
-      difficulty: 'easy',
+      style: 'easy',
       retry: false,
     });
   });
@@ -91,7 +143,7 @@ describe('InstanceForm', () => {
       .dispatchEvent(new Event('submit', { cancelable: true }));
     await view.fixture.whenStable();
     expect(view.submitted()).toBeUndefined();
-    expect(view.fixture.nativeElement.textContent).toContain('יש למלא את השדה „נושא”.');
+    expect(view.fixture.nativeElement.textContent).toContain('יש למלא את השדה „טקסט מקור”.');
     expect(view.fixture.nativeElement.textContent).toContain(
       'הערך בשדה „שאלות” חייב להיות לכל היותר 20.',
     );
@@ -99,30 +151,34 @@ describe('InstanceForm', () => {
 
   it('submits cleared optional text explicitly so the server cannot restore its default', async () => {
     const view = await render([
-      { key: 'theme', label: 'נושא', type: 'text', required: false, default: 'דינוזאורים' },
+      {
+        key: 'sourceText',
+        label: 'טקסט מקור',
+        type: 'text',
+        required: false,
+        default: 'דינוזאורים',
+      },
     ]);
     const element: HTMLElement = view.fixture.nativeElement;
-    const input = element.querySelector<HTMLInputElement>('#parameter-theme')!;
+    const input = element.querySelector<HTMLInputElement>('#parameter-sourceText')!;
     expect(input.value).toBe('דינוזאורים');
     input.value = '';
     input.dispatchEvent(new Event('input', { bubbles: true }));
     await view.fixture.whenStable();
     element.querySelector('form')!.dispatchEvent(new Event('submit', { cancelable: true }));
     await view.fixture.whenStable();
-    expect(view.submitted()?.parameters).toEqual({ theme: '' });
+    expect(view.submitted()?.parameters).toEqual({ sourceText: '' });
   });
 
   it('renders schema labels and options verbatim with appropriate input direction', async () => {
     const view = await render();
     const element: HTMLElement = view.fixture.nativeElement;
-    expect(element.querySelector('label[for="parameter-difficulty"]')?.textContent).toContain(
-      'Difficulty',
-    );
-    const option = element.querySelector<HTMLOptionElement>('#parameter-difficulty option:checked');
+    expect(element.querySelector('label[for="parameter-style"]')?.textContent).toContain('Style');
+    const option = element.querySelector<HTMLOptionElement>('#parameter-style option:checked');
     expect(option?.textContent).toContain('easy');
     expect(option?.value).toBe('easy');
-    expect(definitions[2].label).toBe('Difficulty');
-    expect(element.querySelector('#parameter-theme')?.getAttribute('dir')).toBe('auto');
+    expect(definitions[2].label).toBe('Style');
+    expect(element.querySelector('#parameter-sourceText')?.getAttribute('dir')).toBe('auto');
     expect(element.querySelector('#parameter-count')?.getAttribute('dir')).toBe('ltr');
   });
 

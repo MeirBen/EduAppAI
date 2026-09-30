@@ -41,13 +41,19 @@ public sealed class AiGenerationService(IEnumerable<IChatClient> clients, ILogge
         return result;
     }
 
-    /// <summary>Generates any supported subject from a validated blueprint, resolved parameters and a positive requested question count.</summary>
-    public async Task<AiResult<TaskContent>> GenerateAsync(TaskTemplateDefinition definition,
-        Dictionary<string, JsonElement> parameters, int questionCount, CancellationToken ct)
+    /// <summary>Generates any supported subject from a validated blueprint and resolved task input.</summary>
+    public async Task<AiResult<TaskContent>> GenerateAsync(TaskTemplateDefinition definition, TaskInput input, CancellationToken ct)
     {
-        var input = JsonSerializer.Serialize(new { definition, parameters, questionCount }, Json);
-        var result = await RequestAsync<TaskContent>(AiPrompts.Instance, input, AiSchemas.Content, AiPrompts.InstanceVersion, ct);
-        var errors = TaskContentValidator.Validate(result.Value, questionCount);
+        // Send chosen settings only; template defaults belong to authoring and must not compete with them.
+        var request = JsonSerializer.Serialize(new
+        {
+            instructions = definition.Generation.Instructions,
+            input.Settings,
+            parameterDefinitions = definition.InstanceParameters,
+            input.Parameters
+        }, Json);
+        var result = await RequestAsync<TaskContent>(AiPrompts.Instance, request, AiSchemas.Content, AiPrompts.InstanceVersion, ct);
+        var errors = TaskContentValidator.Validate(result.Value, input.Settings.QuestionCount);
         if (errors.Count > 0)
             throw InvalidOutput("task-validation", AiPrompts.InstanceVersion, errors);
         return result;

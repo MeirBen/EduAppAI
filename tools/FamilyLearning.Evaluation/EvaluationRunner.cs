@@ -64,12 +64,11 @@ public static class EvaluationRunner
                         .Select(match => match.Value).ToHashSet(StringComparer.Ordinal);
                     result.Checks["parameterReferences"] = definition.InstanceParameters.All(parameter => references.Contains(parameter.Key));
                     var parameters = ParameterValidator.Validate(definition.InstanceParameters, new Dictionary<string, JsonElement>());
-                    var questionCount = scenario.QuestionCountOverride ?? definition.Generation.QuestionCount;
                     result.Checks["parameterDefaults"] = parameters.Errors.Count == 0;
                     if (parameters.Errors.Count > 0) continue;
-                    result.Parameters = parameters.Values;
+                    result.Input = new(scenario.SettingsOverride ?? definition.Generation.Defaults, parameters.Values);
                     stage = "generation";
-                    var content = await AttemptAsync(step => result.Generation = step, token => engine.GenerateAsync(definition, parameters.Values, questionCount, token));
+                    var content = await AttemptAsync(step => result.Generation = step, token => engine.GenerateAsync(definition, result.Input, token));
                     if (content is not null) CheckContent(scenario, content, result);
                     await SaveAsync();
                     if (content is not null && report.JudgeEnabled)

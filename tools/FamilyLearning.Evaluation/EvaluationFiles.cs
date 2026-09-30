@@ -2,6 +2,7 @@ using System.Security.Cryptography;
 using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using FamilyLearning.Api.TaskEngine.Validation;
 
 namespace FamilyLearning.Evaluation;
 
@@ -59,7 +60,7 @@ public static class EvaluationFiles
             report.Retries is null || report.Retries.Count > 100 || report.Retries.Any(retry => retry is null || retry.Call is null ||
                 retry.Number is < 1 or > 3 || !double.IsFinite(retry.DelaySeconds) || retry.DelaySeconds is < 0 or > 300 ||
                 !retry.Call.RequestSent || retry.Call.FinishedAtUtc is null || retry.Call.StatusCode != 429 || retry.Call.ContractValid))
-            throw new InvalidDataException("Invalid or unsupported evaluation report; format version 2 is required.");
+            throw new InvalidDataException($"Invalid or unsupported evaluation report; format version {EvaluationReport.CurrentFormatVersion} is required.");
         if (report.JudgeEnabled && (string.IsNullOrWhiteSpace(report.CalibrationSha256) || report.CalibrationSamples.Length == 0 ||
             string.IsNullOrWhiteSpace(report.JudgePromptVersion) || string.IsNullOrWhiteSpace(report.JudgePrompt)))
             throw new InvalidDataException("Judge-enabled reports require captured calibration and judge metadata.");
@@ -100,7 +101,8 @@ public static class EvaluationFiles
                 item.QuestionCount < 1 || item.Interaction is not ("single-choice" or "text-input" or "numeric-input") ||
                 (item.ChoiceCount.HasValue && (item.Interaction != "single-choice" || item.ChoiceCount is < 2 or > 6)) ||
                 item.MinPassageWords < 0 || item.MaxPassageWords < 0 || item.MinPassageWords > item.MaxPassageWords ||
-                (item.QuestionCountOverride.HasValue && item.QuestionCountOverride != item.QuestionCount))
+                (item.SettingsOverride is { } settings &&
+                    (TaskSettingsValidator.Validate(settings).Count > 0 || settings.QuestionCount != item.QuestionCount)))
                 throw new InvalidDataException("Evaluation cases require unique safe IDs, bounded text and supported, consistent expectations.");
         }
     }

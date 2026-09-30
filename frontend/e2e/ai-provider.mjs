@@ -62,58 +62,63 @@ export async function startAiProvider() {
     let result;
     if (isAuthoring) {
       result = {
-        schemaVersion: 3,
+        schemaVersion: 4,
         name: 'חוקרים וקוראים',
         instanceParameters: [
           {
-            key: 'theme',
-            label: 'נושא',
+            key: 'focus',
+            label: 'דגשים לתרגול',
             type: 'text',
             required: true,
-            default: 'דינוזאורים',
+            default: 'הסקת מסקנות',
             min: null,
             max: null,
             maxLength: 100,
             options: null,
           },
           {
-            key: 'level',
-            label: 'רמה',
+            key: 'style',
+            label: 'סגנון',
             type: 'select',
             required: true,
-            default: 'קלה',
+            default: 'מידעי',
             min: null,
             max: null,
             maxLength: null,
-            options: ['קלה', 'מאתגרת'],
+            options: ['מידעי', 'סיפורי'],
           },
         ],
         generation: {
           instructions:
             (user.includes('בדיקת אורך') ? 'יש ליצור קטע בן 100–150 מילים. ' : '') +
-            'יש ליצור קטע קריאה חדש לפי "theme" ברמה "level" ושאלות הבנה.\n\nיש לשמור כלשונו את המשפט: שָׁלוֹם, Maya! שלום־עולם',
-          questionCount: 2,
+            'יש ליצור קטע קריאה חדש לפי הדגשים ב־"focus" ובסגנון "style" ושאלות הבנה.\n\nיש לשמור כלשונו את המשפט: שָׁלוֹם, Maya! שלום־עולם',
+          defaults: {
+            topic: 'דינוזאורים',
+            audience: 'כיתה ג׳',
+            difficulty: 'easy',
+            questionCount: 2,
+          },
         },
       };
     } else {
-      const { parameters, questionCount } = JSON.parse(user);
+      const { settings, parameters } = JSON.parse(user);
       result = {
-        title: `לומדים על ${parameters.theme}`,
+        title: `לומדים על ${settings.topic}`,
         instructions: 'קראו וענו על השאלות.',
         contentBlocks: [
           {
             type: 'text',
-            text: `קטע ${sequence}: לומדים על ${parameters.theme} ברמה ${parameters.level}.`,
+            text: `קטע ${sequence}: לומדים על ${settings.topic} ברמה ${settings.difficulty}, בסגנון ${parameters.style}.`,
           },
         ],
-        questions: Array.from({ length: questionCount }, (_, index) => ({
+        questions: Array.from({ length: settings.questionCount }, (_, index) => ({
           id: `q${index + 1}`,
           prompt: index % 3 === 2 ? 'כמה נושאים מופיעים בקטע?' : `מה נושא הקטע? (${index + 1})`,
           interaction: {
             type: ['text-input', 'single-choice', 'numeric-input'][index % 3],
-            options: index % 3 === 1 ? [parameters.theme, 'נושא אחר'] : null,
+            options: index % 3 === 1 ? [settings.topic, 'נושא אחר'] : null,
           },
-          answer: { value: index % 3 === 2 ? '1' : parameters.theme },
+          answer: { value: index % 3 === 2 ? '1' : settings.topic },
           points: 1,
         })),
       };

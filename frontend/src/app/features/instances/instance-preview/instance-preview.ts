@@ -3,6 +3,7 @@ import { DatePipe } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { LearningApi } from '../../../core/api/learning-api';
 import { apiError } from '../../../core/api/api-error';
+import { difficultyLabels } from '../../../shared/forms/task-settings';
 import { LoadingIndicator } from '../../../shared/loading-indicator/loading-indicator';
 
 /** Displays a saved task and parent-only answers without regeneration. */
@@ -16,5 +17,6 @@ export class InstancePreviewPage {
   readonly instanceId = input.required<string>();
   private readonly api = inject(LearningApi);
   protected readonly instance = this.api.instance(this.instanceId);
+  protected readonly difficultyLabels = difficultyLabels;
   protected readonly apiError = apiError;
 }

@@ -17,7 +17,7 @@ public static partial class TemplateValidator
             errors["definition"] = ["יש לציין את הגדרות התבנית."];
             return errors;
         }
-        if (definition.SchemaVersion != 3) errors["schemaVersion"] = ["גרסת מבנה התבנית אינה נתמכת."];
+        if (definition.SchemaVersion != 4) errors["schemaVersion"] = ["גרסת מבנה התבנית אינה נתמכת."];
         if (string.IsNullOrWhiteSpace(definition.Name) || definition.Name.Length > 100)
             errors["name"] = ["יש להזין שם באורך של 1 עד 100 תווים."];
         if (string.IsNullOrWhiteSpace(definition.Generation?.Instructions) || definition.Generation.Instructions.Length > 4000)
@@ -28,8 +28,8 @@ public static partial class TemplateValidator
             return errors;
         }
 
-        if (definition.Generation?.QuestionCount is < 1)
-            errors["generation.questionCount"] = ["מספר השאלות חייב להיות גדול מאפס."];
+        foreach (var error in TaskSettingsValidator.Validate(definition.Generation?.Defaults, "generation.defaults"))
+            errors.Add(error.Key, error.Value);
         var keys = new HashSet<string>(StringComparer.Ordinal);
         for (var index = 0; index < parameters.Length; index++)
         {
@@ -46,6 +46,8 @@ public static partial class TemplateValidator
         if (parameter is null) return "הגדרת שדה אינה יכולה להיות ריקה.";
         if (parameter.Key is null || !ParameterKey().IsMatch(parameter.Key) || !keys.Add(parameter.Key))
             return "מפתח השדה חייב להיות ייחודי, להתחיל באות לטינית קטנה ולהכיל עד 40 אותיות לטיניות וספרות.";
+        if (parameter.Key is "topic" or "audience" or "difficulty" or "questionCount")
+            return "נושא, קהל יעד, רמת קושי ומספר שאלות מוגדרים בהגדרות המשימה, ולא כשדות נוספים.";
         if (string.IsNullOrWhiteSpace(parameter.Label) || parameter.Label.Length > 100)
             return "יש להזין תווית באורך של 1 עד 100 תווים.";
         if (parameter.Type is not ("text" or "integer" or "select" or "boolean"))

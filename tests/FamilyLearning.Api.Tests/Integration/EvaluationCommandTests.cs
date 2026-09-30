@@ -53,7 +53,7 @@ public sealed class EvaluationCommandTests : IDisposable
             var output = authoringCall ? AiFixtures.Definition() : AiFixtures.Content(count: 4);
             if (authoringCall)
             {
-                output["generation"]!["questionCount"] = 4;
+                output["generation"]!["defaults"]!["questionCount"] = 4;
             }
             else
             {
