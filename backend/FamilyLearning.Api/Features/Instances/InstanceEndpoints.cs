@@ -48,7 +48,7 @@ public static class InstanceEndpoints
         var definition = StoredJson.Read<TaskTemplateDefinition>(version.DefinitionJson);
         var parameters = ParameterValidator.Validate(definition.InstanceParameters, request.Parameters);
         var errors = TaskSettingsValidator.Validate(request.Settings);
-        foreach (var error in parameters.Errors) errors[$"parameters.{error.Key}"] = error.Value;
+        foreach (var error in parameters.Errors) errors.Add(error.Key, error.Value);
         if (errors.Count > 0) return Results.ValidationProblem(errors);
         var input = new TaskInput(request.Settings, parameters.Values);
         var generated = await ai.GenerateAsync(definition, input, ct);

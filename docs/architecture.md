@@ -35,10 +35,8 @@ template contract even with escaped Unicode; validators enforce field limits.
 
 `AiGenerationService` calls `IChatClient` without identity or database access.
 `AiSchemas` supplies embedded schemas for the prompt and provider output format.
-The OpenRouter adapter owns transport and configuration; generation owns
-prompts,
-schemas and validation. See [AI configuration](../README.md#ai-configuration)
-for
+The OpenRouter adapter owns transport and configuration; generation owns prompts,
+schemas and validation. See [AI configuration](../README.md#ai-configuration) for
 model capabilities, output modes, reasoning, sampling and limits. Tests exercise
 these with fixed local model IDs, independently of the active model. No tools
 are sent. Responses must finish normally and pass size/depth, required-member,
@@ -47,30 +45,24 @@ unknown-field, numeric and domain validation before persistence.
 `AiPrompts` separates reusable template design from task generation, sharing
 language and presentation rules. Schemas describe field constraints; prompts
 explain task semantics and cross-field priorities. Templates retain
-task-specific
-requirements and exact parameter references, rather than repeating engine rules.
-Resolved values override stale defaults, including false, zero and empty text.
-`TaskSettings` owns topic, audience, difficulty and question count. Templates
-store
-these under `generation.defaults`; each task submits a complete `TaskInput` with
-chosen settings and additional parameters. `TaskSettingsValidator` validates
-both
-template defaults and task settings. The endpoint resolves dynamic defaults and
-persists the input with the output. The AI request includes instructions, chosen
-settings, parameter definitions and resolved values; template settings defaults
-are
-not sent again. Shared settings take precedence over stale prose; dynamic fields
-cannot reuse their keys. Learning data predating schema 4 is
-cleared by migration; parent accounts remain.
+task-specific requirements and exact parameter references, rather than
+repeating engine rules. Resolved values override stale defaults, including
+false, zero and empty text. `TaskSettings` owns topic, audience, difficulty
+and question count. Templates store these under `generation.defaults`; each
+task submits a complete `TaskInput` with chosen settings and additional
+parameters. `TaskSettingsValidator` validates both template defaults and task
+settings. The endpoint resolves dynamic defaults and persists the input with
+the output. The AI request includes instructions, chosen settings, parameter
+definitions and resolved values; template settings defaults are not sent
+again. Shared settings take precedence over stale prose; dynamic fields cannot
+reuse their keys. Learning data predating schema 4 is cleared by migration;
+parent accounts remain.
 
 Text length is instructional guidance. Production validation owns structural
-safety,
-answer consistency and exact requested question counts; the evaluator owns
-word-count
-measurement and case adherence. Domain failures expose application-authored
-field
-messages through typed ProblemDetails, without correction calls or parsing
-prose.
+safety, answer consistency and exact requested question counts; the evaluator
+owns word-count measurement and case adherence. Domain failures expose
+application-authored field messages through typed ProblemDetails, without
+correction calls or parsing prose.
 
 Each generation operation makes one AI call. Validators enforce structure and
 bounds, not fluency or truth. Parents can edit proposed instructions; the app
@@ -79,10 +71,8 @@ Prompt changes advance the metadata's prompt version and affect new output only.
 
 `tools/FamilyLearning.Evaluation` is a separate developer executable referencing
 the engine and adapter and is not published with the API. CLI and `--ui` use the
-same validated plan, runner, judge and JSON reports, without application
-database
-or identity services. The runner emits structured progress and checkpoints
-calls;
+same validated plan, runner, judge and JSON reports, without application database
+or identity services. The runner emits structured progress and checkpoints calls;
 summary/comparison derive evidence without provider calls. Evaluation calls are
 paced and may retry HTTP 429 at most three times within the hard call budget.
 Each attempt is retained; waiting is cancellable and excluded from request
@@ -93,8 +83,7 @@ Its coordinator owns one cancellable run and waits for the final checkpoint on
 shutdown. It owns an isolated service provider using the same application AI
 registration and validators. Configuration failures disable live runs without
 blocking offline routes or exposing invalid settings; restarting reloads the
-configuration. The artifact store maps validated run IDs under a configured
-root,
+configuration. The artifact store maps validated run IDs under a configured root,
 rejects links, and serializes atomic human-review edits. Polling reads immutable
 progress snapshots; history and comparison reread authoritative `run.json`.
 Host/Origin checks, antiforgery, CSP and plain-text rendering protect the local
@@ -105,11 +94,11 @@ Publication atomically saves a revision and current pointer, guarded by
 `expectedVersion`, an EF concurrency token and a unique revision index. Joined
 reads resolve family ownership and revision together. Generation pins that
 immutable revision before AI; no transaction stays open during the call. Tasks
-save parameters, content and provider/model/prompt-version/UTC metadata.
+save resolved settings and parameters, content, and
+provider/model/prompt-version/UTC metadata.
 
 Deletion/reset removes tasks, revisions and templates in one transaction.
-Publication or generation finishing after deletion returns 404 and saves
-nothing.
+Publication or generation finishing after deletion returns 404 and saves nothing.
 
 ## Access and failures
 
@@ -124,19 +113,16 @@ cancellation wins. SDK retries are disabled; OpenRouter's optional fallback
 handles provider errors, not failed app validation.
 Failures return safe ProblemDetails without saving, including 429 for provider
 rate limits. Output-limit failures use
-`urn:family-learning:ai-output-limit` so the UI can distinguish them from
-invalid
+`urn:family-learning:ai-output-limit` so the UI can distinguish them from invalid
 JSON without displaying provider text. The transport checks HTTP 200 bodies for
 provider errors; the adapter normalizes missing or malformed SDK responses to
 safe provider failures. AI response logs record metadata, finish reason, size,
 elapsed time and token counts before output validation.
-Rejections log a failure category; transport failures log exception type,
-status,
+Rejections log a failure category; transport failures log exception type, status,
 prompt version and elapsed time. Prompts, answers and reasoning text stay out of
 logs. `/api/ai/status` checks configuration without a call.
 
-Local management commands compose only persistence and authentication;
-migrations
+Local management commands compose only persistence and authentication; migrations
 and account provisioning work even with incomplete AI configuration. Production
 requires explicit migrations and HTTPS; tests cover migration, redirect, HSTS,
 secure-cookie and CSRF behavior. `/health` reports process availability only.
@@ -152,27 +138,23 @@ Cancellation does not guarantee server rollback.
 Changing route parameters destroys the old page and cancels its pending writes;
 query and fragment changes preserve the current page and its edits.
 
-Route guards cancel superseded session/token checks. Sign-in belongs to its page
-and cannot redirect after destruction; the server authorizes requests.
+Route guards cancel superseded session/token checks. Sign-in belongs to its
+page and cannot redirect after destruction; the server authorizes requests.
 `AiTemplateAuthor` holds proposals; `AiTemplateForm` edits copies with Signal
 Forms and converts them on save. Errors retain edits; new proposals reset
-feedback. Both forms use `TaskSettingsFields` and its shared Signal Forms schema
-for common choices. `InstanceForm` preloads template defaults and emits a
-complete
-input; it owns additional parameter controls. Clearing required text, integer or
-select inputs is invalid.
-Cleared optional text stays explicit; blank optional numbers/selects are omitted
-so the server can resolve defaults. Successful publication or task creation
-replaces its form with a saved-result link; delayed or failed navigation cannot
-repeat the write or AI generation.
+feedback. Both forms use `TaskSettingsFields` and its shared Signal Forms
+schema for common choices. `InstanceForm` preloads template defaults and emits
+a complete input; it owns additional parameter controls. Clearing required
+text, integer or select inputs is invalid. Cleared optional text stays
+explicit; blank optional numbers/selects are omitted so the server can resolve
+defaults. Successful publication or task creation replaces its form with a
+saved-result link; delayed or failed navigation cannot repeat the write or AI
+generation.
 
-Previews read snapshots. The PWA caches assets only; API calls need a
-connection.
-See the [UI guide](ui-guide.md) and [verification
-commands](../README.md#verify).
+Previews read snapshots. The PWA caches assets only; API calls need a connection.
+See the [UI guide](ui-guide.md) and [verification commands](../README.md#verify).
 
-References: [IChatClient][chat], [structured output][output], [Signal
-Forms][forms].
+References: [IChatClient][chat], [structured output][output], [Signal Forms][forms].
 
 [chat]: https://learn.microsoft.com/en-us/dotnet/ai/ichatclient
 [output]: https://openrouter.ai/docs/guides/features/structured-outputs

@@ -75,6 +75,28 @@ public sealed class TaskSettingsTests
     }
 
     [Theory]
+    [InlineData("null", "parameters")]
+    [InlineData("{\"unexpected\":true}", "parameters.unexpected")]
+    [InlineData("{\"parameters\":true}", "parameters.parameters")]
+    public async Task Parameter_errors_identify_the_actual_input_path(string parameters, string path)
+    {
+        using var chat = new ScriptedChat();
+        using var app = new ApiFactory(services => services.AddSingleton<IChatClient>(chat));
+        using var parent = await app.ParentAsync();
+        using var published = await parent.PostAsJsonAsync("/api/templates", Blueprint());
+        var id = (await published.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("id").GetGuid();
+        using var response = await parent.PostAsJsonAsync($"/api/templates/{id}/instances", new JsonObject
+        {
+            ["settings"] = Blueprint()["generation"]!["defaults"]!.DeepClone(),
+            ["parameters"] = JsonNode.Parse(parameters)
+        });
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        var problem = await response.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal(path, Assert.Single(problem.GetProperty("errors").EnumerateObject()).Name);
+        Assert.Empty(chat.Requests);
+    }
+
+    [Theory]
     [InlineData("topic")]
     [InlineData("audience")]
     public async Task Shared_text_accepts_the_length_boundary_and_rejects_excess(string field)

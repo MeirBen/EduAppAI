@@ -66,20 +66,17 @@ stored timestamps remain UTC.
 Write concise Hebrew for labels, validation, loading and errors. Do not expose
 raw framework/provider errors. Render generated text through Angular
 interpolation, never HTML. Parameter labels/options come from the reviewed
-template. The shared topic, audience, difficulty and question-count controls use
-application-owned labels and validation; only difficulty has fixed options.
-Never rewrite saved
-content for presentation.
+template. The shared topic, audience, difficulty and question-count controls
+use application-owned labels and validation; only difficulty has fixed
+options. Never rewrite saved content for presentation.
 
 ## Loading
 
 Keep the shared `LoadingIndicator` mounted outside `aria-busy` containers, with
-`active` bound to the request's pending state. Its empty live region exists
-before
+`active` bound to the request's pending state. Its empty live region exists before
 the status changes; the animation and text disappear on completion or failure.
 Use `variant="panel"` for page loads and long AI calls, or the default inline
-variant for shorter actions. Set `label` and optional `detail` for the
-operation;
+variant for shorter actions. Set `label` and optional `detail` for the operation;
 avoid invented progress percentages or generation stages.
 
 Customize the animation through CSS properties on the component or an ancestor:

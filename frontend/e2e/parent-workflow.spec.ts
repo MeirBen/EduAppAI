@@ -109,12 +109,15 @@ test('a parent prompt becomes an editable reusable template and distinct frozen 
   const secondTheme = 'חלל' + 'A'.repeat(80);
   await page.getByLabel('נושא', { exact: true }).fill(secondTheme);
   await page.getByLabel('רמת קושי', { exact: true }).selectOption('hard');
+  await page.getByLabel('קהל יעד', { exact: true }).fill('לומדים מבוגרים');
   await page.getByLabel('מספר שאלות').fill('3');
   await generateTask(page);
   await expect(
     page.getByRole('heading', { name: `לומדים על ${secondTheme}`, exact: true }),
   ).toBeVisible();
   await expect(page.locator('.question-prompt')).toHaveCount(3);
+  await expect(page.getByText('קהל יעד: לומדים מבוגרים', { exact: true })).toBeVisible();
+  await expect(page.getByText('רמת קושי: קשה', { exact: true })).toBeVisible();
   await page.getByText('הצגת התשובה לשאלה 1', { exact: true }).click();
   await expect(page.locator('details').first()).toHaveAttribute('open', '');
   await page.keyboard.press('Space');
@@ -301,7 +304,7 @@ test.describe('publication recovery', () => {
     await expect(page.locator('app-loading-indicator .loader-mark')).toHaveCount(0);
     await page.getByLabel('שם התבנית', { exact: true }).fill('העריכה נשמרת גם אחרי כשל');
     const parameter = page.locator('[data-parameter-editor]').first();
-    await parameter.getByLabel('שם השדה להורה').fill('נושא הקריאה שלי');
+    await parameter.getByLabel('שם השדה להורה').fill('הדגשים שלי');
     let finishSave!: () => void;
     const saveGate = new Promise<void>((resolve) => (finishSave = resolve));
     await page.route(
@@ -329,11 +332,11 @@ test.describe('publication recovery', () => {
     await expect(page.getByLabel('שם התבנית', { exact: true })).toHaveValue(
       'העריכה נשמרת גם אחרי כשל',
     );
-    await expect(parameter.getByLabel('שם השדה להורה')).toHaveValue('נושא הקריאה שלי');
+    await expect(parameter.getByLabel('שם השדה להורה')).toHaveValue('הדגשים שלי');
     expect((await (await page.request.get('/api/templates')).json()).length).toBe(before);
 
     await page.getByRole('button', { name: 'שמירת התבנית', exact: true }).click();
-    await expect(page.getByLabel('נושא הקריאה שלי', { exact: true })).toHaveValue('דינוזאורים');
+    await expect(page.getByLabel('הדגשים שלי', { exact: true })).toHaveValue('הסקת מסקנות');
     expect((await (await page.request.get('/api/templates')).json()).length).toBe(before + 1);
   });
 });

@@ -6,7 +6,8 @@ an empty library:
 
 ```text
 Parent prompt → AI proposal → parent review → published template
-Published template + chosen parameters → AI content → validation → saved task
+Published template + chosen settings and parameters → AI content → validation
+→ saved task
 ```
 
 ## Current workflow
@@ -15,9 +16,10 @@ Published template + chosen parameters → AI content → validation → saved t
 2. Review the AI proposal: name, instructions and parameter definitions. Edit,
    regenerate or cancel. A proposal is not saved automatically.
 3. Explicitly save the template. Later edits publish a new immutable revision.
-4. Choose values for a task. The server resolves defaults, validates choices and
-   asks AI for content using the selected template revision.
-5. Validate and save the exact content, answers, parameters and generation
+4. Choose task settings and any additional values. The server validates them,
+   resolves additional parameter defaults, and asks AI for content using the
+   selected template revision.
+5. Validate and save the exact content, answers, task input and generation
    metadata. The parent preview reads this snapshot without calling AI again.
 
 Failures preserve local input and allow explicit retry. Successful regeneration
@@ -26,8 +28,7 @@ an explicit reload. Saved tasks remain readable when AI is unavailable.
 
 Parents can delete a draft, a template with its revisions/drafts, or all family
 learning content, including items beyond the list limit. Deletion requires UI
-confirmation and server-enforced ownership; accounts and AI configuration
-remain.
+confirmation and server-enforced ownership; accounts and AI configuration remain.
 Unsaved proposals can be discarded and are never stored as drafts.
 
 ## Contracts
@@ -44,36 +45,30 @@ Parameters support text, integer, select and boolean values. Keys are unique,
 case-sensitive Latin identifiers; labels and learning content may use any
 language. Required values, defaults, bounds and options are validated on the
 server. Preserve scalar types, including `false`, zero and explicit empty
-optional-text defaults. Defaults resolve omitted values regardless of
-`required`;
+optional-text defaults. Defaults resolve omitted values regardless of `required`;
 `required` rejects omission without a default and blank text. Integer bounds,
 text length and select options belong only to their corresponding field types;
 irrelevant settings are omitted or null.
 
 Blueprint schema version 4 stores `generation.defaults`: topic and audience as
 required text (up to 200 characters each), difficulty as `easy`, `medium` or
-`hard`
-relative to the audience, and a positive integer question count. Parents review
-these defaults and can change all four when creating a task. Unspecified values
-are proposed by AI for parent review; difficulty defaults to medium.
+`hard` relative to the audience, and a positive integer question count.
+Parents review these defaults and can change all four when creating a task.
+Unspecified values are proposed by AI for parent review; difficulty defaults
+to medium.
 
-The task request contains complete `settings` and additional `parameters`.
-The server validates both before calling AI and saves the resolved input
-alongside
+The task request contains complete `settings` and additional `parameters`. The
+server validates both before calling AI and saves the resolved input alongside
 the immutable output. Chosen settings override stale defaults in instructions;
-requested verbatim source text stays intact. Dynamic fields represent additional
-choices only and cannot use the four reserved setting keys. No count-field
-binding,
-configurable count range or fixed 20-question cap applies; token, response-size
-and
-time limits still bound generation. Exact output question count is validated.
+requested verbatim source text stays intact. Dynamic fields represent
+additional choices only and cannot use the four reserved setting keys. No
+count-field binding, configurable count range or fixed 20-question cap
+applies; token, response-size and time limits still bound generation. Exact
+output question count is validated.
 
-Requested text length belongs in the generation instructions, like other
-learning
-requirements. It can be fixed, approximate, per passage or parameter-driven;
-tasks
-without passages need no length setting. The app does not reject structurally
-valid
+Requested text length belongs in the generation instructions, like other learning
+requirements. It can be fixed, approximate, per passage or parameter-driven; tasks
+without passages need no length setting. The app does not reject structurally valid
 content for missing a word target or make correction calls. Parents review the
 result. The developer evaluator measures length where a case specifies it.
 
@@ -102,8 +97,7 @@ or unavailable responses produce errors, never substitute content. Parents
 review educational correctness and age suitability.
 
 OpenRouter model selection and optional fallback are configuration-driven. Free
-and paid models are supported; paid use requires account credits. The
-application
+and paid models are supported; paid use requires account credits. The application
 does not retry requests. Send only learning inputs. Logs exclude prompts,
 answers, identities, credentials, reasoning text and raw provider errors.
 
@@ -145,8 +139,7 @@ shared-browser switching is deferred. The recommended first release completes
 one flow: parent creates a child profile, reviews and assigns an existing task,
 activates the child's device, and sees the child's submitted result.
 
-Keep the current feature structure and parent API contracts. Add an
-independently
+Keep the current feature structure and parent API contracts. Add an independently
 authorized `/api/child` group when implementing the child flow.
 
 **Access and content:**
@@ -203,25 +196,21 @@ authorized `/api/child` group when implementing the child flow.
   scoring edge cases and unchanged historical results. Test the full flow on
   narrow RTL screens and by keyboard with isolated data and providers.
 
-Finalize grading, retry and retention rules before adding child tables or
-endpoints.
+Finalize grading, retry and retention rules before adding child tables or endpoints.
 
 ### Real-model evaluation
 
 Contract tests do not measure educational quality. Before relying on generated
 work for children, repeat a small set of representative Hebrew and bilingual
 requests across subjects, ages and difficulty levels. Review language,
-correctness, age fit, instruction adherence and answer ambiguity; record
-failures
+correctness, age fit, instruction adherence and answer ambiguity; record failures
 as well as successes, the model/profile, prompt version, latency, token use and
 actual cost when available. Use synthetic requests, never child identities.
 
 Use the [developer evaluation harness](../README.md#hebrew-ai-evaluation) for
-bounded, explicitly requested live runs and offline comparisons. Keep
-calibration
+bounded, explicitly requested live runs and offline comparisons. Keep calibration
 health, generated language findings and human scores separate. It creates no
-learning records and never corrects app output. Human review remains
-authoritative.
+learning records and never corrects app output. Human review remains authoritative.
 
 [template]: ../backend/FamilyLearning.Api/TaskEngine/Models/TaskTemplateDefinition.cs
 [content]: ../backend/FamilyLearning.Api/TaskEngine/Models/TaskContent.cs

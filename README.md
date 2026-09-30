@@ -132,8 +132,9 @@ learning records or rewriting content at runtime.
 ```
 
 Maintain synthetic requests in [`cases.json`](tools/FamilyLearning.Evaluation/cases.json).
-They cover all three answer types, Hebrew/niqqud/bilingual content, fixed and
-configurable templates, empty/false/zero/negative defaults, varied question counts,
+They cover all three answer types, Hebrew/niqqud/bilingual content, templates
+with and without extra fields, empty/false/zero/negative defaults, shared-setting
+overrides and varied question counts,
 2–6 choices, two passages, supplied source text and quoted instructions. A full
 run plans 44 base calls, or 70 with the four judge controls, before retries.
 Select individual cases for focused checks.

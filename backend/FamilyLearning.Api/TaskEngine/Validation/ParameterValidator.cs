@@ -5,7 +5,7 @@ namespace FamilyLearning.Api.TaskEngine.Validation;
 
 /// <summary>Resolved values and field errors from one validation pass.</summary>
 /// <param name="Values">Accepted values, including defaults; use only when Errors is empty.</param>
-/// <param name="Errors">Hebrew feedback keyed by parameter name, suitable for an HTTP validation problem.</param>
+/// <param name="Errors">Hebrew feedback keyed by JSON input path, suitable for an HTTP validation problem.</param>
 public sealed record ParameterValidationResult(
     Dictionary<string, JsonElement> Values,
     Dictionary<string, string[]> Errors);
@@ -32,7 +32,7 @@ public static class ParameterValidator
         var knownKeys = definitions.Select(p => p.Key).ToHashSet(StringComparer.Ordinal);
         foreach (var key in supplied.Keys)
         {
-            if (!knownKeys.Contains(key)) errors[key] = ["ההגדרה אינה מוכרת."];
+            if (!knownKeys.Contains(key)) errors[$"parameters.{key}"] = ["ההגדרה אינה מוכרת."];
         }
 
         foreach (var definition in definitions)
@@ -40,13 +40,13 @@ public static class ParameterValidator
             var value = supplied.TryGetValue(definition.Key, out var input) ? input : definition.Default;
             if (value is not { } resolved)
             {
-                if (definition.Required) errors[definition.Key] = ["יש למלא את השדה הזה."];
+                if (definition.Required) errors[$"parameters.{definition.Key}"] = ["יש למלא את השדה הזה."];
                 continue;
             }
 
             // Clone accepted values so the result survives disposal of the caller's JSON document.
             var error = ValidateValue(definition, resolved);
-            if (error is not null) errors[definition.Key] = [error];
+            if (error is not null) errors[$"parameters.{definition.Key}"] = [error];
             else values.Add(definition.Key, resolved.Clone());
         }
 

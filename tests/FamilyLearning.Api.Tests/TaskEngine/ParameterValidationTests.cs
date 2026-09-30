@@ -30,7 +30,7 @@ public sealed class ParameterValidationTests
     {
         var values = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(json)!;
         var result = ParameterValidator.Validate(Schema, values);
-        Assert.Contains(key, result.Errors.Keys);
+        Assert.Contains($"parameters.{key}", result.Errors.Keys);
     }
 
     [Fact]
