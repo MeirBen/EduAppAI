@@ -175,10 +175,15 @@ Unexpected, missing or duplicate generated IDs reject the response.
 
 The parent's accepted source string is authoritative from capture onward. A
 dedicated source field needs no AI. If AI extracts a proposed source from chat,
-show it inline as unverified until the parent confirms or directly edits it;
-block publication and content generation while that verification is pending.
-This is a source-specific check inside the workspace, not another blueprint
-screen. Browser controls may normalize line endings before acceptance; preserve
+show it inline as unverified until the parent confirms or directly edits it.
+Source confirmation is workspace state, not persisted domain state. While
+confirmation is pending, the workspace cannot submit that source for template
+publication, ActivityDraft creation/update or content generation.
+
+Submitting a valid canonical LearningPlan or per-task source to the server means
+the parent has accepted that source. The server enforces source identity,
+source-kind and preservation rules; it stores no separate confirmation flag or
+entity. Browser controls may normalize line endings before acceptance; preserve
 the accepted string, not claimed external-file bytes.
 
 For a retained fixed-source material, authoring rejects a changed text or source
@@ -363,10 +368,11 @@ QuestionCandidateBatch contains the task title, learner instructions and
 complete questions, so the question stage owns those task-level fields.
 ReplaceMaterial returns one generated material; ReplaceQuestion returns one
 complete question. Both replacements preserve unrelated title/instructions, IDs
-and content. Strict target checks plus assembled-document safety/aggregate
-bounds apply to a scoped replacement; unrelated incomplete manual fields can
-remain draft diagnostics. Full release checks still validate the entire
-document. There is no public stage-number input or generic step scheduler.
+and content. Strict checks for the selected item plus assembled-document
+safety/aggregate bounds apply to a scoped replacement; unrelated incomplete
+manual fields can remain draft diagnostics. Full release checks still validate
+the entire document. There is no public stage-number input or generic step
+scheduler.
 
 AI candidate validation is strict for structure, expected generated-material
 IDs, question count, allowed formats, mixed coverage, choice count and answer
@@ -694,10 +700,17 @@ implementation used by runtime and evaluation.
 
 LengthMeasurement stores scope, expected, actual and nullable satisfied. Target
 has no invented tolerance/pass flag (satisfied=null). Exact/range uses the
-stated count/inclusive endpoints. A draft can retain an unmet requirement with
-visibility; a generated material cannot pass the stage gate, and release cannot
-succeed, while an explicitly strict requirement fails. A parent repairs content
-or explicitly changes requirements and re-reviews; no review override.
+stated count/inclusive endpoints.
+
+Target length is advisory. A target mismatch is visible but never blocks
+candidate application, downstream generation or release by itself.
+
+Exact and range length requirements are strict. A generated candidate that fails
+one is retained as an unapplied candidate with diagnostics and cannot advance to
+dependent question generation. A manually edited draft may retain the mismatch
+while being repaired, but dependent generation and release remain blocked until
+the requirement is satisfied or the plan requirement itself is explicitly
+changed. Parent review cannot waive a strict failure.
 
 Release requires supported complete structure; exact question/choice counts and
 mixed-format coverage; complete answer associations; all strict deterministic

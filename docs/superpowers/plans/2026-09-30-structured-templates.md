@@ -340,7 +340,8 @@ review action and returns snapshot ID/preview. TaskSnapshot uses existing
 - [ ] Add failing tests for creation from an unsaved valid plan with no AI;
       owned-template copy pinned to expectedVersion; owned-snapshot copy with
       cleared review; 404 family boundaries; raw omitted/null/false/zero/empty
-      input behavior; source confirmation before generation/publication.
+      input behavior. Canonical source submissions are parent-accepted without a
+      confirmation flag; enforce source identity/kind and preservation.
 - [ ] Add lenient-save and adoption tests. Missing/invalid answer associations
       produce diagnostics; unbounded/unsafe input fails. Generated material
       edits bump revisions and stale every dependent question. Replace source
@@ -348,7 +349,8 @@ review action and returns snapshot ID/preview. TaskSnapshot uses existing
       resolves again and invalidates dependencies. Plan/settings changes cannot
       keep content silently current; adoption cannot waive strict requirements.
 - [ ] Add release tests for counts/formats/keys/strict lengths/staleness/current
-      review and active-operation blocking. Preserve advisory targets. Assert
+      review and active-operation blocking. A target-length mismatch alone must
+      not block release; exact/range mismatches must block it. Assert
       plan/input/content/keys/policies/provenance and measurements are frozen,
       with unique sourceDraftId and sourceDraftRevision. Duplicate exact release
       returns the same snapshot; stale/different revision conflicts before
@@ -454,6 +456,11 @@ keeps expectedVersion.
       12,000-character context cap, operative assumptions present in the plan,
       identity preservation and computed removals. Retained fixed source cannot
       change through AI; direct source edits are explicit and confirmed.
+- [ ] Test workspace-only source confirmation: an unconfirmed AI-extracted
+      source blocks publication, draft creation/update and generation before
+      HTTP submission. Confirming or directly editing it enables submission; the
+      payload contains canonical source text, no confirmation flag. Reloaded
+      saved sources are already accepted; Undo tracks confirmation locally.
 - [ ] Test late proposal after typing/invalid input/Undo/cancel/route change
       never applies; identical proposal creates no history. Clarification
       retains its original request then expires on conflicting edits. A clean
