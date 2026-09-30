@@ -46,6 +46,55 @@ tests and delivery order. Read both before implementation.
   during implementation; final cutover still requires the value/test gates.
   Current product/architecture/README behavior remains current until cutover.
 
+## Code quality
+
+Working output and passing tests are necessary, but not sufficient. Each task
+must leave code that is straightforward to read, explain and maintain:
+
+- Use clear domain names, focused methods and explicit data flow. Keep state and
+  mutations with their owning feature; share rules through the existing engine
+  boundaries rather than duplicating them across API, worker, UI and evaluator.
+- Prefer supported native .NET, EF Core and Angular APIs for the installed
+  versions, checked against their official documentation. Keep provider protocol
+  adaptation inside the existing adapter and presentation inside Angular.
+- Apply KISS and DRY pragmatically: extract a helper for a real shared rule or
+  responsibility, not merely to reduce line count. No speculative abstractions,
+  empty scaffolding, pass-through layers or new dependencies without a concrete
+  need in the current task.
+- Fix the cause at its owning boundary. Do not stack special cases, silently
+  coerce data, suppress failures or weaken validation/types to make a test pass.
+  If a supported framework approach cannot meet the contract, explain the
+  limitation and resolve the design before adding a workaround.
+- Cover meaningful behavior, ownership, cancellation, concurrency and failure
+  boundaries with isolated tests. Keep security and resource limits explicit;
+  avoid hidden state and automatic side effects.
+- Remove newly obsolete code, duplicate rules and stale comments/docs in the
+  same task once callers have moved. Preserve readable structure over clever or
+  compressed code. Leave no abandoned alternative or temporary patch behind.
+
+## Review milestones
+
+The user wants to learn the implementation through small reviews. **Each
+numbered task below is one review milestone**; do not batch tasks unless the
+user asks. If a task is too large to review comfortably, split it into named,
+coherent checkpoints before implementing it.
+
+For the authorized milestone, complete its implementation, focused cleanup and
+relevant checks, including `scripts/verify.sh` and the isolated browser tests
+for workflow changes. Then provide a concise walkthrough containing:
+
+- What changed, why, and the important ownership/design decisions.
+- A suggested reading order with links to the main files and one representative
+  request or data flow to follow through the code.
+- Verification results, limitations and what the next milestone would add.
+
+**Stop for the user's review and explicit continuation before starting the next
+milestone.** Address review feedback within the same milestone. Do not implement
+later tasks or add their scaffolding in the background. This review pause is the
+user's requested workflow; routine decisions within the authorized milestone do
+not require repeated permission. Editing this plan does not start
+implementation.
+
 ## Review focus
 
 1. A replay after an operation advanced its draft must return the original

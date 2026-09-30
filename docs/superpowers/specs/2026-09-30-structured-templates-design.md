@@ -820,6 +820,11 @@ evidence gate pass. No deployed dual lifecycle or compatibility reader. Preserve
 existing application/evaluator baseline tests during this documentation-only
 change.
 
+Follow the implementation plan's [code-quality requirements][code-quality] and
+[review milestones][review-milestones]. Complete one reviewable task, explain
+its code and verification, then wait for the user's explicit continuation before
+starting the next milestone.
+
 Completion requires generation from an unsaved plan; exact supplied sources;
 editable reloadable drafts; scoped edits that preserve unrelated content; strict
 release blocking; no stale overwrite after save, unsaved typing, Undo, cancel or
@@ -872,3 +877,5 @@ These sources inform the design; they do not establish improved Hebrew quality:
 [form-model]: https://angular.dev/guide/forms/signals/model-design
 [schemas]: https://openrouter.ai/docs/guides/features/structured-outputs
 [routes]: https://angular.dev/guide/routing/define-routes#associating-data-with-routes
+[code-quality]: ../plans/2026-09-30-structured-templates.md#code-quality
+[review-milestones]: ../plans/2026-09-30-structured-templates.md#review-milestones
