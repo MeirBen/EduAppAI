@@ -1,5 +1,9 @@
 # Product specification
 
+This document describes the current application. The planned replacement is
+the [structured-template workspace design][workspace-design], which removes
+the separate generated-blueprint step. It is not implemented yet.
+
 Templates are AI-authored instructions and configurable fields, never
 subject-specific generators. Every subject follows the same flow, starting from
 an empty library:
@@ -218,6 +222,7 @@ health, generated language findings and human scores separate. It creates no
 learning records and never corrects app output. Human review remains authoritative.
 
 [template]: ../backend/FamilyLearning.Api/TaskEngine/Models/TaskTemplateDefinition.cs
+[workspace-design]: superpowers/specs/2026-09-30-structured-templates-design.md
 [content]: ../backend/FamilyLearning.Api/TaskEngine/Models/TaskContent.cs
 [auth-schemes]: https://learn.microsoft.com/en-us/aspnet/core/security/authorization/authorize-with-a-specific-scheme?view=aspnetcore-8.0
 [csrf]: https://learn.microsoft.com/en-us/aspnet/core/security/anti-request-forgery?view=aspnetcore-8.0
