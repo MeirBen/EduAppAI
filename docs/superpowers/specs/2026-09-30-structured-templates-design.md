@@ -1,84 +1,83 @@
-# Structured templates and conversational editing
+# Content-first activities and structured templates
 
-Status: implementation specification; application changes are not implemented.
-Finalized for planning on 30 September 2026. This supersedes the research draft.
-The [implementation plan](../plans/2026-09-30-structured-templates.md) defines
-the delivery sequence. Existing product and architecture documents describe the
-current application until the implementation replaces that behavior.
+Status: accepted design for implementation planning, 30 September 2026; **not
+implemented**. This replaces the earlier lifecycle at this stable path. The
+[implementation plan](../plans/2026-09-30-structured-templates.md) is the
+execution guide. README, product specification and architecture continue to
+describe the current application until implementation lands.
 
-## 1. Product outcome
+## 1. Product outcome and scope
 
-A parent describes an educational activity, adjusts it through conversation or
-ordinary controls, saves a reusable template and creates tasks with selected
-values. There is **no separate generated-blueprint screen or mandatory
-blueprint-review step**. Creation and editing happen in one workspace.
+A parent describes an activity or opens a saved template, adjusts settings,
+generates an **editable activity**, repairs its material/questions/answer key,
+and explicitly marks it ready to create an **immutable task snapshot**. Saving a
+reusable template is independent. A valid unsaved plan can generate an activity;
+no mandatory template publication, separate blueprint page or acceptance dialog
+between successful generation stages is introduced.
 
-The app owns the layout, supported field types, input resolution, request
-construction and validation. AI interprets learning requests and writes content.
-Parents never maintain field keys, JSON, placeholders or technical prompts.
+Keep .NET 8, Angular, SQLite, OpenRouter, the existing provider configuration
+and evaluation tools. All educational generation follows the generic AI path:
+plain text materials and numeric, short-text or single-choice questions. No
+static or subject-specific generator, arbitrary widget, subjective essay grader,
+model code, tool execution, autonomous agent or production repair/retry loop.
 
-Generic means any subject expressed through supported text materials and
-numeric, short-text or single-choice questions. It does not promise arbitrary
-widgets, audio, drawing evaluation, subjective essay grading or automatic fact
-checking. Question count and known output properties are checkable. Natural
-Hebrew, pedagogy and arbitrary custom meanings remain model-dependent.
+This slice ends at parent release/preview. It does not implement child delivery.
+The button says **סימון כמוכנה** (mark ready), never promises an available child
+assignment. Separate statuses describe generated content, deterministic checks,
+needs attention and parent review; none means “AI-certified correct.” Natural
+Hebrew, source entailment, factuality and age/pedagogical suitability require
+human judgment. A clean model-judge result is advisory only.
 
-Keep four kinds of evidence separate: valid inputs, structurally valid output,
-measured expectations and reviewed semantic quality. A saved Draft is not
-approved content; an empty judge result is not proof of correct Hebrew.
-Resolution is deterministic for the same accepted plan, input and policy
-versions. Assembly and measurement are deterministic for the same resolved
-request and provider payload. Generated IDs/timestamps are boundary metadata;
-generated prose is not promised to repeat.
+## 2. One workspace and explicit persistence
 
-## 2. First-release scope and experience
+The same route contains chat for the learning plan, native settings, materials,
+questions/options/answers, diagnostics and contextual replacement actions.
+Narrow screens use stacked regions or accessible tabs. Parents never edit keys,
+JSON, placeholders, internal paths or provider prompts. Hide inapplicable
+controls; a question-only math or logic activity has no mandatory passage
+fields.
 
-Keep the existing .NET 8, Angular, OpenRouter and evaluation infrastructure.
-Conversation edits reusable templates only. Task settings are adjustable before
-generation; existing generated tasks remain immutable. Drafts and conversational
-context remain client-owned for this release, with an unsaved-changes warning on
-navigation. No persistent chat, cross-device draft sync or agent runtime.
+1. Describe the activity. AI proposes a plan or asks one focused clarification.
+   Valid proposals apply locally with actual computed changes and Undo.
+2. Adjust the plan/settings and confirm any source extracted from chat. Direct
+   editing costs no AI call. Select **יצירת פעילות** to save an ActivityDraft
+   before starting generation.
+3. Generate missing materials in one batch when necessary, then all questions in
+   one batch against the accepted material. Normal successful stages proceed
+   automatically; a real blocker stops the operation and keeps accepted work.
+4. Inspect/edit content directly or explicitly replace one generated material or
+   question with AI. Use **שמירת טיוטה** for a durable content checkpoint.
+5. Use **שמירת תבנית** independently to publish the current plan for reuse. This
+   never modifies an activity or starts content generation implicitly.
+6. After resolving blocking checks, review the current saved revision and mark
+   ready. Viewing the frozen result remains read-only; **Edit as new draft**
+   explicitly copies it into a new working activity.
 
-The workspace has a chat area and a consistent settings area. On narrow screens,
-use accessible tabs or stacked regions in the same route. App-owned sections are
-purpose/defaults, materials, questions and additional choices. Hide inapplicable
-sections. Display educational requirements in concise, editable language; do not
-show a generated system prompt or a generic schema-field builder.
+Local fields show unsaved/saving/saved/error states. Raw invalid keystrokes stay
+local, with a navigation warning; saving a bounded but incomplete document is
+allowed. Do not promise every keystroke is durable. Generation, repair, adoption
+and release first flush a valid Save draft; a failed save starts no operation.
+An activity reload restores the saved draft and operation, not an unpersisted
+conversation or Undo stack. Editing/viewing/saving works without AI.
 
-1. Parent describes the activity and explicitly sends the request.
-2. AI returns a valid plan or one focused clarification. An initial plan opens
-   as the unsaved working draft in the same workspace.
-3. Direct edits require no AI. Subsequent chat requests propose a complete plan.
-   After validation and a revision check, apply it to the unsaved draft, show
-   the app-computed changes inline and offer Undo. No separate Accept screen.
-4. The parent can continue chatting or editing, then select **שמירת תבנית** or
-   **שמירת השינויים**. This is the explicit publication boundary.
-5. **יצירת משימה** opens the normal per-task controls from the saved revision.
-   Generating content is a separate explicit AI action; saving a template never
-   starts it automatically.
+```text
+Describe/open plan → choose inputs → saved ActivityDraft → bounded generation
+→ direct/scoped edits → current-revision parent review → immutable TaskSnapshot
+                         └─ independently save reusable TemplateVersion
+```
 
-The inline change display must include removals and unintended changes, not only
-the model's claimed summary. Saving is disabled during an active authoring call
-or while form validation fails. Errors preserve the draft and entered message.
-Do not label an AI-generated artifact as educationally approved.
+For Hebrew reading, chat establishes the grade and requested story-type/length
+choices; native controls change those choices without AI, and the parent edits a
+generated paragraph or question in the activity. A no-passage math request uses
+the same controls and one question batch, with no reading fields or static math
+generator. For a supplied bilingual source, the parent confirms the exact
+source, chat records the intended direction/answer languages, and generation
+writes questions while the application preserves the source string.
 
-### Examples
-
-- Reading: grade-three Hebrew, four choice questions and an explicitly requested
-  adjustable passage length of about 350 words. Show that control without
-  inventing genre or other menus. A later chat request can add fiction/facts.
-- Math: ten numerical-answer exercises with a requested maximum-operand input.
-  No passage controls. That custom input is delivered reliably; arbitrary
-  operands in prose are not automatically verified by an arithmetic parser.
-- Logic: plain-text puzzles with supported answer formats and adjustable shared
-  settings. Unsupported interactive puzzle mechanics require clarification.
-- Open answers: short, objectively checkable answers. A request for essays must
-  explain the capability limit instead of pretending subjective grading exists.
-- Source activity: parent supplies an English passage, requests Hebrew
-  directions and English answers. Preserve the source and intended language
-  differences.
-- Per-task format: parent asks to choose choice versus short-text questions. The
-  template exposes that supported choice, without adding a generic key field.
+Template chat remains a synchronous proposal call. Publication keeps its
+existing expectedVersion guard and immutable versions. Content edits never
+republish a template; template publication never silently changes the copied
+plan/input/content of an activity. Both remain visibly separate actions.
 
 ## 3. One application-owned contract
 
@@ -122,7 +121,7 @@ length and controls. Source is generated, fixed or per-task.
 
 - generated: AI creates title/body. text is absent. Optional length belongs
   here.
-- fixed: text is required and copied unchanged from the published plan.
+- fixed: text is required and copied unchanged from the accepted plan.
 - per-task: the parent supplies required source text when creating each task. No
   generated length expectation may be attached to supplied source material.
 - Transformation of a source is a separate generated material whose guidance
@@ -130,16 +129,16 @@ length and controls. Source is generated, fixed or per-task.
 
 Material IDs are internal associations, not prompt placeholders. Generated
 output supplies only the expected generated IDs, once each; application assembly
-restores the published material order and inserts original supplied text.
+restores the accepted material order and inserts original supplied text.
 Unexpected, missing or duplicate generated IDs reject the response.
 
 The parent's accepted source string is authoritative from capture onward. A
 dedicated source field needs no AI. If AI extracts a proposed source from chat,
 show it inline as unverified until the parent confirms or directly edits it;
-block publication while that verification is pending. This is a source-specific
-check inside the workspace, not another blueprint screen. Browser controls may
-normalize line endings before acceptance; preserve the accepted string, not
-claimed external-file bytes.
+block publication and content generation while that verification is pending.
+This is a source-specific check inside the workspace, not another blueprint
+screen. Browser controls may normalize line endings before acceptance; preserve
+the accepted string, not claimed external-file bytes.
 
 For a retained fixed-source material, authoring rejects a changed text or source
 kind against the submitted base. Replacing it is a direct source edit. Removal
@@ -264,341 +263,495 @@ without another arbitrary educational limit; refine the lower bound for known
 formats. Four supplied sources of 4,000 characters each must fail before AI. Do
 not mistake this proof of impossibility for a token estimate or quality test.
 
-Name and enforce byte limits for compiled provider input and output schema
-before dispatch; count the schema wherever it appears in the actual request.
-Include the authoring reply envelope/assumptions when testing the
-32,000-character response limit. Choose concrete request/schema byte limits in
-implementation using bounded maximum-size wire/load fixtures and record them in
-configuration and tests before cutover. Do not assert unmeasured provider
-capacity here.
+Limit each compiled provider HTTP body to 512 KiB and each output schema to 64
+KiB, measured as serialized UTF-8 bytes; count schemas everywhere they occur in
+the actual body. Include the authoring reply envelope/assumptions in the
+32,000-character response limit. These are application policies, not provider
+capacity claims. Maximum-size wire fixtures must prove the intended supported
+plans fit before cutover; tighten the supported limits explicitly if they do
+not.
 
-## 4. Resolution, generation and saved output
+## 4. Resolution and document validation
 
 TaskRequest contains complete settings, optional questionFormat/choiceCount,
-materialInputs keyed by material ID, optional totalWordCount, and controlValues
-keyed by control ID. Material input permits wordCount or sourceText only where
-its material explicitly allows that override. Range endpoints are not overrides.
-Unknown IDs, inapplicable properties and overrides of fixed requirements fail
-with field-level validation errors. Missing adjustable numeric/format overrides
-use the published default; required per-task source text has no implicit
-default.
+materialInputs by material ID, optional totalWordCount, and controlValues by
+control ID. Material inputs permit wordCount or sourceText only where allowed.
+Reject unknown IDs, inapplicable properties, fixed overrides and range endpoint
+overrides. Required per-task source text has no implicit default.
 
-Input resolution has this matrix:
+- **Omitted override/map**: Resolve its default once; missing required input
+  fails.
+- **Explicit null, including a map**: Reject; it does not mean omission.
+- **Valid false or zero**: Preserve exactly.
+- **Empty optional text**: Preserve; do not replace with a default.
+- **Blank required text**: Reject without rewriting the accepted source.
+- **Numeric string**: Reject; never coerce.
 
-| Submitted value     | Meaning                                            |
-| ------------------- | -------------------------------------------------- |
-| Omitted override    | Use its default; fail if required and unavailable. |
-| Explicit null       | Reject; it is not an instruction to use a default. |
-| Valid false/zero    | Preserve the value.                                |
-| Empty optional text | Preserve it; do not replace it with a default.     |
-| Blank required text | Reject without rewriting source text.              |
-| Numeric string      | Reject; do not coerce it to a number.              |
+Preserve presence at the .NET 8 HTTP boundary with a localized request reader.
+Nullable CLR declarations alone do not preserve omission versus null. Precedence
+is capabilities/ownership/resource limits, typed requirements and permitted
+overrides, explicit choices then omitted defaults, and finally semantic
+guidance. Do not parse prose to invent executable requirements.
 
-Required settings remain complete. Omitted override maps mean no overrides; null
-maps are invalid. Null in irrelevant plan metadata or a missing plan default is
-separate from null in submitted task choices. Preserve member presence at the
-HTTP boundary; nullable CLR properties alone lose that distinction. Keep this
-parsing localized, without a general optional-type framework.
+TaskRequestResolver.Resolve(plan, input) is pure and returns either errors or
+one ResolvedTaskRequest. This is the sole effective generation contract:
+settings, scoped meanings/values, exact accepted sources, material identities,
+allowed formats/counts, lengths and resolution/assembly policyVersion 1. Exclude
+competing defaults, adjustable flags, chat, family identity and database
+revision fields. Stage preparation adds only its target and source revisions; it
+does not reinterpret defaults. The effective request drives payload, schema,
+validation, assembly, measurements and evidence. Copy mutable collections at
+boundaries; request-specific schema changes must not mutate shared state.
 
-Precedence is application capabilities/ownership/limits, published typed
-requirements and allowed overrides, explicit valid choices then omitted
-defaults, and finally semantic guidance. Scoped guidance may specialize shared
-prose but cannot override typed requirements. Arbitrary prose conflicts remain
-visible review concerns, not a solved semantic-validation problem.
+### One TaskDocument, three validation boundaries
 
-The HTTP envelope is CreateInstanceRequest(expectedVersion, input: TaskRequest).
-expectedVersion is the published revision shown in the form; it is checked by
-the endpoint and never sent to the model.
+TaskDocument contains title, learner instructions, ordered materials and ordered
+questions. A material has an app-owned ID/revision, optional title, body and
+origin. A question has an app-owned ID, prompt, interaction/options,
+answer.value, points, dependency material ID/revisions, effective-input
+fingerprint and staleness. Provenance is server-owned at material/question or
+step level. Preserve current plain-text and answer contracts: numeric answers
+are invariant decimal strings; single-choice answers match exactly one distinct
+option; choice counts are 2–6 and points are integers 0–100. There is no
+option-ID refactor.
 
-The endpoint loads and pins one owned revision. TaskRequestResolver validates
-the plan and input, resolves values exactly once and produces
-ResolvedTaskRequest. It owns input bounds/defaults; it does not call the model
-or access persistence. Generation receives the resolved requirements, scoped
-values and source data. It receives no transcript, unresolved placeholders or
-competing default values.
+MaterialCandidateBatch contains only generated material {id, title?, body}.
+QuestionCandidateBatch contains the task title, learner instructions and
+complete questions, so the question stage owns those task-level fields.
+ReplaceMaterial returns one generated material; ReplaceQuestion returns one
+complete question. Both replacements preserve unrelated title/instructions, IDs
+and content. Strict target checks plus assembled-document safety/aggregate
+bounds apply to a scoped replacement; unrelated incomplete manual fields can
+remain draft diagnostics. Full release checks still validate the entire
+document. There is no public stage-number input or generic step scheduler.
 
-ResolvedTaskRequest is also the one immutable per-request generation contract;
-do not add a second compiler model or reread LearningPlan downstream. The same
-instance supplies provider input, specialized schema, structural validation,
-source assembly, measurements and recorded evidence. Include effective rules and
-expected generated IDs, with policyVersion 1 recorded in the saved resolved
-input; exclude adjustable flags and alternate defaults. Advance that version
-when resolution/assembly semantics change independently of the plan schema.
-Consumer-owned schema copies cannot mutate these requirements or another call.
+AI candidate validation is strict for structure, expected generated-material
+IDs, question count, allowed formats, mixed coverage, choice count and answer
+associations. Validate an entire question batch before assigning stable app IDs
+in returned order. A replacement keeps the target question ID. No question-slot
+scheduler or per-question call swarm is required.
 
-Generate through the existing IChatClient/provider registration. Each explicit
-authoring or task-generation operation makes one application AI call. Prompts
-separate learning data from application rules; delimiters alone are not a
-security guarantee. No model tools, automatic translation, proofreader or repair
-loop. Provider errors, refusal, truncation and invalid output fail safely.
+Draft-save validation enforces bounded JSON/types/IDs, owned references and safe
+content, but retains missing answers, deleted questions or invalid answer-option
+associations as visible diagnostics. A parent can therefore fix one part at a
+time. Changing/deleting an option leaves the old answer invalid until explicitly
+chosen again unless its exact value still exists uniquely; never auto-select a
+replacement. Release validation requires a fully consistent document and all
+requirements in section 8. A strict AI candidate cannot bypass its checks by
+being treated as a lenient draft save.
 
-TaskDocument replaces unassociated content blocks with materials containing id,
-optional title and body. Title/body separation makes counting structural rather
-than a guess about the first line. It retains task title, learner instructions,
-questions and parent-only answer keys. The provider produces generated materials
-only; the app inserts fixed/per-task sources and validates the assembled
-document. Keep the existing 8,000-character total content limit, including
-titles, body, directions, prompts, options and answers. Source material counts
-toward it.
+Keep the total content limit at 8,000 characters including titles, instructions,
+materials, question prompts, options and answers. Per-field limits remain title
+100, instructions 1,000, material body 4,000, prompt 500 and answer/option 200.
+Draft diagnostics are app-owned (at most 100, each message at most 500
+characters); collect remaining failures into one bounded summary. Retain
+supplied source strings exactly during application assembly, including accepted
+line breaks and punctuation. The model returns generated material only, never an
+authoritative echo of a supplied source.
 
-Per-request schemas constrain exact question count, permitted formats, choice
-count and expected generated material identities where the provider supports it.
-Server validation repeats the relevant checks, including mixed-format coverage.
-Schema constraints are never the only validation boundary.
+### Source changes and dependencies
 
-Save TaskSnapshot containing content, lengthMeasurements and measurementVersion
-1 in the existing ContentJson column; use InputJson for resolved selections.
-GenerationMetadataJson continues to hold provider/model/prompt/UTC metadata. No
-measurement table or separate provider client. Parent preview exposes content
-and measurements, never regenerates and never silently recalculates historical
-measurements under a newer policy.
+All materials actually sent in a question call become every returned question's
+conservative dependency set. Only an app-selected narrower call can narrow it;
+model claims cannot. Editing a generated material increments its revision and
+marks dependent questions stale. Changing effective plan/settings marks affected
+generated content stale conservatively (all generated content initially).
 
-## 5. Length measurement and quality policy
+Supplied originals are authoritative. **Replace source** updates the draft's
+copied plan.text for a fixed source or task input for a per-task source,
+resolves again, increments material/draft revisions and invalidates dependents.
+It never changes the published template. Ordinary material editing and AI
+ReplaceMaterial target generated materials only. A transformation of supplied
+text is a separate derivative generated material added through the plan.
+
+A parent can regenerate stale content or explicitly adopt it under the current
+requirements after inspecting it. Adoption updates current dependency/input
+associations and records that human action, without rewriting original
+generation provenance. It cannot waive strict measurements or structural/answer
+failures. Final parent review is still required for release.
+
+## 5. Persistence, API and ownership
+
+Use three small feature-owned entities plus existing immutable template
+versions:
+
+- **ActivityDraft**: Family-owned editable JSON aggregate, copied canonical
+  plan, accepted TaskRequest, document, revision, activeOperationId, UTC times
+  and optional template provenance.
+- **TaskSnapshot**: Immutable released plan/input/document/keys, measured
+  expectations, policy versions, provenance and parent review at
+  sourceDraftId/sourceDraftRevision.
+- **GenerationOperation**: Bounded immutable request/effective-input evidence,
+  steps, candidates, status, timestamps, safe diagnostics and known provider
+  usage for one draft.
+
+Draft plan/input/document are the authoritative saved state. Resolve effective
+input and derive content diagnostics on validated save/start; do not maintain
+independently mutable resolved-input/readiness caches. Operations pin the exact
+resolved request, and snapshots store it with release measurements. Persist
+operation failure evidence separately from ordinary derived draft diagnostics.
+
+Create the draft before any content call. Optional templateVersionId is
+provenance, never required for generation or interpretation; opening a template
+pins/copies the version shown and rejects a stale expectedVersion before draft
+creation. Later template publication/deletion cannot change or cascade-delete
+self-contained drafts/snapshots. Store provenance IDs without a required live
+foreign key. Draft deletion cascades operations/key tombstones, but never its
+released snapshot. Keep snapshot sourceDraftId as provenance with a unique
+index, not a cascading foreign key. An unknown/deleted draft route cannot
+recreate it through an operation request. Family reset explicitly deletes all
+owned learning records in one transaction while preserving
+accounts/configuration.
+
+Use application-managed monotonic long Revision as an EF concurrency token. Each
+manual save, adoption, successful stage apply and cancellation uses a
+conditional update and returns the new revision. Released drafts are terminal.
+Editing a snapshot copies it into a new editable draft, with no prior review or
+active operation. Historical TaskInstances are never made mutable.
+
+All routes inherit parent authorization, family ownership, CSRF, no-store and
+safe ProblemDetails. Missing/foreign IDs return 404 before AI. Resource
+admission returns 429; invalid input returns field errors; stale revisions/key
+conflicts return 409. The planned API replaces POST /templates/{id}/instances:
+
+- `POST /api/activity-drafts`: Create from valid plan + input, or owned
+  snapshotId; optional templateId/expectedVersion provenance is checked and
+  copied. No AI.
+- `GET /api/activity-drafts/{id}`: Saved plan/input/document, revision,
+  diagnostics and active operation.
+- `PUT /api/activity-drafts/{id}`: SaveDraft(expectedRevision, plan, input,
+  editable content); server owns IDs/revisions/provenance and recomputes
+  diagnostics.
+- `POST /api/activity-drafts/{id}/adopt-content`: expectedRevision +
+  material/question IDs explicitly inspected under current inputs; checks then
+  records adoption.
+- `POST /api/activity-drafts/{id}/operations`: StartOperation(operationKey,
+  expectedRevision, kind, optional targetId/instruction). Returns 202 +
+  operation URL, or existing operation.
+- `GET /api/activity-drafts/{id}/operations/{operationId}`: Read
+  status/checkpoints/diagnostics; never initiates work.
+- `POST /api/activity-drafts/{id}/operations/{operationId}/cancel`: Cancel the
+  named operation; repeated cancellation is harmless.
+- `POST /api/activity-drafts/{id}/release`: Release(expectedRevision,
+  reviewedRevision); both must equal the saved revision. Returns immutable
+  snapshot.
+- `DELETE /api/activity-drafts/{id}`: Delete owned draft and operation records;
+  fence late apply.
+- `GET /api/instances/{id}`: Existing parent preview route reads the new
+  TaskSnapshot.
+
+Keep existing template publication/list/delete and snapshot delete routes,
+updating their semantics to the independent lifecycle. Template publication uses
+expectedVersion; operation idempotency does not make template Save idempotent. A
+lost publication response offers checking the library, without claiming rollback
+or automatically retrying. Lists distinguish editable drafts and ready snapshots
+using existing bounded list conventions.
+
+## 6. Bounded durable generation
+
+One BackgroundService in the existing API project executes content operations
+sequentially. SQLite is the queue/source of truth; an optional in-memory wake
+signal only reduces polling. No broker, leases, event log or distributed
+workflow engine. This deployment runs one API process; multiple replicas require
+a new claim/lease design before deployment, not accidental concurrent workers.
+
+- **GenerateActivity**: One batch for absent or stale required generated
+  materials if needed, then one question batch: at most 2.
+- **GenerateQuestions**: One full question batch against current accepted
+  material, or no material: 1.
+- **ReplaceMaterial**: One generated material at an app-owned target: 1.
+  Dependent questions become stale; no automatic question call.
+- **ReplaceQuestion**: One complete prompt/interaction/options/answer
+  replacement at an app-owned target: 1.
+
+Existing accepted generated materials can be reused only when current under the
+effective input. GenerateActivity always generates a fresh full question batch;
+label reuse of current material explicitly. **New activity** creates a new draft
+from the plan/inputs without generated content; its GenerateActivity therefore
+requests fresh material too. Never interpret a request for fresh content as
+silent reuse. Supplied sources skip material generation. Question-only tasks use
+one question call. Reject question work until all required material is
+accepted/current and satisfies strict requirements. A replacement returns a
+complete bounded target, never arbitrary paths, JSON Patch or a whole activity.
+Author/refine interprets plans; material calls write generated materials;
+questions receive exact accepted material and resolved settings; replacements
+receive an app-selected target. Keep typed constraints in schemas/effective
+inputs, rather than duplicating defaults in semantic prose. Never request
+chain-of-thought. A judge is evaluation-only. All calls use the existing
+IChatClient and provider adapter/profile; production has no application retry or
+automatic repair. OpenRouter fallback may route a single application call; the
+application budget is not a billing guarantee.
+
+### Admission, retention and idempotency
+
+Initial **application policies**, measured with isolated fixtures before
+cutover: 32 queued/running operations globally, four per family, one active
+operation per draft, and at most 128 operation records per draft. The existing
+global capacity of two provider calls includes synchronous template authoring.
+One worker permits at most one content call at a time. Keep the existing ten AI
+starts per family per minute; same-key replay consumes no additional start/call
+budget. Queue admission and unique active-operation assignment occur atomically.
+Explicitly copy into a new draft if the lifetime operation-record limit is
+reached; this copy is explicit and makes no AI call. The limit blocks only new
+operations: viewing, manual edits, release and existing-key replay remain
+available. Never silently recycle a key.
+
+Each operation has at most two steps/call attempts, a 2 MiB serialized payload
+ceiling including request/schema/candidates, and the request/output limits in
+section 3. Retain bulky request/schema/raw candidate evidence for seven days
+after terminal status; retain accepted content and minimal operation ID/key,
+original-request/effective-input fingerprints, status, stage outcome and known
+usage metadata for the draft lifetime. Purge artifacts in bounded batches of 32
+on startup and hourly, outside provider calls. Tell the UI when diagnostics have
+expired. The 128-record limit bounds idempotency storage per draft. Never drop a
+key while the draft route can still accept a replay. Deleting the draft removes
+its tombstones; subsequent draft requests return 404.
+
+A unique (familyId, operationKey) index prevents duplicate starts. Fingerprint
+canonical original request fields (draft ID, expectedRevision, kind, target,
+instruction) and capture the accepted effective-input hash separately. Authorize
+the family/draft, then look up the key **before** testing today's revision or
+active-operation state. The same original request returns the saved operation
+even after progress; changed original inputs return 409. Never recompute the
+original fingerprint against a now-edited draft. For a new key, check current
+revision/state, admission and targets, capture effective input, then create the
+operation and set activeOperationId in one transaction. Keys are client UUIDs;
+IDs/fingerprints are technical values, not parent-facing copy.
+
+### Checkpoint and race rules
+
+Operations have queued, calling, completed, failed, conflict, cancelled or
+unknown status; step data distinguishes candidate returned, accepted/applied and
+queued next stage. Operation completion and content readiness are separate.
+
+Before a provider call, atomically claim queued → calling only while the
+operation is queued/uncancelled, remains the draft's active operation, and
+target draft/material revisions still match. A failed claim makes no provider
+call; record conflict or preserve cancellation as appropriate. Persist immutable
+stage input and target revisions with the claim, then dispose the short-lived
+DbContext/transaction. Cancellation after the claim propagates to transport but
+cannot guarantee that remote work never began. After the call, open a new scope
+and transaction: check family/draft existence, editable state, active operation,
+uncancelled status, expected draft revision and source revisions. On success,
+save the candidate/metadata, accepted content, new draft revision and accepted
+step checkpoint together. Queue the next stage in that same commit. Then normal
+execution advances without a parent dialog.
+
+A material candidate failing structure or strict exact/range length is retained
+with diagnostics; it does not overwrite accepted material and no question call
+starts. Approximate target mismatch is advisory. The parent explicitly edits a
+candidate into the draft, changes the requirement, or retries. A question
+failure retains the already accepted material for explicit GenerateQuestions. No
+hidden relaxation, trimming, count reduction or automatic repair.
+
+If an edit wins during a provider call, retain its returned candidate as
+unapplied, mark conflict, clear activeOperationId and stop downstream calls.
+Never auto-merge. Only structurally parsed safe content can enter the local
+editor through an explicit review/edit action and normal validated Save draft;
+malformed/raw provider output remains diagnostic-only. Applying selected content
+must not replay old provenance, review or operation fields.
+
+Cancellation atomically marks the operation cancelled, clears its active ID and
+advances draft revision. Late output can add known usage evidence, but cannot
+apply content, change cancelled status or start another stage. Release requires
+no active operation. Deletion/reset similarly fences late results. Propagate
+cancellation to transport without claiming remote work or billing stopped.
+
+On startup resume only queued work and the next queued stage of an accepted
+checkpoint. A durably calling step without an accepted checkpoint becomes
+unknown, with active ID cleared atomically; preserve accepted earlier material.
+Explain that the provider may have completed and another explicit attempt may
+incur another charge. Never silently replay it. Preserve any durably recorded
+completed-call metadata; missing usage/cost stays unknown. A local database
+checkpoint is the recovery boundary, not an exactly-once external promise.
+
+## 7. Editing, chat and client conflict safety
+
+POST /api/ai/template-drafts evolves in place: message (4,000 characters),
+optional baseDefinition, baseRevision, requestId and unresolved context (six
+turns/12,000 characters). Retain the original request while clarifying; require
+consolidation instead of silently truncating it. The provider receives no
+request/revision/family metadata. AuthoringReply contains either a proposal or
+one clarification (1,000 characters), plus at most eight assumptions of 200
+characters. Operative assumptions must also occur in the plan. Normalize IDs,
+validate and compute real ordered changes including removals; do not trust the
+model's summary. Identical proposals are no-ops.
+
+Plan chat can propose a complete plan; expose all changes and avoid claiming
+unrelated content is preserved by prompting. Scoped content actions have
+application-enforced targets. No persistent chat, global AI store or parallel
+schema editor. One route-owned state manages plan, task input and content; child
+components emit edits and LearningApi owns HTTP.
+
+Advance a client edit revision on every keystroke, including invalid edits,
+applied proposal and Undo. Authoring applies only when request identity and base
+client revision match. Cancel invalidates identity before transport
+cancellation. A changed draft invalidates old clarification. Do not stream
+partial JSON.
+
+During content work, direct edits remain available. Server revision protects
+saved changes; a captured client revision also protects **unsaved** keystrokes.
+Polling/operation completion must not replace a dirty local buffer even if its
+server revision still matches the call's base. Show the available server result
+and require explicit reload/reconciliation; a later stale Save returns 409 and
+preserves local input. Passive refresh/polling never creates another paid call.
+
+Keep at most twenty client Undo entries of editable content, coalescing typing.
+Undo submits an ordinary expectedRevision save that creates a new revision and
+recalculates dependencies. It never restores parent review, readiness, server
+revisions, operation state or historical provenance. Source confirmation state
+follows its editable source locally. Published templates and snapshots are never
+Undo targets. Dirty state compares content to its saved baseline.
+
+Briefly disable editing/Undo/authoring while a Save request is outstanding;
+accept its successful result once, not through the AI stale-response rule.
+Preserve input on failure. Use native controls, Hebrew labels/errors, logical
+RTL spacing, dir=auto learning text, isolated LTR numeric inputs, focus/error
+associations and live status. No UI framework; keep 360px, 200% text and iOS
+scaling usable. Render source and generated text as text only.
+
+## 8. Measurement, review and immutable release
 
 Measurement version 1 counts whitespace-separated tokens containing at least one
-Unicode letter or number. Ignore punctuation-only tokens. Hebrew maqaf inside a
-token stays within one token; vowel points do not create another word. Count
-bodies only and sum body counts for a total. Do not strip arbitrary headings or
-normalize the saved text. This is an explicit product counting convention, not a
-claim to universal linguistic segmentation.
+Unicode letter or number, ignoring punctuation-only tokens. Count material
+bodies only; total scope sums generated bodies, excluding supplied sources.
+Never strip headings or rewrite text. “שלום עולם” and “שלום — עולם” count 2;
+“בעלי־חיים” and “don't” count 1; standalone emoji counts 0. Cover niqqud,
+newlines, mixed scripts and supplementary Unicode letters in the shared
+TextLength implementation used by runtime and evaluation.
 
-Use one TextLength implementation for runtime display and evaluation. Examples:
-“שלום עולם” is 2; “שלום — עולם” is 2; “בעלי־חיים” is 1; “don't” is 1; a
-standalone emoji is 0. Cover newlines, niqqud, mixed languages and supplementary
-Unicode letters in tests. Supplied source preservation uses exact accepted
-string values.
+LengthMeasurement stores scope, expected, actual and nullable satisfied. Target
+has no invented tolerance/pass flag (satisfied=null). Exact/range uses the
+stated count/inclusive endpoints. A draft can retain an unmet requirement with
+visibility; a generated material cannot pass the stage gate, and release cannot
+succeed, while an explicitly strict requirement fails. A parent repairs content
+or explicitly changes requirements and re-reviews; no review override.
 
-A LengthMeasurement records scope, requested expectation, actual words and
-nullable satisfied. Target has no pass/fail tolerance and satisfied is null.
-Exact/range compares to the explicit count/endpoints. Save structurally valid
-content as a parent-review Draft even when those expectations are unmet; display
-the unmet condition prominently. No automatic trimming or correction call. An
-explicit demand to return nothing unless exact must be clarified as unsupported
-strict enforcement, not silently weakened. This is the chosen first-release
-policy; question/choice structure violations still reject without saving.
+Release requires supported complete structure; exact question/choice counts and
+mixed-format coverage; complete answer associations; all strict deterministic
+constraints; no stale content/dependencies; no active operation; and explicit
+parent review of the exact current saved revision. Approximate targets and
+semantic intent/grammar/age judgments stay advisory, visibly separate from
+blocking diagnostics. Review records a human action, not certified truth.
 
-Language, factuality, grounding and custom-control adherence remain semantic
-quality checks. Existing human review and the developer Hebrew judge assess
-these separately. A successful schema check is not a quality endorsement. The UI
-derives execution/structural status and expectation warnings separately from the
-saved snapshot. Use a needs-review message with any unmet expectations, not a
-generic educational pass or a new persisted Approved state.
+In one short revision-protected transaction, validate those conditions, create
+TaskSnapshot and mark the draft released. Copy the canonical plan, resolved
+input, final materials/questions/keys, measurement policy/results, validation
+and resolution versions, scoring-policy identifier and creation/review
+provenance. Use scoring policy `objective-answer-v1` as a frozen contract
+reservation: choice exact value; invariant decimal value; short text trim +
+Unicode NFC, preserving case, punctuation and niqqud. This slice implements no
+scoring route. A future change requires a new policy, never reinterpretation of
+saved content.
 
-## 6. Authoring API and workspace state
+A unique sourceDraftId allows one release. After authorization, a duplicate
+release with the original sourceDraftRevision/reviewedRevision returns the same
+snapshot, even if the successful HTTP response was lost. A different/stale
+revision returns 409. The terminal draft retains releasedSnapshotId and released
+source revision. If the snapshot was explicitly deleted, an exact replay returns
+410 Gone, never recreates it; a deleted draft returns 404. A transaction/race
+test must prove one winner between edit/release/cancel, with no mixed revisions.
+The snapshot remains self-contained if template, draft or diagnostic operation
+evidence is later deleted.
 
-Evolve POST /api/ai/template-drafts instead of adding an agent/chat service. The
-request carries message, optional baseDefinition, baseRevision, requestId and
-bounded context. A message is at most 4,000 characters. Context contains only
-user/assistant turns from the current unresolved request: at most six turns and
-12,000 text characters. Keep the original request until its clarification is
-resolved. Do not silently discard required context at the limit; ask the parent
-to consolidate the request. Completed old conversations are not model state.
+A later separate child slice may implement separately activated child access →
+snapshot assignment → resumable attempt → immutable submitted result. Use
+answer-free child DTOs, deterministic server scoring under the frozen policy and
+persisted reports; no AI when assigning, opening, answering, scoring or reading
+reports. Define child ownership/device/CSRF/retention and submission concurrency
+then. Do not add placeholder delivery controls in this parent-only cutover.
 
-TemplateAuthoringInput excludes request/revision metadata before provider input.
-The model returns AuthoringReply: kind proposal or clarification, a definition
-or one question of at most 1,000 characters, and up to eight short assumption
-notes of 200 characters each. Exactly one outcome is populated. Assumptions are
-transient review aids, not another persisted plan or authoritative model change
-log. Any assumption affecting later generation must also exist in the plan
-itself; transient notes alone cannot carry an operative requirement.
+## 9. Comparative prototype and implementation gate
 
-Normalize new identities, validate the proposed plan and compute PlanChange[]
-against the submitted base. The endpoint returns definition/question,
-assumptions, changes, metadata and application-echoed requestId/baseRevision.
-Domain comparison includes ordered material/control changes, defaults, removals,
-meanings and source changes. UI labels changes in Hebrew; raw paths/IDs are not
-parent copy. An identical proposal is a no-op: show that nothing changed,
-without adding an Undo snapshot or marking a saved template dirty. First-release
-chat edits the whole plan. A prompt to change only one section is not a
-preservation guarantee. Do not offer section-scoped AI actions until an
-application-owned edit target can reject out-of-scope changes. No JSON Patch,
-stale-response merging or expression language is introduced.
+Before destructive migration, use the existing evaluator/provider with fixed
+canonical plans for generated Hebrew reading, exact supplied bilingual source,
+and a question-only control. Compare one-shot versus the conditional split on
+matched model/settings, source strings, effective inputs and check policies.
+Keep source assembly equally authoritative in both variants. Use repeated,
+blinded randomized human review for Hebrew naturalness, age fit, answer-key
+correctness, grounding, distractors and requested pedagogy; preserve all
+failures, corrections, retries, call counts, usage coverage, actual costs and
+total latency. Keep unseen cases for holdout evaluation. A mock proves
+mechanics, not language quality. No live run without an explicit user-approved
+paid-call/cost budget.
 
-The workspace owns the raw form draft, monotonically increasing revision, active
-request, current clarification and Undo history. Revision advances on every
-direct edit, applied proposal and Undo, including invalid transient edits. Only
-a valid draft can be submitted or published. Keep at most twenty in-memory Undo
-snapshots; coalesce typing in a field into one history action, while every
-keystroke still advances the stale-response revision. No history persistence.
+Pre-register sample count, repeats, usable-task rubric, acceptable extra cost
+and latency, and recovery/control outcomes in the experiment artifact before
+calls. The gate is falsifiable: if the extra call adds cost without useful
+control, recovery or quality benefit, reconsider the split before migration. Do
+not claim split improves Hebrew on the strength of architecture or outside case
+studies. If no paid evidence is authorized, the live-value gate remains unmet;
+complete isolated implementation work without destructive cutover.
 
-An AI response applies only if requestId is active and baseRevision still
-matches. Apply atomically, push the previous draft into Undo and show actual
-changes. Otherwise mark it stale without overwriting anything; retry is explicit
-against the current draft. Cancelling invalidates the request identity before
-awaiting transport cancellation. A changed draft invalidates an old
-clarification too. Do not stream partial JSON into the form. Direct edits remain
-usable during a call; the revision rule protects them. Undo cannot mutate
-published revisions.
+Reuse the evaluator for interpretation/refinement, fixed-plan generation, scoped
+replacement and end-to-end readiness. Distinguish those suites and retain raw
+per-stage output, normalized plan, accepted/unapplied candidate, assembled
+content, exact effective requests/schemas plus hashes, models/providers when
+known, UTC, finish reasons, latency and partial usage/cost coverage. Record
+stages skipped because supplied material needs no call. All actual attempts
+consume the explicit evaluation budget; production never inherits evaluator 429
+retries. Keep the historical 100–150-word range regression unchanged in meaning.
+A dropped authoring requirement remains an adherence failure even if the
+resulting weaker plan passes its own checks.
 
-Dirty state compares draft content against the last saved baseline, including
-invalid transient edits; it is not inferred from revision counters. Undo can
-restore saved content while increasing draftRevision. Keep pending source
-verification in the same route-owned state and restore it with Undo.
+At cutover use schema 5, authoring v23, materials v1, questions v1,
+replace-material v1, replace-question v1, Hebrew review v9, report format 4,
+automatic checks 9, resolution/assembly 1, validation 1 and measurement 1.
+Temporary comparison-only one-shot uses `prototype-one-shot-v1`; remove that
+production capability after the decision. Exact roles/policy tags travel with
+each artifact. Advance versions when semantics change. Do not add another model
+profile, judge provider or configuration source.
 
-Publication remains server-authorized, revalidates the full plan and retains
-expectedVersion concurrency checks. A 409 preserves local edits. Successful save
-updates the baseline/version once and disables duplicate publication until
-content changes. While Save is outstanding, briefly disable edits, authoring and
-Undo. Preserve the draft on failure; do not discard a successful save response
-using the AI stale-reply rule.
+Compare judge findings only with matched judge model/profile/prompt/rubric,
+review coverage and passing human-audited calibrations. If generator and judge
+change together, suppress judge-quality deltas; retain valid deterministic and
+blinded human comparisons. Never convert historical reports silently or correct
+planted fixture defects to improve results.
 
-Task creation checks the displayed expectedVersion against the owned current
-revision before AI; a mismatch returns 409 and requires explicit reload. After
-that check, pin the immutable revision. A subsequent publication does not cancel
-generation or switch its inputs; save against the pinned revision. Deletion or
-reset winning before persistence still saves nothing. Never hold a transaction
-across the model call.
+## 10. Delivery boundaries and completion
 
-requestId correlates authoring only; it is not durable idempotency. No automatic
-publication or generation retry is added. An ambiguous network failure must say
-that a save may have completed and offer checking the library before retrying;
-never claim nothing was saved without evidence. Durable idempotency would need a
-separate explicit design before introducing automatic write retries.
+Use one API project, feature folders and DbContext directly. Pure TaskEngine
+helpers own contracts/resolution/checks; a small feature worker owns
+transitions; the existing adapter owns provider protocol. No repository,
+mediator, generic workflow DSL, evidence-span system, content bank, QTI
+exchange, event sourcing, option identity redesign or per-subject arithmetic
+generator.
 
-## 7. Ownership, errors and tools
+The implementation plan stages minimal domain contracts and the comparative
+prototype before persisted draft/release, durable worker, workspace/scoped
+editing, evaluator and cutover. Remove the old schema-4 authoring/content path
+only after isolated unit, fixture, migration and browser checks plus the
+evidence gate pass. No deployed dual lifecycle or compatibility reader. Preserve
+existing application/evaluator baseline tests during this documentation-only
+change.
 
-Keep one backend project and feature-oriented folders. TaskEngine owns
-contracts, resolution, AI requests, output assembly and validation. Features own
-HTTP, family authorization and persistence. The provider adapter owns
-protocol/config. Angular's route workspace owns draft state; presentation
-children receive state and emit edits. LearningApi owns HTTP; there is no global
-AI store or mediator.
+The user has allowed a development learning-data reset for the eventual verified
+cutover. Generate a new migration rather than rewriting migration history; clear
+learning rows while preserving accounts/configuration/keys. Stop watchers, take
+a backup and apply it only after the prototype gate and all checks. This design
+update runs no migration or destructive command. Current README, architecture
+and product behavior text remains current until implementation.
 
-Keep native Angular controls, Signal Forms, RTL logical spacing, keyboard
-access, focus/error association and text-only rendering. New dynamic control
-kinds require app support; the model cannot generate HTML, expressions or
-executable validators. No UI framework or agent framework is added for this
-work.
+Completion requires generation from an unsaved plan; exact supplied sources;
+editable reloadable drafts; scoped edits that preserve unrelated content; strict
+release blocking; no stale overwrite after save, unsaved typing, Undo, cancel or
+restart; replay-safe starts/releases; no live AI in isolated tests; and usable
+narrow RTL/keyboard/enlarged-text behavior. Run scripts/verify.sh and the
+isolated browser workflow for implementation. Neither code tests nor this design
+establish measured educational quality.
 
-Retain ownership checks, CSRF, ProblemDetails, UTC, cancellation and bounded
-concurrency. Never put parent answer keys into a future child DTO. Do not log
-learning text, keys, raw provider errors or reasoning. Progress reports actual
-states only. Editing/viewing valid local data must work with AI unavailable.
-Production has no application retry loop; evaluation retains its bounded 429
-policy. A timeout or cancellation does not guarantee provider billing stopped.
+## 11. Research references
 
-JsonSchema.Net remains a future experiment only if it removes demonstrable
-validation duplication. No BAML, form generator, A2UI, orchestration runtime,
-retrieval subsystem or additional evaluation platform is required here.
-Generation has no cross-task history and cannot promise that a passage will
-never recur. Request fresh content without claiming global uniqueness.
+These sources inform the design; they do not establish improved Hebrew quality:
 
-Keep the current answer.value contract and prose-based language intent for this
-cutover. Application-planned mixed question slots, a typed bilingual language
-policy and option-index answer identities are deferred, independent product
-changes. None is required to remove the blueprint screen.
+- [Bounded AI workflows][workflows] and [evaluation guidance][evaluations].
+- [Structured output and semantic correctness][structured-output].
+- [Hosted background work][hosted-services] and [EF concurrency][concurrency].
+- [OpenRouter caching and duplicate request billing][caching].
 
-## 8. Cutover and evaluation
-
-This is a coordinated schema-5 cutover, not a deployed dual-mode system. Replace
-the old field/prose editor, schema-4 contracts and obsolete tests when the new
-path is integrated. Do not add compatibility readers or adapters. The user has
-allowed discarding development learning data: use an explicit migration clearing
-learning templates/revisions/tasks while preserving accounts and configuration.
-Do not erase the database, credentials or Data Protection keys. Run migrations
-only after stopping development watchers and taking an appropriate backup. This
-planning change itself deletes no application data.
-
-Extend the existing harness rather than redesigning it. Evaluate initial
-authoring, a bounded sequence of refinements, then generation. Preserve raw
-model output separately from normalized plans and application-assembled
-snapshots. Capture prompt/schema/profile versions, request counts, latency and
-known costs. Clarification is a distinct outcome, not malformed JSON or a
-task-generation attempt. Deterministic fixture cases with complete requests
-expect proposals.
-
-Also run generation-only cases from hand-authored canonical plans and fixed
-inputs. This separates interpretation/editing failures from writing failures; do
-not regenerate a plan in trials advertised as generator comparisons. Reuse the
-same engine and harness, with one generation call plus an optional judge. Fixed
-plans are developer fixtures, never production educational seed data.
-
-Record effective input/schema fingerprints, policy versions and the actual model
-and provider when available, alongside raw output, normalized plans and
-assembled snapshots. Use stable serialization for hashes. A hash alone cannot
-reconstruct input: preserve the corresponding effective request/schema in
-authorized local artifacts. Keep source text and provider secrets out of
-ordinary logs.
-
-At cutover use authoring v23, generation v20, Hebrew review v9, report format 4
-and automatic checks version 9; advance further if implementation later changes
-those semantics. Update calibration paths and source context without correcting
-planted defects. All refinement and retry attempts count toward the run budget;
-checkpoint each. Comparison requires matching edit sequences and check versions.
-Older report formats receive a clear unsupported-format message, not conversion.
-
-Compare judge-derived findings only when judge instructions, configuration,
-actual model identities and comparable review coverage match and both
-calibrations pass. Record missing provider/model evidence; do not invent it.
-Changing the application model also changes the current judge, so suppress
-judge-derived quality deltas for that comparison without adding another judge
-provider. Structural comparisons may remain valid on matched inputs/policies.
-Human review checks calibration labels; fixtures are not linguistic authority.
-
-Keep the historical 100–150-word case as a range adherence regression with the
-new counting version. Relabeling it as an approximate target cannot count as an
-improvement. New format/check versions require a new baseline.
-
-Required checks cover source copy, typed length scope, input resolution, dynamic
-meaning delivery, change preservation, Undo, late replies, publication/version
-races, known output constraints and no passage controls for math. Live repeated
-evaluation remains explicit and paid-call-budgeted; CI uses isolated providers.
-The Hebrew judge stays advisory and outside production generation.
-
-## 9. Completion criteria
-
-- The whole parent author/refine/save flow fits one workspace, without a
-  blueprint step, raw keys or an extra acceptance screen after each message.
-- Every advertised control has an owner, input semantics and a tested request
-  mapping. Custom semantic effects are not claimed as deterministic guarantees.
-- Reading, math, logic, short answers, adjustable formats and supplied bilingual
-  source scenarios use one generation path, with unsupported requests clarified.
-- No stale response, Undo, chat instruction or foreign ID can overwrite a newer
-  edit, publish implicitly, access another family or alter old task snapshots.
-- All isolated checks, production build and browser workflows pass, including
-  360px RTL, 200% text, keyboard editing, errors and cancellation.
-- Aggregate resource checks, concrete wire-size limits, explicit-null handling,
-  accepted-source preservation and fixed-plan generation trials are covered
-  before cutover. No ordinary edit, Undo, Save or preview makes an AI call.
-- A later authorized repeated model evaluation measures adherence and Hebrew
-  quality. No release claim treats this document or mocked tests as that
-  evidence.
-
-## 10. Research basis
-
-The decisions above are project design choices informed by these sources; they
-are not claims of benchmarked quality improvement:
-
-- [OpenRouter structured outputs][structured] documents endpoint-specific
-  capabilities; [Google's guidance][semantic] distinguishes schema conformance
-  from semantic correctness. Retain server checks and wire-level schema tests.
-- [Angular dynamic forms][forms] supports runtime-configured native forms;
-  [Microsoft IChatClient][chat] already supplies the required model boundary.
-- [Anthropic workflow guidance][workflow] supports a small
-  application-controlled flow. [Hex's firsthand product example][hex]
-  demonstrates chat beside editable work. This app chooses reversible draft
-  updates instead of another review step.
-- [EF concurrency][concurrency] supports application-managed version protection;
-  [evaluation guidance][evals] supports deterministic tests, calibrated judges
-  and human review as separate evidence.
-- [System.Text.Json required properties][required] and [nullability
-  guidance][nullable] distinguish presence from null. Newer nullable enforcement
-  starts in .NET 9; this .NET 8 app needs explicit boundary checks.
-- Community reports [MEAI #7249][sdk-issue] and [Angular #66711][forms-issue]
-  were closed after fixes. They motivate boundary regression tests, not claims
-  that those defects remain in this app. [Formly #4125][formly-issue] was an
-  open reported default-value issue at research time, not reproduced here.
-
-[structured]: https://openrouter.ai/docs/guides/features/structured-outputs
-[semantic]: https://ai.google.dev/gemini-api/docs/structured-output#best-practices
-[forms]: https://angular.dev/guide/forms/signals/dynamic-forms-with-json
-[chat]: https://learn.microsoft.com/en-us/dotnet/ai/ichatclient
-[workflow]: https://www.anthropic.com/engineering/building-effective-agents
-[hex]: https://learn.hex.tech/changelog/2025-06-25
+[workflows]: https://www.anthropic.com/engineering/building-effective-agents
+[evaluations]: https://www.anthropic.com/engineering/demystifying-evals-for-ai-agents
+[structured-output]: https://ai.google.dev/gemini-api/docs/structured-output#best-practices
+[hosted-services]: https://learn.microsoft.com/en-us/aspnet/core/fundamentals/host/hosted-services?view=aspnetcore-8.0
 [concurrency]: https://learn.microsoft.com/en-us/ef/core/saving/concurrency
-[evals]: https://www.anthropic.com/engineering/demystifying-evals-for-ai-agents
-[sdk-issue]: https://github.com/dotnet/extensions/issues/7249
-[forms-issue]: https://github.com/angular/angular/issues/66711
-[formly-issue]: https://github.com/ngx-formly/ngx-formly/issues/4125
-[required]: https://learn.microsoft.com/en-us/dotnet/standard/serialization/system-text-json/required-properties
-[nullable]: https://learn.microsoft.com/en-us/dotnet/standard/serialization/system-text-json/nullable-annotations
+[caching]: https://openrouter.ai/docs/guides/features/response-caching

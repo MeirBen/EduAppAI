@@ -1,8 +1,9 @@
 # Product specification
 
-This document describes the current application. The planned replacement is
-the [structured-template workspace design][workspace-design], which removes
-the separate generated-blueprint step. It is not implemented yet.
+This document describes the current application. The planned replacement is the
+[content-first activity design][workspace-design]: editable activities,
+independent template publication and immutable reviewed snapshots in one
+workspace. It is not implemented yet.
 
 Templates are AI-authored instructions and configurable fields, never
 subject-specific generators. Every subject follows the same flow, starting from

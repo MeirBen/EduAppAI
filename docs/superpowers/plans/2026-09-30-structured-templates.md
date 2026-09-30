@@ -1,558 +1,578 @@
-# Structured templates implementation plan
+# Content-first activities implementation plan
 
-> For implementation: use `superpowers:executing-plans` task by task. Work
-> sequentially because contracts, UI and evaluation share the same cutover. Do
-> not commit, stage, branch or perform other Git mutations.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use
+> `superpowers:subagent-driven-development` or `superpowers:executing-plans` to
+> implement task by task. Steps use checkboxes. Repository instructions prohibit
+> commits, staging, branching and every other Git mutation; the user handles
+> Git.
 
-**Goal:** Replace the generated-blueprint step with one conversational template
-workspace, stable native settings and validated generic task generation.
+**Goal:** Let a parent generate an editable activity from an unsaved valid plan,
+repair it and freeze a reviewed snapshot, with independent template publication.
 
-**Architecture:** The existing TaskEngine owns a typed plan, input resolution
-and output assembly. Existing features retain HTTP, ownership and persistence.
-The Angular route owns a reversible unsaved draft; AI edits that draft without
-publishing it. No new service, framework or deployed compatibility path.
+**Architecture:** Keep one .NET API project and direct DbContext access. The
+TaskEngine owns pure contracts/resolution and scoped AI requests; a small
+feature-owned worker persists bounded generation steps. One Angular route owns
+local edits while SQLite owns saved drafts, operations and immutable snapshots.
 
-**Tech stack:** .NET 8, EF Core/SQLite, Microsoft.Extensions.AI/OpenRouter,
-Angular 22.2 standalone components/Signal Forms, native HTML and Tailwind 4. Use
-the existing pinned dependencies and isolated test tools.
+**Tech stack:** Existing .NET 8, EF Core/SQLite,
+Microsoft.Extensions.AI/OpenRouter, Angular standalone signals/Signal Forms,
+native HTML and Tailwind 4. No additional provider, configuration source, UI or
+orchestration framework.
 
-**Spec:** [Structured templates and conversational editing][design]. The spec
-owns product decisions and exact bounds; this plan owns implementation order.
+**Spec:** [Content-first activities and structured templates][design]. Its
+numbered sections own contracts and bounds; this plan owns files, interfaces,
+tests and delivery order. Read both before implementation.
 
 ## Global constraints
 
-- No Git mutations, live paid calls, production deployment or data deletion
-  while merely preparing this plan. Implementation must preserve unrelated work.
-- Read README, architecture, UI and commenting guides before implementing.
-  Update contracts' XML docs/JSDoc with their behavior.
-- No separate blueprint screen or extra Accept button. Valid AI changes apply to
-  the unsaved draft with actual changes and Undo; Save publishes explicitly.
-  Confirming chat-extracted source text is an inline source-specific check.
-- Retain one backend project, direct DbContext, immutable published revisions
-  and task snapshots, and server-enforced family ownership.
-- No subject-specific generators, model-generated UI/code, new agent framework,
-  translation/proofreading loop, production retry loop or schema-4 adapter.
-- Preserve provider registration/configuration, capacity, deadlines,
-  cancellation, safe ProblemDetails, CSRF, evaluation isolation and bounded
-  paid-call controls.
-- Schema 5; authoring v23; generation v20; Hebrew review v9; report format 4;
-  automatic checks 9; resolution/assembly policy 1; word-measurement version 1.
-  Advance if semantics change.
-- Respect all section 3 limits in the design. No universal question-count
-  ceiling of 20, hidden word-count tolerance or promise of deterministic Hebrew
-  quality.
-- Use ResolvedTaskRequest as the single generation contract. No second compiler
-  model, fixed question-slot scheduler, typed language framework or changed
-  answer representation is required for this cutover.
+- No Git mutations. This documentation task performs no implementation, paid
+  calls, data reset or deployment. Preserve unrelated user work.
+- Read README, architecture, commenting and UI guides. Keep meaningful XML
+  docs/JSDoc accurate in the same changes as their contracts.
+- All educational generation follows the generic AI path. No subject-specific
+  generators, mandatory template publication, separate blueprint screen,
+  per-question swarm, production retry/repair loop or child-flow placeholder.
+- One bounded TaskDocument supports lenient draft saving and strict release;
+  provider candidates pass strict structural checks before application.
+- ActivityDraft exists before content generation. Template publication remains
+  independent; released drafts are terminal and snapshots immutable.
+- One worker; two shared provider-call slots; 32 queued/running operations
+  globally, four per family, one active per draft; maximum 128 operations per
+  draft; maximum two calls per operation; seven-day bulky artifact retention.
+- Retain the spec's exact content/input/queue budgets, source rules and null
+  semantics. Operation idempotency lasts for the draft lifetime; no external
+  exactly-once billing claim.
+- Schema 5; authoring v23; materials/questions/replace-material/replace-question
+  v1; Hebrew review v9; report format 4; checks 9; resolution/assembly,
+  validation and measurement policy 1. Temporary one-shot experiment:
+  prototype-one-shot-v1.
+- Retain answer.value, parent-only keys, family authorization, CSRF,
+  ProblemDetails, UTC, cancellation and the existing adapter/profile.
+- No destructive migration before comparative-value and isolated-test gates.
+  Current product/architecture/README behavior remains current until cutover.
 
 ## Review focus
 
-These cross-boundary failures need explicit regression coverage:
-
-1. A late proposal after typing, Undo or cancellation must never apply (task 5).
-2. False, zero, omitted, null and empty inputs must remain distinct (tasks 2/4).
-3. Accepted bilingual source strings must survive generation unchanged,
-   including punctuation and newlines (tasks 2–5). Do not promise external-file
-   byte preservation through browser controls.
-4. A task form opened before publication must return 409 before a paid call;
-   deletion during a call must still prevent persistence (task 4).
-5. A successful clarification or unmapped refinement must not inflate evaluation
-   passes or escape the call budget (task 6).
+1. A replay after an operation advanced its draft must return the original
+   operation before stale-revision checks (task 4).
+2. A local unsaved keystroke must survive server operation completion even when
+   server revision still matches (task 6).
+3. Supplied bilingual sources and false/zero/empty/omitted/null choices must
+   survive interpretation, saving and assembly without coercion (tasks 1/3/5).
+4. A material saved manually with a strict mismatch cannot enter the question
+   stage or be released through parent review (tasks 2/3/4).
+5. A completed remote call with no durable checkpoint remains unknown after
+   restart, while accepted earlier material and known usage survive (task 4).
 
 ## File and interface map
 
-Paths below use these exact repository-relative roots:
+The following roots abbreviate exact repository paths in the tasks:
 
-- `Engine`: `backend/FamilyLearning.Api/TaskEngine`
-- `Features`: `backend/FamilyLearning.Api/Features`
-- `Persistence`: `backend/FamilyLearning.Api/Infrastructure/Persistence`
-- `Client`: `frontend/src/app`
-- `Tests`: `tests/FamilyLearning.Api.Tests`
-- `Evaluation`: `tools/FamilyLearning.Evaluation`
+| Prefix      | Repository path                                       |
+| ----------- | ----------------------------------------------------- |
+| Engine      | backend/FamilyLearning.Api/TaskEngine                 |
+| Features    | backend/FamilyLearning.Api/Features                   |
+| Persistence | backend/FamilyLearning.Api/Infrastructure/Persistence |
+| Client      | frontend/src/app                                      |
+| Tests       | tests/FamilyLearning.Api.Tests                        |
+| Evaluation  | tools/FamilyLearning.Evaluation                       |
 
-Keep small related records in their owning model file. Pure helpers below are
-static functions, not injected service layers or interfaces with one
-implementer. Use field-path error dictionaries consistently with existing
-validation.
+Create focused files, not a generic service framework:
 
-- `Engine/Models/LearningPlan.cs`: plan, materials, question requirements,
-  numeric choices, custom controls and length expectations.
-- `Engine/Models/TaskRequest.cs`: task input and resolved requirements. Retain
-  shared `TaskSettings` in its existing file; remove its old TaskInput record.
-- `Engine/Models/TaskDocument.cs`: generated materials/questions, saved snapshot
-  and length measurements. Reuse existing answer/interaction semantics.
-- `Engine/Models/TemplateAuthoring.cs`: authoring input/reply and PlanChange.
-- `Engine/Validation/LearningPlanValidator.cs`: common plan invariants.
-- `Engine/Validation/TaskDocumentValidator.cs`: generated/assembled output
-  invariants, replacing TaskContentValidator at cutover.
-- `Engine/TaskRequestResolver.cs`: defaults, applicability and selected values.
-- `Engine/TaskAssembly.cs`: generated-material matching and source insertion.
-- `Engine/TextLength.cs`: one versioned body-word measurement convention.
-- `Engine/PlanChanges.cs`: identity normalization and deterministic comparison.
-- Existing `Engine/Ai/*`: prompts, provider schemas and two AI operations.
-- Existing feature endpoints: authorization, version checks and JSON snapshots.
-- Existing template-editor route: workspace state. New `plan-editor` and
-  `template-chat` presentation components replace old author/form components.
-- Existing instance routes/forms and evaluation executable evolve in place.
+- `Engine/Models/LearningPlan.cs`: Canonical plan, scoped controls,
+  material/question/length requirements.
+- `Engine/Models/TaskRequest.cs`: TaskRequest, TaskResolution,
+  ResolvedTaskRequest and stage-input records.
+- `Engine/Models/TaskDocument.cs`: Editable/frozen shared content shape,
+  candidate batches, measurements and origin/dependency records.
+- `Engine/Models/TemplateAuthoring.cs`: Proposal/clarification envelope and
+  PlanChange.
+- `Engine/Validation/LearningPlanValidator.cs`: Canonical plan and limits.
+- `Engine/Validation/TaskDocumentValidator.cs`: Safe draft shape, strict
+  candidate and release content checks.
+- `Engine/TaskRequestResolver.cs`: Pure defaults, applicability, presence and
+  effective requirements.
+- `Engine/TaskAssembly.cs`: Authoritative source insertion and validated
+  candidate application.
+- `Engine/TextLength.cs`: Versioned Unicode word measurement.
+- `Engine/PlanChanges.cs`: Proposal identity normalization and actual change
+  calculation.
+- `Features/Activities/ActivityDraft.cs`: Bounded draft entity and application
+  revision.
+- `Features/Activities/ActivityContracts.cs`: Parent draft/save/adopt/release
+  DTOs.
+- `Features/Activities/ActivityEndpoints.cs`: Owned draft CRUD, adoption and
+  atomic release.
+- `Features/Activities/ActivityDraftChanges.cs`: Content/source differences,
+  app-owned revisions and conservative staleness.
+- `Features/Activities/GenerationOperation.cs`: Operation/step state and bounded
+  evidence.
+- `Features/Activities/GenerationOperationOptions.cs`: Queue, record, payload
+  and retention policy.
+- `Features/Activities/GenerationOperationEndpoints.cs`: Idempotent
+  start/status/cancel.
+- `Features/Activities/GenerationWorker.cs`: Short DB transitions, provider
+  dispatch and restart/retention handling.
+- `Features/Instances/TaskSnapshot.cs`: Self-contained immutable released
+  entity.
+- `Evaluation/ContentWorkflowPrototype.cs`: Temporary matched one-shot/split
+  experiment over the shared engine.
 
-Canonical interfaces to use across tasks:
+Reuse the existing AI service/adapter, shared settings fields, template feature,
+instance preview and evaluation files. Task 8 lists obsolete files to remove. No
+separate production backend, repository, mediator or injectable wrapper around
+each pure helper.
+
+Shared engine signatures (small result records live beside their owning model):
 
 ```csharp
 Dictionary<string, string[]> LearningPlanValidator.Validate(LearningPlan? plan);
 TaskResolution TaskRequestResolver.Resolve(LearningPlan plan, TaskRequest input);
+DraftDocumentCheck TaskDocumentValidator.ValidateDraft(
+    ResolvedTaskRequest request, TaskDocument document);
+Dictionary<string, string[]> TaskDocumentValidator.ValidateRelease(
+    ResolvedTaskRequest request, TaskDocument document);
+MaterialAcceptance TaskAssembly.AcceptMaterials(
+    ResolvedTaskRequest request, TaskDocument current, MaterialCandidateBatch candidate);
+TaskDocument TaskAssembly.AcceptQuestions(
+    ResolvedTaskRequest request, TaskDocument current, QuestionCandidateBatch candidate);
 int TextLength.CountWords(string text);
 LengthMeasurement[] TextLength.Measure(
     ResolvedTaskRequest request, TaskDocument document);
-TaskSnapshot TaskAssembly.Assemble(
-    ResolvedTaskRequest request, TaskDocument generated);
-LearningPlan PlanChanges.AssignNewIds(
-    LearningPlan proposal, LearningPlan? previous);
+LearningPlan PlanChanges.AssignNewIds(LearningPlan proposal, LearningPlan? previous);
 PlanChange[] PlanChanges.Compare(LearningPlan? previous, LearningPlan current);
 Task<AiResult<AuthoringReply>> AiGenerationService.AuthorAsync(
     TemplateAuthoringInput input, CancellationToken ct);
-Task<AiResult<TaskSnapshot>> AiGenerationService.GenerateAsync(
-    ResolvedTaskRequest request, CancellationToken ct);
+Task<AiResult<MaterialCandidateBatch>> AiGenerationService.GenerateMaterialsAsync(
+    MaterialGenerationInput input, CancellationToken ct);
+Task<AiResult<QuestionCandidateBatch>> AiGenerationService.GenerateQuestionsAsync(
+    QuestionGenerationInput input, CancellationToken ct);
+Task<AiResult<MaterialCandidate>> AiGenerationService.ReplaceMaterialAsync(
+    MaterialReplacementInput input, CancellationToken ct);
+Task<AiResult<QuestionCandidate>> AiGenerationService.ReplaceQuestionAsync(
+    QuestionReplacementInput input, CancellationToken ct);
 ```
 
-TaskResolution contains either `Value: ResolvedTaskRequest` or validation
-`Errors`, never a partial successful request. ResolvedTaskRequest contains goal,
-guidance, chosen settings, resolved materials, resolved question requirements,
-selected scoped controls and optional total length. It contains no competing
-defaults, adjustable flags, unresolved IDs/values, transcript or family
-identity. Its expected generated IDs and structural rules drive schema, payload,
-validation, assembly and measurement without rereading LearningPlan. Record
-policyVersion 1 in the resolved input; it is evidence, not a user choice.
+TaskResolution holds either a complete Value or Errors. DraftDocumentCheck
+separates unsafe-input Errors from saved-content Diagnostics.
+MaterialCandidateBatch contains generated id/title/body entries only;
+QuestionCandidateBatch contains task title/instructions plus questions.
+MaterialAcceptance holds either validated applicable material content or
+diagnostic-only candidates; no partial application of a material batch.
+AcceptQuestions validates the whole batch before assigning app question IDs and
+records all app-selected source revisions as dependencies. Replacement validates
+its target and assembled safety/aggregate bounds while preserving unrelated
+draft diagnostics, task-level fields and the target ID. Pure helpers never
+persist or authorize.
 
-AssignNewIds returns a copy, rejects unknown non-null, wrong-category or
-duplicate IDs with ArgumentException, and never mutates the submitted base.
-AuthorAsync maps that failure to an application-authored invalid-output error
-without exposing the exception message. Assemble rejects invalid output with the
-existing safe AiGenerationException; it performs no persistence. Both direct
-callers and AI tests exercise these rules.
-
-AuthoringReply contains kind, definition, question and assumptions with exactly
-one outcome. AiResult retains the existing metadata wrapper. PlanChange contains
-kind, an internal field path and before/after values; the client translates
-paths through app-owned labels and current/former material/control labels. Never
-render internal paths as parent-facing text. Only plain strings appear in the
-UI.
+Drafts persist copied plan, accepted TaskRequest and document; resolve on valid
+save/start rather than keeping an independently mutable resolved cache.
+Operations pin resolved input and snapshots store it. Parent DTOs expose derived
+diagnostics; only operation failures and release measurements need durable
+evidence. Server fields (revision, origin, dependency and review metadata) never
+come from an editable-content payload.
 
 ## Delivery sequence
 
-Tasks 1–2 add independently testable domain units; task 3 proves direct editing
-and publication state with isolated HTTP fixtures before connecting chat. Tasks
-4–6 are a coordinated integration, not intermediate releases. Update affected
-consumers in the same working change when a signature changes; do not add legacy
-overloads to keep an unfinished cutover deployable. Task 7 is the
-release-readiness gate.
+Tasks 1–2 provide the minimal shared core and comparison prototype before
+persistent production cutover. Tasks 3–7 can be built and tested with disposable
+databases/providers while live evidence is pending. Task 8 is blocked until the
+prototype demonstrates useful value under the pre-registered rubric and every
+isolated check passes. No temporary prototype becomes a second deployed path.
 
-### Task 1: Define the typed plan and its invariants
+### Task 1: Define and test the canonical core
 
-**Files:** Create the four model files and LearningPlanValidator from the map.
-Create `Tests/TaskEngine/LearningPlanTests.cs`; modify shared
-`Engine/Validation/TaskSettingsValidator.cs` only if required for reuse.
+**Files:** Create the Engine model/helper/validator files in the map. Reuse
+`Engine/Models/TaskSettings.cs` and
+`Engine/Validation/TaskSettingsValidator.cs`. Create
+`Tests/TaskEngine/LearningPlanTests.cs`, `TaskRequestResolutionTests.cs`,
+`TaskAssemblyTests.cs`, `TextLengthTests.cs` and `PlanChangesTests.cs`.
 
-**Interfaces:** Produce LearningPlan and its validator. The design's section 3
-is the authoritative field/invariant list, including new-null/existing-stable
-IDs, explicit custom choices and material ownership.
+**Interfaces:** Produce the pure signatures above and the spec sections 3–4/8
+contracts. Stage inputs contain the one resolved request plus accepted material
+revisions and an app-selected target where relevant.
 
-- [ ] Add failing tests for a no-material numerical quiz, reading with one
-      generated material, supplied bilingual text, a mixed-format task and a
-      per-task-selectable format. Valid plans must have an empty error
-      dictionary.
-- [ ] Define reviewed canonical examples for reading, math, mixed formats and
-      supplied bilingual source. Keep stable synthetic IDs and reuse these
-      examples for pure tests and the generation-only evaluation cases in
-      task 6.
-- [ ] Add rejection tests for duplicate IDs across scopes, supplied-source
-      length requirements, total plus material length, invalid format/default
-      combinations, input bounds on fixed choices, invalid defaults, unknown
-      fields and one-past-limit strings/arrays. An omitted irrelevant property
-      and an allowed null must follow the chosen schema representation
-      consistently.
-- [ ] Run `dotnet test --filter FullyQualifiedName~LearningPlanTests`; confirm
-      the new assertions fail before implementation.
-- [ ] Implement immutable-facing records and focused validation. Defensively
-      copy arrays/dictionaries when transferring mutable draft data. Reuse
-      settings checks; do not parse semantic prose to infer length, subject or
-      parameter bindings.
-- [ ] Run the same test filter; require all tests to pass. Review errors against
-      the native editor's field paths and the design's complete resource bounds.
+- [ ] Add failing canonical fixtures for generated Hebrew reading with an
+      explicitly adjustable target/story type; no-material numeric questions;
+      supplied bilingual source; fixed mixed formats; selectable format. Use
+      synthetic developer fixtures, never production seed content.
+- [ ] Pin presence tests: omitted default resolves; false/zero/empty optional
+      text survive; null maps/members, numeric strings, unknown/inapplicable
+      IDs, fixed overrides and blank required text fail. Cover raw HTTP JSON
+      later in task 3 without inventing a general optional-value framework.
+- [ ] Pin identity/limit tests: null new IDs, retained IDs on rename/move,
+      reject unknown/duplicate/wrong-category IDs, fixed versus adjustable
+      requirements, total/per-material overlap, mixture coverage and exact
+      choice counts. Reject int.MaxValue allocation attempts and four
+      4,000-character sources before AI; a feasible question count above 20
+      remains valid.
+- [ ] Pin source/measurement tests: preserve accepted quotes, newlines, niqqud
+      and mixed text; supplied IDs never appear in generated output. Assert
+      `שלום עולם`/`שלום — עולם` → 2, `בעלי־חיים`/`don't` → 1, emoji → 0,
+      supplementary letters count, titles/questions excluded, target
+      satisfaction null and exact/range Boolean. Keep 100–150 words a strict
+      range.
+- [ ] Pin validation modes: incomplete manual answers save with diagnostics;
+      strict candidates reject them; changing a correct choice never chooses a
+      new answer. A strict material mismatch returns an unapplied candidate;
+      missing/duplicate IDs or a bad question batch apply nothing and allocate
+      no accepted question IDs.
+- [ ] Run `dotnet test --filter FullyQualifiedName~TaskEngine`; observe new
+      assertions fail, implement the pure units, then rerun until they pass.
+      Verify input collections are not mutated and identical inputs/policy
+      versions yield identical requirements/measurements, excluding IDs/time.
 
-### Task 2: Resolve requests and assemble measurable snapshots
-
-**Files:** Create TaskRequestResolver, TaskAssembly, TextLength and PlanChanges
-from the map. Create `Tests/TaskEngine/TaskRequestResolutionTests.cs`,
-`TaskAssemblyTests.cs`, `TextLengthTests.cs` and `PlanChangesTests.cs`. Create
-`Engine/Validation/TaskDocumentValidator.cs` using the existing content
-invariants. Remove the old validator when the generation consumer moves; do not
-leave two supported output contracts after integration.
-
-**Interfaces:** Produce TaskResolution, ResolvedTaskRequest, TaskSnapshot and
-the pure helper signatures in the map. TaskSnapshot stores content,
-lengthMeasurements and measurementVersion 1.
-
-- [ ] Add resolver assertions that omission uses a default, explicit false/zero
-      survive, optional empty text stays empty, required blank text fails, an
-      invalid option fails, and unknown/inapplicable/fixed overrides fail before
-      generation. Assert explicit null and numeric strings fail. Test a stale
-      choice-count override on a selected non-choice format rather than silently
-      discarding it.
-- [ ] Add assertions for one selected format versus a fixed mixture,
-      insufficient mixed question count, allowed question bounds and arbitrary
-      feasible positive counts above 20. Selected choice count is absent from
-      non-choice generation input.
-- [ ] Add assembly tests for reordered, duplicate, missing and foreign material
-      IDs. Restore plan order; copy supplied strings unchanged. Enforce the
-      final 8,000-character content budget including supplied text, answer keys
-      and titles. Reject supplied-source IDs in generated output; test accepted
-      whitespace, quotes, niqqud and supplementary Unicode unchanged.
-- [ ] Add measurement tests: `שלום עולם` → 2, `שלום — עולם` → 2, `בעלי־חיים` →
-      1, `don't` → 1, standalone emoji → 0. Cover niqqud, newlines and
-      supplementary Unicode letters. Titles/questions never count; total scope
-      sums generated bodies only. Target satisfaction is null, exact and range
-      are booleans, and unmet length does not reject valid content.
-- [ ] Add identity/change tests for initial null IDs, retained IDs on rename or
-      scope move, rejected unknown/duplicate/wrong-category IDs, no label-based
-      identity recovery, no input mutation, removed controls, reordered
-      materials and identical-plan no-op. Comparison order must be stable.
-- [ ] Add preflight tests for four 4,000-character sources, content's minimum
-      required title/question/material text, int.MaxValue counts and checked
-      derived arithmetic. Reject impossible inputs before count-sized allocation
-      or provider use; retain distinct educational bounds and operational
-      limits.
-- [ ] Assert repeated resolution/assembly with identical inputs yields identical
-      requirements/content/measurements. Exclude request IDs, generated object
-      IDs and timestamps from claims about deterministic business behavior.
-- [ ] Run `dotnet test --filter FullyQualifiedName~TaskEngine`; confirm new
-      tests fail, implement the helpers, then run again and require a pass.
-      Existing tests may keep old contract coverage until the coordinated
-      integration removes it.
-
-### Task 3: Prove the direct editor and publication state without AI
-
-**Files:** Modify `Client/features/templates/template-editor/*`,
-`Client/core/api/models.ts`, `learning-api.ts`; create
-`Client/features/templates/plan-editor/plan-editor.{ts,html,spec.ts}` and
-`Client/features/templates/learning-plan.fixture.ts`.
-
-**Interfaces:** The route owns raw edits, canonical valid projection,
-draftRevision, last saved baseline, publishedVersion, Undo and
-source-verification state. PlanEditor emits edits; LearningApi owns HTTP. Use
-isolated responses until task 4 connects the new backend contract; do not add a
-fake production mode.
-
-- [ ] Add failing tests that direct controls and Undo issue zero AI calls, Undo
-      to saved content clears dirty state despite a newer draftRevision, and
-      invalid edits remain visible and count as unsaved changes.
-- [ ] Add save tests: pending publication disables editing, authoring and Undo;
-      success updates baseline/version once; failure preserves draft; a lost
-      response offers checking the library without claiming rollback or
-      retrying.
-- [ ] Add source tests: direct input establishes the accepted string; an
-      extracted candidate is visibly unverified and cannot be published until
-      confirmed or directly edited. Undo restores text and verification state
-      together.
-- [ ] Implement compact native sections and the bounded twenty-entry Undo
-      history. Coalesce typing but advance draftRevision on every edit. Keep one
-      state owner and dirty comparison against content, not a revision counter.
-- [ ] Implement no-key parent controls, source confirmation inline and explicit
-      Save, preserving validation/focus and unsaved navigation protection. An
-      unavailable AI provider must not disable ordinary editing or saving.
-- [ ] Run `npm --prefix frontend test -- --watch=false`; require isolated
-      direct-control/publication tests to pass before adding chat in task 5.
-
-### Task 4: Connect AI schemas, API and persistence
+### Task 2: Prove scoped generation and the comparative prototype
 
 **Files:** Modify `Engine/Ai/AiGenerationService.cs`, `AiPrompts.cs`,
-`AiSchemas.cs`, `template.schema.json`, `content.schema.json`. Modify
-`Engine/Ai/AiGenerationOptions.cs` for named request/schema byte safeguards and
-the corresponding configuration/registration checks. Also modify
+`AiSchemas.cs`, `AiGenerationOptions.cs`, `template.schema.json`; create
+`materials.schema.json`, `questions.schema.json` alongside them. Replacement
+schemas specialize the same material/question definitions. Modify
+`backend/FamilyLearning.Api/appsettings.json` and
+`backend/FamilyLearning.Api/Infrastructure/Ai/OpenRouterRegistration.cs` for
+named request/schema limits. Create
+`Tests/TaskEngine/ContentGenerationTests.cs`; modify
 `Tests/Fixtures/AiFixtures.cs`, `Tests/TaskEngine/AiDiagnosticsTests.cs`,
-`AiCapacityTests.cs` and `Tests/Integration/OpenRouterConfigurationTests.cs`.
-Update immediate API/evaluation consumers here and in task 6; no old overloads.
+`Tests/TaskEngine/AiCapacityTests.cs`, and
+`Tests/Integration/OpenRouterConfigurationTests.cs`. Create
+`Evaluation/ContentWorkflowPrototype.cs`; modify
+`Evaluation/EvaluationCommand.cs`, `EvaluationPlan.cs`, `EvaluationRunner.cs`,
+`EvaluationReport.cs` and `cases.json`.
 
-**Interfaces:** Replace AuthorAsync/GenerateAsync with the map's signatures.
-AiSchemas supplies one authoring reply schema containing LearningPlan and
-`ContentFor(ResolvedTaskRequest request)` for generated-only output.
+**Interfaces:** Implement the five AiGenerationService signatures. Prototype
+consumes fixed LearningPlan/TaskRequest and a one-shot/split variant; both use
+same source assembly, checks, provider configuration and evidence capture.
 
-- [ ] Add fake-provider tests capturing the actual outbound JSON. Assert schema
-      5, authoring v23 and generation v20, preserved structural constraints, no
-      tools, no family/revision/request metadata and no dropped SDK schema
-      bounds. Test concurrent requests with different counts/formats/material
-      IDs against the actual outbound HTTP schema after SDK conversion.
-- [ ] Assert resolved generation input includes selected custom meanings and
-      supplied sources, but no defaults, old conversation or placeholder
-      references. A no-material math request must neither request passages nor
-      length controls.
-- [ ] Assert a new authoring proposal receives app IDs, a refinement preserves
-      existing IDs, clarification makes no generation call, and invalid
-      proposals cannot reach publication. Refusal/truncation/provider error
-      remain safe failures.
-- [ ] Reject conversational replacement of a retained fixed source or its source
-      kind against the base. Preserve direct source edits submitted as a new
-      base. Verify removals and additions appear in computed changes; never
-      infer identity from matching text or labels.
-- [ ] Implement authoring prompt priorities: preserve the current plan except
-      requested edits; add choices only when requested; use typed requirements;
-      ask one clarification for unsupported or materially ambiguous requests.
-      Keep schema syntax in schemas and shared Hebrew/presentation rules in one
-      prompt fragment. Operative assumptions must enter the plan, not only
-      notes. Do not duplicate engine rules into every plan's guidance or promise
-      that whole-plan chat preserves unrelated fields solely through
-      instructions.
-- [ ] Implement generation from resolved input through the unchanged
-      RequestAsync transport. Validate generated structure, assemble supplied
-      originals, validate final content and attach deterministic measurements.
-      Clone request schemas; concurrent generations must not share mutable
-      constraints.
-- [ ] Exercise maximum-size resolved inputs, schemas and authoring envelopes
-      with isolated wire fixtures. Record concrete
-      MaxRequestBytes/MaxSchemaBytes defaults in options/configuration, test
-      each boundary and one byte above, and enforce them before dispatch.
-      Include schema duplication in the prompt and response format; do not guess
-      token capacity from character counts.
-- [ ] Run the affected fake-provider tests after the consumer cutover compiles.
-      Require passes for both schema-enforced and JSON-only configured modes. No
-      model or sampling change and no live request is part of this task.
+- [ ] Add isolated wire tests proving author/refine interprets only the plan;
+      material stage returns generated bodies/titles only; question stage sees
+      exact accepted materials and resolved settings; replacement receives only
+      its authorized target plus needed context. No tools, family/operation
+      metadata, unresolved defaults, hidden model reviewer or chain-of-thought
+      request goes to the provider. Keep schema rules in schemas and shared
+      semantic/presentation rules in one prompt fragment.
+- [ ] Add call-count and checkpoint-independent tests: generated reading needs
+      at most two calls; supplied source/question-only needs one; material
+      structural or strict-length failure prevents questions; target mismatch
+      allows continuation; question failure retains accepted material. Absent or
+      stale generated materials regenerate together; current accepted ones can
+      be explicitly reused. New activity copies inputs without generated content
+      so fresh generation cannot silently reuse old materials. Validate manually
+      saved material under the same strict preflight before questions.
+- [ ] Test every repair returns a complete valid target; a forged material ID,
+      unrelated question change or supplied-source rewrite is rejected. Assert
+      question batches own title/instructions, replacements preserve them, and
+      valid repair remains possible beside an unrelated incomplete answer.
+      Record dependencies from materials actually sent, never a model-declared
+      subset.
+- [ ] Add maximum-size wire fixtures for the 512 KiB compiled HTTP body, 64 KiB
+      schema and 32,000-character output ceilings; test boundary + 1. Count
+      schemas in both prompt and response-format locations. Preserve per-request
+      constraints through actual SDK serialization and concurrent
+      different-count/format requests. Tighten unsupported resource bounds
+      explicitly before cutover rather than silently dropping requirements.
+- [ ] Run the new test filter, implement scoped prompts/schemas/service methods
+      through the unchanged adapter, then require passing isolated tests in
+      schema and JSON-only modes. Refusal/truncation/transport errors stay safe;
+      no new production retry, provider or model profile.
+- [ ] Add three fixed-plan prototype cases: generated Hebrew reading, exact
+      supplied bilingual source and question-only control. Preserve case/source
+      identity, matched model/settings, all attempts/failures, stage output,
+      usage coverage, cost and latency. Run dry/fixture trials with zero real
+      calls; ensure one-shot and split differ only in decomposition.
+- [ ] Before any authorized live trial, save an experiment artifact declaring
+      sample count/repeats, held-out cases, usable-task rubric, blinded
+      randomized human review, acceptable cost/latency and measurable
+      control/recovery gains. Obtain the user's explicit paid-call/cost budget.
+      Without it, make no live calls and leave the comparative-value gate unmet.
+- [ ] Record the falsifiable decision: added cost without useful quality,
+      control or recovery benefit requires reconsideration before migration. A
+      passing mock or external STACK case is not evidence of Hebrew improvement.
 
-#### API and persistence integration
+### Task 3: Persist editable drafts and release immutable snapshots
 
-**Files:** Modify `Features/Ai/AiEndpoints.cs`,
-`Features/Templates/TemplateContracts.cs`, `TemplateEndpoints.cs`,
-`Features/Instances/InstanceContracts.cs`, `InstanceEndpoints.cs`; modify
-`Client/core/api/models.ts`, `learning-api.ts`. Add a tool-generated
-`StructuredLearningPlans` migration under `Persistence/Migrations`. Update
-`Tests/Integration/AiAuthoringTests.cs`, `ParentWorkflowTests.cs`,
-`RequestValidationTests.cs`, `TaskSettingsTests.cs`, `LibraryDeletionTests.cs`,
-`MigrationTests.cs` and affected fixture consumers.
+**Files:** Create ActivityDraft, ActivityContracts, ActivityEndpoints,
+ActivityDraftChanges and TaskSnapshot from the map. Modify
+`Persistence/LearningDbContext.cs`, `Features/Templates/TemplateContracts.cs`,
+`TemplateEndpoints.cs`, `Features/Instances/InstanceContracts.cs`,
+`InstanceEndpoints.cs`, `backend/FamilyLearning.Api/Program.cs` and existing
+`Infrastructure/Web/ApiConfiguration.cs`. Create
+`Tests/Integration/ActivityDraftTests.cs` and `ActivityReleaseTests.cs`; modify
+`ParentWorkflowTests.cs`, `RequestValidationTests.cs`,
+`LibraryDeletionTests.cs`.
 
-**Interfaces:** Keep existing routes. AuthorTemplateRequest contains message,
-baseDefinition, baseRevision, requestId and unresolved context.
-AuthorTemplateResponse contains reply, changes, metadata and server-echoed
-requestId/baseRevision. CreateInstanceRequest contains ExpectedVersion and
-Input: TaskRequest. InstancePreview exposes ResolvedTaskRequest and
-TaskSnapshot. TemplateDetail and CreateVersionRequest use LearningPlan.
+**Interfaces:** Implement spec section 5 draft/create/save/adopt/release routes.
+Create accepts plan/input plus optional templateId/expectedVersion, or owned
+snapshotId (mutually exclusive). PUT accepts expectedRevision and editable
+plan/input/content. Release accepts expectedRevision/reviewedRevision and
+returns snapshot ID/preview. TaskSnapshot uses existing `/api/instances/{id}`
+previews.
 
-- [ ] Add endpoint tests for request/context limits, malformed base plans, safe
-      clarification, forged identities, unauthorized families and full
-      validation on manual publication. Provider failure must not leak raw
-      bodies/configuration. Exercise raw JSON omission/null/numeric-string cases
-      before typed deserialization loses presence. Keep the request reader local
-      to TaskRequest; .NET 8 nullable annotations do not enforce this policy.
-- [ ] Add a stale-form test: publish revision 2, submit version-1 task settings,
-      assert 409 and zero provider requests. Keep existing publication and
-      deletion race tests; reading a saved task performs zero provider requests.
-- [ ] Add a separate race test: start generation on revision 1, publish revision
-      2 during the call, then assert the task saves against revision 1. Reset or
-      deletion winning before persistence must still prevent that save.
-- [ ] Add a persistence test: source text and measurement version remain
-      identical after reload and a later template publication. Initial
-      generation stores the resolved selections, assembled snapshot and
-      generation metadata atomically.
-- [ ] Run failing integration tests, then implement request validation before
-      AI, one owned revision read, pure request resolution and snapshot
-      persistence. Keep DB transactions closed during remote calls and existing
-      deletion handling.
-- [ ] Generate the migration with the existing EF tooling. Test upgrading a
-      disposable schema-4 database: learning rows are cleared, identity/account
-      data survives, and fresh creation works. Preserve historical migration
-      files; a destructive data reset is not a reversible reconstruction of
-      learning content.
-- [ ] Update all client/API fixture DTOs and direct consumers, then run
-      `dotnet test --filter FullyQualifiedName~Integration` and Angular
-      type/build checks. Do not run the reset migration against the user's
-      working database until implementation is verified and cutover
-      prerequisites are satisfied.
+- [ ] Add failing tests for creation from an unsaved valid plan with no AI;
+      owned-template copy pinned to expectedVersion; owned-snapshot copy with
+      cleared review; 404 family boundaries; raw omitted/null/false/zero/empty
+      input behavior; source confirmation before generation/publication.
+- [ ] Add lenient-save and adoption tests. Missing/invalid answer associations
+      produce diagnostics; unbounded/unsafe input fails. Generated material
+      edits bump revisions and stale every dependent question. Replace source
+      updates copied plan/input atomically, preserves published template,
+      resolves again and invalidates dependencies. Plan/settings changes cannot
+      keep content silently current; adoption cannot waive strict requirements.
+- [ ] Add release tests for counts/formats/keys/strict lengths/staleness/current
+      review and active-operation blocking. Preserve advisory targets. Assert
+      plan/input/content/keys/policies/provenance and measurements are frozen,
+      with unique sourceDraftId and sourceDraftRevision. Duplicate exact release
+      returns the same snapshot; stale/different revision conflicts before
+      writes. Deleting that snapshot leaves the draft terminal: exact release
+      replay returns 410 Gone, never recreates content; deleted draft
+      returns 404.
+- [ ] Add simultaneous save/release tests proving one revision wins. Released
+      drafts reject edits; cloning starts a new draft. Template deletion retains
+      independent drafts/snapshots; draft deletion retains its snapshot; family
+      reset clears learning records and preserves accounts/configuration.
+- [ ] Run failing tests, implement direct DbContext short
+      transactions/concurrency tokens and server-owned metadata. Derive ordinary
+      diagnostics instead of adding competing persisted readiness flags. Use
+      disposable test schema creation while migration remains gated.
+- [ ] Run
+      `dotnet test --filter 'FullyQualifiedName~ActivityDraftTests|FullyQualifiedName~ActivityReleaseTests|FullyQualifiedName~LibraryDeletionTests'`;
+      require pass and zero provider calls for save/adopt/release/preview.
 
-### Task 5: Add chat to the workspace and complete task previews
+### Task 4: Implement the bounded durable worker
 
-**Files:** Modify `Client/features/templates/template-editor/*` and routes. Use
-task 3's plan-editor and create `template-chat/template-chat.{ts,html,spec.ts}`
-under that same templates feature. Replace the old ai-template-author and
-ai-template-form directories. Modify
-`Client/features/instances/instance-form/*`, `create-instance/*`,
-`instance-preview/*`; retain shared task-settings and loading components. Move
-relevant fixtures to `Client/features/templates/learning-plan.fixture.ts`.
+**Files:** Create GenerationOperation, GenerationOperationOptions,
+GenerationOperationEndpoints and GenerationWorker from the map. Modify
+LearningDbContext, Program.cs, appsettings.json and ActivityEndpoints. Create
+`Tests/Integration/GenerationOperationTests.cs`, `GenerationRecoveryTests.cs`
+and `GenerationRaceTests.cs`.
 
-**Interfaces:** TemplateEditor owns working draft, valid plan projection,
-revision, pending request ID, published version, clarification context and Undo.
-Extend task 3's state; do not create another authoritative draft in chat.
-PlanEditor receives the editable plan and emits direct edits with app-owned IDs;
-TemplateChat receives messages/status and emits send/cancel. Neither child calls
-AI or saves a template. LearningApi remains the HTTP owner.
+**Interfaces:** Use spec section 6 operation/status/cancel routes and finite
+states. Worker dispatches only the four supported content actions through
+task 2. One active-operation index/conditional draft update and unique
+family/key index protect admission. Inject existing scoped services through
+fresh scopes; no DbContext is shared with provider calls or between threads.
 
-- [ ] Replace old screen tests with a test that sends the initial request, sees
-      settings inside the same route, refines them, sees actual changes, undoes
-      and saves. Assert no blueprint prompt textarea, field-key editor or Accept
-      step for ordinary proposals. Keep the inline source-specific check.
-- [ ] Add tests for stale response after typing, Undo, route change and explicit
-      cancellation; an unchanged proposal adds no history. Invalid direct edits
-      block AI/save while preserving text; request failure preserves the
-      message.
-- [ ] Assert Save is blocked during authoring, and authoring/edits/Undo are
-      blocked during Save. Test that a save success is never discarded through
-      the AI stale-reply guard. Preserve an unapplied stale proposal or discard
-      it safely, but never auto-merge it.
-- [ ] Add tests for a clarification followed by an answer: retain the original
-      unresolved request, clear it after resolution, invalidate it after
-      conflicting edits, and show consolidation guidance when the context cap
-      would be exceeded.
-- [ ] Apply valid proposals atomically to task 3's route-owned draft with actual
-      changes and Undo. Guard every response by request identity and revision;
-      keep assumptions visible but outside authoritative plan content. Newly
-      extracted sources enter the unverified state from task 3.
-- [ ] Add no section-scoped AI edit actions in this release. Whole-plan chat
-      exposes every computed change; direct controls own exact local changes.
-      Restrict exact/range length settings to explicit advanced choices and show
-      only controls relevant to the plan or selected format.
-- [ ] Implement unsaved navigation protection, ordinary loading/cancel states,
-      focused Hebrew errors and a polite live announcement of applied changes.
-      Direct edits remain possible during a call; save remains disabled then.
-- [ ] Update task form resolution inputs and version envelope. Show requested
-      and actual lengths beside the affected saved material or total, and a
-      prominent unmet exact/range notice. Preserve plain-text/bidi-safe answer
-      rendering. Derive needs-review/warnings from snapshots, with no new
-      Approved lifecycle or generic educational-pass indicator.
-- [ ] Run `npm --prefix frontend test -- --watch=false`; require new interaction
-      tests and remaining tests to pass. No tests may depend on a live provider.
+- [ ] Add idempotency tests in exact order: authorized draft lookup, existing
+      key comparison, then new-operation revision/admission checks. Replay after
+      material acceptance/terminal status returns original operation despite a
+      changed current revision. Same key/different original request returns 409;
+      cross-family access returns 404. Stored fingerprint binds original
+      revision, kind/target/instruction and separately captured effective-input
+      hash.
+- [ ] Add budget tests for 32 global/four family/one draft, two shared provider
+      slots, ten family starts/minute, two steps/operation and 2 MiB evidence.
+      The 129th new operation fails safely; viewing, edits, release and existing
+      key replay remain available. Explicit clone is unbilled and never
+      automatic.
+- [ ] Add transactional acceptance tests: candidate + content + draft revision +
+      step checkpoint + queued next stage commit together. Queued → calling is
+      an atomic claim conditioned on active identity and matching revisions;
+      cancel/edit before a successful claim produces no provider call. Material
+      strict failure preserves old material and makes zero question calls.
+      Question failure retains accepted material; explicit GenerateQuestions
+      reuses it. No partial document appears when a checkpoint transaction
+      fails.
+- [ ] Add deterministic race barriers for edit/Undo/source change/cancel/delete/
+      reset before claim and while provider waits. Store late candidates as
+      unapplied conflicts, clear active state and stop downstream. Cancellation
+      wins locally before transport cancellation, retains terminal cancelled
+      status and allows only known usage metadata to arrive later. No provider
+      transaction stays open.
+- [ ] Add restart fixtures: queued resumes; accepted material + queued questions
+      resumes only questions; calling without accepted checkpoint becomes
+      unknown and is never replayed. Preserve known response metadata versus
+      unknown usage. Repeated GET/poll/reload makes zero starts. Test lost
+      start/release responses.
+- [ ] Add seven-day artifact expiration tests with an injected clock. Purge at
+      most 32 terminal artifacts per pass; preserve
+      key/fingerprints/status/known usage for draft lifetime. An expired
+      diagnostic is explicit; key replay never restarts work. Draft deletion
+      removes tombstones and replay returns 404.
+- [ ] Run those failing integration tests, implement the single-process worker
+      and short transitions, then rerun until all pass. Document the one-process
+      deployment constraint; do not add distributed leases speculatively.
 
-### Task 6: Align the existing evaluator with authoring and refinements
+### Task 5: Replace the blueprint editor with plan chat and native controls
+
+**Files:** Modify `Features/Ai/AiEndpoints.cs`, `Client/core/api/models.ts`,
+`learning-api.ts`,
+`Client/features/templates/template-editor/template-editor.{ts,html,spec.ts}`
+and `Client/app.routes.ts`. Create
+`Client/features/templates/plan-editor/plan-editor.{ts,html,spec.ts}`,
+`template-chat/template-chat.{ts,html,spec.ts}` and `learning-plan.fixture.ts`.
+Create
+`Client/features/activities/activity-workspace/activity-workspace.{ts,html,spec.ts}`
+as the single route state owner from the start; keep TemplateEditor a thin
+template-route adapter that supplies initial context. Modify
+`Tests/Integration/AiAuthoringTests.cs` and shared settings fields as needed.
+
+**Interfaces:** Author endpoint uses TemplateAuthoringInput/AuthoringReply and
+returns app-computed PlanChange[], echoed requestId/baseRevision and metadata.
+ActivityWorkspace owns raw plan/input, valid projection, source confirmation,
+client revision, baseline, clarification and twenty-entry Undo. TemplateEditor
+and presentation children hold no competing draft; they only supply context or
+emit events. Saved template publication keeps expectedVersion.
+
+- [ ] Test initial proposal/refinement/one-question clarification, six-turn and
+      12,000-character context cap, operative assumptions present in the plan,
+      identity preservation and computed removals. Retained fixed source cannot
+      change through AI; direct source edits are explicit and confirmed.
+- [ ] Test late proposal after typing/invalid input/Undo/cancel/route change
+      never applies; identical proposal creates no history. Clarification
+      retains its original request then expires on conflicting edits. A clean
+      proposal applies locally with visible changes and no mandatory Accept
+      page.
+- [ ] Test independent template Save: no generation, no activity mutation,
+      duplicate success handled once, pending save briefly locks edits, stale
+      publication preserves local input. Lost response offers checking the
+      library; no automatic publication retry or claimed rollback.
+- [ ] Implement app-owned purpose/material/question/requested-choice controls,
+      inline source confirmation and meaningful Hebrew change labels. No raw key
+      editor or generated prompt textarea. AI-unavailable state allows direct
+      editing/publication. Do not expose unrequested passage/story controls.
+- [ ] Run `dotnet test --filter FullyQualifiedName~AiAuthoringTests` and
+      `npm --prefix frontend test -- --watch=false`; require isolated passes.
+
+### Task 6: Complete editable activity and operation UI
+
+**Files:** Modify task 5's
+`Client/features/activities/activity-workspace/activity-workspace.{ts,html,spec.ts}`.
+Create `activity-document-editor/activity-document-editor.{ts,html,spec.ts}` and
+`generation-status/generation-status.{ts,html,spec.ts}` under that feature.
+Extend the existing ActivityWorkspace using PlanEditor/TemplateChat in the same
+route. TemplateEditor remains its thin adapter; no draft state moves or
+duplicates. Modify API models/LearningApi, app.routes.ts, library files and
+`Client/features/instances/instance-preview/instance-preview.{ts,html}`.
+
+**Interfaces:** ActivityWorkspace owns raw local plan/input/content, saved
+revision/baseline, client edit revision, operation ID and bounded Undo. API
+methods map exactly to tasks 3–4; content editor emits allowed changes/selected
+targets, status component polls through its owner and never starts work.
+
+- [ ] Test generate from an unsaved valid plan creates/saves a draft before the
+      operation. Required Save failure prevents generate/repair/adopt/release;
+      unsaved invalid fields stay visible. Reload resumes the same operation and
+      saved draft, without claiming local keystrokes or chat were persisted.
+- [ ] Test full document edits, explicit source replacement, answer
+      invalidation, strict diagnostics, current-revision adoption and bounded
+      content-only Undo. Restoring content creates a new save revision and never
+      restores readiness, review/provenance/operation state. No ordinary edit
+      uses AI.
+- [ ] Test operation success with unsaved local typing: retain local buffer,
+      display available server result, require explicit reconcile/reload. A
+      stale save preserves local input. Test lost responses, failed/unknown
+      stages, expired candidates and explicit paid retry warning.
+- [ ] Implement four honest scoped actions, real stage statuses, cancel and
+      diagnostic-only candidate viewing. Unparseable candidates cannot be copied
+      into live content blindly; only parsed bounded content can be edited.
+      ReplaceQuestion changes one whole question; ReplaceMaterial is
+      generated-only. No automatic repair or extra approval between normal
+      stages.
+- [ ] Implement explicit **סימון כמוכנה**, current-revision parent review and
+      immutable preview/new-draft editing. Hide unfinished assignment/child
+      actions. Show unsaved/saving/saved/error states and navigation warning.
+- [ ] Run Angular tests; check keyboard focus/live announcements, RTL mixed
+      text, native labels/controls, narrow 360px layout and 200% text without a
+      framework. Parent answers render as text and never enter any child-facing
+      contract.
+
+### Task 7: Integrate evaluation evidence and comparison
 
 **Files:** Modify `Evaluation/EvaluationReport.cs`, `EvaluationRunner.cs`,
 `EvaluationPlan.cs`, `EvaluationComparison.cs`, `EvaluationSummary.cs`,
-`EvaluationRunStore.cs`, `EvaluationFiles.cs`, `HebrewJudge.cs`, `cases.json`,
-`hebrew-review-samples.json` and affected `wwwroot/app.js`/`index.html` views.
-Update evaluation tests under `Tests/TaskEngine`, dashboard integration tests
-and `frontend/e2e/evaluation-ui.test.mjs`.
+`EvaluationRunStore.cs`, `EvaluationFiles.cs`, `EvaluationCapture.cs`,
+`HebrewJudge.cs`, `cases.json`, `hebrew-review-samples.json`, `wwwroot/app.js`
+and `wwwroot/index.html`. Modify existing evaluation tests under
+`Tests/TaskEngine`, dashboard integration tests and
+`frontend/e2e/evaluation-ui.test.mjs`.
 
-**Interfaces:** EvaluationCase accepts either Prompt or InitialPlan, never both.
-Prompt cases permit an optional ordered Refinements array (at most three
-messages, each at most 4,000 characters). InitialPlan cases validate a canonical
-plan and fixed inputs before generation, with no authoring/refinement calls.
-Embed the four canonical examples from task 1 in cases.json and reuse them in
-isolated tests; do not create production seed templates or another fixture
-store. EvaluationResult adds refinement steps and final normalized plan/snapshot
-while retaining raw per-call output. Scenario input selectors use material
-position or unique visible control label, resolved to app IDs before
-TaskRequestResolver. Ambiguous/missing selectors fail clearly; never hardcode
-random generated IDs.
+**Interfaces:** A case selects Prompt or InitialPlan, never both. Prompt permits
+at most three 4,000-character refinements; fixed-plan trials omit authoring.
+Stage records carry role/version/policy, exact effective input/schema + stable
+hashes, raw output, candidate acceptance/application state and optional usage.
+Skipped stages are explicit. Separate interpretation, generation, replacement
+and end-to-end outcomes in format 4; reuse one provider profile and judge.
 
-- [ ] Add fixture-provider tests for author → edit → generate, clarification
-      without generation, context-preserving refinement, unmapped selections,
-      failed edit checkpoint and budget exhaustion before the next call.
-      Complete scenario requests expect proposals; unexpected clarifications are
-      adherence failures.
-- [ ] Add generation-only tests asserting one provider request without a judge,
-      identical resolved inputs across repetitions and early rejection of
-      invalid fixed plans. Make completion/summary logic understand
-      intentionally absent authoring, rather than treating it as an unfinished
-      run.
-- [ ] Change planned base calls to the sum, per repeated case, of one authoring
-      call + refinement count + one generation call + optional judge; add
-      calibration calls once. InitialPlan cases use one generation call plus an
-      optional judge per repeat. All actual retry attempts consume the existing
-      hard budget and retain their operation/sequence identity. Dry runs display
-      the new totals.
-- [ ] Update report reading/comparison for format 4/checks 9. Comparison rejects
-      unequal refinement sequences or input selectors, and unsupported old
-      formats produce a safe actionable message. Do not auto-convert saved
-      reports. Compare fixed-plan identity/content, effective input/schema
-      fingerprints and policy versions for generation-only trials; do not
-      require newly authored plans to be identical in end-to-end authoring
-      trials.
-- [ ] Capture effective request/schema alongside SHA-256 fingerprints from
-      stable serialization, raw output, normalized plan and assembled snapshot.
-      Record actual model/provider when available and cost coverage; never
-      synthesize missing evidence or log sensitive content in ordinary
-      application logs.
-- [ ] Add comparison tests where generation and judge change together: suppress
-      Hebrew-finding deltas unless judge configuration, prompt, model identity,
-      review coverage and passing calibrations match. Preserve independently
-      comparable structural results. No second judge provider is added.
-- [ ] Reuse TextLength for observed body counts. Keep case expectations
-      independent of model-authored requirements: if a request asks for 350
-      words and the model drops that requirement, evaluation must still report
-      the missing requirement. Distinguish structural success, adherence, length
-      observations and Hebrew review.
-- [ ] Preserve the historical 100–150-word range failure as a range regression,
-      not a target relabeling. Verify short output still fails adherence while
-      structurally valid drafts keep their warning policy. Start a new baseline
-      under the changed check/measurement versions.
-- [ ] Update source paths/context in Hebrew review v9 and calibration fixtures,
-      preserving intentional defects. Inspect plan labels/meanings/guidance and
-      task prose separately; do not treat technical identifiers as misspelled
-      Hebrew. Have a human verify disputed calibration labels; a clean judge
-      response or failing calibration must never become proof of language
-      quality.
-- [ ] Refine the existing scenario set instead of adding near-duplicates. Cover
-      reading with adjustable target, fixed range, combined two-material length,
-      no-passage math, logic, objective short answers, selectable formats,
-      supplied bilingual source and one explicit custom choice added by
-      refinement.
-- [ ] Run isolated evaluation tests, the dashboard command below and
-      `./scripts/evaluate-ai.sh --case all`. Require passing tests and a no-call
-      dry run. Retain dev.sh/dashboard startup, offline access,
-      loopback/Host/Origin/CSRF/CSP protections, confirmation, cancellation and
-      JSON artifact safety unchanged.
+- [ ] Add fixture tests for author/refine/clarification, fixed-plan generation,
+      supplied-source skip, scoped repair and early stop. All real attempts and
+      evaluator-only 429 retries consume budget; planned totals sum actual
+      applicable stages plus optional judge/calibration, not cases × two.
+- [ ] Preserve every failed/unapplied candidate and known partial usage; null
+      means unknown. Capture exact input/schema evidence with fingerprints,
+      source revisions, actual model/provider and policy tags; no content or
+      answers in ordinary logs. Keep parent corrections/time-to-ready evidence.
+- [ ] Update comparison tests: matched plans/inputs/sources/settings and
+      policies for generator trials, matched edit sequences for authoring.
+      Reject incompatible old report formats safely. If judge
+      identity/config/prompt/ rubric/coverage or calibration differs, suppress
+      judge-quality deltas while retaining independently valid
+      deterministic/human comparisons.
+- [ ] Reuse TextLength and independent case expectations. Keep
+      fixed/range/target meanings, including the historical 100–150 regression;
+      authoring that drops a demand fails adherence. Update judge source
+      paths/policy version while preserving planted defects and auditing
+      disputed Hebrew labels with humans.
+- [ ] Run existing evaluation test filters,
+      `node --test frontend/e2e/evaluation-ui.test.mjs` and
+      `./scripts/evaluate-ai.sh --case all`; require passes and a no-call
+      preview. Retain dashboard startup/offline access, Host/Origin/CSRF/CSP,
+      confirmation, cancellation and safe artifact loading.
 
-```bash
-node --test frontend/e2e/evaluation-ui.test.mjs
-```
+### Task 8: Verify the complete flow and perform the gated cutover
 
-### Task 7: Remove the old path and verify the complete experience
+**Files:** Modify `frontend/e2e/ai-provider.mjs`, `parent-workflow.spec.ts`,
+`http-boundaries.spec.ts`, `theme.spec.ts` and
+`Tests/Integration/MigrationTests.cs`. Generate a new `ContentFirstActivities`
+migration under Persistence/Migrations. Update README,
+docs/product-specification.md, docs/architecture.md, docs/ui-guide.md and
+touched contract comments only when behavior is implemented.
 
-**Files:** Remove `Engine/Models/TaskTemplateDefinition.cs` and
-`TaskContent.cs`, old TaskInput, ParameterValidator, TemplateValidator and
-TaskContentValidator after their callers move. Remove obsolete author/form UI
-and tests after preserving meaningful regressions. Update README,
-`docs/product-specification.md`, `docs/architecture.md`, `docs/ui-guide.md`, and
-touched XML/JSDoc. Modify `frontend/e2e/ai-provider.mjs`,
-`parent-workflow.spec.ts`, `http-boundaries.spec.ts` and any affected theme
-scenario.
+**Delete after callers move:** `Engine/Models/TaskTemplateDefinition.cs`,
+`TaskContent.cs`, `Engine/Validation/ParameterValidator.cs`,
+`TemplateValidator.cs`, `TaskContentValidator.cs`,
+`Engine/Ai/content.schema.json`, `Features/Instances/TaskInstance.cs`, and the
+old TaskInput record from TaskSettings. Delete obsolete
+`Client/features/templates/ai-template-author/`, `ai-template-form/`,
+`Client/features/instances/create-instance/` and `instance-form/` after
+transferring valuable tests. Remove `Evaluation/ContentWorkflowPrototype.cs` and
+temporary one-shot dispatch after capturing the decision; retain comparison
+artifacts and supported stage evidence.
 
-**Interfaces:** One schema-5 path from authoring through evaluation and saved
-preview. Existing public capabilities outside this cutover remain functional.
+**Interfaces:** One deployed schema-5 content-first lifecycle; no compatibility
+reader, dual production path or mutable historical TaskInstance.
 
-- [ ] Search production code, fixtures and current docs for old parameter keys,
-      prose bindings, schema 4, contentBlocks, independent word counters and
-      blueprint editor references. Remove replaced code; keep relevant
-      historical migrations. Remove dead exports, unused styles and duplicated
-      prompt rules, not valuable boundary tests merely to reduce line counts.
-- [ ] Add isolated browser workflows for reading → chat refinement → Undo → save
-      → task; no-passage math; supplied source preservation; a stale form; and
-      an invalid/truncated response. Assert saved tasks survive later template
-      edits.
-- [ ] Check the workspace at 360px, enlarged text, RTL with English content and
-      keyboard-only operation. Check focus, live status, cancellation, unsaved
-      navigation and unavailable-AI editing. Capture only current artifact
-      images.
-- [ ] Update current product/architecture/UI docs to describe implemented
-      behavior; remove their pending-design banner and stale prompt/key
-      instructions. Correct evaluation call-count examples from the new fixture
-      set; do not handwave costs.
-- [ ] Run `./scripts/verify.sh`, then `npm --prefix frontend run e2e` and
-      `git diff --check`. Require exit 0 for every command. Inspect the diff for
-      unrelated edits, credentials, build outputs and compatibility scaffolding.
-- [ ] After verification, stop development watchers, take a local backup and
-      apply the explicit development-learning reset with normal migration
-      tooling. Report the reset accurately. Do not commit, deploy or delete
-      unrelated data.
+- [ ] Add isolated browser acceptance: prompt → requested controls → generate
+      without template Save → edit/replace question → Save draft → parent review
+      → mark ready → frozen preview. Separately save a template and prove it
+      remains independent. Include reload during generation and a later template
+      change with unchanged released content.
+- [ ] Add browser blockers/races: supplied bilingual source preserved;
+      no-passage control; strict bad material prevents question call; question
+      failure keeps material; answer deletion blocks release; unsaved
+      typing/Undo survive late output; cancel/unknown/409 preserve work; no
+      placeholder child delivery.
+- [ ] Verify generated migration on disposable schema-4 data: clear learning
+      records, preserve identities/accounts/configuration and create fresh new
+      records. Keep historical migrations intact. No user's database is migrated
+      during tests or while the comparative gate is unmet.
+- [ ] Review prototype evidence against the pre-registered rubric/budget and
+      record proceed/reconsider. If extra cost bought no useful benefit, stop
+      destructive cutover and revise the split. If no live evidence was
+      authorized, leave this gate visibly incomplete rather than inventing
+      proof.
+- [ ] Remove obsolete callers/contracts/UI only after isolated checks cover
+      their meaningful boundaries. Update current docs and real fixture-derived
+      call examples; remove planned-design banners when behavior actually lands.
+- [ ] Run `./scripts/verify.sh`, `npm --prefix frontend run e2e` and
+      `git diff --check`; require exit 0. Inspect 360px/200% text/keyboard/RTL,
+      ownership, source fidelity, races and artifact limits. Review the diff for
+      unrelated changes, credentials, DBs, keys or generated outputs.
+- [ ] Only after both gates pass, stop development watchers, take a local backup
+      and apply the already-authorized development-learning reset using normal
+      migration tooling. Preserve accounts/configuration/keys and report what
+      changed. Do not commit, deploy or delete unrelated data.
 
-The design review itself authorizes no migration or destructive command. Apply
-the existing development-data reset decision only as part of the verified
-implementation cutover; never edit already-applied migration history.
-
-## Evidence and next decision
-
-Passing isolated tests establishes contract, workflow and persistence behavior;
-it does not establish model quality. When the user requests a live evaluation,
-first show the selected scenarios, repeats and maximum billable calls. Run the
-same bounded suite on the chosen provider profile, then review adherence,
-natural Hebrew, semantic correctness, clarification rate, latency and cost.
-
-Use that evidence to tune model/profile or prompts. Do not add a repair loop,
-extra model or hidden normalization because mocked tests passed. Child-device
-activation, assignments and grading remain the next independent product slice.
+Child activation, assignment, attempts, scoring and reports require a later
+separate vertical-slice plan. This plan prepares an immutable self-contained
+snapshot and policy contract, not a claim that child delivery is available.
 
 [design]: ../specs/2026-09-30-structured-templates-design.md
