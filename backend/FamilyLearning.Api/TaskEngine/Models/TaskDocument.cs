@@ -53,3 +53,8 @@ public sealed record MaterialAcceptance(TaskDocument? Document, MaterialCandidat
 
 /// <summary>Body-only word count for a material ID or total generated scope. Targets have no Boolean pass threshold.</summary>
 public sealed record LengthMeasurement(string Scope, ResolvedLength Expected, int Actual, bool? Satisfied);
+
+/// <summary>Describes the input control independently of the question's school subject.</summary>
+public sealed record QuestionInteraction([property: JsonRequired] string Type, string[]? Options = null);
+/// <summary>The expected answer; numeric answers use invariant-culture text.</summary>
+public sealed record QuestionAnswer([property: JsonRequired] string Value);

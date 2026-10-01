@@ -63,7 +63,7 @@ public static class EvaluationFiles
         if (report is null || report.FormatVersion != EvaluationVersions.ReportFormat || report.AutomaticChecksVersion < 1 ||
             report.Cases is not { Length: > 0 } || report.Repeat is < 1 or > 5 || report.Profile is null || report.CallDelaySeconds is < 0 or > 60 ||
             string.IsNullOrWhiteSpace(report.SuiteSha256) || report.Results is null || report.Calibration is null || report.CalibrationSamples is null ||
-            report.PrototypeResults is null || report.Retries is null || report.Retries.Count > 100 || report.Retries.Any(retry => retry is null || retry.Call is null ||
+            report.Retries is null || report.Retries.Count > 100 || report.Retries.Any(retry => retry is null || retry.Call is null ||
                 retry.Number is < 1 or > 3 || !double.IsFinite(retry.DelaySeconds) || retry.DelaySeconds is < 0 or > 300 ||
                 !retry.Call.RequestSent || retry.Call.FinishedAtUtc is null || retry.Call.StatusCode != 429 || retry.Call.ContractValid))
             throw new InvalidDataException($"Invalid or unsupported evaluation report; format version {EvaluationVersions.ReportFormat} is required.");
@@ -71,32 +71,6 @@ public static class EvaluationFiles
             string.IsNullOrWhiteSpace(report.JudgePromptVersion) || string.IsNullOrWhiteSpace(report.JudgePrompt)))
             throw new InvalidDataException("Judge-enabled reports require captured calibration and judge metadata.");
         ValidateCases(report.Cases);
-        if (report.Prototype && (report.Cases.Any(scenario => scenario.InitialPlan is null || scenario.Refinements.Length > 0 || scenario.Replacements.Length > 0) || report.JudgeEnabled) ||
-            !report.Prototype && report.PrototypeResults.Count > 0 || report.Prototype && report.Results.Count > 0 ||
-            report.PrototypeResults.Count > report.Cases.Length * report.Repeat * 2 || report.ReservedCostUsd < 0)
-            throw new InvalidDataException("Invalid evaluation suite selection.");
-        report.Experiment?.Validate();
-        var trials = new HashSet<(string CaseId, int Repetition, string Variant)>();
-        foreach (var result in report.PrototypeResults)
-        {
-            if (result is null || !report.Cases.Any(c => c.Id == result.CaseId) || result.Repetition < 1 || result.Repetition > report.Repeat ||
-                result.Variant is not ("one-shot" or "split") || result.Input is null || result.Document is null ||
-                !trials.Add((result.CaseId, result.Repetition, result.Variant)) ||
-                result.Stages is null || result.Stages.Count > (result.Variant == "split" ? 2 : 1) || result.Review is null ||
-                result.Stages.Any(stage => stage is null || stage.EngineRevision < 1 || stage.SchemaVersion < 1 ||
-                    stage.Outcome is not ("pending" or "accepted" or "failed" or "skipped" or "cancelled" or "not-started") ||
-                    (result.Variant == "split" ? stage.Stage is not ("materials" or "questions") : stage.Stage != "one-shot") ||
-                    (stage.Outcome == "skipped" ? stage.Stage != "materials" || stage.Call is not null : stage.Call is null) ||
-                    stage.Outcome == "accepted" && stage.Call?.ContractValid != true) ||
-                result.Stages.Select(stage => stage.Stage).Distinct().Count() != result.Stages.Count ||
-                result.InputFingerprint != TaskRequestResolver.Fingerprint(result.Input))
-                throw new InvalidDataException("Invalid prototype evidence.");
-            var scenario = report.Cases.Single(c => c.Id == result.CaseId);
-            var resolved = TaskRequestResolver.Resolve(scenario.InitialPlan!, scenario.InitialInput ?? new(scenario.InitialPlan!.Defaults));
-            if (resolved.Value is null || result.InputFingerprint != TaskRequestResolver.Fingerprint(resolved.Value))
-                throw new InvalidDataException("Prototype inputs must match the captured fixed-plan case.");
-            result.Review.Validate();
-        }
         ValidateRunMetadata(report.Label, report.RunNotes);
         if (report.Results.Any(result => result is null || !report.Cases.Any(item => item.Id == result.CaseId) ||
                 result.Repetition < 1 || result.Repetition > report.Repeat || result.Checks is null || result.Review is null ||
@@ -125,7 +99,7 @@ public static class EvaluationFiles
             .Any(issues => issues is not null && !HebrewJudge.ValidateIssues(issues)) ||
             report.Steps.Any(step => step.EngineRevision < 1 || step.SchemaVersion < 1 || step.Sources is null || step.Request is null ||
                 step.Outcome is not ("pending" or "accepted" or "failed" or "skipped" or "clarification" or "cancelled" or "not-started") ||
-                step.Role is not ("authoring" or "refinement" or "materials" or "questions" or "replace-material" or "replace-question" or "review" or "calibration" or "one-shot") ||
+                step.Role is not ("authoring" or "refinement" or "materials" or "questions" or "replace-material" or "replace-question" or "review" or "calibration") ||
                 step.Applied && !step.ContractValid || step.Outcome == "skipped" && (step.RequestSent || string.IsNullOrWhiteSpace(step.SkipReason)) ||
                 !double.IsFinite(step.ElapsedMilliseconds) || step.ElapsedMilliseconds < 0 ||
                 step.InputTokens < 0 || step.OutputTokens < 0 || step.ReasoningTokens < 0 || step.CostCredits < 0))

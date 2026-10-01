@@ -1,13 +1,12 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
-using FamilyLearning.Api.Features.Instances;
+using FamilyLearning.Api.Features.Activities;
 using FamilyLearning.Api.Features.Templates;
 using FamilyLearning.Api.Infrastructure.Persistence;
 using FamilyLearning.Api.Tests.Fixtures;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
-using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace FamilyLearning.Api.Tests.Integration;
@@ -15,9 +14,37 @@ namespace FamilyLearning.Api.Tests.Integration;
 public sealed class LibraryDeletionTests
 {
     [Fact]
+    public async Task Family_reset_clears_drafts_beyond_the_list_limit_and_can_be_repeated()
+    {
+        await using var app = new ApiFactory();
+        using var owner = await app.ParentAsync();
+        using var stranger = await app.ParentAsync();
+        var draft = await ActivityReleaseTests.ReadyDraft(owner);
+        var foreign = await ActivityReleaseTests.ReadyDraft(stranger);
+        using (var scope = app.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<LearningDbContext>();
+            var original = await db.ActivityDrafts.SingleAsync(d => d.Id == draft["id"]!.GetValue<Guid>());
+            for (var index = 0; index < 101; index++)
+                db.ActivityDrafts.Add(new ActivityDraft(original.FamilyId, original.Name, original.PlanJson,
+                    original.InputJson, original.DocumentJson, null, null, original.CreatedByParentId));
+            await db.SaveChangesAsync();
+        }
+        Assert.Equal(100, (await owner.GetFromJsonAsync<JsonElement>("/api/activity-drafts")).GetArrayLength());
+        Assert.Equal(HttpStatusCode.NoContent, (await owner.DeleteAsync("/api/templates")).StatusCode);
+        Assert.Equal(HttpStatusCode.NoContent, (await owner.DeleteAsync("/api/templates")).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await owner.GetAsync("/api/auth/me")).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await stranger.GetAsync(ActivityDraftTests.Path(foreign))).StatusCode);
+        using var verification = app.Services.CreateScope();
+        var remaining = verification.ServiceProvider.GetRequiredService<LearningDbContext>();
+        Assert.Single(await remaining.ActivityDrafts.ToListAsync());
+        Assert.Equal(2, await remaining.Users.CountAsync());
+    }
+
+    [Fact]
     public async Task Content_first_template_deletion_preserves_independent_drafts_and_snapshots_and_reset_is_family_scoped()
     {
-        await using var app = new ActivityApiFactory();
+        await using var app = new ApiFactory();
         using var owner = await app.ParentAsync();
         using var stranger = await app.ParentAsync();
         var plan = TaskEngine.LearningPlanFixture.Numeric(1);
@@ -53,7 +80,7 @@ public sealed class LibraryDeletionTests
     [Fact]
     public async Task Content_first_reset_failure_rolls_back_draft_and_snapshot_deletion()
     {
-        await using var app = new ActivityApiFactory();
+        await using var app = new ApiFactory();
         using var parent = await app.ParentAsync();
         var draft = await ActivityReleaseTests.ReadyDraft(parent);
         using var released = await parent.PostAsJsonAsync(ActivityDraftTests.Path(draft) + "/release", new { expectedRevision = 2 });
@@ -82,139 +109,6 @@ public sealed class LibraryDeletionTests
         Assert.Equal(HttpStatusCode.BadRequest, (await parent.DeleteAsync(path)).StatusCode);
     }
 
-    [Fact]
-    public async Task Draft_deletion_is_owned_and_preserves_its_template_and_other_drafts()
-    {
-        using var app = WithAi();
-        using var owner = await app.ParentAsync();
-        using var stranger = await app.ParentAsync();
-        var templateId = await SaveTemplateAsync(owner);
-        var draftId = await GenerateAsync(owner, templateId);
-        var otherDraftId = await GenerateAsync(owner, templateId);
-        Assert.Equal(HttpStatusCode.NotFound, (await stranger.DeleteAsync($"/api/instances/{draftId}")).StatusCode);
-        Assert.Equal(HttpStatusCode.NoContent, (await owner.DeleteAsync($"/api/instances/{draftId}")).StatusCode);
-        Assert.Equal(HttpStatusCode.NotFound, (await owner.GetAsync($"/api/instances/{draftId}")).StatusCode);
-        Assert.Equal(HttpStatusCode.NotFound, (await owner.DeleteAsync($"/api/instances/{draftId}")).StatusCode);
-        Assert.Equal(HttpStatusCode.OK, (await owner.GetAsync($"/api/templates/{templateId}")).StatusCode);
-        Assert.Equal(HttpStatusCode.OK, (await owner.GetAsync($"/api/instances/{otherDraftId}")).StatusCode);
-    }
-
-    [Fact]
-    public async Task Template_deletion_removes_all_its_revisions_and_drafts_only()
-    {
-        using var app = WithAi();
-        using var owner = await app.ParentAsync();
-        using var stranger = await app.ParentAsync();
-        var id = await SaveTemplateAsync(owner);
-        var firstDraft = await GenerateAsync(owner, id);
-        Assert.Equal(HttpStatusCode.Created, (await owner.PostAsJsonAsync($"/api/templates/{id}/versions",
-            new { expectedVersion = 1, definition = AiFixtures.Definition() })).StatusCode);
-        var secondDraft = await GenerateAsync(owner, id);
-        var keptId = await SaveTemplateAsync(owner);
-        var foreignId = await SaveTemplateAsync(stranger);
-        Assert.Equal(HttpStatusCode.NotFound, (await stranger.DeleteAsync($"/api/templates/{id}")).StatusCode);
-        Assert.Equal(HttpStatusCode.NoContent, (await owner.DeleteAsync($"/api/templates/{id}")).StatusCode);
-        Assert.Equal(HttpStatusCode.NotFound, (await owner.DeleteAsync($"/api/templates/{id}")).StatusCode);
-        Assert.Equal(HttpStatusCode.NotFound, (await owner.GetAsync($"/api/templates/{id}")).StatusCode);
-        Assert.Equal(HttpStatusCode.NotFound, (await owner.GetAsync($"/api/instances/{firstDraft}")).StatusCode);
-        Assert.Equal(HttpStatusCode.NotFound, (await owner.GetAsync($"/api/instances/{secondDraft}")).StatusCode);
-        Assert.Equal(HttpStatusCode.OK, (await owner.GetAsync($"/api/templates/{keptId}")).StatusCode);
-        Assert.Equal(HttpStatusCode.OK, (await stranger.GetAsync($"/api/templates/{foreignId}")).StatusCode);
-        using var scope = app.Services.CreateScope();
-        var db = scope.ServiceProvider.GetRequiredService<LearningDbContext>();
-        Assert.False(await db.TaskTemplateVersions.AnyAsync(v => v.TemplateId == id));
-    }
-
-    [Fact]
-    public async Task Reset_clears_the_entire_family_library_beyond_list_limits_and_keeps_accounts_and_other_families()
-    {
-        using var app = WithAi();
-        using var owner = await app.ParentAsync();
-        using var stranger = await app.ParentAsync();
-        var id = await SaveTemplateAsync(owner);
-        var foreignId = await SaveTemplateAsync(stranger);
-        var foreignDraftId = await GenerateAsync(stranger, foreignId);
-        using (var scope = app.Services.CreateScope())
-        {
-            var db = scope.ServiceProvider.GetRequiredService<LearningDbContext>();
-            var familyId = (await db.TaskTemplates.SingleAsync(t => t.Id == id)).FamilyId;
-            for (var i = 0; i < 101; i++)
-            {
-                var template = new TaskTemplate(familyId, $"Saved template {i}");
-                var version = new TaskTemplateVersion(template.Id, 1, AiFixtures.Definition().ToJsonString());
-                db.AddRange(template, version, new TaskInstance(familyId, version.Id, "Saved draft", "{}",
-                    AiFixtures.Content().ToJsonString(), "{}"));
-            }
-            await db.SaveChangesAsync();
-        }
-        Assert.Equal(100, (await owner.GetFromJsonAsync<JsonElement>("/api/templates")).GetArrayLength());
-        Assert.Equal(HttpStatusCode.NoContent, (await owner.DeleteAsync("/api/templates")).StatusCode);
-        Assert.Equal(HttpStatusCode.NoContent, (await owner.DeleteAsync("/api/templates")).StatusCode);
-        Assert.Equal(0, (await owner.GetFromJsonAsync<JsonElement>("/api/templates")).GetArrayLength());
-        Assert.Equal(0, (await owner.GetFromJsonAsync<JsonElement>("/api/instances")).GetArrayLength());
-        Assert.Equal(HttpStatusCode.OK, (await stranger.GetAsync($"/api/instances/{foreignDraftId}")).StatusCode);
-        using (var scope = app.Services.CreateScope())
-        {
-            var db = scope.ServiceProvider.GetRequiredService<LearningDbContext>();
-            Assert.Equal(foreignId, (await db.TaskTemplates.SingleAsync()).Id);
-            Assert.Equal(foreignId, (await db.TaskTemplateVersions.SingleAsync()).TemplateId);
-            Assert.Equal(foreignDraftId, (await db.TaskInstances.SingleAsync()).Id);
-            Assert.Equal(2, await db.Users.CountAsync());
-            Assert.Equal(2, await db.Families.CountAsync());
-        }
-        Assert.True((await owner.GetFromJsonAsync<JsonElement>("/api/ai/status")).GetProperty("configured").GetBoolean());
-        await SaveTemplateAsync(owner);
-    }
-
-    [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public async Task A_failed_deletion_rolls_back_drafts_and_revisions(bool reset)
-    {
-        using var app = WithAi();
-        using var parent = await app.ParentAsync();
-        var id = await SaveTemplateAsync(parent);
-        var draftId = await GenerateAsync(parent, id);
-        using (var scope = app.Services.CreateScope())
-        {
-            var db = scope.ServiceProvider.GetRequiredService<LearningDbContext>();
-            await db.Database.ExecuteSqlRawAsync("""
-                CREATE TRIGGER RejectVersionDeletion BEFORE DELETE ON TaskTemplateVersions
-                BEGIN SELECT RAISE(ABORT, 'Test deletion failure'); END;
-                """);
-        }
-        Assert.Equal(HttpStatusCode.InternalServerError,
-            (await parent.DeleteAsync(reset ? "/api/templates" : $"/api/templates/{id}")).StatusCode);
-        Assert.Equal(HttpStatusCode.OK, (await parent.GetAsync($"/api/templates/{id}")).StatusCode);
-        Assert.Equal(HttpStatusCode.OK, (await parent.GetAsync($"/api/instances/{draftId}")).StatusCode);
-    }
-
-    [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public async Task Deletion_during_generation_does_not_restore_deleted_data(bool reset)
-    {
-        var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        var resume = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        using var chat = new AiFixtures.ScriptedChat(AiFixtures.Content().ToJsonString())
-        {
-            BeforeResponse = token => { entered.TrySetResult(); return resume.Task.WaitAsync(token); }
-        };
-        using var app = new ApiFactory(services => services.AddSingleton<IChatClient>(chat));
-        using var parent = await app.ParentAsync();
-        var id = await SaveTemplateAsync(parent);
-        var generation = parent.PostAsJsonAsync($"/api/templates/{id}/instances", AiFixtures.Input());
-        try
-        {
-            await entered.Task.WaitAsync(TimeSpan.FromSeconds(10));
-            Assert.Equal(HttpStatusCode.NoContent, (await parent.DeleteAsync(reset ? "/api/templates" : $"/api/templates/{id}")).StatusCode);
-        }
-        finally { resume.TrySetResult(); }
-        var result = await generation;
-        Assert.Equal(HttpStatusCode.NotFound, result.StatusCode);
-        Assert.Equal(0, (await parent.GetFromJsonAsync<JsonElement>("/api/instances")).GetArrayLength());
-    }
-
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
@@ -227,7 +121,7 @@ public sealed class LibraryDeletionTests
         using var parent = await app.ParentAsync();
         var id = await SaveTemplateAsync(parent);
         var saving = parent.PostAsJsonAsync($"/api/templates/{id}/versions",
-            new { expectedVersion = 1, definition = AiFixtures.Definition() });
+            new { expectedVersion = 1, definition = AiFixtures.PlanJson() });
         try
         {
             await publication.Entered.Task.WaitAsync(TimeSpan.FromSeconds(10));
@@ -240,22 +134,12 @@ public sealed class LibraryDeletionTests
         var db = scope.ServiceProvider.GetRequiredService<LearningDbContext>();
         Assert.False(await db.TaskTemplates.AnyAsync());
         Assert.False(await db.TaskTemplateVersions.AnyAsync());
-        Assert.False(await db.TaskInstances.AnyAsync());
+        Assert.False(await db.ActivityDrafts.AnyAsync());
     }
-
-    private static ApiFactory WithAi() => new(services => services.AddSingleton<IChatClient>(
-        new AiFixtures.ScriptedChat(AiFixtures.Content().ToJsonString(), AiFixtures.Content().ToJsonString())));
 
     private static async Task<Guid> SaveTemplateAsync(HttpClient parent)
     {
-        var response = await parent.PostAsJsonAsync("/api/templates", AiFixtures.Definition());
-        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
-        return (await response.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("id").GetGuid();
-    }
-
-    private static async Task<Guid> GenerateAsync(HttpClient parent, Guid id)
-    {
-        var response = await parent.PostAsJsonAsync($"/api/templates/{id}/instances", AiFixtures.Input());
+        var response = await parent.PostAsJsonAsync("/api/templates", AiFixtures.PlanJson());
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
         return (await response.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("id").GetGuid();
     }

@@ -1,124 +1,128 @@
 # Product specification
 
-This document describes the current application. The planned replacement is the
-[content-first activity design][workspace-design]: editable activities,
-independent template publication and immutable reviewed snapshots in one
-workspace. It is not implemented yet.
-
-Templates are AI-authored instructions and configurable fields, never
-subject-specific generators. Every subject follows the same flow, starting from
-an empty library:
+The application implements the [content-first activity design][workspace-design].
+Every subject uses the same AI path; there are no subject-specific generators
+or seeded educational records.
 
 ```text
-Parent prompt → AI proposal → parent review → published template
-Published template + chosen settings and parameters → AI content → validation
-→ saved task
+Parent prompt → editable learning plan + activity choices
+→ applicable material generation → questions → editable draft
+→ parent review → immutable ready snapshot
+
+Save template: independently publish the reusable plan at any point
 ```
 
 ## Current workflow
 
-1. Describe the goal, audience and requirements in a prompt.
-2. Review the AI proposal: name, instructions, task defaults and additional
-   parameter definitions. Edit, regenerate or cancel; it is not saved automatically.
-3. Explicitly save the template. Later edits publish a new immutable revision.
-4. Choose task settings and any additional values. The server validates them,
-   resolves additional parameter defaults, and asks AI for content using the
-   selected template revision.
-5. Validate and save the exact content, answers, task input and generation
-   metadata. The parent preview reads this snapshot without calling AI again.
+1. Describe the goal, audience and requirements. AI proposes a structured plan
+   or asks one clarification. Direct editing and Undo remain available.
+2. Review shared settings, material sources, question formats and explicitly
+   requested controls. Confirm exact source text extracted from a prompt.
+   Fixed and per-activity supplied sources retain their original text.
+3. Generate without publishing a template. The server saves a draft checkpoint,
+   then runs applicable stages. Supplied sources and question-only plans skip
+   material generation. Accepted materials remain available if questions fail.
+4. Edit text, answers, options and points, or explicitly regenerate a material,
+   question or all questions. Save preserves bounded incomplete drafts and shows
+   diagnostics. Generation never silently overwrites later local/server edits.
+5. Review the current saved content and answer keys, then mark it ready. Release
+   requires current accepted content, matching requirements and complete answers.
+   The resulting snapshot is read-only. Copy it to a new draft to make changes.
 
-Failures preserve local input and allow explicit retry. Successful regeneration
-replaces the proposal. A stale publication returns 409; local edits remain until
-an explicit reload. Saved tasks remain readable when AI is unavailable.
+Saving a template publishes only the reusable plan. It does not save activity
+edits, generate content or release a snapshot. Later versions never change
+existing drafts or snapshots.
 
-Parents can delete a draft, a template with its revisions/drafts, or all family
-learning content, including items beyond the list limit. Deletion requires UI
-confirmation and server-enforced ownership; accounts and AI configuration remain.
-Unsaved proposals can be discarded and are never stored as drafts.
+The URL retains the draft and operation for reload during generation. Chat,
+unsaved edits and Undo are local. Cancellation preserves saved checkpoints.
+An unknown provider outcome is terminal and is not retried automatically.
+A lost start response can be checked with the original idempotency key.
+A stale save returns 409 and preserves local input for explicit reconciliation.
+
+The library separates templates, editable drafts and frozen snapshots. Deleting
+one does not delete independent content copied from it. Deleting a draft removes
+its operation history. Confirmed family reset removes all owned learning records,
+including items beyond list limits, while retaining accounts and AI configuration.
+All reads and writes enforce ownership on the server.
 
 ## Contracts
 
-- **TaskTemplate:** family-owned identity pointing to the current revision.
-- **TaskTemplateVersion:** immutable instructions, task defaults and parameter definitions.
-- **TaskInstance:** immutable generated content pinned to a template revision,
-  initially saved with status `Draft`.
+- **LearningPlan:** goal, guidance, shared defaults, scoped controls, up to four
+  material definitions and question requirements.
+- **TaskTemplate / TaskTemplateVersion:** family-owned reusable identity and
+  immutable plan versions.
+- **ActivityDraft:** mutable saved plan, input and editable document with a
+  concurrency revision. Content identity, provenance and acceptance are server-owned.
+- **GenerationOperation:** durable idempotent start, stage checkpoints, safe
+  failure evidence and cancellation/recovery state.
+- **TaskSnapshot:** immutable reviewed plan, resolved input, content and answer
+  keys, independent of later template or draft deletion.
 
-The [template contract][template] and [task contract][content] define the stored
-snapshots. The blueprint schema version is independent of template revisions.
+The [plan contract][template] and [document contract][content] define stored
+content. Engine/schema versions are independent of template and draft revisions.
 
-Parameters support text, integer, select and boolean values. Keys are unique,
-case-sensitive Latin identifiers; labels and learning content may use any
-language. Required values, defaults, bounds and options are validated on the
-server. Preserve scalar types, including `false`, zero and explicit empty
-optional-text defaults. Defaults resolve omitted values regardless of `required`;
-`required` rejects omission without a default and blank text. Integer bounds,
-text length and select options belong only to their corresponding field types;
-irrelevant settings are omitted or null.
+Shared settings are topic and audience (required, up to 200 characters),
+difficulty (`easy`, `medium` or `hard`, relative to the audience), and a
+positive integer question count. Per-activity settings take precedence over
+plan defaults. Feasibility and total content limits bound the requested count.
 
-Blueprint schema version 4 stores `generation.defaults`: topic and audience as
-required text (up to 200 characters each), difficulty as `easy`, `medium` or
-`hard` relative to the audience, and a positive integer question count.
-Parents review these defaults and can change all four when creating a task.
-Unspecified values are proposed by AI for parent review; difficulty defaults
-to medium.
+Controls support text, integer, select and boolean values in plan, material or
+question scope. They have application-owned stable IDs and human-readable
+meaning. AI adds them only for explicitly requested per-activity choices.
+Fixed requirements stay in guidance. Omitted values resolve defaults; false,
+zero and explicit empty optional text remain distinct. Required values, types,
+bounds and options are validated before AI calls.
 
-AI adds extra fields only when the parent explicitly requests additional inputs
-to supply or change per task. Otherwise `instanceParameters` is empty. Fixed
-requirements, including text length, stay in instructions. Parents can still
-add or remove fields during review. AI leaves unrequested field limits unset;
-the application's type and size limits still apply.
+Material sources are generated, fixed verbatim text, or text supplied per
+activity. Length requirements apply only to generated bodies: a target is
+advisory; exact and range constraints are strict. Counted words contain a Unicode
+letter or digit; punctuation-only tokens are excluded. Body headings count;
+material titles, task instructions, questions and answers do not. There is no
+length control for question-only activities. A failed strict material stage
+cannot trigger question generation or release.
 
-The task request contains complete `settings` and additional `parameters`. The
-server validates both before calling AI and saves the resolved input alongside
-the immutable output. Chosen settings override stale defaults in instructions;
-requested verbatim source text stays intact. Dynamic fields represent
-additional choices only and cannot use the four reserved setting keys. The
-output must contain exactly the chosen number of questions; token, response-size
-and time limits still bound generation.
+Questions support numeric, short-text and single-choice answers. Each has an
+application ID, prompt, typed interaction, answer and integer points. Numeric
+answers use bounded invariant decimal text; choice answers exactly match an
+option. Replacing a question replaces its complete answer-bearing unit.
+Changing its requirements or source can make content stale; explicit editing
+or adoption is required. Validators do not judge educational truth.
 
-Requested text length belongs in the generation instructions, like other learning
-requirements. It can be fixed, approximate, per passage or parameter-driven; tasks
-without passages need no length setting. The app does not reject structurally valid
-content for missing a word target or make correction calls. Parents review the
-result. The developer evaluator measures length where a case specifies it.
+Server limits include:
 
-Supported task content is plain text with short-text, numeric or single-choice
-questions. Each question has an ID, prompt, answer and integer points. Numeric
-answers use invariant decimal text; choice answers match one option exactly. New
-interaction types require an application change. AI cannot execute code or
-invent UI controls; open-ended essay grading is outside the current scope.
-
-Server limits:
-
-- Template name/field label: 100 characters; instructions: 4,000; up to 16
-  fields.
-- Text parameters: at most 500 characters; select fields: 1–20 distinct options,
-  each at most 100 characters.
-- Tasks: at least one question, 0–4 passages, 8,000 total text characters.
-- Task title: 100; instructions: 1,000; passage: 4,000; prompt: 500;
-  answer/option: 200 characters. Choice questions have 2–6 distinct options;
-  points are 0–100.
+- Plans: 24,000 serialized characters; name/labels 100; goal 500; shared
+  guidance 4,000; material/question guidance 1,000.
+- Up to 16 controls across all scopes; text values up to 500 characters; select
+  controls have 1–20 distinct options, each up to 100 characters.
+- Documents: 0–4 materials and 8,000 total text characters; at least one complete
+  question is required for release, while bounded incomplete drafts can be saved.
+- Title 100; instructions 1,000; material body 4,000; prompt 500; answer/option
+  200 characters. Choice questions have 2–6 distinct options; points are 0–100.
 
 ## Boundaries
 
-AI generates within application-owned schemas and controls. The application
-validates and persists output, authorizes access and versions templates. Invalid
-or unavailable responses produce errors, never substitute content. Parents
-review educational correctness and age suitability.
+AI proposes content inside application-owned schemas. The engine validates,
+resolves and assembles it. Features authorize, persist and manage concurrency.
+The parent remains responsible for language, correctness and suitability.
 
-OpenRouter model selection and optional fallback are configuration-driven. Free
-and paid models are supported; paid use requires account credits. The application
-does not retry requests. Send only learning inputs. Logs exclude prompts,
-answers, identities, credentials, reasoning text and raw provider errors.
+One API process owns the durable worker. It performs one call per applicable
+stage without automatic retries or hidden repairs. Expected failures terminate
+the operation; accepted checkpoints remain. Queued compatible stages can resume
+after restart; a call with no committed outcome becomes unknown.
 
-The server enforces family ownership, CSRF and atomic, concurrency-safe
-publication. Generation pins its revision before AI. Parent answer keys must
-never enter child responses. Hebrew/RTL UI uses native accessible controls and
-renders learning content as text.
+Parent-only DTOs contain answer keys and must never serve a child client.
+Hebrew/RTL screens use native accessible controls and render content as text.
+There is no child-delivery button, assignment, scoring or report placeholder.
+
+OpenRouter model/fallback configuration is external to the domain. Logs exclude
+prompts, answers, credentials, reasoning and raw provider errors. Automated
+verification uses disposable databases and isolated providers. The
+[cutover decision](superpowers/specs/2026-10-01-content-first-cutover-decision.md)
+accepts editing/recovery benefits alongside measured reading reliability,
+cost and latency drawbacks; it does not establish better Hebrew quality.
 
 Implementation details live in [architecture](architecture.md), setup in the
 [README](../README.md), and presentation rules in the [UI guide](ui-guide.md).
-Automated tests use isolated databases and a test provider, never live AI.
 
 ## Next steps
 
@@ -167,14 +171,14 @@ authorized `/api/child` group when implementing the child flow.
   tokens bound to the correct identity. Reject activation in a browser with an
   active parent session; separate route names do not isolate shared cookies.
 - Build explicit child DTOs containing only learner-facing text, questions,
-  options and points. Never reuse `InstancePreview` or send answer keys,
-  generation instructions, parameters or model metadata. Generate nothing when
+  options and points. Never reuse `SnapshotPreview` or send answer keys,
+  generation guidance, resolved inputs or model metadata. Generate nothing when
   assigning, opening, answering or reporting on a task.
 
 **Records and completion:**
 
-- Keep `TaskInstance` as frozen content. `Child` belongs to a family;
-  `Assignment` links one child to one reviewed instance. `TaskSession` records
+- Keep `TaskSnapshot` as frozen content. `Child` belongs to a family;
+  `Assignment` links one child to one reviewed snapshot. `TaskSession` records
   work on that assignment; its answers and scored result become immutable on
   submission. Device grants are separate from learning sessions.
 - Start with one resumable session and one final submission per assignment.
@@ -199,7 +203,7 @@ authorized `/api/child` group when implementing the child flow.
   reports; use archival for those records. Disabling a child revokes access
   while retaining results. Before enabling assignments, extend explicit family
   reset, its confirmation and its transaction to cover learning history. These
-  are proposed changes to today's draft-only deletion behavior.
+  are proposed changes to today's independent draft/snapshot deletion behavior.
 - Verify cross-family and sibling isolation, parent/child cookie separation,
   expired/replayed activation, revocation, missing CSRF, answer-free JSON,
   resume/conflict behavior, duplicate submission, withdrawal/deletion races,
@@ -222,8 +226,8 @@ bounded, explicitly requested live runs and offline comparisons. Keep calibratio
 health, generated language findings and human scores separate. It creates no
 learning records and never corrects app output. Human review remains authoritative.
 
-[template]: ../backend/FamilyLearning.Api/TaskEngine/Models/TaskTemplateDefinition.cs
+[template]: ../backend/FamilyLearning.Api/TaskEngine/Models/LearningPlan.cs
 [workspace-design]: superpowers/specs/2026-09-30-structured-templates-design.md
-[content]: ../backend/FamilyLearning.Api/TaskEngine/Models/TaskContent.cs
+[content]: ../backend/FamilyLearning.Api/TaskEngine/Models/TaskDocument.cs
 [auth-schemes]: https://learn.microsoft.com/en-us/aspnet/core/security/authorization/authorize-with-a-specific-scheme?view=aspnetcore-8.0
 [csrf]: https://learn.microsoft.com/en-us/aspnet/core/security/anti-request-forgery?view=aspnetcore-8.0

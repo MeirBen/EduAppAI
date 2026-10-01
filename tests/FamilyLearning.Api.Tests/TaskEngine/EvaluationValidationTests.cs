@@ -69,14 +69,14 @@ public sealed class EvaluationValidationTests : IDisposable
             "passage-min-negative" => ValidCase with { MinPassageWords = -1 },
             "passage-max-negative" => ValidCase with { MaxPassageWords = -1 },
             "passage-inverted" => ValidCase with { MinPassageWords = 20, MaxPassageWords = 10 },
-            "settings-topic" => ValidCase with { SettingsOverride = AiFixtures.Settings() with { Topic = " " } },
-            "settings-audience" => ValidCase with { SettingsOverride = AiFixtures.Settings() with { Audience = "" } },
-            "settings-difficulty" => ValidCase with { SettingsOverride = AiFixtures.Settings() with { Difficulty = "unknown" } },
-            "count-override-negative" => ValidCase with { SettingsOverride = AiFixtures.Settings(-1) },
-            "count-override-mismatch" => ValidCase with { SettingsOverride = AiFixtures.Settings(3) },
+            "settings-topic" => ValidCase with { SettingsOverride = LearningPlanFixture.Numeric().Defaults with { Topic = " " } },
+            "settings-audience" => ValidCase with { SettingsOverride = LearningPlanFixture.Numeric().Defaults with { Audience = "" } },
+            "settings-difficulty" => ValidCase with { SettingsOverride = LearningPlanFixture.Numeric().Defaults with { Difficulty = "unknown" } },
+            "count-override-negative" => ValidCase with { SettingsOverride = LearningPlanFixture.Numeric(-1).Defaults },
+            "count-override-mismatch" => ValidCase with { SettingsOverride = LearningPlanFixture.Numeric(3).Defaults },
             "parameters-negative" => ValidCase with { AdditionalControlCount = -1 },
             "parameters-too-many" => ValidCase with { AdditionalControlCount = 17 },
-            _ => ValidCase with { SettingsOverride = AiFixtures.Settings(0) }
+            _ => ValidCase with { SettingsOverride = LearningPlanFixture.Numeric(0).Defaults }
         };
         var path = await WriteFixtureAsync([scenario]);
 
@@ -107,7 +107,7 @@ public sealed class EvaluationValidationTests : IDisposable
             ChoiceCount = choices,
             AdditionalControlCount = 16,
             QuestionCount = 20,
-            SettingsOverride = AiFixtures.Settings(20),
+            SettingsOverride = LearningPlanFixture.Numeric(20).Defaults,
             MinPassageWords = 0,
             MaxPassageWords = 0
         };

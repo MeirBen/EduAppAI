@@ -20,7 +20,7 @@ public sealed class ActivityReleaseTests
     [InlineData("range", HttpStatusCode.BadRequest)]
     public async Task Only_strict_length_expectations_block_reviewed_release(string mode, HttpStatusCode expected)
     {
-        await using var app = new ActivityApiFactory();
+        await using var app = new ApiFactory();
         using var parent = await app.ParentAsync();
         var length = mode == "range" ? new LengthExpectation(mode, Lower: 100, Upper: 150) : new(mode, new(100, false));
         var plan = Reading() with { Defaults = Numeric(1).Defaults, Materials = [Reading().Materials[0] with { Length = length }] };
@@ -50,9 +50,9 @@ public sealed class ActivityReleaseTests
     public async Task Concurrent_save_and_release_have_one_winner_without_mixed_snapshot_revisions()
     {
         var barrier = new ConcurrentChanges();
-        await using var app = new ActivityApiFactory();
-        using var parent = await app.ParentAsync(services => services.AddScoped(provider => new LearningDbContext(
+        await using var app = new ApiFactory(services => services.AddScoped(provider => new LearningDbContext(
             new DbContextOptionsBuilder<LearningDbContext>(provider.GetRequiredService<DbContextOptions<LearningDbContext>>()).AddInterceptors(barrier).Options)));
+        using var parent = await app.ParentAsync();
         var draft = await ReadyDraft(parent);
         var edit = Edit(draft);
         edit["document"]!["title"] = "כותרת שנערכה";
@@ -79,7 +79,7 @@ public sealed class ActivityReleaseTests
     [Fact]
     public async Task Concurrent_exact_release_requests_return_one_snapshot()
     {
-        await using var app = new ActivityApiFactory();
+        await using var app = new ApiFactory();
         using var parent = await app.ParentAsync();
         var draft = await ReadyDraft(parent);
         var request = new { expectedRevision = draft["revision"]!.GetValue<long>() };
@@ -94,7 +94,7 @@ public sealed class ActivityReleaseTests
     [Fact]
     public async Task Snapshot_copy_clears_review_and_remains_independent_after_source_draft_and_snapshot_deletion()
     {
-        await using var app = new ActivityApiFactory();
+        await using var app = new ApiFactory();
         using var parent = await app.ParentAsync();
         using var stranger = await app.ParentAsync();
         var draft = await ReadyDraft(parent);
@@ -134,7 +134,7 @@ public sealed class ActivityReleaseTests
     [InlineData("answer")]
     public async Task Release_requires_complete_question_count_format_and_answer(string fault)
     {
-        await using var app = new ActivityApiFactory();
+        await using var app = new ApiFactory();
         using var parent = await app.ParentAsync();
         var draft = await ReadyDraft(parent);
         var edit = Edit(draft);
@@ -149,7 +149,7 @@ public sealed class ActivityReleaseTests
     [Fact]
     public async Task Snapshot_insert_failure_rolls_back_release_and_keeps_the_draft_editable()
     {
-        await using var app = new ActivityApiFactory();
+        await using var app = new ApiFactory();
         using var parent = await app.ParentAsync();
         var draft = await ReadyDraft(parent);
         using (var scope = app.Services.CreateScope())
@@ -187,7 +187,7 @@ public sealed class ActivityReleaseTests
     [Fact]
     public async Task Release_freezes_the_reviewed_revision_and_exact_replay_never_recreates_a_deleted_snapshot()
     {
-        await using var app = new ActivityApiFactory();
+        await using var app = new ApiFactory();
         using var parent = await app.ParentAsync();
         var draft = await Create(parent, Numeric(1));
         var edit = Edit(draft);

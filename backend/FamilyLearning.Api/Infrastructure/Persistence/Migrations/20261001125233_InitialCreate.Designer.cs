@@ -11,8 +11,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace FamilyLearning.Api.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(LearningDbContext))]
-    [Migration("20260928144220_AiOnlyTemplates")]
-    partial class AiOnlyTemplates
+    [Migration("20261001125233_InitialCreate")]
+    partial class InitialCreate
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -20,34 +20,212 @@ namespace FamilyLearning.Api.Infrastructure.Persistence.Migrations
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "8.0.31");
 
-            modelBuilder.Entity("FamilyLearning.Api.Features.Instances.TaskInstance", b =>
+            modelBuilder.Entity("FamilyLearning.Api.Features.Activities.ActivityDraft", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("TEXT");
 
-                    b.Property<string>("ContentJson")
-                        .IsRequired()
+                    b.Property<Guid?>("ActiveOperationId")
+                        .IsConcurrencyToken()
                         .HasColumnType("TEXT");
 
                     b.Property<DateTime>("CreatedAtUtc")
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("CreatedByParentId")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("DocumentJson")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
                     b.Property<Guid>("FamilyId")
                         .HasColumnType("TEXT");
 
-                    b.Property<string>("GenerationMetadataJson")
+                    b.Property<string>("InputJson")
+                        .IsRequired()
                         .HasColumnType("TEXT");
 
-                    b.Property<string>("ParametersJson")
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("PlanJson")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("ReleasedSnapshotId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<long?>("ReleasedSourceRevision")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<long>("Revision")
+                        .IsConcurrencyToken()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<Guid?>("SourceSnapshotId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("TemplateVersionId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("UpdatedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("FamilyId", "UpdatedAtUtc");
+
+                    b.ToTable("ActivityDrafts");
+                });
+
+            modelBuilder.Entity("FamilyLearning.Api.Features.Activities.GenerationOperation", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ArtifactsJson")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("DraftId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("EngineRevision")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<long>("ExpectedRevision")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Failure")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("FamilyId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("FinishedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("InputFingerprint")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("OperationKey")
+                        .HasColumnType("TEXT");
+
+                    b.Property<long>("OriginalRevision")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("ProfileFingerprint")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("RequestFingerprint")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("SchemaVersion")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Stage")
                         .IsRequired()
                         .HasColumnType("TEXT");
 
                     b.Property<string>("Status")
+                        .IsConcurrencyToken()
                         .IsRequired()
                         .HasColumnType("TEXT");
 
-                    b.Property<Guid>("TemplateVersionId")
+                    b.Property<string>("StepsJson")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DraftId")
+                        .IsUnique()
+                        .HasFilter("Status IN ('queued', 'calling')");
+
+                    b.HasIndex("FinishedAtUtc")
+                        .HasFilter("ArtifactsJson IS NOT NULL");
+
+                    b.HasIndex("DraftId", "CreatedAtUtc");
+
+                    b.HasIndex("FamilyId", "OperationKey")
+                        .IsUnique();
+
+                    b.HasIndex("Status", "CreatedAtUtc");
+
+                    b.ToTable("GenerationOperations");
+                });
+
+            modelBuilder.Entity("FamilyLearning.Api.Features.Instances.TaskSnapshot", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("CreatedByParentId")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("DocumentJson")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("DraftCreatedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("EngineRevision")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<Guid>("FamilyId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("InputJson")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("MeasurementsJson")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("PlanJson")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ResolvedInputJson")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("ReviewedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ReviewedByParentId")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("SourceDraftId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<long>("SourceDraftRevision")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<Guid?>("SourceSnapshotId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("TemplateVersionId")
                         .HasColumnType("TEXT");
 
                     b.Property<string>("Title")
@@ -57,11 +235,12 @@ namespace FamilyLearning.Api.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("TemplateVersionId");
+                    b.HasIndex("SourceDraftId")
+                        .IsUnique();
 
-                    b.HasIndex("FamilyId", "CreatedAtUtc");
+                    b.HasIndex("FamilyId", "ReviewedAtUtc");
 
-                    b.ToTable("TaskInstances");
+                    b.ToTable("TaskSnapshots");
                 });
 
             modelBuilder.Entity("FamilyLearning.Api.Features.Templates.TaskTemplate", b =>
@@ -269,17 +448,29 @@ namespace FamilyLearning.Api.Infrastructure.Persistence.Migrations
                     b.ToTable("AspNetUserTokens", (string)null);
                 });
 
-            modelBuilder.Entity("FamilyLearning.Api.Features.Instances.TaskInstance", b =>
+            modelBuilder.Entity("FamilyLearning.Api.Features.Activities.ActivityDraft", b =>
                 {
                     b.HasOne("FamilyLearning.Api.Infrastructure.Persistence.Family", null)
                         .WithMany()
                         .HasForeignKey("FamilyId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
+                });
 
-                    b.HasOne("FamilyLearning.Api.Features.Templates.TaskTemplateVersion", null)
+            modelBuilder.Entity("FamilyLearning.Api.Features.Activities.GenerationOperation", b =>
+                {
+                    b.HasOne("FamilyLearning.Api.Features.Activities.ActivityDraft", null)
                         .WithMany()
-                        .HasForeignKey("TemplateVersionId")
+                        .HasForeignKey("DraftId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("FamilyLearning.Api.Features.Instances.TaskSnapshot", b =>
+                {
+                    b.HasOne("FamilyLearning.Api.Infrastructure.Persistence.Family", null)
+                        .WithMany()
+                        .HasForeignKey("FamilyId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
                 });

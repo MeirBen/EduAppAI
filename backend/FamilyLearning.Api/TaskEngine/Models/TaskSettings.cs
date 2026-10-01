@@ -1,4 +1,3 @@
-using System.Text.Json;
 using System.Text.Json.Serialization;
 
 namespace FamilyLearning.Api.TaskEngine.Models;
@@ -10,8 +9,3 @@ public sealed record TaskSettings(
     [property: JsonRequired] string Audience,
     [property: JsonRequired] string Difficulty,
     [property: JsonRequired] int QuestionCount);
-
-/// <summary>Chosen settings and additional parameters; persist resolved values with the generated snapshot.</summary>
-public sealed record TaskInput(
-    [property: JsonRequired] TaskSettings Settings,
-    [property: JsonRequired] Dictionary<string, JsonElement> Parameters);

@@ -167,50 +167,6 @@ namespace FamilyLearning.Api.Infrastructure.Persistence.Migrations
                     b.ToTable("GenerationOperations");
                 });
 
-            modelBuilder.Entity("FamilyLearning.Api.Features.Instances.TaskInstance", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("ContentJson")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<DateTime>("CreatedAtUtc")
-                        .HasColumnType("TEXT");
-
-                    b.Property<Guid>("FamilyId")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("GenerationMetadataJson")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("InputJson")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<Guid>("TemplateVersionId")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Title")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("TEXT");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("TemplateVersionId");
-
-                    b.HasIndex("FamilyId", "CreatedAtUtc");
-
-                    b.ToTable("TaskInstances");
-                });
-
             modelBuilder.Entity("FamilyLearning.Api.Features.Instances.TaskSnapshot", b =>
                 {
                     b.Property<Guid>("Id")
@@ -504,21 +460,6 @@ namespace FamilyLearning.Api.Infrastructure.Persistence.Migrations
                         .WithMany()
                         .HasForeignKey("DraftId")
                         .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("FamilyLearning.Api.Features.Instances.TaskInstance", b =>
-                {
-                    b.HasOne("FamilyLearning.Api.Infrastructure.Persistence.Family", null)
-                        .WithMany()
-                        .HasForeignKey("FamilyId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("FamilyLearning.Api.Features.Templates.TaskTemplateVersion", null)
-                        .WithMany()
-                        .HasForeignKey("TemplateVersionId")
-                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
                 });
 

@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import type { TemplateDefinition } from '../src/app/core/api/models';
+import type { LearningPlan } from '../src/app/core/api/models';
 
 test('Kestrel accepts bounded Hebrew templates and rejects oversized bodies', async ({
   request,
@@ -12,31 +12,34 @@ test('Kestrel accepts bounded Hebrew templates and rejects oversized bodies', as
   expect(login.status()).toBe(204);
   csrf = await (await request.get('/api/auth/csrf')).json();
   const headers = { 'X-XSRF-TOKEN': csrf.token, 'Content-Type': 'application/json' };
-  const definition: TemplateDefinition = {
-    schemaVersion: 4,
+  const definition: LearningPlan = {
+    schemaVersion: (await (await request.get('/api/ai/status')).json()).schemaVersion,
     name: 'א'.repeat(100),
-    generation: {
-      instructions: 'א'.repeat(4000),
-      defaults: {
-        topic: 'א'.repeat(200),
-        audience: 'א'.repeat(200),
-        difficulty: 'medium',
-        questionCount: 4,
-      },
+    goal: 'א'.repeat(500),
+    guidance: 'א'.repeat(4000),
+    defaults: {
+      topic: 'א'.repeat(200),
+      audience: 'א'.repeat(200),
+      difficulty: 'medium',
+      questionCount: 4,
     },
-    instanceParameters: Array.from({ length: 16 }, (_, index) => ({
-      key: `field${index}`,
+    materials: [],
+    questions: { formats: ['numeric-input'], selectableFormat: false, guidance: '', controls: [] },
+    controls: Array.from({ length: 6 }, (_, index) => ({
+      id: index.toString(16).padStart(32, '0'),
+      meaning: 'א'.repeat(100),
       label: 'א'.repeat(100),
       type: 'select',
       required: true,
       default: 'א'.repeat(100),
-      options: Array.from({ length: 20 }, (_, option) =>
-        String.fromCharCode(0x5d0 + option).repeat(100),
-      ),
+      options: Array.from({ length: 20 }, (_, option) => ({
+        value: String.fromCharCode(0x5d0 + option).repeat(100),
+      })),
     })),
   };
+  expect(Buffer.byteLength(JSON.stringify(definition), 'utf8')).toBeGreaterThan(36_000);
   const created = await request.post('/api/templates', { headers, data: definition });
-  expect(created.status()).toBe(201);
+  expect(created.status(), await created.text()).toBe(201);
   const template = await created.json();
   try {
     // Both native UTF-8 and JSON Unicode escapes must fit the same validated contract.

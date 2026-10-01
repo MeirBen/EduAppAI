@@ -9,7 +9,7 @@ using ChatMessage = Microsoft.Extensions.AI.ChatMessage;
 namespace FamilyLearning.Evaluation;
 
 /// <summary>Sequential evaluation-only observer; the caller owns and disposes the inner provider client.</summary>
-internal sealed class EvaluationCapture(IChatClient innerClient, int maxCalls, EvaluationReport? budgetReport = null) : DelegatingChatClient(innerClient)
+internal sealed class EvaluationCapture(IChatClient innerClient, int maxCalls) : DelegatingChatClient(innerClient)
 {
     private int calls;
     internal EvaluationStep Current { get; set; } = new();
@@ -20,13 +20,6 @@ internal sealed class EvaluationCapture(IChatClient innerClient, int maxCalls, E
         cancellationToken.ThrowIfCancellationRequested();
         if (calls >= maxCalls) throw new EvaluationCallLimitException();
         var request = messages.ToArray();
-        decimal reservedCost = 0;
-        if (budgetReport?.Experiment is { } experiment)
-        {
-            reservedCost = experiment.Reserve(request, options);
-            if (budgetReport.ReservedCostUsd + reservedCost > experiment.MaxCostUsd) throw new EvaluationCostLimitException();
-            budgetReport.ReservedCostUsd += reservedCost;
-        }
         Current.Request = request.Select(message => new EvaluationMessage(message.Role.Value, message.Text)).ToArray();
         if (request.LastOrDefault()?.Text is { } input)
         {
@@ -61,8 +54,6 @@ internal sealed class EvaluationCapture(IChatClient innerClient, int maxCalls, E
         Current.ReasoningTokens = response.Usage?.ReasoningTokenCount;
         if (response.AdditionalProperties?.TryGetValue("costCredits", out var cost) == true && cost is decimal costCredits)
             Current.CostCredits = costCredits;
-        if (budgetReport?.Experiment is not null && Current.CostCredits is { } actualCost)
-            budgetReport.ReservedCostUsd += actualCost - reservedCost;
         return response;
     }
 }

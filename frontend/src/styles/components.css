@@ -17,33 +17,8 @@
     @apply inline-flex min-h-11 items-center rounded-xl px-4 py-2 font-medium text-brand transition-colors not-disabled:hover:bg-soft aria-[current=page]:bg-soft;
   }
 
-  /* Directional glyphs nudge the way they point while their control is hovered. */
-  .icon-forward,
-  .icon-back {
-    @apply inline-block transition-transform;
-  }
-  @media (hover: hover) {
-    :is(a, button):not(:disabled):hover {
-      & > .icon-forward {
-        @apply motion-safe:ltr:translate-x-1 motion-safe:rtl:-translate-x-1;
-      }
-      & > .icon-back {
-        @apply motion-safe:ltr:-translate-x-1 motion-safe:rtl:translate-x-1;
-      }
-    }
-  }
-
   .panel {
     @apply rounded-3xl border border-line bg-surface p-gutter shadow-panel sm:p-6;
-  }
-  .panel-tinted {
-    @apply bg-linear-to-bl from-soft to-surface shadow-none ltr:bg-linear-to-br;
-  }
-  .panel-outline {
-    @apply bg-transparent shadow-none;
-  }
-  .panel-interactive {
-    @apply transition-[border-color,box-shadow] duration-300 hover:border-brand/30 hover:shadow-raised;
   }
   /* Recessed area inside a panel for source text or grouped fields. */
   .well {

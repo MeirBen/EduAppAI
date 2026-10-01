@@ -1,4 +1,0 @@
-{
-  "extends": "./tsconfig.app.json",
-  "include": ["src/**/*.ts", "e2e/activity-main.ts"]
-}

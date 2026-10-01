@@ -17,7 +17,7 @@ public sealed class RequestValidationTests
     [InlineData("document")]
     public async Task Null_save_members_return_validation_errors_without_changing_the_draft(string member)
     {
-        await using var app = new ActivityApiFactory();
+        await using var app = new ApiFactory();
         using var parent = await app.ParentAsync();
         var draft = await ActivityDraftTests.Create(parent, Numeric(1));
         var edit = ActivityDraftTests.Edit(draft);
@@ -39,7 +39,7 @@ public sealed class RequestValidationTests
     [InlineData("controlValues", "{\"33333333333333333333333333333333\":\"0\"}")]
     public async Task Activity_HTTP_preserves_explicit_invalid_values_for_validation(string member, string json)
     {
-        await using var app = new ActivityApiFactory();
+        await using var app = new ApiFactory();
         using var parent = await app.ParentAsync();
         var plan = PresencePlan();
         var body = JsonSerializer.SerializeToNode(new { plan, input = new TaskRequest(plan.Defaults) }, new JsonSerializerOptions(JsonSerializerDefaults.Web))!;
@@ -53,7 +53,7 @@ public sealed class RequestValidationTests
     [InlineData(true)]
     public async Task Activity_HTTP_round_trips_omission_false_zero_and_empty_without_coercion(bool supplied)
     {
-        await using var app = new ActivityApiFactory();
+        await using var app = new ApiFactory();
         using var parent = await app.ParentAsync();
         var plan = PresencePlan();
         var body = JsonSerializer.SerializeToNode(new { plan, input = new TaskRequest(plan.Defaults) }, new JsonSerializerOptions(JsonSerializerDefaults.Web))!;
@@ -79,26 +79,18 @@ public sealed class RequestValidationTests
     {
         using var app = new ApiFactory();
         using var parent = await app.ParentAsync();
-        foreach (var member in new[] { "schemaVersion", "name", "instanceParameters", "generation" })
+        foreach (var member in new[] { "schemaVersion", "name", "goal", "guidance", "defaults", "materials", "questions", "controls" })
         {
-            var definition = AiFixtures.Definition().AsObject();
+            var definition = AiFixtures.PlanJson().AsObject();
             definition.Remove(member);
             await AssertBadRequestAsync(parent, "/api/templates", definition.ToJsonString());
             definition[member] = null;
             await AssertBadRequestAsync(parent, "/api/templates", definition.ToJsonString());
         }
-        foreach (var member in new[] { "instructions", "defaults" })
-        {
-            var definition = AiFixtures.Definition();
-            definition["generation"]!.AsObject().Remove(member);
-            await AssertBadRequestAsync(parent, "/api/templates", definition.ToJsonString());
-            definition["generation"]![member] = null;
-            await AssertBadRequestAsync(parent, "/api/templates", definition.ToJsonString());
-        }
         foreach (var member in new[] { "topic", "audience", "difficulty", "questionCount" })
         {
-            var definition = AiFixtures.Definition();
-            var defaults = definition["generation"]!["defaults"]!.AsObject();
+            var definition = AiFixtures.PlanJson();
+            var defaults = definition["defaults"]!.AsObject();
             defaults.Remove(member);
             await AssertBadRequestAsync(parent, "/api/templates", definition.ToJsonString());
             defaults[member] = null;
@@ -112,14 +104,14 @@ public sealed class RequestValidationTests
     {
         using var app = new ApiFactory();
         using var parent = await app.ParentAsync();
-        var created = await parent.PostAsJsonAsync("/api/templates", AiFixtures.Definition());
+        var created = await parent.PostAsJsonAsync("/api/templates", AiFixtures.PlanJson());
         var template = await created.Content.ReadFromJsonAsync<JsonElement>();
         var id = template.GetProperty("id").GetGuid();
         foreach (var body in new[] { "{}", """{"expectedVersion":1}""", """{"expectedVersion":1,"definition":null}""" })
             await AssertBadRequestAsync(parent, $"/api/templates/{id}/versions", body);
         var missingExpectedVersion = new JsonObject
         {
-            ["definition"] = AiFixtures.Definition()
+            ["definition"] = AiFixtures.PlanJson()
         };
         await AssertBadRequestAsync(parent, $"/api/templates/{id}/versions", missingExpectedVersion.ToJsonString());
         Assert.Equal(0, (await parent.GetFromJsonAsync<JsonElement>("/api/instances")).GetArrayLength());
@@ -129,7 +121,6 @@ public sealed class RequestValidationTests
 
     [Theory]
     [InlineData("settings")]
-    [InlineData("parameters")]
     [InlineData("topic")]
     [InlineData("audience")]
     [InlineData("difficulty")]
@@ -138,14 +129,12 @@ public sealed class RequestValidationTests
     {
         using var app = new ApiFactory();
         using var parent = await app.ParentAsync();
-        using var created = await parent.PostAsJsonAsync("/api/templates", AiFixtures.Definition());
-        var id = (await created.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("id").GetGuid();
-        var input = JsonSerializer.SerializeToNode(AiFixtures.Input(), new JsonSerializerOptions(JsonSerializerDefaults.Web))!;
-        var section = (member is "settings" or "parameters" ? input : input["settings"]!).AsObject();
+        var input = JsonSerializer.SerializeToNode(new TaskRequest(Numeric().Defaults), new JsonSerializerOptions(JsonSerializerDefaults.Web))!;
+        var section = (member == "settings" ? input : input["settings"]!).AsObject();
         section.Remove(member);
-        await AssertBadRequestAsync(parent, $"/api/templates/{id}/instances", input.ToJsonString());
+        await AssertBadRequestAsync(parent, "/api/activity-drafts", new JsonObject { ["plan"] = AiFixtures.PlanJson(), ["input"] = input.DeepClone() }.ToJsonString());
         section[member] = null;
-        await AssertBadRequestAsync(parent, $"/api/templates/{id}/instances", input.ToJsonString());
+        await AssertBadRequestAsync(parent, "/api/activity-drafts", new JsonObject { ["plan"] = AiFixtures.PlanJson(), ["input"] = input.DeepClone() }.ToJsonString());
         Assert.Equal(0, (await parent.GetFromJsonAsync<JsonElement>("/api/instances")).GetArrayLength());
     }
 

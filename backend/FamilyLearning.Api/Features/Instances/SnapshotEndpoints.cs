@@ -5,7 +5,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace FamilyLearning.Api.Features.Instances;
 
-/// <summary>Read/delete only parent snapshot routes in the staged content-first composition.</summary>
+/// <summary>Read/delete only parent snapshot routes; released content is immutable.</summary>
 public static class SnapshotEndpoints
 {
     /// <summary>Maps immutable snapshot previews and deletion on the shared authorized parent API group.</summary>
@@ -14,7 +14,7 @@ public static class SnapshotEndpoints
         var snapshots = api.MapGroup("/instances");
         snapshots.MapGet("/", async (ClaimsPrincipal user, LearningDbContext db, CancellationToken ct) =>
             await db.TaskSnapshots.AsNoTracking().Where(s => s.FamilyId == user.FamilyId()).OrderByDescending(s => s.ReviewedAtUtc)
-                .Take(100).Select(s => new InstanceSummary(s.Id, s.Title, "Ready", s.ReviewedAtUtc)).ToListAsync(ct));
+                .Take(100).Select(s => new SnapshotSummary(s.Id, s.Title, "Ready", s.ReviewedAtUtc)).ToListAsync(ct));
         snapshots.MapGet("/{id:guid}", async (Guid id, ClaimsPrincipal user, LearningDbContext db, CancellationToken ct) =>
         {
             var snapshot = await db.TaskSnapshots.AsNoTracking().SingleOrDefaultAsync(s => s.Id == id && s.FamilyId == user.FamilyId(), ct);

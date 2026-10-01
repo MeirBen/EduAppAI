@@ -1,91 +1,72 @@
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
-import { Type } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
-import { Library } from '../../features/library/library';
-import { CreateInstance } from '../../features/instances/create-instance/create-instance';
-import { InstancePreviewPage } from '../../features/instances/instance-preview/instance-preview';
-import { AiTemplateAuthor } from '../../features/templates/ai-template-author/ai-template-author';
-import { TemplateEditor } from '../../features/templates/template-editor/template-editor';
+import { ActivityWorkspace } from '../../features/activities/activity-workspace/activity-workspace';
+import { ActivityLibrary } from '../../features/library/activity-library/activity-library';
+import { SnapshotPreviewPage } from '../../features/instances/snapshot-preview/snapshot-preview';
 
-describe('Page HTTP reads', () => {
+describe('Page HTTP lifetime', () => {
   beforeEach(() =>
     TestBed.configureTestingModule({
       providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([])],
     }),
   );
-  afterEach(() => TestBed.inject(HttpTestingController).verify());
-
-  it.each([
-    { component: TemplateEditor, input: 'templateId', path: '/api/templates/first' },
-    { component: CreateInstance, input: 'templateId', path: '/api/templates/first' },
-    { component: InstancePreviewPage, input: 'instanceId', path: '/api/instances/first' },
-    { component: AiTemplateAuthor, input: undefined, path: '/api/ai/status' },
-  ])('cancels $path when its page is destroyed', ({ component, input, path }) => {
-    const fixture = TestBed.createComponent(component as Type<unknown>);
-    if (input) fixture.componentRef.setInput(input, 'first');
-    TestBed.tick();
-    const request = TestBed.inject(HttpTestingController).expectOne(path);
-    fixture.destroy();
-    expect(request.cancelled).toBe(true);
+  afterEach(() => {
+    TestBed.inject(HttpTestingController).verify();
+    vi.restoreAllMocks();
   });
 
-  it('cancels an obsolete template read when the route selects another template', () => {
-    const fixture = TestBed.createComponent(TemplateEditor);
+  it('cancels old template and status reads when the workspace changes route or is destroyed', () => {
+    const fixture = TestBed.createComponent(ActivityWorkspace);
     fixture.componentRef.setInput('templateId', 'first');
     TestBed.tick();
     const http = TestBed.inject(HttpTestingController);
     const first = http.expectOne('/api/templates/first');
+    const status = http.expectOne('/api/ai/status');
     fixture.componentRef.setInput('templateId', 'second');
     TestBed.tick();
     const second = http.expectOne('/api/templates/second');
     fixture.destroy();
     expect(first.cancelled).toBe(true);
     expect(second.cancelled).toBe(true);
+    expect(status.cancelled).toBe(true);
   });
 
-  it('cancels both library reads when leaving the page', () => {
-    const fixture = TestBed.createComponent(Library);
+  it('cancels a frozen preview read when its page is destroyed', () => {
+    const fixture = TestBed.createComponent(SnapshotPreviewPage);
+    fixture.componentRef.setInput('instanceId', 'snapshot');
     TestBed.tick();
-    const http = TestBed.inject(HttpTestingController);
-    const templates = http.expectOne('/api/templates');
-    const instances = http.expectOne('/api/instances');
+    const request = TestBed.inject(HttpTestingController).expectOne('/api/instances/snapshot');
     fixture.destroy();
-    expect(templates.cancelled).toBe(true);
-    expect(instances.cancelled).toBe(true);
+    expect(request.cancelled).toBe(true);
   });
 
-  it('cancels a pending library deletion on navigation without touching the destroyed view', async () => {
-    const fixture = TestBed.createComponent(Library);
+  it('cancels every library read when leaving the page', () => {
+    const fixture = TestBed.createComponent(ActivityLibrary);
     TestBed.tick();
     const http = TestBed.inject(HttpTestingController);
-    http.expectOne('/api/templates').flush([{ id: 'template', name: 'Saved', currentVersion: 1 }]);
+    const requests = ['/api/templates', '/api/instances', '/api/activity-drafts'].map((path) =>
+      http.expectOne(path),
+    );
+    fixture.destroy();
+    for (const request of requests) expect(request.cancelled).toBe(true);
+  });
+
+  it('cancels pending deletion without updating the destroyed view', async () => {
+    const fixture = TestBed.createComponent(ActivityLibrary);
+    TestBed.tick();
+    const http = TestBed.inject(HttpTestingController);
+    http.expectOne('/api/templates').flush([]);
     http.expectOne('/api/instances').flush([]);
+    http.expectOne('/api/activity-drafts').flush([{ id: 'draft', name: 'Saved', revision: 1 }]);
     await fixture.whenStable();
-    const element: HTMLElement = fixture.nativeElement;
-    const dialog = element.querySelector('dialog')!;
-    // jsdom has no modal implementation; browser tests cover native dialog behavior.
-    dialog.showModal = vi.fn(() => dialog.setAttribute('open', ''));
-    element.querySelector<HTMLButtonElement>('[aria-label="מחיקת תבנית: Saved"]')!.click();
-    await fixture.whenStable();
-    dialog.querySelectorAll('button')[1].click();
-    const deletion = http.expectOne('/api/templates/template');
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    fixture.nativeElement.querySelector('[data-delete-draft]').click();
+    const deletion = http.expectOne('/api/activity-drafts/draft');
     expect(deletion.request.method).toBe('DELETE');
     fixture.destroy();
     expect(deletion.cancelled).toBe(true);
     await Promise.resolve();
-  });
-
-  it('shows a failed AI status check without reading a resource in error', async () => {
-    const fixture = TestBed.createComponent(AiTemplateAuthor);
-    TestBed.tick();
-    TestBed.inject(HttpTestingController)
-      .expectOne('/api/ai/status')
-      .flush({}, { status: 503, statusText: 'Unavailable' });
-    await fixture.whenStable();
-    const element: HTMLElement = fixture.nativeElement;
-    expect(element.querySelector('[role="alert"]')?.textContent).toContain('לא הצלחנו לבדוק');
-    expect(element.querySelector<HTMLButtonElement>('button[type="submit"]')?.disabled).toBe(true);
   });
 });

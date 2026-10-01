@@ -61,7 +61,6 @@ public sealed class EvaluationCoordinator : IHostedService, IDisposable
     public async Task<string> StartRunAsync(EvaluationRunRequest request)
     {
         if (!request.Confirmed) throw new ArgumentException("Confirm the billable run before starting.");
-        if (request.Prototype) throw new ArgumentException("The temporary prototype requires the CLI and a pre-registered cost budget.");
         var plan = await EvaluationPlan.LoadAsync(request);
         plan.ValidateBudget();
         if (client is null) throw new AiGenerationException(503,

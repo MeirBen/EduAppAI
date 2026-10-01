@@ -93,6 +93,11 @@ async function isolate(page: Page) {
   });
   return {
     writes,
+    unknown() {
+      if (!operation) throw new Error('No operation started');
+      operation = { ...operation, status: 'unknown' };
+      draft = { ...draft, activeOperationId: null };
+    },
     complete() {
       if (!operation) throw new Error('No operation started');
       operation = {
@@ -195,7 +200,22 @@ test('supports keyboard content editing with native labels at 360px and 200% tex
     true,
   );
   await page.screenshot({
-    path: '../.superpowers/sdd/2026-09-30-structured-templates/task6-mobile.png',
+    path: '../.superpowers/sdd/2026-09-30-structured-templates/task8-content-mobile.png',
     fullPage: true,
   });
+});
+
+test('unknown outcomes retain local work and do not automatically start another operation', async ({
+  page,
+}) => {
+  const state = await isolate(page);
+  await page.goto('/templates/example/create');
+  await page.locator('#generate-activity').click();
+  await expect(page.locator('#cancel-generation')).toBeVisible();
+  await page.locator('#document-title').fill('העבודה שלי נשמרת מקומית');
+  state.unknown();
+  await expect(page.getByText('אין הפעלה חוזרת אוטומטית.', { exact: false })).toBeVisible();
+  await expect(page.locator('#cancel-generation')).toBeHidden();
+  await expect(page.locator('#document-title')).toHaveValue('העבודה שלי נשמרת מקומית');
+  expect(state.writes.filter((write) => write.path.endsWith('/operations'))).toHaveLength(1);
 });

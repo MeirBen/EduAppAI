@@ -38,7 +38,7 @@ export class Login {
         await this.auth.login(this.model().email, this.model().password, this.lifetime);
         if (this.lifetime.destroyed) return;
         this.model.update((value) => ({ ...value, password: '' }));
-        await this.router.navigateByUrl('/templates');
+        await this.router.navigateByUrl('/');
       } catch (error) {
         if (!this.lifetime.destroyed) this.error.set(apiError(error));
       }

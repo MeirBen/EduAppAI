@@ -1,10 +1,10 @@
 # Content-first activities and structured templates
 
-Status: accepted design for implementation planning, 30 September 2026; **not
-implemented**. This replaces the earlier lifecycle at this stable path. The
-[implementation plan](../plans/2026-09-30-structured-templates.md) is the
-execution guide. README, product specification and architecture continue to
-describe the current application until implementation lands.
+Status: accepted 30 September 2026; implemented through the Task 8 cutover on
+1 October 2026 under the [approved value decision](2026-10-01-content-first-cutover-decision.md).
+The [implementation plan](../plans/2026-09-30-structured-templates.md) records
+delivery and verification. README, product specification and architecture
+now describe this lifecycle.
 
 ## 1. Product outcome and scope
 
@@ -759,6 +759,15 @@ parent-only cutover.
 
 ## 9. Comparative prototype and implementation gate
 
+The project owner approved the [1 October cutover
+decision](2026-10-01-content-first-cutover-decision.md):
+proceed for editing and recovery while accepting the measured cost, latency and
+strict-length failure tradeoff. The original trial remains unsuccessful against
+its comparative threshold; human quality review remains pending. This explicit
+amendment permits cutover without a claim of improved Hebrew quality and without
+weakening strict validation. The experimental requirements below remain the
+record of the original gate.
+
 Before finalizing the new workflow, use the existing evaluator/provider with
 fixed canonical plans for generated Hebrew reading, exact supplied bilingual
 source, and a question-only control. Compare one-shot versus the conditional
@@ -816,9 +825,9 @@ The implementation plan stages minimal domain contracts and the comparative
 prototype before persisted draft/release, durable worker, workspace/scoped
 editing, evaluator and cutover. Remove the old schema-4 authoring/content path
 only after isolated unit, fixture, fresh-database and browser checks plus the
-evidence gate pass. No deployed dual lifecycle or compatibility reader. Preserve
-existing application/evaluator baseline tests during this documentation-only
-change.
+evidence gate pass. No deployed dual lifecycle or compatibility reader. Transfer
+meaningful baseline tests to the canonical contracts before removing
+superseded paths. Task 8 deploys this lifecycle under the amended value gate.
 
 Follow the implementation plan's [code-quality requirements][code-quality] and
 [review milestones][review-milestones]. Complete one reviewable task, explain
@@ -856,9 +865,9 @@ normal in-app family reset still preserves accounts as defined in section 5; it
 is separate from this implementation-time database reset.
 
 Preserve unrelated files, configuration, external credentials and keys. Recreate
-a local parent through the existing provisioning command when needed. This
-documentation change deletes no database. Current README, architecture and
-product behavior text remains current until implementation.
+a local parent through the existing provisioning command when needed. Current
+README, architecture and product behavior text describe the deployed
+content-first lifecycle after Task 8.
 
 ## 11. Research references
 

@@ -4,7 +4,7 @@ using FamilyLearning.Api.TaskEngine.Models;
 
 namespace FamilyLearning.Api.TaskEngine.Validation;
 
-/// <summary>Answer and option rules shared by immutable legacy content and the editable document boundary.</summary>
+/// <summary>Answer and option rules shared by candidate, draft and release validation.</summary>
 internal static partial class QuestionRules
 {
     internal static bool ValidOptions(string[]? options) => options is { Length: >= 2 and <= 6 } &&

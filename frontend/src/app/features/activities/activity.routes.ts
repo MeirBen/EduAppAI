@@ -5,7 +5,7 @@ const workspace = () =>
   import('./activity-workspace/activity-workspace').then((module) => module.ActivityWorkspace);
 const leave = (component: ActivityWorkspace) => component.canLeave();
 
-/** Direct workspace routes for the isolated composition; activation belongs to the gated cutover. */
+/** Template and activity routes share one workspace and its unsaved-change guard. */
 export const activityWorkspaceRoutes: Routes = [
   {
     path: 'templates/new',

@@ -17,25 +17,30 @@ namespace FamilyLearning.Api.Tests.Integration;
 
 internal sealed class GenerationHarness(params string[] responses) : IAsyncDisposable
 {
-    internal ActivityApiFactory App { get; } = new();
+    private ApiFactory? app;
+    internal ApiFactory App => app ?? throw new InvalidOperationException("Create a parent before accessing the test host.");
     internal AiFixtures.ScriptedChat Chat { get; } = new(responses);
     internal TestClock Clock { get; } = new();
     internal IConfiguration Configuration { get; } = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
     { ["Ai:Model"] = "isolated", ["Ai:RequestTimeoutSeconds"] = "1" }).Build();
     internal GenerationWorker Worker => App.Services.GetRequiredService<GenerationWorker>();
 
-    internal Task<HttpClient> ParentAsync(Action<IServiceCollection>? configure = null) => App.ParentAsync(services =>
+    internal Task<HttpClient> ParentAsync(Action<IServiceCollection>? configure = null)
     {
-        services.AddSingleton<IChatClient>(Chat);
-        services.AddTaskAi(Configuration, new Microsoft.Extensions.Hosting.Internal.HostingEnvironment());
-        services.AddSingleton<TimeProvider>(Clock);
-        // Advancing retention time must not expire the real test login session.
-        services.PostConfigure<CookieAuthenticationOptions>(IdentityConstants.ApplicationScheme, o => o.TimeProvider = TimeProvider.System);
-        services.AddActivityGeneration(Configuration);
-        // Deterministic tests drive the same worker transitions without its polling loop.
-        services.RemoveAll<IHostedService>();
-        configure?.Invoke(services);
-    });
+        app ??= new ApiFactory(services =>
+        {
+            services.AddSingleton<IChatClient>(Chat);
+            services.AddTaskAi(Configuration, new Microsoft.Extensions.Hosting.Internal.HostingEnvironment());
+            services.AddSingleton<TimeProvider>(Clock);
+            // Advancing retention time must not expire the real test login session.
+            services.PostConfigure<CookieAuthenticationOptions>(IdentityConstants.ApplicationScheme, o => o.TimeProvider = TimeProvider.System);
+            services.AddActivityGeneration(Configuration);
+            // Deterministic tests drive the same worker transitions without its polling loop.
+            services.RemoveAll<IHostedService>();
+            configure?.Invoke(services);
+        });
+        return App.ParentAsync();
+    }
 
     internal static async Task<JsonNode> Start(HttpClient parent, JsonNode draft, string kind = "GenerateActivity", string? targetId = null)
     {
@@ -48,7 +53,7 @@ internal sealed class GenerationHarness(params string[] responses) : IAsyncDispo
     internal static string OperationPath(JsonNode operation) => $"/api/activity-drafts/{operation["draftId"]!.GetValue<Guid>()}/operations/{operation["id"]!.GetValue<Guid>()}";
     internal static string Questions(string type = "numeric-input") => $$"""{"title":"תרגול","instructions":"ענו","questions":[{"prompt":"כמה הם 1 ועוד 1?","interaction":{"type":"{{type}}","options":null},"answer":{"value":"2"},"points":1}]}""";
     internal const string Materials = """{"materials":[{"id":"11111111111111111111111111111111","title":null,"body":"שלום עולם"}]}""";
-    public ValueTask DisposeAsync() => App.DisposeAsync();
+    public ValueTask DisposeAsync() => app?.DisposeAsync() ?? ValueTask.CompletedTask;
 
     internal sealed class TestClock : TimeProvider
     {

@@ -1,3 +1,4 @@
+using FamilyLearning.Api.Features.Activities;
 using FamilyLearning.Api.Infrastructure.Ai;
 using FamilyLearning.Api.Infrastructure.Auth;
 using FamilyLearning.Api.Infrastructure.Persistence;
@@ -30,6 +31,7 @@ if (management)
 }
 builder.Services.AddTaskAi(builder.Configuration, builder.Environment);
 builder.Services.AddApplicationApi();
+builder.Services.AddActivityGeneration(builder.Configuration);
 // Allow all bounded template fields even when Hebrew characters use six-byte JSON escapes.
 builder.WebHost.ConfigureKestrel(options => options.Limits.MaxRequestBodySize = 256 * 1024);
 var app = builder.Build();

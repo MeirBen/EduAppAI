@@ -1,9 +1,12 @@
 # Family Learning
 
-**Parent prompt → AI template → parent review → saved template → AI tasks.**
-Parents reuse a template with different settings and task-specific choices.
-Generated content and answers are saved snapshots; template edits publish new
-revisions. See the [core specification](docs/product-specification.md) for scope
+**Parent prompt → editable plan → generated activity → parent review → frozen
+snapshot.**
+Generate without saving a template, edit the content or replace one question,
+then save the draft and mark the reviewed revision ready. Saving a reusable
+template is a separate action; later template edits publish immutable versions
+and never change existing activities. See the [core
+specification](docs/product-specification.md) for scope
 and next steps, and [architecture](docs/architecture.md) for implementation.
 
 ## Start
@@ -23,13 +26,16 @@ must have 12–256 characters with upper/lowercase, a number and a symbol. Each
 provisioned parent gets a family. There is no default account or public
 registration.
 
-`dev.sh` installs missing client dependencies, runs the API/client reload watchers
+`dev.sh` installs missing client dependencies, runs the API/client reload
+watchers
 and starts the evaluation dashboard at <http://127.0.0.1:5180> without AI calls.
-**Ctrl+C** stops all three. Restart after configuration or evaluation-tool changes.
+**Ctrl+C** stops all three. Restart after configuration or evaluation-tool
+changes.
 Run `npm --prefix frontend ci` after dependency changes. Angular proxies `/api`
-to `http://localhost:5124`. Use `localhost` consistently for cookies. Development
-applies migrations automatically. The schema 4 migration clears older learning
-content while preserving parent accounts.
+to `http://localhost:5124`. Use `localhost` consistently for cookies.
+Development
+applies the current initial migration automatically on an empty database. The
+content-first cutover uses a fresh database; see [Data](#data) for local setup.
 
 ## AI configuration
 
@@ -38,7 +44,8 @@ repo; it makes no AI call. Restart the server afterward. Alternatively provide
 `Ai__ApiKey` or `OPENROUTER_API_KEY` through server secrets. Production does not
 load development user secrets.
 
-The `Ai` section in [appsettings.json](backend/FamilyLearning.Api/appsettings.json)
+The `Ai` section in
+[appsettings.json](backend/FamilyLearning.Api/appsettings.json)
 is the source of truth for the active model and its settings. Switch OpenRouter
 chat models by editing this configuration and restarting; no C#, prompt, UI or
 test changes are needed. Environment variables (`Ai__…`) and development user
@@ -81,22 +88,30 @@ These controls follow [OpenRouter's parameter contract][parameters].
 
 Reasoning tokens are billed even when excluded from the response and generally
 share the output ceiling. A response stopped by the cap is rejected without
-saving. See [reasoning controls][reasoning] for provider differences. Token budgets
-and the deadline are application cost/latency limits, not vendor quality defaults.
-Tune them against representative tasks; a tight thinking budget can reduce quality.
+saving. See [reasoning controls][reasoning] for provider differences. Token
+budgets
+and the deadline are application cost/latency limits, not vendor quality
+defaults.
+Tune them against representative tasks; a tight thinking budget can reduce
+quality.
 
 Check [OpenRouter's model metadata][model-metadata] and the serving provider's
-documentation when changing profiles. Reasoning effort is not a hard token budget;
-it does not reserve room for final JSON. Keep the active values in `appsettings.json`
+documentation when changing profiles. Reasoning effort is not a hard token
+budget;
+it does not reserve room for final JSON. Keep the active values in
+`appsettings.json`
 and evaluate them with representative cases. Changing the model also changes the
 evaluation judge, so repeat calibration and manual review.
 
 The same settings apply to an optional fallback: it must support the selected
 output format, reasoning and sampling controls. [Fallback routing][fallback]
 handles provider errors such as rate limits, not invalid or low-quality
-output. The app makes one call per generation without automatic retries and
-records the actual model. It requires support for explicitly requested parameters
-instead of silently discarding them. There is no runtime model catalog dependency
+output. The app makes one call per applicable stage without automatic retries
+and
+records the actual model. It requires support for explicitly requested
+parameters
+instead of silently discarding them. There is no runtime model catalog
+dependency
 or automatic downgrade of output constraints.
 
 Paid models require account credits. Automated tests use an isolated provider
@@ -133,12 +148,15 @@ learning records or rewriting content at runtime.
 ./scripts/evaluate-ai.sh --compare baseline/run.json candidate/run.json
 ```
 
-Maintain synthetic requests in [`cases.json`](tools/FamilyLearning.Evaluation/cases.json).
+Maintain synthetic requests in
+[`cases.json`](tools/FamilyLearning.Evaluation/cases.json).
 They cover all three answer types, Hebrew/niqqud/bilingual content, requested
 controls, shared-setting overrides, supplied sources, refinement and scoped
 replacement. A case supplies a prompt or a fixed `initialPlan`. Prompts permit
-up to three `refinements` of 4,000 characters each; fixed plans omit authoring and
-may supply `initialInput`. Optional `replacements` identify a material or question
+up to three `refinements` of 4,000 characters each; fixed plans omit authoring
+and
+may supply `initialInput`. Optional `replacements` identify a material or
+question
 by zero-based fixture index, resolved to its application-owned ID.
 
 Preview sums applicable stages: interpretation/refinements, generated materials
@@ -151,22 +169,27 @@ attempt still consumes the hard call limit. Supplied sources skip material AI.
 `settingsOverride` supplies all four per-task settings; its question count must
 match the case. `additionalControlCount` checks requested controls across all
 scopes, excluding shared settings and native material choices.
-`expectedLength` independently checks the requested plan constraint (the aggregate
+`expectedLength` independently checks the requested plan constraint (the
+aggregate
 constraint for multiple generated materials). `minPassageWords` and
 `maxPassageWords` check the assembled bodies with the engine's shared
 `TextLength` rules. A dropped authoring demand fails adherence even if the
 weaker plan validates.
 
-Add a distinct case for a real coverage gap or reported failure; keep its ID stable
+Add a distinct case for a real coverage gap or reported failure; keep its ID
+stable
 and its measurable expectations consistent with the parent request. Do not relax
 expectations to hide a model failure. Preview validates all fixtures without AI
 calls. Restart `dev.sh` after editing to rebuild its dashboard's fixture copies.
 Suite changes require new baseline and candidate runs for direct comparison.
 
 The loopback dashboard runs at `http://127.0.0.1:5180` (change with `--port`).
-It shows cases, call budget and nonsecret AI settings. Runs require confirmation;
-only one may be active, and Cancel preserves partial results. Invalid AI settings
-disable real runs but leave offline features available; fix settings and restart.
+It shows cases, call budget and nonsecret AI settings. Runs require
+confirmation;
+only one may be active, and Cancel preserves partial results. Invalid AI
+settings
+disable real runs but leave offline features available; fix settings and
+restart.
 Configuration errors stay private.
 
 History shows saved tasks, findings and collapsible request/output data.
@@ -179,7 +202,8 @@ identify baselines; CLI equivalents are `--label` and `--notes`.
 
 CLI and dashboard share the evaluator and artifacts. The tool's
 [local access protections](docs/architecture.md#ai-and-persistence) are separate
-from the production app. Keep artifacts private: they contain prompts and answers.
+from the production app. Keep artifacts private: they contain prompts and
+answers.
 
 Billable CLI runs require `--live` and use the app's secrets, environment
 overrides, deadline and token cap. Calls run sequentially with a 5-second pause,
@@ -192,21 +216,26 @@ Only HTTP 429 is retried, at most three times per stage within the call budget.
 Retries honor `Retry-After`, otherwise 5/10/20 seconds plus up to 20% jitter,
 with the configured pause as a minimum. A wait over five minutes stops the run.
 Superseded attempts are checkpointed in `run.json` and included in call/cost
-coverage. Production still makes one call.
+coverage. Production still makes one call per stage.
 
-`--repeat` accepts 1–5; `--max-calls` accepts 1–100 and must cover the base plan:
+`--repeat` accepts 1–5; `--max-calls` accepts 1–100 and must cover the base
+plan:
 sum of applicable case stages × repeats, plus one review per case/repeat
 and the once-per-run calibration controls when `--judge` is enabled.
-Increase the budget to allow retries. Controls load only with `--judge`, so broken
+Increase the budget to allow retries. Controls load only with `--judge`, so
+broken
 controls do not block basic evaluation. Assembled results receive reviews even
 when independent case checks fail.
 The budget caps application calls, not currency or provider fallback attempts;
 use an OpenRouter key spending limit for a monetary cap. For model comparisons,
-disable fallback, check the returned model and change one profile setting at a time.
+disable fallback, check the returned model and change one profile setting at a
+time.
 
 For prompt experiments, keep the model profile, cases, repeats and judge setup
-fixed; change one generation stage at a time and label the candidate run. Compare
-automatic failures and manually review the full outputs, including wrong choices.
+fixed; change one generation stage at a time and label the candidate run.
+Compare
+automatic failures and manually review the full outputs, including wrong
+choices.
 A prompt's self-check is an instruction, not a deterministic quality guarantee.
 
 Reports go to ignored `artifacts/evaluations/<run>/` or under `--output`:
@@ -216,12 +245,14 @@ Reports go to ignored `artifacts/evaluations/<run>/` or under `--output`:
   fixture hashes, stage roles, engine/schema versions, exact requests and schemas
   with hashes, normalized plans, source revisions, assembled documents, explicit
   skips and candidate acceptance/application. It retains the judge prompt/version,
-  nonsecret profile, final and rejected outputs, actual models/providers when known,
+  nonsecret profile, final and rejected outputs, actual models/providers when
+  known,
   finish reasons and usage. Domain rejections include safe `validationErrors`
   with field paths and messages, also shown beside the failed dashboard stage.
   Non-validation failures have no field diagnostics.
   Secrets, raw provider errors and separate reasoning text are excluded.
-- **summary.json** separates stage outcomes, automatic check failures, calibration
+- **summary.json** separates stage outcomes, automatic check failures,
+  calibration
   health, generated findings by kind/case, human scores, models and measurements.
   Token and [cost totals][usage-accounting] include known subtotals and missing
   counts; absent measurements mean null. Reasoning is already included in output
@@ -239,7 +270,8 @@ Interpret the results separately:
   instructions, questions and answers are outside body counts. The historical
   100–150 range keeps its original bounds. Failed independent checks retain valid
   content for human and language review.
-- **Calibration:** known defect detection and false alarms, not general accuracy.
+- **Calibration:** known defect detection and false alarms, not general
+  accuracy.
   Invalid or unavailable reviews fail calibration but leave detection counts
   unknown, rather than counting unmeasured defects as misses.
 - **Generated findings:** exact field, quote, correction, explanation and kind;
@@ -251,23 +283,32 @@ Interpret the results separately:
   the same position. Check whether ordering is intentional; this never reorders
   options or affects automatic scores.
 - **Human review:** Hebrew, correctness, age fit, adherence, answer clarity and
-  consistency. Enter 0 (unusable), 1 (needs edits), 2 (ready), or null (unreviewed),
+  consistency. Enter 0 (unusable), 1 (needs edits), 2 (ready), or null
+  (unreviewed),
   with evidence in notes. Optional parent correction counts and time-to-ready
-  seconds retain measured effort, including unsuccessful trials; missing is unknown.
+  seconds retain measured effort, including unsuccessful trials; missing is
+  unknown.
 
-The stateless judge uses the same model. Its [controls](tools/FamilyLearning.Evaluation/hebrew-review-samples.json)
-cover plan/document defects and clean text, including accepted grammatical variants,
-stray answer prefixes, meaningful punctuation, intentional errors and mixed languages.
+The stateless judge uses the same model. Its
+[controls](tools/FamilyLearning.Evaluation/hebrew-review-samples.json)
+cover plan/document defects and clean text, including accepted grammatical
+variants,
+stray answer prefixes, meaningful punctuation, intentional errors and mixed
+languages.
 Preserve planted defects when editing;
-expected findings are never sent to the judge. Finding paths must identify supplied
+expected findings are never sent to the judge. Finding paths must identify
+supplied
 fields, quotations must match the source, and kinds must be supported.
-Expected defects match whole tokens or short containing phrases; corrections must
+Expected defects match whole tokens or short containing phrases; corrections
+must
 remove the offending phrase. This measures detection, not correction quality.
 All controls must pass: each expected defect must be found, and extra findings
 fail unless the sample permits them. A same-model reviewer can repeat generation
-mistakes ([judge limitations][judge-limitations]); human review remains necessary.
+mistakes ([judge limitations][judge-limitations]); human review remains
+necessary.
 
-Comparison rereads `run.json`, so edited human scores take effect without updating
+Comparison rereads `run.json`, so edited human scores take effect without
+updating
 summary files. It reports profile changes and candidate-minus-baseline deltas,
 never a winner or combined score. Direct comparison requires matching suite
 hashes, selected cases/order, captured inputs, repeats, automatic-check versions
@@ -290,49 +331,27 @@ changing contracts, checks or fixtures.
 
 Run exit codes: 0 completed automatic checks and, when enabled, calibration and
 reviews passed without findings; 1 failures/findings or stopped run; 2 invalid
-arguments/configuration/report or file failure; 130 cancellation. Comparison uses
-0 for comparable inputs, 1 for incompatible inputs and 2 for invalid input, never
+arguments/configuration/report or file failure; 130 cancellation. Comparison
+uses
+0 for comparable inputs, 1 for incompatible inputs and 2 for invalid input,
+never
 a quality verdict. CI does not run live evaluation.
 
 [usage-accounting]: https://openrouter.ai/docs/cookbook/administration/usage-accounting
 [judge-limitations]: https://arxiv.org/abs/2306.05685
 
-## Fixed-plan comparison prototype
+## Cutover evidence
 
-Task 2 adds a CLI-only experiment over three fixed learning plans. It compares
-one-shot generation with material/question stages through the same provider,
-source assembly and validators. It does not change the deployed parent workflow.
-
-```bash
-# Validate the three fixed cases and preview 21 calls; no provider is resolved.
-./scripts/evaluate-ai.sh --prototype --repeat 3 --max-calls 21
-
-# Paid trials require explicit authorization and a pre-registered experiment file.
-./scripts/evaluate-ai.sh --prototype --repeat 3 --max-calls 21 \
-  --experiment /path/to/experiment.json --live
-```
-
-The [experiment contract](tools/FamilyLearning.Evaluation/PrototypeExperiment.cs)
-requires the configured model, call/dollar budget, conservative current input/output
-prices, sample design, held-out cases, usable-task rubric, blinded review protocol
-and acceptable cost/latency/control/recovery outcomes. Fallback must be disabled.
-Before each call, the tool reserves a conservative input/output cost; unknown usage
-keeps its reservation. Capture current endpoint price ceilings before a trial and
-use a provider key spending limit when an external billing cap is needed.
-
-`run.json` retains matched inputs, accepted checkpoints, every attempted stage,
-raw output, exact schemas, hashes, measured lengths and partial usage. These
-prototype runs make no automatic retries or repairs. `blind-review.json` contains
-randomized content and empty human scores without generation provenance; keep
-`blind-key.json` separate until review ends. Failures remain in the sample.
-The dashboard runs the structured workflow suite, including fixed-plan trials.
-The separate one-shot/split experiment uses CLI pre-registration and blinded
-review artifacts.
-
-Passing fixtures or structural checks does not establish better Hebrew or useful
-comparative value. If added cost buys no measured quality, control or recovery
-benefit, reconsider the split before final cutover. Human review and held-out
-confirmation remain required.
+The [approved
+decision](docs/superpowers/specs/2026-10-01-content-first-cutover-decision.md)
+accepts the measured reading cost, latency and strict-length reliability
+tradeoff
+for source preservation, editing and recovery. It makes no claim of improved
+Hebrew quality; human quality review remains incomplete. The original comparison
+artifacts remain private under
+`artifacts/evaluations/task2-structured-2026-10-01/`.
+The temporary one-shot experiment and its CLI switches have been removed.
+New runs use the supported workflow and current report format.
 
 ## Verify
 
@@ -355,9 +374,13 @@ npx playwright install chromium
 npm run e2e
 ```
 
-Tests use disposable data and a local AI provider. They cover authoring, reuse,
-immutable tasks, conflicts, failures, keyboard/RTL behavior and 360px/200% text.
-Screenshots go to `artifacts/`. On Linux CI, install browser libraries with
+Tests use disposable data and a local AI provider. They exercise the published
+app's complete activity lifecycle, independent template
+publication, immutable previews, source fidelity, strict blockers, recovery,
+conflicts, keyboard/RTL behavior and 360px/200% text. Screenshots go to the
+ignored
+`.superpowers/sdd/2026-09-30-structured-templates/` verification workspace. On
+Linux CI, install browser libraries with
 `npx playwright install --with-deps chromium`.
 
 Before editing, read the [comment rules](docs/commenting-guide.md) and
@@ -365,8 +388,12 @@ Before editing, read the [comment rules](docs/commenting-guide.md) and
 
 ## Data
 
-Remove saved drafts and templates from the library. **איפוס נתוני הלמידה**
-(reset learning data) clears your family's templates, revisions and drafts after
+Delete individual drafts, templates or frozen snapshots from the library.
+Their contents are independent: deleting a template does not erase its
+activities. **איפוס נתוני הלמידה**
+(reset learning data) clears your family's templates, versions, drafts,
+operations
+and snapshots, including items beyond the 100-item list limits, after
 confirmation; your login and AI configuration remain.
 
 Development stores SQLite and Data Protection keys in
@@ -375,15 +402,28 @@ an absolute path to relocate them; use the same path for provisioning,
 migrations and runtime. Retain keys with the database so cookies survive
 restarts.
 
+The cutover replaces all prototype migrations with one `InitialCreate` baseline;
+it has no old-schema upgrade path. For an existing prototype installation, stop
+this project's watchers/connections, remove only its configured
+`family-learning.db` and matching `-wal`, `-shm` and `-journal` files, then run
+`./scripts/create-parent.sh`. Keep configuration, credentials and Data
+Protection
+keys. This reset also removes local accounts. Automated tests use disposable
+storage and never reset your database.
+
+For subsequent model changes:
+
 ```bash
 dotnet tool restore
 dotnet ef migrations add YourChange \
   --project backend/FamilyLearning.Api \
   --output-dir Infrastructure/Persistence/Migrations
-dotnet ef migrations has-pending-model-changes --project backend/FamilyLearning.Api
+dotnet ef migrations has-pending-model-changes --project
+backend/FamilyLearning.Api
 ```
 
-Stop `dev.sh` before creating or editing migrations: its reload watcher can apply
+Stop `dev.sh` before creating or editing migrations: its reload watcher can
+apply
 an unfinished migration. Once applied, keep migration files unchanged and add a
 new migration for corrections.
 
@@ -424,4 +464,5 @@ follow
 [Microsoft's proxy guidance](https://learn.microsoft.com/en-us/aspnet/core/host-and-deploy/proxy-load-balancer?view=aspnetcore-8.0).
 Also verify storage permissions, backup/restore and operational monitoring.
 `/health` checks process availability, not database or AI readiness. Account
-recovery and the child flow remain in the [next steps](docs/product-specification.md#next-steps).
+recovery and the child flow remain in the [next
+steps](docs/product-specification.md#next-steps).

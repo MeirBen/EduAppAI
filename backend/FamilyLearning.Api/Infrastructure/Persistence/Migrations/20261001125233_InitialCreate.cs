@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace FamilyLearning.Api.Infrastructure.Persistence.Migrations;
 
 /// <inheritdoc />
-public partial class InitialFoundation : Migration
+public partial class InitialCreate : Migration
 {
     /// <inheritdoc />
     protected override void Up(MigrationBuilder migrationBuilder)
@@ -21,6 +21,37 @@ public partial class InitialFoundation : Migration
             constraints: table =>
             {
                 table.PrimaryKey("PK_Families", x => x.Id);
+            });
+
+        migrationBuilder.CreateTable(
+            name: "ActivityDrafts",
+            columns: table => new
+            {
+                Id = table.Column<Guid>(type: "TEXT", nullable: false),
+                FamilyId = table.Column<Guid>(type: "TEXT", nullable: false),
+                Name = table.Column<string>(type: "TEXT", maxLength: 100, nullable: false),
+                PlanJson = table.Column<string>(type: "TEXT", nullable: false),
+                InputJson = table.Column<string>(type: "TEXT", nullable: false),
+                DocumentJson = table.Column<string>(type: "TEXT", nullable: false),
+                Revision = table.Column<long>(type: "INTEGER", nullable: false),
+                ActiveOperationId = table.Column<Guid>(type: "TEXT", nullable: true),
+                TemplateVersionId = table.Column<Guid>(type: "TEXT", nullable: true),
+                SourceSnapshotId = table.Column<Guid>(type: "TEXT", nullable: true),
+                CreatedByParentId = table.Column<string>(type: "TEXT", nullable: false),
+                CreatedAtUtc = table.Column<DateTime>(type: "TEXT", nullable: false),
+                UpdatedAtUtc = table.Column<DateTime>(type: "TEXT", nullable: false),
+                ReleasedSnapshotId = table.Column<Guid>(type: "TEXT", nullable: true),
+                ReleasedSourceRevision = table.Column<long>(type: "INTEGER", nullable: true)
+            },
+            constraints: table =>
+            {
+                table.PrimaryKey("PK_ActivityDrafts", x => x.Id);
+                table.ForeignKey(
+                    name: "FK_ActivityDrafts_Families_FamilyId",
+                    column: x => x.FamilyId,
+                    principalTable: "Families",
+                    principalColumn: "Id",
+                    onDelete: ReferentialAction.Restrict);
             });
 
         migrationBuilder.CreateTable(
@@ -56,6 +87,39 @@ public partial class InitialFoundation : Migration
             });
 
         migrationBuilder.CreateTable(
+            name: "TaskSnapshots",
+            columns: table => new
+            {
+                Id = table.Column<Guid>(type: "TEXT", nullable: false),
+                FamilyId = table.Column<Guid>(type: "TEXT", nullable: false),
+                SourceDraftId = table.Column<Guid>(type: "TEXT", nullable: false),
+                SourceDraftRevision = table.Column<long>(type: "INTEGER", nullable: false),
+                Title = table.Column<string>(type: "TEXT", maxLength: 100, nullable: false),
+                PlanJson = table.Column<string>(type: "TEXT", nullable: false),
+                InputJson = table.Column<string>(type: "TEXT", nullable: false),
+                ResolvedInputJson = table.Column<string>(type: "TEXT", nullable: false),
+                DocumentJson = table.Column<string>(type: "TEXT", nullable: false),
+                MeasurementsJson = table.Column<string>(type: "TEXT", nullable: false),
+                EngineRevision = table.Column<int>(type: "INTEGER", nullable: false),
+                TemplateVersionId = table.Column<Guid>(type: "TEXT", nullable: true),
+                SourceSnapshotId = table.Column<Guid>(type: "TEXT", nullable: true),
+                CreatedByParentId = table.Column<string>(type: "TEXT", nullable: false),
+                DraftCreatedAtUtc = table.Column<DateTime>(type: "TEXT", nullable: false),
+                ReviewedByParentId = table.Column<string>(type: "TEXT", nullable: false),
+                ReviewedAtUtc = table.Column<DateTime>(type: "TEXT", nullable: false)
+            },
+            constraints: table =>
+            {
+                table.PrimaryKey("PK_TaskSnapshots", x => x.Id);
+                table.ForeignKey(
+                    name: "FK_TaskSnapshots_Families_FamilyId",
+                    column: x => x.FamilyId,
+                    principalTable: "Families",
+                    principalColumn: "Id",
+                    onDelete: ReferentialAction.Restrict);
+            });
+
+        migrationBuilder.CreateTable(
             name: "TaskTemplates",
             columns: table => new
             {
@@ -75,6 +139,41 @@ public partial class InitialFoundation : Migration
                     principalTable: "Families",
                     principalColumn: "Id",
                     onDelete: ReferentialAction.Restrict);
+            });
+
+        migrationBuilder.CreateTable(
+            name: "GenerationOperations",
+            columns: table => new
+            {
+                Id = table.Column<Guid>(type: "TEXT", nullable: false),
+                FamilyId = table.Column<Guid>(type: "TEXT", nullable: false),
+                DraftId = table.Column<Guid>(type: "TEXT", nullable: false),
+                OperationKey = table.Column<Guid>(type: "TEXT", nullable: false),
+                RequestFingerprint = table.Column<string>(type: "TEXT", nullable: false),
+                InputFingerprint = table.Column<string>(type: "TEXT", nullable: false),
+                ProfileFingerprint = table.Column<string>(type: "TEXT", nullable: false),
+                EngineRevision = table.Column<int>(type: "INTEGER", nullable: false),
+                SchemaVersion = table.Column<int>(type: "INTEGER", nullable: false),
+                OriginalRevision = table.Column<long>(type: "INTEGER", nullable: false),
+                ExpectedRevision = table.Column<long>(type: "INTEGER", nullable: false),
+                Kind = table.Column<string>(type: "TEXT", nullable: false),
+                Stage = table.Column<string>(type: "TEXT", nullable: false),
+                Status = table.Column<string>(type: "TEXT", nullable: false),
+                Failure = table.Column<string>(type: "TEXT", nullable: true),
+                ArtifactsJson = table.Column<string>(type: "TEXT", nullable: true),
+                StepsJson = table.Column<string>(type: "TEXT", nullable: false),
+                CreatedAtUtc = table.Column<DateTime>(type: "TEXT", nullable: false),
+                FinishedAtUtc = table.Column<DateTime>(type: "TEXT", nullable: true)
+            },
+            constraints: table =>
+            {
+                table.PrimaryKey("PK_GenerationOperations", x => x.Id);
+                table.ForeignKey(
+                    name: "FK_GenerationOperations_ActivityDrafts_DraftId",
+                    column: x => x.DraftId,
+                    principalTable: "ActivityDrafts",
+                    principalColumn: "Id",
+                    onDelete: ReferentialAction.Cascade);
             });
 
         migrationBuilder.CreateTable(
@@ -146,8 +245,7 @@ public partial class InitialFoundation : Migration
                 TemplateId = table.Column<Guid>(type: "TEXT", nullable: false),
                 Version = table.Column<int>(type: "INTEGER", nullable: false),
                 DefinitionJson = table.Column<string>(type: "TEXT", nullable: false),
-                CreatedAtUtc = table.Column<DateTime>(type: "TEXT", nullable: false),
-                AuthoringSource = table.Column<string>(type: "TEXT", nullable: false)
+                CreatedAtUtc = table.Column<DateTime>(type: "TEXT", nullable: false)
             },
             constraints: table =>
             {
@@ -160,37 +258,10 @@ public partial class InitialFoundation : Migration
                     onDelete: ReferentialAction.Restrict);
             });
 
-        migrationBuilder.CreateTable(
-            name: "TaskInstances",
-            columns: table => new
-            {
-                Id = table.Column<Guid>(type: "TEXT", nullable: false),
-                FamilyId = table.Column<Guid>(type: "TEXT", nullable: false),
-                TemplateVersionId = table.Column<Guid>(type: "TEXT", nullable: false),
-                Title = table.Column<string>(type: "TEXT", maxLength: 100, nullable: false),
-                ParametersJson = table.Column<string>(type: "TEXT", nullable: false),
-                ContentJson = table.Column<string>(type: "TEXT", nullable: false),
-                Status = table.Column<string>(type: "TEXT", nullable: false),
-                GenerationMethod = table.Column<string>(type: "TEXT", nullable: false),
-                Seed = table.Column<int>(type: "INTEGER", nullable: false),
-                CreatedAtUtc = table.Column<DateTime>(type: "TEXT", nullable: false)
-            },
-            constraints: table =>
-            {
-                table.PrimaryKey("PK_TaskInstances", x => x.Id);
-                table.ForeignKey(
-                    name: "FK_TaskInstances_Families_FamilyId",
-                    column: x => x.FamilyId,
-                    principalTable: "Families",
-                    principalColumn: "Id",
-                    onDelete: ReferentialAction.Restrict);
-                table.ForeignKey(
-                    name: "FK_TaskInstances_TaskTemplateVersions_TemplateVersionId",
-                    column: x => x.TemplateVersionId,
-                    principalTable: "TaskTemplateVersions",
-                    principalColumn: "Id",
-                    onDelete: ReferentialAction.Restrict);
-            });
+        migrationBuilder.CreateIndex(
+            name: "IX_ActivityDrafts_FamilyId_UpdatedAtUtc",
+            table: "ActivityDrafts",
+            columns: new[] { "FamilyId", "UpdatedAtUtc" });
 
         migrationBuilder.CreateIndex(
             name: "IX_AspNetUserClaims_UserId",
@@ -219,14 +290,44 @@ public partial class InitialFoundation : Migration
             unique: true);
 
         migrationBuilder.CreateIndex(
-            name: "IX_TaskInstances_FamilyId_CreatedAtUtc",
-            table: "TaskInstances",
-            columns: new[] { "FamilyId", "CreatedAtUtc" });
+            name: "IX_GenerationOperations_DraftId",
+            table: "GenerationOperations",
+            column: "DraftId",
+            unique: true,
+            filter: "Status IN ('queued', 'calling')");
 
         migrationBuilder.CreateIndex(
-            name: "IX_TaskInstances_TemplateVersionId",
-            table: "TaskInstances",
-            column: "TemplateVersionId");
+            name: "IX_GenerationOperations_DraftId_CreatedAtUtc",
+            table: "GenerationOperations",
+            columns: new[] { "DraftId", "CreatedAtUtc" });
+
+        migrationBuilder.CreateIndex(
+            name: "IX_GenerationOperations_FamilyId_OperationKey",
+            table: "GenerationOperations",
+            columns: new[] { "FamilyId", "OperationKey" },
+            unique: true);
+
+        migrationBuilder.CreateIndex(
+            name: "IX_GenerationOperations_FinishedAtUtc",
+            table: "GenerationOperations",
+            column: "FinishedAtUtc",
+            filter: "ArtifactsJson IS NOT NULL");
+
+        migrationBuilder.CreateIndex(
+            name: "IX_GenerationOperations_Status_CreatedAtUtc",
+            table: "GenerationOperations",
+            columns: new[] { "Status", "CreatedAtUtc" });
+
+        migrationBuilder.CreateIndex(
+            name: "IX_TaskSnapshots_FamilyId_ReviewedAtUtc",
+            table: "TaskSnapshots",
+            columns: new[] { "FamilyId", "ReviewedAtUtc" });
+
+        migrationBuilder.CreateIndex(
+            name: "IX_TaskSnapshots_SourceDraftId",
+            table: "TaskSnapshots",
+            column: "SourceDraftId",
+            unique: true);
 
         migrationBuilder.CreateIndex(
             name: "IX_TaskTemplates_FamilyId_CreatedAtUtc",
@@ -253,13 +354,19 @@ public partial class InitialFoundation : Migration
             name: "AspNetUserTokens");
 
         migrationBuilder.DropTable(
-            name: "TaskInstances");
+            name: "GenerationOperations");
+
+        migrationBuilder.DropTable(
+            name: "TaskSnapshots");
+
+        migrationBuilder.DropTable(
+            name: "TaskTemplateVersions");
 
         migrationBuilder.DropTable(
             name: "AspNetUsers");
 
         migrationBuilder.DropTable(
-            name: "TaskTemplateVersions");
+            name: "ActivityDrafts");
 
         migrationBuilder.DropTable(
             name: "TaskTemplates");

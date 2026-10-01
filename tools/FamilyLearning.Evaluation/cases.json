@@ -303,7 +303,7 @@
     "expectedGeneratedMaterials": 0
   },
   {
-    "id": "prototype-reading",
+    "id": "fixed-reading",
     "prompt": "",
     "reviewFocus": "עברית טבעית, התאמה לגיל, ביסוס תשובות ומסיחים; טווח 100–150 מילים נשמר.",
     "questionCount": 3,
@@ -359,7 +359,7 @@
     }
   },
   {
-    "id": "prototype-bilingual",
+    "id": "fixed-bilingual",
     "prompt": "",
     "reviewFocus": "המקור נשמר בדיוק, לרבות ניקוד, ציטוטים ומעברים בין שפות; השאלות בעברית.",
     "questionCount": 3,
@@ -405,7 +405,7 @@
     }
   },
   {
-    "id": "prototype-numeric",
+    "id": "fixed-numeric",
     "prompt": "",
     "reviewFocus": "אין קטע קריאה; תשובות מספריות נכונות והוראות ברורות.",
     "questionCount": 3,

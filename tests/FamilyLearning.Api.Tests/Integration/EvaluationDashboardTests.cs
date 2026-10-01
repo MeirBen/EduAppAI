@@ -89,7 +89,6 @@ public sealed class EvaluationDashboardTests : IAsyncLifetime
     public async Task Start_recomputes_budget_and_requires_explicit_confirmation()
     {
         foreach (var request in new[] { Request() with { MaxCalls = 1 }, Request() with { Confirmed = false }, Request() with { CaseIds = ["missing"] },
-            Request() with { Prototype = true, CaseIds = ["all"], MaxCalls = 21 },
             Request() with { CallDelaySeconds = -1 }, Request() with { CallDelaySeconds = 61 } })
             Assert.Equal(HttpStatusCode.BadRequest, (await http.PostAsJsonAsync("/api/runs", request)).StatusCode);
         Assert.Empty(chat.Requests);

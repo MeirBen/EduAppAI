@@ -62,12 +62,11 @@ public sealed record EvaluationSummary
 
     public static EvaluationSummary Create(EvaluationReport report)
     {
-        var planned = report.Cases.Length * report.Repeat * (report.Prototype ? 2 : 1);
+        var planned = report.Cases.Length * report.Repeat;
         var calls = report.Steps.Where(step => step.RequestSent).ToArray();
         var responses = calls.Where(step => step.ResponseReceived && step.FinishedAtUtc.HasValue).ToArray();
-        var prototypeSteps = report.PrototypeResults.SelectMany(result => result.Stages).Select(stage => stage.Call).OfType<EvaluationStep>();
-        var generationSteps = report.Results.SelectMany(result => result.Steps.Where(step => step != result.Judge)).Concat(prototypeSteps);
-        var reviews = report.Results.Select(result => result.Review.Scores()).Concat(report.PrototypeResults.Select(result => result.Review.Scores())).ToArray();
+        var generationSteps = report.Results.SelectMany(result => result.Steps.Where(step => step != result.Judge));
+        var reviews = report.Results.Select(result => result.Review.Scores()).ToArray();
         var humanScores = new Dictionary<string, HumanScoreSummary>();
         foreach (var key in new ManualReview().Scores().Keys)
         {
@@ -80,14 +79,14 @@ public sealed record EvaluationSummary
             CaseCount = report.Cases.Length,
             Repeat = report.Repeat,
             PlannedCaseRuns = planned,
-            RecordedCaseRuns = report.Results.Count + report.PrototypeResults.Count,
+            RecordedCaseRuns = report.Results.Count,
             AttemptedCalls = calls.Length,
-            Authoring = StageCounts.From(report.Results.Select(result => result.Authoring), report.Prototype ? 0 : report.Cases.Count(item => item.InitialPlan is null) * report.Repeat),
+            Authoring = StageCounts.From(report.Results.Select(result => result.Authoring), report.Cases.Count(item => item.InitialPlan is null) * report.Repeat),
             Refinements = StageCounts.From(report.Results.SelectMany(result => result.Refinements), report.Cases.Sum(item => item.Refinements.Length) * report.Repeat),
-            Materials = StageCounts.From(report.Results.Select(result => result.Materials), report.Prototype ? 0 : report.Cases.Count(item =>
+            Materials = StageCounts.From(report.Results.Select(result => result.Materials), report.Cases.Count(item =>
                 item.InitialPlan?.Materials.Any(material => material.Source == "generated") ?? item.ExpectedGeneratedMaterials > 0) * report.Repeat),
             Replacements = StageCounts.From(report.Results.SelectMany(result => result.Replacements), report.Cases.Sum(item => item.Replacements.Length) * report.Repeat),
-            Generation = report.Prototype ? StageCounts.From(prototypeSteps, report.PlannedCalls) : StageCounts.From(report.Results.Select(result => result.Generation), planned),
+            Generation = StageCounts.From(report.Results.Select(result => result.Generation), planned),
             InterpretationPasses = report.Results.Count(result => result.InterpretationPassed == true),
             GenerationPasses = report.Results.Count(result => result.GenerationPassed),
             ReplacementPasses = report.Results.Count(result => result.ReplacementPassed == true),

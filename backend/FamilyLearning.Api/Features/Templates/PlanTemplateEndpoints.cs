@@ -8,7 +8,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace FamilyLearning.Api.Features.Templates;
 
-/// <summary>Canonical-plan publication for the staged content-first composition; never modifies copied activities.</summary>
+/// <summary>Canonical plan publication; never modifies copied activities.</summary>
 public static class PlanTemplateEndpoints
 {
     /// <summary>Maps canonical template routes on the shared authorized parent API group.</summary>

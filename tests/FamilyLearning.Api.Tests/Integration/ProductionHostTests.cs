@@ -44,12 +44,12 @@ public sealed class ProductionHostTests
     public async Task Schema_changes_require_explicit_management_command()
     {
         using var app = new ApiFactory(environment: "Production");
+        Assert.False(File.Exists(Path.Combine(app.DataDirectory, "family-learning.db")));
+        await MigrateAsync(app.DataDirectory);
+        using var client = app.CreateClient();
         using var scope = app.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<LearningDbContext>();
-        Assert.Empty(await db.Database.GetAppliedMigrationsAsync());
-        Assert.NotEmpty(await db.Database.GetPendingMigrationsAsync());
-
-        Assert.Equal(0, await ManagementCommand.RunAsync(app.Services, ["--migrate"]));
+        Assert.Single(await db.Database.GetAppliedMigrationsAsync());
         Assert.Empty(await db.Database.GetPendingMigrationsAsync());
     }
 
@@ -58,6 +58,7 @@ public sealed class ProductionHostTests
     {
         using var app = new ApiFactory(services =>
             services.Configure<HttpsRedirectionOptions>(options => options.HttpsPort = 443), "Production");
+        await MigrateAsync(app.DataDirectory);
         using var client = app.CreateClient(new() { BaseAddress = new Uri("https://family.example.test"), AllowAutoRedirect = false });
         using var redirect = await client.GetAsync("http://family.example.test/api/auth/csrf");
         Assert.Equal(HttpStatusCode.TemporaryRedirect, redirect.StatusCode);
@@ -76,7 +77,6 @@ public sealed class ProductionHostTests
         var token = await csrf.Content.ReadFromJsonAsync<JsonElement>();
         client.DefaultRequestHeaders.Add("X-XSRF-TOKEN", token.GetProperty("token").GetString());
 
-        Assert.Equal(0, await ManagementCommand.RunAsync(app.Services, ["--migrate"]));
         using var scope = app.Services.CreateScope();
         Assert.True((await scope.ServiceProvider.GetRequiredService<ParentAccount>()
             .CreateAsync("production@example.test", "TestOnly!Parent12345")).Succeeded);
@@ -98,5 +98,18 @@ public sealed class ProductionHostTests
         await ApiFactory.RefreshCsrfAsync(client);
         Assert.Equal(HttpStatusCode.NoContent, (await client.PostAsync("/api/auth/logout", null)).StatusCode);
         Assert.Equal(HttpStatusCode.Unauthorized, (await client.GetAsync("/api/auth/me")).StatusCode);
+    }
+    private static async Task MigrateAsync(string directory)
+    {
+        var start = new ProcessStartInfo("dotnet");
+        start.ArgumentList.Add(typeof(Program).Assembly.Location);
+        start.ArgumentList.Add("--migrate");
+        start.Environment["ASPNETCORE_ENVIRONMENT"] = "Production";
+        start.Environment["Storage__Directory"] = directory;
+        // Production must apply the baseline before starting its durable worker.
+        start.Environment["Ai__ApiKey"] = "";
+        start.Environment["OPENROUTER_API_KEY"] = "";
+        var result = await TestProcess.RunAsync(start);
+        Assert.True(result.ExitCode == 0, result.Output + result.Error);
     }
 }

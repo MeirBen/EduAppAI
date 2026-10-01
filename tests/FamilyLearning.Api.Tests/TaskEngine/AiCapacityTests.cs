@@ -46,11 +46,11 @@ public sealed class AiCapacityTests
         using var chat = new PausedChat();
         using var services = CreateServices(chat, "1");
         var service = services.GetRequiredService<AiGenerationService>();
-        var first = service.AuthorAsync("First idea", cancellation.Token);
-        var second = service.AuthorAsync("Second idea", cancellation.Token);
+        var first = service.AuthorAsync(new TemplateAuthoringInput("First idea"), cancellation.Token);
+        var second = service.AuthorAsync(new TemplateAuthoringInput("Second idea"), cancellation.Token);
         Assert.False(first.IsCompleted);
         Assert.False(second.IsCompleted);
-        var busy = await Assert.ThrowsAsync<AiGenerationException>(() => service.AuthorAsync("Excess", deadline.Token));
+        var busy = await Assert.ThrowsAsync<AiGenerationException>(() => service.AuthorAsync(new TemplateAuthoringInput("Excess"), deadline.Token));
         Assert.Equal(503, busy.StatusCode);
 
         if (outcome is "cancellation" or "timeout")
@@ -79,13 +79,13 @@ public sealed class AiCapacityTests
 
         // Both replacement calls must be accepted before either response completes.
         chat.Response = new(TaskCreationOptions.RunContinuationsAsynchronously);
-        var next = service.AuthorAsync("Next idea", deadline.Token);
-        var another = service.AuthorAsync("Another idea", deadline.Token);
+        var next = service.AuthorAsync(new TemplateAuthoringInput("Next idea"), deadline.Token);
+        var another = service.AuthorAsync(new TemplateAuthoringInput("Another idea"), deadline.Token);
         Assert.False(next.IsCompleted);
         Assert.False(another.IsCompleted);
-        chat.Response.SetResult(Response(AiFixtures.Definition().ToJsonString()));
+        chat.Response.SetResult(Response("""{"proposal":null,"clarification":"איזה גיל?","assumptions":[]}"""));
         var results = await Task.WhenAll(next, another);
-        Assert.All(results, result => Assert.Equal("קוראים ומגלים", result.Value.Name));
+        Assert.All(results, result => Assert.Equal("איזה גיל?", result.Value.Clarification));
     }
 
     [Theory]

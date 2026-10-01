@@ -3,12 +3,6 @@ import { Observable, takeUntil } from 'rxjs';
 import { DestroyRef, inject, Injectable } from '@angular/core';
 import { requestResult } from './request-result';
 import {
-  AiTemplateDraft,
-  InstancePreview,
-  InstanceSummary,
-  TaskInput,
-  TemplateDefinition,
-  TemplateDetail,
   TemplateSummary,
   LearningPlan,
   PlanAuthoringRequest,
@@ -37,7 +31,7 @@ export class LearningApi {
 
   /** Reports server configuration without exposing credentials or contacting the provider. */
   aiStatus() {
-    return httpResource<{ configured: boolean; schemaVersion?: number }>(() => '/api/ai/status');
+    return httpResource<{ configured: boolean; schemaVersion: number }>(() => '/api/ai/status');
   }
   /** One cancellable proposal call; cancellation never causes a retry. */
   authorPlan(request: PlanAuthoringRequest, cancelled: Observable<void>, lifetime: DestroyRef) {
@@ -48,7 +42,7 @@ export class LearningApi {
       lifetime,
     );
   }
-  /** Loads a canonical template in the staged route composition. */
+  /** Loads the current canonical template; missing and foreign IDs both return 404. */
   planTemplate(id: () => string | undefined) {
     return httpResource<PlanTemplateDetail>(() => (id() ? `/api/templates/${id()}` : undefined));
   }
@@ -170,24 +164,9 @@ export class LearningApi {
       lifetime,
     );
   }
-  /** Produces an unsaved proposal for parent review. */
-  authorTemplate(prompt: string, lifetime: DestroyRef) {
-    return requestResult(
-      this.http.post<AiTemplateDraft>('/api/ai/template-drafts', { prompt }),
-      lifetime,
-    );
-  }
-
   /** Returns up to 100 of the family's most recently created templates. */
   templates() {
     return httpResource<TemplateSummary[]>(() => '/api/templates');
-  }
-  /** Loads the current published definition; missing and foreign IDs both return HTTP 404. */
-  template(id: () => string | undefined) {
-    return httpResource<TemplateDetail>(() => {
-      const value = id();
-      return value ? `/api/templates/${value}` : undefined;
-    });
   }
   /** Permanently deletes the family's template and its revisions. */
   deleteTemplate(id: string, lifetime: DestroyRef) {
@@ -197,46 +176,8 @@ export class LearningApi {
   resetLibrary(lifetime: DestroyRef) {
     return requestResult(this.http.delete<void>('/api/templates'), lifetime);
   }
-  /** Creates a template and its first immutable version. */
-  createTemplate(definition: TemplateDefinition, lifetime: DestroyRef) {
-    return requestResult(this.http.post<TemplateDetail>('/api/templates', definition), lifetime);
-  }
-  /** Publishes a new immutable revision; HTTP 409 leaves the caller's stale draft unsaved. */
-  publishTemplate(
-    id: string,
-    expectedVersion: number,
-    definition: TemplateDefinition,
-    lifetime: DestroyRef,
-  ) {
-    return requestResult(
-      this.http.post<TemplateDetail>(`/api/templates/${id}/versions`, {
-        expectedVersion,
-        definition,
-      }),
-      lifetime,
-    );
-  }
-  /** Returns up to 100 of the family's most recently created drafts, without question content. */
-  instances() {
-    return httpResource<InstanceSummary[]>(() => '/api/instances');
-  }
-  /** Reads frozen content, including parent-only answer keys; it never generates new questions. */
-  instance(id: () => string) {
-    return httpResource<InstancePreview>(() => `/api/instances/${id()}`);
-  }
-  /** Permanently deletes one family-owned task; its template and sibling tasks remain. */
-  deleteInstance(id: string, lifetime: DestroyRef) {
+  /** Permanently deletes one owned snapshot; independent drafts and templates remain. */
+  deleteSnapshot(id: string, lifetime: DestroyRef) {
     return requestResult(this.http.delete<void>(`/api/instances/${id}`), lifetime);
-  }
-  /**
-   * Pins the current template revision, generates a task and returns its saved preview.
-   * Each successful request creates a new task.
-   * @param request - Exact question count and typed per-task choices.
-   */
-  createInstance(templateId: string, request: TaskInput, lifetime: DestroyRef) {
-    return requestResult(
-      this.http.post<InstancePreview>(`/api/templates/${templateId}/instances`, request),
-      lifetime,
-    );
   }
 }

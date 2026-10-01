@@ -1,83 +1,133 @@
 # Architecture
 
 The [product specification](product-specification.md) defines the workflow and
-contracts. This guide describes how the app implements them.
+contracts. This guide describes their implementation.
 
 ## Structure
 
 One .NET 8 project uses Identity, EF Core and SQLite. Features own endpoints,
-DTOs and entities and use DbContext directly. `TaskEngine` owns models,
-validators and AI operations; `Infrastructure` owns auth, provider registration
-and persistence. `Program.cs` composes them. No repository or mediator wrappers.
+DTOs and entities and use DbContext directly. `TaskEngine` owns pure resolution,
+assembly, validation and AI contracts; `Infrastructure` owns authentication,
+provider registration and persistence. `Program.cs` composes the single deployed
+API and durable worker. No repository, mediator or compatibility layers.
 
 Angular is standalone, strict and signal-based. `core` owns auth/API access;
-`library`, `templates` and `instances` own their screens, controls and tests;
-`shared` owns reusable presentation and form helpers. Native HTML and Tailwind
-provide the UI. Development proxies `/api`; the published host serves both apps.
+`activities` owns the editable workspace, `library` its lists, and `instances`
+frozen parent previews. `shared` contains reusable presentation and form helpers.
+Native HTML and Tailwind provide the UI. Development proxies `/api`; the
+published host serves both apps.
 
-Add feature endpoints to `ApiConfiguration`'s group to inherit strict JSON,
-ProblemDetails, parent authorization and CSRF. Only sign-in and token issuance
-allow anonymous access. Kestrel bounds bodies to 256 KiB, accommodating the
-template contract even with escaped Unicode; validators enforce field limits.
+Feature endpoints join `ApiConfiguration.MapApplicationApi` to inherit strict
+JSON, ProblemDetails, parent authorization and CSRF. Only sign-in and token
+issuance allow anonymous access. Kestrel bounds bodies to 256 KiB, accommodating
+escaped Hebrew JSON; validators enforce smaller field and aggregate limits.
 
 ## AI and persistence
 
-| Request                              | Result                                |
-| ------------------------------------ | ------------------------------------- |
-| `POST /api/ai/template-drafts`       | Validated, unsaved AI proposal        |
-| `POST /api/templates`                | Template + revision 1, atomically     |
-| `POST /api/templates/{id}/versions`  | New revision; conflict returns 409    |
-| `POST /api/templates/{id}/instances` | Validated, saved AI task              |
-| `GET /api/instances/{id}`            | Stored parent preview                 |
-| `DELETE /api/instances/{id}`         | Deletes one saved task                |
-| `DELETE /api/templates/{id}`         | Deletes template, revisions and tasks |
-| `DELETE /api/templates`              | Clears the family's learning library  |
+All routes below are under `/api`; write endpoints enforce CSRF.
 
-`AiGenerationService` calls `IChatClient` without identity or database access.
-`AiSchemas` supplies embedded schemas for the prompt and provider output format.
-Each task request uses its chosen question count as the schema's minimum and
-maximum array length. The request owns this schema; concurrent calls cannot alter
-each other's constraints. Server validation still checks the returned count.
-The OpenRouter adapter owns transport and configuration; generation owns prompts,
-schemas and validation. In schema mode the adapter supplies the schema through
-the SDK's native response-format option, preserving constraints that MEAI's
-OpenAI subset conversion would turn into descriptions.
-See [AI configuration](../README.md#ai-configuration) for
-model capabilities, output modes, reasoning, sampling and limits. Tests exercise
-these with fixed local model IDs, independently of the active model. No tools
-are sent. Responses must finish normally and pass size/depth, required-member,
-unknown-field, numeric and domain validation before persistence.
+| Request                                   | Result                |
+| ----------------------------------------- | --------------------- |
+| `POST ai/template-drafts`                 | Unsaved proposal      |
+| `POST templates`                          | Template version 1    |
+| `POST templates/{id}/versions`            | Publish a version     |
+| `POST activity-drafts`                    | New editable draft    |
+| `PUT activity-drafts/{id}`                | Save a revision       |
+| `POST activity-drafts/{id}/operations`    | Idempotent start      |
+| `POST activity-drafts/{id}/adopt-content` | Accept stale content  |
+| `POST activity-drafts/{id}/release`       | Review and freeze     |
+| `GET instances/{id}`                      | Frozen parent preview |
+| `DELETE activity-drafts/{id}`             | Draft and operations  |
+| `DELETE instances/{id}`                   | One snapshot          |
+| `DELETE templates/{id}`                   | Template and versions |
+| `DELETE templates`                        | Family learning reset |
 
-`AiPrompts` separates reusable template design from task generation, sharing
-language and presentation rules. Schemas describe field constraints; prompts
-explain task semantics and cross-field priorities. Authoring requests concise
-task instructions ordered by goal, content, additional parameters and questions,
-omitting inapplicable parts and repeated engine rules. Generation has no prior-task
-history, so fresh content is requested without a cross-run uniqueness guarantee.
-Extra fields require an explicit request for per-task input; fixed requirements
-remain in instructions. This is an authoring policy, not a natural-language rule
-in the validator. The evaluator checks expected field counts for synthetic cases.
-Resolved values override stale defaults, including false, zero and empty text.
-`TaskSettings` owns topic, audience, difficulty and question count.
-Templates store these under `generation.defaults`; each
-task submits a complete `TaskInput` with chosen settings and additional
-parameters. `TaskSettingsValidator` validates both template defaults and task
-settings. The endpoint resolves dynamic defaults and persists the input with
-the output. The AI request includes instructions, chosen settings, parameter
-definitions and resolved values; template settings defaults are not sent
-again. Shared settings take precedence over stale prose; dynamic fields cannot
-reuse their keys.
+`LearningPlan` describes shared settings, scoped controls, material sources and
+question requirements. `TaskRequest` supplies per-activity choices.
+`TaskRequestResolver` validates and resolves defaults into a self-contained input;
+false, zero and explicit empty optional text survive. IDs and content provenance
+belong to the application. Controls represent only explicitly requested additional
+choices; fixed requirements remain in scoped guidance.
 
-Text length is instructional guidance. Production validation owns structural
-safety, answer consistency and exact requested question counts; the evaluator
-owns word-count measurement and case adherence. Domain failures expose
-application-authored field messages through typed ProblemDetails, without
-correction calls or parsing prose.
+`AiGenerationService` uses `IChatClient` without identity or database access.
+Authoring, material generation, question generation and scoped replacements have
+separate schema-constrained calls. Supplied sources bypass material AI and are
+copied exactly by `TaskAssembly`. Accepted material checkpoints survive question
+failure. No automatic repair or retry is made. A question replacement is atomic
+over its prompt, options and answer; sibling content stays unchanged.
 
-Each generation operation makes one AI call. Validators enforce structure and
-bounds, not fluency or truth. Parents can edit proposed instructions; the app
-does not translate or proofread them automatically. Saved content is immutable.
-Prompt changes advance the metadata's prompt version and affect new output only.
+`AiSchemas` builds request-owned schemas with exact counts and allowed IDs.
+The same full schema goes into the prompt and, in schema mode, the provider
+response format. The OpenRouter adapter uses the SDK's native response-format
+option, preserving schema constraints. It owns transport and configuration;
+the engine owns prompts and validation. No tools are sent. Responses must finish
+normally and pass size/depth, required-member, unknown-field, numeric and domain
+validation. See [AI configuration](../README.md#ai-configuration).
+
+`TextLength` measures material bodies only. Exact/range requirements block stage
+acceptance and release when unmet; targets are advisory. Supplied source bytes
+are never adjusted to meet a generated-material length requirement.
+`TaskAssembly` owns current-input fingerprints, acceptance and readiness.
+Syntactic validity does not prove fluent language, true statements or correct
+answers; release requires the parent's explicit review of the saved revision.
+
+`Features/Activities` owns saved plan/input/document checkpoints, server-owned
+content identity and revision updates, explicit adoption, and release. Shared
+TaskEngine validators derive diagnostics and readiness. Direct edits never call
+AI or republish the source template. The editable DTO excludes provenance and
+acceptance metadata; changing a source updates its canonical plan/input and
+document together. Questions remain stale until edited or adopted; removing a
+source clears its dependent questions' acceptance while preserving their origin.
+
+An application-managed EF concurrency token guards each draft write. One
+`SaveChanges` transaction creates the immutable snapshot and marks the draft
+terminal, with a unique source-draft index preventing duplicate releases. Exact
+release replay returns the original snapshot; if deleted, it returns 410.
+Template and source-draft IDs are detached provenance, so independent deletion
+does not erase snapshots. Family reset deletes owned learning records atomically
+and preserves accounts. No scoring policy or child DTO is introduced here.
+
+Publication saves a version and current pointer atomically with an EF concurrency
+token and unique version index. Activities copy their plan and resolved input;
+template provenance is not a live dependency. The native `InitialCreate`
+migration owns the final model. Development initializes an empty database;
+Production requires an explicit management command before worker startup.
+There is no prototype-data conversion. Tests use disposable storage and the real
+`Program` composition, with isolated providers; worker state-machine tests
+disable only automatic polling so they can drive transitions deterministically.
+
+## Durable generation
+
+`AddActivityGeneration` activates one `GenerationWorker` in `Program.cs`.
+Run this deployment in **one API process**. SQLite owns the queue and key
+tombstones; multiple replicas need a different claim/lease design. The hosted
+worker uses short fresh DbContext scopes for admission, claim and checkpoint,
+and disposes them before calling the shared AI service. Its single content call
+shares the service's two provider slots with synchronous authoring.
+
+New starts share one native per-family rate limiter with plan authoring.
+Owned key replay precedes revision, active-state and budget checks. Admission
+atomically enforces global/family/draft queue limits. Manual saves remain
+available during generation; any revision change fences the result, which stays
+an unapplied diagnostic candidate. Cancellation commits its terminal state and
+revision before signaling transport. Draft deletion cascades operation evidence
+and key tombstones; it cannot restore deleted work.
+
+Each claim captures immutable stage input. A successful checkpoint saves content,
+candidate, usage and queued next stage together. Expected AI failures terminate
+only their operation. Unexpected worker/database defects retain the host's normal
+stop behavior. Restart resumes compatible queued stages, while uncheckpointed
+calling steps become unknown and are never replayed. Profile fingerprints exclude
+credentials, so key rotation alone does not invalidate queued work.
+
+Operation artifacts are bounded to 2 MiB and two steps. After seven terminal days,
+startup/hourly cleanup expires at most 32 bulky artifacts per pass, retaining keys,
+fingerprints, outcomes and known usage until draft deletion. Null usage/cost stays
+unknown. Retention uses `TimeProvider`; purging selects IDs without loading the
+bulky artifacts. These policies and polling configuration live in
+`GenerationOperationOptions`; no distributed scheduler or retry loop is added.
+
+## Evaluation
 
 `tools/FamilyLearning.Evaluation` is a separate developer executable referencing
 the engine and adapter and is not published with the API. CLI and `--ui` use the
@@ -107,16 +157,6 @@ progress snapshots; history and comparison reread authoritative `run.json`.
 Host/Origin checks, antiforgery, CSP and plain-text rendering protect the local
 paid-run boundary. See [evaluation usage and report
 contracts](../README.md#hebrew-ai-evaluation).
-
-Publication atomically saves a revision and current pointer, guarded by
-`expectedVersion`, an EF concurrency token and a unique revision index. Joined
-reads resolve family ownership and revision together. Generation pins that
-immutable revision before AI; no transaction stays open during the call. Tasks
-save resolved settings and parameters, content, and
-provider/model/prompt-version/UTC metadata.
-
-Deletion/reset removes tasks, revisions and templates in one transaction.
-Publication or generation finishing after deletion returns 404 and saves nothing.
 
 ## Access and failures
 
@@ -159,89 +199,13 @@ query and fragment changes preserve the current page and its edits.
 
 Route guards cancel superseded session/token checks. Sign-in belongs to its
 page and cannot redirect after destruction; the server authorizes requests.
-`AiTemplateAuthor` holds proposals; `AiTemplateForm` edits copies with Signal
-Forms and converts them on save. Errors retain edits; new proposals reset
-feedback. Both forms use `TaskSettingsFields` and its shared Signal Forms
-schema for common choices. `InstanceForm` preloads template defaults and emits
-a complete input; it owns additional parameter controls. Clearing required
-text, integer or select inputs is invalid. Cleared optional text stays
-explicit; blank optional numbers/selects are omitted so the server can resolve
-defaults. Successful publication or task creation replaces its form with a
-saved-result link; delayed or failed navigation cannot repeat the write or AI
-generation.
 
-Previews read snapshots. The PWA caches assets only; API calls need a connection.
-See the [UI guide](ui-guide.md) and [verification commands](../README.md#verify).
-
-References: [IChatClient][chat], [structured output][output], [Signal Forms][forms].
-
-## Staged activity persistence
-
-The content-first API is implemented separately in
-`ApiConfiguration.MapContentFirstApi` and exercised by an isolated integration
-host. The deployed host still selects `MapApplicationApi` until the accepted
-cutover gate; it has no runtime lifecycle switch or schema compatibility reader.
-
-`Features/Activities` owns saved plan/input/document checkpoints, server-owned
-content identity and revision updates, explicit adoption, and release. Shared
-TaskEngine validators derive diagnostics and readiness. Direct edits never call
-AI or republish the source template. The editable DTO excludes provenance and
-acceptance metadata; changing a source updates its canonical plan/input and
-document together. Questions remain stale until edited or adopted; removing a
-source clears its dependent questions' acceptance while preserving their origin.
-
-An application-managed EF concurrency token guards each draft write. One
-`SaveChanges` transaction creates the immutable snapshot and marks the draft
-terminal, with a unique source-draft index preventing duplicate releases. Exact
-release replay returns the original snapshot; if deleted, it returns 410.
-Template and source-draft IDs are detached provenance, so independent deletion
-does not erase snapshots. Family reset deletes owned learning records atomically
-and preserves accounts. No scoring policy or child DTO is introduced here.
-
-The additive migration creates draft/snapshot tables without converting old
-learning data. The final cutover task replaces prototype migrations with the
-clean initial model. Integration tests use disposable databases and real
-authentication/CSRF policies. Persistence-only tests have no provider; worker
-tests register an isolated provider.
-
-`AddActivityGeneration` activates one `GenerationWorker` with the staged API.
-Run this deployment in **one API process**. SQLite owns the queue and key
-tombstones; multiple replicas need a different claim/lease design. The hosted
-worker uses short fresh DbContext scopes for admission, claim and checkpoint,
-and disposes them before calling the shared AI service. Its single content call
-shares the service's two provider slots with synchronous authoring.
-
-New starts share one native per-family rate limiter with existing AI routes.
-Owned key replay precedes revision, active-state and budget checks. Admission
-atomically enforces global/family/draft queue limits. Manual saves remain
-available during generation; any revision change fences the result, which stays
-an unapplied diagnostic candidate. Cancellation commits its terminal state and
-revision before signaling transport. Draft deletion cascades operation evidence
-and key tombstones; it cannot restore deleted work.
-
-Each claim captures immutable stage input. A successful checkpoint saves content,
-candidate, usage and queued next stage together. Expected AI failures terminate
-only their operation. Unexpected worker/database defects retain the host's normal
-stop behavior. Restart resumes compatible queued stages, while uncheckpointed
-calling steps become unknown and are never replayed. Profile fingerprints exclude
-credentials, so key rotation alone does not invalidate queued work.
-
-Operation artifacts are bounded to 2 MiB and two steps. After seven terminal days,
-startup/hourly cleanup expires at most 32 bulky artifacts per pass, retaining keys,
-fingerprints, outcomes and known usage until draft deletion. Null usage/cost stays
-unknown. Retention uses `TimeProvider`; purging selects IDs without loading the
-bulky artifacts. These policies and polling configuration live in
-`GenerationOperationOptions`; no distributed scheduler or retry loop is added.
-
-The staged Angular `contentFirstRoutes` opens `ActivityWorkspace` directly for
-template and activity plan URLs. The deployed routes keep their existing callers
-until cutover. A separate native Angular test bootstrap exercises the staged
-composition; no runtime feature flag or schema compatibility reader is used.
-The staged authoring status supplies the server-owned schema version for manual
-plans. Each parent message makes one correlated authoring request; clarification
-context is retained until a proposal applies or the parent explicitly consolidates
-it. Local edits/Undo/cancellation invalidate pending responses before transport
-cancellation.
+`ActivityWorkspace` opens at the application entry point and owns template and
+activity URLs. AI status supplies the server-owned schema version for manual
+plans. Each parent message makes one correlated authoring request. Clarification
+context remains until a proposal applies or the parent explicitly consolidates
+it. Local edits, Undo and cancellation invalidate pending responses before
+transport cancellation.
 
 The workspace owns one initialized form buffer for plan and per-activity input,
 derived canonical projections, source confirmation and twenty coalesced Undo
@@ -271,15 +235,15 @@ Candidates pass a bounded editable-field mapping before explicit transfer to the
 editor; raw output stays diagnostic text. The existing engine supplies saved
 length measurements, including advisory targets, without client-side counting.
 
-The staged library distinguishes editable drafts, reusable templates and frozen
+The library distinguishes editable drafts, reusable templates and frozen
 snapshots. Snapshot preview is parent-only and read-only; an explicit copy creates
-a new draft without an AI call. These consumers have separate route compositions
-from the deployed legacy library/preview until cutover, with no schema reader or
-runtime lifecycle flag.
+a new draft without an AI call. The PWA caches assets only; API calls need a
+connection. One Playwright suite tests the published composition against a local
+provider, plus intercepted race cases with service workers blocked so browser
+routing can observe every request.
 
-`npm --prefix frontend run e2e:activities` runs the isolated staged browser
-workflow with intercepted HTTP contracts and zero provider calls. API integration
-tests separately exercise the real staged routes, authentication and engine.
+See the [UI guide](ui-guide.md) and [verification commands](../README.md#verify).
+References: [IChatClient][chat], [structured output][output], [Signal Forms][forms].
 
 [chat]: https://learn.microsoft.com/en-us/dotnet/ai/ichatclient
 [output]: https://openrouter.ai/docs/guides/features/structured-outputs

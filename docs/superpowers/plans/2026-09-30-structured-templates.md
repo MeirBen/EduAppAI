@@ -19,8 +19,9 @@ tests and delivery order. Read both before implementation.
 
 ## Global constraints
 
-- No Git mutations. This documentation task performs no implementation, paid
-  calls, data reset or deployment. Preserve unrelated user work.
+- No Git mutations or deployment. Execute only the user-authorized milestone;
+  paid calls require explicit authorization and bounded budgets. Preserve unrelated
+  user work.
 - Read README, architecture, commenting and UI guides. Keep meaningful XML
   docs/JSDoc accurate in the same changes as their contracts.
 - All educational generation follows the generic AI path. No subject-specific
@@ -44,7 +45,7 @@ tests and delivery order. Read both before implementation.
 - Follow the spec's [disposable development-data policy][data-policy]: no data
   migration or backward compatibility. Local database recreation is authorized
   during implementation; final cutover still requires the value/test gates.
-  Current product/architecture/README behavior remains current until cutover.
+  Task 8 updates current product/architecture/README behavior at cutover.
 
 ## Code quality
 
@@ -709,6 +710,12 @@ No paid calls or human quality-gate claims accompany this milestone.
 
 ### Task 8: Verify the complete flow and perform the gated cutover
 
+The owner explicitly approved the [cutover value decision](../specs/2026-10-01-content-first-cutover-decision.md)
+on 1 October: accept the measured tradeoff for editing/recovery, retain strict
+validation, and make no quality-improvement claim. This supersedes the original
+value gate's requirement to stop cutover on the recorded unfavorable comparison;
+all implementation and verification gates remain required.
+
 **Files:** Modify `frontend/e2e/ai-provider.mjs`, `parent-workflow.spec.ts`,
 `http-boundaries.spec.ts`, `theme.spec.ts` and
 `Tests/Integration/MigrationTests.cs`. Replace obsolete prototype migrations
@@ -737,39 +744,51 @@ DTOs when the canonical plan/snapshot endpoints become the deployed composition.
 **Interfaces:** One deployed content-first lifecycle; no compatibility reader,
 dual production path or mutable historical TaskInstance.
 
-- [ ] Add isolated browser acceptance: prompt → requested controls → generate
+- [x] Add isolated browser acceptance: prompt → requested controls → generate
       without template Save → edit/replace question → Save draft → parent review
       → mark ready → frozen preview. Separately save a template and prove it
       remains independent. Include reload during generation and a later template
       change with unchanged released content.
-- [ ] Add browser blockers/races: supplied bilingual source preserved;
+- [x] Add browser blockers/races: supplied bilingual source preserved;
       no-passage control; strict bad material prevents question call; question
       failure keeps material; answer deletion blocks release; unsaved
       typing/Undo survive late output; cancel/unknown/409 preserve work; no
       placeholder child delivery.
-- [ ] Verify the initial migration on an empty disposable SQLite database,
+- [x] Verify the initial migration on an empty disposable SQLite database,
       repeat startup without data loss and provision a parent through the
       existing command. Remove old-schema upgrade/preservation fixtures; retain
       fresh-installation, ownership and normal family-reset coverage. Automated
       tests never reset the user's database.
-- [ ] Review prototype evidence against the pre-registered rubric/budget and
+- [x] Review prototype evidence against the pre-registered rubric/budget and
       record proceed/reconsider. If extra cost bought no useful benefit, stop
       final cutover and revise the split. If no live evidence was authorized,
       leave this gate visibly incomplete rather than inventing proof.
-- [ ] Remove obsolete callers/contracts/UI only after isolated checks cover
+- [x] Remove obsolete callers/contracts/UI only after isolated checks cover
       their meaningful boundaries. Update current docs and real fixture-derived
       call examples; remove planned-design banners when behavior actually lands.
-- [ ] Run `./scripts/verify.sh`, `npm --prefix frontend run e2e` and
+- [x] Run `./scripts/verify.sh`, `npm --prefix frontend run e2e` and
       `git diff --check`; require exit 0. Inspect 360px/200% text/keyboard/RTL,
       ownership, source fidelity, races and artifact limits. Review the diff for
       unrelated changes, credentials, DBs, keys or generated outputs.
-- [ ] When local setup needs the new schema, stop this project's watchers and
+- [x] When local setup needs the new schema, stop this project's watchers and
       connections, delete only its configured local SQLite database and related
       journal/WAL files, then initialize from the new baseline. No backup or
       record preservation is required. Keep external configuration/credentials/
       keys, recreate a parent if needed and report the reset. This authorization
       does not require repeating approval or bypass the final value/test gates.
       Do not commit, deploy or delete unrelated data.
+
+Verification on 1 October 2026: `scripts/verify.sh` passed (.NET 527,
+Angular 98, dashboard 23), local packaging passed, and the unified browser suite
+passed 16 tests. The no-call evaluator preview validated 27 cases / 64 planned
+calls. Independent review found no blocking code defect; its stale status-banner
+finding was corrected. The original comparison artifact hash is unchanged.
+
+The configured local `backend/FamilyLearning.Api/data/family-learning.db` was
+reset to the new baseline after verification, with keys and external credentials
+preserved. Repeated migration and local startup passed. Local accounts are empty;
+recreate the parent login with `scripts/create-parent.sh` before manual checks.
+No Git mutations, deployment or paid AI calls were performed.
 
 Child activation, assignment, attempts, scoring and reports require a later
 separate vertical-slice plan. This plan prepares immutable self-contained

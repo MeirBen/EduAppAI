@@ -14,7 +14,8 @@ parent labels keep their original language and values.
   bundled Heebo.
 - Use `panel` for raised surfaces and `button` for primary actions; add
   `button-secondary` or `button-danger` for other actions. Keep one prominent
-  action per card, with quieter edit/delete links. Native disclosures reveal answers.
+  action per card, with quieter edit/delete links. Native disclosures reveal
+  answers.
 - Keep hover/press feedback brief, exclude disabled controls and respect reduced
   motion. Use theme shadows and colors rather than page-specific copies.
 - Actions show a 2px offset focus ring. Fields tint their own edge instead, in
@@ -65,18 +66,41 @@ stored timestamps remain UTC.
 
 Write concise Hebrew for labels, validation, loading and errors. Do not expose
 raw framework/provider errors. Render generated text through Angular
-interpolation, never HTML. Parameter labels/options come from the reviewed
+interpolation, never HTML. Control labels/options come from the reviewed
 template. The shared topic, audience, difficulty and question-count controls
 use application-owned labels and validation; only difficulty has fixed
 options. Never rewrite saved content for presentation.
 
+## Workspace actions
+
+The workspace owns one editable buffer. Keep plan defaults, per-activity choices
+and editable content visibly distinct. Saving a template publishes only the
+plan;
+saving a draft retains editable work; marking ready freezes the reviewed
+revision.
+Use explicit labels for these separate actions.
+
+Show source confirmation for AI-extracted text and preserve its exact content.
+Keep invalid keystrokes visible for correction. A generation result cannot
+replace later local edits or Undo; offer the saved server result for inspection
+and explicit reload. Show actual operation stages and unknown outcomes without
+implying that another paid attempt is automatic.
+
+Display server length measurements beside saved diagnostics. Distinguish
+advisory targets from strict exact/range blockers, and technical readiness from
+the parent's educational review. Frozen previews expose answers in native
+disclosures and offer an explicit copy to a new draft; no child-delivery
+placeholder is shown.
+
 ## Loading
 
 Keep the shared `LoadingIndicator` mounted outside `aria-busy` containers, with
-`active` bound to the request's pending state. Its empty live region exists before
+`active` bound to the request's pending state. Its empty live region exists
+before
 the status changes; the animation and text disappear on completion or failure.
 Use `variant="panel"` for page loads and long AI calls, or the default inline
-variant for shorter actions. Set `label` and optional `detail` for the operation;
+variant for shorter actions. Set `label` and optional `detail` for the
+operation;
 avoid invented progress percentages or generation stages.
 
 Customize the animation through CSS properties on the component or an ancestor:
@@ -98,7 +122,8 @@ The decorative animation respects reduced motion; readable status remains.
 ## Check
 
 Follow the [verification commands](../README.md#verify). The isolated browser
-suite covers prompt/review/save, parameter choices, frozen previews, failures
-and revision conflicts. Check keyboard navigation and screenshots at 360px with
+suite covers prompt-to-activity generation, independent template publication,
+scoped choices, frozen previews, failure recovery and revision conflicts. Check
+keyboard navigation and screenshots at 360px with
 200% text, including long mixed-language content. Review screen-reader behavior
 when changing an interaction.

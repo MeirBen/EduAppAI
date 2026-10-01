@@ -1,56 +1,62 @@
 import { expect, test, type Page } from '@playwright/test';
 
-/** Verify native document scrolling at a narrow viewport with enlarged text. */
-async function checkNarrowLayout(page: Page, name: string) {
-  await page.setViewportSize({ width: 360, height: 800 });
-  await page.evaluate(() => (document.documentElement.style.fontSize = '200%'));
-  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-  await page.evaluate(() => window.scrollTo(0, 0));
-  await page.screenshot({
-    animations: 'disabled',
-    path: `../artifacts/${name}-mobile.png`,
-    fullPage: true,
-  });
-  await page.locator('footer').scrollIntoViewIfNeeded();
-  await expect(page.locator('footer')).toBeInViewport();
-  await expect(page.getByRole('banner')).not.toBeInViewport();
-  await page.evaluate(() => window.scrollTo(0, 0));
-  await page.evaluate(() => (document.documentElement.style.fontSize = '100%'));
-  await page.setViewportSize({ width: 1440, height: 1000 });
-}
-
 async function login(page: Page, email = 'browser@example.test') {
   await page.goto('/');
   await page.getByLabel('כתובת דוא״ל', { exact: true }).fill(email);
   await page.getByLabel('סיסמה', { exact: true }).fill('TestOnly!Parent12345');
   await page.getByRole('button', { name: 'כניסה למרחב שלנו' }).click();
-  await expect(page.getByRole('heading', { name: 'מה נלמד היום?' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'התכנית שלכם' })).toBeVisible();
 }
 
 async function propose(page: Page, prompt: string) {
-  await page.goto('/templates/new');
-  await page.getByLabel('הרעיון שלכם לתבנית').fill(prompt);
-  await page.getByRole('button', { name: 'יצירת תבנית בעזרת AI', exact: true }).click();
-  await expect(page.getByRole('heading', { name: 'בדיקה ועריכת התבנית' })).toBeVisible();
+  await page.goto('/activities/new');
+  await page.getByLabel('מה תרצו לתרגל או לשנות?').fill(prompt);
+  await page.locator('#chat-send').click();
+  await expect(page.getByLabel('שם התבנית', { exact: true })).not.toHaveValue('');
+  await expect(page.locator('#chat-cancel')).toBeHidden();
 }
 
-async function saveTemplate(page: Page) {
-  await page.getByRole('button', { name: 'שמירת התבנית', exact: true }).click();
-  await page.waitForURL('**/templates/*/create');
-  // Read the saved snapshot directly, avoiding response-body capture through the PWA worker.
-  const path = new URL(page.url()).pathname.replace(/\/create$/, '');
-  const response = await page.request.get(`/api${path}`);
-  expect(response.status()).toBe(200);
-  return response.json();
+async function start(page: Page) {
+  await page.locator('#generate-activity').click();
+  await expect(page).toHaveURL(/\/activities\/[a-f0-9-]+\?operation=/);
+  const url = new URL(page.url());
+  return {
+    draftPath: '/api' + url.pathname.replace('/activities/', '/activity-drafts/'),
+    operationId: url.searchParams.get('operation')!,
+  };
 }
 
-async function generateTask(page: Page) {
-  await page.getByRole('button', { name: 'יצירת טיוטה', exact: true }).click();
-  await page.waitForURL('**/instances/*');
-  await expect(page.getByText('הטיוטה נשמרה', { exact: false })).toBeVisible();
+async function operation(page: Page, state: { draftPath: string; operationId: string }) {
+  return (await page.request.get(state.draftPath + '/operations/' + state.operationId)).json();
 }
 
-test('a parent prompt becomes an editable reusable template and distinct frozen tasks', async ({
+async function finish(
+  page: Page,
+  state: { draftPath: string; operationId: string },
+  status = 'completed',
+) {
+  await expect
+    .poll(async () => (await operation(page, state)).status, { timeout: 15_000 })
+    .toBe(status);
+  await expect(page.locator('#cancel-generation')).toBeHidden();
+  return (await page.request.get(state.draftPath)).json();
+}
+
+async function narrow(page: Page, name: string) {
+  await page.setViewportSize({ width: 360, height: 800 });
+  await page.evaluate(() => (document.documentElement.style.fontSize = '200%'));
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await page.screenshot({
+    path: '../.superpowers/sdd/2026-09-30-structured-templates/task8-' + name + '.png',
+    fullPage: true,
+  });
+  await page.locator('footer').scrollIntoViewIfNeeded();
+  await expect(page.getByRole('banner')).not.toBeInViewport();
+  await page.evaluate(() => (document.documentElement.style.fontSize = '100%'));
+  await page.setViewportSize({ width: 1440, height: 1000 });
+}
+
+test('prompt to editable activity, independent template, scoped repair and frozen parent preview', async ({
   page,
 }) => {
   const errors: string[] = [];
@@ -58,397 +64,231 @@ test('a parent prompt becomes an editable reusable template and distinct frozen 
   await page.goto('/');
   await expect(page.locator('html')).toHaveAttribute('lang', 'he');
   await expect(page.locator('html')).toHaveAttribute('dir', 'rtl');
-  await expect(page.getByRole('heading', { name: 'טוב שחזרתם' })).toBeVisible();
-  await checkNarrowLayout(page, 'login');
-  await page.screenshot({
-    animations: 'disabled',
-    path: '../artifacts/login-desktop.png',
-    fullPage: true,
-  });
   await page.keyboard.press('Tab');
   await expect(page.getByRole('link', { name: 'דילוג לתוכן הראשי' })).toBeFocused();
   await page.keyboard.press('Enter');
   await expect(page.locator('main')).toBeFocused();
   await login(page);
-  await expect(page.getByRole('heading', { name: 'מתחילים עם רעיון אחד' })).toBeVisible();
-  await checkNarrowLayout(page, 'empty-library');
-  await propose(
-    page,
-    'קטעי קריאה לכיתה ג׳ עם שאלות מעורבות. אפשר להורה להזין דגשים לתרגול ולבחור סגנון: מידעי או סיפורי.',
-  );
-  const instructions = await page.getByLabel('הנחיות ליצירת המשימות').inputValue();
-  expect((await (await page.request.get('/api/templates')).json()).length).toBe(0);
-  await page.getByLabel('שם התבנית', { exact: true }).fill('קוראים ומגלים');
-  const parameter = page.locator('[data-parameter-editor]').first();
-  await parameter.getByLabel('שם השדה להורה').fill('דגשים לתרגול');
-  await expect(page.getByLabel('מספר שאלות')).toHaveValue('2');
-  await page.getByLabel('מספר שאלות').fill('4');
-  await checkNarrowLayout(page, 'ai-template-review');
-  const template = await saveTemplate(page);
-  expect(template.definition.schemaVersion).toBe(4);
-  expect(template.definition.generation.defaults.questionCount).toBe(4);
-  expect(template.definition.generation.instructions).toBe(instructions);
-  await expect(page.getByLabel('דגשים לתרגול', { exact: true })).toHaveValue('הסקת מסקנות');
-  await checkNarrowLayout(page, 'create-instance');
-  await page.screenshot({
-    animations: 'disabled',
-    path: '../artifacts/create-instance-desktop.png',
-    fullPage: true,
-  });
-  await expect(page.getByLabel('מספר שאלות', { exact: true })).toHaveValue('4');
-  await generateTask(page);
-  const originalUrl = page.url();
-  const originalQuestions = await page.locator('.question-prompt').allTextContents();
-  const originalContent = await page.locator('section').innerText();
-  await expect(page.locator('.question-prompt')).toHaveCount(4);
-  await page.screenshot({
-    animations: 'disabled',
-    path: '../artifacts/reading-preview-desktop.png',
-    fullPage: true,
-  });
+  const templatesBefore = (await (await page.request.get('/api/templates')).json()).length;
+  await propose(page, 'קריאה עם סגנון לבחירה והמתנה');
+  await page.getByText('בחירות לפעילות (נפרדות מברירות המחדל של התבנית)', { exact: true }).click();
+  await page.getByLabel('סגנון', { exact: true }).selectOption('סיפורי');
+  const state = await start(page);
+  await expect(page.locator('#cancel-generation')).toBeVisible();
   await page.reload();
-  await expect(page.locator('section')).toHaveText(originalContent, { useInnerText: true });
-  await page.goto(`/templates/${template.id}/create`);
-  const secondTheme = 'חלל' + 'A'.repeat(80);
-  await page.getByLabel('נושא', { exact: true }).fill(secondTheme);
-  await page.getByLabel('רמת קושי', { exact: true }).selectOption('hard');
-  await page.getByLabel('קהל יעד', { exact: true }).fill('לומדים מבוגרים');
-  await page.getByLabel('מספר שאלות').fill('3');
-  await generateTask(page);
-  await expect(
-    page.getByRole('heading', { name: `לומדים על ${secondTheme}`, exact: true }),
-  ).toBeVisible();
-  await expect(page.locator('.question-prompt')).toHaveCount(3);
-  await expect(page.getByText('קהל יעד: לומדים מבוגרים', { exact: true })).toBeVisible();
-  await expect(page.getByText('רמת קושי: קשה', { exact: true })).toBeVisible();
-  await page.getByText('הצגת התשובה לשאלה 1', { exact: true }).click();
-  await expect(page.locator('details').first()).toHaveAttribute('open', '');
-  await page.keyboard.press('Space');
-  await expect(page.locator('details').first()).not.toHaveAttribute('open');
+  await expect(page.locator('#cancel-generation')).toBeVisible();
+  let draft = await finish(page, state);
+  await expect(page.locator('#question-0-prompt')).toHaveValue('על מה לומדים בקטע? 1');
+  expect((await (await page.request.get('/api/templates')).json()).length).toBe(templatesBefore);
+  expect(draft.templateVersionId).toBeNull();
+  expect(Object.values(draft.input.controlValues)).toEqual(['סיפורי']);
+  const secondQuestion = draft.document.questions[1];
+  await page.getByRole('button', { name: 'יצירה מחדש של השאלה כולה', exact: true }).first().click();
+  await expect(page.locator('#question-0-prompt')).toHaveValue('שאלה חלופית: מה לומדים?');
+  await page.locator('#question-0-prompt').fill('מה למדתם על הדינוזאורים?');
+  await page.locator('#save-activity').click();
+  await expect(page.getByText('הטיוטה שמורה', { exact: true })).toBeVisible();
+  draft = await (await page.request.get(state.draftPath)).json();
+  expect(draft.document.questions[1]).toEqual(secondQuestion);
+  await narrow(page, 'workspace');
+  await page.locator('#save-template').click();
+  await expect(page.getByText('התבנית נשמרה בספרייה. הפעילות לא השתנתה.')).toBeVisible();
+  const templates = await (await page.request.get('/api/templates')).json();
+  expect(templates).toHaveLength(templatesBefore + 1);
+  const template = templates.find((value: { name: string }) => value.name === 'חוקרים וקוראים');
+  expect((await (await page.request.get(state.draftPath)).json()).document).toEqual(draft.document);
+  await page.locator('#release-activity').click();
+  await page.getByRole('link', { name: 'לתצוגה המוכנה' }).click();
+  await expect(page.getByRole('heading', { name: 'פעילות מוכנה — תצוגה להורים' })).toBeVisible();
+  const frozenUrl = page.url();
+  const frozenPath = '/api' + new URL(frozenUrl).pathname;
+  const frozen = await (await page.request.get(frozenPath)).json();
+  await expect(page.locator('textarea')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: /שליחה לילד|הקצאה לילד/ })).toHaveCount(0);
+  await page.locator('summary').first().focus();
   await page.keyboard.press('Enter');
   await expect(page.locator('details').first()).toHaveAttribute('open', '');
-  await checkNarrowLayout(page, 'ai-preview');
-  await page.screenshot({
-    animations: 'disabled',
-    path: '../artifacts/ai-preview-desktop.png',
-    fullPage: true,
-  });
-  await page.goto(originalUrl);
-  await expect(page.locator('.question-prompt')).toHaveText(originalQuestions);
-  await expect(
-    page.getByRole('heading', { name: 'לומדים על דינוזאורים', exact: true }),
-  ).toBeVisible();
-  await page.goto('/templates');
-  await expect(page.getByRole('link', { name: 'יצירת תרגול: קוראים ומגלים' })).toBeVisible();
-  await checkNarrowLayout(page, 'library');
-  await page.screenshot({
-    animations: 'disabled',
-    path: '../artifacts/library-desktop.png',
-    fullPage: true,
-  });
-  await page.locator('footer').scrollIntoViewIfNeeded();
-  expect(await page.evaluate(() => scrollY)).toBeGreaterThan(0);
-  await expect(page.getByRole('banner')).toBeInViewport({ ratio: 1 });
-  const createPractice = page.getByRole('link', { name: 'יצירת תרגול: קוראים ומגלים' });
-  await createPractice.evaluate((element) => element.scrollIntoView({ block: 'start' }));
-  const header = await page.getByRole('banner').boundingBox();
-  expect((await createPractice.boundingBox())!.y).toBeGreaterThan(header!.y + header!.height);
-  await page.screenshot({
-    animations: 'disabled',
-    path: '../artifacts/library-scrolled-desktop.png',
-  });
-  await page.setViewportSize({ width: 1280, height: 480 });
-  await page.locator('footer').scrollIntoViewIfNeeded();
-  await expect(page.getByRole('banner')).not.toBeInViewport();
-  await page.setViewportSize({ width: 1440, height: 1000 });
-  await page.getByRole('button', { name: 'יציאה מהחשבון', exact: true }).click();
-  await expect(page.getByRole('heading', { name: 'טוב שחזרתם' })).toBeVisible();
+  await narrow(page, 'snapshot');
+  await page.goto('/templates/' + template.id + '/edit');
+  await page.getByLabel('שם התבנית', { exact: true }).fill('תבנית ששונתה');
+  await page.locator('#save-template').click();
+  await expect(page.getByText('התבנית נשמרה בספרייה. הפעילות לא השתנתה.')).toBeVisible();
+  await page.goto(frozenUrl);
+  expect(await (await page.request.get(frozenPath)).json()).toEqual(frozen);
   expect(errors).toEqual([]);
 });
 
-test('length guidance stays in instructions and valid content remains available for review', async ({
+test('exact bilingual source bypasses material generation and missing answers block release', async ({
   page,
 }) => {
-  await login(page, 'word-count@example.test');
-  await propose(page, 'בדיקת אורך: תוכן של 100–150 מילים.');
-  await expect(page.getByLabel('הנחיות ליצירת המשימות')).toHaveValue(/100–150/);
-  await checkNarrowLayout(page, 'length-guidance-review');
-  const template = await saveTemplate(page);
-  expect(template.definition.generation.instructions).toContain('100–150');
-  await generateTask(page);
-  await expect(page.getByText('גרסת תבנית 1', { exact: true })).toBeVisible();
-  const originalUrl = page.url();
-  await page.goto(`/templates/${template.id}/edit`);
-  await page
-    .getByLabel('הנחיות ליצירת המשימות')
-    .fill('יש ליצור קטע קצר לפי "focus" ובסגנון "style".');
-  await page.getByRole('button', { name: 'פרסום גרסה חדשה', exact: true }).click();
-  await page.waitForURL(`**/templates/${template.id}/create`);
-  await generateTask(page);
-  await expect(page.getByText('גרסת תבנית 2', { exact: true })).toBeVisible();
-  await page.goto(originalUrl);
-  await expect(page.getByText('גרסת תבנית 1', { exact: true })).toBeVisible();
+  await login(page, 'source@example.test');
+  await propose(page, 'תרגול לפי מקור דו לשוני');
+  const source = '"שָׁלוֹם" — Hello!\nDon\'t change בעלי־חיים.\n';
+  await expect(page.getByLabel('טקסט המקור המדויק')).toHaveValue(source);
+  await page.locator('#generate-activity').click();
+  await expect(page.getByRole('alert')).toContainText('אשרו את המקורות');
+  await page.getByRole('button', { name: 'המקור מדויק, אישור' }).click();
+  const state = await start(page);
+  const draft = await finish(page, state);
+  expect(draft.document.materials[0].body).toBe(source);
+  expect((await operation(page, state)).steps.map((step: { stage: string }) => step.stage)).toEqual(
+    ['questions'],
+  );
+  await page.locator('#question-0-answer').fill('');
+  await page.locator('#save-activity').click();
+  await expect(page.getByText('הטיוטה שמורה', { exact: true })).toBeVisible();
+  await page.locator('#release-activity').click();
+  await expect(page.getByRole('alert')).toBeVisible();
+  expect(await (await page.request.get('/api/instances')).json()).toEqual([]);
+  await page.locator('#question-0-answer').fill('דינוזאורים');
+  await page.locator('#release-activity').click();
+  await expect(page.getByRole('link', { name: 'לתצוגה המוכנה' })).toBeVisible();
 });
 
-test('AI template revisions preserve snapshots and concurrent edits', async ({ page, context }) => {
-  await login(page);
-  await propose(page, 'שאלות מדעים בנושאים משתנים');
-  const template = await saveTemplate(page);
-  await generateTask(page);
-  await expect(page.locator('.question-prompt')).toHaveCount(2);
-  const frozenUrl = page.url();
-  await page.goto(`/templates/${template.id}/edit`);
-  const other = await context.newPage();
-  await other.goto(`/templates/${template.id}/edit`);
-  await expect(other.getByLabel('שם התבנית', { exact: true })).toHaveValue('חוקרים וקוראים');
-  await page.getByLabel('שם התבנית', { exact: true }).fill('מדעים — גרסה חדשה');
-  await page.getByRole('button', { name: 'פרסום גרסה חדשה', exact: true }).click();
-  await expect(page.getByRole('heading', { name: 'מדעים — גרסה חדשה', exact: true })).toBeVisible();
-  await other.getByLabel('שם התבנית', { exact: true }).fill('העריכה המקומית שלי');
-  await other.getByRole('button', { name: 'פרסום גרסה חדשה', exact: true }).click();
-  await expect(other.getByRole('alert')).toContainText('התבנית השתנתה');
-  await expect(other.getByLabel('שם התבנית', { exact: true })).toHaveValue('העריכה המקומית שלי');
-  await other.getByRole('button', { name: 'טעינת הגרסה העדכנית והחלפת העריכה המקומית' }).click();
-  await expect(other.getByLabel('שם התבנית', { exact: true })).toHaveValue('מדעים — גרסה חדשה');
-  await page.goto(frozenUrl);
-  await expect(page.getByText('גרסת תבנית 1', { exact: true })).toBeVisible();
-  await other.close();
+test('strict material rejection stops questions, while a question failure retains accepted material', async ({
+  page,
+}) => {
+  await login(page, 'blockers@example.test');
+  await propose(page, 'תרגול קריאה באורך קשיח');
+  let state = await start(page);
+  let draft = await finish(page, state, 'failed');
+  expect(draft.document.materials).toEqual([]);
+  expect(draft.document.questions).toEqual([]);
+  expect((await operation(page, state)).steps.map((step: { stage: string }) => step.stage)).toEqual(
+    ['materials'],
+  );
+  await propose(page, 'תרגול קריאה עם כשל בשאלות');
+  state = await start(page);
+  draft = await finish(page, state, 'failed');
+  expect(draft.document.materials[0].body).toContain('מאובנים');
+  expect(draft.document.questions).toEqual([]);
+  await page.reload();
+  await expect(page.locator('#material-0-body')).toHaveValue(/מאובנים/);
+  expect((await operation(page, state)).steps.map((step: { stage: string }) => step.stage)).toEqual(
+    ['materials', 'questions'],
+  );
 });
 
-test('AI failures preserve the prompt and explicit retry can recover', async ({ page }) => {
+test('question-only generation preserves typing and Undo across late output and stale save', async ({
+  page,
+}) => {
+  await login(page, 'races@example.test');
+  await propose(page, 'תרגול חשבון ללא קטע עם המתנה');
+  await expect(page.locator('[id$="-length-mode"]')).toHaveCount(0);
+  const state = await start(page);
+  await page.locator('#document-title').fill('עריכה מקומית');
+  await finish(page, state);
+  await expect(page.getByText('יש תוצאה חדשה בשרת.', { exact: false })).toBeVisible();
+  await expect(page.locator('#document-title')).toHaveValue('עריכה מקומית');
+  await page.locator('#plan-undo').click();
+  await expect(page.locator('#document-title')).not.toHaveValue('לומדים על חשבון');
+  await page.locator('#document-title').fill('עריכה שחשוב לשמור');
+  await page.locator('#save-activity').click();
+  await expect(page.getByRole('alert')).toContainText('הטיוטה השתנתה בשרת');
+  await expect(page.locator('#document-title')).toHaveValue('עריכה שחשוב לשמור');
+  page.once('dialog', (dialog) => dialog.accept());
+  await page.locator('#reload-activity').click();
+  await expect(page.locator('#document-title')).toHaveValue('לומדים על חשבון');
+  expect((await operation(page, state)).steps.map((step: { stage: string }) => step.stage)).toEqual(
+    ['questions'],
+  );
+  await page.locator('#generate-questions').click();
+  await expect(page.locator('#cancel-generation')).toBeVisible();
+  await page.locator('#document-title').fill('עריכה בזמן ביטול');
+  await page.locator('#cancel-generation').click();
+  await expect(page.locator('#cancel-generation')).toBeHidden();
+  await expect(page.locator('#document-title')).toHaveValue('עריכה בזמן ביטול');
+});
+
+test('authoring failures expose safe errors and retain the parent request', async ({ page }) => {
   await login(page, 'failures@example.test');
-  const before = (await (await page.request.get('/api/templates')).json()).length;
-  await page.goto('/templates/new');
-  await page.getByLabel('הרעיון שלכם לתבנית').fill('בדיקת כשל');
-  await page.getByRole('button', { name: 'יצירת תבנית בעזרת AI', exact: true }).click();
-  await expect(page.getByRole('alert')).not.toContainText('לא נשמר');
-  await expect(page.getByLabel('הרעיון שלכם לתבנית')).toHaveValue('בדיקת כשל');
-  await page.getByLabel('הרעיון שלכם לתבנית').fill('בדיקת מגבלת פלט');
-  await page.getByRole('button', { name: 'יצירת תבנית בעזרת AI', exact: true }).click();
-  await expect(page.getByRole('alert')).toContainText('מגבלת הפלט');
-  await expect(page.getByRole('alert')).not.toContainText('לא נשמר');
-  await expect(page.getByLabel('הרעיון שלכם לתבנית')).toHaveValue('בדיקת מגבלת פלט');
-  for (const prompt of ['בדיקת מכסה', 'בדיקת מכסה בגוף התשובה']) {
-    await page.getByLabel('הרעיון שלכם לתבנית').fill(prompt);
-    const limited = page.waitForResponse('/api/ai/template-drafts');
-    await page.getByRole('button', { name: 'יצירת תבנית בעזרת AI', exact: true }).click();
-    expect((await limited).status()).toBe(429);
-    await expect(page.getByRole('alert')).toContainText('מגבלת הבקשות');
+  for (const [prompt, message] of [
+    ['בדיקת כשל', ''],
+    ['בדיקת מגבלת פלט', 'מגבלת הפלט'],
+    ['בדיקת מכסה', 'מגבלת הבקשות'],
+    ['בדיקת מכסה בגוף התשובה', 'מגבלת הבקשות'],
+  ]) {
+    await page.getByLabel('מה תרצו לתרגל או לשנות?').fill(prompt);
+    await page.locator('#chat-send').click();
+    await expect(page.getByRole('alert')).toBeVisible();
+    if (message) await expect(page.getByRole('alert')).toContainText(message);
     await expect(page.getByRole('alert')).not.toContainText('private provider');
-    await expect(page.getByRole('alert')).not.toContainText('דקה');
-    await expect(page.getByLabel('הרעיון שלכם לתבנית')).toHaveValue(prompt);
+    await expect(page.getByLabel('מה תרצו לתרגל או לשנות?')).toHaveValue(prompt);
   }
-  await page.getByLabel('הרעיון שלכם לתבנית').fill('מילים באנגלית לתלמידים מתחילים');
-  await page.getByRole('button', { name: 'יצירת תבנית בעזרת AI', exact: true }).click();
-  await expect(page.getByRole('heading', { name: 'בדיקה ועריכת התבנית' })).toBeVisible();
-  await page.getByRole('button', { name: 'ביטול ההצעה וחזרה לרעיון' }).click();
-  await expect(page.getByRole('heading', { name: 'בדיקה ועריכת התבנית' })).toHaveCount(0);
-  expect((await (await page.request.get('/api/templates')).json()).length).toBe(before);
 });
 
-test.describe('publication recovery', () => {
-  test.use({ serviceWorkers: 'block' });
-
-  test('loading is accessible and customizable, and a failed save preserves edits for retry', async ({
-    page,
-  }) => {
-    await login(page);
-    const before = (await (await page.request.get('/api/templates')).json()).length;
-    let finishGeneration!: () => void;
-    const generationGate = new Promise<void>((resolve) => (finishGeneration = resolve));
-    await page.route(
-      '**/api/ai/template-drafts',
-      async (route) => {
-        await generationGate;
-        await route.continue();
-      },
-      { times: 1 },
-    );
-    await page.goto('/templates/new');
-    await page.getByLabel('הרעיון שלכם לתבנית').fill('הבנת הנקרא עם נושא ורמת קושי לבחירה');
-    await page.getByRole('button', { name: 'יצירת תבנית בעזרת AI', exact: true }).click();
-    try {
-      const loading = page.getByRole('status').filter({ hasText: 'בונים את התבנית שלכם' });
-      await expect(loading).toBeVisible();
-      await expect(loading).toContainText('זה עשוי לקחת כמה דקות');
-      await expect(page.getByLabel('הרעיון שלכם לתבנית')).toBeDisabled();
-      expect(await loading.evaluate((element) => element.closest('[aria-busy="true"]'))).toBeNull();
-      const mark = loading.locator('.loader-mark');
-      await page.emulateMedia({ reducedMotion: 'no-preference' });
-      expect(
-        await mark.evaluate((element) => getComputedStyle(element, '::before').animationName),
-      ).not.toBe('none');
-      await page.evaluate(() => window.scrollTo(0, 0));
-      await page.screenshot({
-        animations: 'disabled',
-        path: '../artifacts/loader-desktop.png',
-        fullPage: true,
-      });
-      await checkNarrowLayout(page, 'loader');
-      await loading.evaluate((element) => {
-        element.style.setProperty('--loader-size', '4rem');
-        element.style.setProperty('--loader-color', 'rgb(100, 50, 150)');
-        element.style.setProperty('--loader-duration', '3s');
-      });
-      await expect(mark).toHaveCSS('width', '64px');
-      await expect(mark).toHaveCSS('color', 'rgb(100, 50, 150)');
-      expect(
-        await mark.evaluate((element) => getComputedStyle(element, '::before').animationDuration),
-      ).toBe('3s');
-      await page.emulateMedia({ reducedMotion: 'reduce' });
-      expect(
-        await mark.evaluate((element) => getComputedStyle(element, '::before').animationName),
-      ).toBe('none');
-      await expect(loading).toBeVisible();
-    } finally {
-      finishGeneration();
+test('a lost start response replays the original key and preserves later local typing', async ({
+  page,
+}) => {
+  await login(page, 'recovery@example.test');
+  await propose(page, 'תרגול חשבון ללא קטע עם המתנה');
+  const starts: Record<string, unknown>[] = [];
+  let acceptedId = '';
+  await page.route('**/api/activity-drafts/*/operations', async (route) => {
+    starts.push(route.request().postDataJSON());
+    const response = await route.fetch();
+    const operation = await response.json();
+    if (starts.length === 1) {
+      expect(response.status()).toBe(202);
+      acceptedId = operation.id;
+      await route.abort('failed');
+    } else {
+      expect(operation.id).toBe(acceptedId);
+      await route.fulfill({ response });
     }
-    await expect(page.getByRole('heading', { name: 'בדיקה ועריכת התבנית' })).toBeVisible();
-    await expect(page.locator('app-loading-indicator .loader-mark')).toHaveCount(0);
-    await page.getByLabel('שם התבנית', { exact: true }).fill('העריכה נשמרת גם אחרי כשל');
-    const parameter = page.locator('[data-parameter-editor]').first();
-    await parameter.getByLabel('שם השדה להורה').fill('הדגשים שלי');
-    let finishSave!: () => void;
-    const saveGate = new Promise<void>((resolve) => (finishSave = resolve));
-    await page.route(
-      '**/api/templates',
-      async (route) => {
-        await saveGate;
-        await route.fulfill({
-          status: 500,
-          contentType: 'application/problem+json',
-          body: JSON.stringify({ status: 500 }),
-        });
-      },
-      { times: 1 },
-    );
-
-    await page.getByRole('button', { name: 'שמירת התבנית', exact: true }).click();
-    try {
-      await expect(page.getByRole('status').filter({ hasText: 'שומרים את התבנית' })).toBeVisible();
-      await expect(page.getByRole('button', { name: 'שומרים…', exact: true })).toBeDisabled();
-    } finally {
-      finishSave();
-    }
-    await expect(page.getByRole('alert')).toContainText('השרת לא הצליח להשלים');
-    await expect(page.locator('app-loading-indicator .loader-mark')).toHaveCount(0);
-    await expect(page.getByLabel('שם התבנית', { exact: true })).toHaveValue(
-      'העריכה נשמרת גם אחרי כשל',
-    );
-    await expect(parameter.getByLabel('שם השדה להורה')).toHaveValue('הדגשים שלי');
-    expect((await (await page.request.get('/api/templates')).json()).length).toBe(before);
-
-    await page.getByRole('button', { name: 'שמירת התבנית', exact: true }).click();
-    await expect(page.getByLabel('הדגשים שלי', { exact: true })).toHaveValue('הסקת מסקנות');
-    expect((await (await page.request.get('/api/templates')).json()).length).toBe(before + 1);
   });
+  await page.locator('#generate-activity').click();
+  await expect(page.locator('#recover-start')).toBeVisible();
+  await page.locator('#document-title').fill('עריכה אחרי אובדן תשובה');
+  await expect(page.locator('#generate-activity')).toBeDisabled();
+  await page.locator('#recover-start').click();
+  await expect(page.locator('#recover-start')).toBeHidden();
+  await expect(page).toHaveURL(new RegExp('operation=' + acceptedId));
+  await finish(page, {
+    draftPath: '/api' + new URL(page.url()).pathname.replace('/activities/', '/activity-drafts/'),
+    operationId: acceptedId,
+  });
+  expect(starts).toHaveLength(2);
+  expect(starts[1]).toEqual(starts[0]);
+  await expect(page.locator('#document-title')).toHaveValue('עריכה אחרי אובדן תשובה');
 });
 
-test.describe('library cleanup', () => {
-  // Route interception must see API requests instead of the published PWA's service worker.
-  test.use({ serviceWorkers: 'block' });
-
-  test('confirms deletion, handles failures and resets saved learning data', async ({ page }) => {
-    await login(page, 'cleanup@example.test');
-    await propose(page, 'תרגול מילים עם נושא לבחירה');
-    await page.getByLabel('שם התבנית', { exact: true }).fill('תבנית למחיקה');
-    await page.getByRole('button', { name: 'שמירת התבנית', exact: true }).click();
-    await expect(page.getByRole('button', { name: 'יצירת טיוטה', exact: true })).toBeVisible();
-    const creationUrl = page.url();
-    await generateTask(page);
-    const draftUrl = page.url();
-    await page.goto(creationUrl);
-    await generateTask(page);
-    await page.goto('/templates');
-    const drafts = page.getByRole('region', { name: 'טיוטות שמורות' });
-    const removeDraft = drafts
-      .getByRole('button', { name: 'מחיקת טיוטה: לומדים על דינוזאורים' })
-      .first();
-    const before = (await (await page.request.get('/api/instances')).json()).length;
-    await removeDraft.click();
-    const dialog = page.getByRole('dialog');
-    await expect(dialog.getByRole('button', { name: 'ביטול', exact: true })).toBeFocused();
-    await page.keyboard.press('Escape');
-    await expect(dialog).not.toBeVisible();
-    await expect(removeDraft).toBeFocused();
-    expect((await (await page.request.get('/api/instances')).json()).length).toBe(before);
-    await removeDraft.click();
-    await page.route('**/api/instances/*', (route) =>
-      route.request().method() === 'DELETE' ? route.abort() : route.continue(),
-    );
-    await dialog.getByRole('button', { name: 'מחיקה לצמיתות', exact: true }).click();
-    await expect(dialog.getByRole('alert')).toContainText('לא ניתן להתחבר לשרת');
-    expect((await (await page.request.get('/api/instances')).json()).length).toBe(before);
-    await page.unroute('**/api/instances/*');
-    let finishDeletion!: () => void;
-    const deletionGate = new Promise<void>((resolve) => (finishDeletion = resolve));
-    await page.route('**/api/instances/*', async (route) => {
-      if (route.request().method() === 'DELETE') {
-        await deletionGate;
-      }
-      await route.continue();
-    });
-    await dialog.getByRole('button', { name: 'מחיקה לצמיתות', exact: true }).click();
-    await expect(dialog.getByRole('button', { name: 'מוחקים…', exact: true })).toBeDisabled();
-    await expect(dialog.getByRole('button', { name: 'ביטול', exact: true })).toBeDisabled();
-    await expect(dialog.getByRole('status')).toContainText('מוחקים');
-    expect(
-      await dialog.getByRole('status').evaluate((element) => element.closest('[aria-busy="true"]')),
-    ).toBeNull();
-    await page.keyboard.press('Escape');
-    await expect(dialog).toBeVisible();
-    finishDeletion();
-    await expect(dialog).not.toBeVisible();
-    await page.unroute('**/api/instances/*');
-    await expect(page.getByRole('status').filter({ hasText: 'הטיוטה נמחקה' })).toBeVisible();
-    await expect(page.getByRole('heading', { name: 'מה נלמד היום?' })).toBeFocused();
-    expect((await (await page.request.get('/api/instances')).json()).length).toBe(before - 1);
-
-    await page.getByRole('button', { name: 'מחיקת תבנית: תבנית למחיקה', exact: true }).click();
-    await expect(dialog).toContainText('כל הגרסאות שלה והטיוטות שנוצרו ממנה');
-    await dialog.getByRole('button', { name: 'מחיקה לצמיתות', exact: true }).click();
-    await expect(
-      page.getByRole('status').filter({ hasText: 'התבנית והטיוטות שלה נמחקו' }),
-    ).toBeVisible();
-    await expect(
-      page.getByRole('button', { name: 'מחיקת תבנית: תבנית למחיקה', exact: true }),
-    ).toHaveCount(0);
-    expect(
-      (await page.request.get(draftUrl.replace('/instances/', '/api/instances/'))).status(),
-    ).toBe(404);
-
-    // Keep reset coverage independent of the earlier tests' saved content.
-    await propose(page, 'תרגול קריאה חדש');
-    await page.getByRole('button', { name: 'שמירת התבנית', exact: true }).click();
-    await generateTask(page);
-    await page.goto('/templates');
-    await page.getByRole('button', { name: 'איפוס נתוני הלמידה', exact: true }).click();
-    await expect(dialog).toContainText('החשבון והגדרות ה־AI יישארו');
-    await page.setViewportSize({ width: 360, height: 800 });
-    await page.evaluate(() => (document.documentElement.style.fontSize = '200%'));
-    expect(await dialog.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(
-      true,
-    );
-    await page.screenshot({
-      animations: 'disabled',
-      path: '../artifacts/library-reset-mobile.png',
-      fullPage: true,
-    });
-    await dialog.getByRole('button', { name: 'ביטול', exact: true }).click();
-    await expect(page.locator('article')).not.toHaveCount(0);
-    await page.getByRole('button', { name: 'איפוס נתוני הלמידה', exact: true }).click();
-    await dialog.getByRole('button', { name: 'מחיקה לצמיתות', exact: true }).click();
-    await expect(page.getByRole('heading', { name: 'מתחילים עם רעיון אחד' })).toBeVisible();
-    expect((await (await page.request.get('/api/templates')).json()).length).toBe(0);
-    expect((await (await page.request.get('/api/instances')).json()).length).toBe(0);
-    await page.reload();
-    await expect(page.getByRole('heading', { name: 'מתחילים עם רעיון אחד' })).toBeVisible();
-    await expect(
-      page.getByRole('button', { name: 'איפוס נתוני הלמידה', exact: true }),
-    ).toBeDisabled();
-    await page.goto('/templates/new');
-    await expect(
-      page.getByRole('button', { name: 'יצירת תבנית בעזרת AI', exact: true }),
-    ).toBeEnabled();
+test('library deletion confirms intent, preserves independent items and recovers from failure', async ({
+  page,
+}) => {
+  await login(page, 'cleanup@example.test');
+  await propose(page, 'תרגול חשבון ללא קטע');
+  const state = await start(page);
+  await finish(page, state);
+  await page.locator('#save-template').click();
+  await expect(page.getByText('התבנית נשמרה בספרייה. הפעילות לא השתנתה.')).toBeVisible();
+  await page.locator('#release-activity').click();
+  await expect(page.getByRole('link', { name: 'לתצוגה המוכנה' })).toBeVisible();
+  await page.goto('/templates');
+  const templates = page.locator('section[aria-labelledby="templates-title"]');
+  const snapshots = page.locator('section[aria-labelledby="ready-title"]');
+  page.once('dialog', (dialog) => dialog.dismiss());
+  await templates.getByRole('button', { name: 'מחיקת התבנית', exact: true }).click();
+  await expect(templates.locator('article')).toHaveCount(1);
+  page.once('dialog', (dialog) => dialog.accept());
+  await templates.getByRole('button', { name: 'מחיקת התבנית', exact: true }).click();
+  await expect(templates.locator('article')).toHaveCount(0);
+  await expect(snapshots.locator('article')).toHaveCount(1);
+  expect((await page.request.get(state.draftPath)).status()).toBe(200);
+  await page.route('**/api/templates', async (route) => {
+    if (route.request().method() === 'DELETE')
+      await route.fulfill({ status: 500, json: { title: 'המחיקה נכשלה' } });
+    else await route.continue();
   });
+  page.once('dialog', (dialog) => dialog.accept());
+  await page.getByRole('button', { name: 'איפוס נתוני הלמידה' }).click();
+  await expect(page.getByRole('alert')).toBeVisible();
+  await expect(snapshots.locator('article')).toHaveCount(1);
+  await page.unroute('**/api/templates');
+  page.once('dialog', (dialog) => dialog.accept());
+  await page.getByRole('button', { name: 'איפוס נתוני הלמידה' }).click();
+  await expect(page.getByText('נתוני הלמידה נמחקו.', { exact: true })).toBeVisible();
+  await expect(snapshots.locator('article')).toHaveCount(0);
+  expect((await page.request.get(state.draftPath)).status()).toBe(404);
+  expect((await page.request.get('/api/auth/me')).status()).toBe(200);
 });

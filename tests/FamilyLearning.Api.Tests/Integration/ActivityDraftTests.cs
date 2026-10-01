@@ -16,7 +16,7 @@ public sealed class ActivityDraftTests
     [Fact]
     public async Task Editable_library_limit_is_applied_after_excluding_released_drafts()
     {
-        await using var app = new ActivityApiFactory();
+        await using var app = new ApiFactory();
         using var parent = await app.ParentAsync();
         var editable = await Create(parent, Numeric(1));
         using var scope = app.Services.CreateScope();
@@ -37,7 +37,7 @@ public sealed class ActivityDraftTests
     [Fact]
     public async Task Saved_draft_exposes_shared_length_measurements_without_treating_target_as_pass_fail()
     {
-        await using var factory = new ActivityApiFactory();
+        await using var factory = new ApiFactory();
         using var client = await factory.ParentAsync();
         var plan = Reading() with { Materials = [Reading().Materials[0] with { Length = new("target", new(20, false)) }] };
         var draft = await Create(client, plan);
@@ -52,7 +52,7 @@ public sealed class ActivityDraftTests
     [Fact]
     public async Task Unsaved_plan_creates_an_owned_reloadable_draft_without_AI()
     {
-        await using var app = new ActivityApiFactory();
+        await using var app = new ApiFactory();
         using var parent = await app.ParentAsync();
         using var stranger = await app.ParentAsync();
         var draft = await Create(parent, Supplied());
@@ -71,7 +71,7 @@ public sealed class ActivityDraftTests
     [Fact]
     public async Task Lenient_save_keeps_incomplete_answers_and_server_owned_identity()
     {
-        await using var app = new ActivityApiFactory();
+        await using var app = new ApiFactory();
         using var parent = await app.ParentAsync();
         var draft = await Create(parent, Numeric(1));
         var edit = Edit(draft);
@@ -90,7 +90,7 @@ public sealed class ActivityDraftTests
     [Fact]
     public async Task Template_copy_pins_the_owned_version_and_preserves_explicit_working_plan_edits()
     {
-        await using var app = new ActivityApiFactory();
+        await using var app = new ApiFactory();
         using var parent = await app.ParentAsync();
         using var stranger = await app.ParentAsync();
         var plan = Numeric(1);
@@ -124,7 +124,7 @@ public sealed class ActivityDraftTests
     [InlineData("per-task")]
     public async Task Source_replacement_is_atomic_and_stales_questions_without_editing_the_published_template(string kind)
     {
-        await using var app = new ActivityApiFactory();
+        await using var app = new ApiFactory();
         using var parent = await app.ParentAsync();
         var plan = Supplied(kind) with { Defaults = Numeric(1).Defaults };
         using var publication = await parent.PostAsJsonAsync("/api/templates", plan);
@@ -155,7 +155,7 @@ public sealed class ActivityDraftTests
     [Fact]
     public async Task Material_edits_stale_dependencies_and_adoption_cannot_waive_strict_length()
     {
-        await using var app = new ActivityApiFactory();
+        await using var app = new ApiFactory();
         using var parent = await app.ParentAsync();
         var plan = Reading() with { Defaults = Numeric(1).Defaults, Materials = [Reading().Materials[0] with { Length = new("exact", new(2, false)) }] };
         var draft = await Create(parent, plan);
@@ -195,7 +195,7 @@ public sealed class ActivityDraftTests
     [InlineData(true)]
     public async Task Removing_and_restoring_a_material_requires_explicit_question_acceptance(bool removeRequirement)
     {
-        await using var app = new ActivityApiFactory();
+        await using var app = new ApiFactory();
         using var parent = await app.ParentAsync();
         var plan = Reading() with { Defaults = Numeric(1).Defaults, Materials = [Reading().Materials[0] with { Length = null }] };
         var draft = await Create(parent, plan);
@@ -231,7 +231,7 @@ public sealed class ActivityDraftTests
     [Fact]
     public async Task Effective_input_changes_stale_unchanged_content_and_active_work_blocks_release_but_allows_edits()
     {
-        await using var app = new ActivityApiFactory();
+        await using var app = new ApiFactory();
         using var parent = await app.ParentAsync();
         var draft = await Create(parent, Numeric(1));
         var edit = Edit(draft);
@@ -255,7 +255,7 @@ public sealed class ActivityDraftTests
     [Fact]
     public async Task Changing_a_choice_does_not_choose_a_new_answer_or_discard_the_incomplete_edit()
     {
-        await using var app = new ActivityApiFactory();
+        await using var app = new ApiFactory();
         using var parent = await app.ParentAsync();
         var plan = Numeric(1) with { Questions = new(["single-choice"], false, null, new(2, false), null, "", []) };
         var draft = await Create(parent, plan);

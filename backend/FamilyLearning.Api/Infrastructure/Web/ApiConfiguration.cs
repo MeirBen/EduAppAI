@@ -40,15 +40,6 @@ public static class ApiConfiguration
     public static void MapApplicationApi(this WebApplication app)
     {
         var api = ParentApi(app);
-        api.MapAiEndpoints();
-        api.MapTemplateEndpoints();
-        api.MapInstanceEndpoints();
-    }
-
-    /// <summary>Content-first persistence routes, staged in the isolated host until the gated application cutover.</summary>
-    public static void MapContentFirstApi(this WebApplication app)
-    {
-        var api = ParentApi(app);
         api.MapPlanAuthoringEndpoints();
         api.MapActivityEndpoints();
         api.MapGenerationOperationEndpoints();

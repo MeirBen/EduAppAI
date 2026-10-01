@@ -29,6 +29,17 @@ describe('Sign-in request lifetime', () => {
     return fixture;
   }
 
+  it('opens the application entry route after successful sign-in', async () => {
+    const fixture = await startSignIn();
+    const http = TestBed.inject(HttpTestingController);
+    const navigate = vi.spyOn(TestBed.inject(Router), 'navigateByUrl').mockResolvedValue(true);
+    http.expectOne('/api/auth/csrf').flush({ token: 'anonymous' });
+    (await vi.waitFor(() => http.expectOne('/api/auth/login'))).flush(null);
+    (await vi.waitFor(() => http.expectOne('/api/auth/csrf'))).flush({ token: 'signed-in' });
+    await fixture.whenStable();
+    await vi.waitFor(() => expect(navigate).toHaveBeenCalledWith('/'));
+  });
+
   it.each(['token', 'credentials', 'refreshed-token'])(
     'cancels the pending %s request when the login page closes',
     async (stage) => {

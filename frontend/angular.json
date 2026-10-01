@@ -51,13 +51,6 @@
               "optimization": false,
               "extractLicenses": false,
               "sourceMap": true
-            },
-            "activities-test": {
-              "browser": "e2e/activity-main.ts",
-              "tsConfig": "tsconfig.activities.json",
-              "optimization": false,
-              "extractLicenses": false,
-              "sourceMap": true
             }
           },
           "defaultConfiguration": "production"
@@ -70,9 +63,6 @@
             },
             "development": {
               "buildTarget": "family-learning:build:development"
-            },
-            "activities-test": {
-              "buildTarget": "family-learning:build:activities-test"
             }
           },
           "defaultConfiguration": "development"

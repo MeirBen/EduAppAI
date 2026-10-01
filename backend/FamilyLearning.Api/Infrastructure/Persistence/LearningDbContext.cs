@@ -16,7 +16,6 @@ public sealed class LearningDbContext(DbContextOptions<LearningDbContext> option
     public DbSet<Family> Families => Set<Family>();
     public DbSet<TaskTemplate> TaskTemplates => Set<TaskTemplate>();
     public DbSet<TaskTemplateVersion> TaskTemplateVersions => Set<TaskTemplateVersion>();
-    public DbSet<TaskInstance> TaskInstances => Set<TaskInstance>();
     public DbSet<ActivityDraft> ActivityDrafts => Set<ActivityDraft>();
     public DbSet<TaskSnapshot> TaskSnapshots => Set<TaskSnapshot>();
     public DbSet<GenerationOperation> GenerationOperations => Set<GenerationOperation>();
@@ -46,15 +45,6 @@ public sealed class LearningDbContext(DbContextOptions<LearningDbContext> option
             entity.Property(v => v.CreatedAtUtc).HasConversion(utcTimestamp);
             entity.HasIndex(v => new { v.TemplateId, v.Version }).IsUnique();
             entity.HasOne<TaskTemplate>().WithMany().HasForeignKey(v => v.TemplateId).OnDelete(DeleteBehavior.Restrict);
-        });
-        model.Entity<TaskInstance>(entity =>
-        {
-            entity.Property(i => i.Title).HasMaxLength(100);
-            entity.Property(i => i.CreatedAtUtc).HasConversion(utcTimestamp);
-            entity.HasIndex(i => new { i.FamilyId, i.CreatedAtUtc });
-            entity.HasOne<Family>().WithMany().HasForeignKey(i => i.FamilyId).OnDelete(DeleteBehavior.Restrict);
-            entity.HasOne<TaskTemplateVersion>().WithMany().HasForeignKey(i => i.TemplateVersionId)
-                .OnDelete(DeleteBehavior.Restrict);
         });
         model.Entity<ActivityDraft>(entity =>
         {

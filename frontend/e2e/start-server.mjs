@@ -33,7 +33,10 @@ for (const email of [
   'browser@example.test',
   'failures@example.test',
   'cleanup@example.test',
-  'word-count@example.test',
+  'source@example.test',
+  'blockers@example.test',
+  'races@example.test',
+  'recovery@example.test',
 ]) {
   // This known password belongs only to this disposable test database.
   const account = spawnSync(

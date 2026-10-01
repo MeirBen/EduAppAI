@@ -226,7 +226,7 @@ public sealed class GenerationWorker(IServiceScopeFactory scopes, AiGenerationSe
     private sealed record Generated(TaskDocument Document, JsonElement Candidate);
 }
 
-/// <summary>Registers the single-process content worker; the staged host owns activation until cutover.</summary>
+/// <summary>Registers the single-process content worker in the application host.</summary>
 public static class ActivityGenerationRegistration
 {
     /// <summary>Registers one hosted worker with existing persistence/provider services and validated polling options.</summary>

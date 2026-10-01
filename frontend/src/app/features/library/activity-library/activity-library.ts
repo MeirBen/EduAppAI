@@ -51,7 +51,7 @@ export class ActivityLibrary {
     this.error.set('');
     try {
       if (kind === 'draft') await this.api.deleteActivity(id, this.lifetime);
-      else if (kind === 'snapshot') await this.api.deleteInstance(id, this.lifetime);
+      else if (kind === 'snapshot') await this.api.deleteSnapshot(id, this.lifetime);
       else if (kind === 'template') await this.api.deleteTemplate(id, this.lifetime);
       else await this.api.resetLibrary(this.lifetime);
       if (this.lifetime.destroyed) return;

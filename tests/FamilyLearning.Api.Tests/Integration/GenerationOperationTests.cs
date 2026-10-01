@@ -66,11 +66,12 @@ public sealed class GenerationOperationTests
         await using var app = new GenerationHarness();
         app.Chat.BeforeResponse = _ => throw new InvalidOperationException("unexpected worker defect");
         using var parent = await app.ParentAsync(services => services.AddHostedService(p => p.GetRequiredService<GenerationWorker>()));
+        var worker = app.Worker;
         var stopping = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         using var registration = app.App.Services.GetRequiredService<IHostApplicationLifetime>().ApplicationStopping.Register(() => stopping.TrySetResult());
         await GenerationHarness.Start(parent, await Create(parent, Numeric(1)));
         await stopping.Task.WaitAsync(TimeSpan.FromSeconds(10));
-        await Assert.ThrowsAsync<InvalidOperationException>(() => app.Worker.ExecuteTask!);
+        await Assert.ThrowsAsync<InvalidOperationException>(() => worker.ExecuteTask!);
     }
 
     [Fact]
@@ -323,7 +324,7 @@ public sealed class GenerationOperationTests
     [Fact]
     public async Task Start_is_owned_idempotent_and_replay_precedes_current_revision_checks()
     {
-        await using var app = new ActivityApiFactory();
+        await using var app = new GenerationHarness();
         using var parent = await app.ParentAsync();
         using var stranger = await app.ParentAsync();
         var draft = await Create(parent, Numeric(1));

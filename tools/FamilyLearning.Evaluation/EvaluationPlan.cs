@@ -3,14 +3,13 @@ namespace FamilyLearning.Evaluation;
 
 /// <summary>Developer choices only. Confirmation authorizes a live UI run; preview never uses it.</summary>
 public sealed record EvaluationRunRequest(string[] CaseIds, int Repeat, bool Judge, int MaxCalls,
-    string? Label = null, string? RunNotes = null, bool Confirmed = false, int CallDelaySeconds = 5, bool Prototype = false);
+    string? Label = null, string? RunNotes = null, bool Confirmed = false, int CallDelaySeconds = 5);
 
 /// <summary>Validated fixtures in their original order, shared by CLI and dashboard before provider use.</summary>
 public sealed record EvaluationPlan(EvaluationRunRequest Request, EvaluationCase[] Cases, string SuiteSha256,
     CalibrationSample[] Controls, string CalibrationSha256)
 {
-    public int PlannedCalls => Request.Prototype ? ContentWorkflowPrototype.CountCalls(Cases, Request.Repeat) :
-        Cases.Sum(scenario => scenario.PlannedCalls + (Request.Judge ? 1 : 0)) * Request.Repeat + Controls.Length;
+    public int PlannedCalls => Cases.Sum(scenario => scenario.PlannedCalls + (Request.Judge ? 1 : 0)) * Request.Repeat + Controls.Length;
 
     public static async Task<EvaluationPlan> LoadAsync(EvaluationRunRequest request, string? fixtureDirectory = null)
     {
@@ -19,11 +18,9 @@ public sealed record EvaluationPlan(EvaluationRunRequest Request, EvaluationCase
             request.CaseIds.Any(string.IsNullOrWhiteSpace) || request.CaseIds.Distinct().Count() != request.CaseIds.Length)
             throw new ArgumentException("Select cases, 1–5 repeats, a call limit of 1–100 and a call delay of 0–60 seconds.");
         EvaluationFiles.ValidateRunMetadata(request.Label, request.RunNotes);
-        if (request.Prototype && request.Judge) throw new ArgumentException("The fixed-plan prototype uses blinded human review, not a model judge.");
         var suite = await EvaluationFiles.LoadFixtureAsync<EvaluationCase>("cases.json", fixtureDirectory);
         var all = request.CaseIds is ["all"];
-        var cases = suite.Items.Where(item => (!request.Prototype || item.InitialPlan is not null && item.Replacements.Length == 0) &&
-            (all || request.CaseIds.Contains(item.Id, StringComparer.Ordinal))).ToArray();
+        var cases = suite.Items.Where(item => all || request.CaseIds.Contains(item.Id, StringComparer.Ordinal)).ToArray();
         if (cases.Length == 0) throw new ArgumentException("No cases match the selected suite.");
         if (!all && cases.Length != request.CaseIds.Length) throw new ArgumentException("Unknown evaluation case.");
         var controls = request.Judge
@@ -37,11 +34,9 @@ public sealed record EvaluationPlan(EvaluationRunRequest Request, EvaluationCase
         if (PlannedCalls > Request.MaxCalls) throw new ArgumentException("Planned calls exceed the call limit.");
     }
 
-    public EvaluationReport CreateReport(Dictionary<string, string?> profile, PrototypeExperiment? experiment = null) => new(Cases, Request.Repeat, SuiteSha256, profile)
+    public EvaluationReport CreateReport(Dictionary<string, string?> profile) => new(Cases, Request.Repeat, SuiteSha256, profile)
     {
         JudgeEnabled = Request.Judge,
-        Prototype = Request.Prototype,
-        Experiment = experiment,
         MaxCalls = Request.MaxCalls,
         CallDelaySeconds = Request.CallDelaySeconds,
         Label = Request.Label,
