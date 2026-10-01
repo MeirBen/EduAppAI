@@ -1,5 +1,3 @@
-using FamilyLearning.Api.TaskEngine.Ai;
-using Microsoft.Extensions.Configuration;
 
 namespace FamilyLearning.Evaluation;
 
@@ -53,16 +51,4 @@ public sealed record EvaluationPlan(EvaluationRunRequest Request, EvaluationCase
         JudgePrompt = Request.Judge ? HebrewJudge.Instructions : ""
     };
 
-    /// <summary>Allowlist only; credentials, endpoint overrides and unrelated configuration never enter reports or UI.</summary>
-    public static Dictionary<string, string?> CaptureProfile(IConfiguration configuration, AiGenerationOptions options)
-    {
-        string[] keys = ["Model", "FallbackModel", "ResponseFormat", "ReasoningEnabled", "ReasoningEffort", "ReasoningMaxTokens", "Temperature", "TopP", "TopK"];
-        var profile = keys.ToDictionary(key => key, key => configuration[$"Ai:{key}"]);
-        profile["ResponseFormat"] ??= "json_object";
-        profile["MaxOutputTokens"] = options.MaxOutputTokens.ToString(System.Globalization.CultureInfo.InvariantCulture);
-        profile["RequestTimeoutSeconds"] = options.RequestTimeoutSeconds.ToString(System.Globalization.CultureInfo.InvariantCulture);
-        profile["MaxRequestBytes"] = options.MaxRequestBytes.ToString(System.Globalization.CultureInfo.InvariantCulture);
-        profile["MaxSchemaBytes"] = options.MaxSchemaBytes.ToString(System.Globalization.CultureInfo.InvariantCulture);
-        return profile;
-    }
 }

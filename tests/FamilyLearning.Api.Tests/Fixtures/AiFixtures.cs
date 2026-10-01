@@ -40,14 +40,17 @@ internal static class AiFixtures
         public int DisposeCalls { get; private set; }
         public ChatFinishReason FinishReason { get; init; } = ChatFinishReason.Stop;
         public HttpStatusCode? FailureStatus { get; init; }
-        public Func<CancellationToken, Task>? BeforeResponse { get; init; }
+        public Func<CancellationToken, Task>? BeforeResponse { get; set; }
+        public UsageDetails? Usage { get; set; }
+        public string ModelId { get; set; } = "test-free-model";
+        public string? ResponseId { get; set; }
         public async Task<ChatResponse> GetResponseAsync(IEnumerable<ChatMessage> messages, ChatOptions? options = null, CancellationToken cancellationToken = default)
         {
             Requests.Add((string.Join("\n", messages.Select(m => m.Text)), options));
             if (FailureStatus is { } status) throw new HttpRequestException("provider secret", null, status);
             if (BeforeResponse is not null) await BeforeResponse(cancellationToken);
             return new ChatResponse(new ChatMessage(ChatRole.Assistant, responses.Dequeue()))
-            { ModelId = "test-free-model", FinishReason = FinishReason };
+            { ModelId = ModelId, ResponseId = ResponseId, FinishReason = FinishReason, Usage = Usage };
         }
         public IAsyncEnumerable<ChatResponseUpdate> GetStreamingResponseAsync(IEnumerable<ChatMessage> messages, ChatOptions? options = null, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         public object? GetService(Type serviceType, object? serviceKey = null) => null;

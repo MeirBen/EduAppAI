@@ -64,7 +64,7 @@ public static class EvaluationCommand
             var client = host.Services.GetService<IChatClient>() ??
                 throw new ArgumentException("Configure the app's OpenRouter API key before using --live.");
             var aiOptions = host.Services.GetRequiredService<IOptions<AiGenerationOptions>>().Value;
-            var profile = EvaluationPlan.CaptureProfile(builder.Configuration, aiOptions);
+            var profile = AiProfile.Capture(builder.Configuration, aiOptions);
             if (experiment is not null && (profile["Model"] != experiment.Model || !string.IsNullOrWhiteSpace(profile["FallbackModel"])))
                 throw new ArgumentException("Prototype model must match pre-registration without fallback.");
             var report = plan.CreateReport(profile, experiment);

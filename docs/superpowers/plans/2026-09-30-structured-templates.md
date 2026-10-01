@@ -478,19 +478,27 @@ task 2. One active-operation index/conditional draft update and unique
 family/key index protect admission. Inject existing scoped services through
 fresh scopes; no DbContext is shared with provider calls or between threads.
 
-- [ ] Add idempotency tests in exact order: authorized draft lookup, existing
+Continue the accepted Task 3 staging: `AddActivityGeneration` activates the
+worker alongside the new API in the isolated host. Activation in `Program.cs`
+and deployment configuration belongs to the gated cutover, without a runtime
+enable flag. Task 4 removes the temporary block on manual saves during active
+work; revision checks fence their late results. Reuse the existing AI service's
+shared provider slots and one native family start limiter, acquiring a start
+permit only after durable-key replay checks.
+
+- [x] Add idempotency tests in exact order: authorized draft lookup, existing
       key comparison, then new-operation revision/admission checks. Replay after
       material acceptance/terminal status returns original operation despite a
       changed current revision. Same key/different original request returns 409;
       cross-family access returns 404. Stored fingerprint binds original
       revision, kind/target/instruction and separately captured effective-input
       hash.
-- [ ] Add budget tests for 32 global/four family/one draft, two shared provider
+- [x] Add budget tests for 32 global/four family/one draft, two shared provider
       slots, ten family starts/minute, two steps/operation and 2 MiB evidence.
       The 129th new operation fails safely; viewing, edits, release and existing
       key replay remain available. Explicit clone is unbilled and never
       automatic.
-- [ ] Add transactional acceptance tests: candidate + content + draft revision +
+- [x] Add transactional acceptance tests: candidate + content + draft revision +
       step checkpoint + queued next stage commit together. Queued → calling is
       an atomic claim conditioned on active identity and matching revisions;
       cancel/edit before a successful claim produces no provider call. Material
@@ -498,33 +506,33 @@ fresh scopes; no DbContext is shared with provider calls or between threads.
       Question failure retains accepted material; explicit GenerateQuestions
       reuses it. No partial document appears when a checkpoint transaction
       fails.
-- [ ] Add deterministic race barriers for edit/Undo/source change/cancel/delete/
+- [x] Add deterministic race barriers for edit/Undo/source change/cancel/delete/
       reset before claim and while provider waits. Store late candidates as
       unapplied conflicts, clear active state and stop downstream. Cancellation
       wins locally before transport cancellation, retains terminal cancelled
       status and allows only known usage metadata to arrive later. No provider
       transaction stays open.
-- [ ] Test expected provider/validation failures terminate only their operation,
+- [x] Test expected provider/validation failures terminate only their operation,
       release its active reference and let the next queued operation run. Saved
       material survives and the UI does not claim a full rollback. Distinguish
       user cancellation, provider timeout and host shutdown. Do not globally
       ignore unexpected BackgroundService exceptions or reuse a failed
       DbContext.
-- [ ] Add restart fixtures: queued resumes; accepted material + queued questions
+- [x] Add restart fixtures: queued resumes; accepted material + queued questions
       resumes only questions; calling without accepted checkpoint becomes
       unknown and is never replayed. Preserve known response metadata versus
       unknown usage. Repeated GET/poll/reload makes zero starts. Test lost
       start/release responses.
-- [ ] Test queued work after an engine/schema or nonsecret AI-profile change
+- [x] Test queued work after an engine/schema or nonsecret AI-profile change
       stops without a provider call and retains accepted content. Credential
       rotation alone remains resumable. No legacy engine registry or silent
       model switch is introduced to recover old operations.
-- [ ] Add seven-day artifact expiration tests with an injected clock. Purge at
+- [x] Add seven-day artifact expiration tests with an injected clock. Purge at
       most 32 terminal artifacts per pass; preserve
       key/fingerprints/status/known usage for draft lifetime. An expired
       diagnostic is explicit; key replay never restarts work. Draft deletion
       removes tombstones and replay returns 404.
-- [ ] Run those failing integration tests, implement the single-process worker
+- [x] Run those failing integration tests, implement the single-process worker
       and short transitions, then rerun until all pass. Document the one-process
       deployment constraint; do not add distributed leases speculatively.
 

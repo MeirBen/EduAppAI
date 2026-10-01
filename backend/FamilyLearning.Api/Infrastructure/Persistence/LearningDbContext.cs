@@ -19,6 +19,7 @@ public sealed class LearningDbContext(DbContextOptions<LearningDbContext> option
     public DbSet<TaskInstance> TaskInstances => Set<TaskInstance>();
     public DbSet<ActivityDraft> ActivityDrafts => Set<ActivityDraft>();
     public DbSet<TaskSnapshot> TaskSnapshots => Set<TaskSnapshot>();
+    public DbSet<GenerationOperation> GenerationOperations => Set<GenerationOperation>();
 
     /// <inheritdoc />
     protected override void OnModelCreating(ModelBuilder model)
@@ -59,6 +60,8 @@ public sealed class LearningDbContext(DbContextOptions<LearningDbContext> option
         {
             entity.Property(d => d.Name).HasMaxLength(100);
             entity.Property(d => d.Revision).IsConcurrencyToken();
+            // Starting work does not advance content revision, but must still fence an already-read release.
+            entity.Property(d => d.ActiveOperationId).IsConcurrencyToken();
             entity.Property(d => d.CreatedAtUtc).HasConversion(utcTimestamp);
             entity.Property(d => d.UpdatedAtUtc).HasConversion(utcTimestamp);
             entity.HasIndex(d => new { d.FamilyId, d.UpdatedAtUtc });
@@ -72,6 +75,18 @@ public sealed class LearningDbContext(DbContextOptions<LearningDbContext> option
             entity.HasIndex(s => s.SourceDraftId).IsUnique();
             entity.HasIndex(s => new { s.FamilyId, s.ReviewedAtUtc });
             entity.HasOne<Family>().WithMany().HasForeignKey(s => s.FamilyId).OnDelete(DeleteBehavior.Restrict);
+        });
+        model.Entity<GenerationOperation>(entity =>
+        {
+            entity.Property(o => o.Status).IsConcurrencyToken();
+            entity.Property(o => o.CreatedAtUtc).HasConversion(utcTimestamp);
+            entity.Property(o => o.FinishedAtUtc).HasConversion(utcTimestamp);
+            entity.HasIndex(o => new { o.FamilyId, o.OperationKey }).IsUnique();
+            entity.HasIndex(o => o.DraftId).IsUnique().HasFilter("Status IN ('queued', 'calling')");
+            entity.HasIndex(o => new { o.DraftId, o.CreatedAtUtc });
+            entity.HasIndex(o => new { o.Status, o.CreatedAtUtc });
+            entity.HasIndex(o => o.FinishedAtUtc).HasFilter("ArtifactsJson IS NOT NULL");
+            entity.HasOne<ActivityDraft>().WithMany().HasForeignKey(o => o.DraftId).OnDelete(DeleteBehavior.Cascade);
         });
     }
 }

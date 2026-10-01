@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using FamilyLearning.Api.Features.Ai;
 using FamilyLearning.Api.Infrastructure.Auth;
 using FamilyLearning.Api.Infrastructure.Persistence;
 using FamilyLearning.Api.TaskEngine.Ai;
@@ -15,7 +16,7 @@ public static class InstanceEndpoints
     /// <summary>Maps authenticated draft routes onto the API group configured with CSRF protection.</summary>
     public static void MapInstanceEndpoints(this RouteGroupBuilder api)
     {
-        api.MapPost("/templates/{id:guid}/instances", CreateAsync).RequireRateLimiting("generation");
+        api.MapPost("/templates/{id:guid}/instances", CreateAsync);
         var instances = api.MapGroup("/instances");
         instances.MapGet("/", async (ClaimsPrincipal user, LearningDbContext db, CancellationToken ct) =>
             await db.TaskInstances.AsNoTracking().Where(i => i.FamilyId == user.FamilyId())
@@ -37,7 +38,7 @@ public static class InstanceEndpoints
     }
 
     private static async Task<IResult> CreateAsync(Guid id, TaskInput request, ClaimsPrincipal user,
-        LearningDbContext db, AiGenerationService ai, CancellationToken ct)
+        LearningDbContext db, AiGenerationService ai, AiStartLimiter limiter, CancellationToken ct)
     {
         // Resolve ownership and pin the current immutable revision in one database read.
         var version = await (from template in db.TaskTemplates
@@ -51,6 +52,7 @@ public static class InstanceEndpoints
         foreach (var error in parameters.Errors) errors.Add(error.Key, error.Value);
         if (errors.Count > 0) return Results.ValidationProblem(errors);
         var input = new TaskInput(request.Settings, parameters.Values);
+        if (!limiter.TryAcquire(user.FamilyId())) return Results.StatusCode(429);
         var generated = await ai.GenerateAsync(definition, input, ct);
         var instance = new TaskInstance(user.FamilyId(), version.Id, generated.Value.Title,
             StoredJson.Write(input), StoredJson.Write(generated.Value), StoredJson.Write(generated.Metadata));

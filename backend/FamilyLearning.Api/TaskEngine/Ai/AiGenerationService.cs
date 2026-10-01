@@ -56,7 +56,7 @@ public sealed class AiGenerationService(IEnumerable<IChatClient> clients, ILogge
     }
 
     /// <summary>One generated-material batch call. Strict rejection returns diagnostics and never applies partial material.</summary>
-    public async Task<AiResult<MaterialCandidateBatch>> GenerateMaterialsAsync(MaterialGenerationInput input, CancellationToken ct)
+    public async Task<AiResult<MaterialCandidateBatch>> GenerateMaterialsAsync(MaterialGenerationInput input, CancellationToken ct, AiCallEvidence? evidence = null)
     {
         AiSchemas.RequireQuestionOutputCapacity(input.Request);
         var current = new TaskDocument("", null, input.Materials, []);
@@ -65,27 +65,27 @@ public sealed class AiGenerationService(IEnumerable<IChatClient> clients, ILogge
         current = current with { Materials = prepared.Materials };
         var ids = input.Request.Materials.Where(m => m.Source == "generated").Select(m => m.Id).ToArray();
         var result = await RequestAsync<MaterialCandidateBatch>(AiPrompts.MaterialGeneration,
-            JsonSerializer.Serialize(EffectiveInput(input.Request), Json), AiSchemas.MaterialsFor(ids), AiPrompts.Version("materials"), ct, structured: true);
+            JsonSerializer.Serialize(EffectiveInput(input.Request), Json), AiSchemas.MaterialsFor(ids), AiPrompts.Version("materials"), ct, structured: true, evidence: evidence);
         var accepted = TaskAssembly.AcceptMaterials(input.Request, current, result.Value, result.Metadata);
         if (accepted.Document is null) throw InvalidOutput("material-validation", result.Metadata.PromptVersion, accepted.Diagnostics);
         return result;
     }
 
     /// <summary>One full question call against current strict-valid material. Source revisions come from the application.</summary>
-    public async Task<AiResult<QuestionCandidateBatch>> GenerateQuestionsAsync(QuestionGenerationInput input, CancellationToken ct)
+    public async Task<AiResult<QuestionCandidateBatch>> GenerateQuestionsAsync(QuestionGenerationInput input, CancellationToken ct, AiCallEvidence? evidence = null)
     {
         var current = new TaskDocument("", null, input.Materials, []);
         var prepared = TaskAssembly.PrepareQuestions(input.Request, current);
         var result = await RequestAsync<QuestionCandidateBatch>(AiPrompts.QuestionGeneration,
             JsonSerializer.Serialize(new { request = EffectiveInput(input.Request), materials = SourceContext(prepared.Materials) }, Json),
-            AiSchemas.QuestionsFor(input.Request), AiPrompts.Version("questions"), ct, structured: true);
+            AiSchemas.QuestionsFor(input.Request), AiPrompts.Version("questions"), ct, structured: true, evidence: evidence);
         var errors = TaskDocumentValidator.ValidateQuestionBatch(input.Request, current with { Materials = prepared.Materials }, result.Value);
         if (errors.Count > 0) throw InvalidOutput("question-validation", result.Metadata.PromptVersion, errors);
         return result;
     }
 
     /// <summary>One complete generated-material replacement; source authority and target safety are enforced before/after the call.</summary>
-    public async Task<AiResult<MaterialCandidate>> ReplaceMaterialAsync(MaterialReplacementInput input, CancellationToken ct)
+    public async Task<AiResult<MaterialCandidate>> ReplaceMaterialAsync(MaterialReplacementInput input, CancellationToken ct, AiCallEvidence? evidence = null)
     {
         var target = TaskAssembly.MaterialTarget(input);
         var result = await RequestAsync<MaterialCandidate>(AiPrompts.MaterialReplacement,
@@ -95,14 +95,14 @@ public sealed class AiGenerationService(IEnumerable<IChatClient> clients, ILogge
                 target = new { target.Id, target.Title, target.Body },
                 materials = SourceContext(input.Current.Materials.Where(m => m.Id != target.Id)),
                 input.Instruction
-            }, Json), AiSchemas.MaterialsFor([target.Id], replacement: true), AiPrompts.Version("replace-material"), ct, structured: true);
+            }, Json), AiSchemas.MaterialsFor([target.Id], replacement: true), AiPrompts.Version("replace-material"), ct, structured: true, evidence: evidence);
         try { TaskAssembly.ReplaceMaterial(input, result.Value, result.Metadata); }
         catch (TaskValidationException exception) { throw InvalidOutput("material-validation", result.Metadata.PromptVersion, exception.Errors); }
         return result;
     }
 
     /// <summary>One complete question replacement; unrelated questions and app-owned target identity never enter the provider request.</summary>
-    public async Task<AiResult<QuestionCandidate>> ReplaceQuestionAsync(QuestionReplacementInput input, CancellationToken ct)
+    public async Task<AiResult<QuestionCandidate>> ReplaceQuestionAsync(QuestionReplacementInput input, CancellationToken ct, AiCallEvidence? evidence = null)
     {
         var target = TaskAssembly.QuestionTarget(input);
         var result = await RequestAsync<QuestionCandidate>(AiPrompts.QuestionReplacement,
@@ -112,7 +112,7 @@ public sealed class AiGenerationService(IEnumerable<IChatClient> clients, ILogge
                 target = new { target.Prompt, target.Interaction, target.Answer, target.Points },
                 materials = SourceContext(input.Current.Materials),
                 input.Instruction
-            }, Json), AiSchemas.QuestionsFor(input.Request, replacement: true), AiPrompts.Version("replace-question"), ct, structured: true);
+            }, Json), AiSchemas.QuestionsFor(input.Request, replacement: true), AiPrompts.Version("replace-question"), ct, structured: true, evidence: evidence);
         try { TaskAssembly.ReplaceQuestion(input, result.Value, result.Metadata); }
         catch (TaskValidationException exception) { throw InvalidOutput("question-validation", result.Metadata.PromptVersion, exception.Errors); }
         return result;
@@ -180,7 +180,7 @@ public sealed class AiGenerationService(IEnumerable<IChatClient> clients, ILogge
     }
 
     private async Task<AiResult<T>> RequestAsync<T>(string systemPrompt, string input, JsonElement schema,
-        string promptVersion, CancellationToken ct, bool structured = false) where T : class
+        string promptVersion, CancellationToken ct, bool structured = false, AiCallEvidence? evidence = null) where T : class
     {
         if (Encoding.UTF8.GetByteCount(schema.GetRawText()) > maxSchemaBytes) throw AiGenerationException.InputLimit("schema-limit");
         if (client is null) throw new AiGenerationException(503, "יצירת תוכן בעזרת AI עדיין לא מחוברת. יש להגדיר מפתח OpenRouter בשרת.");
@@ -192,6 +192,11 @@ public sealed class AiGenerationService(IEnumerable<IChatClient> clients, ILogge
         {
             // Keep the model-visible contract and output constraint sourced from the same schema.
             var instructions = $"{systemPrompt}\nOutput JSON schema:\n{JsonSerializer.Serialize(schema, Json)}";
+            if (evidence is not null)
+            {
+                evidence.Request = instructions + "\n" + input;
+                evidence.Schema = schema.Clone();
+            }
             var response = await client.GetResponseAsync(
                 [new ChatMessage(ChatRole.System, instructions), new ChatMessage(ChatRole.User, input)],
                 new ChatOptions
@@ -201,8 +206,9 @@ public sealed class AiGenerationService(IEnumerable<IChatClient> clients, ILogge
                     AdditionalProperties = new() { ["strict"] = true }
                 }, timeout.Token);
             var text = response.Text;
-            var metadata = new GenerationMetadata("OpenRouter", response.ModelId ?? "unknown", promptVersion, DateTime.UtcNow,
+            var metadata = new GenerationMetadata("OpenRouter", response.ModelId is { Length: <= AiCallEvidence.IdentifierLimit } model ? model : "unknown", promptVersion, DateTime.UtcNow,
                 structured ? EngineVersions.Revision : null, structured ? EngineVersions.SchemaVersion : null);
+            evidence?.Capture(response, metadata);
             // Record metadata before parsing so truncated and invalid responses remain diagnosable.
             logger.LogInformation(
                 "AI response: provider {Provider}, model {Model}, prompt version {PromptVersion}, generated {GeneratedAtUtc}, " +

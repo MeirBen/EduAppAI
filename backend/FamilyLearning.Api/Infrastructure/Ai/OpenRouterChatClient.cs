@@ -48,7 +48,14 @@ internal sealed class OpenRouterChatClient(ChatClient client, ChatOptions sampli
         };
         try
         {
-            return await base.GetResponseAsync(messages, options, cancellationToken);
+            var response = await base.GetResponseAsync(messages, options, cancellationToken);
+            // Keep provider-specific cost extraction at the adapter; absence remains unknown for every caller.
+#pragma warning disable SCME0001 // OpenRouter's usage extension is exposed through the SDK JSON patch.
+            if (response.RawRepresentation is ChatCompletion { Usage: { } usage } &&
+                usage.Patch.TryGetValue("$.cost"u8, out decimal cost) && cost >= 0)
+                (response.AdditionalProperties ??= new())["costCredits"] = cost;
+#pragma warning restore SCME0001
+            return response;
         }
         catch (Exception exception) when (exception is InvalidOperationException or FormatException or
             ArgumentException or NullReferenceException)

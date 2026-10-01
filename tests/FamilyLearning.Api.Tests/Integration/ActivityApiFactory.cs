@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
+using FamilyLearning.Api.Features.Activities;
 using FamilyLearning.Api.Infrastructure.Auth;
 using FamilyLearning.Api.Infrastructure.Persistence;
 using FamilyLearning.Api.Infrastructure.Web;
@@ -9,7 +10,9 @@ using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
@@ -34,6 +37,8 @@ internal sealed class ActivityApiFactory : IAsyncDisposable
             builder.Services.AddParentAuthentication(true);
             builder.Services.AddDataProtection().UseEphemeralDataProtectionProvider();
             builder.Services.AddApplicationApi();
+            builder.Services.AddActivityGeneration(new ConfigurationBuilder().Build());
+            builder.Services.RemoveAll<IHostedService>();
             configure?.Invoke(builder.Services);
             app = builder.Build();
             using (var scope = app.Services.CreateScope())
@@ -60,6 +65,7 @@ internal sealed class ActivityApiFactory : IAsyncDisposable
         await TokenAsync(client, cookies);
         return client;
     }
+
 
     private static async Task TokenAsync(HttpClient client, CookieContainer cookies)
     {

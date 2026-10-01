@@ -1,0 +1,58 @@
+using System.Net;
+using System.Net.Http.Json;
+using System.Text.Json.Nodes;
+using FamilyLearning.Api.Features.Activities;
+using FamilyLearning.Api.Infrastructure.Ai;
+using FamilyLearning.Api.Tests.Fixtures;
+using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.Extensions.AI;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Hosting;
+using static FamilyLearning.Api.Tests.Integration.ActivityDraftTests;
+
+namespace FamilyLearning.Api.Tests.Integration;
+
+internal sealed class GenerationHarness(params string[] responses) : IAsyncDisposable
+{
+    internal ActivityApiFactory App { get; } = new();
+    internal AiFixtures.ScriptedChat Chat { get; } = new(responses);
+    internal TestClock Clock { get; } = new();
+    internal IConfiguration Configuration { get; } = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
+    { ["Ai:Model"] = "isolated", ["Ai:RequestTimeoutSeconds"] = "1" }).Build();
+    internal GenerationWorker Worker => App.Services.GetRequiredService<GenerationWorker>();
+
+    internal Task<HttpClient> ParentAsync(Action<IServiceCollection>? configure = null) => App.ParentAsync(services =>
+    {
+        services.AddSingleton<IChatClient>(Chat);
+        services.AddTaskAi(Configuration, new Microsoft.Extensions.Hosting.Internal.HostingEnvironment());
+        services.AddSingleton<TimeProvider>(Clock);
+        // Advancing retention time must not expire the real test login session.
+        services.PostConfigure<CookieAuthenticationOptions>(IdentityConstants.ApplicationScheme, o => o.TimeProvider = TimeProvider.System);
+        services.AddActivityGeneration(Configuration);
+        // Deterministic tests drive the same worker transitions without its polling loop.
+        services.RemoveAll<IHostedService>();
+        configure?.Invoke(services);
+    });
+
+    internal static async Task<JsonNode> Start(HttpClient parent, JsonNode draft, string kind = "GenerateActivity", string? targetId = null)
+    {
+        using var response = await parent.PostAsJsonAsync(Path(draft) + "/operations", new
+        { operationKey = Guid.NewGuid(), expectedRevision = draft["revision"]!.GetValue<long>(), kind, targetId });
+        Assert.True(response.StatusCode == HttpStatusCode.Accepted, await response.Content.ReadAsStringAsync());
+        return (await response.Content.ReadFromJsonAsync<JsonNode>())!;
+    }
+
+    internal static string OperationPath(JsonNode operation) => $"/api/activity-drafts/{operation["draftId"]!.GetValue<Guid>()}/operations/{operation["id"]!.GetValue<Guid>()}";
+    internal static string Questions(string type = "numeric-input") => $$"""{"title":"תרגול","instructions":"ענו","questions":[{"prompt":"כמה הם 1 ועוד 1?","interaction":{"type":"{{type}}","options":null},"answer":{"value":"2"},"points":1}]}""";
+    internal const string Materials = """{"materials":[{"id":"11111111111111111111111111111111","title":null,"body":"שלום עולם"}]}""";
+    public ValueTask DisposeAsync() => App.DisposeAsync();
+
+    internal sealed class TestClock : TimeProvider
+    {
+        internal DateTimeOffset Now { get; set; } = new(2026, 10, 1, 0, 0, 0, TimeSpan.Zero);
+        public override DateTimeOffset GetUtcNow() => Now;
+    }
+}

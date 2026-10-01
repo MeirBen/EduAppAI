@@ -26,12 +26,10 @@ public static class ApiConfiguration
         });
         services.AddProblemDetails(options => options.CustomizeProblemDetails = context =>
             context.ProblemDetails.Extensions["traceId"] = context.HttpContext.TraceIdentifier);
+        services.AddSingleton<AiStartLimiter>();
         services.AddRateLimiter(options =>
         {
             options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
-            options.AddPolicy("generation", context => RateLimitPartition.GetFixedWindowLimiter(
-                context.User.FindFirst("family_id")?.Value ?? "anonymous", _ => new FixedWindowRateLimiterOptions
-                { PermitLimit = 10, Window = TimeSpan.FromMinutes(1), QueueLimit = 0 }));
             options.AddPolicy("login", context => RateLimitPartition.GetFixedWindowLimiter(
                 context.Connection.RemoteIpAddress?.ToString() ?? "unknown", _ => new FixedWindowRateLimiterOptions
                 { PermitLimit = 10, Window = TimeSpan.FromMinutes(1), QueueLimit = 0 }));
@@ -52,6 +50,7 @@ public static class ApiConfiguration
     {
         var api = ParentApi(app);
         api.MapActivityEndpoints();
+        api.MapGenerationOperationEndpoints();
         api.MapPlanTemplateEndpoints();
         api.MapSnapshotEndpoints();
     }

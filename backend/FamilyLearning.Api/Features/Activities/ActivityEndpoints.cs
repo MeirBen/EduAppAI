@@ -92,7 +92,7 @@ public static class ActivityEndpoints
     {
         var draft = await Owned(db, user, id).SingleOrDefaultAsync(ct);
         if (draft is null) return Results.NotFound();
-        if (draft.ReleasedSnapshotId.HasValue || draft.Revision != body.ExpectedRevision || draft.ActiveOperationId.HasValue) return Conflict();
+        if (draft.ReleasedSnapshotId.HasValue || draft.Revision != body.ExpectedRevision) return Conflict();
         if (body.Input is null) return Invalid("input", "יש לציין קלט לפעילות.");
         var before = Resolve(StoredJson.Read<LearningPlan>(draft.PlanJson), StoredJson.Read<TaskRequest>(draft.InputJson));
         var request = Resolve(body.Plan, body.Input);

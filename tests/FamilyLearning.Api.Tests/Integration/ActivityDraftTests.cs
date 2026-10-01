@@ -192,7 +192,7 @@ public sealed class ActivityDraftTests
     }
 
     [Fact]
-    public async Task Effective_input_changes_stale_unchanged_content_and_active_work_blocks_writes()
+    public async Task Effective_input_changes_stale_unchanged_content_and_active_work_blocks_release_but_allows_edits()
     {
         await using var app = new ActivityApiFactory();
         using var parent = await app.ParentAsync();
@@ -211,7 +211,7 @@ public sealed class ActivityDraftTests
             db.Entry(row).Property(d => d.ActiveOperationId).CurrentValue = Guid.NewGuid();
             await db.SaveChangesAsync();
         }
-        Assert.Equal(HttpStatusCode.Conflict, (await parent.PutAsJsonAsync(Path(draft), Edit(draft))).StatusCode);
+        draft = await Save(parent, draft, Edit(draft));
         Assert.Equal(HttpStatusCode.Conflict, (await parent.PostAsJsonAsync(Path(draft) + "/release", new { expectedRevision = draft["revision"]!.GetValue<long>() })).StatusCode);
     }
 

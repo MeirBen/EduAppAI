@@ -20,6 +20,17 @@ public sealed class ActivityDraft(Guid familyId, string name, string planJson, s
     public Guid? ReleasedSnapshotId { get; private set; }
     public long? ReleasedSourceRevision { get; private set; }
 
+    /// <summary>Stages the active reference; its concurrency token fences release without advancing the content revision.</summary>
+    internal void StartOperation(Guid operationId) => ActiveOperationId = operationId;
+
+    internal void ClearOperation(Guid operationId, DateTime now, bool cancelled = false)
+    {
+        if (ActiveOperationId != operationId) return;
+        ActiveOperationId = null;
+        if (cancelled) Revision = checked(Revision + 1);
+        UpdatedAtUtc = now;
+    }
+
     /// <summary>Stages a validated edit or adoption. The caller must persist using the loaded EF concurrency token.</summary>
     internal void Save(string name, string plan, string input, string document)
     {

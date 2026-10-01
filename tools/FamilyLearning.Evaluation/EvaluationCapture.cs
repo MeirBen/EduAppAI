@@ -4,7 +4,6 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using Microsoft.Extensions.AI;
-using OpenAI.Chat;
 using ChatMessage = Microsoft.Extensions.AI.ChatMessage;
 
 namespace FamilyLearning.Evaluation;
@@ -53,12 +52,8 @@ internal sealed class EvaluationCapture(IChatClient innerClient, int maxCalls, E
         Current.InputTokens = response.Usage?.InputTokenCount;
         Current.OutputTokens = response.Usage?.OutputTokenCount;
         Current.ReasoningTokens = response.Usage?.ReasoningTokenCount;
-        // OpenRouter returns usage.cost automatically. Never infer missing costs as free calls.
-#pragma warning disable SCME0001 // The SDK preserves provider-specific usage fields in its JSON patch.
-        if (response.RawRepresentation is ChatCompletion { Usage: { } usage } &&
-            usage.Patch.TryGetValue("$.cost"u8, out decimal cost) && cost >= 0)
-            Current.CostCredits = cost;
-#pragma warning restore SCME0001
+        if (response.AdditionalProperties?.TryGetValue("costCredits", out var cost) == true && cost is decimal costCredits)
+            Current.CostCredits = costCredits;
         if (budgetReport?.Experiment is not null && Current.CostCredits is { } actualCost)
             budgetReport.ReservedCostUsd += actualCost - reservedCost;
         return response;

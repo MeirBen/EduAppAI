@@ -41,7 +41,7 @@ public sealed class EvaluationCoordinator : IHostedService, IDisposable
             var validatedOptions = provider.GetRequiredService<IOptions<AiGenerationOptions>>().Value;
             var configuredClient = provider.GetServices<IChatClient>().SingleOrDefault();
             if (configuredClient is null) return;
-            profile = EvaluationPlan.CaptureProfile(configuration, validatedOptions);
+            profile = AiProfile.Capture(configuration, validatedOptions);
             options = validatedOptions;
             client = configuredClient;
             aiProvider = provider;

@@ -193,7 +193,37 @@ and preserves accounts. No scoring policy or child DTO is introduced here.
 The additive migration creates draft/snapshot tables without converting old
 learning data. The final cutover task replaces prototype migrations with the
 clean initial model. Integration tests use disposable databases and real
-authentication/CSRF policies; no AI client is registered in their activity host.
+authentication/CSRF policies. Persistence-only tests have no provider; worker
+tests register an isolated provider.
+
+`AddActivityGeneration` activates one `GenerationWorker` with the staged API.
+Run this deployment in **one API process**. SQLite owns the queue and key
+tombstones; multiple replicas need a different claim/lease design. The hosted
+worker uses short fresh DbContext scopes for admission, claim and checkpoint,
+and disposes them before calling the shared AI service. Its single content call
+shares the service's two provider slots with synchronous authoring.
+
+New starts share one native per-family rate limiter with existing AI routes.
+Owned key replay precedes revision, active-state and budget checks. Admission
+atomically enforces global/family/draft queue limits. Manual saves remain
+available during generation; any revision change fences the result, which stays
+an unapplied diagnostic candidate. Cancellation commits its terminal state and
+revision before signaling transport. Draft deletion cascades operation evidence
+and key tombstones; it cannot restore deleted work.
+
+Each claim captures immutable stage input. A successful checkpoint saves content,
+candidate, usage and queued next stage together. Expected AI failures terminate
+only their operation. Unexpected worker/database defects retain the host's normal
+stop behavior. Restart resumes compatible queued stages, while uncheckpointed
+calling steps become unknown and are never replayed. Profile fingerprints exclude
+credentials, so key rotation alone does not invalidate queued work.
+
+Operation artifacts are bounded to 2 MiB and two steps. After seven terminal days,
+startup/hourly cleanup expires at most 32 bulky artifacts per pass, retaining keys,
+fingerprints, outcomes and known usage until draft deletion. Null usage/cost stays
+unknown. Retention uses `TimeProvider`; purging selects IDs without loading the
+bulky artifacts. These policies and polling configuration live in
+`GenerationOperationOptions`; no distributed scheduler or retry loop is added.
 
 [chat]: https://learn.microsoft.com/en-us/dotnet/ai/ichatclient
 [output]: https://openrouter.ai/docs/guides/features/structured-outputs
