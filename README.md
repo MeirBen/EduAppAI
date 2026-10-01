@@ -125,10 +125,36 @@ or automatic downgrade of output constraints.
 Paid models require account credits. Automated tests use an isolated provider
 configuration, independently of the active model, and consume no credits.
 
+### Current Gemini profile
+
+The Gemini 3.8 Flash profile follows [Google's migration guidance][gemini-profile]:
+omit temperature, top-p and top-k, and select a thinking level instead of a
+fixed reasoning-token budget. `medium` is Google's default; we choose it as a
+quality-focused starting point for grounded questions and answer keys.
+[OpenRouter maps the effort directly][reasoning] to Google's thinking level;
+it does not allocate an exact number or percentage of reasoning tokens.
+
+Keep strict JSON schema, the 16,384-token requested output limit and the
+180-second deadline. The limit leaves room for reasoning and final JSON without
+automatically requesting the model's maximum. Excluding reasoning from the
+response does not disable thinking or its billing. A [developer report of token
+limit overshoot][gemini-token-report] remains unverified in this app; use a key
+spending limit for budget enforcement.
+
+[Community experience][gemini-community] favors low thinking for speed in an
+agent workload; it does not establish Hebrew educational quality. This profile
+is documentation-aligned, not a demonstrated quality improvement. The saved
+comparison used low thinking with explicit sampling. Future tuning must compare
+one setting at a time on the same cases and strict checks, retaining costs and
+reviewing the full content; recalibrate the judge for its changed profile.
+
 [parameters]: https://openrouter.ai/docs/api/reference/parameters
 [reasoning]: https://openrouter.ai/docs/guides/best-practices/reasoning-tokens
 [model-metadata]: https://openrouter.ai/api/v1/models
 [fallback]: https://openrouter.ai/docs/guides/routing/model-fallbacks
+[gemini-profile]: https://ai.google.dev/gemini-api/docs/generate-content/latest-model
+[gemini-token-report]: https://discuss.ai.google.dev/t/gemini-3-8-flash-high-does-maxoutputtokens-include-thinking-tokens/181077/4
+[gemini-community]: https://www.reddit.com/r/hermesagent/comments/1w5jj6w/gemini_38_flash_is_awesome_as_the_main_agent/
 
 ## Hebrew AI evaluation
 

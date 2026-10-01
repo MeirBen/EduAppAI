@@ -9,6 +9,12 @@ configuration choice supersedes the recommendation to retain DeepSeek below;
 the measured results and quality limitations remain unchanged. No new paid trial
 accompanies this model switch.
 
+Later configuration review aligned the active profile with Google's guidance:
+medium reasoning and omitted sampling overrides. See the
+[current profile rationale](../../../README.md#current-gemini-profile).
+That documentation-based choice has no new paid comparison; results below still
+describe the original low-reasoning profile with explicit sampling.
+
 This follows the
 [post-cutover tuning](2026-10-01-post-cutover-ai-tuning.md), using its retained
 engine revision 5 as the baseline. The owner authorized the review, one alternate
