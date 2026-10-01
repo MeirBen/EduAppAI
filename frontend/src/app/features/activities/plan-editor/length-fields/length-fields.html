@@ -1,0 +1,54 @@
+@let f = fields();
+<fieldset class="grid min-w-0 gap-3">
+  <legend>{{ label() }}</legend>
+  <label [for]="prefix() + '-length-mode'">הנחיית אורך</label>
+  <select [id]="prefix() + '-length-mode'" [formField]="f.mode">
+    <option value="">ללא בקשת אורך</option>
+    <option value="target">מספר מילים רצוי, בקירוב</option>
+    <option value="exact">מספר מילים מדויק</option>
+    <option value="range">טווח מילים קבוע</option>
+  </select>
+  @if (f.mode().value() === 'range') {
+    <div class="grid gap-3 sm:grid-cols-2">
+      <label
+        >מינימום מילים<input
+          [id]="prefix() + '-lower'"
+          dir="ltr"
+          inputmode="numeric"
+          [formField]="f.lower"
+      /></label>
+      <label
+        >מקסימום מילים<input
+          [id]="prefix() + '-upper'"
+          dir="ltr"
+          inputmode="numeric"
+          [formField]="f.upper"
+      /></label>
+    </div>
+  } @else if (f.mode().value()) {
+    <label [for]="prefix() + '-words'">מספר מילים</label
+    ><input [id]="prefix() + '-words'" dir="ltr" inputmode="numeric" [formField]="f.value" />
+    <label class="flex gap-2"
+      ><input [id]="prefix() + '-adjustable'" type="checkbox" [formField]="f.adjustable" />אפשר
+      לשנות בכל פעילות</label
+    >
+    @if (f.adjustable().value()) {
+      <div class="grid gap-3 sm:grid-cols-2">
+        <label
+          >מינימום לבחירה (רשות)<input
+            [id]="prefix() + '-min'"
+            dir="ltr"
+            inputmode="numeric"
+            [formField]="f.min"
+        /></label>
+        <label
+          >מקסימום לבחירה (רשות)<input
+            [id]="prefix() + '-max'"
+            dir="ltr"
+            inputmode="numeric"
+            [formField]="f.max"
+        /></label>
+      </div>
+    }
+  }
+</fieldset>

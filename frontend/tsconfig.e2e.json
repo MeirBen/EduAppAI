@@ -6,5 +6,10 @@
     "checkJs": true,
     "noEmit": true
   },
-  "include": ["e2e/**/*.ts", "e2e/**/*.mjs", "playwright.config.ts"]
+  "include": [
+    "e2e/**/*.ts",
+    "e2e/**/*.mjs",
+    "playwright.config.ts",
+    "playwright.activities.config.ts"
+  ]
 }

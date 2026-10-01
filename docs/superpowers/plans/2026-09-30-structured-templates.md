@@ -555,7 +555,16 @@ client revision, baseline, clarification and twenty-entry Undo. Presentation
 children emit edits without owning another draft. Saved template publication
 keeps expectedVersion.
 
-- [ ] Test initial proposal/refinement and successive clarification exchanges:
+Continue the approved isolated-composition staging through the frontend:
+`contentFirstRoutes` loads ActivityWorkspace directly, while the deployed routes
+keep their existing callers until the gated cutover. A native Angular test build
+selects that composition; no runtime flag or compatibility reader is added.
+The staged authoring status supplies the server-owned schema version for manual
+plan creation. Task 5 owns the source/input submission gate; Task 6 adds the
+draft-saving and generation actions that consume it. Keep legacy editor code
+only while the deployed composition still uses it, then remove it at cutover.
+
+- [x] Test initial proposal/refinement and successive clarification exchanges:
       at most one question per reply, one call per submitted parent message and
       no automatic follow-up call or mandatory clarification. Preserve original
       intent and answers until a proposal applies, then use the current plan as
@@ -565,30 +574,30 @@ keeps expectedVersion.
       loss. Keep operative assumptions in the plan, identity preservation and
       computed removals. Retained fixed source cannot change through AI; direct
       source edits are explicit and confirmed.
-- [ ] Test workspace-only source confirmation: an unconfirmed AI-extracted
+- [x] Test workspace-only source confirmation: an unconfirmed AI-extracted
       source blocks publication, draft creation/update and generation before
       HTTP submission. Confirming or directly editing it enables submission; the
       payload contains canonical source text, no confirmation flag. Reloaded
       saved sources are already accepted; Undo tracks confirmation locally.
-- [ ] Test late proposal after typing/invalid input/Undo/cancel/route change
+- [x] Test late proposal after typing/invalid input/Undo/cancel/route change
       never applies; identical proposal creates no history. Clarification
       retains its original request then expires on conflicting edits. A clean
       proposal applies locally with visible changes and no mandatory Accept
       page.
-- [ ] Test independent template Save: no generation, no activity mutation,
+- [x] Test independent template Save: no generation, no activity mutation,
       duplicate success handled once, pending save briefly locks edits, stale
       publication preserves local input. Lost response offers checking the
       library; no automatic publication retry or claimed rollback.
-- [ ] Implement app-owned purpose/material/question/requested-choice controls,
+- [x] Implement app-owned purpose/material/question/requested-choice controls,
       inline source confirmation and meaningful Hebrew change labels. No raw key
       editor or generated prompt textarea. AI-unavailable state allows direct
       editing/publication. Do not expose unrequested passage/story controls.
-- [ ] Use initialized, control-friendly form values rather than binding partial
+- [x] Use initialized, control-friendly form values rather than binding partial
       domain/HTTP records directly. Test the boundary mapping for blank optional
       numbers/selects, empty text, false and zero, and conditional control
       changes. Reuse the current native input helpers and Signal Forms; no new
       form engine.
-- [ ] Run `dotnet test --filter FullyQualifiedName~AiAuthoringTests` and
+- [x] Run `dotnet test --filter FullyQualifiedName~AiAuthoringTests` and
       `npm --prefix frontend test -- --watch=false`; require isolated passes.
 
 ### Task 6: Complete editable activity and operation UI

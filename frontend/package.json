@@ -10,7 +10,8 @@
     "format:check": "prettier --check \"src/**/*.{ts,html,css}\" \"e2e/**/*.{ts,mjs}\" \"*.{ts,json}\" public/manifest.webmanifest ../.prettierrc .postcssrc.json \"../*.json\" ../.markdownlint-cli2.jsonc \"../*.md\" \"../docs/**/*.md\" ../.github/workflows/verify.yml",
     "e2e": "playwright test",
     "lint:md": "cd .. && markdownlint-cli2",
-    "typecheck:e2e": "tsc -p tsconfig.e2e.json"
+    "typecheck:e2e": "tsc -p tsconfig.e2e.json",
+    "e2e:activities": "playwright test --config playwright.activities.config.ts"
   },
   "private": true,
   "packageManager": "npm@12.0.2",

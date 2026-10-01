@@ -49,6 +49,7 @@ public static class ApiConfiguration
     public static void MapContentFirstApi(this WebApplication app)
     {
         var api = ParentApi(app);
+        api.MapPlanAuthoringEndpoints();
         api.MapActivityEndpoints();
         api.MapGenerationOperationEndpoints();
         api.MapPlanTemplateEndpoints();

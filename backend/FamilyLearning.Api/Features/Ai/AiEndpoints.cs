@@ -1,13 +1,39 @@
 using System.Security.Claims;
 using System.Text.Json.Serialization;
 using FamilyLearning.Api.Infrastructure.Auth;
+using FamilyLearning.Api.TaskEngine;
 using FamilyLearning.Api.TaskEngine.Ai;
+using FamilyLearning.Api.TaskEngine.Models;
 
 namespace FamilyLearning.Api.Features.Ai;
 
 /// <summary>Returns parent-only AI template proposals without publishing them.</summary>
 public static class AiEndpoints
 {
+    /// <summary>Maps the bounded plan chat contract in the staged API; each submitted message permits one proposal call.</summary>
+    public static void MapPlanAuthoringEndpoints(this RouteGroupBuilder api)
+    {
+        var ai = api.MapGroup("/ai");
+        // New manual plans preserve the server's schema version; the client owns no version counter.
+        ai.MapGet("/status", (AiGenerationService service) => Results.Ok(new { configured = service.Configured, schemaVersion = EngineVersions.SchemaVersion }));
+        ai.MapPost("/template-drafts", async (TemplateAuthoringInput request, AiGenerationService service,
+            AiStartLimiter limiter, ClaimsPrincipal user, CancellationToken ct) =>
+        {
+            if (!limiter.TryAcquire(user.FamilyId())) return Results.StatusCode(429);
+            var result = await service.AuthorAsync(request, ct);
+            return Results.Ok(new
+            {
+                result.Value.Proposal,
+                result.Value.Clarification,
+                result.Value.Assumptions,
+                result.Value.Changes,
+                request.RequestId,
+                request.BaseRevision,
+                generationMetadata = result.Metadata
+            });
+        });
+    }
+
     public static void MapAiEndpoints(this RouteGroupBuilder api)
     {
         var ai = api.MapGroup("/ai");

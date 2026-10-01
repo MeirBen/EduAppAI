@@ -1,4 +1,5 @@
 import { HttpClient, httpResource } from '@angular/common/http';
+import { Observable, takeUntil } from 'rxjs';
 import { DestroyRef, inject, Injectable } from '@angular/core';
 import { requestResult } from './request-result';
 import {
@@ -9,6 +10,11 @@ import {
   TemplateDefinition,
   TemplateDetail,
   TemplateSummary,
+  LearningPlan,
+  PlanAuthoringRequest,
+  PlanAuthoringReply,
+  PlanTemplateDetail,
+  ActivityPlanDetail,
 } from './models';
 
 /**
@@ -24,7 +30,42 @@ export class LearningApi {
 
   /** Reports server configuration without exposing credentials or contacting the provider. */
   aiStatus() {
-    return httpResource<{ configured: boolean }>(() => '/api/ai/status');
+    return httpResource<{ configured: boolean; schemaVersion?: number }>(() => '/api/ai/status');
+  }
+  /** One cancellable proposal call; cancellation never causes a retry. */
+  authorPlan(request: PlanAuthoringRequest, cancelled: Observable<void>, lifetime: DestroyRef) {
+    return requestResult(
+      this.http
+        .post<PlanAuthoringReply>('/api/ai/template-drafts', request)
+        .pipe(takeUntil(cancelled)),
+      lifetime,
+    );
+  }
+  /** Loads a canonical template in the staged route composition. */
+  planTemplate(id: () => string | undefined) {
+    return httpResource<PlanTemplateDetail>(() => (id() ? `/api/templates/${id()}` : undefined));
+  }
+  /** Loads the saved plan/input without starting generation or saving local changes. */
+  activityPlan(id: () => string | undefined) {
+    return httpResource<ActivityPlanDetail>(() =>
+      id() ? `/api/activity-drafts/${id()}` : undefined,
+    );
+  }
+  /** Independent template publication; never writes an activity or starts generation. */
+  savePlanTemplate(
+    plan: LearningPlan,
+    previous: PlanTemplateDetail | undefined,
+    lifetime: DestroyRef,
+  ) {
+    return requestResult(
+      previous
+        ? this.http.post<PlanTemplateDetail>(`/api/templates/${previous.id}/versions`, {
+            expectedVersion: previous.currentVersion,
+            definition: plan,
+          })
+        : this.http.post<PlanTemplateDetail>('/api/templates', plan),
+      lifetime,
+    );
   }
   /** Produces an unsaved proposal for parent review. */
   authorTemplate(prompt: string, lifetime: DestroyRef) {

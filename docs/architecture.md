@@ -225,6 +225,30 @@ unknown. Retention uses `TimeProvider`; purging selects IDs without loading the
 bulky artifacts. These policies and polling configuration live in
 `GenerationOperationOptions`; no distributed scheduler or retry loop is added.
 
+The staged Angular `contentFirstRoutes` opens `ActivityWorkspace` directly for
+template and activity plan URLs. The deployed routes keep their existing callers
+until cutover. A separate native Angular test bootstrap exercises the staged
+composition; no runtime feature flag or schema compatibility reader is used.
+The staged authoring status supplies the server-owned schema version for manual
+plans. Each parent message makes one correlated authoring request; clarification
+context is retained until a proposal applies or the parent explicitly consolidates
+it. Local edits/Undo/cancellation invalidate pending responses before transport
+cancellation.
+
+The workspace owns one initialized form buffer for plan and per-activity input,
+derived canonical projections, source confirmation and twenty coalesced Undo
+entries. PlanEditor and TemplateChat edit the owner's Signal Forms/emit events;
+they own no copied draft or HTTP requests. An AI-extracted fixed source requires
+local confirmation; direct source edits accept the exact edited string. Only
+canonical text crosses the API boundary. Template publication briefly locks
+editing and uses expectedVersion; it never writes an activity or generates
+content. Failed publication preserves local input and offers a library check.
+Activity content saving/generation remains the next workspace milestone.
+
+`npm --prefix frontend run e2e:activities` runs the isolated staged browser
+workflow with intercepted HTTP contracts and zero provider calls. API integration
+tests separately exercise the real staged routes, authentication and engine.
+
 [chat]: https://learn.microsoft.com/en-us/dotnet/ai/ichatclient
 [output]: https://openrouter.ai/docs/guides/features/structured-outputs
 [forms]: https://angular.dev/guide/forms/signals/schemas

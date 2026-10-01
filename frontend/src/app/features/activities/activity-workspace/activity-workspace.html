@@ -1,0 +1,102 @@
+<section class="mx-auto grid max-w-5xl gap-6 p-gutter" aria-labelledby="workspace-title">
+  <header class="flex flex-wrap items-center justify-between gap-3">
+    <div>
+      <p class="eyebrow">{{ context() === 'template' ? 'תבנית לשימוש חוזר' : 'תכנון פעילות' }}</p>
+      <h1 id="workspace-title">התכנית שלכם</h1>
+    </div>
+    <a routerLink="/templates" class="text-link">לספרייה</a>
+  </header>
+  <app-loading-indicator [active]="loading()" label="טוענים את התכנית…" variant="panel" />
+  @if (loadError()) {
+    <p role="alert" class="field-error">{{ apiError(loadError()) }}</p>
+  } @else if (!loading()) {
+    <app-template-chat
+      [fields]="chatFields"
+      [configured]="ai.value()?.configured ?? false"
+      [busy]="authoring()"
+      [locked]="saving()"
+      [clarification]="clarification()"
+      [context]="conversation()"
+      [consolidationRequired]="needsConsolidation()"
+      (sent)="author()"
+      (consolidated)="author(true)"
+      (cancelled)="cancelAuthor()"
+    />
+    @if (changes().length) {
+      <section class="well" aria-label="שינויים בתכנית">
+        <ul>
+          @for (change of changes(); track $index) {
+            <li>{{ change }}</li>
+          }
+        </ul>
+      </section>
+    }
+    @if (assumptions().length) {
+      <details class="well">
+        <summary>הנחות ששימשו לתכנון</summary>
+        <ul>
+          @for (assumption of assumptions(); track $index) {
+            <li dir="auto">{{ assumption }}</li>
+          }
+        </ul>
+      </details>
+    }
+    <div class="flex flex-wrap items-center gap-3">
+      <button
+        id="plan-undo"
+        class="button button-secondary"
+        type="button"
+        [disabled]="saving() || !history().length"
+        (click)="undo()"
+      >
+        ביטול השינוי האחרון
+      </button>
+      <span role="status">{{
+        dirty() ? 'יש שינויים מקומיים שלא נשמרו' : 'אין שינויים מקומיים'
+      }}</span>
+    </div>
+    <app-plan-editor
+      [fields]="fields.plan"
+      [inputFields]="fields.input"
+      [pendingSources]="pendingSources()"
+      [locked]="saving()"
+      (edited)="edited($event)"
+      (structureChanged)="changeStructure($event)"
+      (sourceConfirmed)="confirmSource($event)"
+    />
+    @if (!canSubmitActivity() && projection().value) {
+      <p class="text-sm text-muted">
+        לפני יצירת פעילות יש להשלים את הבחירות ולאשר מקורות. שמירת התבנית אינה דורשת מקור חדש לכל
+        פעילות.
+      </p>
+    }
+    @if (attempted() && projection().errors.length) {
+      <div role="alert" class="field-error">
+        <ul>
+          @for (message of projection().errors; track $index) {
+            <li>{{ message }}</li>
+          }
+        </ul>
+      </div>
+    }
+    <section class="panel grid gap-3" aria-labelledby="publication-title">
+      <h2 id="publication-title">תבנית לשימוש חוזר</h2>
+      <p>שמירת התכנית בספרייה אינה יוצרת תוכן ואינה שומרת שינויים בפעילות.</p>
+      <button
+        id="save-template"
+        type="button"
+        class="button w-fit"
+        [disabled]="saving() || !templateChanged()"
+        (click)="saveTemplate()"
+      >
+        שמירת תבנית
+      </button>
+      <app-loading-indicator [active]="saving()" label="שומרים תבנית…" />
+      @if (error()) {
+        <p role="alert" class="field-error">{{ error() }}</p>
+        <a id="check-library" routerLink="/templates" class="text-link">בדיקת התבנית בספרייה</a>
+      }
+      <p role="status">{{ notice() }}</p>
+    </section>
+  }
+</section>

@@ -1,5 +1,6 @@
 import { Routes } from '@angular/router';
 import { parentGuard } from './core/auth/parent-guard';
+import { activityWorkspaceRoutes } from './features/activities/activity.routes';
 
 /** Lazy parent routes; route parameter names match component inputs. */
 export const routes: Routes = [
@@ -53,4 +54,23 @@ export const routes: Routes = [
     ],
   },
   { path: '**', redirectTo: 'templates' },
+];
+
+/** Isolated content-first composition. The deployed composition above remains until the accepted cutover gate. */
+export const contentFirstRoutes: Routes = [
+  routes[0],
+  {
+    path: '',
+    canActivateChild: [parentGuard],
+    children: [
+      ...activityWorkspaceRoutes,
+      {
+        path: 'templates',
+        title: 'המרחב שלנו · לומדים ביחד',
+        loadComponent: () => import('./features/library/library').then((module) => module.Library),
+      },
+      { path: '', pathMatch: 'full', redirectTo: 'activities/new' },
+    ],
+  },
+  { path: '**', redirectTo: 'activities/new' },
 ];

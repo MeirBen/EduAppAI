@@ -1,0 +1,153 @@
+import { expect, test, Page } from '@playwright/test';
+import {
+  numericPlan,
+  suppliedPlan,
+  sourceText,
+} from '../../src/app/features/activities/learning-plan.fixture';
+
+async function isolate(page: Page, configured = true) {
+  const writes: { url: string; body: Record<string, unknown> }[] = [];
+  await page.route('**/api/**', async (route) => {
+    const request = route.request(),
+      path = new URL(request.url()).pathname;
+    if (request.method() === 'POST') writes.push({ url: path, body: request.postDataJSON() });
+    if (path === '/api/auth/me')
+      return route.fulfill({ json: { email: 'parent@example.test', familyId: 'isolated' } });
+    if (path === '/api/auth/csrf') return route.fulfill({ json: { token: 'isolated' } });
+    if (path === '/api/ai/status')
+      return route.fulfill({ json: { configured, schemaVersion: numericPlan.schemaVersion } });
+    if (path === '/api/templates/example')
+      return route.fulfill({
+        json: { id: 'example', versionId: 'v3', currentVersion: 3, definition: numericPlan },
+      });
+    if (path === '/api/templates' && request.method() === 'POST')
+      return route.fulfill({
+        json: {
+          id: 'saved',
+          versionId: 'v1',
+          currentVersion: 1,
+          definition: request.postDataJSON(),
+        },
+      });
+    throw new Error(`Unexpected isolated request: ${request.method()} ${path}`);
+  });
+  return writes;
+}
+
+test('clarifies, confirms exact source text and saves only the reusable plan', async ({ page }) => {
+  const writes = await isolate(page);
+  const authoring: Record<string, unknown>[] = [];
+  await page.route('**/api/ai/template-drafts', async (route) => {
+    const body = route.request().postDataJSON();
+    authoring.push(body);
+    await route.fulfill({
+      json: {
+        requestId: body.requestId,
+        baseRevision: body.baseRevision,
+        proposal: authoring.length === 1 ? null : suppliedPlan,
+        clarification: authoring.length === 1 ? 'לאיזה גיל?' : null,
+        changes: authoring.length === 1 ? [] : [{ kind: 'added', path: 'plan' }],
+        assumptions: [],
+        generationMetadata: {
+          provider: 'isolated',
+          model: 'fake',
+          promptVersion: 'test',
+          generatedAtUtc: '2026-10-01T00:00:00Z',
+        },
+      },
+    });
+  });
+  await page.goto('/activities/new');
+  await page.getByLabel('מה תרצו לתרגל או לשנות?').fill('תרגול לפי מקור דו לשוני');
+  await page.getByRole('button', { name: 'שליחת בקשה', exact: true }).click();
+  await expect(page.locator('#chat-clarification')).toHaveText('לאיזה גיל?');
+  expect(authoring).toHaveLength(1);
+  await page.getByLabel('התשובה שלכם').fill('כיתה ג');
+  await page.locator('#chat-send').click();
+  await expect(page.getByLabel('שם התבנית')).toHaveValue('מספרים');
+  expect(authoring[1]['context']).toEqual([
+    { role: 'parent', text: 'תרגול לפי מקור דו לשוני' },
+    { role: 'assistant', text: 'לאיזה גיל?' },
+  ]);
+  await expect(page.getByLabel('טקסט המקור המדויק')).toHaveValue(sourceText);
+  await page.getByRole('button', { name: 'שמירת תבנית', exact: true }).click();
+  await expect(page.getByRole('alert')).toContainText('לאשר את המקורות');
+  expect(writes).toEqual([]);
+  await page.getByRole('button', { name: 'המקור מדויק, אישור' }).click();
+  await page.locator('#save-template').click();
+  await expect(page.getByText('התבנית נשמרה בספרייה. הפעילות לא השתנתה.')).toBeVisible();
+  expect(writes).toHaveLength(1);
+  expect(writes[0].url).toBe('/api/templates');
+  expect(writes[0].body).toMatchObject({ materials: [{ text: sourceText }] });
+  expect(JSON.stringify(writes[0].body)).not.toContain('confirmed');
+});
+
+test('local typing wins over a pending author request and publication conflicts preserve it', async ({
+  page,
+}) => {
+  await isolate(page);
+  let release!: () => void;
+  const barrier = new Promise<void>((resolve) => (release = resolve));
+  await page.route('**/api/ai/template-drafts', async (route) => {
+    const body = route.request().postDataJSON();
+    await barrier;
+    await route
+      .fulfill({
+        json: {
+          requestId: body.requestId,
+          baseRevision: body.baseRevision,
+          proposal: { ...numericPlan, name: 'הצעה ישנה' },
+          clarification: null,
+          changes: [{ kind: 'changed', path: 'name' }],
+          assumptions: [],
+          generationMetadata: {
+            provider: 'isolated',
+            model: 'fake',
+            promptVersion: 'test',
+            generatedAtUtc: '2026-10-01T00:00:00Z',
+          },
+        },
+      })
+      .catch(() => undefined);
+  });
+  await page.route('**/api/templates/example/versions', async (route) => {
+    expect(route.request().postDataJSON().expectedVersion).toBe(3);
+    await route.fulfill({ status: 409, json: { title: 'התבנית השתנתה' } });
+  });
+  await page.goto('/templates/example/edit');
+  await page.getByLabel('מה תרצו לתרגל או לשנות?').fill('שינוי');
+  await page.locator('#chat-send').click();
+  await expect(page.locator('#chat-cancel')).toBeVisible();
+  await page.getByLabel('שם התבנית').fill('עריכה מקומית');
+  await expect(page.locator('#chat-cancel')).toBeHidden();
+  release();
+  await page.locator('#save-template').click();
+  await expect(page.getByRole('alert')).toContainText('העריכה המקומית');
+  await expect(page.getByLabel('שם התבנית')).toHaveValue('עריכה מקומית');
+});
+
+test('direct editing works without AI at 360px and 200% text with keyboard-accessible controls', async ({
+  page,
+}) => {
+  await isolate(page, false);
+  await page.setViewportSize({ width: 360, height: 800 });
+  await page.goto('/templates/new');
+  await page.addStyleTag({ content: 'html { font-size: 200%; }' });
+  await expect(page.getByText('יצירה בעזרת AI אינה זמינה כרגע.', { exact: false })).toBeVisible();
+  await page.getByLabel('שם התבנית').fill('תרגול ידני');
+  await page.getByLabel('מה רוצים ללמוד או לתרגל?').fill('תרגול מספרים');
+  await page.locator('#plan-topic').fill('חשבון');
+  await page.locator('#plan-audience').fill('כיתה ג');
+  await page.locator('#plan-questionCount').fill('3');
+  await page.locator('#save-template').focus();
+  await page.keyboard.press('Enter');
+  await expect(page.getByText('התבנית נשמרה בספרייה. הפעילות לא השתנתה.')).toBeVisible();
+  await expect(page.locator('[id$="-length-mode"]')).toHaveCount(0);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(
+    true,
+  );
+  await page.screenshot({
+    path: '../.superpowers/sdd/2026-09-30-structured-templates/task5-mobile.png',
+    fullPage: true,
+  });
+});

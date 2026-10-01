@@ -1,0 +1,146 @@
+<section class="grid gap-3" aria-label="בחירות שהתבקשו לכל פעילות">
+  @for (control of fields()().value(); track control.id; let index = $index) {
+    @let c = fields()[index];
+    <fieldset class="well grid min-w-0 gap-3">
+      <legend>
+        <bdi>{{ control.label || 'בחירה חדשה' }}</bdi>
+      </legend>
+      <label [for]="control.id + '-label'">שם הבחירה להורה</label
+      ><input [id]="control.id + '-label'" dir="auto" [formField]="c.label" />
+      <label [for]="control.id + '-meaning'">איך הבחירה משפיעה על הפעילות?</label
+      ><textarea [id]="control.id + '-meaning'" dir="auto" [formField]="c.meaning"></textarea>
+      <label [for]="control.id + '-type'">סוג הבחירה</label
+      ><select [id]="control.id + '-type'" [formField]="c.type">
+        <option value="text">טקסט</option>
+        <option value="integer">מספר שלם</option>
+        <option value="select">רשימת אפשרויות</option>
+        <option value="boolean">כן או לא</option>
+      </select>
+      <label class="flex gap-2"
+        ><input [id]="control.id + '-required'" type="checkbox" [formField]="c.required" />חובה
+        לבחור ערך</label
+      >
+      <label class="flex gap-2"
+        ><input
+          [id]="control.id + '-has-default'"
+          type="checkbox"
+          [formField]="c.hasDefault"
+        />הגדרת ברירת מחדל</label
+      >
+      @if (control.hasDefault) {
+        <label [for]="control.id + '-default'">ברירת מחדל</label>
+        @switch (control.type) {
+          @case ('boolean') {
+            <select [id]="control.id + '-default'" [formField]="c.defaultValue">
+              <option value="">בחרו</option>
+              <option value="true">כן</option>
+              <option value="false">לא</option>
+            </select>
+          }
+          @case ('select') {
+            <select [id]="control.id + '-default'" [formField]="c.defaultValue">
+              <option value="">ללא בחירה</option>
+              @for (option of control.options; track $index) {
+                <option [value]="option.value">{{ option.value }}</option>
+              }
+            </select>
+          }
+          @default {
+            <input
+              [id]="control.id + '-default'"
+              [attr.dir]="control.type === 'integer' ? 'ltr' : 'auto'"
+              [attr.inputmode]="control.type === 'integer' ? 'numeric' : 'text'"
+              [formField]="c.defaultValue"
+            />
+          }
+        }
+      }
+      @if (control.type === 'integer') {
+        <div class="grid gap-3 sm:grid-cols-2">
+          <label
+            >מינימום (רשות)<input
+              [id]="control.id + '-min'"
+              dir="ltr"
+              inputmode="numeric"
+              [formField]="c.min"
+          /></label>
+          <label
+            >מקסימום (רשות)<input
+              [id]="control.id + '-max'"
+              dir="ltr"
+              inputmode="numeric"
+              [formField]="c.max"
+          /></label>
+        </div>
+        <label
+          >יחידת מידה (רשות)<input [id]="control.id + '-unit'" dir="auto" [formField]="c.unit"
+        /></label>
+      }
+      @if (control.type === 'text') {
+        <label
+          >אורך טקסט מרבי (רשות)<input
+            [id]="control.id + '-max-length'"
+            dir="ltr"
+            inputmode="numeric"
+            [formField]="c.maxLength"
+        /></label>
+      }
+      @if (control.type === 'select') {
+        @for (option of control.options; track $index; let optionIndex = $index) {
+          <div class="grid gap-2">
+            <label
+              >אפשרות {{ optionIndex + 1
+              }}<input
+                [id]="control.id + '-option-' + optionIndex"
+                dir="auto"
+                [formField]="c.options[optionIndex].value"
+            /></label>
+            <label
+              >משמעות האפשרות (רשות)<input
+                [id]="control.id + '-meaning-' + optionIndex"
+                dir="auto"
+                [formField]="c.options[optionIndex].meaning"
+            /></label>
+            <button
+              type="button"
+              class="text-link"
+              [disabled]="locked()"
+              (click)="editOption(index, optionIndex)"
+            >
+              הסרת אפשרות {{ optionIndex + 1 }}
+            </button>
+          </div>
+        }
+        <button
+          type="button"
+          class="button button-secondary"
+          [disabled]="locked() || control.options.length >= 20"
+          (click)="editOption(index)"
+        >
+          הוספת אפשרות
+        </button>
+      }
+      <button
+        type="button"
+        class="text-link text-danger"
+        [disabled]="locked()"
+        (click)="structureChanged.emit({ kind: 'remove-control', scope: scope(), id: control.id })"
+      >
+        הסרת הבחירה <bdi>{{ control.label }}</bdi>
+      </button>
+    </fieldset>
+  }
+  <details>
+    <summary>הוספת בחירה מפורשת לכל פעילות</summary>
+    <p>הוסיפו רק בחירה שתרצו לשנות בין פעילויות. דרישה קבועה שייכת להנחיות.</p>
+    <button
+      [id]="scope() + '-add-control'"
+      type="button"
+      class="button button-secondary"
+      [disabled]="locked()"
+      (click)="structureChanged.emit({ kind: 'add-control', scope: scope() })"
+    >
+      הוספת בחירה
+    </button>
+  </details>
+</section>

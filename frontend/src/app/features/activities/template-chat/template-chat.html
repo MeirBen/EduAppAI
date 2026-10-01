@@ -1,0 +1,96 @@
+<section class="panel grid gap-4" aria-labelledby="chat-title">
+  <h2 id="chat-title">מתארים את הפעילות</h2>
+  <p>כל שליחה מבקשת הצעה אחת. אפשר לערוך את התכנית ישירות ולבטל שינוי.</p>
+  @if (!configured()) {
+    <p role="status">יצירה בעזרת AI אינה זמינה כרגע. אפשר לערוך ולשמור תבנית ישירות.</p>
+  }
+  @if (context().length) {
+    <details>
+      <summary>הבקשה והתשובות שעדיין בתכנון</summary>
+      <ol class="grid gap-3">
+        @for (turn of context(); track $index) {
+          <li>
+            <strong>{{ turn.role === 'parent' ? 'הבקשה שלכם' : 'שאלת הבהרה' }}</strong>
+            <p class="whitespace-pre-wrap break-words" dir="auto">{{ turn.text }}</p>
+          </li>
+        }
+      </ol>
+    </details>
+  }
+  @if (clarification()) {
+    <p id="chat-clarification" class="well whitespace-pre-wrap" role="status" dir="auto">
+      {{ clarification() }}
+    </p>
+  }
+  <form class="grid gap-3" (submit)="$event.preventDefault(); sent.emit()">
+    <label for="chat-message">{{
+      clarification() ? 'התשובה שלכם' : 'מה תרצו לתרגל או לשנות?'
+    }}</label>
+    <textarea
+      id="chat-message"
+      dir="auto"
+      rows="3"
+      [formField]="fields().message"
+      aria-describedby="chat-hint"
+    ></textarea>
+    <p id="chat-hint" class="field-hint">
+      עד 4,000 תווים. ההצעה אינה יוצרת שאלות ואינה נשמרת בספרייה.
+    </p>
+    <div class="flex flex-wrap gap-3">
+      <button
+        id="chat-send"
+        type="submit"
+        class="button"
+        [disabled]="
+          !configured() ||
+          busy() ||
+          locked() ||
+          consolidationRequired() ||
+          !fields().message().value().trim()
+        "
+      >
+        שליחת בקשה
+      </button>
+      @if (busy()) {
+        <button
+          id="chat-cancel"
+          type="button"
+          class="button button-secondary"
+          (click)="cancelled.emit()"
+        >
+          ביטול הבקשה
+        </button>
+      }
+    </div>
+  </form>
+  @if (consolidationRequired()) {
+    <form class="well grid gap-3" (submit)="$event.preventDefault(); consolidated.emit()">
+      <h3>איחוד הבקשה</h3>
+      <p id="consolidate-help">
+        השיחה הגיעה לגבול הבקשה. כתבו בקשה מאוחדת שכוללת את הדרישות והתשובות שחשוב לשמור. שום חלק
+        מהשיחה לא יושמט ללא פעולה זו.
+      </p>
+      <label for="chat-consolidated">הבקשה המאוחדת</label>
+      <textarea
+        id="chat-consolidated"
+        dir="auto"
+        rows="5"
+        [formField]="fields().consolidated"
+        aria-describedby="consolidate-help"
+      ></textarea>
+      <button
+        id="chat-consolidate"
+        type="submit"
+        class="button"
+        [disabled]="!configured() || busy() || locked() || !fields().consolidated().value().trim()"
+      >
+        שליחת הבקשה המאוחדת
+      </button>
+    </form>
+  }
+  <app-loading-indicator
+    [active]="busy()"
+    label="מכינים הצעה לתכנית…"
+    detail="אפשר להמשיך לערוך ישירות; עריכה תבטל את הבקשה הממתינה."
+  />
+</section>
