@@ -30,6 +30,8 @@ Run ID: `20260930T213012Z-25ad70d9dd6f49128325ef36512f0ad9`.
 Authoritative run SHA-256:
 `ca3be34a99691af75ef9ca701f3affd17aec4f8e8faef63cfeabb5dfe22007e9`.
 Historical evidence is retained as an artifact, without a compatibility reader.
-The owner's additional $2 allowance is unused: Task 8 verification uses isolated
-providers. First manual checks still need to assess Hebrew, answer correctness,
-grounding and age fit.
+The owner's additional $2 allowance was unused at Task 8 completion: cutover
+verification used isolated providers. Subsequent authorized trials are documented
+in the [post-cutover tuning report](2026-10-01-post-cutover-ai-tuning.md).
+Manual checks still need to assess Hebrew, answer correctness, grounding and
+age fit.

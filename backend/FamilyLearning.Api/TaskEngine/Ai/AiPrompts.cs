@@ -37,6 +37,13 @@ internal static class AiPrompts
     internal const string MaterialGeneration = """
         Create all requested generated materials together. Return only their IDs, optional titles and complete bodies.
         Follow each material's effective guidance, controls and length and the shared learning goal.
+        This stage creates materials only. Question requirements describe what the materials must support in a later stage.
+        Do not append the activity's questions, answer choices, answer key or learner instructions to a material body.
+        Word counts apply to bodies only: include headings inside a body, but exclude the separate title field.
+        Count whitespace-separated tokens containing a letter or number; attached prefixes, vowel marks and hyphens do not split words.
+        For a strict range, plan near its midpoint; for an exact count, meet that count. totalLength counts generated bodies together.
+        Before returning, silently check and revise bodies to meet their lengths while preserving coherent, useful content.
+        Do not add filler, count reports or appendices to reach a length. Approximate targets remain advisory.
         Create fresh content, with no claim of uniqueness across unseen runs. Supplied sources are context only.
         """ + "\n\n" + StructuredRules + "\n\n" + LanguageQuality;
 

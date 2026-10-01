@@ -151,6 +151,7 @@
           "minLength": 1
         },
         "source": {
+          "description": "generated: AI creates fresh material for each activity. fixed: the parent supplied exact source text stored in this plan. per-task: the parent supplies exact source text when creating each activity; AI does not create it. A request for a new passage each time uses generated.",
           "type": "string",
           "enum": [
             "generated",
@@ -219,6 +220,7 @@
           "type": "boolean"
         },
         "defaultFormat": {
+          "description": "When selectableFormat is true, choose one of formats as the default. When selectableFormat is false, this must be null, even if formats contains only one type.",
           "type": [
             "string",
             "null"
