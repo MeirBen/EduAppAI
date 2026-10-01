@@ -67,6 +67,7 @@ Choose settings supported by the model's current OpenRouter endpoint:
 | `MaxRequestBytes`             | Compiled HTTP body cap; at most 512 KiB.  |
 | `MaxSchemaBytes`              | Output schema cap; at most 64 KiB.        |
 | `FallbackModel`               | Compatible model ID; `""` disables it.    |
+| `IgnoredProviders`            | Provider slugs to exclude from routing.   |
 
 Prefer `json_schema` when supported. In `text` mode, JSON is requested through
 the prompt only, so malformed output may be more common. Every mode sends the
@@ -76,6 +77,13 @@ rewriting. The endpoint must support those schema keywords; use `json_object`
 for providers with a more limited schema implementation.
 No mode guarantees fluent Hebrew or correct answers; review generated
 content before use. Saved tasks remain readable without AI.
+
+`IgnoredProviders` uses OpenRouter's native `provider.ignore` routing option.
+It accepts up to 16 slugs, each 1–64 lowercase letters, digits, hyphens,
+underscores or slashes. The current profile excludes `dekallm` after observed
+timeouts. Edit the array and restart to change this operational choice. The
+exclusion also applies to fallback models and is captured in evaluation reports
+and durable-work profile fingerprints. It does not retry or repair responses.
 
 For a model without reasoning support, set `ReasoningEnabled` and
 `ReasoningMaxTokens` to `null`, and `ReasoningEffort` to `""`; the request will

@@ -18,6 +18,7 @@ const dimensions = {
 const profileFields = {
   Model: 'Configured model',
   FallbackModel: 'Fallback model',
+  IgnoredProviders: 'Excluded providers',
   ResponseFormat: 'Response format',
   ReasoningEnabled: 'Reasoning enabled',
   ReasoningEffort: 'Reasoning effort',

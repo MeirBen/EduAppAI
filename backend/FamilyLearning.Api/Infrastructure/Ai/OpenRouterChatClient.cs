@@ -10,7 +10,7 @@ namespace FamilyLearning.Api.Infrastructure.Ai;
 
 /// <summary>Adds OpenRouter options and normalizes malformed SDK responses at the provider boundary.</summary>
 internal sealed class OpenRouterChatClient(ChatClient client, ChatOptions sampling, BinaryData? reasoning,
-    BinaryData? fallbackModels, string responseFormat, int maxSchemaBytes)
+    BinaryData? fallbackModels, BinaryData providerRouting, string responseFormat, int maxSchemaBytes)
     : DelegatingChatClient(client.AsIChatClient())
 {
     public override async Task<ChatResponse> GetResponseAsync(IEnumerable<ChatMessage> messages,
@@ -40,7 +40,7 @@ internal sealed class OpenRouterChatClient(ChatClient client, ChatOptions sampli
 #pragma warning disable SCME0001 // The SDK's JSON extension point carries OpenRouter-specific parameters.
             if (reasoning is not null) request.Patch.Set("$.reasoning"u8, reasoning);
             if (sampling.TopK is { } topK) request.Patch.Set("$.top_k"u8, BinaryData.FromObjectAsJson(topK));
-            request.Patch.Set("$.provider"u8, BinaryData.FromString("""{"require_parameters":true}"""));
+            request.Patch.Set("$.provider"u8, providerRouting);
             // With model present, OpenRouter treats models as ordered fallbacks for provider errors.
             if (fallbackModels is not null) request.Patch.Set("$.models"u8, fallbackModels);
 #pragma warning restore SCME0001

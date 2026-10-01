@@ -5,6 +5,10 @@ instructions and two authoring-schema descriptions. Keep the existing model and
 reasoning-enabled/low profile. These changes improve sampled contract adherence;
 they do not establish educational equivalence or superiority to one-shot generation.
 
+The later [quality comparison](2026-10-01-ai-quality-comparison.md) preserves
+these choices, rejects an alternate model and question-prompt candidate, and
+records a separately verified provider-routing change and updated shared costs.
+
 ## Retained changes
 
 - Material generation explicitly separates source bodies from questions, choices,

@@ -15,6 +15,9 @@ public static class AiProfile
         profile["RequestTimeoutSeconds"] = options.RequestTimeoutSeconds.ToString(CultureInfo.InvariantCulture);
         profile["MaxRequestBytes"] = options.MaxRequestBytes.ToString(CultureInfo.InvariantCulture);
         profile["MaxSchemaBytes"] = options.MaxSchemaBytes.ToString(CultureInfo.InvariantCulture);
+        var ignoredProviders = configuration.GetSection("Ai:IgnoredProviders").Get<string[]>() ?? [];
+        if (ignoredProviders.Length > 0)
+            profile["IgnoredProviders"] = string.Join(",", ignoredProviders.Order(StringComparer.Ordinal));
         return profile;
     }
 }

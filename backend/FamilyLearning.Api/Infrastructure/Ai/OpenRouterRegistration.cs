@@ -33,6 +33,13 @@ public static class OpenRouterRegistration
             throw new InvalidOperationException("Ai:Model is required when an AI API key is configured.");
         var fallbackModel = configuration["Ai:FallbackModel"];
         if (string.IsNullOrWhiteSpace(fallbackModel) || fallbackModel == model) fallbackModel = null;
+        var ignoredProviders = configuration.GetSection("Ai:IgnoredProviders").Get<string[]>() ?? [];
+        if (ignoredProviders.Length > 16 || ignoredProviders.Any(slug => slug is null || slug.Length is < 1 or > 64 ||
+            slug.Any(character => !char.IsAsciiLetterLower(character) && !char.IsAsciiDigit(character) && character is not ('-' or '_' or '/'))))
+            throw new InvalidOperationException("Ai:IgnoredProviders accepts at most 16 provider slugs of 1–64 lowercase letters, digits, hyphens, underscores or slashes.");
+        var providerRouting = ignoredProviders.Length == 0
+            ? BinaryData.FromObjectAsJson(new { require_parameters = true })
+            : BinaryData.FromObjectAsJson(new { require_parameters = true, ignore = ignoredProviders });
         var reasoningEnabled = configuration.GetValue<bool?>("Ai:ReasoningEnabled");
         var effort = configuration["Ai:ReasoningEffort"] ?? "";
         if (effort is not ("" or "minimal" or "low" or "medium" or "high" or "xhigh" or "max"))
@@ -85,7 +92,7 @@ public static class OpenRouterRegistration
             clientOptions.AddPolicy(new OpenRouterResponsePolicy(), PipelinePosition.PerCall);
             return new OpenRouterChatClient(new ChatClient(model, new ApiKeyCredential(key), clientOptions),
                 sampling, reasoning is null ? null : BinaryData.FromObjectAsJson(reasoning),
-                fallbackModel is null ? null : BinaryData.FromObjectAsJson(new[] { fallbackModel }), responseFormat, limits.MaxSchemaBytes);
+                fallbackModel is null ? null : BinaryData.FromObjectAsJson(new[] { fallbackModel }), providerRouting, responseFormat, limits.MaxSchemaBytes);
         });
     }
 }
