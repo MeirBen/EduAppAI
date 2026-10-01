@@ -1,6 +1,6 @@
 # Product specification
 
-The application implements the [content-first activity design][workspace-design].
+The application implements a content-first activity workflow.
 Every subject uses the same AI path; there are no subject-specific generators
 or seeded educational records.
 
@@ -88,6 +88,37 @@ option. Replacing a question replaces its complete answer-bearing unit.
 Changing its requirements or source can make content stale; explicit editing
 or adoption is required. Validators do not judge educational truth.
 
+For fixed question formats, multiple formats mean a mixture containing each at
+least once; the total must be feasible and `defaultFormat` is null. Selectable
+format means one allowed format for the whole activity, with an allowed default.
+Exact per-format quotas are unsupported and require clarification rather than
+silent approximation. Choice count is applicable only to single-choice questions.
+
+Length requirements use either individual generated bodies or their combined
+total, never overlapping scopes. Exact/target values may expose an explicitly
+requested bounded input; ranges have fixed inclusive endpoints. Input bounds do
+not become an output tolerance. Supplied text transformations need a separate
+generated material, preserving the original source.
+
+Omission resolves defaults once; explicit null, numeric strings, unknown IDs,
+inapplicable fields and fixed overrides fail validation. Optional empty text,
+false and zero survive unchanged. Materials and controls have distinct app-owned
+identities: renaming retains identity; new AI proposals use null IDs and may not
+invent existing identities or alter a retained fixed source through authoring.
+
+Authoring permits one proposal or one focused clarification per submitted parent
+message, with visible assumptions reflected in the plan. Each request is bounded
+to a 4,000-character message and six unresolved turns / 12,000 characters; this
+is not a lifetime conversation limit. A full pending context requires explicit
+consolidation, not silent truncation. The app computes actual plan changes.
+
+Generated content records its accepted effective input; questions depend on all
+materials actually sent. Editing sources invalidates dependencies. Explicit
+adoption updates acceptance without rewriting origin or waiving strict checks.
+Changing/deleting a choice leaves an invalid answer diagnostic rather than
+automatically selecting a replacement. Scoped repair can proceed beside unrelated
+incomplete draft fields; release still checks the complete saved document.
+
 Server limits include:
 
 - Plans: 24,000 serialized characters; name/labels 100; goal 500; shared
@@ -117,7 +148,7 @@ There is no child-delivery button, assignment, scoring or report placeholder.
 OpenRouter model/fallback configuration is external to the domain. Logs exclude
 prompts, answers, credentials, reasoning and raw provider errors. Automated
 verification uses disposable databases and isolated providers. The
-[cutover decision](superpowers/specs/2026-10-01-content-first-cutover-decision.md)
+[cutover decision](ai.md#design-and-cutover-decision)
 accepts editing/recovery benefits alongside measured reading reliability,
 cost and latency drawbacks; it does not establish better Hebrew quality.
 
@@ -221,13 +252,12 @@ correctness, age fit, instruction adherence and answer ambiguity; record failure
 as well as successes, the model/profile, prompt version, latency, token use and
 actual cost when available. Use synthetic requests, never child identities.
 
-Use the [developer evaluation harness](../README.md#hebrew-ai-evaluation) for
+Use the [developer evaluation harness](ai.md#using-the-evaluation-harness) for
 bounded, explicitly requested live runs and offline comparisons. Keep calibration
 health, generated language findings and human scores separate. It creates no
 learning records and never corrects app output. Human review remains authoritative.
 
 [template]: ../backend/FamilyLearning.Api/TaskEngine/Models/LearningPlan.cs
-[workspace-design]: superpowers/specs/2026-09-30-structured-templates-design.md
 [content]: ../backend/FamilyLearning.Api/TaskEngine/Models/TaskDocument.cs
 [auth-schemes]: https://learn.microsoft.com/en-us/aspnet/core/security/authorization/authorize-with-a-specific-scheme?view=aspnetcore-8.0
 [csrf]: https://learn.microsoft.com/en-us/aspnet/core/security/anti-request-forgery?view=aspnetcore-8.0

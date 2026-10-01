@@ -22,6 +22,32 @@ JSON, ProblemDetails, parent authorization and CSRF. Only sign-in and token
 issuance allow anonymous access. Kestrel bounds bodies to 256 KiB, accommodating
 escaped Hebrew JSON; validators enforce smaller field and aggregate limits.
 
+## Maintenance and version ownership
+
+Use clear domain names, focused methods and explicit data flow. Keep state and
+mutations in their owning feature; share actual rules through the existing engine.
+Prefer supported native .NET, EF Core and Angular APIs. Extract helpers for a
+shared responsibility, not line-count reduction. Avoid speculative abstractions,
+pass-through layers, dependencies, silent coercion and fixes that suppress errors
+or weaken checks. Remove obsolete callers, rules and comments in the same change.
+Verify ownership, resource limits, concurrency, cancellation and failure behavior
+with isolated tests. Contract/scope changes need an explicit decision rather than
+an undocumented workaround.
+
+[EngineVersions](../backend/FamilyLearning.Api/TaskEngine/EngineVersions.cs) owns
+the plan schema version and shared engine revision (prompts, resolution, assembly,
+validation and measurement). Stage labels derive from that revision; the server
+supplies schema version to Angular. Behavior-preserving refactors do not bump it.
+An engine revision alone does not stale accepted content, but current validation
+still applies and queued work retains its profile/version compatibility guard.
+
+[EvaluationVersions](../tools/FamilyLearning.Evaluation/EvaluationVersions.cs) owns
+report, automatic-check and judge versions independently. Change only affected
+semantics; a changed measurement/check policy also advances its check version.
+No counters are duplicated in clients, schemas or prompts. Per-template versions
+and draft concurrency revisions are separate. Preserve historical evidence without
+compatibility readers; see the [AI guide](ai.md) for decisions and evaluation.
+
 ## AI and persistence
 
 All routes below are under `/api`; write endpoints enforce CSRF.
@@ -62,7 +88,7 @@ response format. The OpenRouter adapter uses the SDK's native response-format
 option, preserving schema constraints. It owns transport and configuration;
 the engine owns prompts and validation. No tools are sent. Responses must finish
 normally and pass size/depth, required-member, unknown-field, numeric and domain
-validation. See [AI configuration](../README.md#ai-configuration).
+validation. See [AI configuration](ai.md#configuration).
 
 `TextLength` measures material bodies only. Exact/range requirements block stage
 acceptance and release when unmet; targets are advisory. Supplied source bytes
@@ -156,7 +182,7 @@ rejects links, and serializes atomic human-review edits. Polling reads immutable
 progress snapshots; history and comparison reread authoritative `run.json`.
 Host/Origin checks, antiforgery, CSP and plain-text rendering protect the local
 paid-run boundary. See [evaluation usage and report
-contracts](../README.md#hebrew-ai-evaluation).
+contracts](ai.md#using-the-evaluation-harness).
 
 ## Access and failures
 
