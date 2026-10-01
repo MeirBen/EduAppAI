@@ -1,0 +1,210 @@
+<section class="panel grid gap-5" aria-labelledby="document-heading">
+  <h2 id="document-heading">תוכן הפעילות</h2>
+  <p class="text-sm text-muted">
+    עריכה ושמירת טיוטה אינן משתמשות ב־AI. תשובות חסרות אפשר להשלים בהמשך.
+  </p>
+  <div>
+    <label for="document-title">כותרת הפעילות</label
+    ><input id="document-title" dir="auto" [formField]="fields().title" />
+  </div>
+  <div>
+    <label for="document-instructions">הוראות ללומדים</label
+    ><textarea id="document-instructions" dir="auto" [formField]="fields().instructions"></textarea>
+  </div>
+  @for (value of fields().materials().value(); track value.id; let i = $index) {
+    @let material = fields().materials[i];
+    @let id = material.id().value();
+    <section class="well grid gap-3" [attr.aria-label]="'חומר ' + (i + 1)">
+      @if (generated(id)) {
+        <div>
+          <label [for]="'material-' + i + '-title'">כותרת החומר</label
+          ><input [id]="'material-' + i + '-title'" dir="auto" [formField]="material.title" />
+        </div>
+        <div>
+          <label [for]="'material-' + i + '-body'">טקסט החומר</label
+          ><textarea
+            [id]="'material-' + i + '-body'"
+            rows="6"
+            dir="auto"
+            [formField]="material.body"
+          ></textarea>
+        </div>
+        <div class="flex flex-wrap gap-3">
+          <button
+            type="button"
+            class="button button-secondary"
+            [disabled]="locked() || operationActive() || !aiAvailable()"
+            (click)="replaced.emit({ kind: 'ReplaceMaterial', targetId: id })"
+          >
+            יצירה מחדש של החומר בלבד
+          </button>
+          <button
+            type="button"
+            class="text-link"
+            [disabled]="locked() || operationActive()"
+            (click)="adopted.emit({ materialIds: [id], questionIds: [] })"
+          >
+            בדקתי את החומר — אימוץ לפי הדרישות הנוכחיות
+          </button>
+        </div>
+      } @else {
+        <h3>מקור שסופק</h3>
+        <p dir="auto" class="whitespace-pre-wrap">{{ material.body().value() }}</p>
+        <button
+          type="button"
+          class="text-link w-fit"
+          [disabled]="locked()"
+          (click)="sourceReplaced.emit(id)"
+        >
+          החלפת המקור
+        </button>
+      }
+    </section>
+  }
+  @for (material of materials(); track material.id) {
+    @if (material.source === 'generated' && missing(material.id)) {
+      <button
+        type="button"
+        class="text-link w-fit"
+        [disabled]="locked()"
+        (click)="structureChanged.emit({ kind: 'add-material', id: material.id })"
+      >
+        כתיבה ידנית: {{ material.label }}
+      </button>
+    }
+  }
+  <ol role="list" class="grid gap-4">
+    @for (value of fields().questions().value(); track value.key; let i = $index) {
+      @let question = fields().questions[i];
+      <li class="well grid gap-3">
+        <h3>שאלה {{ i + 1 }}</h3>
+        <div>
+          <label [for]="'question-' + i + '-prompt'">נוסח השאלה</label
+          ><textarea
+            [id]="'question-' + i + '-prompt'"
+            dir="auto"
+            [formField]="question.prompt"
+          ></textarea>
+        </div>
+        <div>
+          <label [for]="'question-' + i + '-type'">סוג התשובה</label
+          ><select [id]="'question-' + i + '-type'" [formField]="question.type">
+            <option value="numeric-input">מספר</option>
+            <option value="text-input">טקסט קצר</option>
+            <option value="single-choice">בחירה יחידה</option>
+          </select>
+        </div>
+        @if (question.type().value() === 'single-choice') {
+          @for (value of question.options().value(); track $index; let j = $index) {
+            @let option = question.options[j];
+            <div class="flex flex-wrap items-end gap-2">
+              <div class="min-w-0 grow">
+                <label [for]="'question-' + i + '-option-' + j">אפשרות {{ j + 1 }}</label
+                ><input
+                  [id]="'question-' + i + '-option-' + j"
+                  dir="auto"
+                  [formField]="option.value"
+                />
+              </div>
+              <button
+                type="button"
+                class="text-link"
+                [disabled]="locked()"
+                (click)="structureChanged.emit({ kind: 'remove-option', index: i, option: j })"
+              >
+                מחיקת אפשרות {{ j + 1 }}
+              </button>
+            </div>
+          }
+          <button
+            type="button"
+            class="text-link w-fit"
+            [disabled]="locked() || question.options().value().length >= 6"
+            (click)="structureChanged.emit({ kind: 'add-option', index: i })"
+          >
+            הוספת אפשרות
+          </button>
+          <p class="text-sm text-muted">
+            שינוי אפשרויות אינו בוחר תשובה חדשה. יש לבדוק שהתשובה תואמת אפשרות אחת בדיוק.
+          </p>
+        }
+        <div>
+          <label [for]="'question-' + i + '-answer'">תשובה להורים</label
+          ><input
+            [id]="'question-' + i + '-answer'"
+            [attr.dir]="question.type().value() === 'numeric-input' ? 'ltr' : 'auto'"
+            [formField]="question.answer"
+          />
+        </div>
+        <div>
+          <label [for]="'question-' + i + '-points'">נקודות</label
+          ><input
+            [id]="'question-' + i + '-points'"
+            dir="ltr"
+            inputmode="numeric"
+            [formField]="question.points"
+            [attr.aria-describedby]="'question-' + i + '-points-error'"
+          />
+          <p [id]="'question-' + i + '-points-error'" class="field-error">
+            @for (error of question.points().errors(); track $index) {
+              {{ error.message }}
+            }
+          </p>
+        </div>
+        <div class="flex flex-wrap gap-3">
+          <button
+            type="button"
+            class="text-link"
+            [disabled]="locked() || i === 0"
+            (click)="structureChanged.emit({ kind: 'move-up', index: i })"
+          >
+            הזזת שאלה {{ i + 1 }} למעלה
+          </button>
+          <button
+            type="button"
+            class="text-link"
+            [disabled]="locked() || i === fields().questions().value().length - 1"
+            (click)="structureChanged.emit({ kind: 'move-down', index: i })"
+          >
+            הזזת שאלה {{ i + 1 }} למטה
+          </button>
+          <button
+            type="button"
+            class="text-link"
+            [disabled]="locked()"
+            (click)="structureChanged.emit({ kind: 'remove-question', index: i })"
+          >
+            מחיקת שאלה {{ i + 1 }}
+          </button>
+          @if (question.id().value()) {
+            <button
+              type="button"
+              class="button button-secondary"
+              [disabled]="locked() || operationActive() || !aiAvailable()"
+              (click)="replaced.emit({ kind: 'ReplaceQuestion', targetId: question.id().value() })"
+            >
+              יצירה מחדש של השאלה כולה
+            </button>
+            <button
+              type="button"
+              class="text-link"
+              [disabled]="locked() || operationActive()"
+              (click)="adopted.emit({ materialIds: [], questionIds: [question.id().value()] })"
+            >
+              בדקתי את שאלה {{ i + 1 }} — אימוץ
+            </button>
+          }
+        </div>
+      </li>
+    }
+  </ol>
+  <button
+    id="add-question"
+    type="button"
+    class="button button-secondary w-fit"
+    [disabled]="locked() || fields().questions().value().length >= 3999"
+    (click)="structureChanged.emit({ kind: 'add-question' })"
+  >
+    הוספת שאלה ידנית
+  </button>
+</section>

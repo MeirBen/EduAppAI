@@ -14,7 +14,7 @@
       [fields]="chatFields"
       [configured]="ai.value()?.configured ?? false"
       [busy]="authoring()"
-      [locked]="saving()"
+      [locked]="saving() || released()"
       [clarification]="clarification()"
       [context]="conversation()"
       [consolidationRequired]="needsConsolidation()"
@@ -46,7 +46,7 @@
         id="plan-undo"
         class="button button-secondary"
         type="button"
-        [disabled]="saving() || !history().length"
+        [disabled]="saving() || released() || !history().length"
         (click)="undo()"
       >
         ביטול השינוי האחרון
@@ -59,7 +59,7 @@
       [fields]="fields.plan"
       [inputFields]="fields.input"
       [pendingSources]="pendingSources()"
-      [locked]="saving()"
+      [locked]="saving() || released()"
       (edited)="edited($event)"
       (structureChanged)="changeStructure($event)"
       (sourceConfirmed)="confirmSource($event)"
@@ -79,6 +79,223 @@
         </ul>
       </div>
     }
+    <app-activity-document-editor
+      [fields]="fields.document"
+      [materials]="raw().plan.materials"
+      [locked]="saving() || released()"
+      [aiAvailable]="ai.value()?.configured ?? false"
+      [operationActive]="operationActive()"
+      (edited)="edited($event)"
+      (structureChanged)="editDocument($event)"
+      (replaced)="activityAction($event.kind, $event)"
+      (adopted)="activityAction('adopt', $event)"
+      (sourceReplaced)="replaceSource($event)"
+    />
+    @if (sourceReplacement().id) {
+      <section class="well grid gap-3" aria-label="החלפת מקור">
+        <label for="replacement-source">המקור החדש — יישמר בדיוק כפי שהוזן</label>
+        <textarea
+          id="replacement-source"
+          dir="auto"
+          [formField]="sourceFields.text"
+          (input)="sourceTyping()"
+          aria-describedby="replacement-source-help"
+        ></textarea>
+        <p id="replacement-source-help">
+          יש להזין מקור לא ריק, עד 4,000 תווים. החלפת מקור מחייבת בדיקה מחדש של השאלות התלויות בו.
+          התבנית שפורסמה לא תשתנה.
+        </p>
+        <button
+          class="button"
+          type="button"
+          [disabled]="saving()"
+          id="accept-source-replacement"
+          (click)="acceptSourceReplacement()"
+        >
+          אישור החלפת המקור
+        </button>
+        <button
+          class="text-link"
+          type="button"
+          (click)="sourceReplacement.set({ id: '', text: '' })"
+        >
+          ביטול
+        </button>
+      </section>
+    }
+    @if (operation(); as current) {
+      <app-generation-status
+        [operation]="current"
+        [locked]="saving() || released()"
+        (cancelled)="cancelGeneration()"
+      />
+    }
+    @for (candidate of editableCandidates(); track candidate.index) {
+      <details class="well">
+        <summary>בדיקת הצעת תוכן שניתן לערוך — שלב {{ candidate.index + 1 }}</summary>
+        <p>הפעולה מחליפה את החלק שהוצע בעריכה המקומית. זו אינה קבלה אוטומטית של תוצאה תקינה.</p>
+        <button
+          type="button"
+          data-edit-candidate
+          class="button button-secondary"
+          [disabled]="saving()"
+          (click)="editCandidate(candidate.index)"
+        >
+          העברת ההצעה לעריכה ובדיקה
+        </button>
+      </details>
+    }
+    <section class="panel grid gap-3" aria-labelledby="activity-actions-title">
+      <h2 id="activity-actions-title">הפעילות שלכם</h2>
+      <p role="status">
+        {{
+          saving()
+            ? 'שומרים…'
+            : dirty()
+              ? 'שינויים מקומיים שלא נשמרו'
+              : saved()
+                ? 'הטיוטה שמורה'
+                : 'הפעילות טרם נשמרה'
+        }}
+      </p>
+      @if (saved()) {
+        <button
+          type="button"
+          id="new-activity"
+          class="text-link w-fit"
+          [disabled]="saving()"
+          (click)="newActivity()"
+        >
+          פעילות חדשה מהתכנית, ללא התוכן הקודם
+        </button>
+      }
+      @if (saved()) {
+        <a class="text-link" [routerLink]="['/activities', saved()!.id]">קישור לטיוטה השמורה</a>
+      }
+      @if (released()) {
+        <p>הפעילות סומנה כמוכנה ונשמרה כעותק קבוע.</p>
+        <a class="button" [routerLink]="['/instances', saved()!.releasedSnapshotId]"
+          >לתצוגה המוכנה</a
+        >
+      } @else {
+        <div class="flex flex-wrap gap-3">
+          <button
+            id="save-activity"
+            class="button button-secondary"
+            type="button"
+            [disabled]="saving()"
+            (click)="activityAction('save')"
+          >
+            שמירת טיוטה
+          </button>
+          <button
+            id="generate-activity"
+            class="button"
+            type="button"
+            [disabled]="
+              saving() || operationActive() || !!startRecovery() || !ai.value()?.configured
+            "
+            (click)="activityAction('GenerateActivity')"
+          >
+            יצירת פעילות
+          </button>
+          <button
+            id="generate-questions"
+            class="button button-secondary"
+            type="button"
+            [disabled]="
+              saving() || operationActive() || !!startRecovery() || !ai.value()?.configured
+            "
+            (click)="activityAction('GenerateQuestions')"
+          >
+            יצירת כל השאלות מחדש
+          </button>
+        </div>
+        <p class="text-sm text-muted">
+          יצירת פעילות עשויה להשתמש בחומר עדכני שכבר נשמר, ותיצור שאלות חדשות. ליצירת חומר חדש אפשר
+          להתחיל פעילות חדשה מהתכנית.
+        </p>
+        <p>
+          בדקו את התוכן והתשובות לפי הדרישות הנוכחיות. סימון כמוכנה מאשר את הגרסה שנשמרה בפעולה
+          הזאת, ואינו אישור אוטומטי לנכונות.
+        </p>
+        <button
+          id="release-activity"
+          class="button w-fit"
+          type="button"
+          [disabled]="saving() || operationActive() || !!startRecovery()"
+          (click)="activityAction('release')"
+        >
+          סימון כמוכנה
+        </button>
+      }
+      @if (measurements().length) {
+        <ul aria-label="מדידות אורך בגרסה השמורה">
+          @for (measurement of measurements(); track $index) {
+            <li>{{ measurement }}</li>
+          }
+        </ul>
+      }
+      @if (diagnostics().length) {
+        <div class="well">
+          <h3>בדיקות הגרסה השמורה</h3>
+          <ul>
+            @for (message of diagnostics(); track $index) {
+              <li>{{ message }}</li>
+            }
+          </ul>
+          <p>בדיקות תקינות אינן מחליפות בדיקה של השפה, התשובות וההתאמה ללומדים.</p>
+        </div>
+      }
+      @if (attempted()) {
+        <ul class="field-error">
+          @for (message of documentProjection().errors; track $index) {
+            <li>{{ message }}</li>
+          }
+          @for (message of inputProjection().errors; track $index) {
+            <li>{{ message }}</li>
+          }
+        </ul>
+      }
+      @if (available()) {
+        <p role="status">
+          יש תוצאה חדשה בשרת. העריכה המקומית לא הוחלפה. בדקו וטענו את הגרסה השמורה כדי להמשיך.
+        </p>
+        <details class="well">
+          <summary>בדיקת התוצאה הזמינה בשרת</summary>
+          <app-activity-document-view [document]="available()!.document" />
+        </details>
+      }
+      @if (saved()) {
+        <button
+          id="reload-activity"
+          class="text-link w-fit"
+          type="button"
+          [disabled]="saving()"
+          (click)="reloadActivity()"
+        >
+          טעינת המצב השמור
+        </button>
+      }
+      @if (startRecovery()) {
+        <p>
+          לא ידוע אם פעולת היצירה התקבלה. בדיקת הבקשה המקורית משתמשת באותו מזהה ואינה מתחילה ניסיון
+          חדש.
+        </p>
+        <button
+          id="recover-start"
+          class="button button-secondary"
+          type="button"
+          [disabled]="saving()"
+          (click)="recoverStart()"
+        >
+          בדיקת בקשת היצירה
+        </button>
+      }
+      @if (activityError()) {
+        <p role="alert" class="field-error">{{ activityError() }}</p>
+      }
+    </section>
     <section class="panel grid gap-3" aria-labelledby="publication-title">
       <h2 id="publication-title">תבנית לשימוש חוזר</h2>
       <p>שמירת התכנית בספרייה אינה יוצרת תוכן ואינה שומרת שינויים בפעילות.</p>

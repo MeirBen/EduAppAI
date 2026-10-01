@@ -32,12 +32,12 @@ public sealed record AdoptActivityRequest([property: JsonRequired] long Expected
 /// <summary>Releasing this exact saved revision records the parent's review action.</summary>
 public sealed record ReleaseActivityRequest([property: JsonRequired] long ExpectedRevision);
 
-/// <summary>Bounded library projection; answers and content remain in the owned detail route.</summary>
-public sealed record ActivitySummary(Guid Id, string Name, long Revision, bool Released, DateTime UpdatedAtUtc);
+/// <summary>Bounded editable-only library projection; answers and content remain in the owned detail route.</summary>
+public sealed record ActivitySummary(Guid Id, string Name, long Revision, DateTime UpdatedAtUtc);
 
 /// <summary>Saved parent-only state. Diagnostics are derived from authoritative data, never an independent readiness cache.</summary>
 public sealed record ActivityDetail(Guid Id, long Revision, LearningPlan Plan, TaskRequest Input, TaskDocument Document,
-    IReadOnlyDictionary<string, string[]> Diagnostics, Guid? ActiveOperationId, Guid? TemplateVersionId,
+    IReadOnlyDictionary<string, string[]> Diagnostics, LengthMeasurement[] Measurements, Guid? ActiveOperationId, Guid? TemplateVersionId,
     Guid? ReleasedSnapshotId, long? ReleasedSourceRevision, DateTime CreatedAtUtc, DateTime UpdatedAtUtc)
 {
     internal static ActivityDetail From(ActivityDraft draft)
@@ -47,7 +47,7 @@ public sealed record ActivityDetail(Guid Id, long Revision, LearningPlan Plan, T
         var document = StoredJson.Read<TaskDocument>(draft.DocumentJson);
         var resolved = TaskRequestResolver.Resolve(plan, input).Value ?? throw new InvalidOperationException("Invalid stored activity input.");
         var check = TaskDocumentValidator.ValidateDraft(resolved, document);
-        return new(draft.Id, draft.Revision, plan, input, document, check.Diagnostics, draft.ActiveOperationId,
+        return new(draft.Id, draft.Revision, plan, input, document, check.Diagnostics, TextLength.Measure(resolved, document), draft.ActiveOperationId,
             draft.TemplateVersionId, draft.ReleasedSnapshotId, draft.ReleasedSourceRevision, draft.CreatedAtUtc, draft.UpdatedAtUtc);
     }
 }

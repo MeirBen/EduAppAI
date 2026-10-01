@@ -157,12 +157,129 @@ export interface PlanTemplateDetail {
   versionId: string;
   definition: LearningPlan;
 }
-/** The plan/input projection of a saved activity; content editing belongs to the next workspace milestone. */
-export interface ActivityPlanDetail {
+/** Parent-editable checkpoint. No revisions, acceptance or generation provenance can be submitted. */
+export interface EditableActivity {
+  title: string;
+  instructions: string | null;
+  materials: { id: string; title: string | null; body: string }[];
+  questions: EditableQuestion[];
+}
+export interface EditableQuestion {
+  id: string | null;
+  prompt: string;
+  interaction: { type: QuestionFormat; options: string[] | null };
+  answer: { value: string } | null;
+  points: number;
+}
+/** Saved parent-only content. Metadata is read-only and is excluded at the form boundary. */
+export interface ActivityDocument extends EditableActivity {
+  materials: (EditableActivity['materials'][number] & {
+    revision: number;
+    origin: ContentOrigin;
+    acceptance: ContentAcceptance | null;
+  })[];
+  questions: (EditableQuestion & {
+    id: string;
+    origin: ContentOrigin;
+    acceptance: ContentAcceptance | null;
+  })[];
+}
+export interface ContentOrigin {
+  kind: string;
+  generation?: GenerationMetadata | null;
+}
+export interface ContentAcceptance {
+  inputFingerprint: string;
+  sources: { id: string; revision: number }[];
+  adoptedAtUtc?: string | null;
+}
+/** Server-owned generated-body measurement; target expectations are advisory (satisfied is null). */
+export interface LengthMeasurement {
+  scope: string;
+  expected: {
+    mode: 'target' | 'exact' | 'range';
+    value: number | null;
+    lower: number | null;
+    upper: number | null;
+  };
+  actual: number;
+  satisfied: boolean | null;
+}
+/** Saved authoritative state; diagnostics are server-derived, not local readiness claims. */
+export interface ActivityDetail {
   id: string;
   revision: number;
   plan: LearningPlan;
   input: ActivityInput;
+  document: ActivityDocument;
+  diagnostics: Record<string, string[]>;
+  measurements: LengthMeasurement[];
+  activeOperationId: string | null;
+  templateVersionId: string | null;
+  releasedSnapshotId: string | null;
+  releasedSourceRevision: number | null;
+  createdAtUtc: string;
+  updatedAtUtc: string;
+}
+export interface ActivitySummary {
+  id: string;
+  name: string;
+  revision: number;
+  updatedAtUtc: string;
+}
+export type GenerationKind =
+  'GenerateActivity' | 'GenerateQuestions' | 'ReplaceMaterial' | 'ReplaceQuestion';
+/** Keep this exact request for explicit same-key recovery after a lost response. */
+export interface StartGeneration {
+  operationKey: string;
+  expectedRevision: number;
+  kind: GenerationKind;
+  targetId?: string;
+  instruction?: string;
+}
+/** Polling this parent-only evidence never starts a call. Unknown candidates remain diagnostic text. */
+export interface GenerationOperation {
+  id: string;
+  draftId: string;
+  kind: GenerationKind;
+  status: 'queued' | 'calling' | 'completed' | 'failed' | 'conflict' | 'cancelled' | 'unknown';
+  stage: string;
+  originalRevision: number;
+  expectedRevision: number;
+  failure: string | null;
+  diagnosticsExpired: boolean;
+  steps: {
+    stage: string;
+    outcome: string;
+    usage: { costCredits?: number | null } | null;
+    metadata: GenerationMetadata | null;
+  }[];
+  artifacts: {
+    targetId: string | null;
+    steps: {
+      stage: string;
+      candidate: unknown;
+      diagnostics: Record<string, string[]> | null;
+      call?: { output: string | null } | null;
+    }[];
+  } | null;
+}
+/** Immutable parent preview, including answer keys. Never reuse as a child contract. */
+export interface SnapshotPreview {
+  id: string;
+  sourceDraftId: string;
+  sourceDraftRevision: number;
+  plan: LearningPlan;
+  input: ActivityInput;
+  document: ActivityDocument;
+  reviewedAtUtc: string;
+  measurements: LengthMeasurement[];
+}
+export interface SnapshotSummary {
+  id: string;
+  title: string;
+  status: 'Ready';
+  createdAtUtc: string;
 }
 
 /** Transient AI proposal. The parent must review it and explicitly publish a template. */

@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using FamilyLearning.Api.Features.Activities;
 using FamilyLearning.Api.Infrastructure.Persistence;
 using FamilyLearning.Api.TaskEngine.Models;
 using Microsoft.EntityFrameworkCore;
@@ -12,6 +13,42 @@ namespace FamilyLearning.Api.Tests.Integration;
 
 public sealed class ActivityDraftTests
 {
+    [Fact]
+    public async Task Editable_library_limit_is_applied_after_excluding_released_drafts()
+    {
+        await using var app = new ActivityApiFactory();
+        using var parent = await app.ParentAsync();
+        var editable = await Create(parent, Numeric(1));
+        using var scope = app.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<LearningDbContext>();
+        var source = await db.ActivityDrafts.SingleAsync();
+        for (var index = 0; index < 100; index++)
+        {
+            var released = new ActivityDraft(source.FamilyId, source.Name, source.PlanJson, source.InputJson, source.DocumentJson, null, null, source.CreatedByParentId);
+            released.Release(Guid.NewGuid(), DateTime.UtcNow.AddMinutes(1));
+            db.ActivityDrafts.Add(released);
+        }
+        await db.SaveChangesAsync();
+        var listed = (await parent.GetFromJsonAsync<JsonArray>("/api/activity-drafts"))!;
+        Assert.Single(listed);
+        Assert.Equal(editable["id"]!.GetValue<Guid>(), listed[0]!["id"]!.GetValue<Guid>());
+    }
+
+    [Fact]
+    public async Task Saved_draft_exposes_shared_length_measurements_without_treating_target_as_pass_fail()
+    {
+        await using var factory = new ActivityApiFactory();
+        using var client = await factory.ParentAsync();
+        var plan = Reading() with { Materials = [Reading().Materials[0] with { Length = new("target", new(20, false)) }] };
+        var draft = await Create(client, plan);
+        var edit = Edit(draft);
+        edit["document"]!["materials"] = new JsonArray(new JsonObject { ["id"] = MaterialId, ["title"] = null, ["body"] = "שלום עולם" });
+        draft = await Save(client, draft, edit);
+        Assert.Equal(2, draft["measurements"]![0]!["actual"]!.GetValue<int>());
+        Assert.Equal(20, draft["measurements"]![0]!["expected"]!["value"]!.GetValue<int>());
+        Assert.Null(draft["measurements"]![0]!["satisfied"]);
+    }
+
     [Fact]
     public async Task Unsaved_plan_creates_an_owned_reloadable_draft_without_AI()
     {

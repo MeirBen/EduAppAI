@@ -616,29 +616,36 @@ revision/baseline, client edit revision, operation ID and bounded Undo. API
 methods map exactly to tasks 3–4; content editor emits allowed changes/selected
 targets, status component polls through its owner and never starts work.
 
-- [ ] Test generate from an unsaved valid plan creates/saves a draft before the
+Continue the approved isolated composition: staged library and snapshot-preview
+components consume the new contracts directly, while deployed legacy callers
+remain until cutover. Share the read-only document presentation for snapshot and
+reconciliation views. Extend the draft detail with engine-derived length
+measurements so advisory targets and strict expectations are visible without a
+client-side counting implementation.
+
+- [x] Test generate from an unsaved valid plan creates/saves a draft before the
       operation. Required Save failure prevents generate/repair/adopt/release;
       unsaved invalid fields stay visible. Reload resumes the same operation and
       saved draft, without claiming local keystrokes or chat were persisted.
-- [ ] Test full document edits, explicit source replacement, answer
+- [x] Test full document edits, explicit source replacement, answer
       invalidation, strict diagnostics, current-revision adoption and bounded
       content-only Undo. Restoring content creates a new save revision and never
       restores readiness, review/provenance/operation state. No ordinary edit
       uses AI.
-- [ ] Test operation success with unsaved local typing: retain local buffer,
+- [x] Test operation success with unsaved local typing: retain local buffer,
       display available server result, require explicit reconcile/reload. A
       stale save preserves local input. Test lost responses, failed/unknown
       stages, expired candidates and explicit paid retry warning.
-- [ ] Implement four honest scoped actions, real stage statuses, cancel and
+- [x] Implement four honest scoped actions, real stage statuses, cancel and
       diagnostic-only candidate viewing. Unparseable candidates cannot be copied
       into live content blindly; only parsed bounded content can be edited.
       ReplaceQuestion changes one whole question; ReplaceMaterial is
       generated-only. No automatic repair or extra approval between normal
       stages.
-- [ ] Implement explicit **סימון כמוכנה**, current-revision parent review and
+- [x] Implement explicit **סימון כמוכנה**, current-revision parent review and
       immutable preview/new-draft editing. Hide unfinished assignment/child
       actions. Show unsaved/saving/saved/error states and navigation warning.
-- [ ] Run Angular tests; check keyboard focus/live announcements, RTL mixed
+- [x] Run Angular tests; check keyboard focus/live announcements, RTL mixed
       text, native labels/controls, narrow 360px layout and 200% text without a
       framework. Parent answers render as text and never enter any child-facing
       contract.

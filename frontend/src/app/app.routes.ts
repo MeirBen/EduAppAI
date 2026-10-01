@@ -65,9 +65,20 @@ export const contentFirstRoutes: Routes = [
     children: [
       ...activityWorkspaceRoutes,
       {
+        path: 'instances/:instanceId',
+        title: 'פעילות מוכנה · לומדים ביחד',
+        loadComponent: () =>
+          import('./features/instances/snapshot-preview/snapshot-preview').then(
+            (m) => m.SnapshotPreviewPage,
+          ),
+      },
+      {
         path: 'templates',
         title: 'המרחב שלנו · לומדים ביחד',
-        loadComponent: () => import('./features/library/library').then((module) => module.Library),
+        loadComponent: () =>
+          import('./features/library/activity-library/activity-library').then(
+            (module) => module.ActivityLibrary,
+          ),
       },
       { path: '', pathMatch: 'full', redirectTo: 'activities/new' },
     ],

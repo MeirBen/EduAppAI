@@ -243,7 +243,31 @@ local confirmation; direct source edits accept the exact edited string. Only
 canonical text crosses the API boundary. Template publication briefly locks
 editing and uses expectedVersion; it never writes an activity or generates
 content. Failed publication preserves local input and offers a library check.
-Activity content saving/generation remains the next workspace milestone.
+The workspace also owns editable document fields and a saved revision/baseline.
+Generate, replace, adopt and release flush a valid draft checkpoint first. Native
+fields retain invalid keystrokes; bounded incomplete answers remain server draft
+diagnostics. Undo saves editable content as a new revision, excluding acceptance,
+review and operation metadata. Source replacement requires an explicit local
+confirmation before either template or activity submission.
+Changing a saved material's source kind creates a new material identity and
+removes the old content/input; the server still forbids changing an existing
+material's kind.
+
+Read-only polling reads operation status before its draft checkpoint and stops at
+a terminal status. This order includes the final commit. A changed client revision
+or dirty buffer prevents automatic application; the workspace offers the server
+result for inspection and explicit reload. Lost start responses retain their exact
+operation key/request for explicit replay. The route URL retains the draft and
+operation IDs for reload, while chat/Undo/unsubmitted fields remain local.
+Candidates pass a bounded editable-field mapping before explicit transfer to the
+editor; raw output stays diagnostic text. The existing engine supplies saved
+length measurements, including advisory targets, without client-side counting.
+
+The staged library distinguishes editable drafts, reusable templates and frozen
+snapshots. Snapshot preview is parent-only and read-only; an explicit copy creates
+a new draft without an AI call. These consumers have separate route compositions
+from the deployed legacy library/preview until cutover, with no schema reader or
+runtime lifecycle flag.
 
 `npm --prefix frontend run e2e:activities` runs the isolated staged browser
 workflow with intercepted HTTP contracts and zero provider calls. API integration

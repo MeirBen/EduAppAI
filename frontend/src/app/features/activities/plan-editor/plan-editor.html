@@ -36,6 +36,9 @@
           <option value="fixed">מקור קבוע ללא שינוי</option>
           <option value="per-task">מקור שההורה יספק בכל פעילות</option>
         </select>
+        <p class="text-sm text-muted">
+          בפעילות שמורה, שינוי סוג המקור מחליף את החומר ודורש בדיקה מחדש של השאלות.
+        </p>
         <label [for]="material.id + '-guidance'">הנחיות לחומר</label
         ><textarea [id]="material.id + '-guidance'" dir="auto" [formField]="m.guidance"></textarea>
         @if (material.source === 'fixed') {

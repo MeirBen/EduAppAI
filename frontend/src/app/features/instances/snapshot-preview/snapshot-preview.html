@@ -1,0 +1,45 @@
+<section class="mx-auto grid max-w-5xl gap-5 p-gutter" aria-labelledby="snapshot-heading">
+  <a class="text-link" routerLink="/templates">חזרה לספרייה</a>
+  <h1 id="snapshot-heading">פעילות מוכנה — תצוגה להורים</h1>
+  <app-loading-indicator
+    [active]="snapshot.isLoading()"
+    label="טוענים את הפעילות המוכנה…"
+    variant="panel"
+  />
+  @if (snapshot.error()) {
+    <p role="alert" class="field-error">{{ apiError(snapshot.error()) }}</p>
+    <button type="button" class="text-link" (click)="snapshot.reload()">ניסיון נוסף</button>
+  } @else if (snapshot.hasValue()) {
+    <p>
+      עותק קבוע שנבדק ב־<bdi>{{ snapshot.value().reviewedAtUtc | date: 'd/M/y HH:mm' }}</bdi
+      >. עריכה תיצור טיוטה חדשה.
+    </p>
+    <ul aria-label="מדידות אורך">
+      @for (
+        measurement of measurementText(snapshot.value().measurements, snapshot.value().plan);
+        track $index
+      ) {
+        <li>{{ measurement }}</li>
+      }
+    </ul>
+    <div class="panel"><app-activity-document-view [document]="snapshot.value().document" /></div>
+    @if (copiedId()) {
+      <p role="status">נוצר עותק לעריכה. הפעילות המוכנה נשארה ללא שינוי.</p>
+      <a class="button" [routerLink]="['/activities', copiedId()]">פתיחת הטיוטה החדשה</a>
+    } @else {
+      <button
+        id="copy-snapshot"
+        type="button"
+        class="button w-fit"
+        [disabled]="copying()"
+        (click)="copy()"
+      >
+        עריכה כטיוטה חדשה
+      </button>
+    }
+    <app-loading-indicator [active]="copying()" label="יוצרים טיוטה חדשה…" />
+    @if (error()) {
+      <p role="alert" class="field-error">{{ error() }}</p>
+    }
+  }
+</section>

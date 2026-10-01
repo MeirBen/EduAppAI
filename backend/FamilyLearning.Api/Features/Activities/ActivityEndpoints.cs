@@ -20,9 +20,9 @@ public static class ActivityEndpoints
         var drafts = api.MapGroup("/activity-drafts");
         drafts.MapPost("/", CreateAsync);
         drafts.MapGet("/", async (ClaimsPrincipal user, LearningDbContext db, CancellationToken ct) =>
-            await db.ActivityDrafts.AsNoTracking().Where(d => d.FamilyId == user.FamilyId())
+            await db.ActivityDrafts.AsNoTracking().Where(d => d.FamilyId == user.FamilyId() && d.ReleasedSnapshotId == null)
                 .OrderByDescending(d => d.UpdatedAtUtc).Take(100)
-                .Select(d => new ActivitySummary(d.Id, d.Name, d.Revision, d.ReleasedSnapshotId != null, d.UpdatedAtUtc)).ToListAsync(ct));
+                .Select(d => new ActivitySummary(d.Id, d.Name, d.Revision, d.UpdatedAtUtc)).ToListAsync(ct));
         drafts.MapGet("/{id:guid}", async (Guid id, ClaimsPrincipal user, LearningDbContext db, CancellationToken ct) =>
         {
             var draft = await Owned(db, user, id).AsNoTracking().SingleOrDefaultAsync(ct);

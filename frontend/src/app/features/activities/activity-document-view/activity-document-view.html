@@ -1,0 +1,32 @@
+<h2 dir="auto">{{ document().title }}</h2>
+<p dir="auto" class="whitespace-pre-wrap">{{ document().instructions }}</p>
+@for (material of document().materials; track material.id) {
+  <section class="well my-4">
+    <h3 dir="auto">{{ material.title }}</h3>
+    <p dir="auto" class="whitespace-pre-wrap">{{ material.body }}</p>
+  </section>
+}
+<ol role="list" class="steps grid gap-4">
+  @for (question of document().questions; track $index) {
+    <li>
+      <p dir="auto" class="whitespace-pre-wrap">{{ question.prompt }}</p>
+      @if (question.interaction.type === 'single-choice') {
+        <ul class="list-disc ps-6">
+          @for (option of question.interaction.options; track $index) {
+            <li dir="auto">{{ option }}</li>
+          }
+        </ul>
+      }
+      <p>נקודות: {{ question.points }}</p>
+      <details>
+        <summary>תשובה להורים — שאלה {{ $index + 1 }}</summary>
+        <p
+          class="whitespace-pre-wrap"
+          [attr.dir]="question.interaction.type === 'numeric-input' ? 'ltr' : 'auto'"
+        >
+          {{ question.answer?.value }}
+        </p>
+      </details>
+    </li>
+  }
+</ol>
