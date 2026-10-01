@@ -142,11 +142,22 @@ limit overshoot][gemini-token-report] remains unverified in this app; use a key
 spending limit for budget enforcement.
 
 [Community experience][gemini-community] favors low thinking for speed in an
-agent workload; it does not establish Hebrew educational quality. This profile
-is documentation-aligned, not a demonstrated quality improvement. The saved
-comparison used low thinking with explicit sampling. Future tuning must compare
-one setting at a time on the same cases and strict checks, retaining costs and
-reviewing the full content; recalibrate the judge for its changed profile.
+agent workload; it does not establish Hebrew educational quality. Our subsequent
+[matched tuning run](docs/superpowers/specs/2026-10-01-gemini-tuning.md) compared
+low and medium with sampling omitted. Low was cheaper and faster but failed the
+confirmation quality gate, so medium remains active. This small comparison does
+not establish general superiority. Both settings also returned an empty authoring
+proposal in one case; strict validation rejected it. That provider-compliance
+issue remains unresolved.
+
+Reasoning is enabled even when OpenRouter shows no thinking text: the adapter
+sends `exclude: true` to omit that text from responses, and the trial recorded
+nonzero reasoning usage. The same exclusion was used with DeepSeek. It does not
+turn thinking off or avoid its cost. Dashboard presentation can differ by provider.
+
+Further tuning must change one variable at a time, preserve the cases and strict
+checks, retain failures and costs, and review the full content. Recalibrate the
+optional model judge whenever its profile changes.
 
 [parameters]: https://openrouter.ai/docs/api/reference/parameters
 [reasoning]: https://openrouter.ai/docs/guides/best-practices/reasoning-tokens

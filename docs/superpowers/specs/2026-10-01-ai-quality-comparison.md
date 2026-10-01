@@ -13,7 +13,9 @@ Later configuration review aligned the active profile with Google's guidance:
 medium reasoning and omitted sampling overrides. See the
 [current profile rationale](../../../README.md#current-gemini-profile).
 That documentation-based choice has no new paid comparison; results below still
-describe the original low-reasoning profile with explicit sampling.
+describe the original low-reasoning profile with explicit sampling. A later
+[matched Gemini tuning run](2026-10-01-gemini-tuning.md) adds evidence for the
+current profile and scoped prompt experiments; it does not change these results.
 
 This follows the
 [post-cutover tuning](2026-10-01-post-cutover-ai-tuning.md), using its retained
