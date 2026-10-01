@@ -291,7 +291,7 @@ function lengthValue(form: LengthForm, errors: string[]): LengthExpectation | nu
 }
 function settingsValue(form: TaskSettingsDraft, errors: string[]) {
   checkText(form.topic, 'נושא', 200, errors, true);
-  checkText(form.audience, 'קהל יעד', 200, errors, true);
+  checkText(form.audience, 'למי מיועדת הפעילות', 200, errors, true);
   integer(form.questionCount, 'מספר שאלות', errors, true, 1);
   return taskSettingsValue(form);
 }

@@ -58,22 +58,29 @@ test('clarifies, confirms exact source text and saves only the reusable plan', a
     });
   });
   await page.goto('/activities/new');
-  await page.getByLabel('מה תרצו לתרגל או לשנות?').fill('תרגול לפי מקור דו לשוני');
-  await page.getByRole('button', { name: 'שליחת בקשה', exact: true }).click();
+  await expect(page.locator('#save-template')).toHaveCount(0);
+  await expect(page.locator('#generate-activity')).toHaveCount(0);
+  await page.getByRole('textbox', { name: 'מה תרצו להכין?' }).fill('תרגול לפי מקור דו לשוני');
+  await page.getByRole('button', { name: 'שליחה', exact: true }).click();
   await expect(page.locator('#chat-clarification')).toHaveText('לאיזה גיל?');
   expect(authoring).toHaveLength(1);
   await page.getByLabel('התשובה שלכם').fill('כיתה ג');
   await page.locator('#chat-send').click();
-  await expect(page.getByLabel('שם התבנית')).toHaveValue('מספרים');
+  await expect(page.getByRole('heading', { name: 'הגדרות הפעילות' })).toBeVisible();
+  await expect(page.locator('#plan-name')).toHaveValue('מספרים');
+  await expect(page.locator('#plan-name')).toBeHidden();
   expect(authoring[1]['context']).toEqual([
     { role: 'parent', text: 'תרגול לפי מקור דו לשוני' },
     { role: 'assistant', text: 'לאיזה גיל?' },
   ]);
-  await expect(page.getByLabel('טקסט המקור המדויק')).toHaveValue(sourceText);
-  await page.getByRole('button', { name: 'שמירת תבנית', exact: true }).click();
-  await expect(page.getByRole('alert')).toContainText('לאשר את המקורות');
+  await expect(page.getByLabel('הטקסט שלכם')).toHaveValue(sourceText);
+  await expect(page.getByText('בדקו שהטקסט הועתק נכון לפני שממשיכים.')).toBeVisible();
+  await page.getByText('שמירה כתבנית לשימוש חוזר', { exact: true }).click();
+  await page.getByRole('button', { name: 'שמירה כתבנית', exact: true }).click();
+  await expect(page.getByRole('alert')).toContainText('ואשרו את הטקסט שלכם');
   expect(writes).toEqual([]);
-  await page.getByRole('button', { name: 'המקור מדויק, אישור' }).click();
+  await page.getByRole('button', { name: 'הטקסט הועתק נכון' }).click();
+  await expect(page.getByText('בדקו שהטקסט הועתק נכון לפני שממשיכים.')).toBeHidden();
   await page.locator('#save-template').click();
   await expect(page.getByText('התבנית נשמרה בספרייה. הפעילות לא השתנתה.')).toBeVisible();
   expect(writes).toHaveLength(1);
@@ -115,7 +122,7 @@ test('local typing wins over a pending author request and publication conflicts 
     await route.fulfill({ status: 409, json: { title: 'התבנית השתנתה' } });
   });
   await page.goto('/templates/example/edit');
-  await page.getByLabel('מה תרצו לתרגל או לשנות?').fill('שינוי');
+  await page.locator('#chat-message').fill('שינוי');
   await page.locator('#chat-send').click();
   await expect(page.locator('#chat-cancel')).toBeVisible();
   await page.getByLabel('שם התבנית').fill('עריכה מקומית');

@@ -135,7 +135,7 @@ test('saves before generation, edits manually, reviews the current revision and 
   const state = await isolate(page);
   await page.goto('/templates/example/create');
   await page.locator('#generate-activity').click();
-  await expect(page.getByText('ממתינה לביצוע', { exact: false })).toBeVisible();
+  await expect(page.getByText('יוצרים את הפעילות…', { exact: true })).toBeVisible();
   expect(state.writes.map((w) => w.path)).toEqual([
     '/api/activity-drafts',
     '/api/activity-drafts/draft/operations',
@@ -145,10 +145,10 @@ test('saves before generation, edits manually, reviews the current revision and 
   await expect(page.locator('#document-title')).toHaveValue('תרגול חדש');
   await page.locator('#question-0-answer').fill('9');
   await page.locator('#save-activity').click();
-  await expect(page.getByText('הטיוטה שמורה', { exact: true })).toBeVisible();
+  await expect(page.getByText('נשמר', { exact: true })).toBeVisible();
   expect(state.writes.filter((w) => w.path.endsWith('/operations'))).toHaveLength(1);
   await page.locator('#release-activity').click();
-  await page.getByRole('link', { name: 'לתצוגה המוכנה' }).click();
+  await page.getByRole('link', { name: 'צפייה בפעילות המוכנה' }).click();
   await expect(page.getByRole('heading', { name: 'פעילות מוכנה — תצוגה להורים' })).toBeVisible();
   await expect(page.locator('textarea')).toHaveCount(0);
   await page.locator('summary').first().click();
@@ -170,7 +170,7 @@ test('keeps local typing on operation completion, exposes server content and pre
   await expect(page.locator('#cancel-generation')).toBeVisible();
   await page.locator('#document-title').fill('עריכה מקומית — Local');
   state.complete();
-  await expect(page.getByText('יש תוצאה חדשה בשרת.', { exact: false })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'נוצרה תוצאה בזמן שהמשכתם לערוך' })).toBeVisible();
   await expect(page.locator('#document-title')).toHaveValue('עריכה מקומית — Local');
   await page.locator('#save-activity').click();
   await expect(page.getByRole('alert')).toContainText('הטיוטה השתנתה בשרת');
@@ -190,10 +190,18 @@ test('supports keyboard content editing with native labels at 360px and 200% tex
   await page.locator('#add-question').focus();
   await page.keyboard.press('Enter');
   await page.getByLabel('נוסח השאלה', { exact: true }).fill('מה פירוש Hello — שלום?');
+  await expect(page.getByLabel('סוג התשובה', { exact: true })).toBeHidden();
+  await page.getByText('אפשרויות נוספות לשאלה 1').focus();
+  await page.keyboard.press('Enter');
   await page.getByLabel('סוג התשובה', { exact: true }).selectOption('single-choice');
   await page.getByRole('button', { name: 'הוספת אפשרות', exact: true }).click();
   await page.getByLabel('אפשרות 1', { exact: true }).fill('שלום');
-  await page.getByLabel('תשובה להורים', { exact: true }).fill('שלום');
+  await page.getByLabel('תשובה נכונה').selectOption('שלום');
+  await expect(page.getByLabel('תשובה נכונה')).toHaveValue('שלום');
+  await page.getByLabel('אפשרות 1', { exact: true }).fill('שלום רב');
+  // Editing an option never re-points the answer; the mismatch stays visible for the parent.
+  await expect(page.getByLabel('תשובה נכונה')).toHaveValue('שלום');
+  await expect(page.getByLabel('תשובה נכונה')).toHaveAttribute('aria-invalid', 'true');
   await page.locator('#question-0-points').fill('1.5');
   await expect(page.locator('#question-0-points-error')).toContainText('מספר שלם');
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(
@@ -214,7 +222,10 @@ test('unknown outcomes retain local work and do not automatically start another 
   await expect(page.locator('#cancel-generation')).toBeVisible();
   await page.locator('#document-title').fill('העבודה שלי נשמרת מקומית');
   state.unknown();
-  await expect(page.getByText('אין הפעלה חוזרת אוטומטית.', { exact: false })).toBeVisible();
+  await expect(
+    page.getByText('לא הפעלנו ניסיון נוסף אוטומטית כדי למנוע חיוב כפול.', { exact: true }),
+  ).toBeVisible();
+  await expect(page.locator('#check-saved')).toBeVisible();
   await expect(page.locator('#cancel-generation')).toBeHidden();
   await expect(page.locator('#document-title')).toHaveValue('העבודה שלי נשמרת מקומית');
   expect(state.writes.filter((write) => write.path.endsWith('/operations'))).toHaveLength(1);

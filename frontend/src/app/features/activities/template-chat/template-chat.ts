@@ -18,6 +18,10 @@ export class TemplateChat {
   readonly clarification = input('');
   readonly context = input<AuthoringTurn[]>([]);
   readonly consolidationRequired = input(false);
+  /** A plan exists, so the form becomes a compact change request instead of the first description. */
+  readonly refining = input(false);
+  /** ID of the owner's visible heading that names the first-description field. */
+  readonly labelledBy = input('');
   readonly sent = output<void>();
   readonly consolidated = output<void>();
   readonly cancelled = output<void>();

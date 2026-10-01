@@ -1,0 +1,297 @@
+@let p = plan();
+@let i = inputs();
+@let materials = p.materials().value();
+<div class="grid gap-6">
+  @if (reusable()) {
+    @if (materials.length) {
+      <ng-container [ngTemplateOutlet]="content" />
+    }
+    <details class="well">
+      <summary>בחירות לפעילות שתיווצר עכשיו</summary>
+      <p class="text-sm text-muted">הבחירות כאן אינן נשמרות בתבנית.</p>
+      <ng-container [ngTemplateOutlet]="choices" />
+    </details>
+  } @else {
+    <ng-container [ngTemplateOutlet]="choices" />
+    @if (materials.length) {
+      <ng-container [ngTemplateOutlet]="content" />
+    }
+  }
+</div>
+
+<ng-template #choices>
+  <div>
+    <app-task-settings-fields [fields]="i.settings" prefix="activity" />
+    <div class="grid gap-x-4 sm:grid-cols-2">
+      @let questions = p.questions().value();
+      @if (questions.selectableFormat) {
+        <div class="field">
+          <label for="input-format">סוג השאלות</label>
+          <select id="input-format" [formField]="i.questionFormat">
+            <option value="">{{ formatName(questions.defaultFormat) }}</option>
+            @for (format of allowedFormats(); track format) {
+              @if (format !== questions.defaultFormat || i.questionFormat().value() === format) {
+                <option [value]="format">{{ formatNames[format] }}</option>
+              }
+            }
+          </select>
+        </div>
+      } @else if (allowedFormats().length > 1) {
+        <p class="field">
+          <span class="font-medium">סוגי שאלות:</span>
+          @for (format of allowedFormats(); track format; let last = $last) {
+            {{ formatNames[format] }}{{ last ? '' : ' + ' }}
+          }
+        </p>
+      }
+      @if (choiceCountApplies()) {
+        <div class="field">
+          <label for="input-choice-count">מספר אפשרויות לכל שאלה</label>
+          <input
+            id="input-choice-count"
+            class="max-w-28"
+            dir="ltr"
+            inputmode="numeric"
+            [placeholder]="questions.choiceCount.value"
+            [formField]="i.choiceCount"
+            aria-describedby="input-choice-count-help"
+          />
+          <p id="input-choice-count-help" class="mt-2 text-sm text-muted">
+            ברירת המחדל: {{ questions.choiceCount.value }}{{ bounds(questions.choiceCount) }}
+          </p>
+        </div>
+      }
+      @for (material of materials; track $index; let index = $index) {
+        @if (material.source === 'generated' && material.length.mode) {
+          <ng-container
+            [ngTemplateOutlet]="length"
+            [ngTemplateOutletContext]="{
+              $implicit: material.length,
+              id: material.id + '-input',
+              label: materials.length > 1 ? material.label : '',
+              field: i.materials[index]?.wordCount,
+            }"
+          />
+        }
+      }
+      @if (p.totalLength().value().mode && materials.some(isGenerated)) {
+        <ng-container
+          [ngTemplateOutlet]="length"
+          [ngTemplateOutletContext]="{
+            $implicit: p.totalLength().value(),
+            id: 'input-total',
+            label: 'כל הטקסטים יחד',
+            field: i.totalWordCount,
+          }"
+        />
+      }
+    </div>
+    @for (control of controls(); track control.id; let index = $index) {
+      @if (i.controls[index]) {
+        @let choice = i.controls[index];
+        <div class="field">
+          <label
+            [for]="
+              control.id +
+              (control.type === 'text' && !choice.provided().value() ? '-provided' : '-input')
+            "
+            ><bdi>{{ control.label }}</bdi></label
+          >
+          @if (control.meaning) {
+            <p class="mb-2 text-sm text-muted" dir="auto">{{ control.meaning }}</p>
+          }
+          @switch (control.type) {
+            @case ('text') {
+              <label class="flex items-center gap-3 font-normal"
+                ><input
+                  [id]="control.id + '-provided'"
+                  type="checkbox"
+                  [formField]="choice.provided"
+                  [attr.aria-describedby]="control.id + '-input-help'"
+                />להזין ערך משלי במקום ברירת המחדל</label
+              >
+              @if (choice.provided().value()) {
+                <input
+                  [id]="control.id + '-input'"
+                  dir="auto"
+                  [formField]="choice.value"
+                  [attr.aria-describedby]="control.id + '-input-help'"
+                  [attr.aria-invalid]="choice.value().invalid()"
+                />
+              }
+            }
+            @case ('boolean') {
+              <select
+                [id]="control.id + '-input'"
+                [formField]="choice.value"
+                [attr.aria-describedby]="control.id + '-input-help'"
+                [attr.aria-invalid]="choice.value().invalid()"
+              >
+                <option value="">{{ defaultLabel(control) }}</option>
+                <option value="true">כן</option>
+                <option value="false">לא</option>
+              </select>
+            }
+            @case ('select') {
+              <select
+                [id]="control.id + '-input'"
+                [formField]="choice.value"
+                [attr.aria-describedby]="control.id + '-input-help'"
+                [attr.aria-invalid]="choice.value().invalid()"
+              >
+                <option value="">{{ defaultLabel(control) }}</option>
+                @for (option of control.options; track $index) {
+                  <option [value]="option.value">{{ option.value }}</option>
+                }
+              </select>
+            }
+            @case ('integer') {
+              <div class="flex items-center gap-2">
+                <input
+                  [id]="control.id + '-input'"
+                  class="max-w-28"
+                  dir="ltr"
+                  inputmode="numeric"
+                  [placeholder]="control.hasDefault ? control.defaultValue : ''"
+                  [formField]="choice.value"
+                  [attr.aria-describedby]="control.id + '-input-help'"
+                  [attr.aria-invalid]="choice.value().invalid()"
+                />
+                @if (control.unit) {
+                  <bdi class="shrink-0">{{ control.unit }}</bdi>
+                }
+              </div>
+            }
+          }
+          <div [id]="control.id + '-input-help'">
+            @if (control.type === 'integer' && (control.hasDefault || control.min || control.max)) {
+              <p class="mt-2 text-sm text-muted">
+                {{ control.hasDefault ? 'ברירת המחדל: ' + control.defaultValue : ''
+                }}{{ bounds(control) }}
+              </p>
+            }
+            @for (error of choice.value().errors(); track error.kind) {
+              <p class="field-error">{{ error.message }}</p>
+            }
+          </div>
+        </div>
+      }
+    }
+  </div>
+</ng-template>
+
+<ng-template #length let-length let-id="id" let-label="label" let-field="field">
+  @if (length.adjustable && length.mode !== 'range' && field) {
+    <div class="field">
+      <label [for]="id + '-words'"
+        >אורך הטקסט
+        @if (label) {
+          — <bdi>{{ label }}</bdi>
+        }
+      </label>
+      <div class="flex items-center gap-2">
+        <input
+          [id]="id + '-words'"
+          class="max-w-28"
+          dir="ltr"
+          inputmode="numeric"
+          [placeholder]="length.value"
+          [formField]="field"
+          [attr.aria-describedby]="id + '-words-unit ' + id + '-words-help'"
+        />
+        <span class="shrink-0" [id]="id + '-words-unit'">מילים</span>
+      </div>
+      <p [id]="id + '-words-help'" class="mt-2 text-sm text-muted">
+        {{ length.mode === 'target' ? 'בערך' : 'בדיוק' }} {{ length.value }} מילים אם לא תשנו{{
+          bounds(length)
+        }}
+      </p>
+    </div>
+  } @else {
+    <p class="field">
+      <span class="font-medium">{{ length.mode === 'target' ? 'אורך הטקסט:' : 'אורך נדרש:' }}</span>
+      {{
+        length.mode === 'range'
+          ? length.lower + '–' + length.upper + ' מילים'
+          : (length.mode === 'target' ? 'בערך ' : 'בדיוק ') + length.value + ' מילים'
+      }}
+      @if (label) {
+        · <bdi>{{ label }}</bdi>
+      }
+    </p>
+  }
+</ng-template>
+
+<ng-template #content>
+  <section class="grid gap-4" aria-labelledby="setup-content-title">
+    <h3 id="setup-content-title">תוכן הפעילות</h3>
+    @for (material of materials; track $index; let index = $index) {
+      @let m = p.materials[index];
+      <div class="well grid min-w-0 gap-3">
+        <div>
+          <label [for]="material.id + '-source'">
+            @if (materials.length > 1) {
+              <bdi>{{ material.label }}</bdi> —
+            }
+            מאיפה יגיע הטקסט?</label
+          >
+          <select [id]="material.id + '-source'" [formField]="m.source">
+            <option value="generated">כתבו עבורי תוכן חדש</option>
+            <option value="fixed">יש לי טקסט משלי</option>
+            @if (reusable() || material.source === 'per-task') {
+              <option value="per-task">אבחר טקסט חדש בכל פעם שאשתמש בתבנית</option>
+            }
+          </select>
+        </div>
+        @if (material.source === 'fixed') {
+          <div>
+            <label [for]="'source-' + material.id">הטקסט שלכם</label>
+            <textarea
+              [id]="'source-' + material.id"
+              [attr.data-source]="material.id"
+              dir="auto"
+              rows="8"
+              [formField]="m.text"
+              [attr.aria-describedby]="material.id + '-source-help'"
+            ></textarea>
+          </div>
+          @if (pendingSources().includes(material.id)) {
+            <div [id]="material.id + '-source-help'" class="grid gap-1">
+              <p class="font-medium" role="status">בדקו שהטקסט הועתק נכון לפני שממשיכים.</p>
+              <p class="text-sm text-muted">הטקסט יישמר בדיוק כפי שהוזן.</p>
+            </div>
+            <button
+              [id]="'confirm-source-' + material.id"
+              type="button"
+              class="button button-secondary w-fit"
+              [disabled]="locked()"
+              (click)="sourceConfirmed.emit(material.id)"
+            >
+              הטקסט הועתק נכון
+            </button>
+          } @else {
+            <p [id]="material.id + '-source-help'" class="text-sm text-muted">
+              הטקסט יישמר בדיוק כפי שהוזן.
+            </p>
+          }
+        } @else if (material.source === 'per-task' && i.materials[index]) {
+          <div>
+            <label [for]="material.id + '-input-source'">{{
+              reusable() ? 'הטקסט לפעילות שתיווצר עכשיו' : 'הטקסט שלכם'
+            }}</label>
+            <textarea
+              [id]="material.id + '-input-source'"
+              dir="auto"
+              rows="8"
+              [formField]="i.materials[index].sourceText"
+              [attr.aria-describedby]="material.id + '-input-source-help'"
+            ></textarea>
+          </div>
+          <p [id]="material.id + '-input-source-help'" class="text-sm text-muted">
+            הטקסט יישמר בדיוק כפי שהוזן. בכל שימוש בתבנית תתבקשו להזין טקסט חדש.
+          </p>
+        }
+      </div>
+    }
+  </section>
+</ng-template>

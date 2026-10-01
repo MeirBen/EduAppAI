@@ -1,7 +1,8 @@
-import { ChangeDetectionStrategy, Component, computed, input, output } from '@angular/core';
+import { ChangeDetectionStrategy, Component, input, output } from '@angular/core';
 import { FieldTree, FormField } from '@angular/forms/signals';
+import { PlanMaterial } from '../../../core/api/models';
 import { TaskSettingsFields } from '../../../shared/forms/task-settings-fields';
-import { InputForm, MaterialForm, PlanForm } from './plan-form';
+import { MaterialForm, PlanForm } from './plan-form';
 import { ControlFields } from './control-fields/control-fields';
 import { LengthFields } from './length-fields/length-fields';
 
@@ -12,7 +13,10 @@ export type PlanStructureEdit =
   | { kind: 'add-control'; scope: string }
   | { kind: 'remove-control'; scope: string; id: string };
 
-/** Native presentation of app-owned plan fields; no HTTP, copied draft or authoritative content validation. */
+/**
+ * Advanced, reusable plan definition: goal, guidance, defaults, structure, length policy and choice
+ * definitions. Per-activity choices and source text live in ActivitySetup. No HTTP or copied draft.
+ */
 @Component({
   imports: [FormField, TaskSettingsFields, ControlFields, LengthFields],
   selector: 'app-plan-editor',
@@ -22,23 +26,17 @@ export type PlanStructureEdit =
 })
 export class PlanEditor {
   protected readonly isGenerated = (material: MaterialForm) => material.source === 'generated';
+  protected readonly sourceNames: Record<PlanMaterial['source'], string> = {
+    generated: 'הטקסט ייכתב בעזרת AI',
+    fixed: 'טקסט קבוע שסיפקתם',
+    'per-task': 'טקסט חדש שתזינו בכל פעילות',
+  };
   readonly fields = input.required<FieldTree<PlanForm>>();
-  readonly inputFields = input.required<FieldTree<InputForm>>();
-  protected readonly controls = computed(() => {
-    const plan = this.fields()().value();
-    return [
-      ...plan.controls,
-      ...plan.materials.flatMap((material) => material.controls),
-      ...plan.questions.controls,
-    ];
-  });
   readonly locked = input(false);
-  readonly pendingSources = input<string[]>([]);
-  readonly edited = output<{ key: string; sourceId?: string }>();
+  readonly edited = output<{ key: string }>();
   readonly structureChanged = output<PlanStructureEdit>();
-  readonly sourceConfirmed = output<string>();
   protected changed(event: Event) {
     if (this.locked() || !(event.target instanceof HTMLElement)) return;
-    this.edited.emit({ key: event.target.id, sourceId: event.target.dataset['source'] });
+    this.edited.emit({ key: event.target.id });
   }
 }

@@ -73,24 +73,41 @@ options. Never rewrite saved content for presentation.
 
 ## Workspace actions
 
-The workspace owns one editable buffer. Keep plan defaults, per-activity choices
-and editable content visibly distinct. Saving a template publishes only the
-plan;
-saving a draft retains editable work; marking ready freezes the reviewed
-revision.
-Use explicit labels for these separate actions.
+The workspace owns one editable buffer and derives its presentation from it:
+describe, then adjust settings, then review content. Phases are never stored or
+routed. Before a plan exists, the request dominates; a quiet disclosure offers
+manual entry. Ordinary choices (topic, audience, difficulty, question count and
+only the applicable length, format, option count, requested choices and source
+text) stay visible. The plan definition, guidance, bounds and choice
+definitions sit under **אפשרויות מתקדמות**, open by default only for template
+editing. Once content exists, settings collapse to a derived one-line summary
+and the content becomes the main surface.
 
-Show source confirmation for AI-extracted text and preserve its exact content.
-Keep invalid keystrokes visible for correction. A generation result cannot
-replace later local edits or Undo; offer the saved server result for inspection
-and explicit reload. Show actual operation stages and unknown outcomes without
-implying that another paid attempt is automatic.
+Use parent language, never internal terms: source kinds read as "כתבו עבורי
+תוכן חדש", "יש לי טקסט משלי" and, for templates, "אבחר טקסט חדש בכל פעם";
+length reads as words, not modes. Keep plan defaults, per-activity choices and
+editable content visibly distinct. Saving a template publishes only the plan;
+saving a draft retains editable work; marking ready freezes the reviewed
+revision. Give each state one primary action: create the activity, then mark it
+ready; template editing makes publication primary. Uncommon actions live under
+**פעולות נוספות** or a quiet disclosure. Question cards keep prompt, options and
+the parent-only answer visible; type, points, ordering and deletion sit in a
+per-question disclosure. Scoped AI improvement is a contextual action with an
+optional instruction.
+
+Show source confirmation for AI-extracted text only while it is pending and
+preserve its exact content. Keep invalid keystrokes visible for correction. A
+generation result cannot replace later local edits or Undo; offer the saved
+server result for inspection and explicit reload. Describe operations in plain
+language, keep stages, outcomes, cost and raw output behind **פרטים טכניים**,
+and never imply that another paid attempt is automatic.
 
 Display server length measurements beside saved diagnostics. Distinguish
 advisory targets from strict exact/range blockers, and technical readiness from
-the parent's educational review. Frozen previews expose answers in native
-disclosures and offer an explicit copy to a new draft; no child-delivery
-placeholder is shown.
+the parent's educational review. Offer adoption beside content that saved
+diagnostics mark as stale; elsewhere keep it in the card's disclosure. Frozen
+previews expose answers in native disclosures and offer an explicit copy to a
+new draft; no child-delivery placeholder is shown.
 
 ## Loading
 

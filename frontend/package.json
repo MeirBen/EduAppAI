@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "scripts": {
     "ng": "ng",
-    "start": "ng serve --host localhost --proxy-config proxy.conf.json",
+    "start": "ng serve --host 0.0.0.0 --proxy-config proxy.conf.json",
     "build": "ng build",
     "test": "ng test",
     "format": "prettier --write \"src/**/*.{ts,html,css}\" \"e2e/**/*.{ts,mjs}\" \"*.{ts,json}\" public/manifest.webmanifest ../.prettierrc .postcssrc.json \"../*.json\" ../.markdownlint-cli2.jsonc \"../*.md\" \"../docs/**/*.md\" ../.github/workflows/verify.yml",

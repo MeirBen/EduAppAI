@@ -1,49 +1,87 @@
-<section class="panel grid gap-3" aria-labelledby="operation-heading">
-  <h2 id="operation-heading">מצב היצירה</h2>
-  <p role="status">
-    {{ statuses[operation().status] }} · {{ stages[operation().stage] || 'יצירת תוכן' }}
-  </p>
-  <ol role="list">
-    @for (step of operation().steps; track $index) {
-      <li>
-        {{ stages[step.stage] || 'יצירת תוכן' }}: {{ outcomes[step.outcome] || 'לא הוחל' }}. עלות
-        מדווחת: {{ step.usage?.costCredits ?? 'לא ידועה' }}
-      </li>
-    }
-  </ol>
+@let current = view();
+<section class="panel grid gap-4" aria-labelledby="operation-heading">
+  <h2 id="operation-heading" class="sr-only">מצב היצירה</h2>
+  <app-loading-indicator
+    [active]="active()"
+    variant="panel"
+    [label]="current.title"
+    [detail]="current.details[0] ?? ''"
+  />
   @if (active()) {
+    <div class="grid gap-1">
+      <button
+        id="cancel-generation"
+        type="button"
+        class="button button-secondary w-fit"
+        [disabled]="locked()"
+        (click)="cancelled.emit()"
+      >
+        ביטול
+      </button>
+      <p class="text-sm text-muted">ביטול אינו מבטיח שבקשה שכבר נשלחה לא תושלם ולא תחויב.</p>
+    </div>
+  }
+  <div role="status" class="grid gap-1">
+    @if (!active()) {
+      <p class="font-medium" [class.text-danger]="current.problem">{{ current.title }}</p>
+      @for (line of current.details; track $index) {
+        <p>{{ line }}</p>
+      }
+    }
+  </div>
+  @if (!active() && configured() && current.retry; as retry) {
+    <div class="grid gap-1">
+      <button
+        id="retry-generation"
+        type="button"
+        class="button w-fit"
+        [disabled]="locked()"
+        (click)="retried.emit(retry.kind)"
+      >
+        {{ retry.label }}
+      </button>
+      <p class="text-sm text-muted">ניסיון נוסף שולח בקשה חדשה לשירות ה־AI.</p>
+    </div>
+  }
+  @if (!active() && current.checkSaved) {
     <button
-      id="cancel-generation"
+      id="check-saved"
       type="button"
       class="button button-secondary w-fit"
       [disabled]="locked()"
-      (click)="cancelled.emit()"
+      (click)="checked.emit()"
     >
-      ביטול היצירה
+      בדיקת המצב השמור
     </button>
-    <p>ביטול אינו מבטיח שהשירות המרוחק הפסיק או שלא יהיה חיוב.</p>
-  } @else {
-    <p>תוכן שכבר נשמר נשאר בטיוטה. ניסיון יצירה נוסף הוא פעולה מפורשת ועלול לגרור חיוב נוסף.</p>
   }
-  @if (operation().status === 'unknown') {
-    <p>ייתכן שהשירות השלים את הפנייה לפני הפסקתה. אין הפעלה חוזרת אוטומטית.</p>
-  }
-  @if (operation().status === 'completed') {
-    <p>השלמת היצירה אינה סימון הפעילות כמוכנה. נדרשת בדיקת הורים.</p>
-  }
-  @if (operation().diagnosticsExpired) {
-    <p>פג תוקף פרטי האבחון. התוכן השמור וסיכום הפעולה נשמרו.</p>
-  }
-  @for (step of operation().artifacts?.steps; track $index) {
-    @for (message of messages(step.diagnostics); track $index) {
-      <p class="field-error">{{ message }}</p>
-    }
-    @if (candidateText(step.candidate, step.call?.output); as text) {
-      <details class="well">
-        <summary>הצגת תשובת השירות לאבחון — אינה תוכן שאושר</summary>
-        <pre dir="auto" class="whitespace-pre-wrap break-words text-sm">{{ text }}</pre>
-        <p>אין העתקה אוטומטית לתוכן. תיקון ידני נשמר דרך בדיקות הטיוטה.</p>
-      </details>
-    }
-  }
+  <details>
+    <summary>פרטים טכניים</summary>
+    <div class="grid gap-3 pt-2 text-sm">
+      <ol role="list" class="grid gap-1">
+        @for (step of operation().steps; track $index) {
+          <li>
+            {{ stageNames[step.stage] || 'יצירת תוכן' }}: {{ outcomes[step.outcome] || 'לא הוחל' }}.
+            עלות מדווחת: {{ step.usage?.costCredits ?? 'לא ידועה' }}
+          </li>
+        }
+      </ol>
+      @if (operation().diagnosticsExpired) {
+        <p>פג תוקף פרטי האבחון. התוכן השמור וסיכום הפעולה נשמרו.</p>
+      }
+      @for (step of operation().artifacts?.steps; track $index) {
+        @for (message of messages(step.diagnostics); track $index) {
+          <p>{{ stageNames[step.stage] || 'יצירת תוכן' }}: {{ message }}</p>
+        }
+        @if (candidateText(step.candidate, step.call?.output); as text) {
+          <details class="well">
+            <summary>
+              תשובת השירות לאבחון — {{ stageNames[step.stage] || 'יצירת תוכן' }}, לא תוכן שאושר
+            </summary>
+            <pre dir="auto" class="whitespace-pre-wrap break-words">{{ text }}</pre>
+            <p>אין העתקה אוטומטית לתוכן. תיקון ידני נשמר דרך בדיקות הטיוטה.</p>
+          </details>
+        }
+      }
+    </div>
+  </details>
 </section>

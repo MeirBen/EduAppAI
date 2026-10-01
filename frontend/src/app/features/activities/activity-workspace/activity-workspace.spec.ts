@@ -75,7 +75,11 @@ describe('ActivityWorkspace plan ownership', () => {
         provideRouter(
           [
             { path: 'activities/new', component: ActivityWorkspace },
-            { path: 'templates/:templateId/edit', component: ActivityWorkspace },
+            {
+              path: 'templates/:templateId/edit',
+              component: ActivityWorkspace,
+              data: { context: 'template' },
+            },
           ],
           withComponentInputBinding(),
         ),
@@ -132,6 +136,26 @@ describe('ActivityWorkspace plan ownership', () => {
     http.expectNone('/api/ai/template-drafts');
   });
 
+  it('keeps reusable definition and publication prominent only when editing a template', async () => {
+    await open('/templates/example/edit', numericPlan);
+    expect(root().querySelector('#workspace-title')!.textContent).toContain('עריכת תבנית');
+    expect(field('plan-name').closest('details')!.open).toBe(true);
+    expect(root().querySelector('#save-template')!.closest('details')).toBeNull();
+    expect(field('activity-topic').closest('details')!.open).toBe(false);
+  });
+
+  it('keeps ordinary choices visible and template internals quiet for a new activity', async () => {
+    await open();
+    reply(await ask());
+    await settle();
+    expect(field('activity-topic').closest('details')).toBeNull();
+    expect(field('activity-questionCount').value).toBe('2');
+    expect(field('plan-name').closest('details')!.open).toBe(false);
+    expect(root().querySelector('#save-template')!.closest('details')!.open).toBe(false);
+    expect(root().querySelector('#generate-activity')!.closest('details')).toBeNull();
+    expect(root().querySelector('#release-activity')).toBeNull();
+  });
+
   it('ends typing coalescence at successful publication so Undo restores the saved content', async () => {
     await open('/templates/example/edit', numericPlan);
     await type('plan-name', 'השם שנשמר');
@@ -182,18 +206,24 @@ describe('ActivityWorkspace plan ownership', () => {
     field('plan-name').dispatchEvent(new Event('input', { bubbles: true }));
     status.flush({ configured: false, schemaVersion: 1 });
     await settle();
-    expect(root().textContent).toContain('יש שינויים מקומיים שלא נשמרו');
+    expect(root().textContent).toContain('לא נשמר');
     await click('plan-undo');
     expect(field('plan-name').value).toBe('');
   });
 
-  it('applies a clean proposal locally without publication and shows computed changes', async () => {
+  it('applies a clean proposal locally without publication and moves from the request to settings', async () => {
     await open();
+    expect(root().querySelector('#plan-title')!.textContent).toContain('מה תרצו להכין?');
+    expect(field('chat-message').getAttribute('aria-labelledby')).toBe('plan-title');
+    expect(root().querySelector('#save-template')).toBeNull();
+    expect(root().querySelector('#generate-activity')).toBeNull();
     const request = await ask();
     reply(request);
     await settle();
     expect(field('plan-name').value).toBe('מספרים');
-    expect(root().textContent).toContain('נוספה תכנית');
+    expect(root().querySelector('#plan-title')!.textContent).toContain('הגדרות הפעילות');
+    expect(root().textContent).toContain('הכנו הגדרות לפי הבקשה');
+    expect(root().textContent).not.toContain('נוספה תכנית');
     http.expectNone('/api/templates');
     http.expectNone('/api/activity-drafts');
     await click('plan-undo');

@@ -1,12 +1,27 @@
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
-import { provideRouter, withComponentInputBinding } from '@angular/router';
+import {
+  provideRouter,
+  Router,
+  RouteReuseStrategy,
+  withComponentInputBinding,
+} from '@angular/router';
+import { PageReuseStrategy } from '../../../core/page-reuse-strategy';
 import { RouterTestingHarness } from '@angular/router/testing';
 import { ActivityWorkspace } from './activity-workspace';
 import { numericPlan, suppliedPlan, sourceText } from '../learning-plan.fixture';
 import { ActivityDetail } from '../../../core/api/models';
 
+const savedQuestion = {
+  id: 'q',
+  prompt: 'שאלה',
+  interaction: { type: 'numeric-input' as const, options: null },
+  answer: { value: '1' },
+  points: 1,
+  origin: { kind: 'manual' },
+  acceptance: null,
+};
 export const savedActivity: ActivityDetail = {
   id: 'draft',
   revision: 1,
@@ -42,14 +57,13 @@ describe('Activity lifecycle', () => {
     field.dispatchEvent(new Event('input', { bubbles: true }));
     await settle();
   }
-  async function open(existing = true) {
+  async function open(existing = true, draft = savedActivity) {
     await harness.navigateByUrl(
       existing ? '/activities/draft' : '/templates/t/create',
       ActivityWorkspace,
     );
     http.expectOne('/api/ai/status').flush({ configured: true, schemaVersion: 1 });
-    if (existing)
-      http.expectOne('/api/activity-drafts/draft').flush(structuredClone(savedActivity));
+    if (existing) http.expectOne('/api/activity-drafts/draft').flush(structuredClone(draft));
     else
       http
         .expectOne('/api/templates/t')
@@ -68,6 +82,7 @@ describe('Activity lifecycle', () => {
           ],
           withComponentInputBinding(),
         ),
+        { provide: RouteReuseStrategy, useClass: PageReuseStrategy },
       ],
     });
     http = TestBed.inject(HttpTestingController);
@@ -96,7 +111,10 @@ describe('Activity lifecycle', () => {
   it.each(['generate-activity', 'generate-questions', 'release-activity'])(
     'does not perform %s after a required save fails',
     async (action) => {
-      await open();
+      await open(true, {
+        ...savedActivity,
+        document: { ...savedActivity.document, questions: [savedQuestion] },
+      });
       await type('document-title', 'עריכה שלי');
       await click(action);
       const save = http.expectOne('/api/activity-drafts/draft');
@@ -176,7 +194,7 @@ describe('Activity lifecycle', () => {
       expect((root().querySelector('#document-title') as HTMLInputElement).value).toBe(
         'עריכה מקומית',
       );
-      expect(root().textContent).toContain('יש תוצאה חדשה בשרת');
+      expect(root().textContent).toContain('נוצרה תוצאה בזמן שהמשכתם לערוך');
       await click('save-activity');
       const save = http.expectOne('/api/activity-drafts/draft');
       expect(save.request.body.expectedRevision).toBe(1);
@@ -250,7 +268,8 @@ describe('Activity lifecycle', () => {
       });
       http.expectOne('/api/activity-drafts/draft').flush({ ...savedActivity, revision: 2 });
       await settle();
-      expect(root().textContent).toContain('תוצאה לא ידועה');
+      expect(root().textContent).toContain('לא ידוע אם שירות ה־AI סיים את הבקשה');
+      expect(root().textContent).toContain('לא הפעלנו ניסיון נוסף אוטומטית');
       http.expectNone((r) => r.method === 'POST');
     } finally {
       vi.useRealTimers();
@@ -283,8 +302,8 @@ describe('Activity lifecycle', () => {
     };
     http.expectOne('/api/activity-drafts/draft').flush(initial);
     await settle();
-    const sourceButton = Array.from(root().querySelectorAll('button')).find(
-      (b) => b.textContent?.trim() === 'החלפת המקור',
+    const sourceButton = Array.from(root().querySelectorAll('button')).find((b) =>
+      b.textContent?.trim().startsWith('החלפת הטקסט'),
     )!;
     sourceButton.click();
     await settle();
@@ -322,14 +341,17 @@ describe('Activity lifecycle', () => {
     http.expectNone('/api/ai/template-drafts');
   });
   it('releases only the exact saved revision and locks the terminal draft', async () => {
-    await open();
+    await open(true, {
+      ...savedActivity,
+      document: { ...savedActivity.document, questions: [savedQuestion] },
+    });
     await type('document-title', 'לבדיקה');
     await click('release-activity');
     const save = http.expectOne('/api/activity-drafts/draft');
     save.flush({
       ...savedActivity,
       revision: 2,
-      document: { ...savedActivity.document, title: 'לבדיקה' },
+      document: { ...savedActivity.document, title: 'לבדיקה', questions: [savedQuestion] },
       diagnostics: {},
     });
     const release = await vi.waitFor(() => http.expectOne('/api/activity-drafts/draft/release'));
@@ -405,13 +427,15 @@ describe('Activity lifecycle', () => {
       });
       await settle();
       await type('question-0-prompt', 'שינוי מקומי');
-      Array.from(root().querySelectorAll('button'))
-        .find((b) =>
-          b.textContent?.includes(
-            action === 'replace' ? 'יצירה מחדש של השאלה כולה' : 'בדקתי את שאלה',
-          ),
-        )!
-        .click();
+      if (action === 'replace') {
+        root().querySelector<HTMLButtonElement>('#question-0-improve')!.click();
+        await settle();
+        await type('question-0-instruction', 'פשטו את הניסוח');
+        root().querySelector<HTMLButtonElement>('#question-0-improve-submit')!.click();
+      } else
+        Array.from(root().querySelectorAll('button'))
+          .find((b) => b.textContent?.includes('בדקתי את שאלה'))!
+          .click();
       await settle();
       http
         .expectOne('/api/activity-drafts/draft')
@@ -556,6 +580,154 @@ describe('Activity lifecycle', () => {
       await settle();
     },
   );
+  it('collapses setup to its summary once content exists and keeps uncommon actions secondary', async () => {
+    await open(true, {
+      ...savedActivity,
+      document: { ...savedActivity.document, questions: [savedQuestion] },
+    });
+    const body = root().querySelector<HTMLElement>('#setup-body')!;
+    const toggle = root().querySelector<HTMLButtonElement>('[aria-controls="setup-body"]')!;
+    expect(body.hidden).toBe(true);
+    expect(toggle.getAttribute('aria-expanded')).toBe('false');
+    expect(root().querySelector('#plan-title')!.nextElementSibling?.textContent).toContain(
+      '2 שאלות מספריות',
+    );
+    expect(
+      root().querySelector<HTMLDetailsElement>('#generate-activity')!.closest('details')!.open,
+    ).toBe(false);
+    expect(root().querySelector('#release-activity')!.closest('details')).toBeNull();
+    toggle.click();
+    await settle();
+    expect(body.hidden).toBe(false);
+    expect(toggle.getAttribute('aria-expanded')).toBe('true');
+  });
+  it.each([
+    ['פשטו את הניסוח', { instruction: 'פשטו את הניסוח' }],
+    ['   ', {}],
+  ])('sends only the selected question and an optional instruction (%j)', async (text, extra) => {
+    await open(true, {
+      ...savedActivity,
+      document: {
+        ...savedActivity.document,
+        questions: [savedQuestion, { ...savedQuestion, id: 'q2', prompt: 'שנייה' }],
+      },
+    });
+    await click('question-1-improve');
+    await type('question-1-instruction', text);
+    await click('question-1-improve-submit');
+    http.expectNone((r) => r.method === 'PUT');
+    const start = http.expectOne('/api/activity-drafts/draft/operations');
+    expect(start.request.body).toEqual({
+      operationKey: start.request.body.operationKey,
+      expectedRevision: 1,
+      kind: 'ReplaceQuestion',
+      targetId: 'q2',
+      ...extra,
+    });
+    start.flush({ title: 'שירות לא זמין' }, { status: 503, statusText: 'Unavailable' });
+    await settle();
+    expect(root().querySelector<HTMLTextAreaElement>('#question-0-prompt')!.value).toBe('שאלה');
+  });
+  it('places review adoption beside stale saved content and keeps other adoption quiet', async () => {
+    await open(true, {
+      ...savedActivity,
+      document: {
+        ...savedActivity.document,
+        questions: [savedQuestion, { ...savedQuestion, id: 'q2' }],
+      },
+      diagnostics: { 'questions[0].stale': ['השאלה דורשת יצירה מחדש או אימוץ.'] },
+    });
+    const adopt = (n: number) =>
+      Array.from(root().querySelectorAll('button')).find((b) =>
+        b.textContent?.includes(`בדקתי את שאלה ${n}`),
+      )!;
+    expect(adopt(1).closest('details')).toBeNull();
+    expect(adopt(2).closest('details')!.open).toBe(false);
+    expect(root().textContent).toContain('ההגדרות השתנו מאז שנוצרו השאלות');
+    adopt(1).click();
+    await settle();
+    const adopted = http.expectOne('/api/activity-drafts/draft/adopt-content');
+    expect(adopted.request.body).toEqual({
+      expectedRevision: 1,
+      materialIds: [],
+      questionIds: ['q'],
+    });
+    adopted.flush({ ...savedActivity, revision: 2 });
+    await settle();
+  });
+  it.each([
+    ['completed', 'accepted', false],
+    ['conflict', 'conflict', true],
+  ])(
+    'offers a %s result for editing only when it was not applied',
+    async (status, outcome, offered) => {
+      await open();
+      await click('generate-activity');
+      http.expectOne('/api/activity-drafts/draft/operations').flush({
+        id: 'op',
+        draftId: 'draft',
+        kind: 'GenerateActivity',
+        status,
+        stage: 'questions',
+        originalRevision: 1,
+        expectedRevision: 1,
+        failure: null,
+        diagnosticsExpired: false,
+        steps: [{ stage: 'questions', outcome, usage: null, metadata: null }],
+        artifacts: {
+          targetId: null,
+          steps: [
+            {
+              stage: 'questions',
+              diagnostics: null,
+              candidate: {
+                title: 'מועמד',
+                instructions: null,
+                questions: [
+                  {
+                    prompt: 'כמה?',
+                    interaction: { type: 'numeric-input', options: null },
+                    answer: { value: '2' },
+                    points: 1,
+                  },
+                ],
+              },
+            },
+          ],
+        },
+      });
+      await settle();
+      expect(!!root().querySelector('[data-edit-candidate]')).toBe(offered);
+      if (offered) {
+        expect(root().textContent).toContain('נוצרה תוצאה בזמן שהמשכתם לערוך');
+        expect(root().textContent).toContain('שאלות שנוצרו');
+        root().querySelector<HTMLButtonElement>('[data-edit-candidate]')!.click();
+        await settle();
+        expect(root().querySelector<HTMLTextAreaElement>('#question-0-prompt')!.value).toBe('כמה?');
+        http.expectNone((r) => r.method === 'PUT');
+      }
+    },
+  );
+  it('copies a released activity into a new draft only on request', async () => {
+    await open(true, {
+      ...savedActivity,
+      releasedSnapshotId: 'ready',
+      releasedSourceRevision: 1,
+      document: { ...savedActivity.document, questions: [savedQuestion] },
+    });
+    expect(root().querySelector('a[href="/instances/ready"]')!.textContent).toContain(
+      'צפייה בפעילות המוכנה',
+    );
+    http.expectNone((r) => r.method === 'POST');
+    await click('copy-released');
+    const copy = http.expectOne('/api/activity-drafts');
+    expect(copy.request.body).toEqual({ snapshotId: 'ready' });
+    copy.flush({ ...savedActivity, id: 'copy' });
+    await vi.waitFor(() => expect(TestBed.inject(Router).url).toBe('/activities/copy'));
+    http.expectOne('/api/ai/status').flush({ configured: true, schemaVersion: 1 });
+    http.expectOne('/api/activity-drafts/copy').flush({ ...savedActivity, id: 'copy' });
+    await settle();
+  });
   it('discards a pending source replacement when explicitly opening a fresh activity', async () => {
     await harness.navigateByUrl('/activities/draft', ActivityWorkspace);
     http.expectOne('/api/ai/status').flush({ configured: false, schemaVersion: 1 });
@@ -578,8 +750,8 @@ describe('Activity lifecycle', () => {
     };
     http.expectOne('/api/activity-drafts/draft').flush(supplied);
     await settle();
-    const replace = Array.from(root().querySelectorAll('button')).find(
-      (button) => button.textContent?.trim() === 'החלפת המקור',
+    const replace = Array.from(root().querySelectorAll('button')).find((button) =>
+      button.textContent?.trim().startsWith('החלפת הטקסט'),
     )!;
     replace.click();
     await settle();
@@ -591,7 +763,7 @@ describe('Activity lifecycle', () => {
       await settle();
       expect(confirm).toHaveBeenCalledOnce();
       expect(root().querySelector('#replacement-source')).toBeNull();
-      expect(root().textContent).toContain('הטיוטה שמורה');
+      expect(root().textContent).toContain('נשמר');
       await click('save-activity');
       http.expectNone((request) => request.method === 'PUT');
     } finally {

@@ -15,8 +15,8 @@ export class TaskSettingsFields {
   protected readonly difficultyOptions = Object.entries(difficultyLabels);
   protected readonly controls = [
     { key: 'topic', label: 'נושא' },
-    { key: 'audience', label: 'קהל יעד', hint: 'למשל כיתה ג׳, או מבוגרים ללא ידע קודם.' },
-    { key: 'difficulty', label: 'רמת קושי', hint: 'רמת הקושי מותאמת לקהל היעד.' },
+    { key: 'audience', label: 'למי?', hint: 'למשל כיתה ג׳, או מבוגרים ללא ידע קודם.' },
+    { key: 'difficulty', label: 'רמת קושי', hint: 'ביחס לגיל או לכיתה שבחרתם.' },
     { key: 'questionCount', label: 'מספר שאלות' },
   ] as const;
 }

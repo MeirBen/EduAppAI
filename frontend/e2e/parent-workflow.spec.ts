@@ -5,14 +5,14 @@ async function login(page: Page, email = 'browser@example.test') {
   await page.getByLabel('כתובת דוא״ל', { exact: true }).fill(email);
   await page.getByLabel('סיסמה', { exact: true }).fill('TestOnly!Parent12345');
   await page.getByRole('button', { name: 'כניסה למרחב שלנו' }).click();
-  await expect(page.getByRole('heading', { name: 'התכנית שלכם' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'פעילות חדשה' })).toBeVisible();
 }
 
 async function propose(page: Page, prompt: string) {
   await page.goto('/activities/new');
-  await page.getByLabel('מה תרצו לתרגל או לשנות?').fill(prompt);
+  await page.getByRole('textbox', { name: 'מה תרצו להכין?' }).fill(prompt);
   await page.locator('#chat-send').click();
-  await expect(page.getByLabel('שם התבנית', { exact: true })).not.toHaveValue('');
+  await expect(page.locator('#plan-name')).not.toHaveValue('');
   await expect(page.locator('#chat-cancel')).toBeHidden();
 }
 
@@ -71,7 +71,6 @@ test('prompt to editable activity, independent template, scoped repair and froze
   await login(page);
   const templatesBefore = (await (await page.request.get('/api/templates')).json()).length;
   await propose(page, 'קריאה עם סגנון לבחירה והמתנה');
-  await page.getByText('בחירות לפעילות (נפרדות מברירות המחדל של התבנית)', { exact: true }).click();
   await page.getByLabel('סגנון', { exact: true }).selectOption('סיפורי');
   const state = await start(page);
   await expect(page.locator('#cancel-generation')).toBeVisible();
@@ -83,14 +82,16 @@ test('prompt to editable activity, independent template, scoped repair and froze
   expect(draft.templateVersionId).toBeNull();
   expect(Object.values(draft.input.controlValues)).toEqual(['סיפורי']);
   const secondQuestion = draft.document.questions[1];
-  await page.getByRole('button', { name: 'יצירה מחדש של השאלה כולה', exact: true }).first().click();
+  await page.locator('#question-0-improve').click();
+  await page.locator('#question-0-improve-submit').click();
   await expect(page.locator('#question-0-prompt')).toHaveValue('שאלה חלופית: מה לומדים?');
   await page.locator('#question-0-prompt').fill('מה למדתם על הדינוזאורים?');
   await page.locator('#save-activity').click();
-  await expect(page.getByText('הטיוטה שמורה', { exact: true })).toBeVisible();
+  await expect(page.getByText('נשמר', { exact: true })).toBeVisible();
   draft = await (await page.request.get(state.draftPath)).json();
   expect(draft.document.questions[1]).toEqual(secondQuestion);
   await narrow(page, 'workspace');
+  await page.getByText('שמירה כתבנית לשימוש חוזר', { exact: true }).click();
   await page.locator('#save-template').click();
   await expect(page.getByText('התבנית נשמרה בספרייה. הפעילות לא השתנתה.')).toBeVisible();
   const templates = await (await page.request.get('/api/templates')).json();
@@ -98,7 +99,7 @@ test('prompt to editable activity, independent template, scoped repair and froze
   const template = templates.find((value: { name: string }) => value.name === 'חוקרים וקוראים');
   expect((await (await page.request.get(state.draftPath)).json()).document).toEqual(draft.document);
   await page.locator('#release-activity').click();
-  await page.getByRole('link', { name: 'לתצוגה המוכנה' }).click();
+  await page.getByRole('link', { name: 'צפייה בפעילות המוכנה' }).click();
   await expect(page.getByRole('heading', { name: 'פעילות מוכנה — תצוגה להורים' })).toBeVisible();
   const frozenUrl = page.url();
   const frozenPath = '/api' + new URL(frozenUrl).pathname;
@@ -124,10 +125,10 @@ test('exact bilingual source bypasses material generation and missing answers bl
   await login(page, 'source@example.test');
   await propose(page, 'תרגול לפי מקור דו לשוני');
   const source = '"שָׁלוֹם" — Hello!\nDon\'t change בעלי־חיים.\n';
-  await expect(page.getByLabel('טקסט המקור המדויק')).toHaveValue(source);
+  await expect(page.getByLabel('הטקסט שלכם')).toHaveValue(source);
   await page.locator('#generate-activity').click();
-  await expect(page.getByRole('alert')).toContainText('אשרו את המקורות');
-  await page.getByRole('button', { name: 'המקור מדויק, אישור' }).click();
+  await expect(page.getByRole('alert')).toContainText('ואשרו את הטקסט שלכם');
+  await page.getByRole('button', { name: 'הטקסט הועתק נכון' }).click();
   const state = await start(page);
   const draft = await finish(page, state);
   expect(draft.document.materials[0].body).toBe(source);
@@ -136,13 +137,14 @@ test('exact bilingual source bypasses material generation and missing answers bl
   );
   await page.locator('#question-0-answer').fill('');
   await page.locator('#save-activity').click();
-  await expect(page.getByText('הטיוטה שמורה', { exact: true })).toBeVisible();
+  await expect(page.getByText('נשמר', { exact: true })).toBeVisible();
+  await expect(page.getByText('בשאלה 1 חסרה תשובה נכונה.')).toBeVisible();
   await page.locator('#release-activity').click();
   await expect(page.getByRole('alert')).toBeVisible();
   expect(await (await page.request.get('/api/instances')).json()).toEqual([]);
   await page.locator('#question-0-answer').fill('דינוזאורים');
   await page.locator('#release-activity').click();
-  await expect(page.getByRole('link', { name: 'לתצוגה המוכנה' })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'צפייה בפעילות המוכנה' })).toBeVisible();
 });
 
 test('strict material rejection stops questions, while a question failure retains accepted material', async ({
@@ -152,6 +154,9 @@ test('strict material rejection stops questions, while a question failure retain
   await propose(page, 'תרגול קריאה באורך קשיח');
   let state = await start(page);
   let draft = await finish(page, state, 'failed');
+  await expect(page.getByText('הטקסט שנוצר לא עמד בדרישת האורך.')).toBeVisible();
+  await expect(page.getByText('נדרש: בדיוק 100 מילים')).toBeVisible();
+  await expect(page.getByText('הפעילות נוצרה.')).toHaveCount(0);
   expect(draft.document.materials).toEqual([]);
   expect(draft.document.questions).toEqual([]);
   expect((await operation(page, state)).steps.map((step: { stage: string }) => step.stage)).toEqual(
@@ -162,6 +167,8 @@ test('strict material rejection stops questions, while a question failure retain
   draft = await finish(page, state, 'failed');
   expect(draft.document.materials[0].body).toContain('מאובנים');
   expect(draft.document.questions).toEqual([]);
+  await expect(page.getByText('הטקסט נשמר, אבל יצירת השאלות נכשלה.')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'יצירת השאלות שוב' })).toBeVisible();
   await page.reload();
   await expect(page.locator('#material-0-body')).toHaveValue(/מאובנים/);
   expect((await operation(page, state)).steps.map((step: { stage: string }) => step.stage)).toEqual(
@@ -178,7 +185,7 @@ test('question-only generation preserves typing and Undo across late output and 
   const state = await start(page);
   await page.locator('#document-title').fill('עריכה מקומית');
   await finish(page, state);
-  await expect(page.getByText('יש תוצאה חדשה בשרת.', { exact: false })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'נוצרה תוצאה בזמן שהמשכתם לערוך' })).toBeVisible();
   await expect(page.locator('#document-title')).toHaveValue('עריכה מקומית');
   await page.locator('#plan-undo').click();
   await expect(page.locator('#document-title')).not.toHaveValue('לומדים על חשבון');
@@ -192,6 +199,7 @@ test('question-only generation preserves typing and Undo across late output and 
   expect((await operation(page, state)).steps.map((step: { stage: string }) => step.stage)).toEqual(
     ['questions'],
   );
+  await page.getByText('פעולות נוספות', { exact: true }).click();
   await page.locator('#generate-questions').click();
   await expect(page.locator('#cancel-generation')).toBeVisible();
   await page.locator('#document-title').fill('עריכה בזמן ביטול');
@@ -208,12 +216,12 @@ test('authoring failures expose safe errors and retain the parent request', asyn
     ['בדיקת מכסה', 'מגבלת הבקשות'],
     ['בדיקת מכסה בגוף התשובה', 'מגבלת הבקשות'],
   ]) {
-    await page.getByLabel('מה תרצו לתרגל או לשנות?').fill(prompt);
+    await page.getByRole('textbox', { name: 'מה תרצו להכין?' }).fill(prompt);
     await page.locator('#chat-send').click();
     await expect(page.getByRole('alert')).toBeVisible();
     if (message) await expect(page.getByRole('alert')).toContainText(message);
     await expect(page.getByRole('alert')).not.toContainText('private provider');
-    await expect(page.getByLabel('מה תרצו לתרגל או לשנות?')).toHaveValue(prompt);
+    await expect(page.getByRole('textbox', { name: 'מה תרצו להכין?' })).toHaveValue(prompt);
   }
 });
 
@@ -260,10 +268,11 @@ test('library deletion confirms intent, preserves independent items and recovers
   await propose(page, 'תרגול חשבון ללא קטע');
   const state = await start(page);
   await finish(page, state);
+  await page.getByText('שמירה כתבנית לשימוש חוזר', { exact: true }).click();
   await page.locator('#save-template').click();
   await expect(page.getByText('התבנית נשמרה בספרייה. הפעילות לא השתנתה.')).toBeVisible();
   await page.locator('#release-activity').click();
-  await expect(page.getByRole('link', { name: 'לתצוגה המוכנה' })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'צפייה בפעילות המוכנה' })).toBeVisible();
   await page.goto('/templates');
   const templates = page.locator('section[aria-labelledby="templates-title"]');
   const snapshots = page.locator('section[aria-labelledby="ready-title"]');

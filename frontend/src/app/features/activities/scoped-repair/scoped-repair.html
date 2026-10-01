@@ -1,0 +1,50 @@
+<div class="grid gap-3">
+  <button
+    type="button"
+    class="text-link w-fit"
+    [id]="key() + '-improve'"
+    [attr.aria-expanded]="open()"
+    [attr.aria-controls]="key() + '-improve-form'"
+    [disabled]="disabled()"
+    (click)="open.set(!open())"
+  >
+    שיפור בעזרת AI<span class="sr-only"> — {{ name() }}</span>
+  </button>
+  <form
+    [id]="key() + '-improve-form'"
+    class="well grid gap-3"
+    [hidden]="!open()"
+    (submit)="$event.preventDefault(); submit()"
+  >
+    <label [for]="key() + '-instruction'">{{ prompt() }}</label>
+    <textarea
+      [id]="key() + '-instruction'"
+      dir="auto"
+      rows="2"
+      [value]="instruction()"
+      [placeholder]="example()"
+      [attr.aria-invalid]="tooLong()"
+      [attr.aria-describedby]="key() + '-instruction-help'"
+      (input)="type($event)"
+      (change)="$event.stopPropagation()"
+    ></textarea>
+    <p [id]="key() + '-instruction-help'" class="text-sm text-muted">
+      @if (tooLong()) {
+        <span class="text-danger">אפשר לכתוב עד 4,000 תווים.</span>
+      } @else {
+        אפשר להשאיר ריק. רק החלק הזה יוחלף, ושאר הפעילות לא תשתנה.
+      }
+    </p>
+    <div class="flex flex-wrap items-center gap-3">
+      <button
+        type="submit"
+        class="button button-secondary"
+        [id]="key() + '-improve-submit'"
+        [disabled]="disabled() || tooLong()"
+      >
+        {{ submitLabel() }}
+      </button>
+      <button type="button" class="text-link" (click)="open.set(false)">ביטול</button>
+    </div>
+  </form>
+</div>

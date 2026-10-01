@@ -1,8 +1,19 @@
-<section class="panel grid gap-5" aria-labelledby="document-heading">
-  <h2 id="document-heading">תוכן הפעילות</h2>
-  <p class="text-sm text-muted">
-    עריכה ושמירת טיוטה אינן משתמשות ב־AI. תשובות חסרות אפשר להשלים בהמשך.
-  </p>
+<section
+  class="grid gap-5"
+  [class.panel]="!waiting()"
+  [class.well]="waiting()"
+  aria-labelledby="document-heading"
+>
+  <div>
+    <h2 id="document-heading">תוכן הפעילות</h2>
+    <p class="text-sm text-muted">
+      {{
+        waiting()
+          ? 'התוכן יופיע כאן אחרי היצירה. אפשר גם לכתוב אותו ידנית.'
+          : 'בדקו וערכו כל חלק. עריכה ושמירת טיוטה אינן משתמשות ב־AI.'
+      }}
+    </p>
+  </div>
   <div>
     <label for="document-title">כותרת הפעילות</label
     ><input id="document-title" dir="auto" [formField]="fields().title" />
@@ -14,49 +25,64 @@
   @for (value of fields().materials().value(); track value.id; let i = $index) {
     @let material = fields().materials[i];
     @let id = material.id().value();
-    <section class="well grid gap-3" [attr.aria-label]="'חומר ' + (i + 1)">
+    <section class="well grid gap-3" [attr.aria-labelledby]="'material-' + i + '-heading'">
+      <h3 [id]="'material-' + i + '-heading'">
+        <bdi>{{ label(id) }}</bdi>
+      </h3>
       @if (generated(id)) {
+        @if (staleMaterials().has(id)) {
+          <div
+            class="grid gap-2 rounded-xl border border-s-4 border-line border-s-brand bg-surface p-4"
+          >
+            <p>הטקסט נוצר לפי הגדרות קודמות. בדקו אותו, ואז אשרו אותו או שפרו אותו.</p>
+            <ng-container [ngTemplateOutlet]="adoptMaterial" [ngTemplateOutletContext]="{ id }" />
+          </div>
+        }
+        @if (activeTarget() === id) {
+          <p class="text-sm text-muted">כותבים גרסה חדשה לטקסט…</p>
+        }
         <div>
-          <label [for]="'material-' + i + '-title'">כותרת החומר</label
+          <label [for]="'material-' + i + '-title'">כותרת</label
           ><input [id]="'material-' + i + '-title'" dir="auto" [formField]="material.title" />
         </div>
         <div>
-          <label [for]="'material-' + i + '-body'">טקסט החומר</label
+          <label [for]="'material-' + i + '-body'">טקסט</label
           ><textarea
             [id]="'material-' + i + '-body'"
-            rows="6"
+            rows="8"
             dir="auto"
             [formField]="material.body"
           ></textarea>
         </div>
-        <div class="flex flex-wrap gap-3">
-          <button
-            type="button"
-            class="button button-secondary"
-            [disabled]="locked() || operationActive() || !aiAvailable()"
-            (click)="replaced.emit({ kind: 'ReplaceMaterial', targetId: id })"
-          >
-            יצירה מחדש של החומר בלבד
-          </button>
-          <button
-            type="button"
-            class="text-link"
-            [disabled]="locked() || operationActive()"
-            (click)="adopted.emit({ materialIds: [id], questionIds: [] })"
-          >
-            בדקתי את החומר — אימוץ לפי הדרישות הנוכחיות
-          </button>
-        </div>
+        <app-scoped-repair
+          [key]="'material-' + i"
+          [name]="label(id)"
+          prompt="מה תרצו לשנות בטקסט?"
+          example="לדוגמה: פשטו מעט את השפה בלי לשנות את המשמעות"
+          submitLabel="שיפור הטקסט"
+          [disabled]="locked() || operationActive() || !aiAvailable()"
+          (requested)="
+            replaced.emit({ kind: 'ReplaceMaterial', targetId: id, instruction: $event })
+          "
+        />
+        @if (!staleMaterials().has(id)) {
+          <details>
+            <summary>
+              אפשרויות נוספות לטקסט <bdi>{{ label(id) }}</bdi>
+            </summary>
+            <ng-container [ngTemplateOutlet]="adoptMaterial" [ngTemplateOutletContext]="{ id }" />
+          </details>
+        }
       } @else {
-        <h3>מקור שסופק</h3>
         <p dir="auto" class="whitespace-pre-wrap">{{ material.body().value() }}</p>
+        <p class="text-sm text-muted">הטקסט שלכם נשמר בדיוק כפי שהוזן.</p>
         <button
           type="button"
           class="text-link w-fit"
           [disabled]="locked()"
           (click)="sourceReplaced.emit(id)"
         >
-          החלפת המקור
+          החלפת הטקסט<span class="sr-only"> {{ label(id) }}</span>
         </button>
       }
     </section>
@@ -69,15 +95,31 @@
         [disabled]="locked()"
         (click)="structureChanged.emit({ kind: 'add-material', id: material.id })"
       >
-        כתיבה ידנית: {{ material.label }}
+        כתיבת הטקסט ידנית: <bdi>{{ material.label }}</bdi>
       </button>
     }
   }
   <ol role="list" class="grid gap-4">
     @for (value of fields().questions().value(); track value.key; let i = $index) {
       @let question = fields().questions[i];
-      <li class="well grid gap-3">
-        <h3>שאלה {{ i + 1 }}</h3>
+      @let id = question.id().value();
+      @let count = fields().questions().value().length;
+      <li class="well grid gap-4" [attr.aria-labelledby]="'question-' + i + '-heading'">
+        <h3 [id]="'question-' + i + '-heading'">שאלה {{ i + 1 }}</h3>
+        @if (id && staleQuestions().has(id)) {
+          <div
+            class="grid gap-2 rounded-xl border border-s-4 border-line border-s-brand bg-surface p-4"
+          >
+            <p>השאלה נכתבה לפני שהטקסט או ההגדרות השתנו. בדקו שהיא עדיין מתאימה.</p>
+            <ng-container
+              [ngTemplateOutlet]="adoptQuestion"
+              [ngTemplateOutletContext]="{ id, number: i + 1 }"
+            />
+          </div>
+        }
+        @if (id && activeTarget() === id) {
+          <p class="text-sm text-muted">מכינים גרסה חדשה לשאלה…</p>
+        }
         <div>
           <label [for]="'question-' + i + '-prompt'">נוסח השאלה</label
           ><textarea
@@ -86,115 +128,157 @@
             [formField]="question.prompt"
           ></textarea>
         </div>
-        <div>
-          <label [for]="'question-' + i + '-type'">סוג התשובה</label
-          ><select [id]="'question-' + i + '-type'" [formField]="question.type">
-            <option value="numeric-input">מספר</option>
-            <option value="text-input">טקסט קצר</option>
-            <option value="single-choice">בחירה יחידה</option>
-          </select>
-        </div>
-        @if (question.type().value() === 'single-choice') {
-          @for (value of question.options().value(); track $index; let j = $index) {
-            @let option = question.options[j];
-            <div class="flex flex-wrap items-end gap-2">
-              <div class="min-w-0 grow">
+        @if (value.type === 'single-choice') {
+          <div class="grid gap-3">
+            @for (option of value.options; track $index; let j = $index) {
+              <div>
                 <label [for]="'question-' + i + '-option-' + j">אפשרות {{ j + 1 }}</label
                 ><input
                   [id]="'question-' + i + '-option-' + j"
                   dir="auto"
-                  [formField]="option.value"
+                  [formField]="question.options[j].value"
                 />
               </div>
+            }
+          </div>
+          <div>
+            <label [for]="'question-' + i + '-answer'"
+              >תשובה נכונה <span class="text-sm font-normal text-muted">(מוצגת רק לכם)</span></label
+            >
+            <select
+              [id]="'question-' + i + '-answer'"
+              [formField]="question.answer"
+              [attr.aria-describedby]="'question-' + i + '-answer-help'"
+              [attr.aria-invalid]="!!value.answer && !matches(value)"
+            >
+              <option value="">בחרו את התשובה הנכונה</option>
+              @if (value.answer && !matches(value)) {
+                <option [value]="value.answer">{{ value.answer }} — אינה תואמת לאף אפשרות</option>
+              }
+              @for (option of value.options; track $index; let j = $index) {
+                @if (option.value) {
+                  <option [value]="option.value">{{ j + 1 }}. {{ option.value }}</option>
+                }
+              }
+            </select>
+            <p [id]="'question-' + i + '-answer-help'" class="mt-2 text-sm text-muted">
+              שינוי נוסח של אפשרות אינו משנה את התשובה הנכונה. אם צריך, בחרו אותה מחדש.
+            </p>
+          </div>
+        } @else {
+          <div>
+            <label [for]="'question-' + i + '-answer'"
+              >תשובה נכונה <span class="text-sm font-normal text-muted">(מוצגת רק לכם)</span></label
+            ><input
+              [id]="'question-' + i + '-answer'"
+              [attr.dir]="value.type === 'numeric-input' ? 'ltr' : 'auto'"
+              [attr.inputmode]="value.type === 'numeric-input' ? 'decimal' : null"
+              [formField]="question.answer"
+            />
+          </div>
+        }
+        @if (id) {
+          <app-scoped-repair
+            [key]="'question-' + i"
+            [name]="'שאלה ' + (i + 1)"
+            prompt="מה תרצו לשנות בשאלה הזו?"
+            example="לדוגמה: תקנו את העברית והפכו את המסיחים לפחות ברורים"
+            submitLabel="שיפור השאלה"
+            [disabled]="locked() || operationActive() || !aiAvailable()"
+            (requested)="
+              replaced.emit({ kind: 'ReplaceQuestion', targetId: id, instruction: $event })
+            "
+          />
+        }
+        <details>
+          <summary>
+            אפשרויות נוספות לשאלה {{ i + 1 }}
+            @if (question.points().invalid()) {
+              <span class="text-danger">· יש לתקן את הניקוד</span>
+            }
+          </summary>
+          <div class="grid gap-4 pt-2">
+            <div>
+              <label [for]="'question-' + i + '-type'">סוג התשובה</label
+              ><select [id]="'question-' + i + '-type'" [formField]="question.type">
+                <option value="numeric-input">מספר</option>
+                <option value="text-input">טקסט קצר</option>
+                <option value="single-choice">בחירה מתוך אפשרויות</option>
+              </select>
+            </div>
+            <div>
+              <label [for]="'question-' + i + '-points'">נקודות</label
+              ><input
+                [id]="'question-' + i + '-points'"
+                class="max-w-28"
+                dir="ltr"
+                inputmode="numeric"
+                [formField]="question.points"
+                [attr.aria-invalid]="question.points().invalid()"
+                [attr.aria-describedby]="'question-' + i + '-points-error'"
+              />
+              <p [id]="'question-' + i + '-points-error'" class="field-error">
+                @for (error of question.points().errors(); track $index) {
+                  {{ error.message }}
+                }
+              </p>
+            </div>
+            @if (value.type === 'single-choice') {
+              <div class="flex flex-wrap gap-x-4">
+                @for (option of value.options; track $index; let j = $index) {
+                  <button
+                    type="button"
+                    class="text-link"
+                    [disabled]="locked()"
+                    (click)="structureChanged.emit({ kind: 'remove-option', index: i, option: j })"
+                  >
+                    מחיקת אפשרות {{ j + 1 }}
+                  </button>
+                }
+                <button
+                  type="button"
+                  class="text-link"
+                  [disabled]="locked() || value.options.length >= 6"
+                  (click)="structureChanged.emit({ kind: 'add-option', index: i })"
+                >
+                  הוספת אפשרות
+                </button>
+              </div>
+            }
+            @if (id && !staleQuestions().has(id)) {
+              <ng-container
+                [ngTemplateOutlet]="adoptQuestion"
+                [ngTemplateOutletContext]="{ id, number: i + 1 }"
+              />
+            }
+            <div class="flex flex-wrap gap-x-4">
               <button
                 type="button"
                 class="text-link"
-                [disabled]="locked()"
-                (click)="structureChanged.emit({ kind: 'remove-option', index: i, option: j })"
+                [disabled]="locked() || i === 0"
+                (click)="structureChanged.emit({ kind: 'move-up', index: i })"
               >
-                מחיקת אפשרות {{ j + 1 }}
+                הזזת שאלה {{ i + 1 }} למעלה
+              </button>
+              <button
+                type="button"
+                class="text-link"
+                [disabled]="locked() || i === count - 1"
+                (click)="structureChanged.emit({ kind: 'move-down', index: i })"
+              >
+                הזזת שאלה {{ i + 1 }} למטה
+              </button>
+              <button
+                type="button"
+                class="text-link text-danger"
+                [disabled]="locked()"
+                (click)="structureChanged.emit({ kind: 'remove-question', index: i })"
+              >
+                מחיקת שאלה {{ i + 1 }}
               </button>
             </div>
-          }
-          <button
-            type="button"
-            class="text-link w-fit"
-            [disabled]="locked() || question.options().value().length >= 6"
-            (click)="structureChanged.emit({ kind: 'add-option', index: i })"
-          >
-            הוספת אפשרות
-          </button>
-          <p class="text-sm text-muted">
-            שינוי אפשרויות אינו בוחר תשובה חדשה. יש לבדוק שהתשובה תואמת אפשרות אחת בדיוק.
-          </p>
-        }
-        <div>
-          <label [for]="'question-' + i + '-answer'">תשובה להורים</label
-          ><input
-            [id]="'question-' + i + '-answer'"
-            [attr.dir]="question.type().value() === 'numeric-input' ? 'ltr' : 'auto'"
-            [formField]="question.answer"
-          />
-        </div>
-        <div>
-          <label [for]="'question-' + i + '-points'">נקודות</label
-          ><input
-            [id]="'question-' + i + '-points'"
-            dir="ltr"
-            inputmode="numeric"
-            [formField]="question.points"
-            [attr.aria-describedby]="'question-' + i + '-points-error'"
-          />
-          <p [id]="'question-' + i + '-points-error'" class="field-error">
-            @for (error of question.points().errors(); track $index) {
-              {{ error.message }}
-            }
-          </p>
-        </div>
-        <div class="flex flex-wrap gap-3">
-          <button
-            type="button"
-            class="text-link"
-            [disabled]="locked() || i === 0"
-            (click)="structureChanged.emit({ kind: 'move-up', index: i })"
-          >
-            הזזת שאלה {{ i + 1 }} למעלה
-          </button>
-          <button
-            type="button"
-            class="text-link"
-            [disabled]="locked() || i === fields().questions().value().length - 1"
-            (click)="structureChanged.emit({ kind: 'move-down', index: i })"
-          >
-            הזזת שאלה {{ i + 1 }} למטה
-          </button>
-          <button
-            type="button"
-            class="text-link"
-            [disabled]="locked()"
-            (click)="structureChanged.emit({ kind: 'remove-question', index: i })"
-          >
-            מחיקת שאלה {{ i + 1 }}
-          </button>
-          @if (question.id().value()) {
-            <button
-              type="button"
-              class="button button-secondary"
-              [disabled]="locked() || operationActive() || !aiAvailable()"
-              (click)="replaced.emit({ kind: 'ReplaceQuestion', targetId: question.id().value() })"
-            >
-              יצירה מחדש של השאלה כולה
-            </button>
-            <button
-              type="button"
-              class="text-link"
-              [disabled]="locked() || operationActive()"
-              (click)="adopted.emit({ materialIds: [], questionIds: [question.id().value()] })"
-            >
-              בדקתי את שאלה {{ i + 1 }} — אימוץ
-            </button>
-          }
-        </div>
+          </div>
+        </details>
       </li>
     }
   </ol>
@@ -208,3 +292,24 @@
     הוספת שאלה ידנית
   </button>
 </section>
+
+<ng-template #adoptMaterial let-id="id">
+  <button
+    type="button"
+    class="button button-secondary w-fit"
+    [disabled]="locked() || operationActive()"
+    (click)="adopted.emit({ materialIds: [id], questionIds: [] })"
+  >
+    בדקתי, אפשר להשתמש בגרסה הזו<span class="sr-only"> — {{ label(id) }}</span>
+  </button>
+</ng-template>
+<ng-template #adoptQuestion let-id="id" let-number="number">
+  <button
+    type="button"
+    class="button button-secondary w-fit"
+    [disabled]="locked() || operationActive()"
+    (click)="adopted.emit({ materialIds: [], questionIds: [id] })"
+  >
+    בדקתי את שאלה {{ number }}, אפשר להשתמש בגרסה הזו
+  </button>
+</ng-template>

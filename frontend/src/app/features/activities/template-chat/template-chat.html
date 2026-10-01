@@ -1,12 +1,19 @@
-<section class="panel grid gap-4" aria-labelledby="chat-title">
-  <h2 id="chat-title">מתארים את הפעילות</h2>
-  <p>כל שליחה מבקשת הצעה אחת. אפשר לערוך את התכנית ישירות ולבטל שינוי.</p>
+@let start = !refining();
+<div class="grid gap-4">
+  @if (start) {
+    <p id="chat-help">
+      תארו בקצרה מה הילד או הילדה צריכים ללמוד או לתרגל. אפשר לציין גיל או כיתה, נושא, אורך, סוג
+      שאלות וכל דבר שחשוב לכם.
+    </p>
+  }
   @if (!configured()) {
-    <p role="status">יצירה בעזרת AI אינה זמינה כרגע. אפשר לערוך ולשמור תבנית ישירות.</p>
+    <p role="status" class="text-sm text-muted">
+      יצירה בעזרת AI אינה זמינה כרגע. אפשר למלא את הפרטים ידנית.
+    </p>
   }
   @if (context().length) {
     <details>
-      <summary>הבקשה והתשובות שעדיין בתכנון</summary>
+      <summary>הבקשה והתשובות עד עכשיו</summary>
       <ol class="grid gap-3">
         @for (turn of context(); track $index) {
           <li>
@@ -23,33 +30,46 @@
     </p>
   }
   <form class="grid gap-3" (submit)="$event.preventDefault(); sent.emit()">
-    <label for="chat-message">{{
-      clarification() ? 'התשובה שלכם' : 'מה תרצו לתרגל או לשנות?'
-    }}</label>
+    @let labelled = start && !clarification() && labelledBy();
+    @if (!labelled) {
+      <label for="chat-message">{{
+        clarification() ? 'התשובה שלכם' : 'רוצים לשנות משהו? תארו את השינוי'
+      }}</label>
+    }
     <textarea
       id="chat-message"
       dir="auto"
-      rows="3"
+      [rows]="start ? 4 : 2"
       [formField]="fields().message"
-      aria-describedby="chat-hint"
+      [attr.aria-labelledby]="labelled || null"
+      [attr.aria-describedby]="start ? 'chat-help chat-hint' : 'chat-hint'"
+      [attr.aria-invalid]="fields().message().invalid()"
     ></textarea>
-    <p id="chat-hint" class="field-hint">
-      עד 4,000 תווים. ההצעה אינה יוצרת שאלות ואינה נשמרת בספרייה.
+    <p id="chat-hint" class="text-sm text-muted">
+      @if (fields().message().invalid()) {
+        <span class="field-error">אפשר לכתוב עד 4,000 תווים.</span>
+      } @else if (start) {
+        לדוגמה: פעילות קריאה בעברית לכיתה ג׳ בנושא חלל, בערך 300 מילים ו־5 שאלות אמריקאיות.
+      } @else {
+        למשל: שאלות קלות יותר, או טקסט קצר יותר. אפשר לבטל כל שינוי.
+      }
     </p>
     <div class="flex flex-wrap gap-3">
       <button
         id="chat-send"
         type="submit"
         class="button"
+        [class.button-secondary]="!start"
         [disabled]="
           !configured() ||
           busy() ||
           locked() ||
           consolidationRequired() ||
+          fields().message().invalid() ||
           !fields().message().value().trim()
         "
       >
-        שליחת בקשה
+        {{ clarification() ? 'שליחת התשובה' : start ? 'שליחה' : 'עדכון התכנית' }}
       </button>
       @if (busy()) {
         <button
@@ -90,7 +110,7 @@
   }
   <app-loading-indicator
     [active]="busy()"
-    label="מכינים הצעה לתכנית…"
+    [label]="start ? 'מכינים את התכנית…' : 'מעדכנים את התכנית…'"
     detail="אפשר להמשיך לערוך ישירות; עריכה תבטל את הבקשה הממתינה."
   />
-</section>
+</div>

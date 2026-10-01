@@ -161,15 +161,17 @@ export interface ContentAcceptance {
   sources: { id: string; revision: number }[];
   adoptedAtUtc?: string | null;
 }
+/** A resolved generated-body expectation; adjustable bounds are already applied to `value`. */
+export interface ResolvedLength {
+  mode: 'target' | 'exact' | 'range';
+  value?: number | null;
+  lower?: number | null;
+  upper?: number | null;
+}
 /** Server-owned generated-body measurement; target expectations are advisory (satisfied is null). */
 export interface LengthMeasurement {
   scope: string;
-  expected: {
-    mode: 'target' | 'exact' | 'range';
-    value: number | null;
-    lower: number | null;
-    upper: number | null;
-  };
+  expected: ResolvedLength;
   actual: number;
   satisfied: boolean | null;
 }
@@ -224,6 +226,11 @@ export interface GenerationOperation {
   }[];
   artifacts: {
     targetId: string | null;
+    /** Requirements pinned when the operation started; only the parts the parent UI reads. */
+    input?: {
+      materials: { id: string; label: string; length: ResolvedLength | null }[];
+      totalLength: ResolvedLength | null;
+    } | null;
     steps: {
       stage: string;
       candidate: unknown;

@@ -35,3 +35,28 @@ export const suppliedPlan: LearningPlan = {
     },
   ],
 };
+/** A common generated reading activity: approximate adjustable length and one selectable format. */
+export const readingPlan: LearningPlan = {
+  ...numericPlan,
+  name: 'קריאה',
+  goal: 'הבנת הנקרא',
+  defaults: { topic: 'דינוזאורים', audience: 'כיתה ג׳', difficulty: 'medium', questionCount: 5 },
+  materials: [
+    {
+      id: '22222222222222222222222222222222',
+      label: 'קטע קריאה',
+      source: 'generated',
+      guidance: '',
+      text: null,
+      length: { mode: 'target', count: { value: 300, adjustable: true } },
+      controls: [],
+    },
+  ],
+  questions: {
+    ...numericPlan.questions,
+    formats: ['text-input', 'single-choice'],
+    selectableFormat: true,
+    defaultFormat: 'single-choice',
+    choiceCount: { value: 4, adjustable: true },
+  },
+};

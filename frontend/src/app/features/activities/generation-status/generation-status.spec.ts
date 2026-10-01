@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { GenerationStatus } from './generation-status';
-import { GenerationOperation } from '../../../core/api/models';
+import { GenerationKind, GenerationOperation } from '../../../core/api/models';
 
 export const unknownOperation: GenerationOperation = {
   id: 'op',
@@ -13,7 +13,7 @@ export const unknownOperation: GenerationOperation = {
   failure: 'interrupted',
   diagnosticsExpired: false,
   steps: [
-    { stage: 'materials', outcome: 'accepted', usage: null, metadata: null },
+    { stage: 'materials', outcome: 'accepted', usage: { costCredits: 0.25 }, metadata: null },
     { stage: 'questions', outcome: 'unknown', usage: null, metadata: null },
   ],
   artifacts: {
@@ -28,29 +28,106 @@ export const unknownOperation: GenerationOperation = {
     ],
   },
 };
+async function render(operation: GenerationOperation) {
+  const fixture = TestBed.createComponent(GenerationStatus);
+  fixture.componentRef.setInput('operation', operation);
+  fixture.componentRef.setInput('configured', true);
+  const retried: GenerationKind[] = [];
+  let checked = 0;
+  fixture.componentInstance.retried.subscribe((kind) => retried.push(kind));
+  fixture.componentInstance.checked.subscribe(() => checked++);
+  await fixture.whenStable();
+  const root = fixture.nativeElement as HTMLElement;
+  // Text a parent sees without opening the technical disclosure.
+  const visible = () =>
+    Array.from(root.querySelectorAll('[role="status"], button'))
+      .map((element) => element.textContent)
+      .join(' ');
+  return { root, visible, retried, checked: () => checked };
+}
 describe('GenerationStatus', () => {
-  it('separates accepted stages from unknown work and warns that another attempt may cost money', async () => {
-    const fixture = TestBed.createComponent(GenerationStatus);
-    fixture.componentRef.setInput('operation', unknownOperation);
-    await fixture.whenStable();
-    const root = fixture.nativeElement as HTMLElement;
-    expect(root.textContent).toContain('תוצאה לא ידועה');
-    expect(root.textContent).toContain('תוכן התקבל');
-    expect(root.textContent).toContain('חיוב נוסף');
+  it('explains an unknown outcome without a retry and keeps technical evidence behind a disclosure', async () => {
+    const { root, visible, retried, checked } = await render(unknownOperation);
+    expect(visible()).toContain('לא ידוע אם שירות ה־AI סיים את הבקשה.');
+    expect(visible()).toContain('לא הפעלנו ניסיון נוסף אוטומטית כדי למנוע חיוב כפול.');
+    expect(root.querySelector('#retry-generation')).toBeNull();
+    root.querySelector<HTMLButtonElement>('#check-saved')!.click();
+    expect(checked()).toBe(1);
+    expect(retried).toEqual([]);
+    expect(visible()).not.toContain('0.25');
+    const technical = root.querySelector('details')!;
+    expect(technical.querySelector('summary')!.textContent).toContain('פרטים טכניים');
+    expect(technical.textContent).toContain('טקסט שנוצר: תוכן התקבל');
+    expect(technical.textContent).toContain('0.25');
     expect(root.querySelector('script')).toBeNull();
-    expect(root.textContent).toContain('<script>');
+    expect(technical.textContent).toContain('<script>');
     expect(root.querySelector('[data-edit-candidate]')).toBeNull();
   });
+
+  it('keeps accepted material visible after a question failure and offers only an explicit question retry', async () => {
+    const { visible, root, retried } = await render({
+      ...unknownOperation,
+      status: 'failed',
+      failure: 'invalid-output',
+      steps: [
+        { stage: 'materials', outcome: 'accepted', usage: null, metadata: null },
+        { stage: 'questions', outcome: 'failed', usage: null, metadata: null },
+      ],
+    });
+    expect(visible()).toContain('הטקסט נשמר, אבל יצירת השאלות נכשלה.');
+    expect(visible()).toContain('בלי לאבד את הטקסט');
+    expect(retried).toEqual([]);
+    root.querySelector<HTMLButtonElement>('#retry-generation')!.click();
+    expect(retried).toEqual(['GenerateQuestions']);
+  });
+
+  it('states the strict requirement after a length rejection without implying success', async () => {
+    const { visible } = await render({
+      ...unknownOperation,
+      status: 'failed',
+      stage: 'materials',
+      steps: [{ stage: 'materials', outcome: 'failed', usage: null, metadata: null }],
+      artifacts: {
+        targetId: null,
+        input: {
+          materials: [{ id: 'm', label: 'קטע', length: { mode: 'range', lower: 100, upper: 150 } }],
+          totalLength: null,
+        },
+        steps: [
+          {
+            stage: 'materials',
+            candidate: null,
+            diagnostics: { 'length.m': ['אורך החומר אינו עומד בדרישה המדויקת או בטווח.'] },
+          },
+        ],
+      },
+    });
+    expect(visible()).toContain('הטקסט שנוצר לא עמד בדרישת האורך.');
+    expect(visible()).toContain('נדרש: 100–150 מילים');
+    expect(visible()).toContain('התוצאה לא החליפה את התוכן הקיים.');
+    expect(visible()).not.toContain('הפעילות נוצרה');
+  });
+
+  it('shows plain progress while running, without stages, percentages or cost', async () => {
+    const { visible, root } = await render({
+      ...unknownOperation,
+      status: 'calling',
+      stage: 'materials',
+    });
+    expect(visible()).toContain('יוצרים את הפעילות…');
+    expect(visible()).toContain('כותבים את חומר הלימוד');
+    expect(visible()).not.toMatch(/%|עלות/);
+    expect(root.querySelector('#cancel-generation')).not.toBeNull();
+    expect(root.querySelector('#retry-generation')).toBeNull();
+  });
+
   it('reports expired diagnostics without inventing missing usage or exposing a copy action', async () => {
-    const fixture = TestBed.createComponent(GenerationStatus);
-    fixture.componentRef.setInput('operation', {
+    const { root } = await render({
       ...unknownOperation,
       status: 'failed',
       diagnosticsExpired: true,
       artifacts: null,
     });
-    await fixture.whenStable();
-    const root = fixture.nativeElement as HTMLElement;
     expect(root.textContent).toContain('פג תוקף');
     expect(root.textContent).toContain('לא ידועה');
     expect(root.querySelector('[data-edit-candidate]')).toBeNull();
