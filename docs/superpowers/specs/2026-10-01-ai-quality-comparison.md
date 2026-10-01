@@ -1,6 +1,14 @@
 # Follow-up AI quality comparison
 
 Status: paid experiments and isolated verification complete.
+
+Subsequent owner decision, 1 October 2026: select `google/gemini-3.8-flash` as
+the active model and clear the DekaLLM exclusion, which is irrelevant to Google's
+providers. Keep the previously tested schema/reasoning/sampling settings. This
+configuration choice supersedes the recommendation to retain DeepSeek below;
+the measured results and quality limitations remain unchanged. No new paid trial
+accompanies this model switch.
+
 This follows the
 [post-cutover tuning](2026-10-01-post-cutover-ai-tuning.md), using its retained
 engine revision 5 as the baseline. The owner authorized the review, one alternate

@@ -80,9 +80,9 @@ content before use. Saved tasks remain readable without AI.
 
 `IgnoredProviders` uses OpenRouter's native `provider.ignore` routing option.
 It accepts up to 16 slugs, each 1–64 lowercase letters, digits, hyphens,
-underscores or slashes. The current profile excludes `dekallm` after observed
-timeouts. Edit the array and restart to change this operational choice. The
-exclusion also applies to fallback models and is captured in evaluation reports
+underscores or slashes. An empty array excludes no providers. Edit the array and
+restart to change this operational choice. The exclusion also applies to fallback
+models and is captured in evaluation reports
 and durable-work profile fingerprints. It does not retry or repair responses.
 
 For a model without reasoning support, set `ReasoningEnabled` and
