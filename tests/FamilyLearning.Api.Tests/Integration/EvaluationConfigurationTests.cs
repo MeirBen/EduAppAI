@@ -70,8 +70,11 @@ public sealed class EvaluationConfigurationTests : IDisposable
         var report = EvaluationReportsTests.CreateReport();
         report.Results.Add(new("reading", 1)
         {
+            Plan = EvaluationFixtures.Plan(),
+            Input = LearningPlanFixture.Resolve(EvaluationFixtures.Plan()),
+            Materials = EvaluationReportsTests.Skipped(),
             Authoring = EvaluationReportsTests.Step(),
-            Generation = EvaluationReportsTests.Step()
+            Generation = EvaluationReportsTests.Step(role: "questions")
         });
         Directory.CreateDirectory(Path.Combine(directory, id));
         await EvaluationFiles.SaveAsync(report, Path.Combine(directory, id));
@@ -83,7 +86,7 @@ public sealed class EvaluationConfigurationTests : IDisposable
         var comparison = await http.GetFromJsonAsync<JsonElement>($"/api/compare?baseline={id}&candidate={id}");
         Assert.True(comparison.GetProperty("directlyComparable").GetBoolean());
 
-        var response = await http.PostAsJsonAsync("/api/runs", new EvaluationRunRequest(["reading-grade3"], 1, false, 2, Confirmed: true));
+        var response = await http.PostAsJsonAsync("/api/runs", new EvaluationRunRequest(["reading-grade3"], 1, false, 3, Confirmed: true));
         Assert.Equal(HttpStatusCode.ServiceUnavailable, response.StatusCode);
         var problem = await response.Content.ReadFromJsonAsync<JsonElement>();
         Assert.Equal("AI configuration is missing or invalid. Fix it and restart the dashboard before starting a real evaluation.",

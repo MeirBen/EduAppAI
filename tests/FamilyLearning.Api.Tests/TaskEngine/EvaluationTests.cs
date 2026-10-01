@@ -16,7 +16,7 @@ public sealed class EvaluationTests : IDisposable
     [Fact]
     public async Task Runs_both_real_engine_stages_and_leaves_quality_unscored()
     {
-        using var chat = new AiFixtures.ScriptedChat(AiFixtures.Definition().ToJsonString(), AiFixtures.Content().ToJsonString());
+        using var chat = new AiFixtures.ScriptedChat(EvaluationFixtures.Definition().ToJsonString(), EvaluationFixtures.Content().ToJsonString());
         var report = await RunAsync(chat);
 
         Assert.Equal("completed", report.Status);
@@ -29,7 +29,7 @@ public sealed class EvaluationTests : IDisposable
         Assert.Null(result.Review.Correctness);
         Assert.Null(result.PassageWordCount); // No length requirement in this case.
         Assert.Contains("דינוזאורים", result.Generation.Request[1].Text);
-        Assert.StartsWith("template-authoring-", result.Authoring.Metadata!.PromptVersion);
+        Assert.StartsWith("content-first-author-", result.Authoring.Metadata!.PromptVersion);
         Assert.NotEmpty(result.Authoring.Request[0].Text);
         Assert.Null(result.Authoring.CostCredits);
         Assert.True(File.Exists(Path.Combine(directory, "run.json")));
@@ -51,22 +51,22 @@ public sealed class EvaluationTests : IDisposable
         Assert.False(result.Authoring!.ContractValid);
         Assert.Equal("{broken", result.Authoring.Output);
         Assert.Equal(502, result.Authoring.StatusCode);
-        Assert.Null(result.Generation);
+        Assert.Equal("skipped", result.Generation!.Outcome);
         Assert.Single(chat.Requests);
     }
 
     [Theory]
-    [InlineData("authoring", "generation.defaults.questionCount")]
-    [InlineData("generation", "questions[0]")]
+    [InlineData("authoring", "defaults.questionCount")]
+    [InlineData("generation", "questions[0].answer")]
     [InlineData("wrong-count", "questions")]
     [InlineData("null-questions", "questions")]
     public async Task Domain_rejections_retain_safe_field_errors_in_saved_reports(string stage, string field)
     {
-        var definition = AiFixtures.Definition();
-        var content = AiFixtures.Content();
-        if (stage == "authoring") definition["generation"]!["defaults"]!["questionCount"] = 0;
+        var definition = EvaluationFixtures.Definition();
+        var content = EvaluationFixtures.Content();
+        if (stage == "authoring") definition["proposal"]!["defaults"]!["questionCount"] = 0;
         if (stage == "generation") content["questions"]![0]!["answer"]!["value"] = "";
-        if (stage == "wrong-count") content = AiFixtures.Content(count: 1);
+        if (stage == "wrong-count") content = EvaluationFixtures.Content(count: 1);
         if (stage == "null-questions") content["questions"] = null;
         using var chat = new AiFixtures.ScriptedChat(definition.ToJsonString(), content.ToJsonString());
         await RunAsync(chat);
@@ -88,7 +88,7 @@ public sealed class EvaluationTests : IDisposable
     [Fact]
     public async Task Measures_adherence_separately_from_contract_validity()
     {
-        using var chat = new AiFixtures.ScriptedChat(AiFixtures.Definition().ToJsonString(), AiFixtures.Content().ToJsonString());
+        using var chat = new AiFixtures.ScriptedChat(EvaluationFixtures.Definition().ToJsonString(), EvaluationFixtures.Content().ToJsonString());
         var report = await RunAsync(chat, Case with { QuestionCount = 4, Interaction = "single-choice", ChoiceCount = 4 });
 
         var result = Assert.Single(report.Results);
@@ -96,161 +96,10 @@ public sealed class EvaluationTests : IDisposable
         Assert.Contains(false, result.Checks.Values);
     }
 
-    [Theory]
-    [InlineData("כותרת\n\n", 99, 99, false)]
-    [InlineData("כותרת\r\n", 100, 100, true)]
-    [InlineData("", 100, 100, true)]
-    [InlineData("כותרת\n\n", 150, 150, true)]
-    [InlineData("כותרת\n\n", 151, 151, false)]
-    [InlineData("כותרת ", 99, 100, true)] // Same-line text is body text, not a heading.
-    [InlineData("כותרת אחרת\n\n", 99, 101, true)] // Do not guess which other lines are headings.
-    public async Task Passage_length_excludes_only_an_exact_standalone_task_title(string prefix, int bodyWords, int expectedWords, bool passes)
-    {
-        var content = AiFixtures.Content();
-        content["title"] = "כותרת";
-        content["contentBlocks"]![0]!["text"] = prefix + string.Join(' ', Enumerable.Repeat("מילה", bodyWords));
-        var definition = AiFixtures.Definition();
-        definition["generation"]!["instructions"] = definition["generation"]!["instructions"]!.GetValue<string>() + " יש ליצור קטע בן 100–150 מילים.";
-        using var chat = new AiFixtures.ScriptedChat(definition.ToJsonString(), content.ToJsonString());
-        var report = await RunAsync(chat, Case with { MinPassageWords = 100, MaxPassageWords = 150 });
-
-        var result = Assert.Single(report.Results);
-        Assert.True(result.Generation!.ContractValid);
-        Assert.Equal(passes, result.Checks["passageLength"]);
-        Assert.Equal(content.ToJsonString(), result.Generation.Output);
-        using var saved = JsonDocument.Parse(await File.ReadAllTextAsync(Path.Combine(directory, "run.json")));
-        Assert.True(saved.RootElement.GetProperty("results")[0].TryGetProperty("passageWordCount", out var count));
-        Assert.Equal(expectedWords, count.GetInt32());
-    }
-
-    [Theory]
-    [InlineData(false, 0, null)]
-    [InlineData(true, 5, 5)]
-    public async Task Passage_measurement_covers_empty_and_multiple_blocks(bool hasPassages, int expectedWords, int? measuredWords)
-    {
-        var content = AiFixtures.Content();
-        content["title"] = "כותרת";
-        content["contentBlocks"] = hasPassages ? new JsonArray(
-            new JsonObject { ["type"] = "text", ["text"] = "כותרת" },
-            new JsonObject { ["type"] = "text", ["text"] = "קֶטַע־רִאשׁוֹן.\tמילה" },
-            new JsonObject { ["type"] = "text", ["text"] = "קטע\u00a0שני קצר." }) : new JsonArray();
-        using var chat = new AiFixtures.ScriptedChat(AiFixtures.Definition().ToJsonString(), content.ToJsonString());
-        var report = await RunAsync(chat, Case with { MinPassageWords = expectedWords, MaxPassageWords = expectedWords });
-
-        Assert.True(Assert.Single(report.Results).Checks[hasPassages ? "passageLength" : "noPassage"]);
-        var saved = await EvaluationFiles.ReadReportAsync(Path.Combine(directory, "run.json"));
-        Assert.Equal(measuredWords, Assert.Single(saved.Results).PassageWordCount);
-    }
-
-    [Fact]
-    public async Task No_passage_requirement_rejects_even_a_standalone_heading_without_measuring_words()
-    {
-        var content = AiFixtures.Content();
-        content["contentBlocks"]![0]!["text"] = content["title"]!.GetValue<string>();
-        using var chat = new AiFixtures.ScriptedChat(AiFixtures.Definition().ToJsonString(), content.ToJsonString());
-        var report = await RunAsync(chat, Case with { MaxPassageWords = 0 });
-        var result = Assert.Single(report.Results);
-        Assert.True(result.Generation!.ContractValid);
-        Assert.False(result.Checks["noPassage"]);
-        Assert.Null(result.PassageWordCount);
-    }
-
-    [Theory]
-    [InlineData(2, false, null)]
-    [InlineData(3, false, 2)]
-    [InlineData(3, true, null)]
-    public async Task Repeated_answer_position_is_advisory_and_never_changes_option_order(int count, bool vary, int? expectedPosition)
-    {
-        var content = AiFixtures.Content(count: count);
-        var definition = AiFixtures.Definition();
-        definition["generation"]!["defaults"]!["questionCount"] = count;
-        foreach (var question in content["questions"]!.AsArray())
-        {
-            question!["interaction"] = new JsonObject { ["type"] = "single-choice", ["options"] = new JsonArray("א", "ב", "ג") };
-            question["answer"]!["value"] = "ב";
-        }
-        if (vary) content["questions"]![0]!["answer"]!["value"] = "א";
-        using var chat = new AiFixtures.ScriptedChat(definition.ToJsonString(), content.ToJsonString());
-        var report = await RunAsync(chat, Case with { QuestionCount = count, Interaction = "single-choice", ChoiceCount = 3 });
-
-        Assert.Equal(1, report.AutomaticPasses);
-        var result = Assert.Single(report.Results);
-        Assert.Equal(content.ToJsonString(), result.Generation!.Output);
-        using var saved = JsonDocument.Parse(await File.ReadAllTextAsync(Path.Combine(directory, "run.json")));
-        Assert.True(saved.RootElement.GetProperty("results")[0].TryGetProperty("repeatedAnswerPosition", out var position));
-        Assert.Equal(expectedPosition, position.ValueKind == JsonValueKind.Null ? null : position.GetInt32());
-    }
-
-    [Theory]
-    [InlineData(0, 0, true)]
-    [InlineData(1, 0, false)]
-    [InlineData(0, 1, false)]
-    [InlineData(1, 1, true)]
-    [InlineData(1, null, true)]
-    public async Task Additional_fields_are_checked_against_the_request_without_discarding_output(
-        int actualCount, int? expectedCount, bool passes)
-    {
-        var definition = AiFixtures.Definition();
-        if (actualCount == 0) definition["instanceParameters"] = new JsonArray();
-        using var chat = new AiFixtures.ScriptedChat(definition.ToJsonString(), AiFixtures.Content().ToJsonString());
-        var report = await RunAsync(chat, Case with { AdditionalParameterCount = expectedCount });
-
-        var saved = await EvaluationFiles.ReadReportAsync(Path.Combine(directory, "run.json"));
-        var result = Assert.Single(saved.Results);
-        Assert.True(result.Authoring!.ContractValid);
-        Assert.True(result.Generation!.ContractValid);
-        Assert.Equal(definition.ToJsonString(), result.Authoring.Output);
-        Assert.Equal(expectedCount, Assert.Single(saved.Cases).AdditionalParameterCount);
-        if (expectedCount.HasValue) Assert.Equal(passes, result.Checks["additionalParameterCount"]);
-        else Assert.False(result.Checks.ContainsKey("additionalParameterCount"));
-        Assert.Equal(passes ? 1 : 0, report.AutomaticPasses);
-    }
-
-    [Theory]
-    [InlineData("קהל היעד הוא כיתה ג׳. עם ", false)]
-    [InlineData("יש לכתוב על sourceText.", false)]
-    [InlineData("יש להשתמש ב-sourceText וב-counter.", false)]
-    [InlineData("sourceText discount", false)]
-    [InlineData("sourceText count_extra", false)]
-    [InlineData("sourceText Count", false)]
-    [InlineData("יש להשתמש ב־'sourceText' וב־'count'.", true)]
-    [InlineData("sourceText: הנושא; count: מספר השאלות.", true)]
-    [InlineData("יש ליצור שתי שאלות.", true, true)]
-    public async Task Parameter_reference_check_requires_every_exact_key_without_blocking_evidence(
-        string instructions, bool expected, bool noParameters = false)
-    {
-        var definition = AiFixtures.Definition();
-        definition["generation"]!["instructions"] = instructions;
-        definition["instanceParameters"]!.AsArray().Add(new JsonObject
-        {
-            ["key"] = "count",
-            ["label"] = "מספר דוגמאות",
-            ["type"] = "integer",
-            ["default"] = 1
-        });
-        if (noParameters)
-        {
-            definition["instanceParameters"] = new JsonArray();
-        }
-        using var chat = new AiFixtures.ScriptedChat(definition.ToJsonString(), AiFixtures.Content().ToJsonString());
-        var report = await RunAsync(chat);
-
-        var result = Assert.Single(report.Results);
-        Assert.True(result.Authoring!.ContractValid);
-        Assert.True(result.Generation!.ContractValid);
-        Assert.Equal(expected, result.Checks["parameterReferences"]);
-        Assert.Equal(expected ? 1 : 0, report.AutomaticPasses);
-        using var output = JsonDocument.Parse(result.Authoring.Output!);
-        Assert.Equal(instructions, output.RootElement
-            .GetProperty("generation").GetProperty("instructions").GetString());
-        var saved = await EvaluationFiles.ReadReportAsync(Path.Combine(directory, "run.json"));
-        Assert.Equal(expected, Assert.Single(saved.Results).Checks["parameterReferences"]);
-    }
-
     [Fact]
     public async Task Recorded_check_versions_are_preserved_and_must_match_for_comparison()
     {
-        using var chat = new AiFixtures.ScriptedChat(AiFixtures.Definition().ToJsonString(), AiFixtures.Content().ToJsonString());
+        using var chat = new AiFixtures.ScriptedChat(EvaluationFixtures.Definition().ToJsonString(), EvaluationFixtures.Content().ToJsonString());
         var current = await RunAsync(chat);
         var path = Path.Combine(directory, "run.json");
         var json = JsonNode.Parse(await File.ReadAllTextAsync(path))!;
@@ -268,12 +117,12 @@ public sealed class EvaluationTests : IDisposable
     [Fact]
     public async Task Shared_settings_override_reaches_generation_without_dynamic_fields()
     {
-        using var chat = new AiFixtures.ScriptedChat(AiFixtures.Definition().ToJsonString(), AiFixtures.Content(count: 20).ToJsonString());
+        using var chat = new AiFixtures.ScriptedChat(EvaluationFixtures.Definition().ToJsonString(), EvaluationFixtures.Content(count: 20).ToJsonString());
         var report = await RunAsync(chat, Case with { SettingsOverride = new("חלל", "מבוגרים", "hard", 20), QuestionCount = 20 });
 
         var result = Assert.Single(report.Results);
         Assert.Equal(new("חלל", "מבוגרים", "hard", 20), result.Input!.Settings);
-        Assert.False(result.Input.Parameters.ContainsKey("count"));
+        Assert.Empty(result.Input.Controls);
         Assert.Contains("\"topic\":\"חלל\"", chat.Requests[1].Input);
         Assert.Contains("\"audience\":\"מבוגרים\"", chat.Requests[1].Input);
         Assert.Contains("\"difficulty\":\"hard\"", chat.Requests[1].Input);
@@ -327,7 +176,7 @@ public sealed class EvaluationTests : IDisposable
     public async Task Successful_retry_preserves_each_failed_attempt_and_counts_it_in_the_budget()
     {
         var calls = 0;
-        using var chat = new AiFixtures.ScriptedChat(AiFixtures.Definition().ToJsonString(), AiFixtures.Content().ToJsonString())
+        using var chat = new AiFixtures.ScriptedChat(EvaluationFixtures.Definition().ToJsonString(), EvaluationFixtures.Content().ToJsonString())
         {
             BeforeResponse = _ => ++calls <= 2
                 ? Task.FromException(new HttpRequestException("secret", null, System.Net.HttpStatusCode.TooManyRequests))
@@ -414,7 +263,7 @@ public sealed class EvaluationTests : IDisposable
             Assert.Equal(504, result.Authoring!.StatusCode);
             Assert.False(result.Authoring.ContractValid);
             Assert.Null(result.Authoring.CostCredits);
-            Assert.Null(result.Generation);
+            Assert.Equal("skipped", result.Generation!.Outcome);
         });
         Assert.Equal(new ReportedTotal(null, 0, 2), EvaluationSummary.Create(report).CostCredits);
     }
@@ -422,7 +271,7 @@ public sealed class EvaluationTests : IDisposable
     [Fact]
     public async Task Runtime_call_ceiling_stops_before_sending_even_if_the_plan_is_wrong()
     {
-        using var chat = new AiFixtures.ScriptedChat(AiFixtures.Definition().ToJsonString());
+        using var chat = new AiFixtures.ScriptedChat(EvaluationFixtures.Definition().ToJsonString());
         var report = await RunAsync(chat, maxCalls: 1);
 
         Assert.Equal("call-limit", report.Status);
@@ -437,7 +286,7 @@ public sealed class EvaluationTests : IDisposable
     public async Task Pause_separates_all_provider_stages_outside_the_request_deadline(bool judge)
     {
         var responses = judge ? await CalibrationResponsesAsync() : [];
-        responses.AddRange([AiFixtures.Definition().ToJsonString(), AiFixtures.Content().ToJsonString()]);
+        responses.AddRange([EvaluationFixtures.Definition().ToJsonString(), EvaluationFixtures.Content().ToJsonString()]);
         if (judge) responses.Add("""{"issues":[]}""");
         using var chat = new AiFixtures.ScriptedChat(responses.ToArray());
         var progress = new List<EvaluationProgress>();
@@ -447,7 +296,7 @@ public sealed class EvaluationTests : IDisposable
         Assert.Equal("completed", report.Status);
         Assert.Equal(responses.Count, report.AttemptedCalls);
         Assert.Equal(responses.Count - 1, progress.Count(item => item.Stage == "waiting"));
-        var steps = report.Steps.ToArray();
+        var steps = report.Steps.Where(step => step.RequestSent).ToArray();
         Assert.All(steps, step => Assert.True(step.ContractValid));
         for (var i = 1; i < steps.Length; i++)
             Assert.True(steps[i].StartedAtUtc - steps[i - 1].FinishedAtUtc >= TimeSpan.FromMilliseconds(950));
@@ -459,7 +308,7 @@ public sealed class EvaluationTests : IDisposable
     public async Task Cancelling_the_pause_preserves_completed_work_without_sending_the_next_call()
     {
         using var cancellation = new CancellationTokenSource();
-        using var chat = new AiFixtures.ScriptedChat(AiFixtures.Definition().ToJsonString(), AiFixtures.Content().ToJsonString());
+        using var chat = new AiFixtures.ScriptedChat(EvaluationFixtures.Definition().ToJsonString(), EvaluationFixtures.Content().ToJsonString());
         var report = await RunAsync(chat, ct: cancellation.Token, callDelaySeconds: 60, progress: progress =>
         {
             if (progress.Stage == "waiting") cancellation.Cancel();
@@ -503,22 +352,22 @@ public sealed class EvaluationTests : IDisposable
         var options = EvaluationOptions.Parse(["--case", "reading-grade3", "--repeat", "3", "--max-calls", "4"]);
         Assert.False(options.Live);
         var basic = await EvaluationPlan.LoadAsync(new([options.Case], options.Repeat, options.Judge, options.MaxCalls));
-        Assert.Equal(6, basic.PlannedCalls);
+        Assert.Equal(9, basic.PlannedCalls);
         Assert.Throws<ArgumentException>(basic.ValidateBudget);
-        var judged = await EvaluationPlan.LoadAsync(new(["reading-grade3"], 1, true, 7));
-        Assert.Equal(7, judged.PlannedCalls);
+        var judged = await EvaluationPlan.LoadAsync(new(["reading-grade3"], 1, true, 8));
+        Assert.Equal(8, judged.PlannedCalls);
         judged.ValidateBudget();
     }
 
     [Fact]
     public async Task Judge_flags_are_advisory_and_never_rewrite_the_generated_content()
     {
-        var definition = AiFixtures.Definition();
-        var content = AiFixtures.Content();
+        var definition = EvaluationFixtures.Definition();
+        var content = EvaluationFixtures.Content();
         content["questions"]![0]!["prompt"] = "מה אפשר להסיין?";
         var responses = await CalibrationResponsesAsync();
         responses.AddRange([definition.ToJsonString(), content.ToJsonString(),
-            """{"issues":[{"path":"task.questions[0].prompt","quote":"להסיין","suggestion":"להסיק","reason":"שגיאת כתיב","kind":"invented-word"}]}"""]);
+            """{"issues":[{"path":"document.questions[0].prompt","quote":"להסיין","suggestion":"להסיק","reason":"שגיאת כתיב","kind":"invented-word"}]}"""]);
         using var chat = new AiFixtures.ScriptedChat(responses.ToArray());
         var report = await RunAsync(chat, judge: true);
 
@@ -542,8 +391,8 @@ public sealed class EvaluationTests : IDisposable
     {
         var responses = await CalibrationResponsesAsync();
         responses[0] = """{"issues":[]}""";
-        responses[^1] = """{"issues":[{"path":"task.questions[0].options[1]","quote":"שלושה ילדות","suggestion":"שלוש ילדות","reason":"התאמת מספר","kind":"agreement"}]}""";
-        responses.AddRange([AiFixtures.Definition().ToJsonString(), AiFixtures.Content().ToJsonString(), """{"issues":[]}"""]);
+        responses[^1] = """{"issues":[{"path":"document.questions[0].options[1]","quote":"שלושה ילדות","suggestion":"שלוש ילדות","reason":"התאמת מספר","kind":"agreement"}]}""";
+        responses.AddRange([EvaluationFixtures.Definition().ToJsonString(), EvaluationFixtures.Content().ToJsonString(), """{"issues":[]}"""]);
         using var chat = new AiFixtures.ScriptedChat(responses.ToArray());
         var report = await RunAsync(chat, judge: true);
 
@@ -571,10 +420,10 @@ public sealed class EvaluationTests : IDisposable
     public async Task Judge_constrains_paths_to_each_requests_sources_without_shared_schema_mutation()
     {
         using var chat = new AiFixtures.ScriptedChat("""{"issues":[]}""", """{"issues":[]}""");
-        await HebrewJudge.ReviewAsync(chat, "בקשה", [new("template.instructions", "הוראות")], 8192, CancellationToken.None);
-        await HebrewJudge.ReviewAsync(chat, "בקשה", [new("task.sentences[0]", "משפט")], 8192, CancellationToken.None);
+        await HebrewJudge.ReviewAsync(chat, "בקשה", [new("plan.guidance", "הוראות")], 8192, CancellationToken.None);
+        await HebrewJudge.ReviewAsync(chat, "בקשה", [new("document.materials[0]", "משפט")], 8192, CancellationToken.None);
 
-        var expectedPaths = new[] { "template.instructions", "task.sentences[0]" };
+        var expectedPaths = new[] { "plan.guidance", "document.materials[0]" };
         for (var index = 0; index < expectedPaths.Length; index++)
         {
             var request = chat.Requests[index];

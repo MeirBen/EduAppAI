@@ -88,8 +88,9 @@
                 <span id="case-count" class="hint"></span>
               </div>
               <p id="cases-help" class="hint">
-                Each case sends a synthetic parent request through template creation, then task
-                generation. Its focus says what to review; it is not a score.
+                Cases start with a parent request and refinements or a fixed plan, followed by
+                applicable material, question and scoped replacement stages. Its focus says what to
+                review; it is not a score.
               </p>
               <div class="toolbar">
                 <input
@@ -147,8 +148,8 @@
                 /></label>
               </div>
               <p id="plan-help" class="hint">
-                Each repeat creates a fresh template and task. Max calls includes retry attempts;
-                set it above the base plan to leave retry headroom. It caps calls, not money. Set an
+                Each repeat starts an independent trial. Max calls includes retry attempts; set it
+                above the base plan to leave retry headroom. It caps calls, not money. Set an
                 OpenRouter key limit for a spending cap.
               </p>
               <label
@@ -195,8 +196,8 @@
                     alarms, once per run.
                   </li>
                   <li>
-                    <strong>Content review</strong> proofreads each successful template/task pair.
-                    This includes template instructions, labels and options, not just the story.
+                    <strong>Content review</strong> proofreads each assembled result and its plan.
+                    This includes guidance, labels and options, not just the story.
                   </li>
                   <li>
                     <strong>You decide.</strong> The same model can miss its own mistakes; no
@@ -257,11 +258,10 @@
             <dd>
               Case checks such as extra-field counts, question counts, choices and requested passage
               length; not every instruction. Extra-field counts exclude the four shared settings;
-              zero means no extra fields were requested. Word counts measure text blocks only,
-              excluding an exact leading task title. A length failure keeps valid content available
-              for language and human review; the app does not reject tasks for missing a word
-              target. Parameter references checks that each key appears in template instructions,
-              not that it is used correctly.
+              zero means no extra fields were requested. Shared word counts measure material bodies
+              including headings and exclude punctuation-only tokens. Exact lengths and ranges are
+              strict; targets are advisory. A dropped plan requirement fails case adherence even
+              when generated content satisfies the weaker plan.
             </dd>
             <dt>Judge calibration</dt>
             <dd>Known-example detection. If it fails or is unfinished, trust findings less.</dd>

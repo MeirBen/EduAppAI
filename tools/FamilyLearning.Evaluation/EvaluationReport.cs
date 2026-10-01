@@ -7,11 +7,24 @@ using FamilyLearning.Api.TaskEngine.Models;
 namespace FamilyLearning.Evaluation;
 
 /// <summary>Synthetic parent request, measurable expectations and a case-specific human review focus.</summary>
-/// <remarks>AdditionalParameterCount excludes shared settings; null skips that adherence check.</remarks>
+/// <remarks>AdditionalControlCount excludes shared settings; null skips that adherence check.</remarks>
 public sealed record EvaluationCase(string Id, string Prompt, string ReviewFocus, int QuestionCount,
     string Interaction, int? ChoiceCount, int? MinPassageWords, int? MaxPassageWords,
-    TaskSettings? SettingsOverride = null, int? AdditionalParameterCount = null,
-    LearningPlan? InitialPlan = null, TaskRequest? InitialInput = null);
+    TaskSettings? SettingsOverride = null, int? AdditionalControlCount = null,
+    LearningPlan? InitialPlan = null, TaskRequest? InitialInput = null)
+{
+    public string[] Refinements { get; init; } = [];
+    public EvaluationReplacement[] Replacements { get; init; } = [];
+    /// <summary>Independent authoring expectation and preview budget; fixed plans derive this count from their materials.</summary>
+    public int ExpectedGeneratedMaterials { get; init; }
+    public ResolvedLength? ExpectedLength { get; init; }
+    public int PlannedCalls => (InitialPlan is null ? 1 + Refinements.Length : 0) +
+        ((InitialPlan?.Materials.Count(material => material.Source == "generated") ?? ExpectedGeneratedMaterials) > 0 ? 1 : 0) +
+        1 + Replacements.Length;
+}
+
+/// <summary>One explicit scoped repair after generation. The runner selects an application-owned ID by zero-based index.</summary>
+public sealed record EvaluationReplacement(string Stage, int TargetIndex, string? Instruction = null);
 
 /// <summary>Local evaluation artifact. Contract success never implies educational or language quality.</summary>
 public sealed class EvaluationReport(EvaluationCase[] cases, int repeat, string suiteSha256,
@@ -48,13 +61,14 @@ public sealed class EvaluationReport(EvaluationCase[] cases, int repeat, string 
     public int MaxCalls { get; init; } = 100;
     /// <summary>Recorded pause before each call after the first, outside request timing.</summary>
     [JsonRequired] public int CallDelaySeconds { get; init; }
-    public int PlannedCalls => Prototype ? ContentWorkflowPrototype.CountCalls(Cases, Repeat) : CountCalls(Cases.Length, Repeat, JudgeEnabled ? CalibrationSamples.Length : 0);
+    public int PlannedCalls => Prototype ? ContentWorkflowPrototype.CountCalls(Cases, Repeat) :
+        Cases.Sum(scenario => scenario.PlannedCalls + (JudgeEnabled ? 1 : 0)) * Repeat + (JudgeEnabled ? CalibrationSamples.Length : 0);
     [JsonRequired] public List<CalibrationResult> Calibration { get; init; } = [];
     [JsonRequired] public List<EvaluationResult> Results { get; init; } = [];
     /// <summary>Superseded 429 attempts; each stage retains its current or final attempt separately.</summary>
     public List<EvaluationRetry> Retries { get; init; } = [];
     public int AttemptedCalls => Steps.Count(step => step.RequestSent);
-    public int AutomaticPasses => Prototype ? PrototypeResults.Count(result => result.Passed) : Results.Count(result => result.Generation?.ContractValid == true && result.Checks.Values.All(value => value));
+    public int AutomaticPasses => Prototype ? PrototypeResults.Count(result => result.Passed) : Results.Count(result => result.EndToEndReady);
     public int CallsWithReportedCost => Steps.Count(step => step.CostCredits.HasValue);
     public decimal? ReportedCostCredits => CallsWithReportedCost == 0 ? null : Steps.Sum(step => step.CostCredits ?? 0);
     /// <summary>Null means disabled or unfinished, never a pass. Content findings do not affect calibration.</summary>
@@ -68,25 +82,38 @@ public sealed class EvaluationReport(EvaluationCase[] cases, int repeat, string 
         .SelectMany(result => result.Issues ?? []);
     [JsonIgnore]
     public IEnumerable<EvaluationStep> Steps => Calibration.Select(result => result.Call).Concat(
-        Results.SelectMany(result => new[] { result.Authoring, result.Generation, result.Judge }).OfType<EvaluationStep>())
+        Results.SelectMany(result => result.Steps))
         .Concat(Retries.Select(retry => retry.Call))
         .Concat(PrototypeResults.SelectMany(result => result.Stages).Select(stage => stage.Call).OfType<EvaluationStep>());
 
-    public static int CountCalls(int caseCount, int repeat, int calibrationCount) =>
-        caseCount * repeat * (calibrationCount > 0 ? 3 : 2) + calibrationCount;
 }
 
-/// <summary>One independent authoring-to-instance run; generation is absent if authoring fails.</summary>
+/// <summary>One trial retaining explicit stage skips, accepted plans/documents and independent outcomes.</summary>
 public sealed class EvaluationResult(string caseId, int repetition)
 {
     public string CaseId { get; } = caseId;
     public int Repetition { get; } = repetition;
     public EvaluationStep? Authoring { get; set; }
+    [JsonRequired] public List<EvaluationStep> Refinements { get; init; } = [];
+    public EvaluationStep? Materials { get; set; }
     public EvaluationStep? Generation { get; set; }
+    [JsonRequired] public List<EvaluationStep> Replacements { get; init; } = [];
     public EvaluationStep? Judge { get; set; }
     public HebrewIssue[]? Issues { get; set; }
-    public TaskInput? Input { get; set; }
-    /// <summary>Whitespace words excluding an exact leading task title; null when no length check ran.</summary>
+    public LearningPlan? Plan { get; set; }
+    public ResolvedTaskRequest? Input { get; set; }
+    public TaskDocument? Document { get; set; }
+    public LengthMeasurement[] Measurements { get; set; } = [];
+    public bool? InterpretationPassed { get; set; }
+    public bool GenerationPassed { get; set; }
+    public bool? ReplacementPassed { get; set; }
+    /// <summary>Deterministic readiness and independent case adherence, never a substitute for parent review.</summary>
+    public bool EndToEndReady { get; set; }
+    [JsonIgnore]
+    public IEnumerable<EvaluationStep> Steps => new[] { Authoring }.OfType<EvaluationStep>()
+        .Concat(Refinements).Concat(new[] { Materials, Generation }.OfType<EvaluationStep>())
+        .Concat(Replacements).Concat(new[] { Judge }.OfType<EvaluationStep>());
+    /// <summary>Shared TextLength count across material bodies; null when no independent length check ran.</summary>
     public int? PassageWordCount { get; set; }
     /// <summary>One-based position shared by at least three choice answers. Advisory only; ordered options may be intentional.</summary>
     public int? RepeatedAnswerPosition { get; set; }
@@ -97,6 +124,19 @@ public sealed class EvaluationResult(string caseId, int repetition)
 /// <summary>Captured request, final output and safe diagnostics; excludes separate reasoning text and raw provider errors.</summary>
 public sealed class EvaluationStep
 {
+    [JsonRequired] public string Role { get; set; } = "authoring";
+    [JsonRequired] public int EngineRevision { get; init; } = EngineVersions.Revision;
+    [JsonRequired] public int SchemaVersion { get; init; } = EngineVersions.SchemaVersion;
+    [JsonRequired] public string Outcome { get; set; } = "pending";
+    public string? SkipReason { get; set; }
+    /// <summary>Parsed provider output remains untrusted until Applied; malformed output is retained in Output.</summary>
+    public JsonElement? Candidate { get; set; }
+    public bool Applied { get; set; }
+    public JsonElement? EffectiveInput { get; set; }
+    public string? InputFingerprint { get; set; }
+    public MaterialRevision[] Sources { get; set; } = [];
+    public string? TargetId { get; set; }
+    public string? Provider => Metadata?.Provider;
     public DateTime StartedAtUtc { get; set; } = DateTime.UtcNow;
     [JsonRequired] public DateTime? FinishedAtUtc { get; set; }
     [JsonRequired] public bool RequestSent { get; set; }
@@ -210,12 +250,16 @@ public sealed class ManualReview
     public int? AnswerClarity { get; set; }
     public int? Consistency { get; set; }
     public string? Notes { get; set; }
+    /// <summary>Parent-reported effort. Missing values remain unknown, including for unsuccessful trials.</summary>
+    public int? CorrectionCount { get; set; }
+    public double? TimeToReadySeconds { get; set; }
 
-    /// <summary>Rejects scores outside the rubric and notes longer than 4,000 characters for files and UI edits.</summary>
+    /// <summary>Validates optional scores, bounded notes and finite parent-reported effort for files and UI edits.</summary>
     public void Validate()
     {
-        if (Scores().Values.Any(score => score is < 0 or > 2) || Notes?.Length > 4000)
-            throw new InvalidDataException("Human review requires scores of 0, 1, 2 or null and notes of at most 4,000 characters.");
+        if (Scores().Values.Any(score => score is < 0 or > 2) || Notes?.Length > 4000 || CorrectionCount is < 0 or > 10000 ||
+            TimeToReadySeconds is { } seconds && (!double.IsFinite(seconds) || seconds is < 0 or > 604800))
+            throw new InvalidDataException("Human review requires scores of 0–2, notes up to 4,000 characters, 0–10,000 corrections and 0–604,800 seconds; missing values stay null.");
     }
 
     /// <summary>Stable rubric keys shared by score validation and comparison; null remains unreviewed.</summary>

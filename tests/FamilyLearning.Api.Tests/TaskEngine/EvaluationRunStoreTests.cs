@@ -20,7 +20,14 @@ public sealed class EvaluationRunStoreTests : IDisposable
         var directory = store.DirectoryFor(id);
         Directory.CreateDirectory(directory);
         var report = EvaluationReportsTests.CreateReport();
-        report.Results.Add(new("reading", 1) { Authoring = EvaluationReportsTests.Step(), Generation = EvaluationReportsTests.Step() });
+        report.Results.Add(new("reading", 1)
+        {
+            Plan = EvaluationFixtures.Plan(),
+            Input = LearningPlanFixture.Resolve(EvaluationFixtures.Plan()),
+            Materials = EvaluationReportsTests.Skipped(),
+            Authoring = EvaluationReportsTests.Step(),
+            Generation = EvaluationReportsTests.Step(role: "questions")
+        });
         await EvaluationFiles.SaveAsync(report, directory);
         var target = Path.Combine(root, "outside-artifacts");
         if (link == "directory")
@@ -38,6 +45,27 @@ public sealed class EvaluationRunStoreTests : IDisposable
     }
 
     [Fact]
+    public async Task Parent_effort_can_be_recorded_for_a_failed_trial_without_inventing_time_to_ready()
+    {
+        using var store = new EvaluationRunStore(root);
+        var id = EvaluationRunStore.NewId();
+        Directory.CreateDirectory(store.DirectoryFor(id));
+        var report = EvaluationReportsTests.CreateReport();
+        report.Results.Add(new("reading", 1)
+        {
+            Authoring = new() { Outcome = "failed", Failure = "provider-error", RequestSent = true, FinishedAtUtc = DateTime.UtcNow },
+            Materials = EvaluationReportsTests.Skipped("materials", "earlier-stage"),
+            Generation = EvaluationReportsTests.Skipped("questions", "earlier-stage")
+        });
+        await EvaluationFiles.SaveAsync(report, store.DirectoryFor(id));
+        await store.SaveReviewAsync(id, new("reading", 1, new() { CorrectionCount = 2, Notes = "Not usable" }));
+        var saved = Assert.Single((await store.ReadAsync(id)).Results);
+        Assert.Equal(2, saved.Review.CorrectionCount);
+        Assert.Null(saved.Review.TimeToReadySeconds);
+        Assert.Equal("failed", saved.Authoring!.Outcome);
+    }
+
+    [Fact]
     public async Task Concurrent_reviews_preserve_other_results_and_refresh_summary()
     {
         using var store = new EvaluationRunStore(root);
@@ -46,7 +74,14 @@ public sealed class EvaluationRunStoreTests : IDisposable
         Directory.CreateDirectory(directory);
         var report = EvaluationReportsTests.CreateReport(repeat: 2);
         for (var repetition = 1; repetition <= 2; repetition++)
-            report.Results.Add(new("reading", repetition) { Authoring = EvaluationReportsTests.Step(), Generation = EvaluationReportsTests.Step() });
+            report.Results.Add(new("reading", repetition)
+            {
+                Plan = EvaluationFixtures.Plan(),
+                Input = LearningPlanFixture.Resolve(EvaluationFixtures.Plan()),
+                Materials = EvaluationReportsTests.Skipped(),
+                Authoring = EvaluationReportsTests.Step(),
+                Generation = EvaluationReportsTests.Step(role: "questions")
+            });
         await EvaluationFiles.SaveAsync(report, directory);
         await Task.WhenAll(
             store.SaveReviewAsync(id, new("reading", 1, new() { Hebrew = 1, Notes = "first" })),

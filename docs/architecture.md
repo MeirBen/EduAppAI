@@ -83,7 +83,15 @@ Prompt changes advance the metadata's prompt version and affect new output only.
 the engine and adapter and is not published with the API. CLI and `--ui` use the
 same validated plan, runner, judge and JSON reports, without application database
 or identity services. The runner emits structured progress and checkpoints calls;
-summary/comparison derive evidence without provider calls. Evaluation calls are
+summary/comparison derive evidence without provider calls. Cases select bounded
+interpretation/refinement or a fixed plan, then applicable material, question and
+explicit scoped replacement stages. The evaluator uses shared TaskAssembly,
+resolution and TextLength rules; it keeps independent fixture adherence checks.
+The current report format records explicit skips, exact request/schema hashes,
+raw candidates, application state, source revisions and separate readiness
+outcomes. Historical formats are rejected. Generator input compatibility and
+judge-quality compatibility are assessed independently, so a judge change does
+not invalidate deterministic or human evidence. Evaluation calls are
 paced and may retry HTTP 429 at most three times within the hard call budget.
 Each attempt is retained; waiting is cancellable and excluded from request
 deadlines and provider latency. Production calls do not inherit these retries.

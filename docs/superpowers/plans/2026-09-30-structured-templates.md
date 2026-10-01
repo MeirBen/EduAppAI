@@ -669,34 +669,43 @@ and optional usage. Skipped stages are explicit. Separate interpretation,
 generation, replacement and end-to-end outcomes in the updated report format;
 reuse one provider profile and judge.
 
-- [ ] Advance only affected EvaluationVersions values for contract/behavior
+- [x] Advance only affected EvaluationVersions values for contract/behavior
       changes; keep defaults, readers, messages and judge metadata derived. Test
       unsupported report rejection and check/judge comparison boundaries; an
       engine revision difference alone must not block a generation experiment.
-- [ ] Add fixture tests for author/refine/clarification, fixed-plan generation,
+- [x] Add fixture tests for author/refine/clarification, fixed-plan generation,
       supplied-source skip, scoped repair and early stop. All real attempts and
       evaluator-only 429 retries consume budget; planned totals sum actual
       applicable stages plus optional judge/calibration, not cases × two.
-- [ ] Preserve every failed/unapplied candidate and known partial usage; null
+- [x] Preserve every failed/unapplied candidate and known partial usage; null
       means unknown. Capture exact input/schema evidence with fingerprints,
       source revisions, actual model/provider and engine revision; no content or
       answers in ordinary logs. Keep parent corrections/time-to-ready evidence.
-- [ ] Update comparison tests: matched plans/inputs/sources/settings and
+- [x] Update comparison tests: matched plans/inputs/sources/settings and
       automatic-check rules for generator trials, matched edit sequences for
       authoring. Reject incompatible old report formats safely. If judge
       identity/config/prompt/ rubric/coverage or calibration differs, suppress
       judge-quality deltas while retaining independently valid
       deterministic/human comparisons.
-- [ ] Reuse TextLength and independent case expectations. Keep
+- [x] Reuse TextLength and independent case expectations. Keep
       fixed/range/target meanings, including the historical 100–150 regression;
       authoring that drops a demand fails adherence. Update judge source paths
       and its owned version while preserving planted defects and auditing
       disputed Hebrew labels with humans.
-- [ ] Run existing evaluation test filters,
+- [x] Run existing evaluation test filters,
       `node --test frontend/e2e/evaluation-ui.test.mjs` and
       `./scripts/evaluate-ai.sh --case all`; require passes and a no-call
       preview. Retain dashboard startup/offline access, Host/Origin/CSRF/CSP,
       confirmation, cancellation and safe artifact loading.
+
+Task 7 evidence: the evaluator now runs the shared structured engine without
+changing the deployed API/Angular composition. Preview sums expected applicable
+fixture stages; the hard call ceiling counts every actual attempt when authored
+plans deviate. Reports use only the current owned format, with no historical
+conversion. Independent case adherence, workflow completeness, generator inputs
+and judge compatibility are checked separately. Shared per-call evidence retains
+response provenance before validation, including rejected authoring.
+No paid calls or human quality-gate claims accompany this milestone.
 
 ### Task 8: Verify the complete flow and perform the gated cutover
 

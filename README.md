@@ -113,21 +113,18 @@ The developer harness uses the app's AI engine and validators without creating
 learning records or rewriting content at runtime.
 
 ```bash
-# Preview all 22 synthetic scenarios; no key or API calls.
+# Preview all synthetic scenarios; no key or API calls.
 ./scripts/evaluate-ai.sh --case all
 
-# One real template + one task: at most two billable calls.
-./scripts/evaluate-ai.sh --live --case reading-grade3 --max-calls 2
+# Interpretation, generated materials and questions: three base calls.
+./scripts/evaluate-ai.sh --live --case reading-grade3 --max-calls 3
 
-# Four calibration controls + template, task and advisory review: seven calls.
-./scripts/evaluate-ai.sh --live --case ants-inference --judge --max-calls 7
+# Four calibration controls + interpretation, materials, questions and review.
+./scripts/evaluate-ai.sh --live --case ants-inference --judge --max-calls 8
 
-# Three-repeat reading comparison: 13 base calls plus room for 3 retries.
+# Three-repeat reading comparison: 16 base calls plus room for 3 retries.
 ./scripts/evaluate-ai.sh --live --case reading-grade3 --repeat 3 \
-  --judge --max-calls 16
-
-# Repeat the full suite twice: 88 base calls, no retry allowance.
-./scripts/evaluate-ai.sh --live --case all --repeat 2 --max-calls 88
+  --judge --max-calls 19
 
 # Local developer dashboard; startup makes no AI calls.
 ./scripts/evaluate-ai.sh --ui
@@ -137,23 +134,28 @@ learning records or rewriting content at runtime.
 ```
 
 Maintain synthetic requests in [`cases.json`](tools/FamilyLearning.Evaluation/cases.json).
-They cover all three answer types, Hebrew/niqqud/bilingual content, templates
-with and without extra fields, empty/false/zero/negative defaults, shared-setting
-overrides, varied question counts, 2–6 choices, two passages, supplied source text
-and quoted instructions. A full run plans 44 base calls, or 70 with the four judge
-controls, before retries. Select individual cases for focused checks.
+They cover all three answer types, Hebrew/niqqud/bilingual content, requested
+controls, shared-setting overrides, supplied sources, refinement and scoped
+replacement. A case supplies a prompt or a fixed `initialPlan`. Prompts permit
+up to three `refinements` of 4,000 characters each; fixed plans omit authoring and
+may supply `initialInput`. Optional `replacements` identify a material or question
+by zero-based fixture index, resolved to its application-owned ID.
 
-`reviewFocus` guides human review, not automatic assertions. The runner uses
-generated defaults; optional `settingsOverride` supplies all four per-task settings,
-and its count must match the case's expected `questionCount`.
-`additionalParameterCount` checks the expected number of extra fields, excluding
-the four shared settings; zero expects no extra fields, and omission skips this
-check. Counts catch unwanted or missing fields; review their meaning and types manually.
-`minPassageWords` and `maxPassageWords` measure adherence to a case's requested
-length after generation; they are evaluation expectations, not application fields.
-Length checks do not reject otherwise valid content or prevent language review.
-Fixtures do not exercise arbitrary input values or repeated tasks from one
-template. HTTP, persistence and UI behavior have separate automated tests.
+Preview sums applicable stages: interpretation/refinements, generated materials
+when needed, questions, explicit replacements and optional review/calibration.
+For authored plans, `expectedGeneratedMaterials` determines the material-call
+estimate and independently checks adherence. A model may deviate; every actual
+attempt still consumes the hard call limit. Supplied sources skip material AI.
+
+`reviewFocus` guides human review, not automatic assertions.
+`settingsOverride` supplies all four per-task settings; its question count must
+match the case. `additionalControlCount` checks requested controls across all
+scopes, excluding shared settings and native material choices.
+`expectedLength` independently checks the requested plan constraint (the aggregate
+constraint for multiple generated materials). `minPassageWords` and
+`maxPassageWords` check the assembled bodies with the engine's shared
+`TextLength` rules. A dropped authoring demand fails adherence even if the
+weaker plan validates.
 
 Add a distinct case for a real coverage gap or reported failure; keep its ID stable
 and its measurable expectations consistent with the parent request. Do not relax
@@ -193,9 +195,11 @@ Superseded attempts are checkpointed in `run.json` and included in call/cost
 coverage. Production still makes one call.
 
 `--repeat` accepts 1–5; `--max-calls` accepts 1–100 and must cover the base plan:
-`cases × repeats × 2`, or `cases × repeats × 3 + controls` with `--judge`.
+sum of applicable case stages × repeats, plus one review per case/repeat
+and the once-per-run calibration controls when `--judge` is enabled.
 Increase the budget to allow retries. Controls load only with `--judge`, so broken
-controls do not block basic evaluation. Only valid template/task pairs get reviews.
+controls do not block basic evaluation. Assembled results receive reviews even
+when independent case checks fail.
 The budget caps application calls, not currency or provider fallback attempts;
 use an OpenRouter key spending limit for a monetary cap. For model comparisons,
 disable fallback, check the returned model and change one profile setting at a time.
@@ -209,8 +213,10 @@ Reports go to ignored `artifacts/evaluations/<run>/` or under `--output`:
 
 - **run.json** is the authoritative checkpoint, saved after each call and on
   cancellation. The current format captures cases, resolved inputs, controls,
-  fixture hashes, exact judge prompt/schema/version, nonsecret profile, engine
-  messages, final and rejected outputs, actual models, generation prompt versions,
+  fixture hashes, stage roles, engine/schema versions, exact requests and schemas
+  with hashes, normalized plans, source revisions, assembled documents, explicit
+  skips and candidate acceptance/application. It retains the judge prompt/version,
+  nonsecret profile, final and rejected outputs, actual models/providers when known,
   finish reasons and usage. Domain rejections include safe `validationErrors`
   with field paths and messages, also shown beside the failed dashboard stage.
   Non-validation failures have no field diagnostics.
@@ -225,35 +231,32 @@ Reports go to ignored `artifacts/evaluations/<run>/` or under `--output`:
 Interpret the results separately:
 
 - **Code tests:** harness/app behavior with local providers, not model quality.
-- **Automatic checks:** contracts, defaults, additional-field counts, parameter
-  references, question/choice counts and interaction types. Generation must return
-  exactly the requested positive question count. Passage length counts words
-  separated by whitespace across
-  text blocks, excluding only an exact standalone task title at the beginning. Other
-  headings count as text; directions, questions and answers do not. A zero maximum
-  checks for no passage blocks. Length checks run only for cases with expectations;
-  they suit space-delimited text, not every language. Counts do not establish source
-  fidelity; review verbatim passages manually. `parameterReferences` checks for
-  complete, case-sensitive ASCII identifiers, not correct usage or complete
-  instructions. Failed checks retain valid templates and continue generation/review
-  to preserve evidence.
+- **Automatic checks:** separate interpretation, generation, replacement and
+  end-to-end readiness. Shared engine validation enforces exact/range lengths;
+  targets remain advisory. Independent case checks cover requested constraints,
+  control counts, question/choice counts and formats. Word counts include headings
+  inside material bodies and exclude punctuation-only tokens. Material titles,
+  instructions, questions and answers are outside body counts. The historical
+  100–150 range keeps its original bounds. Failed independent checks retain valid
+  content for human and language review.
 - **Calibration:** known defect detection and false alarms, not general accuracy.
   Invalid or unavailable reviews fail calibration but leave detection counts
   unknown, rather than counting unmeasured defects as misses.
 - **Generated findings:** exact field, quote, correction, explanation and kind;
   advisory language review, never edits or educational scores. Paths beginning
-  with `template.` refer to the reusable blueprint, including its instructions;
-  `task.` refers to the generated learner content. Source context comes from the
+  with `plan.` refer to the learning plan;
+  `document.` refers to assembled learner content. Source context comes from the
   captured judge request. Suggestions can also be wrong.
 - **Answer positions:** an advisory flags three or more choice answers all using
   the same position. Check whether ordering is intentional; this never reorders
   options or affects automatic scores.
 - **Human review:** Hebrew, correctness, age fit, adherence, answer clarity and
   consistency. Enter 0 (unusable), 1 (needs edits), 2 (ready), or null (unreviewed),
-  with evidence in notes.
+  with evidence in notes. Optional parent correction counts and time-to-ready
+  seconds retain measured effort, including unsuccessful trials; missing is unknown.
 
 The stateless judge uses the same model. Its [controls](tools/FamilyLearning.Evaluation/hebrew-review-samples.json)
-cover template/task defects and clean text, including accepted grammatical variants,
+cover plan/document defects and clean text, including accepted grammatical variants,
 stray answer prefixes, meaningful punctuation, intentional errors and mixed languages.
 Preserve planted defects when editing;
 expected findings are never sent to the judge. Finding paths must identify supplied
@@ -268,11 +271,19 @@ Comparison rereads `run.json`, so edited human scores take effect without updati
 summary files. It reports profile changes and candidate-minus-baseline deltas,
 never a winner or combined score. Direct comparison requires matching suite
 hashes, selected cases/order, captured inputs, repeats, automatic-check versions
-and judge setup, plus complete stage evidence. Hebrew comparisons also require
-passing calibration and matching reviewed cases; human-score deltas require the
-same scored case/repetition pairs. Token/cost deltas require full measurement
-coverage. Other deltas are null or explicitly qualified. Only format 3 reports
-are supported; mismatched embedded controls and invalid human scores are rejected.
+plus complete workflow evidence. Generator deltas additionally require matched
+effective inputs, settings and supplied sources; engine revision alone does not
+invalidate an experiment. Authoring comparisons require matched refinement
+sequences. Judge model/profile/prompt/rubric, review coverage or calibration
+mismatches suppress judge-quality deltas independently. Human-score deltas
+require the same scored case/repetition pairs. Resource deltas require full
+measurement coverage and a comparable judge workload because they include review
+calls. Other deltas are null or explicitly qualified. Only the current format
+owned by [EvaluationVersions] is supported; mismatched embedded controls and
+invalid human scores are rejected.
+
+[EvaluationVersions]: tools/FamilyLearning.Evaluation/EvaluationVersions.cs
+
 Reports require their recorded check version, call delay and calibration results
 (an empty array when unused). Start a new baseline for direct comparison after
 changing contracts, checks or fixtures.
@@ -314,8 +325,9 @@ raw output, exact schemas, hashes, measured lengths and partial usage. These
 prototype runs make no automatic retries or repairs. `blind-review.json` contains
 randomized content and empty human scores without generation provenance; keep
 `blind-key.json` separate until review ends. Failures remain in the sample.
-The current dashboard continues to run the authoring suite; prototype start and
-review use the CLI/artifacts until the later evaluator milestone.
+The dashboard runs the structured workflow suite, including fixed-plan trials.
+The separate one-shot/split experiment uses CLI pre-registration and blinded
+review artifacts.
 
 Passing fixtures or structural checks does not establish better Hebrew or useful
 comparative value. If added cost buys no measured quality, control or recovery

@@ -9,7 +9,8 @@ public sealed record EvaluationRunRequest(string[] CaseIds, int Repeat, bool Jud
 public sealed record EvaluationPlan(EvaluationRunRequest Request, EvaluationCase[] Cases, string SuiteSha256,
     CalibrationSample[] Controls, string CalibrationSha256)
 {
-    public int PlannedCalls => Request.Prototype ? ContentWorkflowPrototype.CountCalls(Cases, Request.Repeat) : EvaluationReport.CountCalls(Cases.Length, Request.Repeat, Controls.Length);
+    public int PlannedCalls => Request.Prototype ? ContentWorkflowPrototype.CountCalls(Cases, Request.Repeat) :
+        Cases.Sum(scenario => scenario.PlannedCalls + (Request.Judge ? 1 : 0)) * Request.Repeat + Controls.Length;
 
     public static async Task<EvaluationPlan> LoadAsync(EvaluationRunRequest request, string? fixtureDirectory = null)
     {
@@ -21,7 +22,7 @@ public sealed record EvaluationPlan(EvaluationRunRequest Request, EvaluationCase
         if (request.Prototype && request.Judge) throw new ArgumentException("The fixed-plan prototype uses blinded human review, not a model judge.");
         var suite = await EvaluationFiles.LoadFixtureAsync<EvaluationCase>("cases.json", fixtureDirectory);
         var all = request.CaseIds is ["all"];
-        var cases = suite.Items.Where(item => (item.InitialPlan is not null) == request.Prototype &&
+        var cases = suite.Items.Where(item => (!request.Prototype || item.InitialPlan is not null && item.Replacements.Length == 0) &&
             (all || request.CaseIds.Contains(item.Id, StringComparer.Ordinal))).ToArray();
         if (cases.Length == 0) throw new ArgumentException("No cases match the selected suite.");
         if (!all && cases.Length != request.CaseIds.Length) throw new ArgumentException("Unknown evaluation case.");

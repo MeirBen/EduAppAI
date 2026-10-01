@@ -25,7 +25,7 @@ public sealed class EvaluationDashboardTests : IAsyncLifetime
 
     public async Task InitializeAsync()
     {
-        chat = new(AiFixtures.Definition().ToJsonString(), AiFixtures.Content().ToJsonString()) { BeforeResponse = ct => beforeResponse?.Invoke(ct) ?? Task.CompletedTask };
+        chat = new(EvaluationFixtures.Definition().ToJsonString(), EvaluationFixtures.Content().ToJsonString()) { BeforeResponse = ct => beforeResponse?.Invoke(ct) ?? Task.CompletedTask };
         var builder = WebApplication.CreateBuilder();
         builder.Configuration.Sources.Clear();
         builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
@@ -124,8 +124,11 @@ public sealed class EvaluationDashboardTests : IAsyncLifetime
         var report = EvaluationReportsTests.CreateReport();
         report.Results.Add(new("reading", 1)
         {
+            Plan = EvaluationFixtures.Plan(),
+            Input = LearningPlanFixture.Resolve(EvaluationFixtures.Plan()),
+            Materials = EvaluationReportsTests.Skipped(),
             Authoring = EvaluationReportsTests.Step(),
-            Generation = EvaluationReportsTests.Step()
+            Generation = EvaluationReportsTests.Step(role: "questions")
         });
         report.Results[0].Generation!.Output = "<script>alert('model')</script>";
         Directory.CreateDirectory(Path.Combine(directory, id));
@@ -215,7 +218,7 @@ public sealed class EvaluationDashboardTests : IAsyncLifetime
     public async Task Store_rejects_traversal(string id) =>
         await Assert.ThrowsAsync<ArgumentException>(() => new EvaluationRunStore(directory).ReadAsync(id));
 
-    private static EvaluationRunRequest Request() => new(["reading-grade3"], 1, false, 2, Confirmed: true, CallDelaySeconds: 0);
+    private static EvaluationRunRequest Request() => new(["reading-grade3"], 1, false, 3, Confirmed: true, CallDelaySeconds: 0);
 
     public async Task DisposeAsync()
     {

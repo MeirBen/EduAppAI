@@ -4,45 +4,45 @@
     "request": "קטע להבנת הנקרא לכיתה ג׳ ושאלות הדורשות הסקת מסקנות. אין כאן טעויות לשון מכוונות.",
     "texts": [
       {
-        "path": "task.passage",
+        "path": "document.materials[0].body",
         "text": "בשולי העץ הישן בחצר בית הספר ישנה מושבת נמלים גדולה. כל נמלה יודעת מה תפקידה בחברה: חלקן יוצאות כל בוקר למצוא מזון, חלקן שומרות על הביצים הקטנות, וחלקן בונות מנהרות חדשות ומרחיבות את המושבה.\nהיום בבוקר ירד גשם חזק ופתאומי. המים הזורמים חדרו לתוך המנהרות הישנות, והנמלים נבהלו. אבל הן לא נאבקו במים לבדן. הנמלות ששמרו על הביצים העבירו אותן למקום גבוה ויבש, והנמלות שבנו את המנהרות חפרו כניסה חדשה במהירות רבה. הנמלות שמצאו מזון עזרו לסחוב עלים גדולים שכיסו את הפתח.\nכשהגשם הפסיק, המושבה חזרה לפעול כרגיל. כל נמלה שבה לתפקידה המקורי, כאילו דבר לא קרה."
       },
       {
-        "path": "task.questions[0].prompt",
+        "path": "document.questions[0].prompt",
         "text": "מה אפשר להסיין מהקטע על הארגון במושבת הנמלים?"
       },
       {
-        "path": "task.questions[1].prompt",
+        "path": "document.questions[1].prompt",
         "text": "מדוע אפשר להסיין שהנמלות ידעו מה לעשות כשיורד גשם?"
       },
       {
-        "path": "task.questions[2].prompt",
+        "path": "document.questions[2].prompt",
         "text": "מה אפשר להסיין מהמשפט \"כאילו דבר לא קרה\"?"
       },
       {
-        "path": "task.questions[3].prompt",
+        "path": "document.questions[3].prompt",
         "text": "מה אפשר ללמוד מהקטע על החשיבות של העלים הגדולים?"
       }
     ],
     "expectedIssues": [
       {
-        "path": "task.passage",
+        "path": "document.materials[0].body",
         "quote": "הנמלות"
       },
       {
-        "path": "task.questions[0].prompt",
+        "path": "document.questions[0].prompt",
         "quote": "להסיין"
       },
       {
-        "path": "task.questions[1].prompt",
+        "path": "document.questions[1].prompt",
         "quote": "להסיין"
       },
       {
-        "path": "task.questions[2].prompt",
+        "path": "document.questions[2].prompt",
         "quote": "להסיין"
       },
       {
-        "path": "task.questions[1].prompt",
+        "path": "document.questions[1].prompt",
         "quote": "שהנמלות"
       }
     ],
@@ -53,29 +53,29 @@
     "request": "תבנית לתרגול קריאה בכיתה ג׳. ההורה בוחר את נושא התרגול בשדה \"topic\". המשפט הראשון מתאר ילדה אחת. אין כאן טעויות לשון מכוונות.",
     "texts": [
       {
-        "path": "task.sentences[0]",
+        "path": "document.materials[0].body",
         "text": "הילדה הלכו לבית הספר."
       },
       {
-        "path": "task.sentences[1]",
+        "path": "document.materials[1].body",
         "text": "בסל יש שלושה תפוחים קטנות."
       },
       {
-        "path": "template.instructions",
+        "path": "plan.guidance",
         "text": "יש ליצור שלושה שאלות בנושא שהוזן בשדה \"topic\"."
       }
     ],
     "expectedIssues": [
       {
-        "path": "task.sentences[0]",
+        "path": "document.materials[0].body",
         "quote": "הלכו"
       },
       {
-        "path": "task.sentences[1]",
+        "path": "document.materials[1].body",
         "quote": "קטנות"
       },
       {
-        "path": "template.instructions",
+        "path": "plan.guidance",
         "quote": "שלושה"
       }
     ]
@@ -85,37 +85,37 @@
     "request": "משפטים בעברית בלבד לתרגול קריאה. אפשרות התשובה צריכה לכלול רק את תוכן התשובה, ללא קידומת או סימן רשימה. אין כאן ציטוטים, מונחים באנגלית או טעויות מכוונות.",
     "texts": [
       {
-        "path": "task.sentences[0]",
+        "path": "document.materials[0].body",
         "text": "הוא נתן את לי הספר."
       },
       {
-        "path": "task.instructions",
+        "path": "document.instructions",
         "text": "קראו את הקטע ואז answer בעברית."
       },
       {
-        "path": "task.sentences[1]",
+        "path": "document.materials[1].body",
         "text": "נועה שמה תשומת לב לפרטים."
       },
       {
-        "path": "task.questions[0].options[0]",
+        "path": "document.questions[0].options[0]",
         "text": ": נאמנים לבעליהם"
       }
     ],
     "expectedIssues": [
       {
-        "path": "task.sentences[0]",
+        "path": "document.materials[0].body",
         "quote": "את לי הספר"
       },
       {
-        "path": "task.instructions",
+        "path": "document.instructions",
         "quote": "answer"
       },
       {
-        "path": "task.sentences[1]",
+        "path": "document.materials[1].body",
         "quote": "שמה תשומת לב"
       },
       {
-        "path": "task.questions[0].options[0]",
+        "path": "document.questions[0].options[0]",
         "quote": ":"
       }
     ]
@@ -125,47 +125,47 @@
     "request": "תרגול לבחירת הניסוח התקין, עם כותרת מנוקדת. ההורה בוחר את נושא התרגול בשדה \"topic\". באפשרות השגויה יש טעות מכוונת בשם המספר. הטקסט באנגלית שעל השלט הוא ציטוט שיש לשמור כלשונו; השדה \"english\" מיועד לתרגול אנגלית. בשדה \"quotation\" מופיע ציטוט שיש לשמור כלשונו, כולל הטעות שבו. השדה \"punctuation\" מכיל את הסימן נקודתיים כתשובה נכונה לתרגיל על סימני פיסוק. שמות הדמויות בדויים.",
     "texts": [
       {
-        "path": "template.instructions",
+        "path": "plan.guidance",
         "text": "יש ליצור שלוש שאלות בנושא שהוזן בשדה \"topic\". יש להוסיף קטע קריאה באורך 100–150 מילה."
       },
       {
-        "path": "task.title",
+        "path": "document.title",
         "text": "קוֹרְאִים וְלוֹמְדִים"
       },
       {
-        "path": "task.instructions",
+        "path": "document.instructions",
         "text": "קראו ובחרו את הניסוח התקין."
       },
       {
-        "path": "task.passage",
+        "path": "document.materials[0].body",
         "text": "הנמלים שיתפו פעולה. מה אפשר להסיק מכך? על השלט נכתב: Welcome to our garden."
       },
       {
-        "path": "task.questions[0].prompt",
+        "path": "document.questions[0].prompt",
         "text": "איזה ניסוח תקין?"
       },
       {
-        "path": "task.questions[0].options[0]",
+        "path": "document.questions[0].options[0]",
         "text": "שלוש ילדות"
       },
       {
-        "path": "task.questions[0].options[1]",
+        "path": "document.questions[0].options[1]",
         "text": "שלושה ילדות"
       },
       {
-        "path": "task.english",
+        "path": "document.materials[1].body",
         "text": "Maya and Tom read a book."
       },
       {
-        "path": "task.names",
+        "path": "document.materials[2].body",
         "text": "ליה ואורי נפגשו בגינה."
       },
       {
-        "path": "task.quotation",
+        "path": "document.materials[3].body",
         "text": "התלמיד כתב: \"שלושה ילדות\"."
       },
       {
-        "path": "task.punctuation",
+        "path": "document.questions[1].prompt",
         "text": ":"
       }
     ],

@@ -40,24 +40,32 @@ internal static class ContentWorkflowPrototype
                         report.PrototypeResults.Add(result);
                         if (variant == "one-shot")
                         {
-                            var generated = await CallAsync(result, "one-shot", token => engine.GenerateOneShotAsync(request, token));
-                            if (generated is not null) result.Document = generated.Value;
+                            var generated = await CallAsync(result, "one-shot", (evidence, token) => engine.GenerateOneShotAsync(request, token, evidence));
+                            if (generated is not null)
+                            {
+                                result.Document = generated.Value;
+                                result.Stages[^1].Call!.Applied = true;
+                            }
                         }
                         else
                         {
                             if (TaskAssembly.PrepareMaterials(request, result.Document) is { } input)
                             {
-                                var generated = await CallAsync(result, "materials", token => engine.GenerateMaterialsAsync(input, token));
+                                var generated = await CallAsync(result, "materials", (evidence, token) => engine.GenerateMaterialsAsync(input, token, evidence));
                                 if (generated is null) continue;
                                 result.Document = TaskAssembly.AcceptMaterials(request, result.Document, generated.Value, generated.Metadata).Document!;
+                                result.Stages[^1].Call!.Applied = true;
                                 // Keep accepted material even when the following call fails or the run is cancelled.
                                 await EvaluationFiles.SaveAsync(report, directory);
                             }
                             else result.Stages.Add(new("materials") { Outcome = "skipped" });
                             var questions = TaskAssembly.PrepareQuestions(request, result.Document);
-                            var generatedQuestions = await CallAsync(result, "questions", token => engine.GenerateQuestionsAsync(questions, token));
+                            var generatedQuestions = await CallAsync(result, "questions", (evidence, token) => engine.GenerateQuestionsAsync(questions, token, evidence));
                             if (generatedQuestions is not null)
+                            {
                                 result.Document = TaskAssembly.AcceptQuestions(request, result.Document, generatedQuestions.Value, generatedQuestions.Metadata);
+                                result.Stages[^1].Call!.Applied = true;
+                            }
                         }
                         result.Measurements = TextLength.Measure(request, result.Document);
                         result.Passed = TaskDocumentValidator.ValidateRelease(request, result.Document).Count == 0;
@@ -78,21 +86,30 @@ internal static class ContentWorkflowPrototype
             await PrototypeExperiment.WriteBlindReviewAsync(report, directory);
         }
 
-        async Task<AiResult<T>?> CallAsync<T>(PrototypeResult result, string name, Func<CancellationToken, Task<AiResult<T>>> operation) where T : class
+        async Task<AiResult<T>?> CallAsync<T>(PrototypeResult result, string name, Func<AiCallEvidence, CancellationToken, Task<AiResult<T>>> operation) where T : class
         {
             if (report.AttemptedCalls > 0 && report.CallDelaySeconds > 0)
                 await Task.Delay(TimeSpan.FromSeconds(report.CallDelaySeconds), timeProvider ?? TimeProvider.System, ct);
             ct.ThrowIfCancellationRequested();
-            var stage = new PrototypeStage(name) { Call = new() };
+            var stage = new PrototypeStage(name)
+            {
+                Call = new()
+                {
+                    Role = name,
+                    InputFingerprint = result.InputFingerprint,
+                    Sources = result.Document.Materials.Select(material => new MaterialRevision(material.Id, material.Revision)).ToArray()
+                }
+            };
             result.Stages.Add(stage);
             var call = stage.Call;
             capture.Current = call;
             progress?.Invoke(new(name, result.CaseId, result.Repetition, report.AttemptedCalls, report.PlannedCalls,
                 report.Status, null, report.ReportedCostCredits, report.Steps.Count(s => s.RequestSent && !s.CostCredits.HasValue)));
             var started = Stopwatch.GetTimestamp();
+            var evidence = new AiCallEvidence();
             try
             {
-                var generated = await operation(ct);
+                var generated = await operation(evidence, ct);
                 call.Metadata = generated.Metadata;
                 call.ContractValid = true;
                 stage.Outcome = "accepted";
@@ -120,6 +137,8 @@ internal static class ContentWorkflowPrototype
             }
             finally
             {
+                call.Metadata ??= evidence.Metadata;
+                call.Outcome = stage.Outcome;
                 call.ElapsedMilliseconds = Stopwatch.GetElapsedTime(started).TotalMilliseconds;
                 call.FinishedAtUtc = DateTime.UtcNow;
                 await EvaluationFiles.SaveAsync(report, directory);

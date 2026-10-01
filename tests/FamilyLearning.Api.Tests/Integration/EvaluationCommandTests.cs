@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using FamilyLearning.Api.TaskEngine.Models;
 using FamilyLearning.Api.Tests.Fixtures;
 using FamilyLearning.Api.Tests.TaskEngine;
 using FamilyLearning.Evaluation;
@@ -21,11 +22,11 @@ public sealed class EvaluationCommandTests : IDisposable
     [Theory]
     [InlineData(false, 4, 0, 0, false)]
     [InlineData(true, 1, 2, 0, false)]
-    [InlineData(true, 2, 0, 2, false)]
-    [InlineData(true, 2, 0, 2, true)]
+    [InlineData(true, 3, 0, 3, false)]
+    [InlineData(true, 3, 0, 3, true)]
     [InlineData(true, 2, 2, 0, false, "malformed-endpoint")]
-    [InlineData(true, 3, 0, 3, false, null, true, "0")]
-    [InlineData(true, 3, 0, 3, true, null, true, "Thu, 01 Jan 1970 00:00:00 GMT")]
+    [InlineData(true, 4, 0, 4, false, null, true, "0")]
+    [InlineData(true, 4, 0, 4, true, null, true, "Thu, 01 Jan 1970 00:00:00 GMT")]
     [InlineData(true, 5, 1, 1, false, null, true, "301")]
     public async Task Cli_and_dashboard_use_the_real_adapter_without_database_access(
         bool live, int budget, int expectedExitCode, int expectedCalls, bool dashboard, string? endpoint = null,
@@ -49,24 +50,38 @@ public sealed class EvaluationCommandTests : IDisposable
                 outgoing.Headers.RetryAfter = retryAfter;
                 return Results.Json(new { error = new { message = "provider secret", code = 429 } }, statusCode: 429);
             }
-            var authoringCall = calls == (rateLimitFirst ? 2 : 1);
-            var output = authoringCall ? AiFixtures.Definition() : AiFixtures.Content(count: 4);
-            if (authoringCall)
+            var schema = request.RootElement.GetProperty("response_format").GetProperty("json_schema").GetProperty("name").GetString()!;
+            JsonNode output;
+            if (schema.Contains("author", StringComparison.Ordinal))
             {
-                output["instanceParameters"] = new JsonArray();
-                output["generation"]!["defaults"]!["questionCount"] = 4;
+                var plan = LearningPlanFixture.Reading() with
+                {
+                    Defaults = new("דינוזאורים", "כיתה ג", "easy", 4),
+                    Materials = [LearningPlanFixture.Reading().Materials[0] with
+                    {
+                        Id = null, Controls = [],
+                        Length = new("range", Lower: 100, Upper: 150)
+                    }],
+                    Questions = new(["single-choice"], false, null, new(4, false), null, "", [])
+                };
+                output = JsonNode.Parse(StructuredEvaluationTests.Proposal(plan))!;
+            }
+            else if (schema.Contains("materials", StringComparison.Ordinal))
+            {
+                var messages = request.RootElement.GetProperty("messages");
+                using var input = JsonDocument.Parse(messages[messages.GetArrayLength() - 1].GetProperty("content").GetString()!);
+                var id = input.RootElement.GetProperty("materials")[0].GetProperty("id").GetString();
+                output = JsonSerializer.SerializeToNode(new { materials = new[] { new { id, title = "קריאה", body = string.Join(' ', Enumerable.Repeat("מילה", 100)) } } })!;
             }
             else
             {
-                output["contentBlocks"]![0]!["text"] = string.Join(' ', Enumerable.Repeat("מילה", 100));
+                output = EvaluationFixtures.Content(4);
                 foreach (var question in output["questions"]!.AsArray())
-                {
                     question!["interaction"] = new JsonObject
                     {
                         ["type"] = "single-choice",
                         ["options"] = new JsonArray("דינוזאורים", "עצים", "ציפורים", "פרחים")
                     };
-                }
             }
             return Results.Json(new
             {
@@ -155,8 +170,8 @@ public sealed class EvaluationCommandTests : IDisposable
             Assert.Equal(0, retry.GetProperty("call").GetProperty("retryAfterSeconds").GetDouble());
             Assert.Equal(0, retry.GetProperty("delaySeconds").GetDouble());
         }
-        Assert.Equal(0.002m, report.RootElement.GetProperty("reportedCostCredits").GetDecimal());
-        Assert.Equal(2, report.RootElement.GetProperty("callsWithReportedCost").GetInt32());
+        Assert.Equal(0.003m, report.RootElement.GetProperty("reportedCostCredits").GetDecimal());
+        Assert.Equal(3, report.RootElement.GetProperty("callsWithReportedCost").GetInt32());
         Assert.Equal(1, report.RootElement.GetProperty("automaticPasses").GetInt32());
         var authoring = report.RootElement.GetProperty("results")[0].GetProperty("authoring");
         Assert.Equal(10, authoring.GetProperty("reasoningTokens").GetInt32());
@@ -173,8 +188,11 @@ public sealed class EvaluationCommandTests : IDisposable
         var report = EvaluationReportsTests.CreateReport();
         report.Results.Add(new("reading", 1)
         {
+            Plan = EvaluationFixtures.Plan(),
+            Input = LearningPlanFixture.Resolve(EvaluationFixtures.Plan()),
+            Materials = EvaluationReportsTests.Skipped(),
             Authoring = EvaluationReportsTests.Step(),
-            Generation = EvaluationReportsTests.Step()
+            Generation = EvaluationReportsTests.Step(role: "questions")
         });
         await EvaluationFiles.SaveAsync(report, directory);
         var path = Path.Combine(directory, "run.json");

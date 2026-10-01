@@ -40,9 +40,9 @@ public sealed class CalibrationTests
     }
 
     [Theory]
-    [InlineData("reported-ants-defects", "task.questions[1].prompt", "שהנמלות", "שהנמלים")]
-    [InlineData("controlled-syntax-and-language", "task.questions[0].options[0]", ": נאמנים לבעליהם", "נאמנים לבעליהם")]
-    [InlineData("controlled-syntax-and-language", "task.questions[0].options[0]", ": נאמנים", "נאמנים")]
+    [InlineData("reported-ants-defects", "document.questions[1].prompt", "שהנמלות", "שהנמלים")]
+    [InlineData("controlled-syntax-and-language", "document.questions[0].options[0]", ": נאמנים לבעליהם", "נאמנים לבעליהם")]
+    [InlineData("controlled-syntax-and-language", "document.questions[0].options[0]", ": נאמנים", "נאמנים")]
     public async Task Controls_accept_minimal_corrections_preserving_meaningful_text(
         string id, string path, string quote, string suggestion)
     {

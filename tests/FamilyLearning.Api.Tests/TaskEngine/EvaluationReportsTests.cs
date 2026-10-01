@@ -8,6 +8,111 @@ public sealed class EvaluationReportsTests : IDisposable
 {
     private readonly string directory = Path.Combine(Path.GetTempPath(), $"learning-reports-{Guid.NewGuid():N}");
 
+    [Theory]
+    [InlineData("profile")]
+    [InlineData("model")]
+    [InlineData("prompt")]
+    [InlineData("calibration")]
+    public void Judge_changes_suppress_only_judge_deltas(string change)
+    {
+        var baseline = CompletedJudgeReport();
+        var candidate = CompletedJudgeReport();
+        if (change == "profile") candidate.Profile["Temperature"] = "0.5";
+        if (change == "model") candidate.Results[0].Judge!.Model = "other-model";
+        if (change == "prompt") candidate.Results[0].Judge!.Metadata = new("OpenRouter", "test/actual", "different-review", DateTime.UtcNow);
+        if (change == "calibration") candidate.CalibrationSamples[0] = candidate.CalibrationSamples[0] with { Request = "בקשה אחרת" };
+        baseline.Results[0].Review.Hebrew = 1;
+        candidate.Results[0].Review.Hebrew = 2;
+        var comparison = EvaluationComparison.Compare(baseline, candidate);
+        Assert.True(comparison.DirectlyComparable);
+        Assert.False(comparison.HebrewFindingsComparable);
+        Assert.Null(comparison.Deltas["generatedHebrewIssues"]);
+        Assert.Equal(1, comparison.Deltas["humanReview.hebrew.average"]);
+    }
+
+    [Fact]
+    public async Task Skipped_questions_after_successful_prerequisites_are_incomplete_evidence()
+    {
+        var baseline = CompletedJudgeReport();
+        var candidate = CompletedJudgeReport();
+        candidate.Results[0].Generation = Skipped("questions", "earlier-stage");
+        var comparison = EvaluationComparison.Compare(baseline, candidate);
+        Assert.False(comparison.DirectlyComparable);
+        Assert.Contains("incomplete-run", comparison.Incompatibilities);
+        var path = await SaveAsync("unjustified-skip", candidate);
+        await Assert.ThrowsAsync<InvalidDataException>(() => EvaluationFiles.ReadReportAsync(path));
+    }
+
+    [Theory]
+    [InlineData("mode")]
+    [InlineData("profile")]
+    [InlineData("coverage")]
+    public void Judge_workload_changes_do_not_claim_workflow_resource_deltas(string change)
+    {
+        var baseline = CompletedJudgeReport();
+        var candidate = change == "mode" ? CreateReport() : CompletedJudgeReport();
+        if (change == "mode") candidate.Results.Add(new("reading", 1)
+        {
+            Plan = EvaluationFixtures.Plan(),
+            Input = LearningPlanFixture.Resolve(EvaluationFixtures.Plan()),
+            Materials = Skipped(),
+            Authoring = Step(),
+            Generation = Step(role: "questions")
+        });
+        if (change == "profile") candidate.Profile["Temperature"] = "0.5";
+        if (change == "coverage") candidate.Results[0].Judge = null;
+        var comparison = EvaluationComparison.Compare(baseline, candidate);
+        Assert.True(comparison.DirectlyComparable);
+        Assert.NotNull(comparison.Deltas["scenarioAutomaticPasses"]);
+        foreach (var key in new[] { "attemptedCalls", "averageLatencyMilliseconds", "inputTokens", "outputTokens", "reasoningTokens", "costCredits" })
+            Assert.Null(comparison.Deltas[key]);
+    }
+
+    [Fact]
+    public void Fixed_generator_comparison_ignores_engine_revision_but_requires_effective_inputs()
+    {
+        var plan = LearningPlanFixture.Supplied();
+        var scenario = StructuredEvaluationTests.Fixed(plan);
+        EvaluationReport Report(int revision, string source) => new([scenario], 1, "fixed-suite", [])
+        {
+            Status = "completed",
+            FinishedAtUtc = DateTime.UtcNow,
+            Results = [new(scenario.Id, 1)
+            {
+                Authoring = Skipped("authoring", "fixed-plan"), Plan = plan,
+            Materials = Skipped(), Generation = Step(role: "questions"),
+                Input = LearningPlanFixture.Resolve(LearningPlanFixture.Supplied() with
+                { Materials = [plan.Materials[0] with { Text = source }] }) with { EngineRevision = revision }
+            }]
+        };
+        var baseline = Report(1, LearningPlanFixture.Source);
+        Assert.True(EvaluationComparison.Compare(baseline, Report(2, LearningPlanFixture.Source)).GenerationComparable);
+        var changed = EvaluationComparison.Compare(baseline, Report(1, "different source"));
+        Assert.False(changed.DirectlyComparable);
+        Assert.False(changed.GenerationComparable);
+        Assert.Null(changed.Deltas["generationSuccesses"]);
+    }
+
+    [Fact]
+    public void Authoring_comparison_requires_the_same_refinement_sequence()
+    {
+        var baseline = CreateReport();
+        var candidate = CreateReport();
+        baseline.Cases[0] = baseline.Cases[0] with { Refinements = ["קל יותר"] };
+        candidate.Cases[0] = candidate.Cases[0] with { Refinements = ["קשה יותר"] };
+        foreach (var report in new[] { baseline, candidate })
+            report.Results.Add(new("reading", 1)
+            {
+                Authoring = Step(),
+                Plan = EvaluationFixtures.Plan(),
+                Input = LearningPlanFixture.Resolve(EvaluationFixtures.Plan()),
+                Materials = Skipped(),
+                Generation = Step(role: "questions"),
+                Refinements = [Step(role: "refinement")]
+            });
+        Assert.Contains("scenario-inputs", EvaluationComparison.Compare(baseline, candidate).Incompatibilities);
+    }
+
     [Fact]
     public void Summary_keeps_stages_checks_findings_usage_and_review_coverage_separate()
     {
@@ -15,8 +120,11 @@ public sealed class EvaluationReportsTests : IDisposable
         report.Calibration.Add(new(report.CalibrationSamples[0], Step()) { Issues = [] });
         var first = new EvaluationResult("reading", 1)
         {
+            Plan = EvaluationFixtures.Plan(),
+            Input = LearningPlanFixture.Resolve(EvaluationFixtures.Plan()),
+            Materials = Skipped(),
             Authoring = Step(20, 8, 2, 0.2m, 200),
-            Generation = Step(30, 12, null, null, 300),
+            Generation = Step(30, 12, null, null, 300, "questions"),
             Judge = Step(40, 16, 4, 0.3m, 400),
             Issues = [Issue()]
         };
@@ -72,12 +180,27 @@ public sealed class EvaluationReportsTests : IDisposable
     public async Task Artifacts_round_trip_and_comparison_recomputes_summary_after_human_review()
     {
         var baseline = CreateReport();
-        baseline.Results.Add(new("reading", 1) { Authoring = Step(), Generation = Step() });
+        baseline.Results.Add(new("reading", 1)
+        {
+            Plan = EvaluationFixtures.Plan(),
+            Input = LearningPlanFixture.Resolve(EvaluationFixtures.Plan()),
+            Materials = Skipped(),
+            Authoring = Step(),
+            Generation = Step(role: "questions")
+        });
         baseline.Results[0].Checks["questionCount"] = false;
         baseline.Results[0].Review.Hebrew = 1;
         var candidate = CreateReport(model: "test/b");
-        candidate.Results.Add(new("reading", 1) { Authoring = Step(), Generation = Step() });
+        candidate.Results.Add(new("reading", 1)
+        {
+            Plan = EvaluationFixtures.Plan(),
+            Input = LearningPlanFixture.Resolve(EvaluationFixtures.Plan()),
+            Materials = Skipped(),
+            Authoring = Step(),
+            Generation = Step(role: "questions")
+        });
         candidate.Results[0].Checks["questionCount"] = true;
+        candidate.Results[0].EndToEndReady = true;
         candidate.Results[0].Review.Hebrew = 2;
         candidate.Results[0].Generation!.Metadata = new("OpenRouter", "test/b", "instance-generation-v2", DateTime.UtcNow);
         var beforePath = await SaveAsync("baseline", baseline);
@@ -108,7 +231,6 @@ public sealed class EvaluationReportsTests : IDisposable
     [InlineData("repeat", "repeat-count")]
     [InlineData("prompt", "scenario-inputs")]
     [InlineData("partial", "incomplete-run")]
-    [InlineData("calibration", "calibration-suite-hash")]
     public void Comparison_marks_incompatible_inputs_without_selecting_a_winner(string change, string reason)
     {
         var baseline = CreateReport(judge: true);
@@ -126,7 +248,14 @@ public sealed class EvaluationReportsTests : IDisposable
     public async Task Changing_judge_instructions_is_visible_even_if_someone_forgets_to_bump_the_version()
     {
         var baseline = CreateReport(judge: true);
-        baseline.Results.Add(new("reading", 1) { Authoring = Step(), Generation = Step() });
+        baseline.Results.Add(new("reading", 1)
+        {
+            Plan = EvaluationFixtures.Plan(),
+            Input = LearningPlanFixture.Resolve(EvaluationFixtures.Plan()),
+            Materials = Skipped(),
+            Authoring = Step(),
+            Generation = Step(role: "questions")
+        });
         var path = await SaveAsync("changed-prompt", baseline);
         var json = JsonNode.Parse(await File.ReadAllTextAsync(path))!;
         json["judgePrompt"] = "Changed judge instructions";
@@ -134,8 +263,8 @@ public sealed class EvaluationReportsTests : IDisposable
         var candidate = await EvaluationFiles.ReadReportAsync(path);
 
         var comparison = EvaluationComparison.Compare(baseline, candidate);
-        Assert.False(comparison.DirectlyComparable);
-        Assert.Contains("judge-prompt", comparison.Incompatibilities);
+        Assert.True(comparison.DirectlyComparable);
+        Assert.Contains("judge-prompt", comparison.JudgeIncompatibilities);
         Assert.Equal(baseline.JudgePromptVersion, candidate.JudgePromptVersion);
     }
 
@@ -143,7 +272,14 @@ public sealed class EvaluationReportsTests : IDisposable
     public async Task Missing_required_measurement_state_is_not_silently_counted_as_zero_calls()
     {
         var report = CreateReport();
-        report.Results.Add(new("reading", 1) { Authoring = Step(), Generation = Step() });
+        report.Results.Add(new("reading", 1)
+        {
+            Plan = EvaluationFixtures.Plan(),
+            Input = LearningPlanFixture.Resolve(EvaluationFixtures.Plan()),
+            Materials = Skipped(),
+            Authoring = Step(),
+            Generation = Step(role: "questions")
+        });
         var path = await SaveAsync("missing-state", report);
         var json = JsonNode.Parse(await File.ReadAllTextAsync(path))!;
         json["results"]![0]!["authoring"]!.AsObject().Remove("requestSent");
@@ -202,8 +338,8 @@ public sealed class EvaluationReportsTests : IDisposable
 
         var comparison = EvaluationComparison.Compare(baseline, candidate);
 
-        Assert.False(comparison.DirectlyComparable);
-        Assert.Contains("incomplete-run", comparison.Incompatibilities);
+        Assert.Equal(missing is "review" or "calibration", comparison.DirectlyComparable);
+        if (missing is not ("review" or "calibration")) Assert.Contains("incomplete-run", comparison.Incompatibilities);
         Assert.False(comparison.HebrewFindingsComparable);
     }
 
@@ -216,9 +352,24 @@ public sealed class EvaluationReportsTests : IDisposable
         var candidate = CreateReport();
         foreach (var report in new[] { baseline, candidate })
         {
-            var result = new EvaluationResult("reading", 1) { Authoring = Step() };
-            if (invalidDefaults) result.Checks["parameterDefaults"] = false;
-            else result.Authoring.ContractValid = false;
+            var result = new EvaluationResult("reading", 1)
+            {
+                Plan = EvaluationFixtures.Plan(),
+                Input = LearningPlanFixture.Resolve(EvaluationFixtures.Plan()),
+                Materials = Skipped(),
+                Authoring = Step(),
+                Generation = Skipped("questions", "earlier-stage")
+            };
+            result.Input = null;
+            result.Materials = Skipped("materials", "earlier-stage");
+            if (invalidDefaults) result.Checks["inputResolution"] = false;
+            else
+            {
+                result.Authoring.ContractValid = false;
+                result.Authoring.Applied = false;
+                result.Authoring.Outcome = "failed";
+                result.Authoring.Failure = "provider-error";
+            }
             report.Results.Add(result);
         }
 
@@ -235,8 +386,8 @@ public sealed class EvaluationReportsTests : IDisposable
 
         var comparison = EvaluationComparison.Compare(baseline, candidate);
 
-        Assert.False(comparison.DirectlyComparable);
-        Assert.Contains("calibration-inputs", comparison.Incompatibilities);
+        Assert.True(comparison.DirectlyComparable);
+        Assert.Contains("calibration-inputs", comparison.JudgeIncompatibilities);
     }
 
     [Theory]
@@ -265,7 +416,14 @@ public sealed class EvaluationReportsTests : IDisposable
     public async Task Numeric_strings_are_not_silently_coerced_into_human_scores()
     {
         var report = CreateReport();
-        report.Results.Add(new("reading", 1) { Authoring = Step(), Generation = Step() });
+        report.Results.Add(new("reading", 1)
+        {
+            Plan = EvaluationFixtures.Plan(),
+            Input = LearningPlanFixture.Resolve(EvaluationFixtures.Plan()),
+            Materials = Skipped(),
+            Authoring = Step(),
+            Generation = Step(role: "questions")
+        });
         var path = await SaveAsync("quoted-score", report);
         var json = JsonNode.Parse(await File.ReadAllTextAsync(path))!;
         json["results"]![0]!["review"]!["hebrew"] = "2";
@@ -282,7 +440,16 @@ public sealed class EvaluationReportsTests : IDisposable
         foreach (var report in new[] { before, after })
         {
             report.Calibration.Add(new(report.CalibrationSamples[0], Step()) { Issues = [] });
-            report.Results.Add(new("reading", 1) { Authoring = Step(), Generation = Step(), Judge = Step(), Issues = [] });
+            report.Results.Add(new("reading", 1)
+            {
+                Plan = EvaluationFixtures.Plan(),
+                Input = LearningPlanFixture.Resolve(EvaluationFixtures.Plan()),
+                Materials = Skipped(),
+                Authoring = Step(),
+                Generation = Step(role: "questions"),
+                Judge = Step(role: "review"),
+                Issues = []
+            });
         }
         before.Results[0].Issues = [Issue()];
         before.Results[0].Review.Hebrew = 1;
@@ -315,12 +482,21 @@ public sealed class EvaluationReportsTests : IDisposable
     [Theory]
     [InlineData("formatVersion", "1")]
     [InlineData("formatVersion", "2")]
+    [InlineData("formatVersion", "3")]
+    [InlineData("formatVersion", "4")]
     [InlineData("results[0].review.hebrew", "3")]
     [InlineData("results[0].review.hebrew", "-1")]
     public async Task Unsupported_reports_and_invalid_human_scores_fail_explicitly(string field, string value)
     {
         var report = CreateReport();
-        report.Results.Add(new("reading", 1) { Authoring = Step(), Generation = Step() });
+        report.Results.Add(new("reading", 1)
+        {
+            Plan = EvaluationFixtures.Plan(),
+            Input = LearningPlanFixture.Resolve(EvaluationFixtures.Plan()),
+            Materials = Skipped(),
+            Authoring = Step(),
+            Generation = Step(role: "questions")
+        });
         var path = await SaveAsync("invalid", report);
         var json = JsonNode.Parse(await File.ReadAllTextAsync(path))!;
         if (field == "formatVersion") json[field] = JsonNode.Parse(value);
@@ -341,7 +517,16 @@ public sealed class EvaluationReportsTests : IDisposable
     {
         var report = CreateReport(judge: true);
         report.Calibration.Add(new(report.CalibrationSamples[0], Step()) { Issues = [] });
-        report.Results.Add(new("reading", 1) { Authoring = Step(), Generation = Step(), Judge = Step(), Issues = [] });
+        report.Results.Add(new("reading", 1)
+        {
+            Plan = EvaluationFixtures.Plan(),
+            Input = LearningPlanFixture.Resolve(EvaluationFixtures.Plan()),
+            Materials = Skipped(),
+            Authoring = Step(),
+            Generation = Step(role: "questions"),
+            Judge = Step(role: "review"),
+            Issues = []
+        });
         return report;
     }
 
@@ -358,8 +543,18 @@ public sealed class EvaluationReportsTests : IDisposable
             CalibrationSamples = [new("clean", "בקשה", [new("text", "משפט תקין.")], [])]
         };
 
-    internal static EvaluationStep Step(long? input = 10, long? output = 4, long? reasoning = 1, decimal? cost = 0.1m, double latency = 100) => new()
+    internal static EvaluationStep Skipped(string role = "materials", string reason = "no-generated-materials") => new() { Role = role, Outcome = "skipped", SkipReason = reason };
+
+    internal static EvaluationStep Step(long? input = 10, long? output = 4, long? reasoning = 1, decimal? cost = 0.1m, double latency = 100, string role = "authoring") => new()
     {
+        Role = role,
+        Applied = true,
+        Request = [new("user", "{}")],
+        Schema = JsonSerializer.Deserialize<JsonElement>("{}"),
+        RequestSha256 = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(JsonSerializer.SerializeToUtf8Bytes(new[] { new EvaluationMessage("user", "{}") }))),
+        SchemaSha256 = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData("{}"u8)),
+        Output = "{}",
+        Outcome = "accepted",
         RequestSent = true,
         ResponseReceived = true,
         FinishedAtUtc = DateTime.UtcNow,
@@ -373,7 +568,7 @@ public sealed class EvaluationReportsTests : IDisposable
         Metadata = new("OpenRouter", "test/actual", "instance-generation-v1", DateTime.UtcNow)
     };
 
-    private static HebrewIssue Issue() => new("task.questions[0].prompt", "להסיין", "להסיק", "מילה שגויה", "invented-word");
+    private static HebrewIssue Issue() => new("document.questions[0].prompt", "להסיין", "להסיק", "מילה שגויה", "invented-word");
 
     public void Dispose()
     {

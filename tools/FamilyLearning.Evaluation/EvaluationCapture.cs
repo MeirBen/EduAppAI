@@ -28,6 +28,11 @@ internal sealed class EvaluationCapture(IChatClient innerClient, int maxCalls, E
             budgetReport.ReservedCostUsd += reservedCost;
         }
         Current.Request = request.Select(message => new EvaluationMessage(message.Role.Value, message.Text)).ToArray();
+        if (request.LastOrDefault()?.Text is { } input)
+        {
+            try { Current.EffectiveInput = JsonSerializer.Deserialize<JsonElement>(input); }
+            catch (JsonException) { Current.EffectiveInput = JsonSerializer.SerializeToElement(input); }
+        }
         Current.SchemaName = (options?.ResponseFormat as ChatResponseFormatJson)?.SchemaName;
         Current.Schema = (options?.ResponseFormat as ChatResponseFormatJson)?.Schema?.Clone();
         Current.RequestSha256 = Convert.ToHexString(SHA256.HashData(JsonSerializer.SerializeToUtf8Bytes(Current.Request)));
@@ -46,6 +51,8 @@ internal sealed class EvaluationCapture(IChatClient innerClient, int maxCalls, E
         }
         Current.ResponseReceived = true;
         Current.Output = response.Text;
+        try { Current.Candidate = JsonSerializer.Deserialize<JsonElement>(response.Text); }
+        catch (JsonException) { Current.Candidate = null; }
         Current.Model = response.ModelId;
         Current.ResponseId = response.ResponseId;
         Current.FinishReason = response.FinishReason?.Value;

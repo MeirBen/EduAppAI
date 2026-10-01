@@ -63,9 +63,9 @@ public sealed partial class EvaluationRunStore(string root) : IDisposable
             var report = await ReadAsync(id);
             if (report.Status == "running") throw new InvalidOperationException("A running report cannot be edited.");
             var result = report.Results.SingleOrDefault(item => item.CaseId == update.CaseId && item.Repetition == update.Repetition);
-            if (result?.Generation is not { ContractValid: true, FinishedAtUtc: not null })
-                throw new ArgumentException("Only completed generated results can be reviewed.");
-            // Keep the captured evidence intact; only the six scores and reviewer notes are writable.
+            if (report.FinishedAtUtc is null || result is null || !result.Steps.Any(step => step.RequestSent && step.FinishedAtUtc.HasValue))
+                throw new ArgumentException("Only finished trials with attempted calls can be reviewed.");
+            // Failed trials also retain human effort; generation evidence is never rewritten.
             result.Review = update.Review;
             return await EvaluationFiles.SaveAsync(report, DirectoryFor(id));
         }

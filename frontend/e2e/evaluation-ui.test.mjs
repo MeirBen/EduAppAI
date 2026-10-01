@@ -30,7 +30,8 @@ const setup = {
     prompt: 'בקשה',
     reviewFocus: 'עברית',
     questionCount: 2,
-    additionalParameterCount: index,
+    plannedCalls: 2,
+    additionalControlCount: index,
     interaction: 'text-input',
   })),
   calibrationCount: 3,
@@ -38,6 +39,28 @@ const setup = {
   judgeError: null,
   csrfToken: 'test-token',
 };
+
+test('call estimate sums each selected case stage plan, including fixed-plan skips and repairs', async () => {
+  const app = mount({
+    '/api/setup': () =>
+      jsonResponse({
+        ...setup,
+        cases: setup.cases.map((item, index) => ({ ...item, plannedCalls: index ? 5 : 1 })),
+      }),
+  });
+  try {
+    await app.dashboard.ready;
+    app.document.querySelector('#select-all').click();
+    const estimate = app.document.querySelector('#run-estimate');
+    const base = [...estimate.querySelectorAll('dt')].find(
+      (item) => item.textContent === 'Base calls (without retries)',
+    );
+    assert.equal(base.nextElementSibling.textContent, '6');
+  } finally {
+    app.dashboard.dispose();
+    app.dom.window.close();
+  }
+});
 
 /** @param {Record<string, (options: RequestOptions) => FakeResponse>} overrides */
 function mount(overrides = {}) {
@@ -65,7 +88,7 @@ test('generated tasks and retained raw output render HTML-like values only as te
   const task = ui.renderTask(document, {
     title: attack,
     instructions: 'הוראות',
-    contentBlocks: [{ type: 'text', text: attack }],
+    materials: [{ title: 'מקור', body: attack }],
     questions: [
       {
         id: 'q1',
@@ -223,7 +246,7 @@ test('judge guidance separates per-result reviews from once-per-run calibration 
     document
       .querySelector('#run-form')
       .dispatchEvent(new dom.window.Event('input', { bubbles: true }));
-    assert.equal(estimate()['Template + task calls'], '2');
+    assert.equal(estimate()['Workflow stage calls'], '2');
     assert.equal(estimate()['Additional Hebrew review calls'], '1');
     assert.equal(estimate()['Calibration calls (once per run)'], '3');
     assert.equal(estimate()['Base calls (without retries)'], '6');
@@ -234,7 +257,7 @@ test('judge guidance separates per-result reviews from once-per-run calibration 
     document
       .querySelector('#run-form')
       .dispatchEvent(new dom.window.Event('input', { bubbles: true }));
-    assert.equal(estimate()['Template + task calls'], '4');
+    assert.equal(estimate()['Workflow stage calls'], '4');
     assert.equal(estimate()['Additional Hebrew review calls'], '2');
     assert.equal(estimate()['Calibration calls (once per run)'], '3');
     assert.equal(estimate()['Base calls (without retries)'], '9');
@@ -257,7 +280,7 @@ test('judge guidance separates per-result reviews from once-per-run calibration 
 const validTask = {
   title: 'בדיקת עברית',
   instructions: 'הוראות',
-  contentBlocks: [{ type: 'text', text: 'קטע קריאה' }],
+  materials: [{ title: 'מקור', body: 'קטע קריאה' }],
   questions: [
     {
       id: 'q1',
@@ -284,7 +307,11 @@ const completedReport = {
       caseId: 'first',
       repetition: 1,
       checks: { questionCount: true },
+      document: validTask,
+      refinements: [],
+      replacements: [],
       generation: {
+        requestSent: true,
         contractValid: true,
         finishedAtUtc: '2026-09-01T10:01:00Z',
         output: JSON.stringify(validTask),
@@ -314,6 +341,49 @@ const runSummary = {
 /** @param {unknown} body */
 const jsonResponse = (body) => ({ ok: true, status: 200, json: async () => structuredClone(body) });
 
+test('reports render the assembled checkpoint and distinguish a rejected repair from readiness', async () => {
+  const result = {
+    ...completedReport.results[0],
+    document: { ...validTask, materials: [{ title: 'מקור', body: 'מקור מדויק' }] },
+    endToEndReady: false,
+    generationPassed: true,
+    replacementPassed: false,
+    materials: { outcome: 'skipped', skipReason: 'no-generated-materials' },
+    refinements: [{ outcome: 'clarification', finishedAtUtc: '2026-10-01T10:00:00Z' }],
+    replacements: [
+      {
+        role: 'replace-question',
+        outcome: 'failed',
+        applied: false,
+        output: '{"prompt":"rejected candidate"}',
+        finishedAtUtc: '2026-10-01T10:00:00Z',
+      },
+    ],
+  };
+  const report = { ...completedReport, results: [result] };
+  const app = mount({
+    '/api/runs': () => jsonResponse([{ id: 'run-1', summary: runSummary }]),
+    '/api/runs/run-1': () => jsonResponse({ report, summary: runSummary }),
+  });
+  try {
+    await app.dashboard.ready;
+    app.document.querySelector('#history-list button').click();
+    await nextTurn();
+    const displayed = app.document.querySelector('#report');
+    assert.match(displayed.querySelector('.task').textContent, /מקור מדויק/);
+    assert.doesNotMatch(displayed.querySelector('.task').textContent, /rejected candidate/);
+    assert.match(displayed.textContent, /not ready/);
+    assert.match(displayed.textContent, /Skipped · no-generated-materials/);
+    const brief = ui.reportBrief('run-1', report, runSummary);
+    assert.match(brief, /Refinement 1/);
+    assert.match(brief, /Replacement 1/);
+    assert.match(brief, /rejected candidate/);
+  } finally {
+    app.dashboard.dispose();
+    app.dom.window.close();
+  }
+});
+
 test('rejected stages show field validation errors as text and retain them in the AI export', async () => {
   const message = 'יש לבחור שדה מספרי. <img src=x onerror="alert(1)">';
   const report = {
@@ -324,7 +394,7 @@ test('rejected stages show field validation errors as text and retain them in th
         authoring: {
           ...completedReport.results[0].authoring,
           failure: 'urn:family-learning:ai-validation',
-          validationErrors: { 'generation.defaults.questionCount': [message] },
+          validationErrors: { 'defaults.questionCount': [message] },
         },
       },
     ],
@@ -338,9 +408,9 @@ test('rejected stages show field validation errors as text and retain them in th
     app.document.querySelector('#history-list button').click();
     await nextTurn();
     const stage = [...app.document.querySelectorAll('.stage')].find(
-      (item) => item.querySelector('h4').textContent === 'Template authoring',
+      (item) => item.querySelector('h4').textContent === 'Plan interpretation',
     );
-    assert.ok(stage.textContent.includes('generation.defaults.questionCount'));
+    assert.ok(stage.textContent.includes('defaults.questionCount'));
     assert.ok(stage.textContent.includes(message));
     assert.ok(!stage.textContent.includes('urn:family-learning:ai-validation'));
     assert.equal(stage.querySelectorAll('img, script').length, 0);
@@ -392,7 +462,7 @@ test('timeouts show a failure status while missing cost data stays separate from
       );
       assert.equal(cost.nextElementSibling.textContent, expected);
       const generation = [...app.document.querySelectorAll('.stage')].find(
-        (item) => item.querySelector('h4').textContent === 'Task generation',
+        (item) => item.querySelector('h4').textContent === 'Questions',
       );
       assert.match(generation.textContent, /Timed out/);
       assert.doesNotMatch(generation.textContent, /retry|unknown/i);
@@ -427,13 +497,13 @@ test('findings expose captured source context and measurements without treating 
           request: [
             {
               role: 'user',
-              text: JSON.stringify({ texts: [{ path: 'template.instructions', text: source }] }),
+              text: JSON.stringify({ texts: [{ path: 'plan.guidance', text: source }] }),
             },
           ],
         },
         issues: [
           {
-            path: 'template.instructions',
+            path: 'plan.guidance',
             quote: 'מתאימה לפחות',
             suggestion: 'מתאימה ולפחות',
             reason: 'חסר חיבור',
@@ -456,7 +526,7 @@ test('findings expose captured source context and measurements without treating 
     app.document.querySelector('#history-list button').click();
     await nextTurn();
     const rendered = app.document.querySelector('#report');
-    assert.ok(rendered.textContent.includes('Template instructions'));
+    assert.ok(rendered.textContent.includes('Plan guidance'));
     assert.ok(rendered.textContent.includes(source));
     assert.match(rendered.textContent, /Passage words: 99/);
     assert.match(rendered.textContent, /same option position \(1\)/);
@@ -466,7 +536,7 @@ test('findings expose captured source context and measurements without treating 
     const brief = ui.reportBrief('run-1', report, runSummary);
     assert.match(brief, /"passageWordCount": 99/);
     assert.match(brief, /"repeatedAnswerPosition": 1/);
-    assert.match(brief, /"source": "Template instructions"/);
+    assert.match(brief, /"source": "Plan guidance"/);
     assert.ok(brief.includes(JSON.stringify(source)));
     assert.match(brief, /"missingExpectedIssueCount": null/);
     assert.doesNotMatch(brief, /"missingExpectedIssueCount": 3/);
@@ -609,6 +679,8 @@ test('saved reports safely render retained output and submit only human review f
     otherForm.querySelector('textarea').value = 'Unsaved review stays here';
     form.querySelector('select').value = '2';
     form.querySelector('textarea').value = 'הערה <b>plain text</b>';
+    form.querySelector('[name="correctionCount"]').value = '2';
+    form.querySelector('[name="timeToReadySeconds"]').value = '120';
     form.dispatchEvent(new app.dom.window.Event('submit', { bubbles: true, cancelable: true }));
     await nextTurn();
     otherForm.dispatchEvent(
@@ -632,6 +704,8 @@ test('saved reports safely render retained output and submit only human review f
         answerClarity: null,
         consistency: null,
         notes: 'הערה <b>plain text</b>',
+        correctionCount: 2,
+        timeToReadySeconds: 120,
       },
     });
     assert.equal(write.options.headers?.['X-Evaluation-CSRF'], 'test-token');
@@ -958,7 +1032,7 @@ test('the AI brief carries context, requests, outputs, findings and reviews with
   ])
     assert.ok(brief.includes(expected), expected);
   assert.equal(brief.split('<script>request</script>').length, 2);
-  assert.match(brief, /- user: same as Result 1 \(first · repetition 1\) · Task generation · user/);
+  assert.match(brief, /- user: same as Result 1 \(first · repetition 1\) · Questions · user/);
   assert.match(brief, /````text\n```\n# escaped\n````/);
 
   const app = mount({

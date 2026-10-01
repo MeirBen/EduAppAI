@@ -54,7 +54,12 @@ public static class EvaluationFiles
     {
         await using var stream = File.OpenRead(path);
         if (stream.Length > 32 * 1024 * 1024) throw new InvalidDataException("Evaluation report is too large.");
-        var report = await JsonSerializer.DeserializeAsync<EvaluationReport>(stream, Json);
+        using var document = await JsonDocument.ParseAsync(stream, new() { MaxDepth = Json.MaxDepth });
+        if (document.RootElement.ValueKind != JsonValueKind.Object ||
+            !document.RootElement.TryGetProperty("formatVersion", out var format) || format.ValueKind != JsonValueKind.Number || !format.TryGetInt32(out var version) ||
+            version != EvaluationVersions.ReportFormat)
+            throw new InvalidDataException($"Unsupported evaluation report; format version {EvaluationVersions.ReportFormat} is required.");
+        var report = document.RootElement.Deserialize<EvaluationReport>(Json);
         if (report is null || report.FormatVersion != EvaluationVersions.ReportFormat || report.AutomaticChecksVersion < 1 ||
             report.Cases is not { Length: > 0 } || report.Repeat is < 1 or > 5 || report.Profile is null || report.CallDelaySeconds is < 0 or > 60 ||
             string.IsNullOrWhiteSpace(report.SuiteSha256) || report.Results is null || report.Calibration is null || report.CalibrationSamples is null ||
@@ -66,7 +71,7 @@ public static class EvaluationFiles
             string.IsNullOrWhiteSpace(report.JudgePromptVersion) || string.IsNullOrWhiteSpace(report.JudgePrompt)))
             throw new InvalidDataException("Judge-enabled reports require captured calibration and judge metadata.");
         ValidateCases(report.Cases);
-        if (report.Cases.Any(c => (c.InitialPlan is not null) != report.Prototype) || report.Prototype && report.JudgeEnabled ||
+        if (report.Prototype && (report.Cases.Any(scenario => scenario.InitialPlan is null || scenario.Refinements.Length > 0 || scenario.Replacements.Length > 0) || report.JudgeEnabled) ||
             !report.Prototype && report.PrototypeResults.Count > 0 || report.Prototype && report.Results.Count > 0 ||
             report.PrototypeResults.Count > report.Cases.Length * report.Repeat * 2 || report.ReservedCostUsd < 0)
             throw new InvalidDataException("Invalid evaluation suite selection.");
@@ -95,11 +100,21 @@ public static class EvaluationFiles
         ValidateRunMetadata(report.Label, report.RunNotes);
         if (report.Results.Any(result => result is null || !report.Cases.Any(item => item.Id == result.CaseId) ||
                 result.Repetition < 1 || result.Repetition > report.Repeat || result.Checks is null || result.Review is null ||
+                result.Refinements is null || result.Replacements is null || result.Measurements is null ||
                 result.PassageWordCount < 0 || result.RepeatedAnswerPosition is < 1 or > 6 ||
                 (result.Judge?.ContractValid == true && result.Issues is null)) ||
             report.Results.Select(result => (result.CaseId, result.Repetition)).Distinct().Count() != report.Results.Count)
             throw new InvalidDataException("Invalid evaluation results.");
-        foreach (var result in report.Results) result.Review.Validate();
+        foreach (var result in report.Results)
+        {
+            var scenario = report.Cases.Single(item => item.Id == result.CaseId);
+            if (result.Refinements.Count != scenario.Refinements.Length || result.Replacements.Count != scenario.Replacements.Length ||
+                result.Refinements.Any(step => step is null) || result.Replacements.Any(step => step is null))
+                throw new InvalidDataException("Invalid stage evidence.");
+            if (report.Status == "completed" && !HasCompleteWorkflow(scenario, result))
+                throw new InvalidDataException("Completed trials require complete workflow evidence and justified stage skips.");
+            result.Review.Validate();
+        }
         if (report.CalibrationSamples.Length > 0) ValidateCalibrationSamples(report.CalibrationSamples);
         if (report.Calibration.Any(result => result is null || result.Call is null ||
                 !report.CalibrationSamples.Any(sample => sample.HasSameContent(result.Sample)) ||
@@ -108,10 +123,101 @@ public static class EvaluationFiles
             throw new InvalidDataException("Invalid calibration results.");
         if (report.Results.Select(result => result.Issues).Concat(report.Calibration.Select(result => result.Issues))
             .Any(issues => issues is not null && !HebrewJudge.ValidateIssues(issues)) ||
-            report.Steps.Any(step => !double.IsFinite(step.ElapsedMilliseconds) || step.ElapsedMilliseconds < 0 ||
+            report.Steps.Any(step => step.EngineRevision < 1 || step.SchemaVersion < 1 || step.Sources is null || step.Request is null ||
+                step.Outcome is not ("pending" or "accepted" or "failed" or "skipped" or "clarification" or "cancelled" or "not-started") ||
+                step.Role is not ("authoring" or "refinement" or "materials" or "questions" or "replace-material" or "replace-question" or "review" or "calibration" or "one-shot") ||
+                step.Applied && !step.ContractValid || step.Outcome == "skipped" && (step.RequestSent || string.IsNullOrWhiteSpace(step.SkipReason)) ||
+                !double.IsFinite(step.ElapsedMilliseconds) || step.ElapsedMilliseconds < 0 ||
                 step.InputTokens < 0 || step.OutputTokens < 0 || step.ReasoningTokens < 0 || step.CostCredits < 0))
             throw new InvalidDataException("Invalid findings or measurements.");
         return report;
+    }
+
+    /// <summary>Checks execution evidence, independently of judge availability or whether the trial passed.</summary>
+    internal static bool HasCompleteWorkflow(EvaluationCase scenario, EvaluationResult result)
+    {
+        if (result.Refinements.Count != scenario.Refinements.Length || result.Replacements.Count != scenario.Replacements.Length)
+            return false;
+        var ready = scenario.InitialPlan is not null;
+        if (ready)
+        {
+            if (!Skipped(result.Authoring, "authoring", "fixed-plan")) return false;
+        }
+        else
+        {
+            var stopped = false;
+            foreach (var (step, index) in new[] { result.Authoring }.Concat(result.Refinements).Select((step, index) => (step, index)))
+            {
+                var role = index == 0 ? "authoring" : "refinement";
+                if (stopped)
+                {
+                    if (!Skipped(step, role, "earlier-stage")) return false;
+                    continue;
+                }
+                if (!Finished(step, role)) return false;
+                ready = step!.Applied;
+                stopped = !step.ContractValid;
+            }
+        }
+        if (result.Input is { } input && (input.Materials is null || input.Materials.Any(material => material is null))) return false;
+        if (ready && result.Input is null)
+        {
+            if (result.Checks.GetValueOrDefault("inputResolution", true)) return false;
+            ready = false;
+        }
+        if (!ready)
+        {
+            if (!Skipped(result.Materials, "materials", "earlier-stage")) return false;
+        }
+        else if (!result.Input!.Materials.Any(material => material.Source == "generated"))
+        {
+            if (!Skipped(result.Materials, "materials", "no-generated-materials")) return false;
+        }
+        else
+        {
+            if (!Finished(result.Materials, "materials")) return false;
+            ready = result.Materials!.Applied;
+        }
+        if (!ready)
+        {
+            if (!Skipped(result.Generation, "questions", "earlier-stage")) return false;
+        }
+        else
+        {
+            if (!Finished(result.Generation, "questions")) return false;
+            ready = result.Generation!.Applied;
+        }
+        for (var index = 0; index < result.Replacements.Count; index++)
+        {
+            var step = result.Replacements[index];
+            var replacement = scenario.Replacements[index];
+            if (!ready)
+            {
+                if (!Skipped(step, replacement.Stage, "earlier-stage")) return false;
+                continue;
+            }
+            var targetCount = replacement.Stage == "replace-material" ? result.Document?.Materials?.Length : result.Document?.Questions?.Length;
+            if (targetCount is { } count && replacement.TargetIndex >= count)
+            {
+                if (!Skipped(step, replacement.Stage, "missing-target")) return false;
+                ready = false;
+            }
+            else
+            {
+                if (!Finished(step, replacement.Stage)) return false;
+                ready = step.Applied;
+            }
+        }
+        return true;
+
+        static bool Skipped(EvaluationStep? step, string role, string reason) => step is not null && step.Role == role &&
+            step.Outcome == "skipped" && step.SkipReason == reason && !step.RequestSent && !step.ResponseReceived && !step.Applied;
+
+        static bool Finished(EvaluationStep? step, string role) => step is not null && step.Role == role && step.FinishedAtUtc.HasValue &&
+            (step.Outcome == "failed" ? !step.ContractValid && !step.Applied && step.Failure is not null :
+                step.ContractValid && step.RequestSent && step.ResponseReceived && step.Output is not null && step.Request is { Length: > 0 } &&
+                step.Schema.HasValue && step.RequestSha256 is not null && step.SchemaSha256 is not null &&
+                (step.Outcome == "accepted" && step.Applied || step.Outcome == "clarification" && !step.Applied && role is "authoring" or "refinement"));
     }
 
     /// <summary>Rejects invalid generic scenario expectations before preview or paid generation.</summary>
@@ -124,9 +230,15 @@ public static class EvaluationFiles
             if (item is null || string.IsNullOrWhiteSpace(item.Id) || item.Id.Length > 100 ||
                 item.Id.Any(character => !char.IsAsciiLetterOrDigit(character) && character is not ('_' or '-')) || !ids.Add(item.Id) ||
                 (item.InitialPlan is null ? string.IsNullOrWhiteSpace(item.Prompt) || item.Prompt.Length > 4000 : !string.IsNullOrEmpty(item.Prompt)) ||
+                item.Refinements is not { Length: <= 3 } || item.Refinements.Any(message => string.IsNullOrWhiteSpace(message) || message.Length > 4000) ||
+                item.InitialPlan is not null && item.Refinements.Length > 0 || item.ExpectedGeneratedMaterials is < 0 or > 4 ||
+                item.Replacements is not { Length: <= 8 } || item.Replacements.Any(replacement => replacement is null ||
+                    replacement.Stage is not ("replace-material" or "replace-question") || replacement.TargetIndex < 0 ||
+                    replacement.TargetIndex >= (replacement.Stage == "replace-material" ? 4 : item.QuestionCount) || replacement.Instruction?.Length > 4000) ||
+                item.ExpectedLength is { } length && !ValidLength(length) ||
                 string.IsNullOrWhiteSpace(item.ReviewFocus) || item.ReviewFocus.Length > 1000 ||
                 item.QuestionCount < 1 || item.Interaction is not ("single-choice" or "text-input" or "numeric-input") ||
-                item.AdditionalParameterCount is < 0 or > 16 ||
+                item.AdditionalControlCount is < 0 or > 16 ||
                 (item.ChoiceCount.HasValue && (item.Interaction != "single-choice" || item.ChoiceCount is < 2 or > 6)) ||
                 item.MinPassageWords < 0 || item.MaxPassageWords < 0 || item.MinPassageWords > item.MaxPassageWords ||
                 (item.SettingsOverride is { } settings &&
@@ -134,7 +246,9 @@ public static class EvaluationFiles
                 throw new InvalidDataException("Evaluation cases require unique safe IDs, bounded text and supported, consistent expectations.");
             if (item.InitialPlan is { } plan)
             {
-                var resolved = TaskRequestResolver.Resolve(plan, item.InitialInput ?? new(plan.Defaults));
+                if (item.InitialInput is not null && item.SettingsOverride is not null)
+                    throw new InvalidDataException("Fixed input and settings override cannot both be supplied.");
+                var resolved = TaskRequestResolver.Resolve(plan, item.InitialInput ?? new(item.SettingsOverride ?? plan.Defaults));
                 if (resolved.Value is not { } input || input.Settings.QuestionCount != item.QuestionCount ||
                     !input.Questions.Formats.Contains(item.Interaction) || item.ChoiceCount != input.Questions.ChoiceCount)
                     throw new InvalidDataException("Fixed-plan expectations must match valid effective input.");
@@ -142,6 +256,13 @@ public static class EvaluationFiles
             else if (item.InitialInput is not null) throw new InvalidDataException("Initial input requires a fixed plan.");
         }
     }
+
+    private static bool ValidLength(FamilyLearning.Api.TaskEngine.Models.ResolvedLength length) => length.Mode switch
+    {
+        "target" or "exact" => length.Value is > 0 and <= 8000 && length.Lower is null && length.Upper is null,
+        "range" => length.Value is null && length.Lower is > 0 && length.Upper >= length.Lower && length.Upper <= 8000,
+        _ => false
+    };
 
     /// <summary>Bounds optional developer metadata, preserving literal text without interpreting markup.</summary>
     public static void ValidateRunMetadata(string? label, string? notes)

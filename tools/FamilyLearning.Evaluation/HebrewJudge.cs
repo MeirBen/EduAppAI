@@ -17,7 +17,7 @@ public static class HebrewJudge
     public static readonly string Version = $"hebrew-review-v{EvaluationVersions.HebrewReview}";
     private const string Prompt = """
         ## Review scope
-        Review every supplied template and task field for concrete Hebrew language defects.
+        Review every supplied plan and document field for concrete Hebrew language defects.
         Check spelling, invented words, inflections, gender/number agreement, syntax, punctuation,
         idiomatic phrasing and unintended language mixing. A field may contain multiple independent defects.
         Use contemporary standard Hebrew unless the learning request specifies another register.
@@ -63,7 +63,7 @@ public static class HebrewJudge
 
     /// <summary>Uses the configured adapter with a fresh conversation. The caller supplies a bounded cancellation token.</summary>
     public static async Task<AiResult<HebrewReview>> ReviewAsync(IChatClient client, string request,
-        ReviewText[] texts, int maxOutputTokens, CancellationToken ct)
+        ReviewText[] texts, int maxOutputTokens, CancellationToken ct, AiCallEvidence? evidence = null)
     {
         if (texts.Length == 0) throw new ArgumentException("Review requires source text.", nameof(texts));
         // Build a request-local enum; never mutate the shared schema between concurrent reviews.
@@ -80,6 +80,8 @@ public static class HebrewJudge
             MaxOutputTokens = maxOutputTokens,
             AdditionalProperties = new() { ["strict"] = true }
         }, ct);
+        var metadata = new GenerationMetadata("OpenRouter", response.ModelId ?? "unknown", Version, DateTime.UtcNow);
+        if (evidence is not null) evidence.Metadata = metadata;
         if (response.FinishReason == ChatFinishReason.Length) throw AiGenerationException.OutputLimit();
         if (response.FinishReason != ChatFinishReason.Stop || response.Text.Length is 0 or > 32000)
             throw AiGenerationException.InvalidOutput();
@@ -87,7 +89,7 @@ public static class HebrewJudge
         if (review is null || !ValidateIssues(review.Issues) ||
             review.Issues.Any(issue => !texts.Any(text => text.Path == issue.Path && text.Text.Contains(issue.Quote, StringComparison.Ordinal))))
             throw AiGenerationException.InvalidOutput();
-        return new(review, new GenerationMetadata("OpenRouter", response.ModelId ?? "unknown", Version, DateTime.UtcNow));
+        return new(review, metadata);
     }
 
     /// <summary>Validates live or saved finding shape and bounds; live reviews additionally verify source quotations.</summary>
@@ -101,33 +103,58 @@ public static class HebrewJudge
     }
 
     /// <summary>Only human-readable fields are reviewed; IDs, schema keys and numeric answers are excluded.</summary>
-    public static ReviewText[] CollectTexts(TaskTemplateDefinition definition, TaskContent content)
+    public static ReviewText[] CollectTexts(LearningPlan plan, TaskDocument document)
     {
-        var texts = new List<ReviewText> { new("template.name", definition.Name), new("template.instructions", definition.Generation.Instructions),
-            new("template.defaults.topic", definition.Generation.Defaults.Topic), new("template.defaults.audience", definition.Generation.Defaults.Audience) };
-        for (var i = 0; i < definition.InstanceParameters.Length; i++)
+        var texts = new List<ReviewText>();
+        Add("plan.name", plan.Name);
+        Add("plan.goal", plan.Goal);
+        Add("plan.guidance", plan.Guidance);
+        Add("plan.defaults.topic", plan.Defaults.Topic);
+        Add("plan.defaults.audience", plan.Defaults.Audience);
+        AddControls("plan.controls", plan.Controls);
+        Add("plan.questions.guidance", plan.Questions.Guidance);
+        AddControls("plan.questions.controls", plan.Questions.Controls);
+        for (var index = 0; index < plan.Materials.Length; index++)
         {
-            var parameter = definition.InstanceParameters[i];
-            var path = $"template.parameters[{i}]";
-            texts.Add(new($"{path}.label", parameter.Label));
-            if (parameter.Default is { ValueKind: JsonValueKind.String } value) Add($"{path}.default", value.GetString());
-            if (parameter.Options is { } options)
-                for (var j = 0; j < options.Length; j++) Add($"{path}.options[{j}]", options[j]);
+            var material = plan.Materials[index];
+            Add($"plan.materials[{index}].label", material.Label);
+            Add($"plan.materials[{index}].guidance", material.Guidance);
+            AddControls($"plan.materials[{index}].controls", material.Controls);
         }
-        Add("task.title", content.Title);
-        Add("task.instructions", content.Instructions);
-        for (var i = 0; i < content.ContentBlocks.Length; i++) Add($"task.blocks[{i}]", content.ContentBlocks[i].Text);
-        for (var i = 0; i < content.Questions.Length; i++)
+        Add("document.title", document.Title);
+        Add("document.instructions", document.Instructions);
+        for (var index = 0; index < document.Materials.Length; index++)
         {
-            var question = content.Questions[i];
-            var path = $"task.questions[{i}]";
+            var material = document.Materials[index];
+            Add($"document.materials[{index}].title", material.Title);
+            Add($"document.materials[{index}].body", material.Body);
+        }
+        for (var index = 0; index < document.Questions.Length; index++)
+        {
+            var question = document.Questions[index];
+            var path = $"document.questions[{index}]";
             Add($"{path}.prompt", question.Prompt);
-            if (question.Interaction.Type == "text-input") Add($"{path}.answer", question.Answer.Value);
+            if (question.Interaction.Type == "text-input") Add($"{path}.answer", question.Answer?.Value);
             if (question.Interaction.Options is { } options)
                 for (var j = 0; j < options.Length; j++) Add($"{path}.options[{j}]", options[j]);
         }
         return texts.ToArray();
 
+        void AddControls(string path, ControlDefinition[] controls)
+        {
+            for (var index = 0; index < controls.Length; index++)
+            {
+                var control = controls[index];
+                Add($"{path}[{index}].label", control.Label);
+                Add($"{path}[{index}].meaning", control.Meaning);
+                if (control.Default is { ValueKind: JsonValueKind.String } value) Add($"{path}[{index}].default", value.GetString());
+                for (var option = 0; option < (control.Options?.Length ?? 0); option++)
+                {
+                    Add($"{path}[{index}].options[{option}].value", control.Options![option].Value);
+                    Add($"{path}[{index}].options[{option}].meaning", control.Options[option].Meaning);
+                }
+            }
+        }
         void Add(string path, string? text) { if (!string.IsNullOrWhiteSpace(text)) texts.Add(new(path, text)); }
     }
 

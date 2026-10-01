@@ -35,12 +35,12 @@ public sealed class AiGenerationService(IEnumerable<IChatClient> clients, ILogge
     }
 
     /// <summary>Interprets one bounded parent message. Normalization and computed changes never authorize publication.</summary>
-    public async Task<AiResult<AuthoringReply>> AuthorAsync(TemplateAuthoringInput input, CancellationToken ct)
+    public async Task<AiResult<AuthoringReply>> AuthorAsync(TemplateAuthoringInput input, CancellationToken ct, AiCallEvidence? evidence = null)
     {
         ValidateAuthoring(input);
         var request = JsonSerializer.Serialize(new { input.Message, input.BaseDefinition, context = input.Context ?? [] }, Json);
         const string stage = "author";
-        var result = await RequestAsync<AuthoringCandidate>(AiPrompts.PlanAuthoring, request, AiSchemas.Template, AiPrompts.Version(stage), ct, structured: true);
+        var result = await RequestAsync<AuthoringCandidate>(AiPrompts.PlanAuthoring, request, AiSchemas.Template, AiPrompts.Version(stage), ct, structured: true, evidence: evidence);
         var reply = result.Value;
         if ((reply.Proposal is null) == (reply.Clarification is null) ||
             reply.Clarification is not null && (string.IsNullOrWhiteSpace(reply.Clarification) || reply.Clarification.Length > 1000) ||
@@ -119,10 +119,10 @@ public sealed class AiGenerationService(IEnumerable<IChatClient> clients, ILogge
     }
 
     /// <summary>Temporary evaluator-only matched one-shot experiment; uses the same schemas, source assembly and strict checks.</summary>
-    public async Task<AiResult<TaskDocument>> GenerateOneShotAsync(ResolvedTaskRequest request, CancellationToken ct)
+    public async Task<AiResult<TaskDocument>> GenerateOneShotAsync(ResolvedTaskRequest request, CancellationToken ct, AiCallEvidence? evidence = null)
     {
         var result = await RequestAsync<ActivityCandidate>(AiPrompts.OneShot, JsonSerializer.Serialize(EffectiveInput(request), Json),
-            AiSchemas.OneShotFor(request), AiPrompts.Version("one-shot"), ct, structured: true);
+            AiSchemas.OneShotFor(request), AiPrompts.Version("one-shot"), ct, structured: true, evidence: evidence);
         var current = TaskAssembly.CreateDocument(request);
         var materials = TaskAssembly.AcceptMaterials(request, current, new(result.Value.Materials), result.Metadata);
         if (materials.Document is null) throw InvalidOutput("material-validation", result.Metadata.PromptVersion, materials.Diagnostics);

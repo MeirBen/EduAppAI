@@ -39,12 +39,26 @@ const incompatibilities = {
   'calibration-suite-hash': 'Different calibration suites',
   'calibration-inputs': 'Different calibration inputs',
   'judge-prompt': 'Different judge prompts or versions',
+  'judge-profile': 'Different judge configuration',
+  'judge-identity': 'Different or unknown judge model/provider identity',
+  'judge-coverage': 'Different or missing reviewed results',
+  'judge-calibration': 'Calibration is unavailable or did not pass',
+  'generation-inputs': 'Different effective generation inputs',
 };
-const stages = [
-  ['Template authoring', 'authoring'],
-  ['Task generation', 'generation'],
-  ['Hebrew review', 'judge'],
-];
+/** Enumerate the saved workflow, including explicit skips and every requested edit. */
+function stages(evaluation) {
+  return [
+    ['Plan interpretation', evaluation.authoring],
+    ...(evaluation.refinements ?? []).map((step, index) => [`Refinement ${index + 1}`, step]),
+    ['Materials', evaluation.materials],
+    ['Questions', evaluation.generation],
+    ...(evaluation.replacements ?? []).map((step, index) => [
+      `Replacement ${index + 1} · ${step.role}`,
+      step,
+    ]),
+    ['Hebrew review', evaluation.judge],
+  ];
+}
 // Completed means finished, not passed, so it stays neutral.
 const statusTones = {
   starting: 'running',
@@ -251,7 +265,7 @@ function findingsWithContext(evaluation) {
     );
     if (Array.isArray(input.texts)) texts = input.texts;
   } catch {
-    // Older or incomplete reports may not retain a readable judge request.
+    // An interrupted call may not retain a readable judge request.
   }
   return (evaluation.issues ?? []).map((issue) => {
     const text = texts.find((item) => item?.path === issue.path)?.text;
@@ -261,11 +275,11 @@ function findingsWithContext(evaluation) {
     return {
       ...issue,
       source:
-        issue.path === 'template.instructions'
-          ? 'Template instructions'
-          : issue.path.startsWith('template.')
-            ? 'Reusable template'
-            : issue.path.startsWith('task.')
+        issue.path === 'plan.guidance'
+          ? 'Plan guidance'
+          : issue.path.startsWith('plan.')
+            ? 'Learning plan'
+            : issue.path.startsWith('document.')
               ? 'Generated task'
               : 'Review text',
       context:
@@ -294,7 +308,10 @@ export function renderTask(document, task) {
   const section = node('section', null, 'task');
   section.append(content('h4', task.title));
   if (task.instructions) section.append(content('p', task.instructions));
-  for (const block of task.contentBlocks ?? []) section.append(content('p', block.text));
+  for (const material of task.materials ?? []) {
+    if (material.title) section.append(content('h5', material.title));
+    section.append(content('p', material.body));
+  }
   for (const [index, question] of (task.questions ?? []).entries()) {
     const item = node('section', null, 'question');
     item.append(
@@ -404,6 +421,12 @@ export function renderComparison(document, comparison) {
     hebrew.append(
       node('p', 'Hebrew findings are not directly comparable for these runs.', 'notice warning'),
     );
+  if (!comparison.hebrewFindingsComparable && comparison.judgeIncompatibilities?.length) {
+    const reasons = node('ul');
+    for (const reason of comparison.judgeIncompatibilities)
+      reasons.append(node('li', incompatibilities[reason] ?? reason));
+    hebrew.append(reasons);
+  }
   const performance = section('performance', 'Performance and cost');
   const before = comparison.baseline ?? {};
   const after = comparison.candidate ?? {};
@@ -446,7 +469,7 @@ export function renderComparison(document, comparison) {
   performance.append(
     node(
       'p',
-      'Missing measurements remain unknown. Cost and token deltas require complete coverage in both runs.',
+      'Missing measurements remain unknown. Resource deltas require complete coverage and a comparable evaluation workload, including judge calls.',
       'hint',
     ),
   );
@@ -499,13 +522,13 @@ export function reportBrief(id, report, summary) {
   const lines = [
     `# Evaluation report: ${report.label || id}`,
     '',
-    'A saved run from the Family Learning Hebrew AI evaluation harness. Each result sends a synthetic parent request through AI template authoring, then task generation, and, when enabled, an advisory Hebrew review by the same model.',
+    'A saved run from the Family Learning Hebrew AI evaluation harness. Each result starts with a parent request and bounded refinements, or a fixed plan. Applicable material, question and scoped replacement stages use the shared engine; optional Hebrew review remains advisory.',
     '',
     'Reading rules:',
     '- "completed" means the workflow finished, not that checks passed.',
     '- Automatic checks cover app contracts and case expectations, not language or educational quality.',
     '- Hebrew findings are advisory. Failed or unfinished judge calibration weakens them. No completed review means no language evidence, not zero errors.',
-    '- Finding paths identify the source: template.* refers to the reusable blueprint; task.* refers to generated learner content.',
+    '- Finding paths identify the source: plan.* refers to the learning plan; document.* refers to the assembled learner content.',
     '- Human scores: 0 unusable, 1 needs edits, 2 ready, null unreviewed.',
     '- Unknown cost or token measurements are unknown, not zero. Latency is in milliseconds.',
     '- Each distinct model request message appears once; repeats name their first occurrence.',
@@ -582,7 +605,9 @@ export function reportBrief(id, report, summary) {
       fence('text', prompt ?? 'Not recorded'),
       '',
       '#### Case expectations and task input',
-      json({ ...expectations, input: evaluation.input }),
+      json({ ...expectations, plan: evaluation.plan, input: evaluation.input }),
+      '#### Assembled document and length measurements',
+      json({ document: evaluation.document, measurements: evaluation.measurements }),
       '',
       '#### Automatic checks',
       json(evaluation.checks ?? {}),
@@ -597,8 +622,7 @@ export function reportBrief(id, report, summary) {
         : []),
       '',
     );
-    for (const [stage, key] of stages) {
-      const step = evaluation[key];
+    for (const [stage, step] of stages(evaluation)) {
       if (!step) {
         lines.push(`#### ${stage}`, 'Not attempted.', '');
         continue;
@@ -739,7 +763,12 @@ export function createDashboard(document, fetchRequest = globalThis.fetch.bind(g
     const repeat = Number(get('repeat').value);
     const judge = get('judge').checked;
     const calibrationCount = judge ? (state.setup?.calibrationCount ?? 0) : 0;
-    const planned = count * repeat * (judge ? 3 : 2) + calibrationCount;
+    const selected = state.setup ? new Set(selectedCases()) : new Set();
+    const stageCalls =
+      (state.setup?.cases ?? [])
+        .filter((item) => selected.has(item.id))
+        .reduce((sum, item) => sum + item.plannedCalls, 0) * repeat;
+    const planned = stageCalls + (judge ? count * repeat : 0) + calibrationCount;
     const maxCalls = Number(get('max-calls').value);
     const callDelaySeconds = Number(get('call-delay').value);
     const valid =
@@ -764,7 +793,7 @@ export function createDashboard(document, fetchRequest = globalThis.fetch.bind(g
         ['Pause between calls (seconds)', callDelaySeconds],
         ['Selected cases', count],
         ['Repeats', Number.isInteger(repeat) ? repeat : 'Invalid'],
-        ['Template + task calls', count * repeat * 2],
+        ['Workflow stage calls', stageCalls],
         ['Additional Hebrew review calls', judge ? count * repeat : 0],
         ['Calibration calls (once per run)', calibrationCount],
         ['Base calls (without retries)', planned],
@@ -804,7 +833,7 @@ export function createDashboard(document, fetchRequest = globalThis.fetch.bind(g
     get('run-controls').disabled = false;
     get('judge').disabled = !setup.judgeAvailable;
     get('judge-message').textContent = setup.judgeAvailable
-      ? `When enabled: ${setup.calibrationCount} calibration calls once per run, plus one review call for each successful template/task pair. All are included in the estimate.`
+      ? `When enabled: ${setup.calibrationCount} calibration calls once per run, plus one review call for each assembled result. All are included in the estimate.`
       : setup.judgeError || 'Hebrew judge calibration is unavailable.';
     get('cases').replaceChildren();
     if (setup.caseError) get('cases').append(node('p', setup.caseError, 'notice warning'));
@@ -819,9 +848,9 @@ export function createDashboard(document, fetchRequest = globalThis.fetch.bind(g
       label.append(checkbox, node('span', item.id));
       entry.append(label, content('p', item.reviewFocus));
       const expectations = [`${item.questionCount} questions`, item.interaction];
-      if (item.additionalParameterCount != null)
+      if (item.additionalControlCount != null)
         expectations.push(
-          `additional fields: ${item.additionalParameterCount} (excluding shared settings)`,
+          `additional fields: ${item.additionalControlCount} (excluding shared settings)`,
         );
       if (item.choiceCount != null) expectations.push(`${item.choiceCount} choices`);
       if (item.minPassageWords != null || item.maxPassageWords != null)
@@ -1028,18 +1057,23 @@ export function createDashboard(document, fetchRequest = globalThis.fetch.bind(g
     const section = node('section', null, 'stage');
     const [status, tone] = !step
       ? ['Not attempted']
-      : !step.finishedAtUtc
-        ? ['In progress / unfinished', 'warning']
-        : step.contractValid
-          ? ['Contract passed', 'pass']
-          : step.statusCode === 504
-            ? ['Timed out', 'danger']
-            : ['Failed / rejected', 'danger'];
+      : step.outcome === 'skipped'
+        ? [`Skipped · ${step.skipReason}`]
+        : step.outcome === 'clarification'
+          ? ['Clarification', 'warning']
+          : !step.finishedAtUtc
+            ? ['In progress / unfinished', 'warning']
+            : step.contractValid
+              ? ['Contract passed', 'pass']
+              : step.statusCode === 504
+                ? ['Timed out', 'danger']
+                : ['Failed / rejected', 'danger'];
     section.append(
       node('h4', name),
       pill(status, tone),
       pairs([
         ['Model', step?.model],
+        ['Candidate applied', step?.applied == null ? null : step.applied ? 'Yes' : 'No'],
         ['Latency', duration(step?.elapsedMilliseconds)],
         ['Reported cost', number(step?.costCredits, ' credits')],
       ]),
@@ -1064,13 +1098,13 @@ export function createDashboard(document, fetchRequest = globalThis.fetch.bind(g
     fieldset.append(
       node(
         'p',
-        'Score what you checked: 0 unusable, 1 needs edits, 2 ready. Leave other dimensions unreviewed. Saving changes only your local scores and notes.',
+        'Score what you checked: 0 unusable, 1 needs edits, 2 ready. Leave other dimensions unreviewed. Record corrections and time to ready only when measured; failed trials may keep time unknown.',
         'hint',
       ),
     );
     const eligible =
-      result.generation?.contractValid &&
-      result.generation?.finishedAtUtc &&
+      report.finishedAtUtc &&
+      stages(result).some(([, step]) => step?.requestSent && step.finishedAtUtc) &&
       report.status !== 'running';
     fieldset.disabled = !eligible || (state.active?.running && state.active.id === runId);
     const fields = node('div', null, 'review-fields');
@@ -1095,6 +1129,22 @@ export function createDashboard(document, fetchRequest = globalThis.fetch.bind(g
       field.append(label, help);
       fields.append(field);
     }
+    for (const [key, caption, max, step] of [
+      ['correctionCount', 'Parent corrections', 10000, '1'],
+      ['timeToReadySeconds', 'Time to ready (seconds)', 604800, 'any'],
+    ]) {
+      const label = node('label', caption);
+      const input = node('input');
+      input.type = 'number';
+      input.name = key;
+      input.min = '0';
+      input.max = String(max);
+      input.step = step;
+      input.value = result.review?.[key] == null ? '' : String(result.review[key]);
+      controls[key] = input;
+      label.append(input);
+      fields.append(label);
+    }
     const notesLabel = node('label', 'Review notes (up to 4,000 characters)');
     const notes = node('textarea');
     notes.maxLength = 4000;
@@ -1113,7 +1163,7 @@ export function createDashboard(document, fetchRequest = globalThis.fetch.bind(g
       form.append(
         node(
           'p',
-          'Review editing is available after a valid generated result has finished and the run is no longer active.',
+          'Review editing is available after an attempted trial has finished and the run is no longer active.',
           'hint',
         ),
       );
@@ -1164,7 +1214,7 @@ export function createDashboard(document, fetchRequest = globalThis.fetch.bind(g
   function resultChips(evaluation, position) {
     const checks = Object.values(evaluation.checks ?? {});
     const passed = checks.filter(Boolean).length;
-    const generated = evaluation.generation?.contractValid;
+    const ready = evaluation.endToEndReady;
     const reviewed = Object.keys(dimensions).filter((key) => evaluation.review?.[key] != null);
     const chips = node('ul', null, 'chips');
     chips.dataset.result = position;
@@ -1174,11 +1224,7 @@ export function createDashboard(document, fetchRequest = globalThis.fetch.bind(g
         `checks ${passed}/${checks.length}`,
         `chip ${passed === checks.length ? 'pass' : 'fail'}`,
       ),
-      node(
-        'li',
-        generated ? 'task generated' : 'no valid task',
-        `chip ${generated ? 'pass' : 'fail'}`,
-      ),
+      node('li', ready ? 'ready for review' : 'not ready', `chip ${ready ? 'pass' : 'fail'}`),
     );
     if (evaluation.judge?.contractValid)
       chips.append(node('li', plural(evaluation.issues?.length ?? 0, 'finding'), 'chip'));
@@ -1298,10 +1344,35 @@ export function createDashboard(document, fetchRequest = globalThis.fetch.bind(g
       card.append(header);
       const selected = report.cases.find((item) => item.id === evaluation.caseId);
       if (selected) card.append(block('Review focus', content('p', selected.reviewFocus)));
-      const steps = stages.map(([name, key]) => [name, evaluation[key]]);
+      const steps = stages(evaluation);
       const stageGrid = node('div', null, 'stage-grid');
       stageGrid.append(...steps.map(([name, step]) => renderStep(name, step)));
       card.append(block('Stages', stageGrid));
+      card.append(
+        block(
+          'Workflow outcomes',
+          pairs([
+            [
+              'Interpretation',
+              evaluation.interpretationPassed == null
+                ? 'Not measured / not applicable'
+                : evaluation.interpretationPassed
+                  ? 'Passed'
+                  : 'Failed',
+            ],
+            ['Generation', evaluation.generationPassed ? 'Passed' : 'Not passed'],
+            [
+              'Replacement',
+              evaluation.replacementPassed == null
+                ? 'Not requested / not measured'
+                : evaluation.replacementPassed
+                  ? 'Passed'
+                  : 'Failed',
+            ],
+            ['End-to-end readiness', evaluation.endToEndReady ? 'Ready for review' : 'Not ready'],
+          ]),
+        ),
+      );
 
       const checks = Object.entries(evaluation.checks ?? {});
       const checkList = node('ul', null, 'chips');
@@ -1321,7 +1392,7 @@ export function createDashboard(document, fetchRequest = globalThis.fetch.bind(g
         automaticChecks.append(
           node(
             'p',
-            `Passage words: ${number(evaluation.passageWordCount)} · whitespace count across passage blocks; an exact leading task title is excluded. Other headings remain included.`,
+            `Passage words: ${number(evaluation.passageWordCount)} · shared TextLength count across material bodies, including headings; punctuation-only tokens are excluded.`,
             'hint',
           ),
         );
@@ -1331,19 +1402,9 @@ export function createDashboard(document, fetchRequest = globalThis.fetch.bind(g
           block('Advisory', node('p', answerPositionWarning(evaluation), 'notice warning')),
         );
 
-      let task;
-      if (evaluation.generation?.contractValid && evaluation.generation.output) {
-        try {
-          task = renderTask(document, JSON.parse(evaluation.generation.output));
-        } catch {
-          task = node(
-            'p',
-            'Saved content could not be displayed. Inspect the retained raw output.',
-            'notice warning',
-          );
-        }
-      } else
-        task = node('p', 'No valid generated task. Retained output is under Raw data.', 'hint');
+      const task = evaluation.document
+        ? renderTask(document, evaluation.document)
+        : node('p', 'No assembled document. Retained candidates are under Raw data.', 'hint');
       card.append(block('Generated task', task));
 
       card.append(
@@ -1351,7 +1412,7 @@ export function createDashboard(document, fetchRequest = globalThis.fetch.bind(g
           'Hebrew findings',
           node(
             'p',
-            'The judge reviews both the template and the task. Paths starting with template. refer to the reusable blueprint under Raw data → Template authoring; task. refers to the task above. Suggested corrections can also be wrong.',
+            'The judge reviews the learning plan and assembled document. Paths starting with plan. refer to plan fields; document. refers to the content above. Suggested corrections can also be wrong.',
             'hint',
           ),
           !evaluation.judge?.contractValid

@@ -35,10 +35,24 @@ public sealed class EvaluationValidationTests : IDisposable
     [InlineData("count-override-mismatch")]
     [InlineData("parameters-negative")]
     [InlineData("parameters-too-many")]
+    [InlineData("both-plan-and-prompt")]
+    [InlineData("too-many-refinements")]
+    [InlineData("empty-refinement")]
+    [InlineData("long-refinement")]
+    [InlineData("replacement-stage")]
+    [InlineData("replacement-target")]
+    [InlineData("length-mode")]
     public async Task Malformed_case_fixture_is_rejected_when_loaded(string invalid)
     {
         var scenario = invalid switch
         {
+            "both-plan-and-prompt" => ValidCase with { InitialPlan = LearningPlanFixture.Numeric() },
+            "too-many-refinements" => ValidCase with { Refinements = ["א", "ב", "ג", "ד"] },
+            "empty-refinement" => ValidCase with { Refinements = [" "] },
+            "long-refinement" => ValidCase with { Refinements = [new('א', 4001)] },
+            "replacement-stage" => ValidCase with { Replacements = [new("generate", 0)] },
+            "replacement-target" => ValidCase with { Replacements = [new("replace-question", 2)] },
+            "length-mode" => ValidCase with { ExpectedLength = new("guess", 120) },
             "id-empty" => ValidCase with { Id = " " },
             "id-unsafe" => ValidCase with { Id = "../reading" },
             "id-long" => ValidCase with { Id = new('a', 101) },
@@ -60,8 +74,8 @@ public sealed class EvaluationValidationTests : IDisposable
             "settings-difficulty" => ValidCase with { SettingsOverride = AiFixtures.Settings() with { Difficulty = "unknown" } },
             "count-override-negative" => ValidCase with { SettingsOverride = AiFixtures.Settings(-1) },
             "count-override-mismatch" => ValidCase with { SettingsOverride = AiFixtures.Settings(3) },
-            "parameters-negative" => ValidCase with { AdditionalParameterCount = -1 },
-            "parameters-too-many" => ValidCase with { AdditionalParameterCount = 17 },
+            "parameters-negative" => ValidCase with { AdditionalControlCount = -1 },
+            "parameters-too-many" => ValidCase with { AdditionalControlCount = 17 },
             _ => ValidCase with { SettingsOverride = AiFixtures.Settings(0) }
         };
         var path = await WriteFixtureAsync([scenario]);
@@ -91,7 +105,7 @@ public sealed class EvaluationValidationTests : IDisposable
             ReviewFocus = new('א', 1000),
             Interaction = interaction,
             ChoiceCount = choices,
-            AdditionalParameterCount = 16,
+            AdditionalControlCount = 16,
             QuestionCount = 20,
             SettingsOverride = AiFixtures.Settings(20),
             MinPassageWords = 0,
@@ -101,7 +115,7 @@ public sealed class EvaluationValidationTests : IDisposable
 
         var loaded = await EvaluationFiles.LoadFixtureAsync<EvaluationCase>(path);
 
-        Assert.Equal(scenario, Assert.Single(loaded.Items));
+        Assert.Equal(JsonSerializer.Serialize(scenario), JsonSerializer.Serialize(Assert.Single(loaded.Items)));
         Assert.Equal(64, loaded.Sha256.Length);
     }
 
@@ -271,6 +285,9 @@ public sealed class EvaluationValidationTests : IDisposable
         Assert.Throws<InvalidDataException>(() => new ManualReview { Consistency = -1 }.Validate());
         Assert.Throws<InvalidDataException>(() => new ManualReview { AnswerClarity = 3 }.Validate());
         Assert.Throws<InvalidDataException>(() => new ManualReview { Notes = new('א', 4001) }.Validate());
+        Assert.Throws<InvalidDataException>(() => new ManualReview { CorrectionCount = -1 }.Validate());
+        Assert.Throws<InvalidDataException>(() => new ManualReview { TimeToReadySeconds = double.NaN }.Validate());
+        Assert.Throws<InvalidDataException>(() => new ManualReview { TimeToReadySeconds = 604801 }.Validate());
         EvaluationFiles.ValidateRunMetadata(new('א', 120), new('א', 4000));
         EvaluationFiles.ValidateRunMetadata(null, "\r\n\tPlain text");
     }
@@ -318,8 +335,11 @@ public sealed class EvaluationValidationTests : IDisposable
         var report = EvaluationReportsTests.CreateReport(judge: judge);
         report.Results.Add(new("reading", 1)
         {
+            Plan = EvaluationFixtures.Plan(),
+            Input = LearningPlanFixture.Resolve(EvaluationFixtures.Plan()),
+            Materials = EvaluationReportsTests.Skipped(),
             Authoring = EvaluationReportsTests.Step(),
-            Generation = EvaluationReportsTests.Step(),
+            Generation = EvaluationReportsTests.Step(role: "questions"),
             Judge = judge ? EvaluationReportsTests.Step() : null,
             Issues = judge ? [] : null
         });
