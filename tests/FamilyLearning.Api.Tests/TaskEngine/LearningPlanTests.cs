@@ -47,7 +47,19 @@ public sealed class LearningPlanTests
             { Id = i.ToString("x32"), Text = new string('א', 4000) }).ToArray()
         };
         Assert.NotEmpty(LearningPlanValidator.Validate(plan));
-        Assert.Empty(LearningPlanValidator.Validate(LearningPlanFixture.Numeric(20)));
+    }
+
+    [Fact]
+    public void Question_count_and_option_limits_belong_to_the_validator()
+    {
+        // Exact-count question arrays above 20 can exceed Gemini's strict schema budget for some valid shapes.
+        Assert.Contains("defaults.questionCount", LearningPlanValidator.Validate(LearningPlanFixture.Numeric(21)).Keys);
+        var bounded = LearningPlanFixture.Numeric(20) with { Questions = LearningPlanFixture.Numeric().Questions with { CountBounds = new(1, 21) } };
+        Assert.Contains("questions.countBounds", LearningPlanValidator.Validate(bounded).Keys);
+        var select = new ControlDefinition(LearningPlanFixture.ControlId, "בחירה", "select", "משמעות",
+            Options: Enumerable.Range(1, 21).Select(n => new ControlOption(n.ToString())).ToArray());
+        Assert.NotEmpty(LearningPlanValidator.Validate(LearningPlanFixture.Numeric() with { Controls = [select] }));
+        Assert.Empty(LearningPlanValidator.Validate(LearningPlanFixture.Numeric() with { Controls = [select with { Options = select.Options![..20] }] }));
     }
 
     [Fact]

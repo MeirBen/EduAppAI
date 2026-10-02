@@ -22,7 +22,7 @@ internal sealed class OpenRouterChatClient(ChatClient client, ChatOptions sampli
             throw AiGenerationException.InputLimit("schema-limit");
         options.Temperature = sampling.Temperature;
         options.TopP = sampling.TopP;
-        // Every mode retains the prompt's schema and mandatory server validation.
+        // Every mode keeps mandatory server validation; only json_schema asks the provider to enforce the schema.
         options.ResponseFormat = responseFormat switch
         {
             "json_schema" => options.ResponseFormat,

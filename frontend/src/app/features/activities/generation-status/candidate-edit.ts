@@ -1,4 +1,5 @@
 import { EditableQuestion, LearningPlan } from '../../../core/api/models';
+import { maxQuestionCount } from '../../../shared/forms/task-settings';
 import {
   DocumentForm,
   documentForm,
@@ -77,7 +78,7 @@ export function candidateEdit(
       !text(value['title'], 100) ||
       !(value['instructions'] == null || text(value['instructions'], 1000)) ||
       !Array.isArray(value['questions']) ||
-      value['questions'].length > 20
+      value['questions'].length > maxQuestionCount
     )
       return;
     const questions = value['questions'].map(question);

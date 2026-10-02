@@ -21,7 +21,7 @@ public static class TaskSettingsValidator
         if (settings.Difficulty is not ("easy" or "medium" or "hard"))
             errors[$"{path}.difficulty"] = ["יש לבחור רמת קושי."];
         if (settings.QuestionCount is < 1 or > EngineValidation.MaxQuestionCount)
-            errors[$"{path}.questionCount"] = ["מספר השאלות חייב להיות בין 1 ל־20."];
+            errors[$"{path}.questionCount"] = [$"מספר השאלות חייב להיות בין 1 ל־{EngineValidation.MaxQuestionCount}."];
         return errors;
     }
 }

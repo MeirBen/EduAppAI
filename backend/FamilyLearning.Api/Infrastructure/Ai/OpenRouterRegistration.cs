@@ -50,8 +50,7 @@ public static class OpenRouterRegistration
             throw new InvalidOperationException("Ai:ReasoningMaxTokens must be positive and below Ai:MaxOutputTokens.");
         if (reasoningMaxTokens.HasValue && effort.Length > 0)
             throw new InvalidOperationException("Set either Ai:ReasoningMaxTokens or Ai:ReasoningEffort, not both.");
-        var responseFormat = configuration["Ai:ResponseFormat"] ?? "json_object";
-        if (responseFormat is not ("json_schema" or "json_object" or "text"))
+        if (configuration["Ai:ResponseFormat"] is not (null or "json_schema" or "json_object" or "text"))
             throw new InvalidOperationException("Ai:ResponseFormat must be json_schema, json_object or text.");
         var sampling = new ChatOptions
         {
@@ -92,7 +91,7 @@ public static class OpenRouterRegistration
             clientOptions.AddPolicy(new OpenRouterResponsePolicy(), PipelinePosition.PerCall);
             return new OpenRouterChatClient(new ChatClient(model, new ApiKeyCredential(key), clientOptions),
                 sampling, reasoning is null ? null : BinaryData.FromObjectAsJson(reasoning),
-                fallbackModel is null ? null : BinaryData.FromObjectAsJson(new[] { fallbackModel }), providerRouting, responseFormat, limits.MaxSchemaBytes);
+                fallbackModel is null ? null : BinaryData.FromObjectAsJson(new[] { fallbackModel }), providerRouting, limits.ResponseFormat, limits.MaxSchemaBytes);
         });
     }
 }

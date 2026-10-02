@@ -10,6 +10,9 @@ export const difficultyLabels = { easy: 'קלה', medium: 'בינונית', hard
   string
 >;
 
+/** Mirrors the API cap: larger exact-count batches exceed the AI provider's strict schema budget. */
+export const maxQuestionCount = 20;
+
 /** Shared by template defaults and per-task choices; the API validates independently. */
 export const taskSettingsSchema = schema<TaskSettingsDraft>((path) => {
   for (const key of ['topic', 'audience'] as const) {
@@ -25,9 +28,9 @@ export const taskSettingsSchema = schema<TaskSettingsDraft>((path) => {
       : { kind: 'difficulty', message: 'יש לבחור רמת קושי.' },
   );
   validate(path.questionCount, ({ value }) =>
-    isIntegerInput(value()) && Number(value()) >= 1 && Number(value()) <= 20
+    isIntegerInput(value()) && Number(value()) >= 1 && Number(value()) <= maxQuestionCount
       ? undefined
-      : { kind: 'questionCount', message: 'יש להזין מספר שלם בין 1 ל־20.' },
+      : { kind: 'questionCount', message: `יש להזין מספר שלם בין 1 ל־${maxQuestionCount}.` },
   );
 });
 

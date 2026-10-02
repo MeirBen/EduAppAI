@@ -20,6 +20,7 @@ import {
   validate,
 } from '@angular/forms/signals';
 import {
+  maxQuestionCount,
   TaskSettingsDraft,
   taskSettingsDraft,
   taskSettingsSchema,
@@ -710,7 +711,7 @@ export class ActivityWorkspace {
     if (this.saving() || this.released()) return;
     const raw = structuredClone(this.raw()),
       doc = raw.document;
-    if (edit.kind === 'add-question' && doc.questions.length < 20)
+    if (edit.kind === 'add-question' && doc.questions.length < maxQuestionCount)
       doc.questions.push({
         id: '',
         key: crypto.randomUUID(),

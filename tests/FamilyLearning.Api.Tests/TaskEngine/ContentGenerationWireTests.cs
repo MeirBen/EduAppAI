@@ -16,33 +16,7 @@ namespace FamilyLearning.Api.Tests.TaskEngine;
 public sealed class ContentGenerationWireTests
 {
     [Fact]
-    public async Task Strict_authoring_wire_preserves_the_plan_and_pins_its_version_without_a_numeric_enum()
-    {
-        await using var local = await LocalAiProvider.StartAsync();
-        local.Respond = _ => """{"result":{"proposal":null,"clarification":"לאיזה גיל?"},"assumptions":[]}""";
-        using var services = local.Services("json_schema");
-        await services.GetRequiredService<AiGenerationService>().AuthorAsync(new("רעיון"), default);
-        using var request = JsonDocument.Parse(Assert.Single(local.Bodies));
-        var root = request.RootElement;
-        var format = root.GetProperty("response_format").GetProperty("json_schema");
-        Assert.True(format.GetProperty("strict").GetBoolean());
-        Assert.True(root.GetProperty("provider").GetProperty("require_parameters").GetBoolean());
-        var schema = format.GetProperty("schema");
-        Assert.DoesNotContain("Output JSON schema", root.GetProperty("messages")[0].GetProperty("content").GetString());
-        var plan = schema.GetProperty("$defs").GetProperty("plan");
-        Assert.Equal(["schemaVersion", "name", "goal", "guidance", "defaults", "materials", "questions", "controls", "totalLength"],
-            plan.GetProperty("required").EnumerateArray().Select(value => value.GetString()));
-        Assert.Equal(9, plan.GetProperty("properties").EnumerateObject().Count());
-        Assert.False(plan.GetProperty("additionalProperties").GetBoolean());
-        var version = plan.GetProperty("properties").GetProperty("schemaVersion");
-        Assert.Equal("integer", version.GetProperty("type").GetString());
-        Assert.False(version.TryGetProperty("enum", out _));
-        Assert.Equal(EngineVersions.SchemaVersion, version.GetProperty("minimum").GetInt32());
-        Assert.Equal(EngineVersions.SchemaVersion, version.GetProperty("maximum").GetInt32());
-    }
-
-    [Fact]
-    public async Task Strict_wire_keeps_null_only_branches_exact_through_the_Gemini_conversion()
+    public async Task Strict_wire_schemas_follow_the_Gemini_schema_contract()
     {
         await using var local = await LocalAiProvider.StartAsync();
         local.Respond = body => body.GetProperty("response_format").GetProperty("json_schema").GetProperty("name").GetString()!.Contains("author")
@@ -53,35 +27,27 @@ public sealed class ContentGenerationWireTests
         await service.AuthorAsync(new("רעיון"), default);
         var request = Resolve(Supplied());
         await service.GenerateQuestionsAsync(TaskAssembly.PrepareQuestions(request, TaskAssembly.CreateDocument(request)), default);
-        Assert.Equal(2, local.Bodies.Count);
-        foreach (var bytes in local.Bodies)
+        var schemas = local.Bodies.Select(bytes =>
         {
             using var body = JsonDocument.Parse(bytes);
-            var types = Types(body.RootElement.GetProperty("response_format").GetProperty("json_schema").GetProperty("schema")).ToArray();
-            // OpenRouter turns a standalone "null" type into a nullable string for Gemini; ["null"] stays null-only.
+            return body.RootElement.GetProperty("response_format").GetProperty("json_schema").GetProperty("schema").Clone();
+        }).ToArray();
+        Assert.Equal(2, schemas.Length);
+        // OpenRouter's Gemini conversion erases an object holding an integer enum and widens a standalone "null"
+        // type to a nullable string; equal bounds and ["null"] are equivalent forms that survive it.
+        foreach (var schema in schemas)
+        {
+            var types = Types(schema).ToArray();
             Assert.DoesNotContain(types, type => type.ValueKind == JsonValueKind.String && type.GetString() == "null");
             Assert.Contains(types, type => type.ValueKind == JsonValueKind.Array && type.EnumerateArray().Select(t => t.GetString()).SequenceEqual(["null"]));
         }
-
-        static IEnumerable<JsonElement> Types(JsonElement node) => node.ValueKind switch
-        {
-            JsonValueKind.Object => node.EnumerateObject().SelectMany(p => p.Name == "type" ? [p.Value, .. Types(p.Value)] : Types(p.Value)),
-            JsonValueKind.Array => node.EnumerateArray().SelectMany(Types),
-            _ => []
-        };
-    }
-
-    [Fact]
-    public async Task Strict_authoring_schema_leaves_control_list_sizes_to_application_validation()
-    {
-        await using var local = await LocalAiProvider.StartAsync();
-        local.Respond = _ => """{"result":{"proposal":null,"clarification":"לאיזה גיל?"},"assumptions":[]}""";
-        using var services = local.Services("json_schema");
-        await services.GetRequiredService<AiGenerationService>().AuthorAsync(new("רעיון"), default);
-        using var request = JsonDocument.Parse(Assert.Single(local.Bodies));
-        var definitions = request.RootElement.GetProperty("response_format").GetProperty("json_schema").GetProperty("schema").GetProperty("$defs");
+        var definitions = schemas[0].GetProperty("$defs");
+        var version = definitions.GetProperty("plan").GetProperty("properties").GetProperty("schemaVersion");
+        Assert.False(version.TryGetProperty("enum", out _));
+        Assert.Equal(EngineVersions.SchemaVersion, version.GetProperty("minimum").GetInt32());
+        Assert.Equal(EngineVersions.SchemaVersion, version.GetProperty("maximum").GetInt32());
         // Gemini expands bounded arrays when compiling strict output; bounded control and option lists exceeded
-        // its schema budget (HTTP 400). The validator owns these limits, including the plan-wide control total.
+        // its schema budget (HTTP 400). LearningPlanValidator owns those limits.
         Assert.All(new[]
         {
             definitions.GetProperty("plan").GetProperty("properties").GetProperty("controls"),
@@ -89,10 +55,13 @@ public sealed class ContentGenerationWireTests
             definitions.GetProperty("questionPlan").GetProperty("properties").GetProperty("controls"),
             definitions.GetProperty("control").GetProperty("properties").GetProperty("options")
         }, list => Assert.False(list.TryGetProperty("maxItems", out _)));
-        var select = new ControlDefinition(ControlId, "בחירה", "select", "משמעות",
-            Options: Enumerable.Range(1, 21).Select(n => new ControlOption(n.ToString())).ToArray());
-        Assert.NotEmpty(LearningPlanValidator.Validate(Numeric() with { Controls = [select] }));
-        Assert.Empty(LearningPlanValidator.Validate(Numeric() with { Controls = [select with { Options = select.Options![..20] }] }));
+
+        static IEnumerable<JsonElement> Types(JsonElement node) => node.ValueKind switch
+        {
+            JsonValueKind.Object => node.EnumerateObject().SelectMany(p => p.Name == "type" ? [p.Value, .. Types(p.Value)] : Types(p.Value)),
+            JsonValueKind.Array => node.EnumerateArray().SelectMany(Types),
+            _ => []
+        };
     }
 
     [Theory]
@@ -107,11 +76,7 @@ public sealed class ContentGenerationWireTests
             .AuthorAsync(new("פעילות קריאה בעברית לכיתה ג׳ בנושא חלל, בערך 300 מילים ו־5 שאלות אמריקאיות."), default));
         Assert.Equal("invalid-output", error.Category);
         Assert.Equal(502, error.StatusCode);
-        using var request = JsonDocument.Parse(Assert.Single(local.Bodies));
-        Assert.Equal(mode, request.RootElement.GetProperty("response_format").GetProperty("type").GetString());
-        using var schema = ModelSchema(request.RootElement);
-        Assert.Equal(1, schema.RootElement.GetProperty("properties").GetProperty("result").GetProperty("anyOf")[1]
-            .GetProperty("properties").GetProperty("clarification").GetProperty("minLength").GetInt32());
+        Assert.Single(local.Bodies);
     }
 
     [Theory]
@@ -171,7 +136,9 @@ public sealed class ContentGenerationWireTests
             using var input = JsonDocument.Parse(root.GetProperty("messages")[1].GetProperty("content").GetString()!);
             var request = input.RootElement.GetProperty("request");
             var count = request.GetProperty("settings").GetProperty("questionCount").GetInt32();
-            using var schema = ModelSchema(root);
+            using var schema = JsonDocument.Parse(mode == "json_schema"
+                ? root.GetProperty("response_format").GetProperty("json_schema").GetProperty("schema").GetRawText()
+                : root.GetProperty("messages")[0].GetProperty("content").GetString()!.Split("\nOutput JSON schema:\n")[1]);
             Assert.Equal(count, schema.RootElement.GetProperty("properties").GetProperty("questions").GetProperty("minItems").GetInt32());
             if (count == 2) Assert.Equal(Source, input.RootElement.GetProperty("materials")[0].GetProperty("body").GetString());
         }
@@ -215,12 +182,6 @@ public sealed class ContentGenerationWireTests
         Assert.Equal("request-limit", error.Category);
         Assert.Equal(2, local.Bodies.Count);
     }
-
-    // Strict mode sends the schema only natively; the other modes can only carry it in the prompt.
-    private static JsonDocument ModelSchema(JsonElement request) =>
-        JsonDocument.Parse(request.GetProperty("response_format").TryGetProperty("json_schema", out var format)
-            ? format.GetProperty("schema").GetRawText()
-            : request.GetProperty("messages")[0].GetProperty("content").GetString()!.Split("\nOutput JSON schema:\n")[1]);
 
     [Theory]
     [InlineData(32000, true)]

@@ -28,10 +28,6 @@ public sealed class ContentGenerationTests
         Assert.NotEmpty(result.Value.Changes);
         Assert.DoesNotContain("client-only", chat.Requests[0].Input);
         AssertVersion(result.Metadata, chat.Requests[0].Options!, "author");
-        var schema = Schema(chat.Requests[0].Options!);
-        var version = schema.GetProperty("$defs").GetProperty("plan").GetProperty("properties").GetProperty("schemaVersion");
-        Assert.Equal(EngineVersions.SchemaVersion, version.GetProperty("minimum").GetInt32());
-        Assert.Equal(EngineVersions.SchemaVersion, version.GetProperty("maximum").GetInt32());
     }
 
     [Fact]
@@ -293,18 +289,6 @@ public sealed class ContentGenerationTests
         using var service = Service(chat);
         for (var i = 0; i < 2; i++)
             await Assert.ThrowsAsync<AiGenerationException>(() => service.ReplaceQuestionAsync(new(request, document, document.Questions[0].Id), default));
-    }
-
-    [Fact]
-    public void Question_counts_beyond_the_strict_schema_budget_are_rejected_before_provider_use()
-    {
-        // Exact-count question arrays above 20 can exceed Gemini's strict schema budget for some valid shapes.
-        Assert.Empty(LearningPlanValidator.Validate(Numeric(20)));
-        Assert.Contains("defaults.questionCount", LearningPlanValidator.Validate(Numeric(21)).Keys);
-        var adjustable = Numeric(20) with { Questions = Numeric().Questions with { CountBounds = new(1, 21) } };
-        Assert.Contains("questions.countBounds", LearningPlanValidator.Validate(adjustable).Keys);
-        var resolution = TaskRequestResolver.Resolve(Numeric(), new(Numeric().Defaults with { QuestionCount = 21 }));
-        Assert.Contains("settings.questionCount", resolution.Errors.Keys);
     }
 
     [Fact]

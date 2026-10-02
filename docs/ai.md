@@ -161,7 +161,8 @@ the declared key order.
   shape (all formats, six choices) is accepted at 20 and rejected at 25.
 - **Only meaningful constraints.** Numeric bounds are the validator's real ones:
   question count 1–20, positive counts and lengths, and text-control length
-  1–500. C# int32 sentinels are not emitted. `minLength`, `maxLength` and
+  1–500, with the version and question cap applied from engine constants. C#
+  int32 sentinels are not emitted. `minLength`, `maxLength` and
   `pattern` are outside [Gemini's supported subset][gemini-schema] and are
   ignored there, which is how an empty clarification once passed the provider.
   They still inform the model in every mode; the validator enforces them.
@@ -574,7 +575,7 @@ transport/accounting, negative replacement and compiled prompt-scope checks pass
 The browser workflow did not change during tuning, so its cutover suite was not
 rerun for those changes. These are dated engineering results, not AI quality scores.
 
-The 2 October strict-schema change passed `scripts/verify.sh`: 557 backend, 123
+The 2 October strict-schema change passed `scripts/verify.sh`: 555 backend, 123
 Angular and 23 dashboard tests plus builds, formatting, Markdown and TypeScript
 checks. New regressions cover null-only wire branches, unbounded control lists
 with validator-owned limits, and the 20-question cap in the API and plan editor;

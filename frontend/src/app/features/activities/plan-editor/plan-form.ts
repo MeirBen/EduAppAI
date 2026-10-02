@@ -9,12 +9,13 @@ import {
 } from '../../../core/api/models';
 import { isIntegerInput } from '../../../shared/forms/integer-input';
 import {
+  maxQuestionCount,
   TaskSettingsDraft,
   taskSettingsDraft,
+  taskSettingsSchema,
   taskSettingsValue,
 } from '../../../shared/forms/task-settings';
 import { apply, applyEach, maxLength, required, schema } from '@angular/forms/signals';
-import { taskSettingsSchema } from '../../../shared/forms/task-settings';
 
 /** Initialized presentation values retain blank/invalid keystrokes outside canonical HTTP records. */
 export interface ChoiceForm {
@@ -306,12 +307,13 @@ function lengthValue(form: LengthForm, errors: string[]): LengthExpectation | nu
   }
   return { mode: form.mode, count: choiceValue(form, 'מספר מילים', errors) };
 }
+const questionCountRange = `מספר השאלות חייב להיות בין 1 ל־${maxQuestionCount}.`;
 function settingsValue(form: TaskSettingsDraft, errors: string[]) {
   checkText(form.topic, 'נושא', 200, errors, true);
   checkText(form.audience, 'למי מיועדת הפעילות', 200, errors, true);
   const questionCount = integer(form.questionCount, 'מספר שאלות', errors, true, 1);
-  if (questionCount !== undefined && questionCount > 20)
-    errors.push('מספר השאלות חייב להיות בין 1 ל־20.');
+  if (questionCount !== undefined && questionCount > maxQuestionCount)
+    errors.push(questionCountRange);
   return taskSettingsValue(form);
 }
 function controlValue(form: ControlForm, errors: string[]): PlanControl {
@@ -394,7 +396,7 @@ export function planValue(form: PlanForm): Projection<LearningPlan> {
     errors.push('נדרשת לפחות שאלה אחת מכל סוג שנבחר.');
   const questionBounds = bounds(form.questions.min, form.questions.max, 'מספר שאלות', errors, 1);
   inBounds(defaults.questionCount, questionBounds, 'מספר שאלות', errors);
-  if ((questionBounds.max ?? 20) > 20) errors.push('מספר השאלות חייב להיות בין 1 ל־20.');
+  if ((questionBounds.max ?? 0) > maxQuestionCount) errors.push(questionCountRange);
   const choiceCount = form.questions.choice
     ? choiceValue(form.questions.choiceCount, 'מספר אפשרויות', errors, 2)
     : null;

@@ -1,6 +1,7 @@
 import { applyEach, maxLength, schema, validate } from '@angular/forms/signals';
 import { ActivityDocument, EditableActivity, QuestionFormat } from '../../../core/api/models';
 import { isIntegerInput } from '../../../shared/forms/integer-input';
+import { maxQuestionCount } from '../../../shared/forms/task-settings';
 import { Projection } from '../plan-editor/plan-form';
 
 /** Editable-only values. Blank/invalid numeric keystrokes never become an accidental zero. */
@@ -78,8 +79,10 @@ export function documentValue(raw: DocumentForm): Projection<EditableActivity> {
       for (const o of q.options) check(o.value, 200);
     }
   }
-  if (total > 8000 || raw.materials.length > 4 || raw.questions.length > 20)
-    errors.push('תוכן הפעילות חורג מהמגבלה: עד 8,000 תווים, ארבעה חומרים ו־20 שאלות.');
+  if (total > 8000 || raw.materials.length > 4 || raw.questions.length > maxQuestionCount)
+    errors.push(
+      `תוכן הפעילות חורג מהמגבלה: עד 8,000 תווים, ארבעה חומרים ו־${maxQuestionCount} שאלות.`,
+    );
   return {
     errors,
     value: errors.length

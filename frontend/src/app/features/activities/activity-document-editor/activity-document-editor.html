@@ -278,7 +278,7 @@
     id="add-question"
     type="button"
     class="button button-secondary w-fit"
-    [disabled]="locked() || fields().questions().value().length >= 20"
+    [disabled]="locked() || fields().questions().value().length >= maxQuestionCount"
     (click)="structureChanged.emit({ kind: 'add-question' })"
   >
     הוספת שאלה ידנית

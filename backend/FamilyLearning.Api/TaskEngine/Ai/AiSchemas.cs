@@ -1,10 +1,11 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using FamilyLearning.Api.TaskEngine.Models;
+using FamilyLearning.Api.TaskEngine.Validation;
 
 namespace FamilyLearning.Api.TaskEngine.Ai;
 
-/// <summary>Application-owned JSON schemas shared by prompts and provider output options.</summary>
+/// <summary>Application-owned JSON schemas for model output. Files hold structure; engine constants and request counts are applied here.</summary>
 internal static class AiSchemas
 {
     public static readonly JsonElement Template = LoadTemplate();
@@ -43,10 +44,14 @@ internal static class AiSchemas
     private static JsonElement LoadTemplate()
     {
         var schema = JsonSerializer.SerializeToNode(Read("template.schema.json"))!;
-        var version = schema["$defs"]!["plan"]!["properties"]!["schemaVersion"]!;
+        var definitions = schema["$defs"]!;
+        var plan = definitions["plan"]!["properties"]!;
         // OpenRouter's Gemini conversion drops this plan with an integer enum; equal bounds preserve the exact version.
-        version["minimum"] = EngineVersions.SchemaVersion;
-        version["maximum"] = EngineVersions.SchemaVersion;
+        plan["schemaVersion"]!["minimum"] = EngineVersions.SchemaVersion;
+        plan["schemaVersion"]!["maximum"] = EngineVersions.SchemaVersion;
+        plan["defaults"]!["properties"]!["questionCount"]!["maximum"] = EngineValidation.MaxQuestionCount;
+        definitions["bounds"]!["properties"]!["min"]!["maximum"] = EngineValidation.MaxQuestionCount;
+        definitions["bounds"]!["properties"]!["max"]!["maximum"] = EngineValidation.MaxQuestionCount;
         return JsonSerializer.SerializeToElement(schema);
     }
 

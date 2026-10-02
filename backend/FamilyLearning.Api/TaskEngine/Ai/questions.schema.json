@@ -27,12 +27,7 @@
             "type": "object",
             "properties": {
               "type": {
-                "type": "string",
-                "enum": [
-                  "numeric-input",
-                  "text-input",
-                  "single-choice"
-                ]
+                "type": "string"
               },
               "options": {
                 "type": [
@@ -43,9 +38,7 @@
                   "type": "string",
                   "minLength": 1,
                   "maxLength": 200
-                },
-                "minItems": 2,
-                "maxItems": 6
+                }
               }
             },
             "required": [
@@ -81,9 +74,7 @@
           "points"
         ],
         "additionalProperties": false
-      },
-      "minItems": 1,
-      "maxItems": 20
+      }
     }
   },
   "required": [

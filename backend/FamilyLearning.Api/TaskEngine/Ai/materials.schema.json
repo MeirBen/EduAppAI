@@ -29,9 +29,7 @@
           "body"
         ],
         "additionalProperties": false
-      },
-      "minItems": 0,
-      "maxItems": 4
+      }
     }
   },
   "required": [
