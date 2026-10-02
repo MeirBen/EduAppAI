@@ -89,6 +89,7 @@ public sealed class ContentGenerationTests
     [InlineData("{\"proposal\":null,\"clarification\":\"לאיזה גיל?\"}")]
     [InlineData("{\"result\":{\"proposal\":null,\"clarification\":null},\"assumptions\":[]}")]
     [InlineData("{\"result\":{\"proposal\":{},\"clarification\":null},\"assumptions\":[]}")]
+    [InlineData("{\"result\":{\"proposal\":null,\"clarification\":\"\"},\"assumptions\":[]}")]
     [InlineData("{\"result\":{\"proposal\":null,\"clarification\":\"   \"},\"assumptions\":[]}")]
     [InlineData("{\"result\":{\"proposal\":null,\"clarification\":\"לאיזה גיל?\"}}")]
     [InlineData("{\"result\":{\"proposal\":null,\"clarification\":\"לאיזה גיל?\"},\"assumptions\":null}")]

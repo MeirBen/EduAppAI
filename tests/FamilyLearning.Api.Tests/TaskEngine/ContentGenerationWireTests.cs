@@ -18,6 +18,26 @@ public sealed class ContentGenerationWireTests
     [Theory]
     [InlineData("json_schema")]
     [InlineData("json_object")]
+    public async Task Empty_clarification_is_rejected_in_both_JSON_modes_without_retry(string mode)
+    {
+        await using var local = await LocalAiProvider.StartAsync();
+        local.Respond = _ => """{"result":{"proposal":null,"clarification":""},"assumptions":[]}""";
+        using var services = local.Services(mode);
+        var error = await Assert.ThrowsAsync<AiGenerationException>(() => services.GetRequiredService<AiGenerationService>()
+            .AuthorAsync(new("פעילות קריאה בעברית לכיתה ג׳ בנושא חלל, בערך 300 מילים ו־5 שאלות אמריקאיות."), default));
+        Assert.Equal("invalid-output", error.Category);
+        Assert.Equal(502, error.StatusCode);
+        using var request = JsonDocument.Parse(Assert.Single(local.Bodies));
+        Assert.Equal(mode, request.RootElement.GetProperty("response_format").GetProperty("type").GetString());
+        var system = request.RootElement.GetProperty("messages")[0].GetProperty("content").GetString()!;
+        using var schema = JsonDocument.Parse(system.Split("\nOutput JSON schema:\n")[1]);
+        Assert.Equal(1, schema.RootElement.GetProperty("properties").GetProperty("result").GetProperty("anyOf")[1]
+            .GetProperty("properties").GetProperty("clarification").GetProperty("minLength").GetInt32());
+    }
+
+    [Theory]
+    [InlineData("json_schema")]
+    [InlineData("json_object")]
     public async Task Maximum_canonical_plan_and_chat_context_fit_the_real_wire_budget(string mode)
     {
         var plan = Numeric() with

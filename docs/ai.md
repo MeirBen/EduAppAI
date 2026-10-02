@@ -11,24 +11,25 @@ implementation boundaries live in [architecture](architecture.md).
 one-shot approach has not been established.** Local code tests passing does not
 mean generated Hebrew, answer keys or educational content are consistently good.
 
-- Keep Gemini 3.8 Flash with medium reasoning and provider-default sampling.
+- Use Gemini 3.8 Flash in `json_object` mode with medium reasoning and
+  provider-default sampling. The full prompt schema and strict application
+  validation remain; provider-side schema enforcement is not requested.
   Low reasoning was faster and cheaper, but failed confirmation quality checks.
 - Keep the earlier material instructions and clearer authoring-field descriptions:
   they improved sampled contract adherence on DeepSeek. The latest shared material
   replacement instructions are a cleanup with comparable reviewed quality.
 - Reject both question-prompt experiments. Neither earned adoption.
-- Authoring still fails with the full strict schema. A minimal paired probe
-  reproduced an empty proposal when a numeric version enum was added; removing
-  that field from the full contract still returned HTTP 400. The separate both-null
-  schema gap is corrected. See [unresolved failures](#unresolved-failures).
+- JSON-mode confirmation returned three complete plans for the owner's space
+  prompt, a meaningful clarification, and a full activity passing existing checks.
+  Schema mode still has unresolved compatibility failures. See
+  [unresolved failures](#unresolved-failures).
 - Keep parent review, strict validation and explicit recovery. No automatic
   output repair, weakened tests, model-specific branch or production retry.
 
-Resolve provider/schema compatibility before further quality tuning or human
-review. The exact parent prompt must return a complete plan through the real
-authoring service; neither a clarification nor a passing fixed-plan trial is that
-acceptance check. Paid diagnostics are stopped with unknown costs reserved. More
-open-ended prompt editing is not currently justified.
+The blocking authoring case now passes live checks with the explicit JSON-mode
+profile. This small sample does not establish general reliability or better
+educational quality. Paid diagnostics are closed with earlier unknown costs still
+reserved; representative content needs human review before further quality tuning.
 
 ## Design and cutover decision
 
@@ -63,7 +64,7 @@ user secrets outside the repo without a call. `Ai__ApiKey` or
 user secrets. Environment variables (`Ai__…`) and development secrets (`Ai:…`)
 override the file. Restart after changes. Credentials never belong in reports.
 
-Current profile: `google/gemini-3.8-flash`, `json_schema`, reasoning enabled at
+Current profile: `google/gemini-3.8-flash`, `json_object`, reasoning enabled at
 `medium`, no fixed reasoning-token budget, no temperature/top-p/top-k overrides,
 16,384 requested output tokens, 180-second deadline, no fallback model and no
 excluded providers. The compiled request ceiling is 512 KiB; the schema ceiling
@@ -233,6 +234,25 @@ request ceiling in both arms, below production's 512 KiB.
 
 ## Unresolved failures
 
+**Current application fix:** the 2 October owner log
+`gen-1790943339-87Hr7EqfWwN5XsjGx3wo` returned an empty clarification despite
+`minLength: 1`. It finished normally with HTTP 200 and 660 reasoning tokens.
+The attached messages exactly matched the application's captured SDK request.
+Changing only `response_format` to the existing supported `json_object` mode
+returned complete proposals in three trials of that same prompt. A separate
+unsupported-quota request produced a meaningful clarification. The existing
+`space-reading-grade3` harness case then passed authoring, material and question
+generation, with unchanged checks, no retry and no repair. All six responses
+also passed independent validation against their full schemas.
+
+The application now explicitly uses JSON mode across stages. This removes the
+observed failure in the sampled workflow without schema rewriting, response
+coercion or a fallback branch. JSON mode does not provide provider-side schema
+enforcement; the complete schema remains in the prompt and mandatory application
+validation remains unchanged. The serving path's internal defect is still
+unproven; the following evidence records the schema-mode failures. Restart the
+application and evaluation dashboard after changing the profile.
+
 **Empty authoring plans:** medium and low each returned an empty `proposal` for
 the number-gender case, ending normally below the output cap. All twelve schema
 references resolved and the plan required nine properties. Native wire tests
@@ -288,14 +308,14 @@ same grade-3 space prompt. These are diagnostic probes, not a quality benchmark:
 - Changing only the response mode of the full inline proposal request to
   `json_object` produced a complete plan with five questions and a 300-word target.
   Independent schema checks and the application's validator accepted it. This
-  single control does not establish reliability or educational quality. Production
-  remains in strict schema mode; no mode downgrade or response repair was adopted.
+  single control did not establish reliability or educational quality. The later
+  six-call confirmation above preceded the explicit profile change.
 
 The normal Microsoft.Extensions.AI formatter was also inspected locally: it moved
 six outer bounds into descriptions and left referenced definitions unchanged. No
 paid formatter trial ran after the latest unknown-cost stop. The adapter remains
-unchanged. **The full live authoring failure is not fixed.** Preserve the strict
-application checks and resolve the serving contract before resuming prompt tuning.
+unchanged. **The full schema-mode failure remains unresolved.** Preserve the
+strict application checks and distinguish mode compatibility from content quality.
 
 **Availability:** user-supplied generation IDs confirmed Google 429/504 and Google
 AI Studio 503 responses with zero charged cost. These are upstream serving errors;
@@ -308,6 +328,10 @@ eliminate timeouts. Missing request IDs/costs remain unknown and reserved.
 precision and answer clarity still need human review. Code tests, schema mode and
 a same-model judge cannot certify them. No claim of being better than one-shot is
 supported across these dimensions.
+The JSON-mode confirmation passage incorrectly described orbit as having no
+gravity; one proposal also enabled length adjustment without an explicit request.
+These findings are retained in the private review and are not counted as an
+educational-quality pass.
 
 ## Costs and retained evidence
 
@@ -319,12 +343,15 @@ conservative allowances for missing costs, **not confirmed charges**.
 | First tuning       |   128 | $0.312352616 | $0.081100800 |
 | Quality/routing    |    43 | $0.064295840 | $0.243302400 |
 | Gemini             |    53 | $0.354201000 | $0.315187200 |
-| Authoring contract |    17 | $0.048681000 | $0.464459700 |
-| Total              |   241 | $0.779530456 | $1.104050100 |
+| Authoring contract |    23 | $0.098323500 | $0.464459700 |
+| Owner's new report |     1 | $0.004589250 | $0.000000000 |
+| Total              |   248 | $0.833762206 | $1.104050100 |
 
 First tuning includes the post-cutover material and qualification experiments.
 
-Total charged/reserved: **$1.883580556 of $2**. No unknown is counted as free.
+Total charged/reserved: **$1.937812306 of $2**. No unknown is counted as free.
+The six-call JSON-mode confirmation cost $0.04964250; the owner's latest reported
+call is conservatively included too. Prior reservations were not released.
 The earlier Task 2 comparison was separate: 19 of 21 authorized calls,
 $0.062444323 of its $1 cap. Cutover itself used isolated providers with no paid
 calls. Application attempts do not count OpenRouter's internal routing attempts.
@@ -335,8 +362,10 @@ they were unavailable during the 2 October authoring investigation and their raw
 evidence could not be reverified. The new `authoring-contract-2026-10-02/` directory
 retains all three diagnostic attempts, schemas, validation and budget evidence.
 The subsequent `authoring-*-2026-10-02/` directories retain every probe's exact
-request, response, independent validation and cost. The latest aggregate ledger,
-`authoring-server-version-2026-10-02/budget.json`, is stopped with unknown cost.
+request, response, independent validation and cost. The latest ledger is
+`authoring-empty-clarification-2026-10-02/budget.json`, closed after six calls.
+That directory includes the owner's failure, exact-mode comparison, full existing
+harness report, assistant review, costs and isolated verification.
 The `authoring-native-format-2026-10-02/` directory contains a local request
 capture and an unexecuted candidate, not another paid attempt.
 Do not edit historical reports to match new code or report formats. The latest manifest
