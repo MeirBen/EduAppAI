@@ -190,6 +190,7 @@ public sealed class GenerationWorker(IServiceScopeFactory scopes, AiGenerationSe
         var db = scope.ServiceProvider.GetRequiredService<LearningDbContext>();
         await using var transaction = await db.Database.BeginTransactionAsync(ct);
         var operations = await db.GenerationOperations.Where(o => o.Status == "calling" || o.Status == "queued")
+            .OrderBy(o => o.CreatedAtUtc).ThenBy(o => o.Id)
             .Take(GenerationOperationOptions.GlobalLimit).ToListAsync(ct);
         foreach (var operation in operations)
         {

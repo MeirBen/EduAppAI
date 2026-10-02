@@ -5,6 +5,7 @@ using FamilyLearning.Api.Features.Activities;
 using FamilyLearning.Api.Infrastructure.Persistence;
 using FamilyLearning.Api.TaskEngine.Ai;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using static FamilyLearning.Api.Tests.Integration.ActivityDraftTests;
@@ -108,7 +109,9 @@ public sealed class GenerationRecoveryTests
     public async Task Recovery_resumes_only_the_queued_stage_after_the_last_accepted_checkpoint(bool acceptedMaterial)
     {
         await using var app = new GenerationHarness(Materials, Questions("text-input"));
-        using var parent = await app.ParentAsync();
+        using var parent = await app.ParentAsync(services => services.AddScoped(provider => new LearningDbContext(
+            new DbContextOptionsBuilder<LearningDbContext>(provider.GetRequiredService<DbContextOptions<LearningDbContext>>())
+                .ConfigureWarnings(warnings => warnings.Throw(CoreEventId.RowLimitingOperationWithoutOrderByWarning)).Options)));
         var draft = await Create(parent, Reading() with { Defaults = Numeric(1).Defaults });
         var operation = await Start(parent, draft);
         if (acceptedMaterial) await app.Worker.RunNextAsync(default);
