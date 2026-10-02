@@ -32,6 +32,10 @@ describe('Plan form boundary', () => {
     form.settings.questionCount = '';
     expect(planValue(form).value).toBeUndefined();
     expect(form.settings.questionCount).toBe('');
+    form.settings.questionCount = '21';
+    expect(planValue(form).errors).toContain('מספר השאלות חייב להיות בין 1 ל־20.');
+    form.settings.questionCount = '20';
+    expect(planValue(form).value?.defaults.questionCount).toBe(20);
   });
 
   it('maps blanks to omission, preserving explicit empty text, false and zero', () => {

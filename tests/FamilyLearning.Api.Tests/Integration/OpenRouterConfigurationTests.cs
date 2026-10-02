@@ -144,7 +144,11 @@ public sealed class OpenRouterConfigurationTests
     private static void AssertResponseSchema(JsonElement request, string responseFormat, string description, int? questionCount = null)
     {
         var prompt = request.GetProperty("messages")[0].GetProperty("content").GetString()!;
-        using var schema = JsonDocument.Parse(prompt.Split("\nOutput JSON schema:\n")[1]);
+        // Strict mode carries the schema once, natively; other modes can only carry it in the prompt.
+        Assert.Equal(responseFormat != "json_schema", prompt.Contains("\nOutput JSON schema:\n"));
+        using var schema = JsonDocument.Parse(responseFormat == "json_schema"
+            ? request.GetProperty("response_format").GetProperty("json_schema").GetProperty("schema").GetRawText()
+            : prompt.Split("\nOutput JSON schema:\n")[1]);
         Assert.Equal("object", schema.RootElement.GetProperty("type").GetString());
         Assert.False(schema.RootElement.TryGetProperty("anyOf", out _));
         Assert.False(schema.RootElement.GetProperty("additionalProperties").GetBoolean());
@@ -162,13 +166,7 @@ public sealed class OpenRouterConfigurationTests
         }
         var format = request.GetProperty("response_format");
         Assert.Equal(responseFormat, format.GetProperty("type").GetString());
-        if (responseFormat == "json_schema")
-        {
-            var constraint = format.GetProperty("json_schema");
-            Assert.True(constraint.GetProperty("strict").GetBoolean());
-            Assert.True(JsonNode.DeepEquals(JsonNode.Parse(schema.RootElement.GetRawText()),
-                JsonNode.Parse(constraint.GetProperty("schema").GetRawText())), "Provider schema must preserve prompt constraints.");
-        }
+        if (responseFormat == "json_schema") Assert.True(format.GetProperty("json_schema").GetProperty("strict").GetBoolean());
         else Assert.False(format.TryGetProperty("json_schema", out _));
     }
 

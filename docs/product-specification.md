@@ -63,8 +63,8 @@ content. Engine/schema versions are independent of template and draft revisions.
 
 Shared settings are topic and audience (required, up to 200 characters),
 difficulty (`easy`, `medium` or `hard`, relative to the audience), and a
-positive integer question count. Per-activity settings take precedence over
-plan defaults. Feasibility and total content limits bound the requested count.
+question count from 1 to 20. Per-activity settings take precedence over plan
+defaults. Feasibility and total content limits also bound the requested count.
 
 Controls support text, integer, select and boolean values in plan, material or
 question scope. They have application-owned stable IDs and human-readable

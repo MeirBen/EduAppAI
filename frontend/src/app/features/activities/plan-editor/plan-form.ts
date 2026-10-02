@@ -309,7 +309,9 @@ function lengthValue(form: LengthForm, errors: string[]): LengthExpectation | nu
 function settingsValue(form: TaskSettingsDraft, errors: string[]) {
   checkText(form.topic, 'נושא', 200, errors, true);
   checkText(form.audience, 'למי מיועדת הפעילות', 200, errors, true);
-  integer(form.questionCount, 'מספר שאלות', errors, true, 1);
+  const questionCount = integer(form.questionCount, 'מספר שאלות', errors, true, 1);
+  if (questionCount !== undefined && questionCount > 20)
+    errors.push('מספר השאלות חייב להיות בין 1 ל־20.');
   return taskSettingsValue(form);
 }
 function controlValue(form: ControlForm, errors: string[]): PlanControl {
@@ -392,6 +394,7 @@ export function planValue(form: PlanForm): Projection<LearningPlan> {
     errors.push('נדרשת לפחות שאלה אחת מכל סוג שנבחר.');
   const questionBounds = bounds(form.questions.min, form.questions.max, 'מספר שאלות', errors, 1);
   inBounds(defaults.questionCount, questionBounds, 'מספר שאלות', errors);
+  if ((questionBounds.max ?? 20) > 20) errors.push('מספר השאלות חייב להיות בין 1 ל־20.');
   const choiceCount = form.questions.choice
     ? choiceValue(form.questions.choiceCount, 'מספר אפשרויות', errors, 2)
     : null;

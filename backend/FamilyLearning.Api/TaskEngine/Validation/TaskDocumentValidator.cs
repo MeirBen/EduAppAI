@@ -35,7 +35,7 @@ public static class TaskDocumentValidator
                 ids.Add(material.Id);
                 length += (long)(material.Title?.Length ?? 0) + (material.Body?.Length ?? 0);
             }
-        if (document.Questions is not { Length: <= QuestionLimit }) errors.AddError("questions", "רשימת השאלות גדולה מדי או חסרה.");
+        if (document.Questions is not { Length: <= MaxQuestionCount }) errors.AddError("questions", "רשימת השאלות גדולה מדי או חסרה.");
         else
         {
             if (document.Questions.Length != request.Settings.QuestionCount) diagnostics.AddError("questions", "מספר השאלות אינו תואם לדרישה.");
@@ -151,7 +151,7 @@ public static class TaskDocumentValidator
         }
         ValidateText(candidate.Title, 100, "title", errors, errors);
         if (candidate.Instructions?.Length > 1000) errors.AddError("instructions", "ההנחיות מוגבלות ל־1,000 תווים.");
-        if (candidate.Questions is not { Length: <= QuestionLimit } questions || questions.Length != request.Settings.QuestionCount)
+        if (candidate.Questions is not { Length: <= MaxQuestionCount } questions || questions.Length != request.Settings.QuestionCount)
         {
             errors.AddError("questions", "מספר השאלות אינו תואם לדרישה.");
             return errors;

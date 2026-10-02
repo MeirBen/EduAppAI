@@ -25,9 +25,9 @@ export const taskSettingsSchema = schema<TaskSettingsDraft>((path) => {
       : { kind: 'difficulty', message: 'יש לבחור רמת קושי.' },
   );
   validate(path.questionCount, ({ value }) =>
-    isIntegerInput(value()) && Number(value()) >= 1
+    isIntegerInput(value()) && Number(value()) >= 1 && Number(value()) <= 20
       ? undefined
-      : { kind: 'questionCount', message: 'יש להזין מספר שלם גדול מאפס.' },
+      : { kind: 'questionCount', message: 'יש להזין מספר שלם בין 1 ל־20.' },
   );
 });
 

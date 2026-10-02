@@ -26,8 +26,9 @@ export async function startAiProvider() {
       assert.equal(input.response_format.json_schema.strict, true);
       assert.equal(input.tools, undefined);
       assert.equal(input.messages.length, 2);
-      const schema = JSON.parse(input.messages[0].content.split('\nOutput JSON schema:\n')[1]);
-      assert.deepEqual(input.response_format.json_schema.schema, schema);
+      // Strict mode sends the schema once, natively; a prompt copy can lower Gemini's output quality.
+      assert.ok(!input.messages[0].content.includes('Output JSON schema'));
+      const schema = input.response_format.json_schema.schema;
       assert.equal(schema.additionalProperties, false);
       const stage = input.response_format.json_schema.name.match(
         /^content_first_(author|materials|questions|replace_material|replace_question)_v[1-9]\d*$/,
@@ -53,7 +54,7 @@ export async function startAiProvider() {
         stage === 'author'
           ? {
               result: {
-                proposal: plan(user.message, schema.$defs.plan.properties.schemaVersion.enum[0]),
+                proposal: plan(user.message, schema.$defs.plan.properties.schemaVersion.minimum),
                 clarification: null,
               },
               assumptions: [],

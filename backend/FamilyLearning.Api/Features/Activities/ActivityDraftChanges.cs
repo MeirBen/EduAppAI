@@ -11,7 +11,7 @@ internal static class ActivityDraftChanges
     internal static TaskDocument Apply(ResolvedTaskRequest before, ResolvedTaskRequest request, TaskDocument current, EditableActivity edit)
     {
         var errors = new Dictionary<string, string[]>();
-        if (edit is null || edit.Materials is not { Length: <= 4 } || edit.Questions is not { Length: <= QuestionLimit })
+        if (edit is null || edit.Materials is not { Length: <= 4 } || edit.Questions is not { Length: <= MaxQuestionCount })
             throw Invalid("document", "יש לציין תוכן פעילות בגודל נתמך.");
         var materialIds = new HashSet<string>(StringComparer.Ordinal);
         foreach (var item in edit.Materials)

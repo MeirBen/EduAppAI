@@ -18,6 +18,7 @@ public sealed class AiGenerationService(IEnumerable<IChatClient> clients, ILogge
     private readonly TimeSpan requestTimeout = options.Value.RequestTimeout;
     private readonly int maxOutputTokens = options.Value.MaxOutputTokens;
     private readonly int maxSchemaBytes = options.Value.MaxSchemaBytes;
+    private readonly bool nativeSchema = options.Value.ResponseFormat == "json_schema";
     private readonly SemaphoreSlim capacity = new(2, 2);
     private static readonly JsonSerializerOptions Json = EngineJson.Options;
 
@@ -48,7 +49,6 @@ public sealed class AiGenerationService(IEnumerable<IChatClient> clients, ILogge
     /// <summary>One generated-material batch call. Strict rejection returns diagnostics and never applies partial material.</summary>
     public async Task<AiResult<MaterialCandidateBatch>> GenerateMaterialsAsync(MaterialGenerationInput input, CancellationToken ct, AiCallEvidence? evidence = null)
     {
-        AiSchemas.RequireQuestionOutputCapacity(input.Request);
         var current = new TaskDocument("", null, input.Materials, []);
         var prepared = TaskAssembly.PrepareMaterials(input.Request, current)
             ?? throw new TaskValidationException(new Dictionary<string, string[]>() { ["materials"] = ["אין חומרים חסרים או מיושנים ליצירה."] });
@@ -144,8 +144,8 @@ public sealed class AiGenerationService(IEnumerable<IChatClient> clients, ILogge
         var started = Stopwatch.GetTimestamp();
         try
         {
-            // Keep the model-visible contract and output constraint sourced from the same schema.
-            var instructions = $"{systemPrompt}\nOutput JSON schema:\n{JsonSerializer.Serialize(schema, Json)}";
+            // One schema source. Strict mode delivers it natively; Gemini's guidance warns that a prompt copy can lower quality.
+            var instructions = nativeSchema ? systemPrompt : $"{systemPrompt}\nOutput JSON schema:\n{JsonSerializer.Serialize(schema, Json)}";
             if (evidence is not null)
             {
                 evidence.Request = instructions + "\n" + input;

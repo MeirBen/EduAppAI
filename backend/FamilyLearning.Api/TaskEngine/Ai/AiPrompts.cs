@@ -31,6 +31,7 @@ internal static class AiPrompts
         Ordinary word counts are targets; use exact/range only when expressly requested. Preserve combined passage lengths as totalLength.
         Do not combine totalLength with per-material length. Clarify which scope to use if both are requested.
         Fixed multiple formats mean a flexible mixture covering every format. Selectable format means one format per task.
+        Set choiceCount (2–6 options per question) exactly when formats include single-choice; otherwise null.
         Exact per-format quotas are unsupported: clarify and offer a flexible mixture or uniform format; never discard quotas silently.
         Keep optional irrelevant settings null and requested defaults/bounds/values unchanged.
         """ + "\n\n" + StructuredRules + "\n\n" + LanguageQuality;

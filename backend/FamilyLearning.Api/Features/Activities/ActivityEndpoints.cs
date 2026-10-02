@@ -106,7 +106,7 @@ public static class ActivityEndpoints
         var draft = await Owned(db, user, id).SingleOrDefaultAsync(ct);
         if (draft is null) return Results.NotFound();
         if (draft.ReleasedSnapshotId.HasValue || draft.Revision != body.ExpectedRevision || draft.ActiveOperationId.HasValue) return Conflict();
-        if (body.MaterialIds is not { Length: <= 4 } || body.QuestionIds is not { Length: <= EngineValidation.QuestionLimit } ||
+        if (body.MaterialIds is not { Length: <= 4 } || body.QuestionIds is not { Length: <= EngineValidation.MaxQuestionCount } ||
             body.MaterialIds.Length + body.QuestionIds.Length == 0)
             return Invalid("selection", "יש לבחור תוכן לבדיקה ולאימוץ.");
         var request = Resolve(StoredJson.Read<LearningPlan>(draft.PlanJson), StoredJson.Read<TaskRequest>(draft.InputJson));

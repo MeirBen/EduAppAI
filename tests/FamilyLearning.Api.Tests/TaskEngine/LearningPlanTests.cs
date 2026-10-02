@@ -9,7 +9,7 @@ public sealed class LearningPlanTests
     [Fact]
     public void Canonical_plans_cover_generated_supplied_question_only_mixed_and_selectable_work()
     {
-        LearningPlan[] plans = [LearningPlanFixture.Reading(), LearningPlanFixture.Numeric(25),
+        LearningPlan[] plans = [LearningPlanFixture.Reading(), LearningPlanFixture.Numeric(20),
             LearningPlanFixture.Supplied(), LearningPlanFixture.Supplied("per-task"),
             LearningPlanFixture.Mixed(), LearningPlanFixture.Mixed(true)];
         foreach (var plan in plans) Assert.Empty(LearningPlanValidator.Validate(plan));
@@ -47,7 +47,7 @@ public sealed class LearningPlanTests
             { Id = i.ToString("x32"), Text = new string('א', 4000) }).ToArray()
         };
         Assert.NotEmpty(LearningPlanValidator.Validate(plan));
-        Assert.Empty(LearningPlanValidator.Validate(LearningPlanFixture.Numeric(25)));
+        Assert.Empty(LearningPlanValidator.Validate(LearningPlanFixture.Numeric(20)));
     }
 
     [Fact]
@@ -81,9 +81,9 @@ public sealed class LearningPlanTests
         var controls = Enumerable.Range(4, 17).Select(i => new ControlDefinition(i.ToString("x32"), "בחירה", "boolean", "משמעות")).ToArray();
         plan = plan with { Controls = controls[..8], Materials = [plan.Materials[0] with { Controls = controls[8..] }] };
         Assert.NotEmpty(LearningPlanValidator.Validate(plan));
-        plan = LearningPlanFixture.Numeric(25) with { Questions = LearningPlanFixture.Numeric().Questions with { CountBounds = new(21, 30) } };
+        plan = LearningPlanFixture.Numeric(15) with { Questions = LearningPlanFixture.Numeric().Questions with { CountBounds = new(11, 20) } };
         Assert.Empty(LearningPlanValidator.Validate(plan));
-        Assert.NotEmpty(LearningPlanValidator.Validate(plan with { Defaults = plan.Defaults with { QuestionCount = 31 } }));
+        Assert.NotEmpty(LearningPlanValidator.Validate(plan with { Defaults = plan.Defaults with { QuestionCount = 10 } }));
     }
 
 }

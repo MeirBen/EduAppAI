@@ -8,6 +8,12 @@ namespace FamilyLearning.Api.Tests.TaskEngine;
 public sealed class TaskAssemblyTests
 {
     private static readonly TaskDocument Empty = new("", null, [], []);
+    // Blank prompt, unplanned format, unrequested options and a missing answer, plus staleness under changed input:
+    // five display diagnostics per question fill the bounded diagnostic list within the question cap.
+    private static TaskDocument WithFiveDiagnosticsPerQuestion(TaskDocument document) => document with
+    {
+        Questions = document.Questions.Select(q => q with { Prompt = " ", Interaction = new("single-choice", ["א", "ב"]), Answer = null }).ToArray()
+    };
     private static QuestionCandidate Question(string type = "numeric-input") => new("שאלה", new(type,
         type == "single-choice" ? ["א", "ב", "ג"] : null), new(type == "single-choice" ? "ב" : "1"), 1);
     private static QuestionCandidateBatch Questions(params QuestionCandidate[] questions) => new("כותרת", "הנחיות", questions);
@@ -151,11 +157,12 @@ public sealed class TaskAssemblyTests
     [Fact]
     public void Selected_adoption_is_strict_even_after_display_diagnostics_are_full()
     {
-        var request = Resolve(Numeric(101));
+        var request = Resolve(Numeric(20));
         var document = TaskAssembly.AcceptQuestions(request, Empty,
-            Questions(Enumerable.Repeat(Question(), 101).ToArray()));
-        document = document with { Questions = document.Questions.Select(q => q with { Answer = null }).ToArray() };
+            Questions(Enumerable.Repeat(Question(), 20).ToArray()));
+        document = WithFiveDiagnosticsPerQuestion(document);
         var changedInput = request with { Settings = request.Settings with { Topic = "נושא חדש" } };
+        Assert.Contains("remainingErrors", TaskDocumentValidator.ValidateDraft(changedInput, document).Diagnostics.Keys);
         Assert.Throws<TaskValidationException>(() => TaskAssembly.Adopt(changedInput, document, [],
             [document.Questions[^1].Id], DateTime.UtcNow));
     }
@@ -163,12 +170,13 @@ public sealed class TaskAssemblyTests
     [Fact]
     public void Incomplete_questions_cannot_hide_a_strict_material_failure()
     {
-        var plan = Reading() with { Defaults = Reading().Defaults with { QuestionCount = 101 } };
+        var plan = Reading() with { Defaults = Reading().Defaults with { QuestionCount = 20 } };
         var request = Resolve(plan);
         var document = TaskAssembly.AcceptMaterials(request, Empty, new([new(MaterialId, null, "שלום עולם")])).Document!;
-        document = TaskAssembly.AcceptQuestions(request, document, Questions(Enumerable.Repeat(Question("text-input"), 101).ToArray()));
-        document = document with { Questions = document.Questions.Select(q => q with { Answer = null }).ToArray() };
+        document = TaskAssembly.AcceptQuestions(request, document, Questions(Enumerable.Repeat(Question("text-input"), 20).ToArray()));
+        document = WithFiveDiagnosticsPerQuestion(document);
         var strict = Resolve(plan with { Materials = [plan.Materials[0] with { Length = new("exact", new(120, false)) }] });
+        Assert.Contains("remainingErrors", TaskDocumentValidator.ValidateDraft(strict, document).Diagnostics.Keys);
         Assert.Null(TaskAssembly.AcceptMaterials(strict, document, new([new(MaterialId, null, "קצר מדי")])).Document);
         Assert.Throws<TaskValidationException>(() => TaskAssembly.Adopt(strict, document, [MaterialId], [], DateTime.UtcNow));
     }

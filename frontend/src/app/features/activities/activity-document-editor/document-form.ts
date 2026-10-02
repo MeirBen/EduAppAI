@@ -78,8 +78,8 @@ export function documentValue(raw: DocumentForm): Projection<EditableActivity> {
       for (const o of q.options) check(o.value, 200);
     }
   }
-  if (total > 8000 || raw.materials.length > 4 || raw.questions.length > 3999)
-    errors.push('תוכן הפעילות חורג מהמגבלה: עד 8,000 תווים, ארבעה חומרים ו־3,999 שאלות.');
+  if (total > 8000 || raw.materials.length > 4 || raw.questions.length > 20)
+    errors.push('תוכן הפעילות חורג מהמגבלה: עד 8,000 תווים, ארבעה חומרים ו־20 שאלות.');
   return {
     errors,
     value: errors.length

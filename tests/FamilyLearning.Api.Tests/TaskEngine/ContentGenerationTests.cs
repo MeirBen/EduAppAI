@@ -73,12 +73,12 @@ public sealed class ContentGenerationTests
             {
                 var properties = proposal.GetProperty("properties");
                 Assert.Equal("#/$defs/plan", properties.GetProperty("proposal").GetProperty("$ref").GetString());
-                Assert.Equal("null", properties.GetProperty("clarification").GetProperty("type").GetString());
+                Assert.Equal("[\"null\"]", properties.GetProperty("clarification").GetProperty("type").GetRawText());
             },
             clarification =>
             {
                 var properties = clarification.GetProperty("properties");
-                Assert.Equal("null", properties.GetProperty("proposal").GetProperty("type").GetString());
+                Assert.Equal("[\"null\"]", properties.GetProperty("proposal").GetProperty("type").GetRawText());
                 Assert.Equal("string", properties.GetProperty("clarification").GetProperty("type").GetString());
             });
     }
@@ -296,15 +296,15 @@ public sealed class ContentGenerationTests
     }
 
     [Fact]
-    public async Task Detectably_impossible_JSON_output_fails_before_provider_use_without_an_educational_count_cap()
+    public void Question_counts_beyond_the_strict_schema_budget_are_rejected_before_provider_use()
     {
-        using var chat = new AiFixtures.ScriptedChat();
-        using var service = Service(chat);
-        var request = Resolve(Numeric(3000));
-        var error = await Assert.ThrowsAsync<TaskValidationException>(() => service.GenerateQuestionsAsync(
-            TaskAssembly.PrepareQuestions(request, TaskAssembly.CreateDocument(request)), default));
-        Assert.Contains("questions", error.Errors.Keys);
-        Assert.Empty(chat.Requests);
+        // Exact-count question arrays above 20 can exceed Gemini's strict schema budget for some valid shapes.
+        Assert.Empty(LearningPlanValidator.Validate(Numeric(20)));
+        Assert.Contains("defaults.questionCount", LearningPlanValidator.Validate(Numeric(21)).Keys);
+        var adjustable = Numeric(20) with { Questions = Numeric().Questions with { CountBounds = new(1, 21) } };
+        Assert.Contains("questions.countBounds", LearningPlanValidator.Validate(adjustable).Keys);
+        var resolution = TaskRequestResolver.Resolve(Numeric(), new(Numeric().Defaults with { QuestionCount = 21 }));
+        Assert.Contains("settings.questionCount", resolution.Errors.Keys);
     }
 
     [Fact]

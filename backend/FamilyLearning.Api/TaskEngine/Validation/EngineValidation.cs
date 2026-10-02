@@ -6,8 +6,8 @@ internal static class EngineValidation
     internal const int ContentLimit = 8000;
     internal const int BodyLimit = 4000;
     internal const int PlanLimit = 24000;
-    // Every complete question needs at least one prompt and one answer character, plus a task title.
-    internal const int QuestionLimit = (ContentLimit - 1) / 2;
+    // Strict provider schemas pin the exact question count; Gemini's schema budget accepted 20 for every valid shape.
+    internal const int MaxQuestionCount = 20;
 
     internal static long MinimumQuestionLength(int count, string[] formats, int? choices, string? selectedFormat = null)
     {

@@ -90,7 +90,8 @@ public static class LearningPlanValidator
             if (questions.Formats.Contains("single-choice") != (questions.ChoiceCount is not null)) errors.AddError("questions.choiceCount", "יש להגדיר מספר אפשרויות רק כאשר שאלת בחירה מותרת.");
         }
         if (questions.ChoiceCount is { } choice) ValidateChoice(choice, "questions.choiceCount", errors, 2, 6);
-        if (questions.CountBounds is { } bounds && (!ValidBounds(bounds.Min, bounds.Max) || count < bounds.Min || count > bounds.Max))
+        if (questions.CountBounds is { } bounds && (!ValidBounds(bounds.Min, bounds.Max) || bounds.Max > MaxQuestionCount ||
+            count < bounds.Min || count > bounds.Max))
             errors.AddError("questions.countBounds", "גבולות מספר השאלות או ברירת המחדל אינם תקינים.");
         if (questions.Guidance is null || questions.Guidance.Length > 1000) errors.AddError("questions.guidance", "ההנחיות מוגבלות ל־1,000 תווים.");
         ValidateControls(questions.Controls, "questions.controls", ids, ref controlCount, errors);

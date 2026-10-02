@@ -1,37 +1,42 @@
 # AI guide
 
-Current decisions and accumulated evidence, consolidated on 1 October 2026.
+Current decisions and accumulated evidence, consolidated on 2 October 2026.
 This is the maintained reference for AI configuration, evaluation and tuning.
 Product contracts live in the [product specification](product-specification.md);
 implementation boundaries live in [architecture](architecture.md).
 
 ## Current status
 
-**Tuning is closed. AI quality is not fully passing, and superiority to the old
-one-shot approach has not been established.** Local code tests passing does not
-mean generated Hebrew, answer keys or educational content are consistently good.
+**Strict schema mode works and is the active profile. Educational quality is
+still not established**, and superiority to the old one-shot approach has not
+been shown. Passing code tests and schema checks does not mean generated Hebrew,
+answer keys or educational content are consistently good.
 
-- Use Gemini 3.8 Flash in `json_object` mode with medium reasoning and
-  provider-default sampling. The full prompt schema and strict application
-  validation remain; provider-side schema enforcement is not requested.
-  Low reasoning was faster and cheaper, but failed confirmation quality checks.
-- Keep the earlier material instructions and clearer authoring-field descriptions:
-  they improved sampled contract adherence on DeepSeek. The latest shared material
-  replacement instructions are a cleanup with comparable reviewed quality.
+- Use Gemini 3.8 Flash in strict `json_schema` mode with medium reasoning and
+  provider-default sampling. The schema is sent once, natively; mandatory
+  application validation is unchanged. Low reasoning was faster and cheaper,
+  but failed confirmation quality checks.
+- The former strict-mode instability had three causes, all in the schema
+  contract rather than the model: an OpenRouter conversion defect for integer
+  enums, bounded control/option arrays exceeding Gemini's schema-complexity
+  budget, and an OpenRouter widening of null-only branches. See
+  [strict schema contract](#strict-schema-contract) and
+  [resolved strict-mode failures](#resolved-strict-mode-failures).
+- Live acceptance ran six cases covering every stage in three rounds: 42 calls,
+  all automatic checks passed, every response contract-valid, no retry or
+  repair. This small sample is not a reliability rate.
+- An activity has at most 20 questions (owner decision, 2 October). Larger
+  exact-count question arrays exceed Gemini's budget for heavier shapes.
+- Keep the earlier material instructions and clearer authoring-field
+  descriptions: they improved sampled contract adherence on DeepSeek. The latest
+  shared material replacement instructions are a cleanup with comparable
+  reviewed quality.
 - Reject both question-prompt experiments. Neither earned adoption.
-- JSON-mode confirmation returned three complete plans for the owner's space
-  prompt, a meaningful clarification, and a full activity passing existing checks.
-  An upstream capture now proves OpenRouter erased the plan schema. An equivalent
-  version constraint prevents that erasure, but the full schema then receives
-  HTTP 400. Strict-mode cutover remains blocked. See
-  [unresolved failures](#unresolved-failures).
 - Keep parent review, strict validation and explicit recovery. No automatic
   output repair, weakened tests, model-specific branch or production retry.
 
-The blocking authoring case now passes live checks with the explicit JSON-mode
-profile. This small sample does not establish general reliability or better
-educational quality. Paid diagnostics are closed with earlier unknown costs still
-reserved; representative content needs human review before further quality tuning.
+Paid diagnostics are closed with earlier unknown costs still reserved;
+representative content needs human review before further quality tuning.
 
 ## Design and cutover decision
 
@@ -66,11 +71,13 @@ user secrets outside the repo without a call. `Ai__ApiKey` or
 user secrets. Environment variables (`Ai__…`) and development secrets (`Ai:…`)
 override the file. Restart after changes. Credentials never belong in reports.
 
-Current profile: `google/gemini-3.8-flash`, `json_object`, reasoning enabled at
-`medium`, no fixed reasoning-token budget, no temperature/top-p/top-k overrides,
-16,384 requested output tokens, 180-second deadline, no fallback model and no
-excluded providers. The compiled request ceiling is 512 KiB; the schema ceiling
-is 64 KiB. The output character limit is separately enforced by the engine.
+Current profile: `google/gemini-3.8-flash`, strict `json_schema`, reasoning
+enabled at `medium`, no fixed reasoning-token budget, no temperature/top-p/top-k
+overrides, 16,384 requested output tokens, 180-second deadline, no fallback
+model and no excluded providers. The compiled request ceiling is 512 KiB; the
+schema ceiling is 64 KiB. The output character limit is separately enforced by
+the engine. Requests set `strict: true` and `provider.require_parameters`, so
+OpenRouter routes only to endpoints supporting structured outputs.
 
 Medium reasoning and omitted sampling follow the reviewed [Google guidance][gemini]
 and [OpenRouter reasoning mapping][reasoning]. These are a starting profile, not
@@ -106,12 +113,15 @@ override omits nullable controls. Temperature accepts 0–2, top-p greater than
 up to 16 slugs of 1–64 lowercase letters, digits, hyphens, underscores or slashes;
 they apply to fallback and enter evaluation/profile fingerprints.
 
-Prefer strict schema mode when the endpoint supports the full schema. All modes
-include that schema in the prompt and apply identical server validation; JSON-only
-or text mode does not guarantee equivalent provider enforcement. The adapter
-preserves constraints through native SDK options and requires support for requested
-parameters. It does not silently rewrite schemas or downgrade constraints.
-Schema validity still cannot prove language quality or answer correctness.
+Prefer strict schema mode when the endpoint accepts the full schema. Each call has
+one schema source: strict mode sends it only as the native response format;
+JSON-object and text modes, which have no provider enforcement, carry it in the
+prompt. Every mode applies identical server validation. The adapter preserves
+constraints through native SDK options and requires support for requested
+parameters. It does not rewrite schemas or downgrade constraints; the
+application owns the schema and keeps it within the
+[strict schema contract](#strict-schema-contract). Schema validity still cannot
+prove language quality or answer correctness.
 
 Reasoning generally shares the output ceiling; output-limit responses are rejected.
 Effort is not an exact token allocation or a reservation for final JSON. Token
@@ -121,10 +131,53 @@ remains unverified here; [community low-thinking reports][community] concern oth
 workloads and do not establish Hebrew educational quality.
 
 Before switching models, check [endpoint metadata][metadata] and official provider
-docs, then review the entire profile. Any fallback must support the same controls;
+docs, then review the entire profile. Schema acceptance is provider-specific:
+rerun strict acceptance, and confirm the endpoint exposes the schema to the model
+(Gemini uses field names and descriptions), before relying on strict mode there.
+Any fallback must support the same controls;
 [fallback routing][fallback] handles provider errors, not invalid or poor content.
 The app makes one call per applicable stage. The optional evaluation judge uses
 the same model, so a profile change also requires judge recalibration.
+
+### Strict schema contract
+
+These rules keep one application schema valid, enforceable and faithfully
+translated for Gemini behind OpenRouter. Each was verified live on 2 October
+with OpenRouter's [upstream debug echo][upstream-debug]: the app's schemas now
+reach Google unchanged apart from an added `propertyOrdering`, which matches
+the declared key order.
+
+- **No prompt copy in strict mode.** Google's [structured output guidance][vertex-schema]
+  says to supply the schema only as the response schema, because a prompt copy
+  can lower quality. Gemini counts the native schema as input, so removing the
+  copy and the noise below cut authoring input from about 7,100 to 5,000 tokens.
+- **Stay inside the complexity budget.** Gemini compiles the schema into a
+  decoding constraint and expands bounded arrays per item. Past an undisclosed
+  budget it returns a bare HTTP 400 `INVALID_ARGUMENT` that names no field;
+  Google lists "long array length limits" and nested arrays as causes.
+  Size policies that the validator owns, such as 16 controls per plan and 1–20
+  distinct options, are therefore not decoding bounds. Generation counts stay
+  exact: up to four materials and 1–20 questions. The heaviest valid question
+  shape (all formats, six choices) is accepted at 20 and rejected at 25.
+- **Only meaningful constraints.** Numeric bounds are the validator's real ones:
+  question count 1–20, positive counts and lengths, and text-control length
+  1–500. C# int32 sentinels are not emitted. `minLength`, `maxLength` and
+  `pattern` are outside [Gemini's supported subset][gemini-schema] and are
+  ignored there, which is how an empty clarification once passed the provider.
+  They still inform the model in every mode; the validator enforces them.
+- **OpenRouter-safe spellings.** Its [Gemini conversion][structured-output]
+  erases the properties of an object containing an integer `enum`, widens a
+  standalone `"type": "null"` to a nullable string, and drops a `description`
+  placed beside `anyOf`. The fixed version uses `minimum` = `maximum`;
+  null-only branches use `["null"]`; nullable arrays use type arrays;
+  cross-field rules such as `choiceCount` live in the prompt. These are
+  equivalent JSON Schema, not relaxations; the reproduction for OpenRouter
+  support is in the [retained evidence](#costs-and-retained-evidence).
+- **Descriptions carry validator semantics.** `adjustable` is true only for an
+  explicitly requested per-activity input. Before that description, the first
+  acceptance round invented adjustable choice and length counts for the space
+  prompt, matching three earlier observations; the next two rounds did not.
+  That sample is too small to estimate a rate.
 
 ## Evaluation results
 
@@ -150,6 +203,7 @@ A dash means no comparable usable count was recorded, not a pass.
 | Effort confirmation    | 1/2 / 1/2       | 1/2 / 0/2   | Medium    |
 | Question example       | 6/6 / 6/6       | 4/6 / 2/6   | Reject    |
 | Material replacement   | 6/6 / 6/6       | 5/6 / 5/6   | Keep tie  |
+| Gemini strict schema   | 18/18           | —           | Adopt     |
 
 DeepSeek material confirmation passed 4/5 attempts: all nine returned bodies
 across candidate and confirmation passed; one provider failure. Keep body-only
@@ -203,6 +257,18 @@ supplied sources. Initial material generation and all other stage prompts remain
 byte-for-byte identical; the engine revision advanced for replacement semantics.
 No extra runtime layer, call, repair or schema transformation was added.
 
+Strict-schema acceptance on 2 October used the current profile without retries:
+`space-reading-grade3`, `number-gender`, `many-questions` (20 questions),
+`question-replacement`, `reading-refinement` and `fixed-bilingual`. Together
+they cover authoring, refinement, materials, questions, question replacement
+and a supplied source. Each round made 14 calls: the schema fix alone, then
+without the prompt copy and with descriptions, then the release schema. All 18
+workflows passed automatic checks, at $0.13–0.15 reported cost per round and a
+13.8–15.5 second median call. One release call hit Gemini's implicit cache for
+an identical request and was billed for 1,070 input tokens instead of about
+5,900, so compare token counts with caching in mind. Material replacement and
+judge review were not exercised, and the content was not reviewed.
+
 ### Method limits and audit
 
 The available tuning artifacts retain failures, rejected candidates, blind
@@ -234,107 +300,37 @@ request ceiling in both arms, below production's 512 KiB.
   $0.94556160. Admission/outage guards were corrected and isolated-tested before
   continuation; that does not erase the deviation.
 
+## Resolved strict-mode failures
+
+Owner reports on 1–2 October showed strict mode returning empty proposals, an
+empty clarification despite `minLength: 1`
+(`gen-1790943339-87Hr7EqfWwN5XsjGx3wo`), a both-null reply under the earlier
+flat envelope, and HTTP 400 once the plan survived conversion. JSON-object mode
+was the interim profile until strict acceptance passed.
+
+- **Erased plan.** OpenRouter converted the nine-property plan containing
+  `schemaVersion: { "enum": [1] }` into an empty closed object
+  (`gen-1790948761-8cTFOE1kL7ekmZkA1cOc`), so `proposal: {}` was the only valid
+  plan. Equal integer bounds preserve both the constraint and the plan.
+- **Opaque HTTP 400.** With the plan intact, Google rejected the schema
+  (`gen-1790948826-ywSQZpwH5ZuAOU7i3gxi`). Eight earlier probes each changed
+  one feature and all failed, because the dominant cost remained in every one.
+  A factorial screen then showed that removing any single plan subtree still
+  failed, while removing all controls or all array bounds passed. Removing only
+  the control and option array bounds passed with every other constraint
+  intact; restoring a single 16-item control bound failed again. Exact question
+  arrays fail between 20 and 30 items, while 100 plain strings pass, so this is
+  expansion complexity rather than a fixed bound.
+- **Widened nulls.** Null-only branches became nullable strings upstream, so
+  strict mode allowed, for example, a string proposal beside a clarification.
+  `["null"]` reaches Google unchanged.
+- **Empty strings.** Gemini ignores `minLength`. The validator rejects empty
+  clarifications in every mode, as before.
+
+Google publishes no budget figure, so any new schema feature needs a live
+acceptance check before release.
+
 ## Unresolved failures
-
-**Current application fix:** the 2 October owner log
-`gen-1790943339-87Hr7EqfWwN5XsjGx3wo` returned an empty clarification despite
-`minLength: 1`. It finished normally with HTTP 200 and 660 reasoning tokens.
-The attached messages exactly matched the application's captured SDK request.
-Changing only `response_format` to the existing supported `json_object` mode
-returned complete proposals in three trials of that same prompt. A separate
-unsupported-quota request produced a meaningful clarification. The existing
-`space-reading-grade3` harness case then passed authoring, material and question
-generation, with unchanged checks, no retry and no repair. All six responses
-also passed independent validation against their full schemas.
-
-The application now explicitly uses JSON mode across stages. This removes the
-observed failure in the sampled workflow without schema rewriting, response
-coercion or a fallback branch. JSON mode does not provide provider-side schema
-enforcement; the complete schema remains in the prompt and mandatory application
-validation remains unchanged. The subsequent upstream capture below identifies a
-schema translation defect, but does not establish a working strict profile.
-Restart the application and evaluation dashboard after changing the profile.
-
-**Empty authoring plans:** medium and low each returned an empty `proposal` for
-the number-gender case, ending normally below the output cap. All twelve schema
-references resolved and the plan required nine properties. Native wire tests
-confirmed the full schema, `strict: true` and `require_parameters: true`. The
-responses were rejected by independent schema/domain checks. Both serving
-providers appeared. Earlier examples:
-
-- Medium: `gen-1790881909-U5JOfcRZwvJzNCwL5Din`.
-- Low: `gen-1790881938-v19J3UwkWAkhuyKkFalI`.
-
-**Confirmed translation defect (2 October):** OpenRouter's supported
-[upstream debug capture][upstream-debug] shows that the full nine-property plan
-becomes `{"type":"object","additionalProperties":false}` before reaching Google.
-The reproduced response, `gen-1790948761-8cTFOE1kL7ekmZkA1cOc`, contains an empty
-proposal, the only object this damaged plan schema permits. This directly explains
-the reproduced empty-object failure; it does not independently explain every
-historical empty clarification.
-
-Changing the fixed integer version from `enum: [1]` to `minimum: 1, maximum: 1`
-preserves the same constraint and all nine upstream fields. The engine now emits
-those bounds, with a real-SDK wire regression and a new engine revision. However,
-Google and Google AI Studio reject that intact full schema with HTTP 400
-`INVALID_ARGUMENT`, without identifying a field. Inlining references and several
-isolated constraint probes did not resolve it. A complete standalone control schema
-was accepted, but that is not an authoring or workflow pass. OpenRouter also widens
-standalone `type: "null"` to a nullable string; the equivalent `type: ["null"]`
-preserves the constraint upstream but alone does not resolve the full rejection.
-
-An additional probe expressed the nullable `defaultFormat` enum as a string-enum/
-null union, following [Google's documented enum types][google-schema]. It also
-received HTTP 400 and was not adopted. Schema complexity remains a hypothesis,
-not a proven cause.
-The current profile remains JSON mode. Strict-mode acceptance must precede any
-profile change; [documented support][google-schema] alone cannot establish that
-this complete contract works through [OpenRouter][structured-output].
-
-On 2 October, the owner's grade-3 space prompt reproduced a both-null reply. The
-old schema allowed it although application validation rejected it. The provider
-contract now uses a required `result` with a nested proposal-or-clarification
-union and separate `assumptions`, following [Google's nested union
-example](https://ai.google.dev/gemini-api/docs/structured-output#content-moderation).
-The public API stays unchanged; complete plan validation,
-references and one-call behavior remain. The exact prompt joins the evaluation
-suite without changing existing cases or checks.
-
-The first three diagnostic calls produced: the original both-null reply, a rejected
-candidate missing assumptions, and HTTP 400 from both Google routes for a rejected
-root-union candidate (`gen-1790889012-XV79EBTeSExhmO0qm9Oa`). Raw provider error
-details were unavailable; the billing lookup returned 404. That call's reservation
-remains retained. Earlier fixed-plan trials
-skipped authoring; scripted provider tests verify application behavior, not model
-adherence. They never established that this prompt worked with Gemini.
-
-Fourteen additional bounded calls tested the provider contract directly with the
-same grade-3 space prompt. These are diagnostic probes, not a quality benchmark:
-
-- Tiny referenced and inline schemas both worked, including nullable proposals.
-  Inlining the full schema still returned an empty proposal; no inlining change
-  was adopted.
-- The full nested contract returned a clarification about nonessential choices.
-  Constraining it to the proposal branch reproduced an empty proposal. Both fail
-  the acceptance requirement for this sufficiently specified prompt.
-- In a minimal matched pair, a required integer version without an enum produced
-  a complete proposal; adding only `enum: [1]` produced `proposal: {}`. This
-  identifies a candidate trigger, not the provider's internal cause
-  or a demonstrated fix for the full contract.
-- Removing that enum, and separately removing the version field from the full
-  contract, both returned HTTP 400. Both Google routes reported only
-  `INVALID_ARGUMENT`. Tiny nullable string-enum variants both worked.
-- Changing only the response mode of the full inline proposal request to
-  `json_object` produced a complete plan with five questions and a 300-word target.
-  Independent schema checks and the application's validator accepted it. This
-  single control did not establish reliability or educational quality. The later
-  six-call confirmation above preceded the explicit profile change.
-
-The normal Microsoft.Extensions.AI formatter was also inspected locally: it moved
-six outer bounds into descriptions and left referenced definitions unchanged. No
-paid formatter trial ran after the latest unknown-cost stop. The adapter remains
-unchanged. **The full schema-mode failure remains unresolved.** Preserve the
-strict application checks and distinguish mode compatibility from content quality.
 
 **DeepSeek verification (2 October):** changing only the model of the failing
 strict-schema request to `deepseek/deepseek-v4.1-flash` produced three nonempty
@@ -342,12 +338,11 @@ space plans and one meaningful clarification. All four responses, served by
 AtlasCloud, passed independent schema validation. Two plans passed application
 validation; the third, through the existing harness, failed because
 `questions.choiceCount` was null. Material/question generation was skipped and
-paid testing stopped. The schema permits null without explaining the validator's
-requirement for 2–6 options whenever single-choice is allowed. This shared contract
-communication gap is separate from Gemini's empty-output failure. Keep the current
-profile; a model switch alone has not passed the workflow. All three plans also
-invented adjustable word counts. This sample proves neither general provider
-reliability nor better educational quality.
+paid testing stopped. The authoring prompt now states that single-choice
+requires a 2–6 choice count, and `adjustable` has a schema description; DeepSeek
+has not been retested since. All three plans also invented adjustable word
+counts. This sample proves neither general provider reliability nor better
+educational quality.
 
 **Availability:** user-supplied generation IDs confirmed Google 429/504 and Google
 AI Studio 503 responses with zero charged cost. These are upstream serving errors;
@@ -365,6 +360,10 @@ gravity; one proposal also enabled length adjustment without an explicit request
 These findings are retained in the private review and are not counted as an
 educational-quality pass.
 
+**Evaluation judge:** the optional judge still appends its schema to its prompt
+in strict mode. Its exact prompt is part of the calibration fingerprint, so the
+change needs its own recalibration run. Production generation is unaffected.
+
 ## Costs and retained evidence
 
 The paid tuning ledger is closed. Amounts below are USD; reservations are
@@ -379,11 +378,17 @@ conservative allowances for missing costs, **not confirmed charges**.
 | Owner's new report    |     1 |  $0.004589250 | $0.000000000 |
 | DeepSeek verification |     4 | $0.0066341346 | $0.000000000 |
 | Gemini strict schema  |    11 | $0.0117457500 | $0.326841750 |
-| Total                 |   263 | $0.8521420906 | $1.430891850 |
+| Strict root cause     |    96 | $0.5185207500 | $0.199239750 |
+| Total                 |   359 | $1.3706628406 | $1.630131600 |
 
 First tuning includes the post-cutover material and qualification experiments.
 
-Total charged/reserved: **$2.2830339406 of $3**.
+Total charged/reserved: **$3.0007944406**. The owner authorized up to $3 of live
+calls for the 2 October root-cause session. Its known cost was $0.5185; the
+reserve covers 28 HTTP 400 schema rejections at full output price. Key usage
+afterwards matched reported per-call costs exactly, including two rejections at
+$0, so the rejections appear free, but they stay reserved under this ledger's
+rule.
 The owner raised the aggregate cap and authorized eight further calls after the
 first two strict-schema diagnostics;
 all ten are retained. A subsequent allowance covered one nullable-enum probe and
@@ -415,6 +420,13 @@ recovered after the streaming parser completed; the ledger includes those frames
 while original per-attempt result snapshots preserve the parser's zero count.
 The `authoring-native-format-2026-10-02/` directory contains a local request
 capture and an unexecuted candidate, not another paid attempt.
+The root-cause ledger `gemini-strict-root-cause-2026-10-02/budget.json` is closed
+after 96 calls. That directory keeps the acceptance probe, every probe schema and
+response, exact application wire captures, upstream echoes and diffs, the three
+harness rounds (`harness/`, `harness-final/`, `harness-release/`) and
+`acceptance-summary.json`. The OpenRouter reproduction for support remains
+`gemini-strict-contract-2026-10-02/support-reproduction.md`; it predates the
+dropped-`description` finding.
 Do not edit historical reports to match new code or report formats. The latest manifest
 hashes captured source versions, not this subsequently consolidated documentation.
 
@@ -562,6 +574,15 @@ transport/accounting, negative replacement and compiled prompt-scope checks pass
 The browser workflow did not change during tuning, so its cutover suite was not
 rerun for those changes. These are dated engineering results, not AI quality scores.
 
+The 2 October strict-schema change passed `scripts/verify.sh`: 557 backend, 123
+Angular and 23 dashboard tests plus builds, formatting, Markdown and TypeScript
+checks. New regressions cover null-only wire branches, unbounded control lists
+with validator-owned limits, and the 20-question cap in the API and plan editor;
+each failed before its fix and passed after. After `scripts/publish.sh`, the 16
+isolated browser tests passed. That rerun also fixed the e2e provider, which
+still read the version from the integer enum removed in the previous change, so
+its authoring paths had been failing since then.
+
 Future work must address a concrete failure with one bounded hypothesis at a time.
 Freeze cases/settings/checks, register an adoption/stop rule, preserve all failures
 and costs, compare to the current baseline and stop on flat results or regressions.
@@ -571,12 +592,13 @@ this guide in place instead of adding another dated narrative report; keep run
 protocols and immutable experimental evidence in artifacts.
 
 [gemini]: https://ai.google.dev/gemini-api/docs/generate-content/latest-model
+[gemini-schema]: https://ai.google.dev/gemini-api/docs/structured-output
+[vertex-schema]: https://docs.cloud.google.com/vertex-ai/generative-ai/docs/multimodal/control-generated-output
 [reasoning]: https://openrouter.ai/docs/guides/best-practices/reasoning-tokens
 [metadata]: https://openrouter.ai/api/v1/models
 [fallback]: https://openrouter.ai/docs/guides/routing/model-fallbacks
 [token-report]: https://discuss.ai.google.dev/t/gemini-3-8-flash-high-does-maxoutputtokens-include-thinking-tokens/181077/4
 [community]: https://www.reddit.com/r/hermesagent/comments/1w5jj6w/gemini_38_flash_is_awesome_as_the_main_agent/
-[google-schema]: https://ai.google.dev/api/generate-content#v1beta.GenerationConfig
 [upstream-debug]: https://openrouter.ai/docs/api_reference/errors-and-debugging
 [structured-output]: https://openrouter.ai/docs/guides/features/structured-outputs
 [usage]: https://openrouter.ai/docs/cookbook/administration/usage-accounting

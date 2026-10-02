@@ -77,7 +77,7 @@ export function candidateEdit(
       !text(value['title'], 100) ||
       !(value['instructions'] == null || text(value['instructions'], 1000)) ||
       !Array.isArray(value['questions']) ||
-      value['questions'].length > 3999
+      value['questions'].length > 20
     )
       return;
     const questions = value['questions'].map(question);

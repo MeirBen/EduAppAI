@@ -1,7 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using FamilyLearning.Api.TaskEngine.Models;
-using FamilyLearning.Api.TaskEngine.Validation;
 
 namespace FamilyLearning.Api.TaskEngine.Ai;
 
@@ -24,7 +23,6 @@ internal static class AiSchemas
 
     public static JsonElement QuestionsFor(ResolvedTaskRequest request, bool replacement = false)
     {
-        if (!replacement) RequireQuestionOutputCapacity(request);
         var schema = JsonSerializer.SerializeToNode(Questions)!;
         var questions = schema["properties"]!["questions"]!;
         questions["minItems"] = request.Settings.QuestionCount;
@@ -36,22 +34,10 @@ internal static class AiSchemas
             interaction["options"]!["minItems"] = count;
             interaction["options"]!["maxItems"] = count;
         }
-        else interaction["options"] = new JsonObject { ["type"] = "null" };
+        // OpenRouter's Gemini conversion widens a standalone null type to a nullable string; ["null"] stays exact.
+        else interaction["options"] = new JsonObject { ["type"] = new JsonArray("null") };
         if (request.Questions.Formats is ["single-choice"]) interaction["options"]!["type"] = "array";
         return JsonSerializer.SerializeToElement(replacement ? questions["items"] : schema);
-    }
-
-    internal static void RequireQuestionOutputCapacity(ResolvedTaskRequest request)
-    {
-        // Even minimal valid JSON must fit the response ceiling. This is a serialization bound,
-        // not another educational question-count limit; no count-sized allocation is needed.
-        var sizes = request.Questions.Formats.Select(format => JsonSerializer.Serialize(new QuestionCandidate("a",
-            new(format, format == "single-choice" ? Enumerable.Range(0, request.Questions.ChoiceCount!.Value).Select(i => i.ToString()).ToArray() : null),
-            new("0"), 0), EngineJson.Options).Length).ToArray();
-        var framing = JsonSerializer.Serialize(new QuestionCandidateBatch("a", "", []), EngineJson.Options).Length;
-        var minimum = framing + sizes.Sum() + (long)(request.Settings.QuestionCount - sizes.Length) * sizes.Min() + request.Settings.QuestionCount - 1;
-        if (minimum > AiGenerationOptions.OutputCharacterLimit)
-            throw new TaskValidationException(new Dictionary<string, string[]> { ["questions"] = ["מספר השאלות אינו יכול להיכנס למגבלת פלט ה־AI."] });
     }
 
     private static JsonElement LoadTemplate()

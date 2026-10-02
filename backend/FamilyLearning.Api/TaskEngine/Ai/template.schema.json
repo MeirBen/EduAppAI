@@ -10,7 +10,9 @@
               "$ref": "#/$defs/plan"
             },
             "clarification": {
-              "type": "null"
+              "type": [
+                "null"
+              ]
             }
           },
           "required": [
@@ -23,7 +25,9 @@
           "type": "object",
           "properties": {
             "proposal": {
-              "type": "null"
+              "type": [
+                "null"
+              ]
             },
             "clarification": {
               "type": "string",
@@ -100,7 +104,7 @@
             "questionCount": {
               "type": "integer",
               "minimum": 1,
-              "maximum": 2147483647
+              "maximum": 20
             }
           },
           "required": [
@@ -127,8 +131,7 @@
           "items": {
             "$ref": "#/$defs/control"
           },
-          "minItems": 0,
-          "maxItems": 16
+          "minItems": 0
         },
         "totalLength": {
           "anyOf": [
@@ -136,7 +139,9 @@
               "$ref": "#/$defs/length"
             },
             {
-              "type": "null"
+              "type": [
+                "null"
+              ]
             }
           ]
         }
@@ -195,7 +200,9 @@
               "$ref": "#/$defs/length"
             },
             {
-              "type": "null"
+              "type": [
+                "null"
+              ]
             }
           ]
         },
@@ -204,8 +211,7 @@
           "items": {
             "$ref": "#/$defs/control"
           },
-          "minItems": 0,
-          "maxItems": 16
+          "minItems": 0
         }
       },
       "required": [
@@ -257,7 +263,9 @@
               "$ref": "#/$defs/integerChoice"
             },
             {
-              "type": "null"
+              "type": [
+                "null"
+              ]
             }
           ]
         },
@@ -267,7 +275,9 @@
               "$ref": "#/$defs/bounds"
             },
             {
-              "type": "null"
+              "type": [
+                "null"
+              ]
             }
           ]
         },
@@ -280,8 +290,7 @@
           "items": {
             "$ref": "#/$defs/control"
           },
-          "minItems": 0,
-          "maxItems": 16
+          "minItems": 0
         }
       },
       "required": [
@@ -346,40 +355,31 @@
           "type": [
             "integer",
             "null"
-          ],
-          "minimum": -2147483648,
-          "maximum": 2147483647
+          ]
         },
         "max": {
           "type": [
             "integer",
             "null"
-          ],
-          "minimum": -2147483648,
-          "maximum": 2147483647
+          ]
         },
         "maxLength": {
           "type": [
             "integer",
             "null"
           ],
-          "minimum": -2147483648,
-          "maximum": 2147483647
+          "minimum": 1,
+          "maximum": 500
         },
         "options": {
-          "anyOf": [
-            {
-              "type": "array",
-              "items": {
-                "$ref": "#/$defs/option"
-              },
-              "minItems": 1,
-              "maxItems": 20
-            },
-            {
-              "type": "null"
-            }
-          ]
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "$ref": "#/$defs/option"
+          },
+          "minItems": 1
         }
       },
       "required": [
@@ -424,10 +424,10 @@
       "properties": {
         "value": {
           "type": "integer",
-          "minimum": 1,
-          "maximum": 2147483647
+          "minimum": 1
         },
         "adjustable": {
+          "description": "True only when the parent explicitly asks to change this value for each activity; min and max may then bound it. When false, min and max are null.",
           "type": "boolean"
         },
         "min": {
@@ -435,16 +435,14 @@
             "integer",
             "null"
           ],
-          "minimum": -2147483648,
-          "maximum": 2147483647
+          "minimum": 1
         },
         "max": {
           "type": [
             "integer",
             "null"
           ],
-          "minimum": -2147483648,
-          "maximum": 2147483647
+          "minimum": 1
         }
       },
       "required": [
@@ -463,16 +461,16 @@
             "integer",
             "null"
           ],
-          "minimum": -2147483648,
-          "maximum": 2147483647
+          "minimum": 1,
+          "maximum": 20
         },
         "max": {
           "type": [
             "integer",
             "null"
           ],
-          "minimum": -2147483648,
-          "maximum": 2147483647
+          "minimum": 1,
+          "maximum": 20
         }
       },
       "required": [
@@ -498,7 +496,9 @@
               "$ref": "#/$defs/integerChoice"
             },
             {
-              "type": "null"
+              "type": [
+                "null"
+              ]
             }
           ]
         },
@@ -507,16 +507,14 @@
             "integer",
             "null"
           ],
-          "minimum": -2147483648,
-          "maximum": 2147483647
+          "minimum": 1
         },
         "upper": {
           "type": [
             "integer",
             "null"
           ],
-          "minimum": -2147483648,
-          "maximum": 2147483647
+          "minimum": 1
         }
       },
       "required": [

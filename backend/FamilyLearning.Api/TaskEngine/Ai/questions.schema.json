@@ -83,7 +83,7 @@
         "additionalProperties": false
       },
       "minItems": 1,
-      "maxItems": 3999
+      "maxItems": 20
     }
   },
   "required": [

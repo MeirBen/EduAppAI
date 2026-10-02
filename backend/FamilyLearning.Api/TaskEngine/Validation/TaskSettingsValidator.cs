@@ -20,8 +20,8 @@ public static class TaskSettingsValidator
             errors[$"{path}.audience"] = ["יש לתאר את קהל היעד באורך של 1 עד 200 תווים."];
         if (settings.Difficulty is not ("easy" or "medium" or "hard"))
             errors[$"{path}.difficulty"] = ["יש לבחור רמת קושי."];
-        if (settings.QuestionCount < 1)
-            errors[$"{path}.questionCount"] = ["מספר השאלות חייב להיות גדול מאפס."];
+        if (settings.QuestionCount is < 1 or > EngineValidation.MaxQuestionCount)
+            errors[$"{path}.questionCount"] = ["מספר השאלות חייב להיות בין 1 ל־20."];
         return errors;
     }
 }
