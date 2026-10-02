@@ -237,11 +237,12 @@ The workspace owns one initialized form buffer for plan and per-activity input,
 derived canonical projections, source confirmation and twenty coalesced Undo
 entries. ActivitySetup (per-activity choices and source text), PlanEditor
 (advanced plan definition), TemplateChat and the document editor edit the
-owner's Signal Forms and emit events; they own no copied draft or HTTP requests.
-ScopedRepair keeps only its unsent instruction. Describe/setup/review phases,
-the plan summary and parent-language diagnostics are derived, never stored.
-An AI-extracted fixed source requires
-local confirmation; direct source edits accept the exact edited string. Only
+owner's Signal Forms and emit events; ActivityReview and GenerationStatus
+present saved and operation state and emit only explicit actions. None owns a
+copied draft or HTTP requests. ScopedRepair keeps only its unsent instruction.
+Describe/setup/review phases, the plan summary and parent-language diagnostics
+are derived, never stored. An AI-extracted fixed source requires local
+confirmation; direct source edits accept the exact edited string. Only
 canonical text crosses the API boundary. Template publication briefly locks
 editing and uses expectedVersion; it never writes an activity or generates
 content. Failed publication preserves local input and offers a library check.

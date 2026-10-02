@@ -198,11 +198,28 @@ export function planForm(plan?: LearningPlan): PlanForm {
   };
 }
 
+/** Canonical control order; per-activity control inputs are aligned with it. */
 export function planControls(plan: LearningPlan): PlanControl[] {
   return [
     ...plan.controls,
     ...plan.materials.flatMap((material) => material.controls),
     ...plan.questions.controls,
+  ];
+}
+/** The same control order over editable plan fields. */
+export function formControls(plan: PlanForm): ControlForm[] {
+  return [
+    ...plan.controls,
+    ...plan.materials.flatMap((material) => material.controls),
+    ...plan.questions.controls,
+  ];
+}
+/** Formats ticked in the editable plan, in the canonical order. */
+export function formFormats(questions: PlanForm['questions']): QuestionFormat[] {
+  return [
+    ...(questions.numeric ? (['numeric-input'] as const) : []),
+    ...(questions.text ? (['text-input'] as const) : []),
+    ...(questions.choice ? (['single-choice'] as const) : []),
   ];
 }
 /** Rebuilds only applicable inputs, preserving values by app identity after a plan edit/proposal. */
@@ -364,10 +381,7 @@ export function planValue(form: PlanForm): Projection<LearningPlan> {
   checkText(form.goal, 'מטרת הפעילות', 500, errors, true);
   checkText(form.guidance, 'הנחיות משותפות', 4000, errors);
   const defaults = settingsValue(form.settings, errors);
-  const formats: QuestionFormat[] = [];
-  if (form.questions.numeric) formats.push('numeric-input');
-  if (form.questions.text) formats.push('text-input');
-  if (form.questions.choice) formats.push('single-choice');
+  const formats = formFormats(form.questions);
   if (!formats.length) errors.push('יש לבחור לפחות סוג שאלה אחד.');
   if (
     form.questions.selectableFormat &&

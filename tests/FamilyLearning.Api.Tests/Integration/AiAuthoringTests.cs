@@ -18,8 +18,8 @@ public sealed class AiAuthoringTests
     public async Task Plan_chat_returns_correlated_clarifications_then_a_proposal_without_publishing()
     {
         var plan = Numeric();
-        var clarification = """{"proposal":null,"clarification":"לאיזה גיל?","assumptions":[]}""";
-        var proposal = JsonSerializer.Serialize(new { proposal = plan, clarification = (string?)null, assumptions = Array.Empty<string>() }, EngineJson.Options);
+        var clarification = """{"result":{"proposal":null,"clarification":"לאיזה גיל?"},"assumptions":[]}""";
+        var proposal = JsonSerializer.Serialize(new { result = new { proposal = plan, clarification = (string?)null }, assumptions = Array.Empty<string>() }, EngineJson.Options);
         await using var app = new GenerationHarness(clarification, clarification, proposal);
         using var parent = await app.ParentAsync();
         AuthoringTurn[] context = [];
@@ -53,7 +53,7 @@ public sealed class AiAuthoringTests
     public async Task Plan_chat_rejects_changed_fixed_source_and_reports_real_removals()
     {
         var plan = Supplied();
-        string Reply(LearningPlan value) => JsonSerializer.Serialize(new { proposal = value, clarification = (string?)null, assumptions = Array.Empty<string>() }, EngineJson.Options);
+        string Reply(LearningPlan value) => JsonSerializer.Serialize(new { result = new { proposal = value, clarification = (string?)null }, assumptions = Array.Empty<string>() }, EngineJson.Options);
         await using var app = new GenerationHarness(Reply(plan with { Materials = [plan.Materials[0] with { Text = "changed" }] }), Reply(plan with { Materials = [] }));
         using var parent = await app.ParentAsync();
         using var rejected = await parent.PostAsJsonAsync("/api/ai/template-drafts", new TemplateAuthoringInput("לשנות", plan));

@@ -1,6 +1,6 @@
 @let isTemplate = context() === 'template';
 <section class="mx-auto grid max-w-3xl gap-6 p-gutter" aria-labelledby="workspace-title">
-  <header class="grid gap-2">
+  <header class="grid gap-1">
     <div class="flex flex-wrap items-center justify-between gap-3">
       <div>
         <p class="eyebrow">{{ isTemplate ? 'תבנית לשימוש חוזר' : 'תכנון פעילות' }}</p>
@@ -32,7 +32,7 @@
   @if (loadError()) {
     <p role="alert" class="field-error">{{ apiError(loadError()) }}</p>
   } @else if (!loading()) {
-    <section class="panel grid gap-5" aria-labelledby="plan-title">
+    <section class="panel grid gap-4" aria-labelledby="plan-title">
       @if (hasPlan()) {
         <div class="flex flex-wrap items-start justify-between gap-x-4 gap-y-1">
           <div class="grid min-w-0 gap-1">
@@ -91,7 +91,7 @@
           <p role="alert" class="field-error">{{ authorError() }}</p>
         }
         @if (changes().length) {
-          <div class="text-sm">
+          <div class="grid gap-1 text-sm">
             <p class="font-medium">מה השתנה:</p>
             <ul class="list-disc ps-6">
               @for (change of changes(); track $index) {
@@ -115,14 +115,12 @@
           [open]="isTemplate || ai.value()?.configured === false"
         >
           <summary>{{ hasPlan() ? 'אפשרויות מתקדמות' : 'מילוי הפרטים ידנית' }}</summary>
-          <div class="pt-4">
-            <app-plan-editor
-              [fields]="fields.plan"
-              [locked]="saving() || released()"
-              (edited)="edited($event)"
-              (structureChanged)="changeStructure($event)"
-            />
-          </div>
+          <app-plan-editor
+            [fields]="fields.plan"
+            [locked]="saving() || released()"
+            (edited)="edited($event)"
+            (structureChanged)="changeStructure($event)"
+          />
         </details>
       </div>
       @if (attempted() && projection().errors.length) {
@@ -136,9 +134,13 @@
       }
     </section>
     @if (isTemplate) {
-      <section class="panel grid gap-3" aria-labelledby="publication-title">
-        <h2 id="publication-title">שמירת התבנית</h2>
-        <p>שמירה מפרסמת גרסה של התבנית בספרייה. היא אינה יוצרת תוכן ואינה שומרת שינויים בפעילות.</p>
+      <section class="panel grid gap-4" aria-labelledby="publication-title">
+        <div class="grid gap-1">
+          <h2 id="publication-title">שמירת התבנית</h2>
+          <p>
+            שמירה מפרסמת גרסה של התבנית בספרייה. היא אינה יוצרת תוכן ואינה שומרת שינויים בפעילות.
+          </p>
+        </div>
         <ng-container [ngTemplateOutlet]="publish" />
       </section>
     }
@@ -152,19 +154,21 @@
         (checked)="reloadActivity()"
       />
     }
-    @if (available()) {
-      <section class="panel grid gap-3" aria-labelledby="available-title">
-        <h2 id="available-title">נוצרה תוצאה בזמן שהמשכתם לערוך</h2>
-        <p>לא החלפנו את העבודה שלכם. אפשר לבדוק את התוצאה ולטעון אותה במקום העריכה המקומית.</p>
+    @if (available(); as result) {
+      <section class="panel grid gap-4" aria-labelledby="available-title">
+        <div class="grid gap-1">
+          <h2 id="available-title">נוצרה תוצאה בזמן שהמשכתם לערוך</h2>
+          <p>לא החלפנו את העבודה שלכם. אפשר לבדוק את התוצאה ולטעון אותה במקום העריכה המקומית.</p>
+        </div>
         <details class="well">
           <summary>בדיקת התוצאה</summary>
-          <app-activity-document-view [document]="available()!.document" />
+          <app-activity-document-view [document]="result.document" />
         </details>
         <ng-container [ngTemplateOutlet]="reload" />
       </section>
     }
     @for (candidate of editableCandidates(); track candidate.index) {
-      <section class="panel grid gap-3" [attr.aria-label]="candidate.name">
+      <section class="panel grid gap-4" [attr.aria-label]="candidate.name">
         <p class="font-medium">
           {{
             candidate.conflict
@@ -174,17 +178,19 @@
         </p>
         <details class="well">
           <summary>בדיקת התוצאה — {{ candidate.name }}</summary>
-          <app-activity-document-view [document]="candidate.preview" />
-          <p class="mt-4">העברה לעריכה מחליפה את החלק הזה בעריכה שלכם. בדקו ושמרו אחר כך.</p>
-          <button
-            type="button"
-            data-edit-candidate
-            class="button button-secondary mt-3"
-            [disabled]="saving()"
-            (click)="editCandidate(candidate.index)"
-          >
-            העברת התוצאה לעריכה
-          </button>
+          <div class="grid gap-4">
+            <app-activity-document-view [document]="candidate.preview" />
+            <p>העברה לעריכה מחליפה את החלק הזה בעריכה שלכם. בדקו ושמרו אחר כך.</p>
+            <button
+              type="button"
+              data-edit-candidate
+              class="button button-secondary w-fit"
+              [disabled]="saving()"
+              (click)="editCandidate(candidate.index)"
+            >
+              העברת התוצאה לעריכה
+            </button>
+          </div>
         </details>
       </section>
     }
@@ -195,7 +201,7 @@
         [locked]="saving() || released()"
         [aiAvailable]="ai.value()?.configured ?? false"
         [operationActive]="operationActive()"
-        [waiting]="!hasContent()"
+        [empty]="!hasContent()"
         [staleMaterials]="stale().materials"
         [staleQuestions]="stale().questions"
         [activeTarget]="activeTarget()"
@@ -207,20 +213,22 @@
       />
     }
     @if (sourceReplacement().id) {
-      <section class="panel grid gap-3" aria-labelledby="replacement-title">
+      <section class="panel grid gap-4" aria-labelledby="replacement-title">
         <h2 id="replacement-title">החלפת הטקסט</h2>
-        <label for="replacement-source">הטקסט החדש — יישמר בדיוק כפי שהוזן</label>
-        <textarea
-          id="replacement-source"
-          dir="auto"
-          rows="8"
-          [formField]="sourceFields.text"
-          (input)="sourceTyping()"
-          aria-describedby="replacement-source-help"
-        ></textarea>
-        <p id="replacement-source-help" class="text-sm text-muted">
-          עד 4,000 תווים. אחרי ההחלפה כדאי לבדוק את השאלות שתלויות בטקסט. התבנית בספרייה לא תשתנה.
-        </p>
+        <div>
+          <label for="replacement-source">הטקסט החדש — יישמר בדיוק כפי שהוזן</label>
+          <textarea
+            id="replacement-source"
+            dir="auto"
+            rows="8"
+            [formField]="sourceFields.text"
+            (input)="sourceTyping()"
+            aria-describedby="replacement-source-help"
+          ></textarea>
+          <p id="replacement-source-help" class="mt-2 text-sm text-muted">
+            עד 4,000 תווים. אחרי ההחלפה כדאי לבדוק את השאלות שתלויות בטקסט. התבנית בספרייה לא תשתנה.
+          </p>
+        </div>
         <div class="flex flex-wrap items-center gap-3">
           <button
             class="button"
@@ -244,8 +252,10 @@
     @if (hasPlan() || saved()) {
       <section class="panel grid gap-4" aria-labelledby="actions-title">
         @if (released()) {
-          <h2 id="actions-title">הפעילות מוכנה</h2>
-          <p>הפעילות סומנה כמוכנה ונשמרה כעותק קבוע. שינויים נעשים בעותק חדש לעריכה.</p>
+          <div class="grid gap-1">
+            <h2 id="actions-title">הפעילות מוכנה</h2>
+            <p>הפעילות סומנה כמוכנה ונשמרה כעותק קבוע. שינויים נעשים בעותק חדש לעריכה.</p>
+          </div>
           <div class="flex flex-wrap gap-3">
             <a class="button" [routerLink]="['/instances', saved()!.releasedSnapshotId]"
               >צפייה בפעילות המוכנה</a
@@ -298,49 +308,12 @@
           </div>
         } @else {
           <h2 id="actions-title">בדיקה וסימון כמוכנה</h2>
-          <p role="status" class="font-medium">
-            {{
-              issues().length
-                ? 'לפני סימון כמוכנה יש לטפל בדברים הבאים:'
-                : saved() && !dirty()
-                  ? 'הפעילות מוכנה לבדיקה שלכם.'
-                  : ''
-            }}
-          </p>
-          @if (issues().length) {
-            <ul class="-mt-2 list-disc ps-6">
-              @for (issue of issues(); track $index) {
-                <li>{{ issue }}</li>
-              }
-            </ul>
-            @if (dirty()) {
-              <p class="text-sm text-muted">הבדיקה מתייחסת לגרסה השמורה ומתעדכנת אחרי שמירה.</p>
-            }
-          }
-          @if (measurements().length) {
-            <ul class="grid gap-2" aria-label="אורך הטקסט בגרסה השמורה">
-              @for (item of measurements(); track $index) {
-                <li [class.error]="item.state === 'blocking'" class="my-0">
-                  <span class="font-medium"
-                    ><bdi>{{ item.label }}</bdi
-                    >:</span
-                  >
-                  {{ item.requirement }} · {{ item.actual }}
-                  @if (item.state === 'met') {
-                    · עומד בדרישה
-                  }
-                  @if (item.state === 'blocking') {
-                    <strong class="block">
-                      יש לקצר או להאריך את הטקסט, או לשפר אותו בעזרת AI, לפני סימון כמוכנה.
-                    </strong>
-                  }
-                </li>
-              }
-            </ul>
-          }
-          <p class="text-sm text-muted">
-            בדקו את השפה, העובדות והתשובות. סימון כמוכנה שומר עותק קבוע של הגרסה הזו.
-          </p>
+          <app-activity-review
+            [issues]="issues()"
+            [measurements]="measurements()"
+            [saved]="!!saved()"
+            [outdated]="dirty()"
+          />
           <div class="flex flex-wrap gap-3">
             <button
               id="release-activity"
@@ -363,7 +336,7 @@
           </div>
           <details>
             <summary>פעולות נוספות</summary>
-            <div class="grid justify-items-start gap-1 pt-2">
+            <div class="grid justify-items-start gap-1">
               <button
                 id="generate-questions"
                 class="text-link"
@@ -414,7 +387,7 @@
           </ul>
         }
         @if (startRecovery()) {
-          <div class="well grid gap-3">
+          <div class="well grid gap-4">
             <p>
               לא ידוע אם בקשת היצירה התקבלה. הבדיקה שולחת את אותה בקשה בדיוק, ואינה מתחילה ניסיון
               חדש.
@@ -441,7 +414,7 @@
     @if (!isTemplate && hasPlan()) {
       <details class="well">
         <summary>שמירה כתבנית לשימוש חוזר</summary>
-        <div class="grid gap-3 pt-2">
+        <div class="grid gap-4">
           <p>
             תבנית מאפשרת ליצור בקלות פעילויות דומות בהמשך. השמירה אינה יוצרת תוכן ואינה שומרת את
             הפעילות. שם התבנית: <bdi>{{ raw().plan.name }}</bdi>
@@ -467,8 +440,10 @@
   </button>
   <app-loading-indicator [active]="publishing()" label="שומרים את התבנית…" />
   @if (error()) {
-    <p role="alert" class="field-error">{{ error() }}</p>
-    <a id="check-library" routerLink="/templates" class="text-link w-fit">בדיקת התבנית בספרייה</a>
+    <div class="grid justify-items-start gap-1">
+      <p role="alert" class="field-error">{{ error() }}</p>
+      <a id="check-library" routerLink="/templates" class="text-link">בדיקת התבנית בספרייה</a>
+    </div>
   }
   <p role="status">{{ templateNotice() }}</p>
 </ng-template>

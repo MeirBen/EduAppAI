@@ -38,15 +38,15 @@ describe('Parent-facing activity presentation', () => {
       'כיתה ג׳',
       'בינוני',
       '5 שאלות אמריקאיות',
-      'כ־300 מילים',
+      'בערך 300 מילים',
     ]);
     input.materials[0].wordCount = '450';
     input.questionFormat = 'text-input';
-    expect(activitySummary(plan, input)).toContain('כ־450 מילים');
+    expect(activitySummary(plan, input)).toContain('בערך 450 מילים');
     expect(activitySummary(plan, input)).toContain('5 שאלות עם תשובה קצרה');
     // Unfinished typing falls back to the plan value instead of an invented number.
     input.materials[0].wordCount = '4.';
-    expect(activitySummary(plan, input)).toContain('כ־300 מילים');
+    expect(activitySummary(plan, input)).toContain('בערך 300 מילים');
   });
 
   it('summarizes question-only and mixed plans', () => {

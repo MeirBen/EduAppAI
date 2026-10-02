@@ -1,6 +1,8 @@
-<section class="mx-auto grid max-w-5xl gap-5 p-gutter" aria-labelledby="snapshot-heading">
-  <a class="text-link" routerLink="/templates">חזרה לספרייה</a>
-  <h1 id="snapshot-heading">פעילות מוכנה — תצוגה להורים</h1>
+<section class="mx-auto grid max-w-5xl gap-6 p-gutter" aria-labelledby="snapshot-heading">
+  <header class="grid justify-items-start gap-1">
+    <a class="text-link" routerLink="/templates">חזרה לספרייה</a>
+    <h1 id="snapshot-heading">פעילות מוכנה — תצוגה להורים</h1>
+  </header>
   <app-loading-indicator
     [active]="snapshot.isLoading()"
     label="טוענים את הפעילות המוכנה…"
@@ -10,22 +12,28 @@
     <p role="alert" class="field-error">{{ apiError(snapshot.error()) }}</p>
     <button type="button" class="text-link" (click)="snapshot.reload()">ניסיון נוסף</button>
   } @else if (snapshot.hasValue()) {
-    <p>
-      עותק קבוע שנבדק ב־<bdi>{{ snapshot.value().reviewedAtUtc | date: 'd/M/y HH:mm' }}</bdi
-      >. עריכה תיצור טיוטה חדשה.
-    </p>
-    <ul aria-label="מדידות אורך">
-      @for (
-        measurement of measurementText(snapshot.value().measurements, snapshot.value().plan);
-        track $index
-      ) {
-        <li>{{ measurement }}</li>
+    <div class="grid gap-1">
+      <p>
+        עותק קבוע שנבדק ב־<bdi>{{ snapshot.value().reviewedAtUtc | date: 'd/M/y HH:mm' }}</bdi
+        >. עריכה תיצור טיוטה חדשה.
+      </p>
+      @if (snapshot.value().measurements.length) {
+        <ul aria-label="מדידות אורך">
+          @for (
+            measurement of measurementText(snapshot.value().measurements, snapshot.value().plan);
+            track $index
+          ) {
+            <li>{{ measurement }}</li>
+          }
+        </ul>
       }
-    </ul>
+    </div>
     <div class="panel"><app-activity-document-view [document]="snapshot.value().document" /></div>
     @if (copiedId()) {
-      <p role="status">נוצר עותק לעריכה. הפעילות המוכנה נשארה ללא שינוי.</p>
-      <a class="button" [routerLink]="['/activities', copiedId()]">פתיחת הטיוטה החדשה</a>
+      <div class="grid justify-items-start gap-4">
+        <p role="status">נוצר עותק לעריכה. הפעילות המוכנה נשארה ללא שינוי.</p>
+        <a class="button" [routerLink]="['/activities', copiedId()]">פתיחת הטיוטה החדשה</a>
+      </div>
     } @else {
       <button
         id="copy-snapshot"

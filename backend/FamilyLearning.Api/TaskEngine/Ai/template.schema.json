@@ -1,23 +1,43 @@
 {
   "type": "object",
   "properties": {
-    "proposal": {
+    "result": {
       "anyOf": [
         {
-          "$ref": "#/$defs/plan"
+          "type": "object",
+          "properties": {
+            "proposal": {
+              "$ref": "#/$defs/plan"
+            },
+            "clarification": {
+              "type": "null"
+            }
+          },
+          "required": [
+            "proposal",
+            "clarification"
+          ],
+          "additionalProperties": false
         },
         {
-          "type": "null"
+          "type": "object",
+          "properties": {
+            "proposal": {
+              "type": "null"
+            },
+            "clarification": {
+              "type": "string",
+              "maxLength": 1000,
+              "minLength": 1
+            }
+          },
+          "required": [
+            "proposal",
+            "clarification"
+          ],
+          "additionalProperties": false
         }
       ]
-    },
-    "clarification": {
-      "type": [
-        "string",
-        "null"
-      ],
-      "maxLength": 1000,
-      "minLength": 1
     },
     "assumptions": {
       "type": "array",
@@ -31,8 +51,7 @@
     }
   },
   "required": [
-    "proposal",
-    "clarification",
+    "result",
     "assumptions"
   ],
   "additionalProperties": false,

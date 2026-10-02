@@ -1,4 +1,3 @@
-import { NgTemplateOutlet } from '@angular/common';
 import { ChangeDetectionStrategy, Component, input, output } from '@angular/core';
 import { FieldTree, FormField } from '@angular/forms/signals';
 import { PlanMaterial } from '../../../core/api/models';
@@ -14,7 +13,7 @@ export type DocumentEdit =
 /** Presentation only: edits the owner's native fields and emits explicit scoped actions. */
 @Component({
   selector: 'app-activity-document-editor',
-  imports: [FormField, NgTemplateOutlet, ScopedRepair],
+  imports: [FormField, ScopedRepair],
   templateUrl: './activity-document-editor.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { '(input)': 'onEdit($event)', '(change)': 'onEdit($event)' },
@@ -26,8 +25,11 @@ export class ActivityDocumentEditor {
   readonly aiAvailable = input(false);
   readonly operationActive = input(false);
   /** No content yet: the editor stays available for manual writing without dominating the page. */
-  readonly waiting = input(false);
-  /** Saved content whose server diagnostics ask for explicit review under changed requirements. */
+  readonly empty = input(false);
+  /**
+   * Saved content whose server diagnostics ask for review under changed requirements. Adoption is
+   * offered only here: for content that is already current it changes nothing release checks read.
+   */
   readonly staleMaterials = input<ReadonlySet<string>>(new Set());
   readonly staleQuestions = input<ReadonlySet<string>>(new Set());
   /** Target of the running scoped operation, if any. */

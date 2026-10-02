@@ -38,7 +38,11 @@ public sealed class OpenRouterConfigurationTests
         var instructions = "יש ליצור משימה לפי \"sourceText\".\n\n" + sourceText;
         definition["guidance"] = instructions;
         var generated = JsonNode.Parse(GenerationHarness.Questions())!;
-        var authoring = new JsonObject { ["proposal"] = definition, ["clarification"] = null, ["assumptions"] = new JsonArray() };
+        var authoring = new JsonObject
+        {
+            ["result"] = new JsonObject { ["proposal"] = definition, ["clarification"] = null },
+            ["assumptions"] = new JsonArray()
+        };
         var builder = WebApplication.CreateSlimBuilder();
         builder.WebHost.UseUrls("http://127.0.0.1:0");
         builder.Logging.ClearProviders();
@@ -141,6 +145,8 @@ public sealed class OpenRouterConfigurationTests
     {
         var prompt = request.GetProperty("messages")[0].GetProperty("content").GetString()!;
         using var schema = JsonDocument.Parse(prompt.Split("\nOutput JSON schema:\n")[1]);
+        Assert.Equal("object", schema.RootElement.GetProperty("type").GetString());
+        Assert.False(schema.RootElement.TryGetProperty("anyOf", out _));
         Assert.False(schema.RootElement.GetProperty("additionalProperties").GetBoolean());
         Assert.Contains(description, schema.RootElement.GetRawText());
         if (questionCount.HasValue)

@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, input, output } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, input, output } from '@angular/core';
 import { FieldTree, FormField } from '@angular/forms/signals';
 import { AuthoringTurn } from '../../../core/api/models';
 import { LoadingIndicator } from '../../../shared/loading-indicator/loading-indicator';
@@ -25,4 +25,8 @@ export class TemplateChat {
   readonly sent = output<void>();
   readonly consolidated = output<void>();
   readonly cancelled = output<void>();
+  /** The owner's heading names the field only for a first description, not an answer or a change. */
+  protected readonly titled = computed(
+    () => !this.refining() && !this.clarification() && !!this.labelledBy(),
+  );
 }

@@ -12,5 +12,5 @@ import { LengthForm } from '../plan-form';
 export class LengthFields {
   readonly fields = input.required<FieldTree<LengthForm>>();
   readonly prefix = input.required<string>();
-  readonly label = input('אורך החומר');
+  readonly label = input('אורך הטקסט');
 }

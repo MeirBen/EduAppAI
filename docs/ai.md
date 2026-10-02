@@ -17,15 +17,18 @@ mean generated Hebrew, answer keys or educational content are consistently good.
   they improved sampled contract adherence on DeepSeek. The latest shared material
   replacement instructions are a cleanup with comparable reviewed quality.
 - Reject both question-prompt experiments. Neither earned adoption.
-- Authoring can return an empty plan despite strict schema mode. Validation
-  rejects it safely; the cause remains unresolved.
+- Authoring still fails with the full strict schema. A minimal paired probe
+  reproduced an empty proposal when a numeric version enum was added; removing
+  that field from the full contract still returned HTTP 400. The separate both-null
+  schema gap is corrected. See [unresolved failures](#unresolved-failures).
 - Keep parent review, strict validation and explicit recovery. No automatic
   output repair, weakened tests, model-specific branch or production retry.
 
-The next useful investigation is the [empty-plan failure](#unresolved-failures),
-followed by human review of representative Hebrew activities. More open-ended
-prompt editing is not currently justified. Further paid experiments need an
-explicit scope and call/cost budget; an unused allowance is not a reason to run.
+Resolve provider/schema compatibility before further quality tuning or human
+review. The exact parent prompt must return a complete plan through the real
+authoring service; neither a clarification nor a passing fixed-plan trial is that
+acceptance check. Paid diagnostics are stopped with unknown costs reserved. More
+open-ended prompt editing is not currently justified.
 
 ## Design and cutover decision
 
@@ -235,7 +238,7 @@ the number-gender case, ending normally below the output cap. All twelve schema
 references resolved and the plan required nine properties. Native wire tests
 confirmed the full schema, `strict: true` and `require_parameters: true`. The
 responses were rejected by independent schema/domain checks. Both serving
-providers appeared; no app-side schema defect was found.
+providers appeared; the cause of the empty object remains unresolved.
 
 An upstream schema-enforcement/translation problem is an inference, not a proven
 cause: we cannot inspect the schema OpenRouter forwarded to Google. Preserve strict
@@ -248,6 +251,51 @@ rejection and investigate these IDs before changing schema representation:
 contract][structured-output] inform that investigation; neither proves what
 happened in these requests. Do not assume unsupported references or add an
 inlining/repair workaround without evidence.
+
+On 2 October, the owner's grade-3 space prompt reproduced a both-null reply. The
+old schema allowed it although application validation rejected it. The provider
+contract now uses a required `result` with a nested proposal-or-clarification
+union and separate `assumptions`, following [Google's nested union
+example](https://ai.google.dev/gemini-api/docs/structured-output#content-moderation).
+The public API stays unchanged; complete plan validation,
+references and one-call behavior remain. The exact prompt joins the evaluation
+suite without changing existing cases or checks.
+
+The first three diagnostic calls produced: the original both-null reply, a rejected
+candidate missing assumptions, and HTTP 400 from both Google routes for a rejected
+root-union candidate (`gen-1790889012-XV79EBTeSExhmO0qm9Oa`). Raw provider error
+details were unavailable; the billing lookup returned 404. That call's reservation
+remains retained. Earlier fixed-plan trials
+skipped authoring; scripted provider tests verify application behavior, not model
+adherence. They never established that this prompt worked with Gemini.
+
+Fourteen additional bounded calls tested the provider contract directly with the
+same grade-3 space prompt. These are diagnostic probes, not a quality benchmark:
+
+- Tiny referenced and inline schemas both worked, including nullable proposals.
+  Inlining the full schema still returned an empty proposal; no inlining change
+  was adopted.
+- The full nested contract returned a clarification about nonessential choices.
+  Constraining it to the proposal branch reproduced an empty proposal. Both fail
+  the acceptance requirement for this sufficiently specified prompt.
+- In a minimal matched pair, a required integer version without an enum produced
+  a complete proposal; adding only `enum: [1]` produced `proposal: {}`. This
+  identifies a candidate trigger, not the provider's internal cause
+  or a demonstrated fix for the full contract.
+- Removing that enum, and separately removing the version field from the full
+  contract, both returned HTTP 400. Both Google routes reported only
+  `INVALID_ARGUMENT`. Tiny nullable string-enum variants both worked.
+- Changing only the response mode of the full inline proposal request to
+  `json_object` produced a complete plan with five questions and a 300-word target.
+  Independent schema checks and the application's validator accepted it. This
+  single control does not establish reliability or educational quality. Production
+  remains in strict schema mode; no mode downgrade or response repair was adopted.
+
+The normal Microsoft.Extensions.AI formatter was also inspected locally: it moved
+six outer bounds into descriptions and left referenced definitions unchanged. No
+paid formatter trial ran after the latest unknown-cost stop. The adapter remains
+unchanged. **The full live authoring failure is not fixed.** Preserve the strict
+application checks and resolve the serving contract before resuming prompt tuning.
 
 **Availability:** user-supplied generation IDs confirmed Google 429/504 and Google
 AI Studio 503 responses with zero charged cost. These are upstream serving errors;
@@ -266,25 +314,32 @@ supported across these dimensions.
 The paid tuning ledger is closed. Amounts below are USD; reservations are
 conservative allowances for missing costs, **not confirmed charges**.
 
-| Phase           | Calls |   Known cost |      Reserve |
-| --------------- | ----: | -----------: | -----------: |
-| First tuning    |   128 | $0.312352616 | $0.081100800 |
-| Quality/routing |    43 | $0.064295840 | $0.243302400 |
-| Gemini          |    53 | $0.354201000 | $0.315187200 |
-| Total           |   224 | $0.730849456 | $0.639590400 |
+| Phase              | Calls |   Known cost |      Reserve |
+| ------------------ | ----: | -----------: | -----------: |
+| First tuning       |   128 | $0.312352616 | $0.081100800 |
+| Quality/routing    |    43 | $0.064295840 | $0.243302400 |
+| Gemini             |    53 | $0.354201000 | $0.315187200 |
+| Authoring contract |    17 | $0.048681000 | $0.464459700 |
+| Total              |   241 | $0.779530456 | $1.104050100 |
 
 First tuning includes the post-cutover material and qualification experiments.
 
-Total charged/reserved: **$1.370439856 of $2**. No unknown is counted as free.
+Total charged/reserved: **$1.883580556 of $2**. No unknown is counted as free.
 The earlier Task 2 comparison was separate: 19 of 21 authorized calls,
 $0.062444323 of its $1 cap. Cutover itself used isolated providers with no paid
 calls. Application attempts do not count OpenRouter's internal routing attempts.
 
 All paths below are under ignored `artifacts/evaluations/`; they describe private
-evidence, not repository fixtures. The four tuning directories are present. The
-original Task 2 directory referenced by earlier reports is absent from this
-workspace; its raw evidence could not be reverified during consolidation. Do not
-edit historical reports to match new code or report formats. The latest manifest
+evidence, not repository fixtures. Earlier directories are historical locations;
+they were unavailable during the 2 October authoring investigation and their raw
+evidence could not be reverified. The new `authoring-contract-2026-10-02/` directory
+retains all three diagnostic attempts, schemas, validation and budget evidence.
+The subsequent `authoring-*-2026-10-02/` directories retain every probe's exact
+request, response, independent validation and cost. The latest aggregate ledger,
+`authoring-server-version-2026-10-02/budget.json`, is stopped with unknown cost.
+The `authoring-native-format-2026-10-02/` directory contains a local request
+capture and an unexecuted candidate, not another paid attempt.
+Do not edit historical reports to match new code or report formats. The latest manifest
 hashes captured source versions, not this subsequently consolidated documentation.
 
 - `task2-structured-2026-10-01/`: historical location for the original

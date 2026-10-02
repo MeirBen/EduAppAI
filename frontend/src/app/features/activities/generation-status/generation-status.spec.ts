@@ -90,7 +90,13 @@ describe('GenerationStatus', () => {
       artifacts: {
         targetId: null,
         input: {
-          materials: [{ id: 'm', label: 'קטע', length: { mode: 'range', lower: 100, upper: 150 } }],
+          materials: [
+            {
+              id: 'm',
+              label: 'קטע',
+              length: { mode: 'range', value: null, lower: 100, upper: 150 },
+            },
+          ],
           totalLength: null,
         },
         steps: [

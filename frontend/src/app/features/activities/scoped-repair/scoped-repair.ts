@@ -1,4 +1,13 @@
-import { ChangeDetectionStrategy, Component, computed, input, output, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  ElementRef,
+  input,
+  output,
+  signal,
+  viewChild,
+} from '@angular/core';
+import { form, FormField, maxLength } from '@angular/forms/signals';
 
 /**
  * Contextual AI improvement for one material or question. It keeps only its disclosure state and
@@ -6,8 +15,11 @@ import { ChangeDetectionStrategy, Component, computed, input, output, signal } f
  */
 @Component({
   selector: 'app-scoped-repair',
+  imports: [FormField],
   templateUrl: './scoped-repair.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
+  // The instruction is not activity content, so its edits must not reach the editor's change tracking.
+  host: { '(input)': '$event.stopPropagation()', '(change)': '$event.stopPropagation()' },
 })
 export class ScopedRepair {
   /** Unique element-ID prefix. */
@@ -21,17 +33,18 @@ export class ScopedRepair {
   /** Sent as the operation's optional instruction; blank means a plain replacement. */
   readonly requested = output<string>();
   protected readonly open = signal(false);
-  protected readonly instruction = signal('');
-  protected readonly tooLong = computed(() => this.instruction().length > 4000);
-  protected type(event: Event) {
-    // The document editor treats bubbling input as content edits; this text is not activity content.
-    event.stopPropagation();
-    this.instruction.set((event.target as HTMLTextAreaElement).value);
-  }
+  private readonly draft = signal({ instruction: '' });
+  protected readonly fields = form(this.draft, (path) => maxLength(path.instruction, 4000));
+  private readonly trigger = viewChild.required<ElementRef<HTMLButtonElement>>('trigger');
   protected submit() {
-    if (this.disabled() || this.tooLong()) return;
-    this.requested.emit(this.instruction().trim());
+    if (this.disabled()) return;
+    this.requested.emit(this.draft().instruction.trim());
+    this.close();
+  }
+  protected close() {
     this.open.set(false);
-    this.instruction.set('');
+    this.draft.set({ instruction: '' });
+    // Focus was inside the form that is now hidden; return it to the disclosure's trigger.
+    this.trigger().nativeElement.focus();
   }
 }

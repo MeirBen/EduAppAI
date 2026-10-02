@@ -8,8 +8,12 @@ export interface MeasurementItem {
   state: 'advisory' | 'met' | 'blocking';
 }
 
+/** A requirement from the server, or one typed in the editable plan before it is canonical. */
+type WordRequirement = Pick<ResolvedLength, 'mode'> &
+  Record<'value' | 'lower' | 'upper', number | string | null>;
+
 /** Reads a generated-body requirement as parents say it. Input bounds are a separate permitted range. */
-export function lengthText(expected: ResolvedLength): string {
+export function lengthText(expected: WordRequirement): string {
   return expected.mode === 'range'
     ? `${expected.lower}–${expected.upper} מילים`
     : expected.mode === 'exact'

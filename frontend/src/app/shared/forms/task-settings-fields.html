@@ -1,8 +1,8 @@
-<div class="grid gap-x-4 sm:grid-cols-2">
+<div class="grid gap-4 sm:grid-cols-2">
   @for (control of controls; track control.key) {
     @let field = fields()[control.key];
     @let id = prefix() + '-' + control.key;
-    <div class="field">
+    <div>
       <label [for]="id">{{ control.label }}</label>
       @if (control.key === 'difficulty') {
         <select
@@ -33,7 +33,7 @@
         }
         @if (field().touched()) {
           @for (error of field().errors(); track error.kind) {
-            <p class="field-error">{{ error.message }}</p>
+            <p class="field-error mt-2">{{ error.message }}</p>
           }
         }
       </div>

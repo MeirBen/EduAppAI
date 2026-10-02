@@ -1,14 +1,14 @@
 <section
-  class="grid gap-5"
-  [class.panel]="!waiting()"
-  [class.well]="waiting()"
+  class="grid gap-4"
+  [class.panel]="!empty()"
+  [class.well]="empty()"
   aria-labelledby="document-heading"
 >
-  <div>
+  <div class="grid gap-1">
     <h2 id="document-heading">תוכן הפעילות</h2>
     <p class="text-sm text-muted">
       {{
-        waiting()
+        empty()
           ? 'התוכן יופיע כאן אחרי היצירה. אפשר גם לכתוב אותו ידנית.'
           : 'בדקו וערכו כל חלק. עריכה ושמירת טיוטה אינן משתמשות ב־AI.'
       }}
@@ -25,17 +25,22 @@
   @for (value of fields().materials().value(); track value.id; let i = $index) {
     @let material = fields().materials[i];
     @let id = material.id().value();
-    <section class="well grid gap-3" [attr.aria-labelledby]="'material-' + i + '-heading'">
+    <section class="well grid gap-4" [attr.aria-labelledby]="'material-' + i + '-heading'">
       <h3 [id]="'material-' + i + '-heading'">
         <bdi>{{ label(id) }}</bdi>
       </h3>
       @if (generated(id)) {
         @if (staleMaterials().has(id)) {
-          <div
-            class="grid gap-2 rounded-xl border border-s-4 border-line border-s-brand bg-surface p-4"
-          >
+          <div class="callout grid gap-4">
             <p>הטקסט נוצר לפי הגדרות קודמות. בדקו אותו, ואז אשרו אותו או שפרו אותו.</p>
-            <ng-container [ngTemplateOutlet]="adoptMaterial" [ngTemplateOutletContext]="{ id }" />
+            <button
+              type="button"
+              class="button button-secondary w-fit"
+              [disabled]="locked() || operationActive()"
+              (click)="adopted.emit({ materialIds: [id], questionIds: [] })"
+            >
+              בדקתי, אפשר להשתמש בגרסה הזו<span class="sr-only"> — {{ label(id) }}</span>
+            </button>
           </div>
         }
         @if (activeTarget() === id) {
@@ -65,14 +70,6 @@
             replaced.emit({ kind: 'ReplaceMaterial', targetId: id, instruction: $event })
           "
         />
-        @if (!staleMaterials().has(id)) {
-          <details>
-            <summary>
-              אפשרויות נוספות לטקסט <bdi>{{ label(id) }}</bdi>
-            </summary>
-            <ng-container [ngTemplateOutlet]="adoptMaterial" [ngTemplateOutletContext]="{ id }" />
-          </details>
-        }
       } @else {
         <p dir="auto" class="whitespace-pre-wrap">{{ material.body().value() }}</p>
         <p class="text-sm text-muted">הטקסט שלכם נשמר בדיוק כפי שהוזן.</p>
@@ -99,22 +96,24 @@
       </button>
     }
   }
+  @let count = fields().questions().value().length;
   <ol role="list" class="grid gap-4">
     @for (value of fields().questions().value(); track value.key; let i = $index) {
       @let question = fields().questions[i];
       @let id = question.id().value();
-      @let count = fields().questions().value().length;
       <li class="well grid gap-4" [attr.aria-labelledby]="'question-' + i + '-heading'">
         <h3 [id]="'question-' + i + '-heading'">שאלה {{ i + 1 }}</h3>
         @if (id && staleQuestions().has(id)) {
-          <div
-            class="grid gap-2 rounded-xl border border-s-4 border-line border-s-brand bg-surface p-4"
-          >
+          <div class="callout grid gap-4">
             <p>השאלה נכתבה לפני שהטקסט או ההגדרות השתנו. בדקו שהיא עדיין מתאימה.</p>
-            <ng-container
-              [ngTemplateOutlet]="adoptQuestion"
-              [ngTemplateOutletContext]="{ id, number: i + 1 }"
-            />
+            <button
+              type="button"
+              class="button button-secondary w-fit"
+              [disabled]="locked() || operationActive()"
+              (click)="adopted.emit({ materialIds: [], questionIds: [id] })"
+            >
+              בדקתי, אפשר להשתמש בגרסה הזו<span class="sr-only"> — שאלה {{ i + 1 }}</span>
+            </button>
           </div>
         }
         @if (id && activeTarget() === id) {
@@ -129,7 +128,7 @@
           ></textarea>
         </div>
         @if (value.type === 'single-choice') {
-          <div class="grid gap-3">
+          <div class="grid gap-4">
             @for (option of value.options; track $index; let j = $index) {
               <div>
                 <label [for]="'question-' + i + '-option-' + j">אפשרות {{ j + 1 }}</label
@@ -172,7 +171,6 @@
             ><input
               [id]="'question-' + i + '-answer'"
               [attr.dir]="value.type === 'numeric-input' ? 'ltr' : 'auto'"
-              [attr.inputmode]="value.type === 'numeric-input' ? 'decimal' : null"
               [formField]="question.answer"
             />
           </div>
@@ -197,7 +195,7 @@
               <span class="text-danger">· יש לתקן את הניקוד</span>
             }
           </summary>
-          <div class="grid gap-4 pt-2">
+          <div class="grid gap-4">
             <div>
               <label [for]="'question-' + i + '-type'">סוג התשובה</label
               ><select [id]="'question-' + i + '-type'" [formField]="question.type">
@@ -217,11 +215,11 @@
                 [attr.aria-invalid]="question.points().invalid()"
                 [attr.aria-describedby]="'question-' + i + '-points-error'"
               />
-              <p [id]="'question-' + i + '-points-error'" class="field-error">
+              <div [id]="'question-' + i + '-points-error'">
                 @for (error of question.points().errors(); track $index) {
-                  {{ error.message }}
+                  <p class="field-error mt-2">{{ error.message }}</p>
                 }
-              </p>
+              </div>
             </div>
             @if (value.type === 'single-choice') {
               <div class="flex flex-wrap gap-x-4">
@@ -244,12 +242,6 @@
                   הוספת אפשרות
                 </button>
               </div>
-            }
-            @if (id && !staleQuestions().has(id)) {
-              <ng-container
-                [ngTemplateOutlet]="adoptQuestion"
-                [ngTemplateOutletContext]="{ id, number: i + 1 }"
-              />
             }
             <div class="flex flex-wrap gap-x-4">
               <button
@@ -292,24 +284,3 @@
     הוספת שאלה ידנית
   </button>
 </section>
-
-<ng-template #adoptMaterial let-id="id">
-  <button
-    type="button"
-    class="button button-secondary w-fit"
-    [disabled]="locked() || operationActive()"
-    (click)="adopted.emit({ materialIds: [id], questionIds: [] })"
-  >
-    בדקתי, אפשר להשתמש בגרסה הזו<span class="sr-only"> — {{ label(id) }}</span>
-  </button>
-</ng-template>
-<ng-template #adoptQuestion let-id="id" let-number="number">
-  <button
-    type="button"
-    class="button button-secondary w-fit"
-    [disabled]="locked() || operationActive()"
-    (click)="adopted.emit({ materialIds: [], questionIds: [id] })"
-  >
-    בדקתי את שאלה {{ number }}, אפשר להשתמש בגרסה הזו
-  </button>
-</ng-template>

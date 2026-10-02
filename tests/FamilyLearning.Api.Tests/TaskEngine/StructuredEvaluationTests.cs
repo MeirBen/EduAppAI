@@ -76,7 +76,7 @@ public sealed class StructuredEvaluationTests : IDisposable
         var scenario = new EvaluationCase("clarify", "תרגול", "בירור", 2, "numeric-input", null, null, 0)
         { Refinements = ["שנה את זה"] };
         using var chat = new AiFixtures.ScriptedChat(Proposal(Numeric()),
-            """{"proposal":null,"clarification":"מה לשנות?","assumptions":[]}""");
+            """{"result":{"proposal":null,"clarification":"מה לשנות?"},"assumptions":[]}""");
         var result = Assert.Single((await Run(chat, scenario)).Results);
         Assert.Equal(2, chat.Requests.Count);
         Assert.NotNull(result.Plan);
@@ -92,7 +92,7 @@ public sealed class StructuredEvaluationTests : IDisposable
         var scenario = new EvaluationCase("author", "ליצור תרגול", "שימור הבקשה", 2, "numeric-input", null, null, 0)
         { Refinements = ["חשבון לכיתה ג", "לשנות את הנושא"] };
         using var chat = new AiFixtures.ScriptedChat(
-            """{"proposal":null,"clarification":"איזה נושא?","assumptions":[]}""",
+            """{"result":{"proposal":null,"clarification":"איזה נושא?"},"assumptions":[]}""",
             Proposal(Numeric()), Proposal(Numeric() with { Name = "מעודכן" }), Questions());
         var report = await Run(chat, scenario);
         Assert.Equal(4, report.AttemptedCalls);
@@ -241,7 +241,7 @@ public sealed class StructuredEvaluationTests : IDisposable
 
     internal static EvaluationCase Fixed(LearningPlan plan) => new("fixed", "", "תוכן מהתכנית", plan.Defaults.QuestionCount,
         plan.Questions.Formats[0], plan.Questions.ChoiceCount?.Value, null, null, InitialPlan: plan);
-    internal static string Proposal(LearningPlan plan) => JsonSerializer.Serialize(new { proposal = plan, clarification = (string?)null, assumptions = Array.Empty<string>() }, JsonOptions);
+    internal static string Proposal(LearningPlan plan) => JsonSerializer.Serialize(new { result = new { proposal = plan, clarification = (string?)null }, assumptions = Array.Empty<string>() }, JsonOptions);
     internal static string Questions(string format = "numeric-input") => JsonSerializer.Serialize(new QuestionCandidateBatch("תרגול", null,
         [new("כמה הם 1+1?", new(format), new("2"), 1), new("כמה הם 2+1?", new(format), new("3"), 1)]), JsonOptions);
 

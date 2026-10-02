@@ -64,7 +64,7 @@ public sealed class EvaluationTests : IDisposable
     {
         var definition = EvaluationFixtures.Definition();
         var content = EvaluationFixtures.Content();
-        if (stage == "authoring") definition["proposal"]!["defaults"]!["questionCount"] = 0;
+        if (stage == "authoring") definition["result"]!["proposal"]!["defaults"]!["questionCount"] = 0;
         if (stage == "generation") content["questions"]![0]!["answer"]!["value"] = "";
         if (stage == "wrong-count") content = EvaluationFixtures.Content(count: 1);
         if (stage == "null-questions") content["questions"] = null;

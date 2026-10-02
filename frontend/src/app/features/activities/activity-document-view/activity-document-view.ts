@@ -6,6 +6,7 @@ import { EditableActivity } from '../../../core/api/models';
   imports: [],
   templateUrl: './activity-document-view.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
+  host: { class: 'grid gap-4' },
 })
 export class ActivityDocumentView {
   readonly document = input.required<EditableActivity>();

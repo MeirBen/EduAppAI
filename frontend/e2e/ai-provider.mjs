@@ -52,8 +52,10 @@ export async function startAiProvider() {
       const result =
         stage === 'author'
           ? {
-              proposal: plan(user.message, schema.$defs.plan.properties.schemaVersion.enum[0]),
-              clarification: null,
+              result: {
+                proposal: plan(user.message, schema.$defs.plan.properties.schemaVersion.enum[0]),
+                clarification: null,
+              },
               assumptions: [],
             }
           : stage === 'materials'

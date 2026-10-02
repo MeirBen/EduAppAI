@@ -80,13 +80,19 @@
     @apply block motion-safe:animate-enter;
   }
 
-  label {
+  /* A field is one block: label, control, then help lines that carry their own top margin. */
+  label,
+  legend {
     @apply mb-2 block font-medium;
   }
 
   label:has(+ input[type='checkbox']),
   label:has(input[type='checkbox']) {
     @apply min-h-11 cursor-pointer;
+  }
+  /* A label that wraps its checkbox is the whole field. */
+  label:has(input[type='checkbox']) {
+    @apply mb-0;
   }
   label:has(+ input[type='checkbox']:disabled),
   label:has(input[type='checkbox']:disabled) {
@@ -112,7 +118,9 @@
     unicode-bidi: plaintext;
   }
 
+  /* Block-level so the text baseline adds no descender space below the field. */
   textarea {
+    @apply block;
     resize: vertical;
   }
   input::placeholder,
@@ -180,6 +188,17 @@
 
   summary {
     @apply min-h-11 py-2 font-medium text-brand;
+  }
+  details[open] > summary {
+    @apply mb-2;
+  }
+
+  /*
+   * Live regions stay mounted while empty so later messages are announced. Out of flow, an empty
+   * region never adds a second gap to the stack around it.
+   */
+  :is([role='status'], [role='alert'], [aria-live]):empty {
+    @apply absolute;
   }
 
   /* Disclosures slide open where the browser can animate to an auto size. */

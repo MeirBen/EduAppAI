@@ -18,7 +18,8 @@ internal static class AiPrompts
 
     internal const string PlanAuthoring = """
         Interpret the parent's activity request as a reusable learning plan, not generated learner content.
-        Return a complete proposal OR one focused clarification, never both. Ask only when needed, not as a mandatory step.
+        In result, return a complete proposal OR one focused clarification, with the other null. Keep assumptions beside result.
+        Ask only when needed, not as a mandatory step.
         Keep operative assumptions in the proposed requirements as well as the short assumptions list.
         Use the base plan and unresolved conversation. Preserve retained material/control IDs, including renamed or moved controls.
         New materials and controls must have null IDs. Never rewrite a retained fixed source or change its source kind.

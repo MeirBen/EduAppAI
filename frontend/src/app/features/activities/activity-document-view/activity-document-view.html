@@ -1,14 +1,20 @@
-<h2 dir="auto">{{ document().title }}</h2>
-<p dir="auto" class="whitespace-pre-wrap">{{ document().instructions }}</p>
+@if (document().title) {
+  <h2 dir="auto">{{ document().title }}</h2>
+}
+@if (document().instructions) {
+  <p dir="auto" class="whitespace-pre-wrap">{{ document().instructions }}</p>
+}
 @for (material of document().materials; track material.id) {
-  <section class="well my-4">
-    <h3 dir="auto">{{ material.title }}</h3>
+  <section class="well grid gap-1">
+    @if (material.title) {
+      <h3 dir="auto">{{ material.title }}</h3>
+    }
     <p dir="auto" class="whitespace-pre-wrap">{{ material.body }}</p>
   </section>
 }
 <ol role="list" class="steps grid gap-4">
   @for (question of document().questions; track $index) {
-    <li>
+    <li class="grid gap-1">
       <p dir="auto" class="whitespace-pre-wrap">{{ question.prompt }}</p>
       @if (question.interaction.type === 'single-choice') {
         <ul class="list-disc ps-6">

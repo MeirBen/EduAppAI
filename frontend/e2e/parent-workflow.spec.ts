@@ -71,7 +71,7 @@ test('prompt to editable activity, independent template, scoped repair and froze
   await login(page);
   const templatesBefore = (await (await page.request.get('/api/templates')).json()).length;
   await propose(page, 'קריאה עם סגנון לבחירה והמתנה');
-  await page.getByLabel('סגנון', { exact: true }).selectOption('סיפורי');
+  await page.getByRole('combobox', { name: 'סגנון', exact: true }).selectOption('סיפורי');
   const state = await start(page);
   await expect(page.locator('#cancel-generation')).toBeVisible();
   await page.reload();
@@ -155,7 +155,7 @@ test('strict material rejection stops questions, while a question failure retain
   let state = await start(page);
   let draft = await finish(page, state, 'failed');
   await expect(page.getByText('הטקסט שנוצר לא עמד בדרישת האורך.')).toBeVisible();
-  await expect(page.getByText('נדרש: בדיוק 100 מילים')).toBeVisible();
+  await expect(page.getByText('נדרש: בדיוק 100 מילים', { exact: true })).toBeVisible();
   await expect(page.getByText('הפעילות נוצרה.')).toHaveCount(0);
   expect(draft.document.materials).toEqual([]);
   expect(draft.document.questions).toEqual([]);

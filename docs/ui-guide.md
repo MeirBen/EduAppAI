@@ -30,6 +30,19 @@ parent labels keep their original language and values.
   focus, loading status, error alerts and distinguishable repeated
   links/disclosures.
 
+## Spacing
+
+Containers own spacing with `gap`; shared primitives carry no outer margin. Use
+one scale everywhere: `gap-1` between a heading and its description or a status
+line and its list, `gap-3` between buttons in an action row, `gap-4` between
+fields and blocks in any stack, and `gap-6` between page sections and headed
+groups. A field is one block: its label sits `mb-2` above the control and help
+or error lines carry `mt-2`; never place a label and its control as separate
+children of a gapped container. Open disclosures space their summary from the
+content, and empty live regions take no layout slot, so they never double a gap.
+Group card fields with `role="group"` and a heading inside the padding rather
+than a `.well` fieldset legend. Optional content renders only when present.
+
 ## Styles and theming
 
 `frontend/src/styles.css` imports each layer from `frontend/src/styles/`:
@@ -40,7 +53,8 @@ parent labels keep their original language and values.
   explicit dark choice or a dark device without an explicit light choice.
 - `base.css` styles elements, including native form controls and focus.
 - `components.css` holds small shared primitives: panels, `well`, buttons,
-  links, `eyebrow`, `badge`, `icon-tile`, `steps` and field feedback.
+  links, `eyebrow`, `badge`, `icon-tile`, `steps`, `callout` for calm review
+  prompts, and field feedback.
 
 Single-use styling stays as utilities in the owning template; a component's own
 stylesheet uses theme variables only. Give `steps` lists `role="list"` so WebKit
@@ -104,8 +118,9 @@ and never imply that another paid attempt is automatic.
 
 Display server length measurements beside saved diagnostics. Distinguish
 advisory targets from strict exact/range blockers, and technical readiness from
-the parent's educational review. Offer adoption beside content that saved
-diagnostics mark as stale; elsewhere keep it in the card's disclosure. Frozen
+the parent's educational review. Offer adoption only in a callout beside content
+that saved diagnostics mark as stale; for current content it changes nothing.
+Frozen
 previews expose answers in native disclosures and offer an explicit copy to a
 new draft; no child-delivery placeholder is shown.
 

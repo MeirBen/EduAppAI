@@ -3,6 +3,14 @@ import { GenerationKind, GenerationOperation } from '../../../core/api/models';
 import { LoadingIndicator } from '../../../shared/loading-indicator/loading-indicator';
 import { lengthText } from '../activity-document-view/measurements';
 
+/** Semantic names for operation stages, shared by status evidence and result inspection. */
+export const stageNames: Record<string, string> = {
+  materials: 'טקסט שנוצר',
+  questions: 'שאלות שנוצרו',
+  'replace-material': 'טקסט חלופי',
+  'replace-question': 'שאלה חלופית',
+};
+
 /** A parent-facing reading of one operation; `retry` is an explicit new request, never automatic. */
 interface StatusView {
   title: string;
@@ -39,12 +47,7 @@ export class GenerationStatus {
     'replace-material': 'כותבים גרסה חדשה לטקסט',
     'replace-question': 'מכינים גרסה חדשה לשאלה',
   };
-  protected readonly stageNames: Record<string, string> = {
-    materials: 'טקסט שנוצר',
-    questions: 'שאלות שנוצרו',
-    'replace-material': 'טקסט חלופי',
-    'replace-question': 'שאלה חלופית',
-  };
+  protected readonly stageNames = stageNames;
   protected readonly outcomes: Record<string, string> = {
     calling: 'בפנייה לשירות',
     accepted: 'תוכן התקבל',

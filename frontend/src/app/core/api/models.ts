@@ -164,9 +164,9 @@ export interface ContentAcceptance {
 /** A resolved generated-body expectation; adjustable bounds are already applied to `value`. */
 export interface ResolvedLength {
   mode: 'target' | 'exact' | 'range';
-  value?: number | null;
-  lower?: number | null;
-  upper?: number | null;
+  value: number | null;
+  lower: number | null;
+  upper: number | null;
 }
 /** Server-owned generated-body measurement; target expectations are advisory (satisfied is null). */
 export interface LengthMeasurement {

@@ -34,7 +34,7 @@ public sealed class ContentGenerationWireTests
         Assert.Equal(24000, JsonSerializer.Serialize(plan, json).Length);
         Assert.Empty(LearningPlanValidator.Validate(plan));
         await using var local = await LocalAiProvider.StartAsync();
-        local.Respond = _ => """{"proposal":null,"clarification":"מה לשנות?","assumptions":[]}""";
+        local.Respond = _ => """{"result":{"proposal":null,"clarification":"מה לשנות?"},"assumptions":[]}""";
         using var services = local.Services(mode);
         var service = services.GetRequiredService<AiGenerationService>();
         await service.AuthorAsync(new TemplateAuthoringInput(new string('ו', 4000), plan,
@@ -123,7 +123,7 @@ public sealed class ContentGenerationWireTests
     [InlineData(32001, false)]
     public async Task Response_character_limit_is_inclusive(int length, bool accepted)
     {
-        var json = """{"proposal":null,"clarification":"איזה גיל?","assumptions":[]}""";
+        var json = """{"result":{"proposal":null,"clarification":"איזה גיל?"},"assumptions":[]}""";
         using var chat = new AiFixtures.ScriptedChat(json.PadRight(length));
         using var service = Service(chat);
         if (accepted) await service.AuthorAsync(new FamilyLearning.Api.TaskEngine.Models.TemplateAuthoringInput("רעיון"), default);

@@ -26,7 +26,8 @@ import {
 } from '../../../shared/forms/task-settings';
 import { measurementItems } from '../activity-document-view/measurements';
 import { candidateEdit } from '../generation-status/candidate-edit';
-import { GenerationStatus } from '../generation-status/generation-status';
+import { GenerationStatus, stageNames } from '../generation-status/generation-status';
+import { ActivityReview } from '../activity-review/activity-review';
 import { ActivityDocumentView } from '../activity-document-view/activity-document-view';
 import { ActivitySetup } from '../activity-setup/activity-setup';
 import { activitySummary, reviewIssues, staleContent } from '../activity-presentation';
@@ -62,6 +63,7 @@ import { LoadingIndicator } from '../../../shared/loading-indicator/loading-indi
 import {
   controlForm,
   controlInputValue,
+  formControls,
   inputForm,
   InputForm,
   materialForm,
@@ -82,16 +84,11 @@ export interface WorkspaceForm {
   input: InputForm;
   document: DocumentForm;
 }
-const candidateNames: Record<string, string> = {
-  materials: 'טקסט שנוצר',
-  questions: 'שאלות שנוצרו',
-  'replace-material': 'טקסט חלופי',
-  'replace-question': 'שאלה חלופית',
-};
 interface UndoEntry {
   raw: WorkspaceForm;
   confirmed: Record<string, string>;
 }
+const blankPlan = JSON.stringify(planForm());
 
 /**
  * Route owner for local plan/input, chat correlation, source acceptance, bounded Undo and independent
@@ -106,6 +103,7 @@ interface UndoEntry {
     RouterLink,
     ActivityDocumentEditor,
     ActivitySetup,
+    ActivityReview,
     FormField,
     GenerationStatus,
     ActivityDocumentView,
@@ -257,9 +255,8 @@ export class ActivityWorkspace {
   );
   /** Any proposed, loaded or typed plan; an invalid edit keeps the setup visible for correction. */
   protected readonly hasPlan = computed(
-    () =>
-      JSON.stringify(this.raw().plan) !==
-      JSON.stringify({ ...planForm(), schemaVersion: this.raw().plan.schemaVersion }),
+    // The server-supplied schema version alone does not make a plan.
+    () => JSON.stringify({ ...this.raw().plan, schemaVersion: 0 }) !== blankPlan,
   );
   protected readonly hasContent = computed(
     () => !!this.raw().document.materials.length || !!this.raw().document.questions.length,
@@ -271,29 +268,18 @@ export class ActivityWorkspace {
   protected readonly saveState = computed(() =>
     this.saving() ? 'שומר…' : this.dirty() ? 'לא נשמר' : this.saved() ? 'נשמר' : '',
   );
-  protected readonly heading = computed(() =>
-    this.context() === 'template'
-      ? this.templateId()
-        ? 'עריכת תבנית'
-        : 'תבנית חדשה'
-      : this.released()
-        ? 'פעילות מוכנה'
-        : this.saved() || this.activityId()
-          ? 'עריכת פעילות'
-          : this.templateId()
-            ? 'פעילות חדשה מתבנית'
-            : 'פעילות חדשה',
-  );
+  protected readonly heading = computed(() => {
+    if (this.context() === 'template') return this.templateId() ? 'עריכת תבנית' : 'תבנית חדשה';
+    if (this.released()) return 'פעילות מוכנה';
+    if (this.saved() || this.activityId()) return 'עריכת פעילות';
+    return this.templateId() ? 'פעילות חדשה מתבנית' : 'פעילות חדשה';
+  });
   /** One reload control: beside a newer server result, beside an error, or with the other actions. */
-  protected readonly reloadPlacement = computed(() =>
-    !this.saved()
-      ? 'none'
-      : this.available()
-        ? 'available'
-        : this.activityError()
-          ? 'error'
-          : 'more',
-  );
+  protected readonly reloadPlacement = computed(() => {
+    if (!this.saved()) return 'none';
+    if (this.available()) return 'available';
+    return this.activityError() ? 'error' : 'more';
+  });
 
   constructor() {
     effect(() => {
@@ -455,11 +441,7 @@ export class ActivityWorkspace {
         })),
       },
     };
-    const controls = [
-      ...raw.plan.controls,
-      ...raw.plan.materials.flatMap((material) => material.controls),
-      ...raw.plan.questions.controls,
-    ];
+    const controls = formControls(raw.plan);
     const settings = this.followDefaults(
       this.previous.raw.plan.settings,
       raw.plan.settings,
@@ -1020,7 +1002,7 @@ export class ActivityWorkspace {
               index,
               document,
               preview,
-              name: candidateNames[step.stage] ?? 'תוכן שנוצר',
+              name: stageNames[step.stage] ?? 'תוכן שנוצר',
               conflict: operation.status === 'conflict',
             },
           ]

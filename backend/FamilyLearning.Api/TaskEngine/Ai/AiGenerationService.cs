@@ -30,15 +30,16 @@ public sealed class AiGenerationService(IEnumerable<IChatClient> clients, ILogge
         var request = JsonSerializer.Serialize(new { input.Message, input.BaseDefinition, context = input.Context ?? [] }, Json);
         const string stage = "author";
         var result = await RequestAsync<AuthoringCandidate>(AiPrompts.PlanAuthoring, request, AiSchemas.Template, AiPrompts.Version(stage), ct, evidence: evidence);
-        var reply = result.Value;
-        if ((reply.Proposal is null) == (reply.Clarification is null) ||
+        var reply = result.Value.Result;
+        var assumptions = result.Value.Assumptions;
+        if (reply is null || (reply.Proposal is null) == (reply.Clarification is null) ||
             reply.Clarification is not null && (string.IsNullOrWhiteSpace(reply.Clarification) || reply.Clarification.Length > 1000) ||
-            reply.Assumptions is not { Length: <= 8 } || reply.Assumptions.Any(a => string.IsNullOrWhiteSpace(a) || a.Length > 200))
+            assumptions is not { Length: <= 8 } || assumptions.Any(a => string.IsNullOrWhiteSpace(a) || a.Length > 200))
             throw InvalidOutput("authoring-envelope", AiPrompts.Version(stage));
         try
         {
             var plan = reply.Proposal is null ? null : PlanChanges.AssignNewIds(reply.Proposal, input.BaseDefinition);
-            return new(new(plan, reply.Clarification, reply.Assumptions,
+            return new(new(plan, reply.Clarification, assumptions,
                 plan is null ? [] : PlanChanges.Compare(input.BaseDefinition, plan)), result.Metadata);
         }
         catch (TaskValidationException exception) { throw InvalidOutput("plan-validation", AiPrompts.Version(stage), exception.Errors); }

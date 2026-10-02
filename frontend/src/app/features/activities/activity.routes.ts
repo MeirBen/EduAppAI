@@ -23,7 +23,7 @@ export const activityWorkspaceRoutes: Routes = [
   },
   {
     path: 'templates/:templateId/create',
-    title: 'תכנון פעילות · לומדים ביחד',
+    title: 'פעילות חדשה מתבנית · לומדים ביחד',
     data: { context: 'activity' },
     loadComponent: workspace,
     canDeactivate: [leave],
@@ -37,7 +37,7 @@ export const activityWorkspaceRoutes: Routes = [
   },
   {
     path: 'activities/:activityId',
-    title: 'עריכת תכנית הפעילות · לומדים ביחד',
+    title: 'עריכת פעילות · לומדים ביחד',
     data: { context: 'activity' },
     loadComponent: workspace,
     canDeactivate: [leave],

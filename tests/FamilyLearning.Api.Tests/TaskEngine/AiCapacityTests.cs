@@ -30,7 +30,7 @@ public sealed class AiCapacityTests
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() => Task.WhenAll(author, content));
         chat.Response = new(TaskCreationOptions.RunContinuationsAsynchronously);
         var next = service.AuthorAsync(new TemplateAuthoringInput("שוב"), default);
-        chat.Response.SetResult(Response("""{"proposal":null,"clarification":"איזה גיל?","assumptions":[]}"""));
+        chat.Response.SetResult(Response("""{"result":{"proposal":null,"clarification":"איזה גיל?"},"assumptions":[]}"""));
         Assert.Equal("איזה גיל?", (await next).Value.Clarification);
     }
 
@@ -83,7 +83,7 @@ public sealed class AiCapacityTests
         var another = service.AuthorAsync(new TemplateAuthoringInput("Another idea"), deadline.Token);
         Assert.False(next.IsCompleted);
         Assert.False(another.IsCompleted);
-        chat.Response.SetResult(Response("""{"proposal":null,"clarification":"איזה גיל?","assumptions":[]}"""));
+        chat.Response.SetResult(Response("""{"result":{"proposal":null,"clarification":"איזה גיל?"},"assumptions":[]}"""));
         var results = await Task.WhenAll(next, another);
         Assert.All(results, result => Assert.Equal("איזה גיל?", result.Value.Clarification));
     }

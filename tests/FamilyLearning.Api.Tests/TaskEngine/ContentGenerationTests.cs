@@ -21,7 +21,7 @@ public sealed class ContentGenerationTests
     public async Task Authoring_normalizes_identity_computes_changes_and_excludes_client_metadata()
     {
         var proposal = Reading() with { Materials = [Reading().Materials[0] with { Id = null, Controls = [] }] };
-        using var chat = new AiFixtures.ScriptedChat(Serialize(new { proposal, clarification = (string?)null, assumptions = new[] { "עברית" } }));
+        using var chat = new AiFixtures.ScriptedChat(Serialize(new { result = new { proposal, clarification = (string?)null }, assumptions = new[] { "עברית" } }));
         using var service = Service(chat);
         var result = await service.AuthorAsync(new TemplateAuthoringInput("רעיון", RequestId: "client-only", BaseRevision: 42), default);
         Assert.Empty(LearningPlanValidator.Validate(result.Value.Proposal));
@@ -36,7 +36,7 @@ public sealed class ContentGenerationTests
     [Fact]
     public async Task Clarification_is_one_call_and_pending_context_is_bounded_before_AI()
     {
-        using var chat = new AiFixtures.ScriptedChat("""{"proposal":null,"clarification":"לאיזה גיל?","assumptions":[]}""");
+        using var chat = new AiFixtures.ScriptedChat("""{"result":{"proposal":null,"clarification":"לאיזה גיל?"},"assumptions":[]}""");
         using var service = Service(chat);
         var result = await service.AuthorAsync(new TemplateAuthoringInput("רעיון", Context: [new("parent", "בקשה קודמת")]), default);
         Assert.Null(result.Value.Proposal);
@@ -48,11 +48,86 @@ public sealed class ContentGenerationTests
     }
 
     [Fact]
+    public async Task Authoring_schema_requires_a_proposal_or_clarification_but_not_both()
+    {
+        using var chat = new AiFixtures.ScriptedChat("""{"result":{"proposal":null,"clarification":"לאיזה גיל?"},"assumptions":[]}""");
+        using var service = Service(chat);
+        await service.AuthorAsync(new("רעיון"), default);
+        var schema = Schema(Assert.Single(chat.Requests).Options!);
+        Assert.Equal("object", schema.GetProperty("type").GetString());
+        Assert.False(schema.TryGetProperty("anyOf", out _));
+        Assert.False(schema.GetProperty("additionalProperties").GetBoolean());
+        Assert.Equal(["result", "assumptions"],
+            schema.GetProperty("required").EnumerateArray().Select(value => value.GetString()));
+        Assert.Equal("array", schema.GetProperty("properties").GetProperty("assumptions").GetProperty("type").GetString());
+        var alternatives = schema.GetProperty("properties").GetProperty("result").GetProperty("anyOf");
+        Assert.All(alternatives.EnumerateArray(), alternative =>
+        {
+            Assert.Equal(["proposal", "clarification"],
+                alternative.GetProperty("required").EnumerateArray().Select(value => value.GetString()));
+            Assert.False(alternative.GetProperty("additionalProperties").GetBoolean());
+        });
+        Assert.Collection(alternatives.EnumerateArray(),
+            proposal =>
+            {
+                var properties = proposal.GetProperty("properties");
+                Assert.Equal("#/$defs/plan", properties.GetProperty("proposal").GetProperty("$ref").GetString());
+                Assert.Equal("null", properties.GetProperty("clarification").GetProperty("type").GetString());
+            },
+            clarification =>
+            {
+                var properties = clarification.GetProperty("properties");
+                Assert.Equal("null", properties.GetProperty("proposal").GetProperty("type").GetString());
+                Assert.Equal("string", properties.GetProperty("clarification").GetProperty("type").GetString());
+            });
+    }
+
+    [Theory]
+    [InlineData("{\"proposal\":null,\"clarification\":null,\"assumptions\":[]}")]
+    [InlineData("{\"proposal\":{},\"clarification\":null,\"assumptions\":[\"לכל שאלה יהיו 4 אפשרויות תשובה ורק תשובה אחת נכונה.\"]}")]
+    [InlineData("{\"proposal\":null,\"clarification\":\"   \",\"assumptions\":[]}")]
+    [InlineData("{\"proposal\":null,\"clarification\":\"לאיזה גיל?\"}")]
+    [InlineData("{\"result\":{\"proposal\":null,\"clarification\":null},\"assumptions\":[]}")]
+    [InlineData("{\"result\":{\"proposal\":{},\"clarification\":null},\"assumptions\":[]}")]
+    [InlineData("{\"result\":{\"proposal\":null,\"clarification\":\"   \"},\"assumptions\":[]}")]
+    [InlineData("{\"result\":{\"proposal\":null,\"clarification\":\"לאיזה גיל?\"}}")]
+    [InlineData("{\"result\":{\"proposal\":null,\"clarification\":\"לאיזה גיל?\"},\"assumptions\":null}")]
+    [InlineData("{\"result\":{\"proposal\":null,\"clarification\":\"לאיזה גיל?\"},\"assumptions\":[\"\"]}")]
+    [InlineData("{\"result\":{\"clarification\":\"לאיזה גיל?\"},\"assumptions\":[]}")]
+    [InlineData("{\"result\":{\"proposal\":null},\"assumptions\":[]}")]
+    [InlineData("{\"result\":{},\"assumptions\":[]}")]
+    [InlineData("{\"result\":null,\"assumptions\":[]}")]
+    [InlineData("{\"assumptions\":[]}")]
+    public async Task Empty_authoring_responses_are_rejected_without_retry(string output)
+    {
+        using var chat = new AiFixtures.ScriptedChat(output);
+        using var service = Service(chat);
+        var error = await Assert.ThrowsAsync<AiGenerationException>(() => service.AuthorAsync(
+            new("פעילות קריאה בעברית לכיתה ג׳ בנושא חלל, בערך 300 מילים ו־5 שאלות אמריקאיות."), default));
+        Assert.Equal(502, error.StatusCode);
+        Assert.Equal("invalid-output", error.Category);
+        Assert.Single(chat.Requests);
+    }
+
+    [Fact]
+    public async Task Authoring_rejects_a_complete_proposal_with_a_clarification()
+    {
+        using var chat = new AiFixtures.ScriptedChat(Serialize(new
+        {
+            result = new { proposal = Numeric(), clarification = "לאיזה גיל?" },
+            assumptions = Array.Empty<string>()
+        }));
+        using var service = Service(chat);
+        await Assert.ThrowsAsync<AiGenerationException>(() => service.AuthorAsync(new("רעיון"), default));
+        Assert.Single(chat.Requests);
+    }
+
+    [Fact]
     public async Task Retained_fixed_source_cannot_be_rewritten_by_authoring()
     {
         var plan = Supplied();
         var changed = plan with { Materials = [plan.Materials[0] with { Text = "changed" }] };
-        using var chat = new AiFixtures.ScriptedChat(Serialize(new { proposal = changed, clarification = (string?)null, assumptions = Array.Empty<string>() }));
+        using var chat = new AiFixtures.ScriptedChat(Serialize(new { result = new { proposal = changed, clarification = (string?)null }, assumptions = Array.Empty<string>() }));
         using var service = Service(chat);
         await Assert.ThrowsAsync<AiGenerationException>(() => service.AuthorAsync(new TemplateAuthoringInput("שינוי", plan), default));
     }

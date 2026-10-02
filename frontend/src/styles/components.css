@@ -54,13 +54,15 @@
     }
   }
 
-  .field {
-    @apply my-4;
-  }
+  /* Containers own spacing: these primitives carry no outer margin. */
   .field-error {
-    @apply mt-2 text-sm text-danger;
+    @apply text-sm text-danger;
   }
   .error {
-    @apply my-4 rounded-xl border border-s-4 border-danger/25 border-s-danger bg-danger-soft p-4 text-danger;
+    @apply rounded-xl border border-s-4 border-danger/25 border-s-danger bg-danger-soft p-4 text-danger;
+  }
+  /* A calm prompt inside a card that asks the parent to review something; not an error. */
+  .callout {
+    @apply rounded-xl border border-s-4 border-line border-s-brand bg-surface p-4;
   }
 }

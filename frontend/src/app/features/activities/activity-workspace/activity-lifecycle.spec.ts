@@ -275,7 +275,7 @@ describe('Activity lifecycle', () => {
       vi.useRealTimers();
     }
   });
-  it('saves canonical replacement source and adopts only the inspected current question', async () => {
+  it('saves canonical replacement source, then offers adoption only for the question it made stale', async () => {
     await harness.navigateByUrl('/activities/draft', ActivityWorkspace);
     http.expectOne('/api/ai/status').flush({ configured: false, schemaVersion: 1 });
     const source = {
@@ -312,11 +312,12 @@ describe('Activity lifecycle', () => {
     http.expectNone((r) => r.method === 'POST');
     root().querySelector<HTMLButtonElement>('#accept-source-replacement')!.click();
     await settle();
-    const adopt = Array.from(root().querySelectorAll('button')).find((b) =>
-      b.textContent?.includes('בדקתי את שאלה'),
-    )!;
-    adopt.click();
-    await settle();
+    const adopt = () =>
+      Array.from(root().querySelectorAll('button')).find((b) =>
+        b.textContent?.includes('בדקתי, אפשר להשתמש בגרסה הזו'),
+      );
+    expect(adopt()).toBeUndefined();
+    await click('save-activity');
     const save = http.expectOne('/api/activity-drafts/draft');
     expect(save.request.body.plan.materials[0].text).toBe('New!\nשלום');
     save.flush({
@@ -327,10 +328,14 @@ describe('Activity lifecycle', () => {
         ...initial.document,
         materials: [{ ...source, body: 'New!\nשלום', revision: 2 }],
       },
+      diagnostics: { 'questions[0].stale': ['השאלה דורשת יצירה מחדש או אימוץ.'] },
     });
-    const adopted = await vi.waitFor(() =>
-      http.expectOne('/api/activity-drafts/draft/adopt-content'),
-    );
+    await settle();
+    expect(root().textContent).toContain('הטקסט השתנה מאז שנוצרו השאלות');
+    adopt()!.click();
+    await settle();
+    http.expectNone((r) => r.method === 'PUT');
+    const adopted = http.expectOne('/api/activity-drafts/draft/adopt-content');
     expect(adopted.request.body).toEqual({
       expectedRevision: 2,
       materialIds: [],
@@ -424,6 +429,7 @@ describe('Activity lifecycle', () => {
             },
           ],
         },
+        diagnostics: { 'questions[0].stale': ['השאלה דורשת יצירה מחדש או אימוץ.'] },
       });
       await settle();
       await type('question-0-prompt', 'שינוי מקומי');
@@ -434,7 +440,7 @@ describe('Activity lifecycle', () => {
         root().querySelector<HTMLButtonElement>('#question-0-improve-submit')!.click();
       } else
         Array.from(root().querySelectorAll('button'))
-          .find((b) => b.textContent?.includes('בדקתי את שאלה'))!
+          .find((b) => b.textContent?.includes('בדקתי, אפשר להשתמש בגרסה הזו'))!
           .click();
       await settle();
       http
@@ -628,7 +634,7 @@ describe('Activity lifecycle', () => {
     await settle();
     expect(root().querySelector<HTMLTextAreaElement>('#question-0-prompt')!.value).toBe('שאלה');
   });
-  it('places review adoption beside stale saved content and keeps other adoption quiet', async () => {
+  it('offers adoption only beside content the saved diagnostics mark as stale', async () => {
     await open(true, {
       ...savedActivity,
       document: {
@@ -637,14 +643,13 @@ describe('Activity lifecycle', () => {
       },
       diagnostics: { 'questions[0].stale': ['השאלה דורשת יצירה מחדש או אימוץ.'] },
     });
-    const adopt = (n: number) =>
-      Array.from(root().querySelectorAll('button')).find((b) =>
-        b.textContent?.includes(`בדקתי את שאלה ${n}`),
-      )!;
-    expect(adopt(1).closest('details')).toBeNull();
-    expect(adopt(2).closest('details')!.open).toBe(false);
+    const adopt = Array.from(root().querySelectorAll('button')).filter((b) =>
+      b.textContent?.includes('בדקתי, אפשר להשתמש בגרסה הזו'),
+    );
+    expect(adopt.map((b) => b.closest('li')!.querySelector('h3')!.textContent)).toEqual(['שאלה 1']);
+    expect(adopt[0].closest('details')).toBeNull();
     expect(root().textContent).toContain('ההגדרות השתנו מאז שנוצרו השאלות');
-    adopt(1).click();
+    adopt[0].click();
     await settle();
     const adopted = http.expectOne('/api/activity-drafts/draft/adopt-content');
     expect(adopted.request.body).toEqual({

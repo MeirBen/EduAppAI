@@ -1,6 +1,7 @@
 import { ActivityDetail, QuestionFormat } from '../../core/api/models';
 import { isIntegerInput } from '../../shared/forms/integer-input';
-import { InputForm, LengthForm, PlanForm } from './plan-editor/plan-form';
+import { lengthText } from './activity-document-view/measurements';
+import { formFormats, InputForm, LengthForm, PlanForm } from './plan-editor/plan-form';
 
 /** Parent wording for app-owned question formats; raw enum values never reach the page. */
 export const formatNames: Record<QuestionFormat, string> = {
@@ -15,16 +16,9 @@ const mixtureNames: Record<QuestionFormat, string> = {
 };
 const difficultyNames = { easy: 'קל', medium: 'בינוני', hard: 'קשה' };
 
-/** Formats every generated activity uses: the selected one for selectable plans, otherwise the fixed mixture. */
+/** Formats a generated activity uses: the chosen one for selectable plans, otherwise the fixed mixture. */
 export function activityFormats(plan: PlanForm, input: InputForm): QuestionFormat[] {
-  const allowed = (['numeric-input', 'text-input', 'single-choice'] as const).filter(
-    (format) =>
-      ({
-        'numeric-input': plan.questions.numeric,
-        'text-input': plan.questions.text,
-        'single-choice': plan.questions.choice,
-      })[format],
-  );
+  const allowed = formFormats(plan.questions);
   const selected = input.questionFormat || plan.questions.defaultFormat;
   return plan.questions.selectableFormat && selected && allowed.includes(selected)
     ? [selected]
@@ -41,22 +35,21 @@ function questionPhrase(count: number, formats: QuestionFormat[]): string {
   return count === 1 ? `שאלה ${one} אחת` : `${count} שאלות ${many}`;
 }
 
+/** Unfinished typing falls back to the plan's value instead of inventing a number. */
 function lengthPhrase(length: LengthForm, chosen: string): string | undefined {
-  if (length.mode === 'range') return `${length.lower}–${length.upper} מילים`;
-  const words = isIntegerInput(chosen) ? chosen : length.value;
-  if (length.mode === 'exact') return `בדיוק ${words} מילים`;
-  if (length.mode === 'target') return `כ־${words} מילים`;
-  return undefined;
+  const { mode, value, lower, upper } = length;
+  if (!mode) return undefined;
+  return lengthText({ mode, value: isIntegerInput(chosen) ? chosen : value, lower, upper });
 }
 
-/**
- * One-line reading of the current local plan and choices. Derived on every render and never
- * persisted; unfinished typing falls back to the plan value instead of inventing a number.
- */
+/** One-line reading of the current local plan and choices; derived on every change, never stored. */
 export function activitySummary(plan: PlanForm, input: InputForm): string[] {
   const settings = input.settings;
-  const parts = [settings.topic.trim(), settings.audience.trim()];
-  parts.push(difficultyNames[settings.difficulty] ?? '');
+  const parts = [
+    settings.topic.trim(),
+    settings.audience.trim(),
+    difficultyNames[settings.difficulty],
+  ];
   if (isIntegerInput(settings.questionCount) && Number(settings.questionCount) > 0)
     parts.push(questionPhrase(Number(settings.questionCount), activityFormats(plan, input)));
   if (!plan.materials.length) parts.push('ללא טקסט מקדים');
@@ -73,7 +66,7 @@ export function activitySummary(plan: PlanForm, input: InputForm): string[] {
   return [...new Set(parts.filter(Boolean))];
 }
 
-/** Saved content that needs the parent's explicit review because its requirements or sources changed. */
+/** Saved content whose diagnostics ask for the parent's review because requirements or sources changed. */
 export function staleContent(saved: ActivityDetail | undefined) {
   const materials = new Set<string>(),
     questions = new Set<string>();
@@ -87,6 +80,42 @@ export function staleContent(saved: ActivityDetail | undefined) {
   return { materials, questions };
 }
 
+function questionIssue(saved: ActivityDetail, index: number, field: string, message: string) {
+  const number = index + 1,
+    question = saved.document.questions[index];
+  switch (field) {
+    case 'prompt':
+      return `בשאלה ${number} חסר נוסח.`;
+    case 'format':
+      return `סוג התשובה בשאלה ${number} אינו מתאים להגדרות הפעילות.`;
+    case 'answer':
+      if (!question?.answer?.value.trim()) return `בשאלה ${number} חסרה תשובה נכונה.`;
+      if (question.interaction.type === 'single-choice')
+        return `בשאלה ${number} התשובה הנכונה כבר אינה תואמת לאחת האפשרויות. בחרו תשובה נכונה מחדש.`;
+      return `בשאלה ${number}: ${message}`;
+    default:
+      return `בשאלה ${number}: ${message}`;
+  }
+}
+
+/** Acceptance records the material revisions a question was written against. */
+function sourceChanged(saved: ActivityDetail, indexes: number[]) {
+  const materials = saved.document.materials;
+  return (
+    !!materials.length &&
+    indexes.some((index) => {
+      const acceptance = saved.document.questions[index]?.acceptance;
+      return (
+        !acceptance ||
+        acceptance.sources.length !== materials.length ||
+        acceptance.sources.some(
+          (source) => materials.find((m) => m.id === source.id)?.revision !== source.revision,
+        )
+      );
+    })
+  );
+}
+
 /**
  * Parent wording for server-derived release diagnostics. Unknown keys keep the server's Hebrew
  * message, so no blocker is ever hidden. Length keys are omitted: measurements show them beside
@@ -94,80 +123,40 @@ export function staleContent(saved: ActivityDetail | undefined) {
  */
 export function reviewIssues(saved: ActivityDetail | undefined): string[] {
   if (!saved) return [];
-  const issues: string[] = [];
+  const issues: string[] = [],
+    staleQuestions: number[] = [];
   const label = (id: string) => saved.plan.materials.find((m) => m.id === id)?.label ?? 'הטקסט';
-  const staleQuestions: number[] = [];
-  for (const [key, messages] of Object.entries(saved.diagnostics)) {
-    const message = messages[0] ?? '';
+  for (const [key, [message = '']] of Object.entries(saved.diagnostics)) {
     const question = /^questions\[(\d+)\]\.(\w+)$/.exec(key);
     const material = /^materials\.([^.]+)(?:\.(\w+))?$/.exec(key);
     if (key.startsWith('length.')) continue;
-    if (question) {
-      const index = Number(question[1]),
-        number = index + 1,
-        savedQuestion = saved.document.questions[index];
-      switch (question[2]) {
-        case 'stale':
-          staleQuestions.push(index);
-          break;
-        case 'prompt':
-          issues.push(`בשאלה ${number} חסר נוסח.`);
-          break;
-        case 'format':
-          issues.push(`סוג התשובה בשאלה ${number} אינו מתאים להגדרות הפעילות.`);
-          break;
-        case 'answer':
-          issues.push(
-            !savedQuestion?.answer?.value.trim()
-              ? `בשאלה ${number} חסרה תשובה נכונה.`
-              : savedQuestion.interaction.type === 'single-choice'
-                ? `בשאלה ${number} התשובה הנכונה כבר אינה תואמת לאחת האפשרויות. בחרו תשובה נכונה מחדש.`
-                : `בשאלה ${number}: ${message}`,
-          );
-          break;
-        default:
-          issues.push(`בשאלה ${number}: ${message}`);
-      }
-    } else if (material && material[1] !== 'capacity') {
-      const name = label(material[1]);
+    if (question?.[2] === 'stale') staleQuestions.push(Number(question[1]));
+    else if (question) issues.push(questionIssue(saved, Number(question[1]), question[2], message));
+    else if (material && material[1] !== 'capacity')
       issues.push(
         material[2] === 'stale'
-          ? `הטקסט "${name}" נוצר לפי הגדרות קודמות. בדקו אותו או צרו אותו מחדש.`
+          ? `הטקסט "${label(material[1])}" נוצר לפי הגדרות קודמות. בדקו אותו או צרו אותו מחדש.`
           : material[2] === 'body'
-            ? `הטקסט "${name}" ריק.`
-            : !material[2]
-              ? `עדיין אין טקסט עבור "${name}".`
-              : message,
+            ? `הטקסט "${label(material[1])}" ריק.`
+            : material[2]
+              ? message
+              : `עדיין אין טקסט עבור "${label(material[1])}".`,
       );
-    } else if (key === 'questions') {
-      const count = saved.document.questions.length;
+    else if (key === 'questions')
       issues.push(
-        count
-          ? `מספר השאלות בפעילות (${count}) שונה מהמספר שנבחר (${saved.input.settings.questionCount}).`
+        saved.document.questions.length
+          ? `מספר השאלות בפעילות (${saved.document.questions.length}) שונה מהמספר שנבחר (${saved.input.settings.questionCount}).`
           : 'עדיין אין שאלות בפעילות.',
       );
-    } else if (key === 'questions.formats') issues.push('חסרים סוגי שאלות שנבחרו בהגדרות.');
+    else if (key === 'questions.formats') issues.push('חסרים סוגי שאלות שנבחרו בהגדרות.');
     else if (key === 'title') issues.push('חסרה כותרת לפעילות.');
     else issues.push(message);
   }
-  if (staleQuestions.length) {
-    // Acceptance records the material revisions a question was written against.
-    const sourceChanged = staleQuestions.some((index) => {
-      const acceptance = saved.document.questions[index]?.acceptance;
-      return (
-        !acceptance ||
-        acceptance.sources.length !== saved.document.materials.length ||
-        acceptance.sources.some(
-          (source) =>
-            saved.document.materials.find((m) => m.id === source.id)?.revision !== source.revision,
-        )
-      );
-    });
+  if (staleQuestions.length)
     issues.push(
-      sourceChanged && saved.document.materials.length
+      sourceChanged(saved, staleQuestions)
         ? 'הטקסט השתנה מאז שנוצרו השאלות. בדקו את השאלות או צרו אותן מחדש.'
         : 'ההגדרות השתנו מאז שנוצרו השאלות. בדקו את השאלות או צרו אותן מחדש.',
     );
-  }
   return issues;
 }
