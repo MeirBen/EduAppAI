@@ -29,8 +29,9 @@ public sealed class ContentGenerationTests
         Assert.DoesNotContain("client-only", chat.Requests[0].Input);
         AssertVersion(result.Metadata, chat.Requests[0].Options!, "author");
         var schema = Schema(chat.Requests[0].Options!);
-        Assert.Equal(EngineVersions.SchemaVersion, schema.GetProperty("$defs").GetProperty("plan")
-            .GetProperty("properties").GetProperty("schemaVersion").GetProperty("enum")[0].GetInt32());
+        var version = schema.GetProperty("$defs").GetProperty("plan").GetProperty("properties").GetProperty("schemaVersion");
+        Assert.Equal(EngineVersions.SchemaVersion, version.GetProperty("minimum").GetInt32());
+        Assert.Equal(EngineVersions.SchemaVersion, version.GetProperty("maximum").GetInt32());
     }
 
     [Fact]

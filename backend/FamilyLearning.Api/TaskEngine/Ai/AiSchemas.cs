@@ -57,7 +57,10 @@ internal static class AiSchemas
     private static JsonElement LoadTemplate()
     {
         var schema = JsonSerializer.SerializeToNode(Read("template.schema.json"))!;
-        schema["$defs"]!["plan"]!["properties"]!["schemaVersion"]!["enum"] = new JsonArray(EngineVersions.SchemaVersion);
+        var version = schema["$defs"]!["plan"]!["properties"]!["schemaVersion"]!;
+        // OpenRouter's Gemini conversion drops this plan with an integer enum; equal bounds preserve the exact version.
+        version["minimum"] = EngineVersions.SchemaVersion;
+        version["maximum"] = EngineVersions.SchemaVersion;
         return JsonSerializer.SerializeToElement(schema);
     }
 

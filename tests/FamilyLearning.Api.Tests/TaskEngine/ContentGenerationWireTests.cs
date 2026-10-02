@@ -15,6 +15,34 @@ namespace FamilyLearning.Api.Tests.TaskEngine;
 
 public sealed class ContentGenerationWireTests
 {
+    [Fact]
+    public async Task Strict_authoring_wire_preserves_the_plan_and_pins_its_version_without_a_numeric_enum()
+    {
+        await using var local = await LocalAiProvider.StartAsync();
+        local.Respond = _ => """{"result":{"proposal":null,"clarification":"לאיזה גיל?"},"assumptions":[]}""";
+        using var services = local.Services("json_schema");
+        await services.GetRequiredService<AiGenerationService>().AuthorAsync(new("רעיון"), default);
+        using var request = JsonDocument.Parse(Assert.Single(local.Bodies));
+        var root = request.RootElement;
+        var format = root.GetProperty("response_format").GetProperty("json_schema");
+        Assert.True(format.GetProperty("strict").GetBoolean());
+        Assert.True(root.GetProperty("provider").GetProperty("require_parameters").GetBoolean());
+        var schema = format.GetProperty("schema");
+        using var promptSchema = JsonDocument.Parse(root.GetProperty("messages")[0].GetProperty("content")
+            .GetString()!.Split("\nOutput JSON schema:\n")[1]);
+        Assert.Equal(promptSchema.RootElement.GetRawText(), schema.GetRawText());
+        var plan = schema.GetProperty("$defs").GetProperty("plan");
+        Assert.Equal(["schemaVersion", "name", "goal", "guidance", "defaults", "materials", "questions", "controls", "totalLength"],
+            plan.GetProperty("required").EnumerateArray().Select(value => value.GetString()));
+        Assert.Equal(9, plan.GetProperty("properties").EnumerateObject().Count());
+        Assert.False(plan.GetProperty("additionalProperties").GetBoolean());
+        var version = plan.GetProperty("properties").GetProperty("schemaVersion");
+        Assert.Equal("integer", version.GetProperty("type").GetString());
+        Assert.False(version.TryGetProperty("enum", out _));
+        Assert.Equal(EngineVersions.SchemaVersion, version.GetProperty("minimum").GetInt32());
+        Assert.Equal(EngineVersions.SchemaVersion, version.GetProperty("maximum").GetInt32());
+    }
+
     [Theory]
     [InlineData("json_schema")]
     [InlineData("json_object")]
