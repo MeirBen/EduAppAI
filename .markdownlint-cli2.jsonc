@@ -9,6 +9,6 @@
     "**/test-results/**",
     "**/playwright-report/**",
     "artifacts/**",
-    ".superpowers/**",
-  ],
+    ".superpowers/**"
+  ]
 }
