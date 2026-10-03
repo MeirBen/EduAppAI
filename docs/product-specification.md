@@ -139,83 +139,223 @@ setup in the [README](../README.md) and presentation in the
 
 ## Next steps
 
-The app ends at the parent preview. Add these only as working features:
+The implemented app ends at the parent preview. The next milestone is the
+child flow specified below; its [implementation plan](child-flow-plan.md)
+keeps the work in reviewed, independently verified tasks. Neither this section
+nor the plan means the child features have shipped.
 
-1. Evaluate correctness, Hebrew quality, reliability, latency and cost with
-   representative tasks and human review, using the
-   [evaluation harness](ai.md#using-the-evaluation-harness).
-2. Add family-owned child profiles, expiring device activation and revocable
-   access.
-3. Add reviewed assignments and a generic child player; a `TaskSession`
-   records answers, attempts, timing and server-scored results.
-4. Report completed work and per-question results from saved sessions.
-5. Add account recovery, shared-parent access, update notices, operational
-   backup and restore, and pagination once 100-item lists limit use.
+Alongside that work, review representative saved evaluation outputs for
+correctness, Hebrew, suitability and answer quality before handing the
+activities to children. Use concrete findings to guide further AI tuning.
+Before inviting other families, add account recovery and tested backup/restore.
+Shared-parent onboarding, dashboards, broad library pagination, update notices,
+offline synchronization and native packaging remain later work.
 
-Offline synchronization and native packaging remain deferred. Child sessions
-must stay separate from parent authentication and use answer-free,
-assignment-checked responses.
+## Child flow — next milestone
 
-### Child flow proposal
+**Design for review, 3 October 2026; not implemented.** This milestone completes
+one loop: the parent creates a child profile, assigns a reviewed activity,
+activates a separate child device and sees the submitted answers and results.
+It extends the current application and immutable snapshots. Creating a profile,
+assigning, opening, answering, grading and reporting make no AI calls.
 
-Not implemented. The first target is a separately activated child device;
-shared-browser switching is deferred. The first release completes one flow: the
-parent creates a child profile, assigns a reviewed task, activates the child's
-device and sees the submitted result. It adds an independently authorized
-`/api/child` group and keeps the parent contracts unchanged.
+The first release uses a separate browser/device for the child. Shared-browser
+parent/child switching, self-registration, repeated attempts on an assignment,
+AI grading, hints, answer-key delivery and gamification are outside this
+milestone. All existing question types remain available.
 
-**Access and content:**
+### Profiles and device access
 
-- Bind parent and child policies to separate authentication schemes so a child
-  cookie never satisfies parent access ([scheme-specific
-  authorization][auth-schemes]). Child identity, family and device grant come
-  from the server; check assignment ownership, expiry and revocation on every
-  request.
-- A parent creates a short-lived, single-use activation credential stored as a
-  hash, consumed atomically and rate-limited. It yields a separate HttpOnly
-  cookie, Secure in production, and stays out of logs. Parents can revoke a
-  device; children need no email or password.
-- Child writes and activation need [CSRF protection][csrf] bound to the right
-  identity. Reject activation in a browser with an active parent session.
-- Child DTOs contain only learner-facing text, questions, options and points:
-  never `SnapshotPreview`, answer keys, guidance, resolved inputs or model
-  metadata. Assigning, opening, answering and reporting generate nothing.
+- A child belongs to one family and has a trimmed, nonblank display name of
+  1–100 characters.
+  Names need not be unique. No email, password or date of birth is required.
+  Parents can rename, disable and re-enable their own children. Disabling
+  revokes all device access and pending activation codes while preserving work.
+  Re-enabling requires fresh activation; it never restores a revoked grant.
+- The parent creates an activation code for a named device (trimmed, nonblank,
+  1–100 characters).
+  Use 16 cryptographically random bytes encoded as base64url, valid for ten
+  minutes, displayed once and stored only as a SHA-256 hash. Send it in the
+  activation request body, never a URL, log or browser storage. Copy/paste is
+  sufficient for this release. Issuing a new code invalidates that child's
+  previous unconsumed code. A lost activation response requires a new code.
+- Consume a code and create its device grant in one transaction; concurrent
+  redemption succeeds once. Invalid, expired and used codes give the same
+  safe response. Rate-limit redemption to ten attempts per minute per source
+  IP and 120 per minute for the single process, without queuing; parent code
+  issuance is limited to ten per minute per authenticated parent.
+- A device grant lasts 30 days from activation without sliding renewal. The
+  separate child authentication cookie is HttpOnly, SameSite Strict, Secure in
+  production, and never outlives the grant. The parent can revoke individual
+  devices; disconnecting on the child device revokes that grant too.
+- Bind parent and child policies to separate named authentication schemes,
+  using [scheme-specific authorization][auth-schemes]. A child cookie never
+  authorizes parent APIs, and a parent cookie never authorizes child APIs.
+  Reject activation with an active parent or child session, and reject parent
+  sign-in with an active child session. Explain which session must be closed;
+  never silently merge or replace identities.
+- Child identity, family and grant are server-owned. Every child request checks
+  that the profile and grant remain valid; writes recheck them inside the same
+  short transaction as the state change. Revocation committed first prevents a
+  later save or submission, including requests that passed authentication
+  before revocation.
+- Child activation and writes use [CSRF protection][csrf], including a fresh
+  identity-bound request token after activation. The existing parent token
+  flow must continue to work. Token issuance refuses an active opposite-mode
+  session rather than replacing that session's request token. A transient
+  outage is not an expired session:
+  display retry feedback without falsely reporting successful activation,
+  saving or submission.
 
-**Records and completion:**
+### Assignments and learner-facing content
 
-- `TaskSnapshot` stays frozen content. `Child` belongs to a family,
-  `Assignment` links one child to one reviewed snapshot, and `TaskSession`
-  records work on it; answers and the scored result become immutable on
-  submission. Device grants are separate from sessions.
-- Start with one resumable session and one final submission per assignment.
-  Draft answers save with concurrency checks; final answers, per-question
-  points, totals, scoring-policy version and completion commit together.
-  Repeating a submission returns the saved result, different answers after
-  completion conflict, and withdrawal and submission check assignment state in
-  one transaction.
-- Grade deterministically on the server from the frozen key: match a valid
-  choice, compare invariant decimals, and compare short text after trimming and
-  Unicode NFC normalization, preserving case, punctuation and vowel points. No
-  synonym guessing or AI grading. Missing answers score zero, unknown or
-  duplicate question IDs are invalid, and no percentage shows when max points is
-  zero.
-- Reports read saved results and never rescore with newer rules. Completion
-  responses contain no answer key. Reattempts, detailed feedback and dashboards
-  can follow.
+- An assignment links one family-owned child to one family-owned reviewed
+  `TaskSnapshot`. New creation rejects disabled children and archived snapshots;
+  an existing owned assignment may still be returned on replay. One
+  assignment per child/snapshot pair is allowed, including after withdrawal;
+  replaying creation returns that assignment. A deliberate future repeat needs
+  a new reviewed snapshot in this milestone.
+- Assignment state is `assigned`, `withdrawn`, `awaiting-review` or `completed`.
+  Starting or saving work keeps it `assigned`. The parent may withdraw only an
+  `assigned` item, preventing further child access while retaining its history.
+  Withdrawal and submission are serialized: whichever commits first wins.
+  There are no due dates or automatic assignment expiry in this milestone.
+- The child inbox separates available work from submitted work. New collections
+  use bounded pagination (25 items per page, maximum 100) so older assignments
+  and reports remain reachable. Existing library lists keep their current
+  behavior; adding these pages does not require a library-wide redesign.
+- Child responses explicitly project the title, instructions, material IDs,
+  titles and bodies, question IDs, prompts, interaction types, options and
+  possible points. Include only the child's own saved answers and status where
+  needed. Never serialize `TaskDocument` or `SnapshotPreview` to a child:
+  answer keys, guidance, resolved inputs, provenance and model metadata stay
+  server/parent-only. These are forbidden response fields on every success and
+  error path, including completion and history.
+- Enforce assignment ownership on every read/write. Missing, foreign-family
+  and sibling-owned IDs return the same 404. Answers cannot choose a child,
+  family, score or question definition through request data. Authenticated
+  responses are not cached; learning data stays out of browser persistent
+  storage and the service-worker cache.
 
-**Retention and acceptance:**
+### Working session and submission
 
-- Archive, rather than delete, tasks referenced by assignments and their
-  reports. Disabling a child revokes access but keeps results. Extend family
-  reset, its confirmation and its transaction to learning history before
-  enabling assignments.
-- Verify family and sibling isolation, cookie separation, expired or replayed
-  activation, revocation, missing CSRF, answer-free JSON, resume and conflict
-  handling, duplicate submission, withdrawal and deletion races, scoring edge
-  cases and unchanged history, on narrow RTL screens and by keyboard.
+- Each assignment has one resumable `TaskSession`, created explicitly and
+  idempotently on start. Opening a read-only endpoint does not create work.
+  Record server UTC start, last-save and submission times; these describe
+  elapsed wall-clock time, not measured engagement or active learning time.
+- The child edits a local buffer and explicitly saves progress. Show saving,
+  saved, unsaved and failed states. Refresh restores the last acknowledged
+  checkpoint; warn before leaving with unsaved edits. Automatic/background
+  saving and offline queues are deferred. Keep reading material accessible
+  while answering, with native labeled controls, Hebrew/RTL layout, keyboard
+  access, 360px width and 200% text support.
+- A save sends the complete answer collection and `expectedRevision`; an
+  acknowledged write advances a server revision. Bound the collection by the
+  snapshot's question count (at most 20) and each value by 200 characters.
+  Duplicate/unknown IDs and unknown JSON members are invalid. Missing or blank
+  values mean unanswered. Preserve nonblank text exactly; incomplete numeric
+  text may be saved for correction, but invalid choice values may not.
+- A stale write returns 409 and keeps the child's local text visible. Offer an
+  explicit reload of saved work. After a lost response, check the saved state
+  before another write; do not automatically replay a submission or claim it
+  failed. Navigation/disconnect cancels client transport, not a committed save.
+- Submission is explicit, with confirmation when answers are missing. It sends
+  the final complete answer collection and expected revision; it need not rely
+  on a preceding successful save. Final validation, answer freezing, automatic
+  scoring, timestamps and the assignment/session state change commit together.
+- Submitting identical answers again returns the saved outcome even with an
+  old revision; different answers after submission return 409. Compare answers
+  by question ID regardless of request order, treating absent/blank values as
+  unanswered; otherwise compare the preserved strings exactly. A revision
+  mismatch before submission remains a conflict.
+- Submission freezes answers. It becomes `completed` immediately if no parent
+  grades are needed, otherwise `awaiting-review`. Neither state accepts answer
+  edits, withdrawal or another attempt. Start/resume calls return this saved
+  state and never reset it.
 
-Finalize grading, retry and retention rules before adding child tables or
-endpoints.
+### Scoring and parent review
+
+The first release uses automatic scoring for choices and numbers and parent
+review for **all nonblank short-text answers**. Valid alternative wording must
+not be silently marked wrong. There is no AI grading or synonym matching.
+
+At submission:
+
+- **Unanswered, any type:** Zero points, no pending parent grade.
+- **Single choice:** Must be one frozen option; exact match to the frozen key
+  earns full points, another option earns zero.
+- **Numeric:** Use the existing invariant decimal grammar: an optional leading
+  sign, digits and an optional decimal point followed by digits. No commas,
+  exponent, NaN or overflow. Numerically equal values earn full points; another
+  valid number earns zero. Invalid nonblank input blocks submission.
+- **Short text:** Preserve the answer; points stay unset until parent review,
+  even if it matches the key or the question is worth zero points.
+
+For stored results and parent review:
+
+- The server stores the scoring-policy version and automatic awards at
+  submission. Reports never rerun scoring with a changed rule or live template.
+  A pending result shows the automatic subtotal, possible total and outstanding
+  review count, clearly labeled; it has no final total or percentage.
+- The parent reviews the submitted text alongside the frozen question, source
+  material and expected answer. The expected answer is a reference, not a
+  mandatory exact string. Enter integer points from zero through the question's
+  possible points; partial credit is allowed. Automatic awards are read-only.
+- Finalize all pending grades in one request with the session revision.
+  Require each pending question exactly once; reject missing, duplicate,
+  automatic-question or out-of-range grades. Save the reviewer identity, UTC
+  review time, grades, final result and `completed` state in one transaction.
+- Concurrent or repeated finalization cannot overwrite a completed result.
+  Repeating the same grade set returns it; different grades after completion
+  conflict. Automatically completed work cannot acquire a parent review after
+  the fact. Grade drafts remain local until finalization, with an unsaved-work
+  warning. Grade corrections/reopening and written feedback are later features.
+- Parent reports show the child, activity, submitted answers, frozen keys,
+  automatic/manual awards and timestamps. Final totals appear only when all
+  grading is complete; if possible points are zero, display points without a
+  percentage. Child completion/history shows receipt, review status and final
+  total when available, without keys or per-question correctness feedback.
+
+### Retention and reset
+
+- `TaskSnapshot` content stays immutable. Removing an assigned snapshot from
+  the library archives it; it cannot receive new assignments but existing work
+  and reports retain it. Unassigned snapshots may still be permanently deleted.
+  The UI names archiving/deletion accurately before confirmation. Assignment
+  creation and snapshot removal share transaction-safe ownership/state checks
+  and restrictive foreign keys, so a race cannot leave dangling work.
+- Keep withdrawn assignments and submitted results. Disabling a child revokes
+  access rather than deleting its history. Releasing a new snapshot or changing
+  a template never changes an existing assignment or result.
+- The explicit family reset remains the destructive exception. Its confirmation
+  must name children, device access, assignments, answers, grades and content.
+  Delete all of them in one transaction, including records beyond list limits;
+  keep the family, parent accounts and AI configuration. After reset, old child
+  cookies and activation codes cannot access or recreate deleted work. Update
+  reset before exposing any child records, and extend it in each schema task.
+
+### Acceptance
+
+The milestone is ready for a family pilot when the parent can assign reviewed
+work, activate a separate device, the child can save/resume/submit, and the
+parent can review short text and see stable results after a server restart.
+Verify these with the real application and disposable data:
+
+- Family/sibling isolation; parent/child cookie separation; mixed-cookie
+  activation/sign-in rejection; missing and wrong-identity CSRF; anonymous
+  endpoint allowlist.
+- Expired, replayed and concurrently redeemed activation; grant expiry,
+  revocation and disable/re-enable; cancellation and lost activation response.
+- Complete child-response field allowlists, including nested content, errors,
+  working sessions, pending review and completed history; no AI calls.
+- Save conflicts, two tabs/devices, start races, reordered submission replay,
+  missing answers, numeric boundaries and a lost submission acknowledgement.
+- Submission versus withdrawal/revocation/reset; assignment versus deletion;
+  concurrent parent grading; no partial writes or changed historical scores.
+- Pagination past 100 records; archived-content access through assignments;
+  restart persistence; reset clears every owned child record and no other family.
+- Keyboard and screen-reader labels, focus after errors, RTL/mixed-language
+  content, narrow screens and enlarged text; existing parent workflows pass.
 
 [template]: ../backend/FamilyLearning.Api/TaskEngine/Models/LearningPlan.cs
 [content]: ../backend/FamilyLearning.Api/TaskEngine/Models/TaskDocument.cs
