@@ -2,14 +2,7 @@ import { ChangeDetectionStrategy, Component, computed, input, output } from '@an
 import { GenerationKind, GenerationOperation } from '../../../core/api/models';
 import { LoadingIndicator } from '../../../shared/loading-indicator/loading-indicator';
 import { lengthText } from '../activity-document-view/measurements';
-
-/** Semantic names for operation stages, shared by status evidence and result inspection. */
-export const stageNames: Record<string, string> = {
-  materials: 'טקסט שנוצר',
-  questions: 'שאלות שנוצרו',
-  'replace-material': 'טקסט חלופי',
-  'replace-question': 'שאלה חלופית',
-};
+import { isRunning, stageNames } from './operation-state';
 
 /** A parent-facing reading of one operation; `retry` is an explicit new request, never automatic. */
 interface StatusView {
@@ -38,9 +31,7 @@ export class GenerationStatus {
   readonly cancelled = output<void>();
   readonly retried = output<GenerationKind>();
   readonly checked = output<void>();
-  protected readonly active = computed(() =>
-    ['queued', 'calling'].includes(this.operation().status),
-  );
+  protected readonly active = computed(() => isRunning(this.operation()));
   protected readonly stages: Record<string, string> = {
     materials: 'כותבים את חומר הלימוד',
     questions: 'מכינים את השאלות',

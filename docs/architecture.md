@@ -188,11 +188,13 @@ once before a private page renders; forms, caps and copy read them through
 
 `ActivityWorkspace` owns the template and activity URLs, one form buffer for
 plan and per-activity input, derived canonical projections, source confirmation
-and twenty coalesced Undo entries. ActivitySetup, PlanEditor, TemplateChat and
-the document editor edit the owner's Signal Forms and emit events;
-ActivityReview and GenerationStatus present state and emit explicit actions.
-None owns a copied draft or HTTP request, and phases, summaries and
-parent-language diagnostics are derived, never stored. Each parent message
+and twenty coalesced Undo entries; its pure buffer transitions live in
+`workspace-form`, and plan projections in `plan-projection`. ActivitySetup,
+PlanEditor, TemplateChat, SourceReplacement and the document editor edit the
+owner's Signal Forms and emit events; ActivityReview, GenerationStatus and
+UnappliedResult present state and emit explicit actions. None owns a copied
+draft or HTTP request, and phases, summaries and parent-language diagnostics
+are derived, never stored. Each parent message
 makes one correlated authoring request; local edits, Undo and cancellation
 invalidate pending responses.
 

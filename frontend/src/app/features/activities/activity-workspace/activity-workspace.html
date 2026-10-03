@@ -13,12 +13,12 @@
         <span role="status" [class.font-medium]="unsaved()" [class.text-ink]="unsaved()">{{
           saveState()
         }}</span>
-        @if (hasPlan() || history().length) {
+        @if (hasPlan() || history.entries().length) {
           <button
             id="plan-undo"
             class="text-link"
             type="button"
-            [disabled]="saving() || released() || !history().length"
+            [disabled]="saving() || released() || !history.entries().length"
             (click)="undo()"
           >
             ביטול השינוי האחרון
@@ -168,31 +168,11 @@
       </section>
     }
     @for (candidate of editableCandidates(); track candidate.index) {
-      <section class="panel grid gap-4" [attr.aria-label]="candidate.name">
-        <p class="font-medium">
-          {{
-            candidate.conflict
-              ? 'נוצרה תוצאה בזמן שהמשכתם לערוך. לא החלפנו את העבודה שלכם.'
-              : 'התקבלה תוצאה שלא הוחלה על הפעילות. אפשר לבדוק אותה ולהעביר אותה לעריכה.'
-          }}
-        </p>
-        <details class="well">
-          <summary>בדיקת התוצאה — {{ candidate.name }}</summary>
-          <div class="grid gap-4">
-            <app-activity-document-view [document]="candidate.preview" />
-            <p>העברה לעריכה מחליפה את החלק הזה בעריכה שלכם. בדקו ושמרו אחר כך.</p>
-            <button
-              type="button"
-              data-edit-candidate
-              class="button button-secondary w-fit"
-              [disabled]="saving()"
-              (click)="editCandidate(candidate.index)"
-            >
-              העברת התוצאה לעריכה
-            </button>
-          </div>
-        </details>
-      </section>
+      <app-unapplied-result
+        [candidate]="candidate"
+        [locked]="saving()"
+        (transferred)="editCandidate(candidate.index)"
+      />
     }
     @if (saved() || hasContent()) {
       <app-activity-document-editor
@@ -213,42 +193,13 @@
       />
     }
     @if (sourceReplacement().id) {
-      <section class="panel grid gap-4" aria-labelledby="replacement-title">
-        <h2 id="replacement-title">החלפת הטקסט</h2>
-        <div>
-          <label for="replacement-source">הטקסט החדש — יישמר בדיוק כפי שהוזן</label>
-          <textarea
-            id="replacement-source"
-            dir="auto"
-            rows="8"
-            [formField]="sourceFields.text"
-            (input)="sourceTyping()"
-            aria-describedby="replacement-source-help"
-          ></textarea>
-          <p id="replacement-source-help" class="mt-2 text-sm text-muted">
-            עד {{ limits.bodyLength | number }} תווים. אחרי ההחלפה כדאי לבדוק את השאלות שתלויות
-            בטקסט. התבנית בספרייה לא תשתנה.
-          </p>
-        </div>
-        <div class="flex flex-wrap items-center gap-3">
-          <button
-            class="button"
-            type="button"
-            [disabled]="saving()"
-            id="accept-source-replacement"
-            (click)="acceptSourceReplacement()"
-          >
-            אישור הטקסט החדש
-          </button>
-          <button
-            class="text-link"
-            type="button"
-            (click)="sourceReplacement.set({ id: '', text: '' })"
-          >
-            ביטול
-          </button>
-        </div>
-      </section>
+      <app-source-replacement
+        [field]="sourceFields.text"
+        [locked]="saving()"
+        (typed)="sourceTyping()"
+        (accepted)="acceptSourceReplacement()"
+        (cancelled)="sourceReplacement.set({ id: '', text: '' })"
+      />
     }
     @if (hasPlan() || saved()) {
       <section class="panel grid gap-4" aria-labelledby="actions-title">

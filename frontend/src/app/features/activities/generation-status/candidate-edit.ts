@@ -1,9 +1,28 @@
-import { ContentLimits, EditableQuestion, LearningPlan } from '../../../core/api/models';
+import {
+  ContentLimits,
+  EditableActivity,
+  EditableQuestion,
+  GenerationOperation,
+  LearningPlan,
+} from '../../../core/api/models';
 import {
   DocumentForm,
   documentForm,
   documentValue,
 } from '../activity-document-editor/document-form';
+import { stageNames } from './operation-state';
+
+/** A parsed stage result that was not applied, offered for explicit transfer into the editor. */
+export interface UnappliedCandidate {
+  /** Index of the operation step that produced it. */
+  index: number;
+  /** The whole editor document with this result applied. */
+  document: DocumentForm;
+  preview: EditableActivity;
+  name: string;
+  /** The draft changed while the operation ran, so the result was fenced rather than rejected. */
+  conflict: boolean;
+}
 
 const object = (value: unknown): Record<string, unknown> | undefined =>
   value !== null && typeof value === 'object' && !Array.isArray(value)
@@ -122,4 +141,36 @@ export function candidateEdit(
     }
   } else return;
   return documentValue(next, limits).value ? next : undefined;
+}
+
+/** Bounded results of a finished operation that were not applied, such as a fenced or rejected stage. */
+export function unappliedCandidates(
+  operation: GenerationOperation,
+  current: DocumentForm,
+  plan: LearningPlan,
+  limits: ContentLimits,
+): UnappliedCandidate[] {
+  return (operation.artifacts?.steps ?? []).flatMap((step, index) => {
+    if (['accepted', 'applied'].includes(operation.steps[index]?.outcome ?? '')) return [];
+    const document = candidateEdit(
+      step.stage,
+      step.candidate ?? step.call?.output,
+      operation.artifacts?.targetId ?? null,
+      current,
+      plan,
+      limits,
+    );
+    const preview = document && documentValue(document, limits).value;
+    return document && preview
+      ? [
+          {
+            index,
+            document,
+            preview,
+            name: stageNames[step.stage] ?? 'תוכן שנוצר',
+            conflict: operation.status === 'conflict',
+          },
+        ]
+      : [];
+  });
 }

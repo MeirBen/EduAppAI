@@ -7,7 +7,7 @@ import {
   QuestionFormat,
 } from '../../../core/api/models';
 import { isIntegerInput } from '../../../shared/forms/integer-input';
-import { Projection } from '../plan-editor/plan-form';
+import { Projection } from '../../../shared/forms/projection';
 
 /** Editable-only values. Blank/invalid numeric keystrokes never become an accidental zero. */
 export interface DocumentForm {
@@ -25,6 +25,7 @@ export interface DocumentForm {
     points: string;
   }[];
 }
+/** Native field metadata and feedback; the server still validates every saved draft. */
 export const documentSchema = (limits: ContentLimits) =>
   schema<DocumentForm>((path) => {
     maxLength(path.title, limits.titleLength);
@@ -42,6 +43,7 @@ export const documentSchema = (limits: ContentLimits) =>
       );
     });
   });
+/** Editable fields of a saved or generated document; server-owned provenance stays out. */
 export function documentForm(document?: EditableActivity | ActivityDocument): DocumentForm {
   return {
     title: document?.title ?? '',

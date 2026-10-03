@@ -1,3 +1,4 @@
+import { Location, NgTemplateOutlet } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import {
   ChangeDetectionStrategy,
@@ -10,90 +11,78 @@ import {
   linkedSignal,
   signal,
 } from '@angular/core';
+import { apply, applyEach, disabled, form, maxLength, validate } from '@angular/forms/signals';
+import { Router, RouterLink } from '@angular/router';
+import { Subject } from 'rxjs';
+import { apiError } from '../../../core/api/api-error';
+import { LearningApi } from '../../../core/api/learning-api';
+import { Limits } from '../../../core/api/limits';
 import {
-  apply,
-  applyEach,
-  disabled,
-  form,
-  FormField,
-  maxLength,
-  validate,
-} from '@angular/forms/signals';
-import {
-  TaskSettingsDraft,
-  taskSettingsDraft,
-  taskSettingsSchema,
-} from '../../../shared/forms/task-settings';
-import { measurementItems } from '../activity-document-view/measurements';
-import { candidateEdit } from '../generation-status/candidate-edit';
-import { GenerationStatus, stageNames } from '../generation-status/generation-status';
-import { ActivityReview } from '../activity-review/activity-review';
-import { ActivityDocumentView } from '../activity-document-view/activity-document-view';
-import { ActivitySetup } from '../activity-setup/activity-setup';
-import { activitySummary, reviewIssues, staleContent } from '../activity-presentation';
-import { DecimalPipe, Location, NgTemplateOutlet } from '@angular/common';
-import { timer, exhaustMap, switchMap, map, takeWhile } from 'rxjs';
+  ActivityDetail,
+  AuthoringTurn,
+  GenerationKind,
+  GenerationOperation,
+  LearningPlan,
+  PlanTemplateDetail,
+  StartGeneration,
+} from '../../../core/api/models';
 import { requestResult } from '../../../core/api/request-result';
+import { taskSettingsSchema } from '../../../shared/forms/task-settings';
+import { LoadingIndicator } from '../../../shared/loading-indicator/loading-indicator';
 import {
   ActivityDocumentEditor,
   DocumentEdit,
 } from '../activity-document-editor/activity-document-editor';
 import {
-  DocumentForm,
   documentForm,
-  documentValue,
   documentSchema,
+  documentValue,
 } from '../activity-document-editor/document-form';
-import { Router, RouterLink } from '@angular/router';
-import { Subject } from 'rxjs';
-import { LearningApi } from '../../../core/api/learning-api';
-import { apiError } from '../../../core/api/api-error';
+import { ActivityDocumentView } from '../activity-document-view/activity-document-view';
+import { measurementItems } from '../activity-document-view/measurements';
 import {
-  AuthoringTurn,
-  LearningPlan,
-  PlanChange,
-  PlanTemplateDetail,
-  PlanMaterial,
-  ActivityDetail,
-  GenerationKind,
-  GenerationOperation,
-  StartGeneration,
-} from '../../../core/api/models';
-import { Limits } from '../../../core/api/limits';
-import { LoadingIndicator } from '../../../shared/loading-indicator/loading-indicator';
-import {
-  controlForm,
-  controlInputValue,
-  formControls,
-  inputForm,
-  InputForm,
-  materialForm,
-  newPlanId,
-  planForm,
-  PlanForm,
-  planFormSchema,
-  planControls,
-  planValue,
-  requestValue,
-} from '../plan-editor/plan-form';
+  activitySummary,
+  planChangeLabel,
+  reviewIssues,
+  staleContent,
+} from '../activity-presentation';
+import { ActivityReview } from '../activity-review/activity-review';
+import { ActivitySetup } from '../activity-setup/activity-setup';
+import { unappliedCandidates } from '../generation-status/candidate-edit';
+import { GenerationStatus } from '../generation-status/generation-status';
+import { isRunning } from '../generation-status/operation-state';
+import { UnappliedResult } from '../generation-status/unapplied-result/unapplied-result';
 import { PlanEditor, PlanStructureEdit } from '../plan-editor/plan-editor';
+import { planControls, planFormSchema } from '../plan-editor/plan-form';
+import { controlInputValue, planValue, requestValue } from '../plan-editor/plan-projection';
+import { SourceReplacement } from '../source-replacement/source-replacement';
 import { TemplateChat } from '../template-chat/template-chat';
-
-/** One editable buffer; canonical plan/request values are derived projections, never a second draft. */
-interface WorkspaceForm {
-  plan: PlanForm;
-  input: InputForm;
-  document: DocumentForm;
-}
-interface UndoEntry {
-  raw: WorkspaceForm;
-  confirmed: Record<string, string>;
-}
-const blankPlan = JSON.stringify(planForm());
+import { pollOperation } from './operation-polling';
+import { UndoHistory } from './undo-history';
+import {
+  ConfirmedSources,
+  editDocumentStructure,
+  editPlanStructure,
+  emptyWorkspace,
+  fixedSources,
+  hasPlanContent,
+  materialIdentity,
+  proposedWorkspace,
+  reconcile,
+  replaceSourceText,
+  sourceText,
+  withSavedQuestionIds,
+  withSchemaVersion,
+  WorkspaceForm,
+  workspaceForm,
+  WorkspaceSnapshot,
+} from './workspace-form';
 
 /**
- * Route owner for local plan/input, chat correlation, source acceptance, bounded Undo and independent
- * publication. Presentation phases (describe, set up, review) are derived from this state, never stored.
+ * Route owner for one template or activity: the editable buffer, chat correlation, source
+ * confirmation, bounded Undo, independent template publication, draft checkpoints and generation.
+ * Buffer transitions live in `workspace-form`; presentation phases (describe, set up, review) are
+ * derived from this state, never stored.
  */
 @Component({
   selector: 'app-activity-workspace',
@@ -105,11 +94,11 @@ const blankPlan = JSON.stringify(planForm());
     ActivityDocumentEditor,
     ActivitySetup,
     ActivityReview,
-    FormField,
     GenerationStatus,
     ActivityDocumentView,
     NgTemplateOutlet,
-    DecimalPipe,
+    SourceReplacement,
+    UnappliedResult,
   ],
   templateUrl: './activity-workspace.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -121,85 +110,77 @@ export class ActivityWorkspace {
   private readonly router = inject(Router);
   private readonly lifetime = inject(DestroyRef);
   protected readonly limits = inject(Limits).current;
+  protected readonly apiError = apiError;
+
   readonly templateId = input<string>();
   readonly activityId = input<string>();
   readonly context = input<'template' | 'activity'>('activity');
+  /** Operation named in the URL; shown after a reload when the draft has no active operation. */
+  readonly resumeOperation = input<string | undefined>(undefined, { alias: 'operation' });
+
   protected readonly template = this.api.planTemplate(this.templateId);
   protected readonly activity = this.api.activity(this.activityId);
   protected readonly ai = this.api.aiStatus();
-  protected readonly raw = signal<WorkspaceForm>({
-    plan: planForm(),
-    document: documentForm(),
-    input: {
-      settings: planForm().settings,
-      questionFormat: '',
-      choiceCount: '',
-      totalWordCount: '',
-      materials: [],
-      controls: [],
-    },
-  });
-  protected readonly chat = signal({ message: '', consolidated: '' });
-  protected readonly confirmed = signal<Record<string, string>>({});
-  protected readonly saving = signal(false);
-  protected readonly publishing = signal(false);
-  protected readonly copying = signal(false);
-  protected readonly authoring = signal(false);
-  /** Template publication failure; authoring failures use their own channel beside the request. */
-  protected readonly error = signal('');
-  protected readonly authorError = signal('');
-  protected readonly notice = signal('');
-  protected readonly templateNotice = signal('');
-  protected readonly attempted = signal(false);
-  protected readonly clarification = signal('');
-  protected readonly conversation = signal<AuthoringTurn[]>([]);
-  protected readonly assumptions = signal<string[]>([]);
-  protected readonly changes = signal<string[]>([]);
-  protected readonly history = signal<UndoEntry[]>([]);
-  protected readonly publication = signal<PlanTemplateDetail | undefined>(undefined);
-  protected readonly saved = signal<ActivityDetail | undefined>(undefined);
-  protected readonly available = signal<ActivityDetail | undefined>(undefined);
-  protected readonly operation = signal<GenerationOperation | undefined>(undefined);
-  protected readonly operationId = signal<string | undefined>(undefined);
-  protected readonly operationActive = computed(
-    () =>
-      !!this.operationId() &&
-      (!this.operation() || ['queued', 'calling'].includes(this.operation()!.status)),
-  );
-  protected readonly startRecovery = signal<
-    { draftId: string; request: StartGeneration } | undefined
-  >(undefined);
-  protected readonly activityError = signal('');
-  protected readonly documentProjection = computed(() =>
-    documentValue(this.raw().document, this.limits),
-  );
-  readonly resumeOperation = input<string | undefined>(undefined, { alias: 'operation' });
-  private readonly pollRefresh = signal(0);
-  protected readonly measurements = computed(() =>
-    measurementItems(this.saved()?.measurements ?? [], this.saved()?.plan),
-  );
-  protected readonly issues = computed(() => reviewIssues(this.saved()));
-  protected readonly stale = computed(() => staleContent(this.saved()));
-  protected readonly released = computed(() => !!this.saved()?.releasedSnapshotId);
-  /** Running scoped replacement, shown inside the affected card. */
-  protected readonly activeTarget = computed(() =>
-    this.operationActive() ? (this.operation()?.artifacts?.targetId ?? null) : null,
-  );
-  protected readonly sourceReplacement = signal({ id: '', text: '' });
-  protected readonly sourceFields = form(this.sourceReplacement, (p) =>
-    maxLength(p.text, this.limits.bodyLength),
-  );
-  private operationClientRevision = 0;
   protected readonly loading = computed(
     () => this.template.isLoading() || this.activity.isLoading(),
   );
   protected readonly loadError = computed(() => this.template.error() || this.activity.error());
-  protected readonly apiError = apiError;
+
+  protected readonly raw = signal<WorkspaceForm>(emptyWorkspace());
+  protected readonly confirmed = signal<ConfirmedSources>({});
+  protected readonly history = new UndoHistory<WorkspaceSnapshot>(() => this.snapshot());
+  /** The buffer as last loaded or saved; any difference is an unsaved local edit. */
+  private readonly baseline = signal(structuredClone(this.raw()));
+  /** The current template version's canonical plan, serialized to detect unpublished changes. */
+  private readonly publishedPlan = signal('');
+  protected readonly sourceReplacement = signal({ id: '', text: '' });
+  /** Counts local changes; authoring replies and operation results apply only to the revision they started from. */
+  private clientRevision = 0;
+  private initialized = false;
+
+  protected readonly saving = signal(false);
+  protected readonly publishing = signal(false);
+  protected readonly copying = signal(false);
+  protected readonly attempted = signal(false);
+  /** Template publication failure; authoring failures use their own channel beside the request. */
+  protected readonly error = signal('');
+  protected readonly notice = signal('');
+  protected readonly templateNotice = signal('');
+  protected readonly activityError = signal('');
+  protected readonly publication = signal<PlanTemplateDetail | undefined>(undefined);
+  protected readonly saved = signal<ActivityDetail | undefined>(undefined);
+  /** A newer server checkpoint held back because applying it would replace local edits. */
+  protected readonly available = signal<ActivityDetail | undefined>(undefined);
+
+  protected readonly chat = signal({ message: '', consolidated: '' });
+  protected readonly authoring = signal(false);
+  protected readonly authorError = signal('');
+  protected readonly clarification = signal('');
+  protected readonly conversation = signal<AuthoringTurn[]>([]);
+  protected readonly assumptions = signal<string[]>([]);
+  protected readonly changes = signal<string[]>([]);
+  private readonly cancelled = new Subject<void>();
+  private activeRequest: string | undefined;
+
+  protected readonly operation = signal<GenerationOperation | undefined>(undefined);
+  protected readonly operationId = signal<string | undefined>(undefined);
+  /** A start whose response was lost; checking it replays the same key and request. */
+  protected readonly startRecovery = signal<
+    { draftId: string; request: StartGeneration } | undefined
+  >(undefined);
+  /** The client revision the current operation's results may replace; later edits fence them. */
+  private operationClientRevision = 0;
+  private readonly pollRefresh = signal(0);
+
+  protected readonly released = computed(() => !!this.saved()?.releasedSnapshotId);
   protected readonly projection = computed(() => planValue(this.raw().plan, this.limits));
   protected readonly inputProjection = computed(() => {
     const plan = this.projection().value;
     return plan ? requestValue(plan, this.raw().input, this.limits) : { errors: [] };
   });
+  protected readonly documentProjection = computed(() =>
+    documentValue(this.raw().document, this.limits),
+  );
   protected readonly pendingSources = computed(() =>
     this.raw()
       .plan.materials.filter(
@@ -219,6 +200,58 @@ export class ActivityWorkspace {
       this.conversation().reduce((sum, turn) => sum + turn.text.length, 0) >
         this.limits.contextLength,
   );
+  protected readonly dirty = computed(
+    () =>
+      JSON.stringify(this.raw()) !== JSON.stringify(this.baseline()) ||
+      !!this.sourceReplacement().id,
+  );
+  protected readonly unsaved = computed(() => this.dirty() && !!this.saved());
+  protected readonly templateChanged = computed(
+    () => JSON.stringify(this.projection().value) !== this.publishedPlan(),
+  );
+  /** Any proposed, loaded or typed plan; an invalid edit keeps the setup visible for correction. */
+  protected readonly hasPlan = computed(() => hasPlanContent(this.raw().plan));
+  protected readonly hasContent = computed(
+    () => !!this.raw().document.materials.length || !!this.raw().document.questions.length,
+  );
+  /** Setup collapses to its summary once content exists; the parent can reopen it at any time. */
+  protected readonly setupOpen = linkedSignal(() => !this.hasContent());
+  protected readonly summary = computed(() => activitySummary(this.raw().plan, this.raw().input));
+  protected readonly saveState = computed(() =>
+    this.saving() ? 'שומר…' : this.dirty() ? 'לא נשמר' : this.saved() ? 'נשמר' : '',
+  );
+  protected readonly heading = computed(() => {
+    if (this.context() === 'template') return this.templateId() ? 'עריכת תבנית' : 'תבנית חדשה';
+    if (this.released()) return 'פעילות מוכנה';
+    if (this.saved() || this.activityId()) return 'עריכת פעילות';
+    return this.templateId() ? 'פעילות חדשה מתבנית' : 'פעילות חדשה';
+  });
+  /** One reload control: beside a newer server result, beside an error, or with the other actions. */
+  protected readonly reloadPlacement = computed(() => {
+    if (!this.saved()) return 'none';
+    if (this.available()) return 'available';
+    return this.activityError() ? 'error' : 'more';
+  });
+  protected readonly measurements = computed(() =>
+    measurementItems(this.saved()?.measurements ?? [], this.saved()?.plan),
+  );
+  protected readonly issues = computed(() => reviewIssues(this.saved()));
+  protected readonly stale = computed(() => staleContent(this.saved()));
+  protected readonly operationActive = computed(
+    () => !!this.operationId() && (!this.operation() || isRunning(this.operation()!)),
+  );
+  /** Running scoped replacement, shown inside the affected card. */
+  protected readonly activeTarget = computed(() =>
+    this.operationActive() ? (this.operation()?.artifacts?.targetId ?? null) : null,
+  );
+  protected readonly editableCandidates = computed(() => {
+    const plan = this.projection().value,
+      operation = this.operation();
+    return plan && operation && !this.operationActive() && !this.released()
+      ? unappliedCandidates(operation, this.raw().document, plan, this.limits)
+      : [];
+  });
+
   protected readonly fields = form(this.raw, (path) => {
     disabled(path, () => this.saving() || this.loading() || this.released());
     apply(path.document, documentSchema(this.limits));
@@ -247,96 +280,38 @@ export class ActivityWorkspace {
     maxLength(path.message, this.limits.messageLength);
     maxLength(path.consolidated, this.limits.messageLength);
   });
-  private readonly cancelled = new Subject<void>();
-  private activeRequest: string | undefined;
-  private clientRevision = 0;
-  private initialized = false;
-  private coalescingKey = '';
-  private previous = this.snapshot();
-  private readonly baseline = signal(structuredClone(this.raw()));
-  private readonly publishedPlan = signal('');
-  protected readonly dirty = computed(
-    () =>
-      JSON.stringify(this.raw()) !== JSON.stringify(this.baseline()) ||
-      !!this.sourceReplacement().id,
+  protected readonly sourceFields = form(this.sourceReplacement, (path) =>
+    maxLength(path.text, this.limits.bodyLength),
   );
-  protected readonly templateChanged = computed(
-    () => JSON.stringify(this.projection().value) !== this.publishedPlan(),
-  );
-  /** Any proposed, loaded or typed plan; an invalid edit keeps the setup visible for correction. */
-  protected readonly hasPlan = computed(
-    // The server-supplied schema version alone does not make a plan.
-    () => JSON.stringify({ ...this.raw().plan, schemaVersion: 0 }) !== blankPlan,
-  );
-  protected readonly hasContent = computed(
-    () => !!this.raw().document.materials.length || !!this.raw().document.questions.length,
-  );
-  /** Setup collapses to its summary once content exists; the parent can reopen it at any time. */
-  protected readonly setupOpen = linkedSignal(() => !this.hasContent());
-  protected readonly summary = computed(() => activitySummary(this.raw().plan, this.raw().input));
-  protected readonly unsaved = computed(() => this.dirty() && !!this.saved());
-  protected readonly saveState = computed(() =>
-    this.saving() ? 'שומר…' : this.dirty() ? 'לא נשמר' : this.saved() ? 'נשמר' : '',
-  );
-  protected readonly heading = computed(() => {
-    if (this.context() === 'template') return this.templateId() ? 'עריכת תבנית' : 'תבנית חדשה';
-    if (this.released()) return 'פעילות מוכנה';
-    if (this.saved() || this.activityId()) return 'עריכת פעילות';
-    return this.templateId() ? 'פעילות חדשה מתבנית' : 'פעילות חדשה';
-  });
-  /** One reload control: beside a newer server result, beside an error, or with the other actions. */
-  protected readonly reloadPlacement = computed(() => {
-    if (!this.saved()) return 'none';
-    if (this.available()) return 'available';
-    return this.activityError() ? 'error' : 'more';
-  });
 
   constructor() {
     effect(() => {
       const loaded = this.activity.value();
       const template = this.template.value();
-      if (!this.initialized && (loaded || template)) {
-        const plan = loaded?.plan ?? template!.definition;
-        this.raw.set({
-          plan: planForm(plan),
-          input: inputForm(plan, loaded?.input),
-          document: documentForm(loaded?.document),
-        });
-        if (loaded) {
-          this.saved.set(loaded);
-          this.operationId.set(loaded.activeOperationId ?? this.resumeOperation());
-          this.operationClientRevision = this.clientRevision;
-        }
-        this.confirmed.set(
-          Object.fromEntries(
-            plan.materials
-              .filter((material) => material.source === 'fixed')
-              .map((material) => [material.id, material.text!]),
-          ),
-        );
-        if (template) {
-          this.publication.set(template);
-          this.publishedPlan.set(JSON.stringify(planValue(this.raw().plan, this.limits).value));
-        }
-        this.baseline.set(structuredClone(this.raw()));
-        this.previous = this.snapshot();
-        this.initialized = true;
+      if (this.initialized || !(loaded || template)) return;
+      const plan = loaded?.plan ?? template!.definition;
+      this.raw.set(workspaceForm(plan, loaded?.input, loaded?.document));
+      if (loaded) {
+        this.saved.set(loaded);
+        this.operationId.set(loaded.activeOperationId ?? this.resumeOperation());
+        this.operationClientRevision = this.clientRevision;
       }
+      this.confirmed.set(fixedSources(plan));
+      if (template) {
+        this.publication.set(template);
+        this.publishedPlan.set(JSON.stringify(planValue(this.raw().plan, this.limits).value));
+      }
+      this.baseline.set(structuredClone(this.raw()));
+      this.history.checkpoint();
+      this.initialized = true;
     });
     effect(() => {
       const version = this.ai.value()?.schemaVersion;
-      if (version && !this.raw().plan.schemaVersion) {
-        this.raw.update((raw) => ({ ...raw, plan: { ...raw.plan, schemaVersion: version } }));
-        // Late configuration is not a save acknowledgement for anything typed while it loaded.
-        this.baseline.update((raw) => ({ ...raw, plan: { ...raw.plan, schemaVersion: version } }));
-        this.previous = {
-          ...this.previous,
-          raw: {
-            ...this.previous.raw,
-            plan: { ...this.previous.raw.plan, schemaVersion: version },
-          },
-        };
-      }
+      if (!version || this.raw().plan.schemaVersion) return;
+      this.raw.update((raw) => withSchemaVersion(raw, version));
+      // Late configuration is not a save acknowledgement for anything typed while it loaded.
+      this.baseline.update((raw) => withSchemaVersion(raw, version));
+      this.history.amend((state) => ({ ...state, raw: withSchemaVersion(state.raw, version) }));
     });
     const savedId = computed(() => this.saved()?.id);
     effect((cleanup) => {
@@ -344,26 +319,14 @@ export class ActivityWorkspace {
       const id = savedId(),
         operationId = this.operationId();
       if (!id || !operationId) return;
-      // Polling is read-only, never overlaps itself, and is disposed with the route/operation.
-      const subscription = timer(2000, 2000)
-        .pipe(
-          exhaustMap(() =>
-            this.api.operation(id, operationId).pipe(
-              // Read the checkpoint after status so a terminal result cannot hide its final commit.
-              switchMap((operation) =>
-                this.api.readActivity(id).pipe(map((draft) => ({ operation, draft }))),
-              ),
-            ),
-          ),
-          takeWhile((result) => ['queued', 'calling'].includes(result.operation.status), true),
-        )
-        .subscribe({
-          next: (result) => {
-            this.operation.set(result.operation);
-            this.receiveCheckpoint(result.draft);
-          },
-          error: (error) => this.activityError.set(this.activityFailure(error)),
-        });
+      // One poll per draft and operation; a reload restarts it and the route disposes it.
+      const subscription = pollOperation(this.api, id, operationId).subscribe({
+        next: ({ operation, draft }) => {
+          this.operation.set(operation);
+          this.receiveCheckpoint(draft);
+        },
+        error: (error) => this.activityError.set(this.activityFailure(error)),
+      });
       cleanup(() => subscription.unsubscribe());
     });
     this.lifetime.onDestroy(() => {
@@ -384,31 +347,9 @@ export class ActivityWorkspace {
 
   protected changeStructure(edit: PlanStructureEdit) {
     if (this.saving() || this.released()) return;
-    const raw = structuredClone(this.raw());
-    if (edit.kind === 'add-material' && raw.plan.materials.length < this.limits.maxMaterials)
-      raw.plan.materials.push(materialForm());
-    if (edit.kind === 'remove-material')
-      raw.plan.materials = raw.plan.materials.filter((material) => material.id !== edit.id);
-    if (edit.kind === 'add-control' || edit.kind === 'remove-control') {
-      const controls =
-        edit.scope === 'plan'
-          ? raw.plan.controls
-          : edit.scope === 'questions'
-            ? raw.plan.questions.controls
-            : raw.plan.materials.find((material) => material.id === edit.scope)?.controls;
-      if (!controls) return;
-      const count =
-        raw.plan.controls.length +
-        raw.plan.questions.controls.length +
-        raw.plan.materials.reduce((sum, material) => sum + material.controls.length, 0);
-      if (edit.kind === 'add-control' && count < this.limits.maxControls)
-        controls.push(controlForm());
-      if (edit.kind === 'remove-control') {
-        const index = controls.findIndex((control) => control.id === edit.id);
-        if (index >= 0) controls.splice(index, 1);
-      }
-    }
-    this.raw.set(raw);
+    const next = editPlanStructure(this.raw(), edit, this.limits);
+    if (!next) return;
+    this.raw.set(next);
     this.recordEdit('');
   }
 
@@ -420,124 +361,18 @@ export class ActivityWorkspace {
     this.recordEdit('');
   }
 
-  private recordEdit(key: string) {
-    this.reconcileInputs();
-    const current = this.snapshot();
-    if (JSON.stringify(current) === JSON.stringify(this.previous)) return;
-    if (!key || key !== this.coalescingKey)
-      this.history.update((entries) => [...entries.slice(-19), this.previous]);
-    this.coalescingKey = key;
-    this.previous = current;
-    this.clientRevision++;
-    this.cancelAuthor();
-    this.conversation.set([]);
-    this.clarification.set('');
-    this.changes.set([]);
-    this.assumptions.set([]);
-    this.error.set('');
-    this.authorError.set('');
-    this.notice.set('');
-    this.templateNotice.set('');
-  }
-
-  private reconcileInputs() {
-    const current = this.raw();
-    const raw = {
-      ...current,
-      plan: {
-        ...current.plan,
-        materials: current.plan.materials.map((material) => ({
-          ...material,
-          id: this.sourceId(material.id, material.source),
-        })),
-      },
-    };
-    const controls = formControls(raw.plan);
-    const settings = this.followDefaults(
-      this.previous.raw.plan.settings,
-      raw.plan.settings,
-      raw.input.settings,
-    );
-    this.raw.set({
-      ...raw,
-      document: {
-        ...raw.document,
-        materials: raw.document.materials.filter((m) =>
-          raw.plan.materials.some((p) => p.id === m.id),
-        ),
-      },
-      input: {
-        ...raw.input,
-        settings,
-        controls: controls.map(
-          (control) =>
-            raw.input.controls.find((value) => value.id === control.id) ?? {
-              id: control.id,
-              provided: false,
-              value: '',
-            },
-        ),
-        materials: raw.plan.materials.map(
-          (material) =>
-            raw.input.materials.find((value) => value.id === material.id) ?? {
-              id: material.id,
-              wordCount: '',
-              sourceText: '',
-            },
-        ),
-      },
-    });
-  }
-
-  private sourceId(id: string, source: PlanMaterial['source']): string {
-    const existing = this.saved()?.plan.materials.find((material) => material.id === id);
-    // A source-kind change is a new material, not a rewrite of the persisted material's identity.
-    return existing && existing.source !== source ? newPlanId() : id;
-  }
-
-  private followDefaults(
-    before: TaskSettingsDraft,
-    after: TaskSettingsDraft,
-    input: TaskSettingsDraft,
-  ): TaskSettingsDraft {
-    return {
-      topic: input.topic === before.topic ? after.topic : input.topic,
-      audience: input.audience === before.audience ? after.audience : input.audience,
-      difficulty: input.difficulty === before.difficulty ? after.difficulty : input.difficulty,
-      questionCount:
-        input.questionCount === before.questionCount ? after.questionCount : input.questionCount,
-    };
-  }
-
   protected async undo() {
-    if (this.saving() || this.released() || !this.history().length) return;
-    const entries = this.history();
-    const previous = entries[entries.length - 1];
-    this.history.set(entries.slice(0, -1));
+    if (this.saving() || this.released() || !this.history.entries().length) return;
+    const previous = this.history.pop()!;
     this.raw.set(structuredClone(previous.raw));
     this.confirmed.set({ ...previous.confirmed });
-    this.previous = this.snapshot();
-    this.coalescingKey = '';
-    this.clientRevision++;
-    this.cancelAuthor();
-    this.conversation.set([]);
-    this.clarification.set('');
-    this.changes.set([]);
-    this.assumptions.set([]);
-    this.error.set('');
-    this.authorError.set('');
-    // IDs removed by a previous save cannot be replayed; restored questions receive new server IDs.
-    const ids = new Set(this.saved()?.document.questions.map((q) => q.id) ?? []);
-    if (this.saved())
-      this.raw.update((raw) => ({
-        ...raw,
-        document: {
-          ...raw.document,
-          questions: raw.document.questions.map((q) => ({ ...q, id: ids.has(q.id) ? q.id : '' })),
-        },
-      }));
+    this.history.checkpoint();
+    this.localChange();
+    this.clearPlanFeedback();
+    const saved = this.saved();
+    if (saved) this.raw.update((raw) => withSavedQuestionIds(raw, saved));
     this.notice.set('השינוי האחרון בוטל.');
-    if (this.saved()) await this.activityAction('save');
+    if (saved) await this.activityAction('save');
   }
 
   protected cancelAuthor() {
@@ -546,6 +381,7 @@ export class ActivityWorkspace {
     this.authoring.set(false);
   }
 
+  /** Sends one correlated authoring request; any local change before the reply discards it. */
   protected async author(consolidate = false) {
     if (
       this.saving() ||
@@ -594,7 +430,7 @@ export class ActivityWorkspace {
         this.changes.set(
           baseDefinition
             ? reply.changes.map((change) =>
-                this.changeLabel(change, baseDefinition, reply.proposal!),
+                planChangeLabel(change, baseDefinition, reply.proposal!),
               )
             : [],
         );
@@ -620,65 +456,6 @@ export class ActivityWorkspace {
     }
   }
 
-  private applyProposal(plan: LearningPlan, hadPlan: boolean) {
-    plan = {
-      ...plan,
-      materials: plan.materials.map((material) => ({
-        ...material,
-        id: this.sourceId(material.id, material.source),
-      })),
-    };
-    this.history.update((entries) => [...entries.slice(-19), this.snapshot()]);
-    const nextInput = inputForm(plan),
-      priorInput = this.raw().input;
-    if (hadPlan) {
-      // Keep raw input values (including invalid typing) by identity; HTTP mapping omits inapplicable overrides.
-      Object.assign(nextInput, {
-        ...priorInput,
-        settings: this.followDefaults(
-          this.raw().plan.settings,
-          taskSettingsDraft(plan.defaults),
-          priorInput.settings,
-        ),
-        materials: nextInput.materials.map(
-          (item) => priorInput.materials.find((old) => old.id === item.id) ?? item,
-        ),
-        controls: nextInput.controls.map(
-          (item) => priorInput.controls.find((old) => old.id === item.id) ?? item,
-        ),
-      });
-    }
-    this.raw.set({
-      ...this.raw(),
-      plan: planForm(plan),
-      input: nextInput,
-      document: {
-        ...this.raw().document,
-        materials: this.raw().document.materials.filter((material) =>
-          plan.materials.some((item) => item.id === material.id),
-        ),
-      },
-    });
-    const confirmed = this.confirmed();
-    this.confirmed.set(
-      Object.fromEntries(
-        plan.materials
-          .filter(
-            (material) => material.source === 'fixed' && confirmed[material.id] === material.text,
-          )
-          .map((material) => [material.id, material.text!]),
-      ),
-    );
-    this.clientRevision++;
-    this.coalescingKey = '';
-    this.previous = this.snapshot();
-    this.notice.set(
-      hadPlan
-        ? 'התכנית עודכנה. אפשר לערוך או לבטל את השינוי.'
-        : 'הכנו הגדרות לפי הבקשה. בדקו אותן וצרו את הפעילות.',
-    );
-  }
-
   protected async saveTemplate() {
     if (this.saving() || !this.templateChanged()) return;
     this.attempted.set(true);
@@ -697,7 +474,7 @@ export class ActivityWorkspace {
       if (this.lifetime.destroyed) return;
       this.publication.set(saved);
       this.publishedPlan.set(JSON.stringify(plan));
-      this.coalescingKey = '';
+      this.history.endCoalescing();
       // Template publication cannot claim that activity edits or per-task input were saved.
       if (!this.saved())
         this.baseline.update((raw) => ({ ...raw, plan: structuredClone(this.raw().plan) }));
@@ -719,68 +496,39 @@ export class ActivityWorkspace {
 
   protected editDocument(edit: DocumentEdit) {
     if (this.saving() || this.released()) return;
-    const raw = structuredClone(this.raw()),
-      doc = raw.document;
-    if (edit.kind === 'add-question' && doc.questions.length < this.limits.maxQuestionCount)
-      doc.questions.push({
-        id: '',
-        key: crypto.randomUUID(),
-        prompt: '',
-        type: 'numeric-input',
-        options: [],
-        answer: '',
-        points: '1',
-      });
-    else if (edit.kind === 'add-material' && !doc.materials.some((m) => m.id === edit.id))
-      doc.materials.push({ id: edit.id, title: '', body: '' });
-    else if ('index' in edit) {
-      const question = doc.questions[edit.index];
-      if (!question) return;
-      if (edit.kind === 'remove-question') doc.questions.splice(edit.index, 1);
-      if (edit.kind === 'add-option' && question.options.length < this.limits.maxChoiceCount)
-        question.options.push({ value: '' });
-      if (edit.kind === 'remove-option') question.options.splice(edit.option, 1);
-      const next =
-        edit.kind === 'move-up' ? edit.index - 1 : edit.kind === 'move-down' ? edit.index + 1 : -1;
-      if (next >= 0 && next < doc.questions.length)
-        [doc.questions[edit.index], doc.questions[next]] = [doc.questions[next], question];
-    }
-    this.raw.set(raw);
+    const next = editDocumentStructure(this.raw(), edit, this.limits);
+    if (!next) return;
+    this.raw.set(next);
     this.recordEdit('');
   }
 
   protected replaceSource(id: string) {
-    const material = this.raw().plan.materials.find((m) => m.id === id);
-    if (!material || material.source === 'generated') return;
-    const text =
-      material.source === 'fixed'
-        ? material.text
-        : (this.raw().input.materials.find((m) => m.id === id)?.sourceText ?? '');
-    this.sourceReplacement.set({ id, text });
+    const text = sourceText(this.raw(), id);
+    if (text !== undefined) this.sourceReplacement.set({ id, text });
   }
+
   protected sourceTyping() {
-    this.clientRevision++;
-    this.cancelAuthor();
-    this.conversation.set([]);
-    this.clarification.set('');
+    this.localChange();
   }
+
   protected acceptSourceReplacement() {
     const { id, text } = this.sourceReplacement();
     if (!text.trim() || text.length > this.limits.bodyLength || this.saving()) return;
-    const raw = structuredClone(this.raw()),
-      material = raw.plan.materials.find((m) => m.id === id);
-    if (!material) return;
-    if (material.source === 'fixed') material.text = text;
-    else {
-      const input = raw.input.materials.find((m) => m.id === id);
-      if (input) input.sourceText = text;
-    }
-    const content = raw.document.materials.find((m) => m.id === id);
-    if (content) content.body = text;
-    this.raw.set(raw);
-    this.confirmed.update((c) => ({ ...c, [id]: text }));
+    const next = replaceSourceText(this.raw(), id, text);
+    if (!next) return;
+    this.raw.set(next);
+    this.confirmed.update((values) => ({ ...values, [id]: text }));
     this.recordEdit('');
     this.sourceReplacement.set({ id: '', text: '' });
+  }
+
+  protected editCandidate(index: number) {
+    if (this.saving()) return;
+    const candidate = this.editableCandidates().find((c) => c.index === index);
+    if (!candidate) return;
+    this.raw.update((raw) => ({ ...raw, document: candidate.document }));
+    this.recordEdit('');
+    this.notice.set('התוצאה הועברה לעריכה. בדקו ושמרו אותה.');
   }
 
   /** Every content action flushes one validated checkpoint first; no failed save can start work. */
@@ -850,6 +598,170 @@ export class ActivityWorkspace {
     }
   }
 
+  protected async reloadActivity() {
+    const saved = this.saved();
+    if (!saved || this.saving()) return;
+    if (this.dirty() && !window.confirm('טעינת המצב השמור תחליף את העריכה המקומית. להמשיך?'))
+      return;
+    this.saving.set(true);
+    try {
+      const latest = await requestResult(this.api.readActivity(saved.id), this.lifetime);
+      this.localChange();
+      this.operationClientRevision = this.clientRevision;
+      this.sourceReplacement.set({ id: '', text: '' });
+      this.acceptCheckpoint(latest);
+      this.history.clear();
+      this.operationId.set(latest.activeOperationId ?? this.operationId());
+      this.pollRefresh.update((value) => value + 1);
+      this.activityError.set('');
+    } catch (error) {
+      if (!this.lifetime.destroyed) this.activityError.set(this.activityFailure(error));
+    } finally {
+      if (!this.lifetime.destroyed) this.saving.set(false);
+    }
+  }
+
+  protected async recoverStart() {
+    const pending = this.startRecovery();
+    if (!pending || this.saving()) return;
+    this.saving.set(true);
+    try {
+      await this.submitOperation(pending.draftId, pending.request);
+      this.activityError.set('');
+    } catch (error) {
+      if (!this.lifetime.destroyed) this.activityError.set(this.activityFailure(error));
+    } finally {
+      if (!this.lifetime.destroyed) this.saving.set(false);
+    }
+  }
+
+  protected async cancelGeneration() {
+    const id = this.saved()?.id,
+      operationId = this.operationId();
+    if (!id || !operationId || this.saving()) return;
+    this.saving.set(true);
+    try {
+      const result = await this.api.cancelGeneration(id, operationId, this.lifetime);
+      if (this.lifetime.destroyed) return;
+      this.operation.set(result);
+      const saved = await requestResult(this.api.readActivity(id), this.lifetime);
+      if (!this.dirty()) this.acceptCheckpoint(saved);
+      else this.receiveCheckpoint(saved);
+    } catch (error) {
+      if (!this.lifetime.destroyed) this.activityError.set(this.activityFailure(error));
+    } finally {
+      if (!this.lifetime.destroyed) this.saving.set(false);
+    }
+  }
+
+  /** Explicit copy of the frozen snapshot into a new draft; no AI call and the snapshot never changes. */
+  protected async copyReleased() {
+    const id = this.saved()?.releasedSnapshotId;
+    if (!id || this.copying()) return;
+    this.copying.set(true);
+    this.activityError.set('');
+    try {
+      const draft = await this.api.copySnapshot(id, this.lifetime);
+      if (!this.lifetime.destroyed) await this.router.navigate(['/activities', draft.id]);
+    } catch (error) {
+      if (!this.lifetime.destroyed)
+        this.activityError.set(
+          apiError(error) + ' ייתכן שהעותק נשמר. בדקו בספרייה לפני ניסיון נוסף.',
+        );
+    } finally {
+      if (!this.lifetime.destroyed) this.copying.set(false);
+    }
+  }
+
+  protected async newActivity() {
+    if (this.saving()) return;
+    const plan = this.projection().value,
+      input = this.inputProjection().value;
+    if (!plan || !input || this.pendingSources().length) {
+      this.activityError.set('השלימו את ההגדרות ואשרו את הטקסט שלכם.');
+      return;
+    }
+    if (
+      this.dirty() &&
+      !window.confirm('פעילות חדשה תיפתח ללא התוכן והשינויים המקומיים בפעילות הזאת. להמשיך?')
+    )
+      return;
+    this.saving.set(true);
+    try {
+      const created = await this.api.createActivity(plan, input, undefined, this.lifetime);
+      if (this.lifetime.destroyed) return;
+      this.localChange();
+      this.history.clear();
+      this.operationId.set(undefined);
+      this.operation.set(undefined);
+      this.startRecovery.set(undefined);
+      this.sourceReplacement.set({ id: '', text: '' });
+      this.acceptCheckpoint(created);
+      this.location.replaceState('/activities/' + created.id);
+    } catch (error) {
+      if (!this.lifetime.destroyed) this.activityError.set(this.activityFailure(error));
+    } finally {
+      if (!this.lifetime.destroyed) this.saving.set(false);
+    }
+  }
+
+  /** Native route guard and browser-close warning protect local-only keystrokes. */
+  canLeave() {
+    return !this.dirty() || window.confirm('יש שינויים שלא נשמרו. לצאת מהעמוד?');
+  }
+
+  protected beforeUnload(event: BeforeUnloadEvent) {
+    if (this.dirty()) event.preventDefault();
+  }
+
+  /** Records one edit for Undo, coalescing by field key, and clears replies about the earlier plan. */
+  private recordEdit(key: string) {
+    this.raw.set(
+      reconcile(this.raw(), this.history.recorded.raw.plan.settings, this.saved()?.plan),
+    );
+    if (!this.history.record(key)) return;
+    this.localChange();
+    this.clearPlanFeedback();
+    this.notice.set('');
+    this.templateNotice.set('');
+  }
+
+  /** A local change: a pending authoring reply and the clarification thread no longer apply. */
+  private localChange() {
+    this.clientRevision++;
+    this.cancelAuthor();
+    this.conversation.set([]);
+    this.clarification.set('');
+  }
+
+  private clearPlanFeedback() {
+    this.changes.set([]);
+    this.assumptions.set([]);
+    this.error.set('');
+    this.authorError.set('');
+  }
+
+  private applyProposal(proposal: LearningPlan, refining: boolean) {
+    const saved = this.saved()?.plan;
+    const plan = {
+      ...proposal,
+      materials: proposal.materials.map((material) => ({
+        ...material,
+        id: materialIdentity(saved, material.id, material.source),
+      })),
+    };
+    this.history.push();
+    this.raw.set(proposedWorkspace(this.raw(), plan, refining));
+    this.confirmed.set(fixedSources(plan, this.confirmed()));
+    this.clientRevision++;
+    this.history.checkpoint();
+    this.notice.set(
+      refining
+        ? 'התכנית עודכנה. אפשר לערוך או לבטל את השינוי.'
+        : 'הכנו הגדרות לפי הבקשה. בדקו אותן וצרו את הפעילות.',
+    );
+  }
+
   private async flushDraft(): Promise<ActivityDetail | undefined> {
     this.attempted.set(true);
     const plan = this.projection().value,
@@ -892,25 +804,18 @@ export class ActivityWorkspace {
   private acceptCheckpoint(saved: ActivityDetail) {
     if (this.lifetime.destroyed) return;
     this.saved.set(saved);
-    this.raw.set({
-      plan: planForm(saved.plan),
-      input: inputForm(saved.plan, saved.input),
-      document: documentForm(saved.document),
-    });
-    this.confirmed.set(
-      Object.fromEntries(
-        saved.plan.materials.filter((m) => m.source === 'fixed').map((m) => [m.id, m.text!]),
-      ),
-    );
+    this.raw.set(workspaceForm(saved.plan, saved.input, saved.document));
+    this.confirmed.set(fixedSources(saved.plan));
     this.baseline.set(structuredClone(this.raw()));
-    this.previous = this.snapshot();
-    this.coalescingKey = '';
+    this.history.checkpoint();
     this.available.set(undefined);
   }
+
+  /** Applies a newer server checkpoint unless that would replace local edits made since the operation started. */
   private receiveCheckpoint(saved: ActivityDetail) {
     if (saved.revision <= (this.saved()?.revision ?? 0)) return;
     if (!this.dirty() && !this.saving() && this.clientRevision === this.operationClientRevision) {
-      this.history.update((entries) => [...entries.slice(-19), this.snapshot()]);
+      this.history.push();
       this.clientRevision++;
       this.operationClientRevision = this.clientRevision;
       this.acceptCheckpoint(saved);
@@ -919,31 +824,7 @@ export class ActivityWorkspace {
       this.notice.set('נוצרה תוצאה בזמן שהמשכתם לערוך. לא החלפנו את העבודה שלכם.');
     }
   }
-  protected async reloadActivity() {
-    const saved = this.saved();
-    if (!saved || this.saving()) return;
-    if (this.dirty() && !window.confirm('טעינת המצב השמור תחליף את העריכה המקומית. להמשיך?'))
-      return;
-    this.saving.set(true);
-    try {
-      const latest = await requestResult(this.api.readActivity(saved.id), this.lifetime);
-      this.cancelAuthor();
-      this.clientRevision++;
-      this.operationClientRevision = this.clientRevision;
-      this.sourceReplacement.set({ id: '', text: '' });
-      this.acceptCheckpoint(latest);
-      this.history.set([]);
-      this.conversation.set([]);
-      this.clarification.set('');
-      this.operationId.set(latest.activeOperationId ?? this.operationId());
-      this.pollRefresh.update((value) => value + 1);
-      this.activityError.set('');
-    } catch (error) {
-      if (!this.lifetime.destroyed) this.activityError.set(this.activityFailure(error));
-    } finally {
-      if (!this.lifetime.destroyed) this.saving.set(false);
-    }
-  }
+
   private async submitOperation(id: string, request: StartGeneration) {
     try {
       const operation = await this.api.startGeneration(id, request, this.lifetime);
@@ -956,131 +837,10 @@ export class ActivityWorkspace {
       );
       this.startRecovery.set(undefined);
     } catch (error) {
+      // A client error is a definite rejection; anything else may have started and stays recoverable.
       if (error instanceof HttpErrorResponse && error.status >= 400 && error.status < 500)
         this.startRecovery.set(undefined);
       throw error;
-    }
-  }
-  protected async recoverStart() {
-    const pending = this.startRecovery();
-    if (!pending || this.saving()) return;
-    this.saving.set(true);
-    try {
-      await this.submitOperation(pending.draftId, pending.request);
-      this.activityError.set('');
-    } catch (error) {
-      if (!this.lifetime.destroyed) this.activityError.set(this.activityFailure(error));
-    } finally {
-      if (!this.lifetime.destroyed) this.saving.set(false);
-    }
-  }
-  protected async cancelGeneration() {
-    const id = this.saved()?.id,
-      operationId = this.operationId();
-    if (!id || !operationId || this.saving()) return;
-    this.saving.set(true);
-    try {
-      const result = await this.api.cancelGeneration(id, operationId, this.lifetime);
-      if (this.lifetime.destroyed) return;
-      this.operation.set(result);
-      const saved = await requestResult(this.api.readActivity(id), this.lifetime);
-      if (!this.dirty()) this.acceptCheckpoint(saved);
-      else this.receiveCheckpoint(saved);
-    } catch (error) {
-      if (!this.lifetime.destroyed) this.activityError.set(this.activityFailure(error));
-    } finally {
-      if (!this.lifetime.destroyed) this.saving.set(false);
-    }
-  }
-  /** Bounded parsed results that were not applied, such as a fenced or rejected stage. */
-  protected readonly editableCandidates = computed(() => {
-    const plan = this.projection().value,
-      operation = this.operation();
-    if (!plan || !operation || this.operationActive() || this.released()) return [];
-    return (operation.artifacts?.steps ?? []).flatMap((step, index) => {
-      if (['accepted', 'applied'].includes(operation.steps[index]?.outcome ?? '')) return [];
-      const document = candidateEdit(
-        step.stage,
-        step.candidate ?? step.call?.output,
-        operation.artifacts?.targetId ?? null,
-        this.raw().document,
-        plan,
-        this.limits,
-      );
-      const preview = document && documentValue(document, this.limits).value;
-      return document && preview
-        ? [
-            {
-              index,
-              document,
-              preview,
-              name: stageNames[step.stage] ?? 'תוכן שנוצר',
-              conflict: operation.status === 'conflict',
-            },
-          ]
-        : [];
-    });
-  });
-  protected editCandidate(index: number) {
-    if (this.saving()) return;
-    const candidate = this.editableCandidates().find((c) => c.index === index);
-    if (!candidate) return;
-    this.raw.update((raw) => ({ ...raw, document: candidate.document }));
-    this.recordEdit('');
-    this.notice.set('התוצאה הועברה לעריכה. בדקו ושמרו אותה.');
-  }
-
-  /** Explicit copy of the frozen snapshot into a new draft; no AI call and the snapshot never changes. */
-  protected async copyReleased() {
-    const id = this.saved()?.releasedSnapshotId;
-    if (!id || this.copying()) return;
-    this.copying.set(true);
-    this.activityError.set('');
-    try {
-      const draft = await this.api.copySnapshot(id, this.lifetime);
-      if (!this.lifetime.destroyed) await this.router.navigate(['/activities', draft.id]);
-    } catch (error) {
-      if (!this.lifetime.destroyed)
-        this.activityError.set(
-          apiError(error) + ' ייתכן שהעותק נשמר. בדקו בספרייה לפני ניסיון נוסף.',
-        );
-    } finally {
-      if (!this.lifetime.destroyed) this.copying.set(false);
-    }
-  }
-
-  protected async newActivity() {
-    if (this.saving()) return;
-    const plan = this.projection().value,
-      input = this.inputProjection().value;
-    if (!plan || !input || this.pendingSources().length) {
-      this.activityError.set('השלימו את ההגדרות ואשרו את הטקסט שלכם.');
-      return;
-    }
-    if (
-      this.dirty() &&
-      !window.confirm('פעילות חדשה תיפתח ללא התוכן והשינויים המקומיים בפעילות הזאת. להמשיך?')
-    )
-      return;
-    this.saving.set(true);
-    try {
-      const created = await this.api.createActivity(plan, input, undefined, this.lifetime);
-      if (this.lifetime.destroyed) return;
-      this.cancelAuthor();
-      this.clientRevision++;
-      this.history.set([]);
-      this.conversation.set([]);
-      this.clarification.set('');
-      this.operationId.set(undefined);
-      this.operation.set(undefined);
-      this.startRecovery.set(undefined);
-      this.sourceReplacement.set({ id: '', text: '' });
-      this.acceptCheckpoint(created);
-      this.location.replaceState('/activities/' + created.id);
-    } catch (error) {
-      if (!this.lifetime.destroyed) this.activityError.set(this.activityFailure(error));
-    } finally {
-      if (!this.lifetime.destroyed) this.saving.set(false);
     }
   }
 
@@ -1091,41 +851,7 @@ export class ActivityWorkspace {
           ' העריכה נשארת כאן. ייתכן שהבקשה נשמרה; בדקו את המצב השמור לפני ניסיון נוסף.';
   }
 
-  private snapshot(): UndoEntry {
+  private snapshot(): WorkspaceSnapshot {
     return { raw: structuredClone(this.raw()), confirmed: { ...this.confirmed() } };
-  }
-  private changeLabel(
-    change: PlanChange,
-    before: LearningPlan | undefined,
-    after: LearningPlan,
-  ): string {
-    if (change.path === 'plan') return 'נוספה תכנית';
-    const labels: Record<string, string> = {
-      name: 'שם התבנית',
-      goal: 'מטרת הפעילות',
-      guidance: 'ההנחיות',
-      defaults: 'הגדרות ברירת המחדל',
-      totalLength: 'האורך הכולל',
-      questions: 'הגדרות השאלות',
-    };
-    const plan = change.kind === 'removed' ? before : after;
-    const objects = plan
-      ? [
-          ...plan.materials,
-          ...plan.controls,
-          ...plan.questions.controls,
-          ...plan.materials.flatMap((material) => material.controls),
-        ]
-      : [];
-    const label =
-      objects.find((item) => item.id === change.id)?.label ?? labels[change.path] ?? 'פרטי התכנית';
-    return `${{ added: 'נוסף', removed: 'הוסר', moved: 'הועבר', changed: 'עודכן' }[change.kind]}: ${label}`;
-  }
-  /** Native route guard and browser-close warning protect local-only keystrokes. */
-  canLeave() {
-    return !this.dirty() || window.confirm('יש שינויים שלא נשמרו. לצאת מהעמוד?');
-  }
-  protected beforeUnload(event: BeforeUnloadEvent) {
-    if (this.dirty()) event.preventDefault();
   }
 }

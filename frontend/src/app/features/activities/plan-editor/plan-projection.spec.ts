@@ -1,9 +1,10 @@
 import { numericPlan, suppliedPlan, sourceText } from '../learning-plan.fixture';
-import { planForm, planValue, requestValue, inputForm } from './plan-form';
+import { inputForm, planForm } from './plan-form';
+import { planValue, requestValue } from './plan-projection';
 import { LearningPlan } from '../../../core/api/models';
 import { limits } from '../../../core/api/limits.fixture';
 
-describe('Plan form boundary', () => {
+describe('Plan projection', () => {
   it('omits integer-only metadata after changing a requested choice to text', () => {
     const form = planForm({
       ...numericPlan,

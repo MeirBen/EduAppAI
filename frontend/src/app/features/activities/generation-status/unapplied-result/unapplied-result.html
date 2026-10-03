@@ -1,0 +1,26 @@
+@let result = candidate();
+<section class="panel grid gap-4" [attr.aria-label]="result.name">
+  <p class="font-medium">
+    {{
+      result.conflict
+        ? 'נוצרה תוצאה בזמן שהמשכתם לערוך. לא החלפנו את העבודה שלכם.'
+        : 'התקבלה תוצאה שלא הוחלה על הפעילות. אפשר לבדוק אותה ולהעביר אותה לעריכה.'
+    }}
+  </p>
+  <details class="well">
+    <summary>בדיקת התוצאה — {{ result.name }}</summary>
+    <div class="grid gap-4">
+      <app-activity-document-view [document]="result.preview" />
+      <p>העברה לעריכה מחליפה את החלק הזה בעריכה שלכם. בדקו ושמרו אחר כך.</p>
+      <button
+        type="button"
+        data-edit-candidate
+        class="button button-secondary w-fit"
+        [disabled]="locked()"
+        (click)="transferred.emit()"
+      >
+        העברת התוצאה לעריכה
+      </button>
+    </div>
+  </details>
+</section>

@@ -1,7 +1,13 @@
-import { ActivityDetail, QuestionFormat } from '../../core/api/models';
+import { ActivityDetail, LearningPlan, PlanChange, QuestionFormat } from '../../core/api/models';
 import { isIntegerInput } from '../../shared/forms/integer-input';
 import { lengthText } from './activity-document-view/measurements';
-import { formFormats, InputForm, LengthForm, PlanForm } from './plan-editor/plan-form';
+import {
+  formFormats,
+  InputForm,
+  LengthForm,
+  PlanForm,
+  planControls,
+} from './plan-editor/plan-form';
 
 /** Parent wording for app-owned question formats; raw enum values never reach the page. */
 export const formatNames: Record<QuestionFormat, string> = {
@@ -159,4 +165,29 @@ export function reviewIssues(saved: ActivityDetail | undefined): string[] {
         : 'ההגדרות השתנו מאז שנוצרו השאלות. בדקו את השאלות או צרו אותן מחדש.',
     );
   return issues;
+}
+
+const planFieldNames: Record<string, string> = {
+  name: 'שם התבנית',
+  goal: 'מטרת הפעילות',
+  guidance: 'ההנחיות',
+  defaults: 'הגדרות ברירת המחדל',
+  totalLength: 'האורך הכולל',
+  questions: 'הגדרות השאלות',
+};
+const changeKinds = { added: 'נוסף', removed: 'הוסר', moved: 'הועבר', changed: 'עודכן' };
+
+/** Parent wording for one computed plan change, naming the affected material, choice or field. */
+export function planChangeLabel(
+  change: PlanChange,
+  before: LearningPlan,
+  after: LearningPlan,
+): string {
+  if (change.path === 'plan') return 'נוספה תכנית';
+  const plan = change.kind === 'removed' ? before : after;
+  const label =
+    [...plan.materials, ...planControls(plan)].find((item) => item.id === change.id)?.label ??
+    planFieldNames[change.path] ??
+    'פרטי התכנית';
+  return `${changeKinds[change.kind]}: ${label}`;
 }

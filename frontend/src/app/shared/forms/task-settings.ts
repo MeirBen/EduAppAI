@@ -5,6 +5,7 @@ import { isIntegerInput } from './integer-input';
 /** Keep numeric input as text until submission so blank or fractional values stay invalid. */
 export type TaskSettingsDraft = Omit<TaskSettings, 'questionCount'> & { questionCount: string };
 
+/** Parent wording for each difficulty; the keys are also the only accepted values. */
 export const difficultyLabels = { easy: 'קלה', medium: 'בינונית', hard: 'קשה' } satisfies Record<
   TaskSettings['difficulty'],
   string

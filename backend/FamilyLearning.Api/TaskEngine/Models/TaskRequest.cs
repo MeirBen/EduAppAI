@@ -34,15 +34,3 @@ public sealed record ResolvedControl(string Id, string Label, string Type, strin
 
 /// <summary>An output expectation, independent of the bounds formerly used to choose its value.</summary>
 public sealed record ResolvedLength(string Mode, int? Value = null, int? Lower = null, int? Upper = null);
-
-/// <summary>Resolved requirements and prior materials for batch selection/strict acceptance; no chat or persistence identity.</summary>
-public sealed record MaterialGenerationInput(ResolvedTaskRequest Request, MaterialContent[] Materials);
-
-/// <summary>Resolved requirements and exact accepted materials; every source revision becomes a question dependency.</summary>
-public sealed record QuestionGenerationInput(ResolvedTaskRequest Request, MaterialContent[] Materials);
-
-/// <summary>An application-selected generated material. Current content supports aggregate safety checks, not unrestricted model edits.</summary>
-public sealed record MaterialReplacementInput(ResolvedTaskRequest Request, TaskDocument Current, string MaterialId, string? Instruction = null);
-
-/// <summary>An application-selected question. Only that question and needed source context enter the provider request.</summary>
-public sealed record QuestionReplacementInput(ResolvedTaskRequest Request, TaskDocument Current, string QuestionId, string? Instruction = null);

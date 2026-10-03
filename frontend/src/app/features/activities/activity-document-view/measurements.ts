@@ -39,6 +39,7 @@ export function measurementItems(
   }));
 }
 
+/** One line per measurement for frozen previews, flagging requirements that block release. */
 export function measurementText(measurements: LengthMeasurement[], plan?: LearningPlan): string[] {
   return measurementItems(measurements, plan).map(
     (item) =>

@@ -3,13 +3,8 @@ import { TestBed } from '@angular/core/testing';
 import { apply, form } from '@angular/forms/signals';
 import { ActivitySetup } from './activity-setup';
 import { PlanEditor } from '../plan-editor/plan-editor';
-import {
-  inputForm,
-  planForm,
-  planFormSchema,
-  planValue,
-  requestValue,
-} from '../plan-editor/plan-form';
+import { inputForm, planForm, planFormSchema } from '../plan-editor/plan-form';
+import { planValue, requestValue } from '../plan-editor/plan-projection';
 import { numericPlan, readingPlan, suppliedPlan } from '../learning-plan.fixture';
 import { LearningPlan } from '../../../core/api/models';
 import { limits, provideLimits } from '../../../core/api/limits.fixture';

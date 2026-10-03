@@ -1,0 +1,30 @@
+<section class="panel grid gap-4" aria-labelledby="replacement-title">
+  <h2 id="replacement-title">החלפת הטקסט</h2>
+  <div>
+    <label for="replacement-source">הטקסט החדש — יישמר בדיוק כפי שהוזן</label>
+    <textarea
+      id="replacement-source"
+      dir="auto"
+      rows="8"
+      [formField]="field()"
+      (input)="typed.emit()"
+      aria-describedby="replacement-source-help"
+    ></textarea>
+    <p id="replacement-source-help" class="mt-2 text-sm text-muted">
+      עד {{ limits.bodyLength | number }} תווים. אחרי ההחלפה כדאי לבדוק את השאלות שתלויות בטקסט.
+      התבנית בספרייה לא תשתנה.
+    </p>
+  </div>
+  <div class="flex flex-wrap items-center gap-3">
+    <button
+      class="button"
+      type="button"
+      [disabled]="locked()"
+      id="accept-source-replacement"
+      (click)="accepted.emit()"
+    >
+      אישור הטקסט החדש
+    </button>
+    <button class="text-link" type="button" (click)="cancelled.emit()">ביטול</button>
+  </div>
+</section>
