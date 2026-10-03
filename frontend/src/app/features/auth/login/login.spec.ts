@@ -2,15 +2,25 @@ import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter, Router } from '@angular/router';
+import { RouterTestingHarness } from '@angular/router/testing';
 import { Login } from './login';
 
 describe('Sign-in request lifetime', () => {
   beforeEach(() =>
     TestBed.configureTestingModule({
-      providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([])],
+      providers: [
+        provideHttpClient(),
+        provideHttpClientTesting(),
+        provideRouter([{ path: 'login', component: Login }]),
+      ],
     }),
   );
   afterEach(() => TestBed.inject(HttpTestingController).verify());
+
+  it('does not treat a saved connection query parameter as a current failure', async () => {
+    const harness = await RouterTestingHarness.create('/login?connection=unavailable');
+    expect(harness.routeNativeElement?.querySelector('[role="alert"]')).toBeNull();
+  });
 
   async function startSignIn() {
     const fixture = TestBed.createComponent(Login);

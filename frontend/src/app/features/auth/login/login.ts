@@ -1,7 +1,15 @@
-import { ChangeDetectionStrategy, Component, DestroyRef, inject, signal } from '@angular/core';
-import { ActivatedRoute, Router } from '@angular/router';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  DestroyRef,
+  inject,
+  linkedSignal,
+  signal,
+} from '@angular/core';
+import { Router } from '@angular/router';
 import { disabled, email, form, FormField, required, submit } from '@angular/forms/signals';
 import { Auth } from '../../../core/auth/auth';
+import { parentAccessUnavailable } from '../../../core/auth/parent-guard';
 import { apiError } from '../../../core/api/api-error';
 import { LoadingIndicator } from '../../../shared/loading-indicator/loading-indicator';
 
@@ -23,11 +31,13 @@ export class Login {
     email(path.email);
     required(path.password);
   });
-  protected readonly error = signal(
-    inject(ActivatedRoute).snapshot.queryParamMap.has('connection')
-      ? 'לא ניתן להתחבר לשרת. יש לבדוק את החיבור ולנסות שוב.'
-      : '',
-  );
+  protected readonly error = linkedSignal({
+    source: this.router.lastSuccessfulNavigation,
+    computation: (navigation): string =>
+      navigation?.extras.info === parentAccessUnavailable
+        ? 'לא הצלחנו לפתוח את המרחב. אפשר לנסות להיכנס שוב.'
+        : '',
+  });
 
   protected async signIn(event: Event) {
     event.preventDefault();
