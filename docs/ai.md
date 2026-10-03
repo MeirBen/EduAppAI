@@ -164,6 +164,7 @@ candidate; a dash means no comparable usable count.
 | Question example       | 6/6 / 6/6       | 4/6 / 2/6   | Reject    |
 | Material replacement   | 6/6 / 6/6       | 5/6 / 5/6   | Keep tie  |
 | Gemini strict schema   | 18/18           | —           | Adopt     |
+| Length contract        | 2/2             | —           | Adopt     |
 
 - **Material and authoring wording:** body-only counting/no-filler rules and
   clearer `defaultFormat`/`source` descriptions raised adherence; a shorter
@@ -182,6 +183,10 @@ candidate; a dash means no comparable usable count.
 - **Strict schema:** the six acceptance cases ran in three rounds of 14 calls
   at $0.13–0.15 per round. Material replacement and judge review were not
   exercised, and content was not reviewed.
+- **Length contract:** exact word counts and per-activity bounds were removed
+  (engine revision 11). "Exactly 120 words" became an approximate 120-word
+  target with a stated assumption (124 words generated), and a strict 100–150
+  range still held (117 words). One run each; content was not reviewed.
 
 Samples reuse few distinct material contexts, and Gemini's implicit cache can
 bill repeated requests for far fewer input tokens, so treat every count as
@@ -240,9 +245,10 @@ Amounts are USD. Reserves are conservative allowances for unknown costs,
 | Strict root cause     |    96 | $0.5185207500 | $0.199239750 |
 | Control limits        |     3 | $0.0293505000 | $0.000000000 |
 | Plan limits           |     2 | $0.0192232500 | $0.000000000 |
-| Total                 |   364 | $1.4192365906 | $1.630131600 |
+| Length contract       |     6 | $0.0473685000 | $0.000000000 |
+| Total                 |   370 | $1.4666050906 | $1.630131600 |
 
-Total charged/reserved: **$3.0493681906**, every phase under an
+Total charged/reserved: **$3.0967366906**, every phase under an
 owner-authorized cap. The reserve includes 28 HTTP 400 rejections that key usage
 later showed at $0. The earlier one-shot comparison was separate (19 calls,
 $0.062444323).
@@ -252,8 +258,9 @@ phase with exact requests, responses, validation, reviews and a closed
 `budget.json`. Never edit it to match new code. Key directories:
 `gemini-strict-contract-2026-10-02/` (upstream captures and the OpenRouter
 `support-reproduction.md`), `gemini-strict-root-cause-2026-10-02/` (factorial
-probes and acceptance rounds) and the `gemini-*-limits-2026-10-03/` clarification
-checks. Retired design documents are in `documentation-history-2026-10-01.zip`.
+probes and acceptance rounds), the `gemini-*-limits-2026-10-03/` clarification
+checks and the `length-contract-2026-10-03/` harness runs. Retired design
+documents are in `documentation-history-2026-10-01.zip`.
 
 ## Using the evaluation harness
 
