@@ -113,8 +113,11 @@
               control.id +
               (control.type === 'text' && !choice.provided().value() ? '-provided' : '-input')
             "
-            ><bdi>{{ control.label }}</bdi></label
-          >
+            ><bdi>{{ control.label }}</bdi>
+            @if (choiceTexts().get(control.id); as text) {
+              — <bdi>{{ text }}</bdi>
+            }
+          </label>
           @if (control.meaning) {
             <p class="mb-2 text-sm text-muted" dir="auto">{{ control.meaning }}</p>
           }
@@ -205,10 +208,10 @@
     <h3 id="setup-content-title">תוכן הפעילות</h3>
     @for (material of materials; track $index; let index = $index) {
       @let m = p.materials[index];
-      <div class="well grid min-w-0 gap-4">
+      <div class="well grid min-w-0 gap-4" role="group" [attr.aria-label]="material.label">
         <div>
           <label [for]="material.id + '-source'">
-            @if (materials.length > 1) {
+            @if (severalTexts()) {
               <bdi>{{ material.label }}</bdi> —
             }
             מאיפה יגיע הטקסט?</label

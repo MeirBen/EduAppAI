@@ -126,6 +126,42 @@ describe('Activity setup', () => {
     expect(root.querySelector(`#${id}-input-help`)?.textContent).toContain('אפשר לבחור 10–1000');
   });
 
+  it('names the part that each repeated choice block and text choice belongs to', async () => {
+    const choice = (id: string) => ({
+      id: id.repeat(32),
+      label: 'רמה',
+      meaning: 'רמה',
+      type: 'boolean' as const,
+    });
+    const reading = readingPlan.materials[0];
+    const plan: LearningPlan = {
+      ...readingPlan,
+      controls: [choice('a')],
+      materials: [
+        { ...reading, controls: [choice('b')] },
+        { ...reading, id: '3'.repeat(32), label: 'שיר' },
+      ],
+      questions: { ...readingPlan.questions, controls: [choice('c')] },
+    };
+    const { root } = await render(plan);
+    const editor = root.querySelector('app-plan-editor')!;
+    expect(Array.from(editor.querySelectorAll('summary'), (s) => s.textContent?.trim())).toEqual([
+      'הוספת בחירה לפעילות כולה',
+      'הוספת בחירה לטקסט הזה',
+      'הוספת בחירה לטקסט הזה',
+      'הוספת בחירה לשאלות',
+    ]);
+    expect(editor.querySelector(`#${'b'.repeat(32)}-heading`)?.tagName).toBe('H5');
+    const label = (id: string) =>
+      root.querySelector(`label[for="${id.repeat(32)}-input"]`)?.textContent?.trim();
+    expect(label('a')).toBe('רמה');
+    expect(label('b')).toBe('רמה — קטע קריאה');
+    expect(label('c')).toBe('רמה');
+    expect(
+      root.querySelector('app-activity-setup [role="group"][aria-label="שיר"]'),
+    ).not.toBeNull();
+  });
+
   it('keeps native input false/zero/empty text and omits blank selects from the request', async () => {
     const plan: LearningPlan = {
       ...numericPlan,

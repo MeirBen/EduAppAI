@@ -199,21 +199,23 @@ public static class EvaluationFiles
     {
         if (cases is not { Length: > 0 }) throw new InvalidDataException("Evaluation requires at least one case.");
         var ids = new HashSet<string>(StringComparer.Ordinal);
+        var limits = ContentLimits.Current;
         foreach (var item in cases)
         {
             if (item is null || string.IsNullOrWhiteSpace(item.Id) || item.Id.Length > 100 ||
                 item.Id.Any(character => !char.IsAsciiLetterOrDigit(character) && character is not ('_' or '-')) || !ids.Add(item.Id) ||
-                (item.InitialPlan is null ? string.IsNullOrWhiteSpace(item.Prompt) || item.Prompt.Length > 4000 : !string.IsNullOrEmpty(item.Prompt)) ||
-                item.Refinements is not { Length: <= 3 } || item.Refinements.Any(message => string.IsNullOrWhiteSpace(message) || message.Length > 4000) ||
-                item.InitialPlan is not null && item.Refinements.Length > 0 || item.ExpectedGeneratedMaterials is < 0 or > 4 ||
+                (item.InitialPlan is null ? string.IsNullOrWhiteSpace(item.Prompt) || item.Prompt.Length > limits.MessageLength : !string.IsNullOrEmpty(item.Prompt)) ||
+                item.Refinements is not { Length: <= 3 } || item.Refinements.Any(message => string.IsNullOrWhiteSpace(message) || message.Length > limits.MessageLength) ||
+                item.InitialPlan is not null && item.Refinements.Length > 0 || item.ExpectedGeneratedMaterials < 0 || item.ExpectedGeneratedMaterials > limits.MaxMaterials ||
                 item.Replacements is not { Length: <= 8 } || item.Replacements.Any(replacement => replacement is null ||
                     replacement.Stage is not ("replace-material" or "replace-question") || replacement.TargetIndex < 0 ||
-                    replacement.TargetIndex >= (replacement.Stage == "replace-material" ? 4 : item.QuestionCount) || replacement.Instruction?.Length > 4000) ||
-                item.ExpectedLength is { } length && !ValidLength(length) ||
+                    replacement.TargetIndex >= (replacement.Stage == "replace-material" ? limits.MaxMaterials : item.QuestionCount) ||
+                    replacement.Instruction?.Length > limits.MessageLength) ||
+                item.ExpectedLength is { } length && !ValidLength(length, limits.ContentLength) ||
                 string.IsNullOrWhiteSpace(item.ReviewFocus) || item.ReviewFocus.Length > 1000 ||
                 item.QuestionCount < 1 || item.Interaction is not ("single-choice" or "text-input" or "numeric-input") ||
-                item.AdditionalControlCount is < 0 or > 16 ||
-                (item.ChoiceCount.HasValue && (item.Interaction != "single-choice" || item.ChoiceCount is < 2 or > 6)) ||
+                item.AdditionalControlCount < 0 || item.AdditionalControlCount > limits.MaxControls ||
+                (item.ChoiceCount.HasValue && (item.Interaction != "single-choice" || item.ChoiceCount < limits.MinChoiceCount || item.ChoiceCount > limits.MaxChoiceCount)) ||
                 item.MinPassageWords < 0 || item.MaxPassageWords < 0 || item.MinPassageWords > item.MaxPassageWords ||
                 (item.SettingsOverride is { } settings &&
                     (TaskSettingsValidator.Validate(settings).Count > 0 || settings.QuestionCount != item.QuestionCount)))
@@ -231,10 +233,11 @@ public static class EvaluationFiles
         }
     }
 
-    private static bool ValidLength(Api.TaskEngine.Models.ResolvedLength length) => length.Mode switch
+    /// <summary>A word count cannot exceed the content's character limit.</summary>
+    private static bool ValidLength(Api.TaskEngine.Models.ResolvedLength length, int maxWords) => length.Mode switch
     {
-        "target" => length.Value is > 0 and <= 8000 && length.Lower is null && length.Upper is null,
-        "range" => length.Value is null && length.Lower is > 0 && length.Upper > length.Lower && length.Upper <= 8000,
+        "target" => length.Value > 0 && length.Value <= maxWords && length.Lower is null && length.Upper is null,
+        "range" => length.Value is null && length.Lower > 0 && length.Upper > length.Lower && length.Upper <= maxWords,
         _ => false
     };
 

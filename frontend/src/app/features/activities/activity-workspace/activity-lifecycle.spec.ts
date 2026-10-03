@@ -23,7 +23,7 @@ const savedQuestion = {
   origin: { kind: 'manual' },
   acceptance: null,
 };
-export const savedActivity: ActivityDetail = {
+const savedActivity: ActivityDetail = {
   id: 'draft',
   revision: 1,
   plan: numericPlan,

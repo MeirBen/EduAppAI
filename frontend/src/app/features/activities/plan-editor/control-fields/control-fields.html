@@ -1,4 +1,4 @@
-<section class="grid gap-4" aria-label="בחירות שהתבקשו לכל פעילות">
+<div class="grid gap-4">
   @for (control of fields()().value(); track control.id; let index = $index) {
     @let c = fields()[index];
     <div
@@ -6,15 +6,21 @@
       class="well grid min-w-0 gap-4"
       [attr.aria-labelledby]="control.id + '-heading'"
     >
-      <h4 [id]="control.id + '-heading'" class="font-medium">
-        <bdi>{{ control.label || 'בחירה חדשה' }}</bdi>
-      </h4>
+      @if (part() === 'material') {
+        <h5 [id]="control.id + '-heading'" class="font-medium">
+          <bdi>{{ control.label || 'בחירה חדשה' }}</bdi>
+        </h5>
+      } @else {
+        <h4 [id]="control.id + '-heading'" class="font-medium">
+          <bdi>{{ control.label || 'בחירה חדשה' }}</bdi>
+        </h4>
+      }
       <div>
         <label [for]="control.id + '-label'">שם הבחירה להורה</label
         ><input [id]="control.id + '-label'" dir="auto" [formField]="c.label" />
       </div>
       <div>
-        <label [for]="control.id + '-meaning'">איך הבחירה משפיעה על הפעילות?</label
+        <label [for]="control.id + '-meaning'">{{ copy().effect }}</label
         ><textarea [id]="control.id + '-meaning'" dir="auto" [formField]="c.meaning"></textarea>
       </div>
       <div>
@@ -148,7 +154,7 @@
     </div>
   }
   <details>
-    <summary>הוספת בחירה מפורשת לכל פעילות</summary>
+    <summary>{{ copy().add }}</summary>
     <div class="grid gap-4">
       <p>הוסיפו רק בחירה שתרצו לשנות בין פעילויות. דרישה קבועה שייכת להנחיות.</p>
       <button
@@ -162,4 +168,4 @@
       </button>
     </div>
   </details>
-</section>
+</div>

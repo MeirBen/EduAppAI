@@ -47,6 +47,14 @@ export class ActivitySetup {
   protected readonly formatNames = formatNames;
   protected readonly controls = computed(() => formControls(this.plan()().value()));
   protected readonly formats = computed(() => formFormats(this.plan()().value().questions));
+  /** With several texts, every field that belongs to one text names it. */
+  protected readonly severalTexts = computed(() => this.plan()().value().materials.length > 1);
+  /** The text that owns each text-scoped choice, when texts are named. */
+  protected readonly choiceTexts = computed(() => {
+    if (!this.severalTexts()) return new Map<string, string>();
+    const { materials } = this.plan()().value();
+    return new Map(materials.flatMap((m) => m.controls.map((c) => [c.id, m.label] as const)));
+  });
   /**
    * The empty option stands for the plan default, so the default is not listed twice unless an
    * explicit choice of it was saved earlier.
@@ -78,7 +86,7 @@ export class ActivitySetup {
     const choices = generated.map(({ material, index }) =>
       this.lengthChoice(
         material.id + '-input',
-        plan.materials.length > 1 ? material.label : '',
+        this.severalTexts() ? material.label : '',
         material.length,
         inputs.materials[index] ? index : undefined,
       ),

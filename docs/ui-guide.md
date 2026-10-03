@@ -109,6 +109,9 @@ editing shows separate defaults, since an activity's own settings are its plan
 defaults. Options that have no effect in the current state stay hidden: the
 combined length needs several generated texts, one format per activity needs
 several formats, and a required flag is moot once a choice has a default.
+A block that repeats per part names it: choice definitions say whether they
+belong to the whole activity, a text or the questions, and with several texts,
+each text's fields and choices name that text.
 Once content exists, settings collapse to a derived one-line summary and the
 content becomes the main surface.
 

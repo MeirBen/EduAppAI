@@ -2,7 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import { GenerationStatus } from './generation-status';
 import { GenerationKind, GenerationOperation } from '../../../core/api/models';
 
-export const unknownOperation: GenerationOperation = {
+const unknownOperation: GenerationOperation = {
   id: 'op',
   draftId: 'draft',
   kind: 'GenerateActivity',

@@ -6,17 +6,40 @@ import { ActivityWorkspace } from './features/activities/activity-workspace/acti
 import { numericPlan } from './features/activities/learning-plan.fixture';
 import { provideLimits } from './core/api/limits.fixture';
 
-describe('Template navigation', () => {
-  beforeEach(() =>
+describe('Workspace routes', () => {
+  let http: HttpTestingController;
+  beforeEach(() => {
     TestBed.configureTestingModule({
       providers: [...appConfig.providers, provideHttpClientTesting(), provideLimits()],
-    }),
-  );
-  afterEach(() => TestBed.inject(HttpTestingController).verify());
+    });
+    http = TestBed.inject(HttpTestingController);
+  });
+  afterEach(() => http.verify());
+
+  /** Navigates as a signed-in parent while AI is unconfigured. */
+  async function open(harness: RouterTestingHarness, url: string) {
+    const navigation = harness.navigateByUrl(url, ActivityWorkspace);
+    (await vi.waitFor(() => http.expectOne('/api/auth/me'))).flush({
+      email: 'parent@example.test',
+      familyId: 'family',
+    });
+    (await vi.waitFor(() => http.expectOne('/api/auth/csrf'))).flush({});
+    await navigation;
+    http
+      .expectOne('/api/ai/status')
+      .flush({ configured: false, schemaVersion: numericPlan.schemaVersion });
+  }
 
   it('preserves entered choices when only the query or fragment changes', async () => {
     const harness = await RouterTestingHarness.create();
-    await openTemplate(harness, 'first');
+    await open(harness, '/templates/first/create');
+    http.expectOne('/api/templates/first').flush({
+      id: 'first',
+      currentVersion: 1,
+      versionId: 'first-version',
+      definition: numericPlan,
+    });
+    await harness.fixture.whenStable();
     const field = harness.routeNativeElement!.querySelector<HTMLInputElement>('#activity-topic')!;
     field.value = 'החלל';
     field.dispatchEvent(new Event('input'));
@@ -27,50 +50,12 @@ describe('Template navigation', () => {
     expect(
       harness.routeNativeElement!.querySelector<HTMLInputElement>('#activity-topic')!.value,
     ).toBe('החלל');
-    TestBed.inject(HttpTestingController).expectNone('/api/templates/first');
+    http.expectNone('/api/templates/first');
   });
-});
-
-async function openTemplate(harness: RouterTestingHarness, id: string) {
-  const http = TestBed.inject(HttpTestingController);
-  const navigation = harness.navigateByUrl(`/templates/${id}/create`, ActivityWorkspace);
-  (await vi.waitFor(() => http.expectOne('/api/auth/me'))).flush({
-    email: 'parent@example.test',
-    familyId: 'family',
-  });
-  (await vi.waitFor(() => http.expectOne('/api/auth/csrf'))).flush({});
-  await navigation;
-  http
-    .expectOne('/api/ai/status')
-    .flush({ configured: false, schemaVersion: numericPlan.schemaVersion });
-  http.expectOne(`/api/templates/${id}`).flush({
-    id,
-    currentVersion: 1,
-    versionId: `${id}-version`,
-    definition: numericPlan,
-  });
-  await harness.fixture.whenStable();
-}
-
-describe('Workspace route composition', () => {
-  beforeEach(() =>
-    TestBed.configureTestingModule({
-      providers: [...appConfig.providers, provideHttpClientTesting(), provideLimits()],
-    }),
-  );
-  afterEach(() => TestBed.inject(HttpTestingController).verify());
 
   it('opens a saved activity and publishes a separate template without writing the activity', async () => {
-    const harness = await RouterTestingHarness.create(),
-      http = TestBed.inject(HttpTestingController);
-    const navigation = harness.navigateByUrl('/activities/saved', ActivityWorkspace);
-    (await vi.waitFor(() => http.expectOne('/api/auth/me'))).flush({
-      email: 'parent@example.test',
-      familyId: 'family',
-    });
-    (await vi.waitFor(() => http.expectOne('/api/auth/csrf'))).flush({ token: 'isolated' });
-    await navigation;
-    http.expectOne('/api/ai/status').flush({ configured: false, schemaVersion: 1 });
+    const harness = await RouterTestingHarness.create();
+    await open(harness, '/activities/saved');
     http.expectOne('/api/activity-drafts/saved').flush({
       id: 'saved',
       revision: 4,
