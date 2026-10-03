@@ -1,16 +1,16 @@
 import {
+  afterRenderEffect,
   ChangeDetectionStrategy,
   Component,
   computed,
+  DOCUMENT,
   ElementRef,
   inject,
   input,
   output,
   viewChild,
 } from '@angular/core';
-import { DecimalPipe } from '@angular/common';
 import { FieldTree, FormField } from '@angular/forms/signals';
-import { Limits } from '../../../core/api/limits';
 import { AuthoringTurn } from '../../../core/api/models';
 import { LoadingIndicator } from '../../../shared/loading-indicator/loading-indicator';
 
@@ -27,13 +27,12 @@ const suggestions = [
  * route owns message text, unresolved context and all requests; this component only emits.
  */
 @Component({
-  imports: [FormField, LoadingIndicator, DecimalPipe],
+  imports: [FormField, LoadingIndicator],
   selector: 'app-template-chat',
   templateUrl: './template-chat.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class TemplateChat {
-  protected readonly limits = inject(Limits).current;
   readonly fields = input.required<FieldTree<{ message: string; consolidated: string }>>();
   readonly configured = input(false);
   readonly busy = input(false);
@@ -55,23 +54,35 @@ export class TemplateChat {
   readonly consolidated = output<void>();
   readonly cancelled = output<void>();
   protected readonly suggestions = suggestions;
+  private readonly document = inject(DOCUMENT);
   private readonly composer = viewChild.required<ElementRef<HTMLTextAreaElement>>('composer');
+  private readonly stop = viewChild<ElementRef<HTMLButtonElement>>('stop');
+  private wasBusy = false;
   /** The owner's heading names the field only for a first description, not an answer or a change. */
   protected readonly titled = computed(
     () => !this.refining() && !this.clarification() && !!this.labelledBy(),
   );
   protected readonly started = computed(() => !!this.thread().length || !!this.pending());
-  protected readonly canSend = computed(() => {
-    const message = this.fields().message();
-    return (
+  protected readonly canSend = computed(
+    () =>
       this.configured() &&
       !this.busy() &&
       !this.locked() &&
       !this.consolidationRequired() &&
-      !message.invalid() &&
-      !!message.value().trim()
-    );
-  });
+      !!this.fields().message().value().trim(),
+  );
+
+  constructor() {
+    // Send and stop swap places and the composer is disabled while a request runs; focus that
+    // fell to the page follows the swap, but never moves away from a control the parent chose.
+    afterRenderEffect(() => {
+      const busy = this.busy();
+      if (busy === this.wasBusy) return;
+      this.wasBusy = busy;
+      if (this.document.activeElement !== this.document.body) return;
+      (busy ? this.stop() : this.composer())?.nativeElement.focus({ preventScroll: true });
+    });
+  }
 
   /** Enter sends; the `keydown.enter` binding already leaves Shift+Enter for a new line. */
   protected sendOnEnter(event: Event) {

@@ -1,24 +1,22 @@
 import { Component, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { form } from '@angular/forms/signals';
-import { provideLimits } from '../../../core/api/limits.fixture';
 import { TemplateChat } from './template-chat';
 
 @Component({
   imports: [TemplateChat],
   template:
-    '<app-template-chat [fields]="fields" [configured]="configured()" [clarification]="question()" (sent)="submitted = raw().message" />',
+    '<app-template-chat [fields]="fields" [configured]="configured()" [busy]="busy()" [clarification]="question()" (sent)="submitted = raw().message" />',
 })
 class Host {
   readonly raw = signal({ message: '', consolidated: '' });
   readonly fields = form(this.raw);
   readonly configured = signal(true);
   readonly question = signal('');
+  readonly busy = signal(false);
   submitted = '';
 }
 describe('TemplateChat presentation', () => {
-  beforeEach(() => TestBed.configureTestingModule({ providers: [provideLimits()] }));
-
   it('renders clarification as text and waits for an explicit submitted answer', async () => {
     const fixture = TestBed.createComponent(Host),
       host = fixture.componentInstance;
@@ -56,5 +54,28 @@ describe('TemplateChat presentation', () => {
     expect(host.submitted).toBe('');
     press(false);
     expect(host.submitted).toBe(field.value);
+  });
+
+  it('keeps keyboard focus on the swapped send and stop controls without taking it elsewhere', async () => {
+    const fixture = TestBed.createComponent(Host),
+      host = fixture.componentInstance;
+    host.raw.set({ message: 'כיתה ג', consolidated: '' });
+    await fixture.whenStable();
+    const root: HTMLElement = fixture.nativeElement;
+    root.querySelector<HTMLButtonElement>('#chat-send')!.focus();
+    host.busy.set(true);
+    await fixture.whenStable();
+    expect(document.activeElement?.id).toBe('chat-cancel');
+    host.busy.set(false);
+    await fixture.whenStable();
+    expect(document.activeElement?.id).toBe('chat-message');
+    const other = document.body.appendChild(document.createElement('input'));
+    other.focus();
+    host.busy.set(true);
+    await fixture.whenStable();
+    host.busy.set(false);
+    await fixture.whenStable();
+    expect(document.activeElement).toBe(other);
+    other.remove();
   });
 });

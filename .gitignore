@@ -4,6 +4,7 @@
 **/node_modules/
 **/.angular/
 **/dist/
+**/.probe/
 **/out-tsc/
 **/coverage/
 **/TestResults/

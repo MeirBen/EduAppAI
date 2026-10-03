@@ -112,7 +112,8 @@ Authoring is a conversation: the parent's turns sit at the end edge, the
 assistant's replies carry the `ai-mark` with the computed changes and
 assumptions, and a typing bubble shows while a request runs. The composer sends
 on Enter (Shift+Enter adds a line) and turns its send button into a stop
-button; a failed or cancelled request returns its text to the composer.
+button, keeping keyboard focus on whichever is present; a failed or cancelled
+request returns its text to the composer.
 Starter suggestions only fill the composer. Mark AI actions with `ai-icon`.
 
 Use parent language, never internal terms: say "הגדרות" for the plan and

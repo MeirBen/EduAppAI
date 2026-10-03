@@ -71,7 +71,7 @@
     [class]="busy() ? 'bubble bubble-reply w-fit max-w-full' : ''"
     [active]="busy()"
     [label]="start ? 'מכינים את ההגדרות…' : 'מעדכנים את ההגדרות…'"
-    detail="אפשר להמשיך לערוך את ההגדרות, אבל עריכה תבטל את הבקשה."
+    [detail]="start ? '' : 'אפשר להמשיך לערוך את ההגדרות, אבל עריכה תבטל את הבקשה.'"
   />
   <form (submit)="$event.preventDefault(); sent.emit()">
     @if (!titled()) {
@@ -96,11 +96,7 @@
         "
         [formField]="message"
         [attr.aria-labelledby]="titled() ? labelledBy() : null"
-        [attr.aria-describedby]="
-          (start && !started() ? 'chat-help ' : '') +
-          'chat-hint' +
-          (message().invalid() ? ' chat-error' : '')
-        "
+        [attr.aria-describedby]="(start && !started() ? 'chat-help ' : '') + 'chat-hint'"
         (keydown.enter)="sendOnEnter($event)"
       ></textarea>
       <div class="flex items-center justify-between gap-3 ps-4 pe-2 pb-2">
@@ -110,6 +106,7 @@
         </p>
         @if (busy()) {
           <button
+            #stop
             id="chat-cancel"
             type="button"
             class="icon-button icon-button-ink ms-auto"
@@ -135,11 +132,6 @@
         }
       </div>
     </div>
-    @if (message().invalid()) {
-      <p id="chat-error" class="field-error mt-2">
-        ההודעה ארוכה מדי: עד {{ limits.messageLength | number }} תווים.
-      </p>
-    }
   </form>
   @if (start && !started() && configured()) {
     <div class="grid gap-2">

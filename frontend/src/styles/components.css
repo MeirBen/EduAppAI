@@ -66,8 +66,16 @@
   }
   /* One bordered box around an unframed, self-sizing field and its send action. */
   .composer {
-    @apply grid rounded-card border border-control bg-surface shadow-control transition-[border-color,box-shadow] focus-within:border-focus focus-within:ring-4 focus-within:ring-focus/15 focus-within:inset-ring focus-within:inset-ring-focus has-aria-invalid:border-danger has-[textarea:disabled]:border-line has-[textarea:disabled]:bg-canvas;
+    @apply grid rounded-card border border-control bg-surface shadow-control transition-[border-color,box-shadow];
 
+    /* Like other fields, only the field's own focus tints the edge; the actions keep their ring.
+       The field's native maxlength keeps it valid, so no invalid edge is needed. */
+    &:has(> textarea:focus) {
+      @apply border-focus inset-ring inset-ring-focus ring-4 ring-focus/15;
+    }
+    &:has(> textarea:disabled) {
+      @apply border-line bg-canvas;
+    }
     & > textarea {
       @apply max-h-60 resize-none rounded-card border-0 bg-transparent px-4 pt-3 pb-1 shadow-none field-sizing-content focus:ring-0 focus:inset-ring-0 disabled:bg-transparent;
     }
