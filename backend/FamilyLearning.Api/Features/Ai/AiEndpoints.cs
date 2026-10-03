@@ -6,10 +6,9 @@ using FamilyLearning.Api.TaskEngine.Models;
 
 namespace FamilyLearning.Api.Features.Ai;
 
-/// <summary>Returns parent-only AI template proposals without publishing them.</summary>
+/// <summary>Parent-only plan chat: each submitted message permits one proposal call, never a publication.</summary>
 public static class AiEndpoints
 {
-    /// <summary>Maps the bounded plan chat contract in the parent API; each submitted message permits one proposal call.</summary>
     public static void MapPlanAuthoringEndpoints(this RouteGroupBuilder api)
     {
         var ai = api.MapGroup("/ai");

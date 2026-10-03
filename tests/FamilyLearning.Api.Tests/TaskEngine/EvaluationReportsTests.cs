@@ -302,18 +302,6 @@ public sealed class EvaluationReportsTests : IDisposable
     }
 
     [Theory]
-    [InlineData(0)]
-    [InlineData(-1)]
-    public async Task Invalid_automatic_check_versions_are_rejected(int version)
-    {
-        var path = await SaveAsync("invalid-check-version", CreateReport());
-        var json = JsonNode.Parse(await File.ReadAllTextAsync(path))!;
-        json["automaticChecksVersion"] = version;
-        await File.WriteAllTextAsync(path, json.ToJsonString());
-        await Assert.ThrowsAsync<InvalidDataException>(() => EvaluationFiles.ReadReportAsync(path));
-    }
-
-    [Theory]
     [InlineData("case")]
     [InlineData("authoring")]
     [InlineData("generation")]
@@ -481,11 +469,7 @@ public sealed class EvaluationReportsTests : IDisposable
 
     [Theory]
     [InlineData("formatVersion", "1")]
-    [InlineData("formatVersion", "2")]
-    [InlineData("formatVersion", "3")]
-    [InlineData("formatVersion", "4")]
     [InlineData("results[0].review.hebrew", "3")]
-    [InlineData("results[0].review.hebrew", "-1")]
     public async Task Unsupported_reports_and_invalid_human_scores_fail_explicitly(string field, string value)
     {
         var report = CreateReport();

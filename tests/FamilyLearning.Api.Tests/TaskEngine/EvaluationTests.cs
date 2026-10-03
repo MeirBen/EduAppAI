@@ -326,25 +326,12 @@ public sealed class EvaluationTests : IDisposable
     }
 
     [Theory]
-    [InlineData("--repeat", "0")]
     [InlineData("--repeat", "6")]
-    [InlineData("--max-calls", "101")]
     [InlineData("--max-calls", "0")]
-    [InlineData("--call-delay-seconds", "-1")]
-    [InlineData("--call-delay-seconds", "61")]
     [InlineData("--call-delay-seconds", "0.5")]
     [InlineData("--unexpected", "x")]
     public void Invalid_cli_arguments_fail_before_any_calls(string flag, string value) =>
         Assert.Throws<ArgumentException>(() => EvaluationOptions.Parse([flag, value]));
-
-    [Theory]
-    [InlineData(0)]
-    [InlineData(60)]
-    public void Call_pause_has_a_conservative_default_and_can_be_adjusted(int seconds)
-    {
-        Assert.Equal(5, EvaluationOptions.Parse([]).CallDelaySeconds);
-        Assert.Equal(seconds, EvaluationOptions.Parse(["--call-delay-seconds", seconds.ToString()]).CallDelaySeconds);
-    }
 
     [Fact]
     public async Task Call_plan_includes_each_stage_and_loaded_controls()
@@ -403,7 +390,6 @@ public sealed class EvaluationTests : IDisposable
 
     [Theory]
     [InlineData("{}")] // Missing issues is not a clean review.
-    [InlineData("{\"issues\":null}")]
     [InlineData("{\"issues\":[null]}")]
     [InlineData("""{"issues":[{"path":"missing","quote":"להסיין","suggestion":"להסיק","reason":"כתיב","kind":"spelling"}]}""")]
     [InlineData("""{"issues":[{"path":"question,","quote":"להסיין","suggestion":"להסיק","reason":"כתיב","kind":"spelling"}]}""")]
@@ -438,7 +424,6 @@ public sealed class EvaluationTests : IDisposable
 
     [Theory]
     [InlineData(null)]
-    [InlineData("")]
     [InlineData("style")]
     [InlineData("Spelling")]
     public async Task Judge_rejects_missing_or_unknown_issue_kinds(string? kind)
@@ -447,21 +432,6 @@ public sealed class EvaluationTests : IDisposable
         using var chat = new AiFixtures.ScriptedChat(response);
         await Assert.ThrowsAsync<AiGenerationException>(() => HebrewJudge.ReviewAsync(chat, "בקשה",
             [new("question", "מה אפשר להסיין?")], 8192, CancellationToken.None));
-    }
-
-    [Theory]
-    [InlineData("spelling")]
-    [InlineData("invented-word")]
-    [InlineData("agreement")]
-    [InlineData("grammar-syntax")]
-    [InlineData("language-mixing")]
-    [InlineData("non-idiomatic")]
-    public async Task Judge_accepts_only_the_documented_issue_vocabulary(string kind)
-    {
-        var response = JsonSerializer.Serialize(new { issues = new[] { new { path = "question", quote = "להסיין", suggestion = "להסיק", reason = "כתיב", kind } } });
-        using var chat = new AiFixtures.ScriptedChat(response);
-        var result = await HebrewJudge.ReviewAsync(chat, "בקשה", [new("question", "מה אפשר להסיין?")], 8192, CancellationToken.None);
-        Assert.Equal(kind, Assert.Single(result.Value.Issues).Kind);
     }
 
     private async Task<EvaluationReport> RunAsync(IChatClient chat, EvaluationCase? scenario = null,

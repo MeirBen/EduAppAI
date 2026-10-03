@@ -87,7 +87,7 @@ public sealed class ProductionHostTests
             cookie => cookie.Name == "FamilyLearning.Auth");
         Assert.True(auth.Secure);
         Assert.True(auth.HttpOnly);
-        Assert.Equal(Microsoft.Net.Http.Headers.SameSiteMode.Strict, auth.SameSite);
+        Assert.Equal(SameSiteMode.Strict, auth.SameSite);
 
         using var session = await client.GetAsync("/api/auth/me");
         Assert.Equal(HttpStatusCode.OK, session.StatusCode);

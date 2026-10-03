@@ -11,7 +11,6 @@ namespace FamilyLearning.Api.Features.Templates;
 /// <summary>Canonical plan publication; never modifies copied activities.</summary>
 public static class PlanTemplateEndpoints
 {
-    /// <summary>Maps canonical template routes on the shared authorized parent API group.</summary>
     public static void MapPlanTemplateEndpoints(this RouteGroupBuilder api)
     {
         var templates = api.MapGroup("/templates");

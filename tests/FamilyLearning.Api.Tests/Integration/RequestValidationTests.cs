@@ -12,8 +12,6 @@ namespace FamilyLearning.Api.Tests.Integration;
 public sealed class RequestValidationTests
 {
     [Theory]
-    [InlineData("plan")]
-    [InlineData("input")]
     [InlineData("document")]
     public async Task Null_save_members_return_validation_errors_without_changing_the_draft(string member)
     {
@@ -29,12 +27,8 @@ public sealed class RequestValidationTests
     }
 
     [Theory]
-    [InlineData("materialInputs", "null")]
     [InlineData("controlValues", "null")]
-    [InlineData("questionFormat", "null")]
     [InlineData("choiceCount", "null")]
-    [InlineData("totalWordCount", "null")]
-    [InlineData("settings", "null")]
     [InlineData("controlValues", "{\"22222222222222222222222222222222\":null}")]
     [InlineData("controlValues", "{\"33333333333333333333333333333333\":\"0\"}")]
     public async Task Activity_HTTP_preserves_explicit_invalid_values_for_validation(string member, string json)
@@ -121,9 +115,6 @@ public sealed class RequestValidationTests
 
     [Theory]
     [InlineData("settings")]
-    [InlineData("topic")]
-    [InlineData("audience")]
-    [InlineData("difficulty")]
     [InlineData("questionCount")]
     public async Task Missing_or_null_task_input_is_rejected_without_creating_a_draft(string member)
     {

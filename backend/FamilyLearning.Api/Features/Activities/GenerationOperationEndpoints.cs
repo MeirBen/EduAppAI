@@ -9,10 +9,9 @@ using Microsoft.EntityFrameworkCore;
 
 namespace FamilyLearning.Api.Features.Activities;
 
-/// <summary>Owned durable starts and polling. Database transactions serialize admission; reads never start work.</summary>
+/// <summary>Parent-only durable start, status and cancel routes. Database transactions serialize admission; polling never starts work.</summary>
 public static class GenerationOperationEndpoints
 {
-    /// <summary>Maps parent-only start, status and cancel routes; polling never initiates a provider call.</summary>
     public static void MapGenerationOperationEndpoints(this RouteGroupBuilder api)
     {
         var operations = api.MapGroup("/activity-drafts/{id:guid}/operations");

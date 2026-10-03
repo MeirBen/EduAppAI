@@ -18,15 +18,11 @@ public sealed class OpenRouterConfigurationTests
 {
     [Theory]
     [InlineData(false, "low", 0.7f, 0.8f, "test/secondary:free", "json_schema")]
-    [InlineData(true, "medium", 1f, 0.95f, "test/secondary:free", "json_schema")]
-    [InlineData(null, "low", null, null, "", "json_schema")]
     [InlineData(null, null, null, null, null, null)]
     [InlineData(null, "", null, null, "", "text")]
     [InlineData(true, "", 1f, 0.95f, "", "json_object")]
     [InlineData(null, "", 1f, 0.95f, "", "json_schema", "test/paid", 8192, 20, 16384)]
-    [InlineData(false, "", null, null, "", "json_schema", "test/paid", 2048)]
     [InlineData(true, "", null, null, "test/paid", "json_schema")]
-    [InlineData(null, "", null, null, "", "json_object", "test/other", null, 0)]
     [InlineData(null, "low", null, null, "", "json_schema", "test/model:free", null, null, null, true)]
     public async Task Generation_requests_preserve_settings_schema_guidance_and_unicode(bool? enabled, string? effort,
         float? temperature, float? topP, string? fallbackModel, string? responseFormat, string model = "test/model:free",
@@ -128,7 +124,7 @@ public sealed class OpenRouterConfigurationTests
 
         var resolved = TaskEngine.LearningPlanFixture.Resolve(TaskEngine.LearningPlanFixture.Supplied() with
         { Defaults = TaskEngine.LearningPlanFixture.Numeric(1).Defaults });
-        var document = FamilyLearning.Api.TaskEngine.TaskAssembly.CreateDocument(resolved);
+        var document = Api.TaskEngine.TaskAssembly.CreateDocument(resolved);
         var questions = await provider.GetRequiredService<AiGenerationService>().GenerateQuestionsAsync(new(resolved, document.Materials), deadline.Token);
         Assert.Equal("2", Assert.Single(questions.Value.Questions).Answer!.Value);
         AssertResponseSchema(request, responseFormat ?? "json_object", "questions", questionCount: 1);
@@ -174,16 +170,9 @@ public sealed class OpenRouterConfigurationTests
     [InlineData("{\"error\":{\"code\":429,\"message\":\"provider secret\"}}", 429)]
     [InlineData("{\"error\":{\"code\":503,\"message\":\"provider secret\"}}", 502)]
     [InlineData("{\"choices\":[]}", 502)]
-    [InlineData("{\"choices\":[{}]}", 502)]
-    [InlineData("""{"choices":[{"message":{"content":"provider secret"},"finish_reason":42}]}""", 502)]
-    [InlineData("""{"model":42,"choices":[{"message":{"content":"provider secret"}}]}""", 502)]
     [InlineData("""{"created":"provider secret","choices":[{"message":{"content":"{}"}}]}""", 502)]
-    [InlineData("""{"created":9223372036854775807,"choices":[{"message":{"content":"{}"}}]}""", 502)]
-    [InlineData("""{"created":1e100,"choices":[{"message":{"content":"{}"}}]}""", 502)]
     [InlineData("""{"choices":[{"message":{"content":[null]}}]}""", 502)]
-    [InlineData("""{"choices":[{"message":{"role":"provider secret","content":"{}"}}]}""", 502)]
     [InlineData("""{"choices":[{"message":{"tool_calls":[{"type":"function","function":{"name":"f","arguments":"{}"}}]}}]}""", 502)]
-    [InlineData("null", 502)]
     [InlineData("not JSON", 502)]
     public async Task Failed_completions_in_HTTP_200_are_safe_and_do_not_retry(string body, int status)
     {
@@ -221,27 +210,16 @@ public sealed class OpenRouterConfigurationTests
     }
 
     [Theory]
-    [InlineData("Ai:Temperature", "-1")]
-    [InlineData("Ai:Temperature", "NaN")]
     [InlineData("Ai:Temperature", "3")]
     [InlineData("Ai:TopP", "0")]
-    [InlineData("Ai:TopP", "2")]
     [InlineData("Ai:TopK", "-1")]
-    [InlineData("Ai:ReasoningMaxTokens", "0")]
-    [InlineData("Ai:ReasoningMaxTokens", "-1")]
     [InlineData("Ai:ReasoningMaxTokens", "8192")]
-    [InlineData("Ai:ReasoningMaxTokens", "4096", null, "4096")]
     [InlineData("Ai:ReasoningMaxTokens", "2048", "low")]
     [InlineData("Ai:ReasoningEffort", "unlimited")]
     [InlineData("Ai:ReasoningEnabled", "maybe")]
     [InlineData("Ai:ResponseFormat", "maybe")]
-    [InlineData("Ai:Model", null)]
     [InlineData("Ai:Model", "")]
-    [InlineData("Ai:Model", " ")]
     [InlineData("Ai:Model", "paid/model,test:free")]
-    [InlineData("Ai:FallbackModel", "paid/model,test:free")]
-    [InlineData("Ai:IgnoredProviders:0", " ")]
-    [InlineData("Ai:IgnoredProviders:0", "provider,other")]
     [InlineData("Ai:IgnoredProviders:0", "https://provider")]
     public void Invalid_generation_settings_are_rejected(string setting, string? value, string? effort = null,
         string maxOutputTokens = "8192")

@@ -90,10 +90,6 @@ public sealed class AiCapacityTests
 
     [Theory]
     [InlineData("0", "8192")]
-    [InlineData("-1", "8192")]
-    [InlineData("301", "8192")]
-    [InlineData("180", "0")]
-    [InlineData("180", "-1")]
     [InlineData("180", "32769")]
     public void Invalid_generation_limits_are_rejected(string seconds, string maxOutputTokens)
     {

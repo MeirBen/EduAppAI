@@ -91,7 +91,7 @@ public sealed class GenerationRecoveryTests
             for (var i = 0; i < 33; i++)
             {
                 var operation = new GenerationOperation(draft, new(Guid.NewGuid(), 1, "GenerateQuestions"), Resolve(Numeric(1)),
-                    FamilyLearning.Api.TaskEngine.TaskAssembly.CreateDocument(Resolve(Numeric(1))), "questions", app.Worker.ProfileFingerprint, app.Clock.Now.UtcDateTime);
+                    Api.TaskEngine.TaskAssembly.CreateDocument(Resolve(Numeric(1))), "questions", app.Worker.ProfileFingerprint, app.Clock.Now.UtcDateTime);
                 operation.Finish("failed", "provider", app.Clock.Now.UtcDateTime);
                 db.GenerationOperations.Add(operation);
             }

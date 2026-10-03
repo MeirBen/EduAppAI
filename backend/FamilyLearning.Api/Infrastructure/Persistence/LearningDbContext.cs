@@ -20,7 +20,6 @@ public sealed class LearningDbContext(DbContextOptions<LearningDbContext> option
     public DbSet<TaskSnapshot> TaskSnapshots => Set<TaskSnapshot>();
     public DbSet<GenerationOperation> GenerationOperations => Set<GenerationOperation>();
 
-    /// <inheritdoc />
     protected override void OnModelCreating(ModelBuilder model)
     {
         base.OnModelCreating(model);

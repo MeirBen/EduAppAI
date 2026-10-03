@@ -3,11 +3,7 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using FamilyLearning.Api.TaskEngine;
-using FamilyLearning.Api.TaskEngine.Ai;
 using FamilyLearning.Api.TaskEngine.Models;
-using Microsoft.Extensions.AI;
-using Microsoft.Extensions.DependencyInjection;
-using static FamilyLearning.Api.Tests.Fixtures.AiFixtures;
 using static FamilyLearning.Api.Tests.TaskEngine.LearningPlanFixture;
 
 namespace FamilyLearning.Api.Tests.Integration;

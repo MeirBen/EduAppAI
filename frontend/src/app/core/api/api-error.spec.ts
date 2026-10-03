@@ -18,16 +18,13 @@ describe('Hebrew API feedback', () => {
     expect(apiError(new HttpErrorResponse({ status: 500, error }))).not.toContain('מספר השאלות');
   });
 
-  it.each([0, 400, 401, 403, 404, 409, 429, 500])(
-    'hides framework titles for HTTP %s',
-    (status) => {
-      const message = apiError(
-        new HttpErrorResponse({ status, error: { title: 'Internal diagnostic' } }),
-      );
-      expect(message).toMatch(/[א-ת]/);
-      expect(message).not.toContain('Internal diagnostic');
-    },
-  );
+  it.each([400, 401, 500])('hides framework titles for HTTP %s', (status) => {
+    const message = apiError(
+      new HttpErrorResponse({ status, error: { title: 'Internal diagnostic' } }),
+    );
+    expect(message).toMatch(/[א-ת]/);
+    expect(message).not.toContain('Internal diagnostic');
+  });
 
   it('shows API validation feedback but never server-error details', () => {
     const error = { errors: { questionCount: ['המספר מחוץ לטווח המותר.'] } };

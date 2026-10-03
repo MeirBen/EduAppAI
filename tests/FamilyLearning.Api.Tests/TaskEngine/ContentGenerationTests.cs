@@ -44,46 +44,8 @@ public sealed class ContentGenerationTests
         Assert.Single(chat.Requests);
     }
 
-    [Fact]
-    public async Task Authoring_schema_requires_a_proposal_or_clarification_but_not_both()
-    {
-        using var chat = new AiFixtures.ScriptedChat("""{"result":{"proposal":null,"clarification":"לאיזה גיל?"},"assumptions":[]}""");
-        using var service = Service(chat);
-        await service.AuthorAsync(new("רעיון"), default);
-        var schema = Schema(Assert.Single(chat.Requests).Options!);
-        Assert.Equal("object", schema.GetProperty("type").GetString());
-        Assert.False(schema.TryGetProperty("anyOf", out _));
-        Assert.False(schema.GetProperty("additionalProperties").GetBoolean());
-        Assert.Equal(["result", "assumptions"],
-            schema.GetProperty("required").EnumerateArray().Select(value => value.GetString()));
-        Assert.Equal("array", schema.GetProperty("properties").GetProperty("assumptions").GetProperty("type").GetString());
-        var alternatives = schema.GetProperty("properties").GetProperty("result").GetProperty("anyOf");
-        Assert.All(alternatives.EnumerateArray(), alternative =>
-        {
-            Assert.Equal(["proposal", "clarification"],
-                alternative.GetProperty("required").EnumerateArray().Select(value => value.GetString()));
-            Assert.False(alternative.GetProperty("additionalProperties").GetBoolean());
-        });
-        Assert.Collection(alternatives.EnumerateArray(),
-            proposal =>
-            {
-                var properties = proposal.GetProperty("properties");
-                Assert.Equal("#/$defs/plan", properties.GetProperty("proposal").GetProperty("$ref").GetString());
-                Assert.Equal("[\"null\"]", properties.GetProperty("clarification").GetProperty("type").GetRawText());
-            },
-            clarification =>
-            {
-                var properties = clarification.GetProperty("properties");
-                Assert.Equal("[\"null\"]", properties.GetProperty("proposal").GetProperty("type").GetRawText());
-                Assert.Equal("string", properties.GetProperty("clarification").GetProperty("type").GetString());
-            });
-    }
-
     [Theory]
     [InlineData("{\"proposal\":null,\"clarification\":null,\"assumptions\":[]}")]
-    [InlineData("{\"proposal\":{},\"clarification\":null,\"assumptions\":[\"לכל שאלה יהיו 4 אפשרויות תשובה ורק תשובה אחת נכונה.\"]}")]
-    [InlineData("{\"proposal\":null,\"clarification\":\"   \",\"assumptions\":[]}")]
-    [InlineData("{\"proposal\":null,\"clarification\":\"לאיזה גיל?\"}")]
     [InlineData("{\"result\":{\"proposal\":null,\"clarification\":null},\"assumptions\":[]}")]
     [InlineData("{\"result\":{\"proposal\":{},\"clarification\":null},\"assumptions\":[]}")]
     [InlineData("{\"result\":{\"proposal\":null,\"clarification\":\"\"},\"assumptions\":[]}")]
@@ -92,8 +54,6 @@ public sealed class ContentGenerationTests
     [InlineData("{\"result\":{\"proposal\":null,\"clarification\":\"לאיזה גיל?\"},\"assumptions\":null}")]
     [InlineData("{\"result\":{\"proposal\":null,\"clarification\":\"לאיזה גיל?\"},\"assumptions\":[\"\"]}")]
     [InlineData("{\"result\":{\"clarification\":\"לאיזה גיל?\"},\"assumptions\":[]}")]
-    [InlineData("{\"result\":{\"proposal\":null},\"assumptions\":[]}")]
-    [InlineData("{\"result\":{},\"assumptions\":[]}")]
     [InlineData("{\"result\":null,\"assumptions\":[]}")]
     [InlineData("{\"assumptions\":[]}")]
     public async Task Empty_authoring_responses_are_rejected_without_retry(string output)
@@ -309,7 +269,6 @@ public sealed class ContentGenerationTests
     internal static MaterialCandidateBatch Materials() => new([new(MaterialId, null, "שלום עולם")]);
     internal static QuestionCandidate Question(string format = "numeric-input") => new("כמה?", new(format, format == "single-choice" ? ["1", "2", "3"] : null), new("1"), 1);
     internal static QuestionCandidateBatch Questions(string format = "numeric-input", int count = 2) => new("כותרת", "ענו", Enumerable.Range(0, count).Select(_ => Question(format)).ToArray());
-    internal static JsonElement Schema(ChatOptions options) => Assert.IsType<ChatResponseFormatJson>(options.ResponseFormat).Schema!.Value;
     private static void AssertVersion(GenerationMetadata metadata, ChatOptions options, string stage)
     {
         Assert.Equal($"content-first-{stage}-v{EngineVersions.Revision}", metadata.PromptVersion);

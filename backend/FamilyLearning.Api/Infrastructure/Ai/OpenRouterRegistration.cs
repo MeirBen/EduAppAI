@@ -9,10 +9,9 @@ using OpenAI.Chat;
 
 namespace FamilyLearning.Api.Infrastructure.Ai;
 
-/// <summary>Registers the OpenRouter adapter behind <see cref="IChatClient"/>.</summary>
+/// <summary>Registers the OpenRouter adapter behind <see cref="IChatClient"/> when a server secret exists; otherwise AI stays unavailable.</summary>
 public static class OpenRouterRegistration
 {
-    /// <summary>Registers the configured provider when a server secret exists; otherwise AI stays explicitly unavailable.</summary>
     public static void AddTaskAi(this IServiceCollection services, IConfiguration configuration, IHostEnvironment environment)
     {
         services.AddOptions<AiGenerationOptions>()

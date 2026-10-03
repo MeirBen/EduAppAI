@@ -83,7 +83,7 @@ public sealed class GenerationOperationTests
         using var scope = app.App.Services.CreateScope();
         var draft = await scope.ServiceProvider.GetRequiredService<LearningDbContext>().ActivityDrafts.SingleAsync();
         var operation = new GenerationOperation(draft, new(Guid.NewGuid(), 1, "GenerateActivity"), Resolve(Numeric(1)),
-            StoredJson.Read<FamilyLearning.Api.TaskEngine.Models.TaskDocument>(draft.DocumentJson), "questions", app.Worker.ProfileFingerprint, app.Clock.Now.UtcDateTime);
+            StoredJson.Read<Api.TaskEngine.Models.TaskDocument>(draft.DocumentJson), "questions", app.Worker.ProfileFingerprint, app.Clock.Now.UtcDateTime);
         var original = operation.ArtifactsJson;
         var artifacts = operation.Artifacts;
         Assert.False(operation.StoreArtifacts(artifacts, [new("questions", "calling"), new("questions", "calling"), new("questions", "calling")]));
@@ -202,7 +202,7 @@ public sealed class GenerationOperationTests
                 var request = new StartGenerationRequest(Guid.NewGuid(), 2, "GenerateQuestions");
                 original ??= request;
                 var operation = new GenerationOperation(row, request, Resolve(Numeric(1)),
-                    StoredJson.Read<FamilyLearning.Api.TaskEngine.Models.TaskDocument>(row.DocumentJson), "questions", app.Worker.ProfileFingerprint, app.Clock.Now.UtcDateTime);
+                    StoredJson.Read<Api.TaskEngine.Models.TaskDocument>(row.DocumentJson), "questions", app.Worker.ProfileFingerprint, app.Clock.Now.UtcDateTime);
                 operation.Finish("completed", null, app.Clock.Now.UtcDateTime);
                 db.GenerationOperations.Add(operation);
             }

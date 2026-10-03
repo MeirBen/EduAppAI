@@ -8,7 +8,6 @@ namespace FamilyLearning.Api.Features.Instances;
 /// <summary>Read/delete only parent snapshot routes; released content is immutable.</summary>
 public static class SnapshotEndpoints
 {
-    /// <summary>Maps immutable snapshot previews and deletion on the shared authorized parent API group.</summary>
     public static void MapSnapshotEndpoints(this RouteGroupBuilder api)
     {
         var snapshots = api.MapGroup("/instances");

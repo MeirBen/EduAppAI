@@ -78,12 +78,11 @@ the page direction for the caret and placeholder. Back arrows point right, and
 decorative gradients start at the reading edge. Dates display in Hebrew while
 stored timestamps remain UTC.
 
-Write concise Hebrew for labels, validation, loading and errors. Do not expose
-raw framework/provider errors. Render generated text through Angular
-interpolation, never HTML. Control labels/options come from the reviewed
-template. The shared topic, audience, difficulty and question-count controls
-use application-owned labels and validation; only difficulty has fixed
-options. Never rewrite saved content for presentation.
+Write concise Hebrew for labels, validation, loading and errors, and never expose
+raw framework or provider errors. Render generated text through interpolation,
+never HTML, and never rewrite saved content for presentation. Control labels and
+options come from the reviewed template; the shared settings use
+application-owned labels, and only difficulty has fixed options.
 
 ## Workspace actions
 
@@ -119,25 +118,18 @@ and never imply that another paid attempt is automatic.
 Display server length measurements beside saved diagnostics. Distinguish
 advisory targets from strict exact/range blockers, and technical readiness from
 the parent's educational review. Offer adoption only in a callout beside content
-that saved diagnostics mark as stale; for current content it changes nothing.
-Frozen
-previews expose answers in native disclosures and offer an explicit copy to a
-new draft; no child-delivery placeholder is shown.
+that saved diagnostics mark as stale. Frozen previews expose answers in native
+disclosures and offer an explicit copy to a new draft.
 
 ## Loading
 
 Keep the shared `LoadingIndicator` mounted outside `aria-busy` containers, with
-`active` bound to the request's pending state. Its empty live region exists
-before
-the status changes; the animation and text disappear on completion or failure.
-Use `variant="panel"` for page loads and long AI calls, or the default inline
-variant for shorter actions. Set `label` and optional `detail` for the
-operation;
-avoid invented progress percentages or generation stages.
-
-Customize the animation through CSS properties on the component or an ancestor:
-`--loader-color` (brand by default), `--loader-size` (1.5rem inline, 3rem panel)
-and `--loader-duration` (1.6s). For example:
+`active` bound to the request's pending state, so its empty live region exists
+before the status changes. Use `variant="panel"` for page loads and long AI
+calls and the default inline variant for shorter actions. Set `label` and an
+optional `detail`; never invent progress percentages or stages. Tune it with
+`--loader-color` (brand), `--loader-size` (1.5rem inline, 3rem panel) and
+`--loader-duration` (1.6s):
 
 ```html
 <app-loading-indicator
@@ -149,13 +141,10 @@ and `--loader-duration` (1.6s). For example:
 />
 ```
 
-The decorative animation respects reduced motion; readable status remains.
+The animation respects reduced motion; the readable status remains.
 
 ## Check
 
-Follow the [verification commands](../README.md#verify). The isolated browser
-suite covers prompt-to-activity generation, independent template publication,
-scoped choices, frozen previews, failure recovery and revision conflicts. Check
-keyboard navigation and screenshots at 360px with
-200% text, including long mixed-language content. Review screen-reader behavior
-when changing an interaction.
+Follow the [verification commands](../README.md#verify). Check keyboard
+navigation and 360px screenshots at 200% text, including long mixed-language
+content, and review screen-reader behavior when changing an interaction.

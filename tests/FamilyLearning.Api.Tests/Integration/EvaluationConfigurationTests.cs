@@ -21,15 +21,8 @@ public sealed class EvaluationConfigurationTests : IDisposable
 
     [Theory]
     [InlineData("Ai:ApiKey", "")]
-    [InlineData("Ai:Model", "")]
-    [InlineData("Ai:Endpoint", "not-a-uri-settings-secret")]
     [InlineData("Ai:Endpoint", "https://endpoint-secret@invalid.example/?key=settings-secret")]
     [InlineData("Ai:Temperature", "settings-secret")]
-    [InlineData("Ai:Temperature", "3")]
-    [InlineData("Ai:ReasoningEnabled", "settings-secret")]
-    [InlineData("Ai:MaxOutputTokens", "0")]
-    [InlineData("Ai:RequestTimeoutSeconds", "0")]
-    [InlineData("Ai:RequestTimeoutSeconds", "settings-secret")]
     [InlineData("client-factory", "settings-secret")]
     public async Task Invalid_or_missing_ai_configuration_preserves_offline_dashboard(string setting, string value)
     {

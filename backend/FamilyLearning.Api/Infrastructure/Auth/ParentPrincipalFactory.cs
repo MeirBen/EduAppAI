@@ -8,7 +8,6 @@ namespace FamilyLearning.Api.Infrastructure.Auth;
 public sealed class ParentPrincipalFactory(UserManager<ParentUser> users, IOptions<IdentityOptions> options)
     : UserClaimsPrincipalFactory<ParentUser>(users, options)
 {
-    /// <inheritdoc />
     protected override async Task<ClaimsIdentity> GenerateClaimsAsync(ParentUser user)
     {
         var identity = await base.GenerateClaimsAsync(user);

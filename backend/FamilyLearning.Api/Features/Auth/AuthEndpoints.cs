@@ -8,7 +8,6 @@ namespace FamilyLearning.Api.Features.Auth;
 /// <summary>Cookie-based parent sign-in, sign-out, session discovery and antiforgery token issuance.</summary>
 public static class AuthEndpoints
 {
-    /// <summary>Maps authentication routes onto the API group configured with CSRF protection.</summary>
     public static void MapAuthEndpoints(this RouteGroupBuilder api)
     {
         var auth = api.MapGroup("/auth");

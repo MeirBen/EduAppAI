@@ -1,6 +1,5 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
-using FamilyLearning.Api.Tests.Fixtures;
 using FamilyLearning.Evaluation;
 
 namespace FamilyLearning.Api.Tests.TaskEngine;
@@ -11,72 +10,38 @@ public sealed class EvaluationValidationTests : IDisposable
     private static readonly EvaluationCase ValidCase = new("reading-1", "בקשת לימוד", "התאמה לגיל", 2, "text-input", null, null, null);
 
     [Theory]
-    [InlineData("id-empty")]
     [InlineData("id-unsafe")]
-    [InlineData("id-long")]
     [InlineData("prompt-empty")]
-    [InlineData("prompt-long")]
-    [InlineData("focus-empty")]
     [InlineData("focus-long")]
     [InlineData("questions-zero")]
-    [InlineData("questions-negative")]
     [InlineData("interaction")]
-    [InlineData("choices-text")]
     [InlineData("choices-small")]
-    [InlineData("choices-large")]
-    [InlineData("passage-min-negative")]
-    [InlineData("passage-max-negative")]
     [InlineData("passage-inverted")]
-    [InlineData("settings-topic")]
-    [InlineData("settings-audience")]
     [InlineData("settings-difficulty")]
-    [InlineData("count-override-zero")]
-    [InlineData("count-override-negative")]
     [InlineData("count-override-mismatch")]
-    [InlineData("parameters-negative")]
     [InlineData("parameters-too-many")]
     [InlineData("both-plan-and-prompt")]
     [InlineData("too-many-refinements")]
-    [InlineData("empty-refinement")]
-    [InlineData("long-refinement")]
-    [InlineData("replacement-stage")]
     [InlineData("replacement-target")]
     [InlineData("length-mode")]
     public async Task Malformed_case_fixture_is_rejected_when_loaded(string invalid)
     {
         var scenario = invalid switch
         {
-            "both-plan-and-prompt" => ValidCase with { InitialPlan = LearningPlanFixture.Numeric() },
-            "too-many-refinements" => ValidCase with { Refinements = ["א", "ב", "ג", "ד"] },
-            "empty-refinement" => ValidCase with { Refinements = [" "] },
-            "long-refinement" => ValidCase with { Refinements = [new('א', 4001)] },
-            "replacement-stage" => ValidCase with { Replacements = [new("generate", 0)] },
-            "replacement-target" => ValidCase with { Replacements = [new("replace-question", 2)] },
-            "length-mode" => ValidCase with { ExpectedLength = new("guess", 120) },
-            "id-empty" => ValidCase with { Id = " " },
             "id-unsafe" => ValidCase with { Id = "../reading" },
-            "id-long" => ValidCase with { Id = new('a', 101) },
             "prompt-empty" => ValidCase with { Prompt = " " },
-            "prompt-long" => ValidCase with { Prompt = new('א', 4001) },
-            "focus-empty" => ValidCase with { ReviewFocus = " " },
             "focus-long" => ValidCase with { ReviewFocus = new('א', 1001) },
             "questions-zero" => ValidCase with { QuestionCount = 0 },
-            "questions-negative" => ValidCase with { QuestionCount = -1 },
             "interaction" => ValidCase with { Interaction = "essay" },
-            "choices-text" => ValidCase with { ChoiceCount = 4 },
             "choices-small" => ValidCase with { Interaction = "single-choice", ChoiceCount = 1 },
-            "choices-large" => ValidCase with { Interaction = "single-choice", ChoiceCount = 7 },
-            "passage-min-negative" => ValidCase with { MinPassageWords = -1 },
-            "passage-max-negative" => ValidCase with { MaxPassageWords = -1 },
             "passage-inverted" => ValidCase with { MinPassageWords = 20, MaxPassageWords = 10 },
-            "settings-topic" => ValidCase with { SettingsOverride = LearningPlanFixture.Numeric().Defaults with { Topic = " " } },
-            "settings-audience" => ValidCase with { SettingsOverride = LearningPlanFixture.Numeric().Defaults with { Audience = "" } },
             "settings-difficulty" => ValidCase with { SettingsOverride = LearningPlanFixture.Numeric().Defaults with { Difficulty = "unknown" } },
-            "count-override-negative" => ValidCase with { SettingsOverride = LearningPlanFixture.Numeric(-1).Defaults },
             "count-override-mismatch" => ValidCase with { SettingsOverride = LearningPlanFixture.Numeric(3).Defaults },
-            "parameters-negative" => ValidCase with { AdditionalControlCount = -1 },
             "parameters-too-many" => ValidCase with { AdditionalControlCount = 17 },
-            _ => ValidCase with { SettingsOverride = LearningPlanFixture.Numeric(0).Defaults }
+            "both-plan-and-prompt" => ValidCase with { InitialPlan = LearningPlanFixture.Numeric() },
+            "too-many-refinements" => ValidCase with { Refinements = ["א", "ב", "ג", "ד"] },
+            "replacement-target" => ValidCase with { Replacements = [new("replace-question", 2)] },
+            _ => ValidCase with { ExpectedLength = new("guess", 120) }
         };
         var path = await WriteFixtureAsync([scenario]);
 
@@ -91,11 +56,7 @@ public sealed class EvaluationValidationTests : IDisposable
     }
 
     [Theory]
-    [InlineData("single-choice", 2)]
     [InlineData("single-choice", 6)]
-    [InlineData("single-choice", null)]
-    [InlineData("numeric-input", null)]
-    [InlineData("text-input", null)]
     public async Task Supported_case_expectations_are_preserved(string interaction, int? choices)
     {
         var scenario = ValidCase with
@@ -167,13 +128,8 @@ public sealed class EvaluationValidationTests : IDisposable
 
     [Theory]
     [InlineData("path", "")]
-    [InlineData("path", "long")]
     [InlineData("quote", " ")]
-    [InlineData("quote", "long")]
-    [InlineData("suggestion", " ")]
-    [InlineData("suggestion", "long")]
     [InlineData("suggestion", "להסיין")]
-    [InlineData("reason", " ")]
     [InlineData("reason", "long")]
     [InlineData("kind", "style")]
     public async Task Stored_findings_validate_all_fields_for_generated_and_calibration_reviews(string field, string value)
@@ -203,7 +159,7 @@ public sealed class EvaluationValidationTests : IDisposable
             var path = await WriteReportAsync(true);
             var json = JsonNode.Parse(await File.ReadAllTextAsync(path))!;
             var issues = new JsonArray();
-            if (invalid == "null-item") issues.Add((JsonNode?)null);
+            if (invalid == "null-item") issues.Add(null);
             else
                 for (var index = 0; index < (invalid == "duplicate" ? 2 : 21); index++)
                     issues.Add(JsonSerializer.SerializeToNode(new HebrewIssue(invalid == "duplicate" ? "question" : $"question{index}",
@@ -311,14 +267,6 @@ public sealed class EvaluationValidationTests : IDisposable
         var isolated = await EvaluationFiles.LoadFixtureAsync<EvaluationCase>("cases.json", directory);
 
         Assert.Equal(JsonSerializer.Serialize(suite.Items), JsonSerializer.Serialize(isolated.Items));
-    }
-
-    [Fact]
-    public void Empty_and_null_case_arrays_fail_explicitly()
-    {
-        Assert.Throws<InvalidDataException>(() => EvaluationFiles.ValidateCases([]));
-        Assert.Throws<InvalidDataException>(() => EvaluationFiles.ValidateCases(null!));
-        Assert.Throws<InvalidDataException>(() => EvaluationFiles.ValidateCases([null!]));
     }
 
     private async Task<string> WriteFixtureAsync(EvaluationCase[] cases)

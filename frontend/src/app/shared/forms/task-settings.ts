@@ -10,7 +10,7 @@ export const difficultyLabels = { easy: 'קלה', medium: 'בינונית', hard
   string
 >;
 
-/** Mirrors the API cap: larger exact-count batches exceed the AI provider's strict schema budget. */
+/** Mirrors the API's per-activity question cap. */
 export const maxQuestionCount = 20;
 
 /** Shared by template defaults and per-task choices; the API validates independently. */

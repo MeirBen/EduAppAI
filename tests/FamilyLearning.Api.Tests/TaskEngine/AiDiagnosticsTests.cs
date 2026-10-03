@@ -20,7 +20,7 @@ public sealed class AiDiagnosticsTests
         var logger = new CaptureLogger();
         using var service = new AiGenerationService([chat], logger, Options.Create(new AiGenerationOptions()));
 
-        await Assert.ThrowsAsync<AiGenerationException>(() => service.AuthorAsync(new FamilyLearning.Api.TaskEngine.Models.TemplateAuthoringInput("private parent prompt"), CancellationToken.None));
+        await Assert.ThrowsAsync<AiGenerationException>(() => service.AuthorAsync(new Api.TaskEngine.Models.TemplateAuthoringInput("private parent prompt"), CancellationToken.None));
 
         var response = Assert.Single(logger.Entries, entry => entry.ContainsKey("FinishReason"));
         Assert.Equal("test-free-model", response["Model"]);

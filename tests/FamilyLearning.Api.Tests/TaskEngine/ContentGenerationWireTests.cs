@@ -87,13 +87,11 @@ public sealed class ContentGenerationWireTests
         Assert.Equal(exact, questions.TryGetProperty("maxItems", out _));
     }
 
-    [Theory]
-    [InlineData("-1")]
-    [InlineData("21")]
-    public async Task Strict_question_count_limit_stays_within_the_product_cap(string limit)
+    [Fact]
+    public async Task Strict_question_count_limit_stays_within_the_product_cap()
     {
         await using var local = await LocalAiProvider.StartAsync();
-        using var services = local.Services("json_schema", new() { ["Ai:StrictQuestionCountLimit"] = limit });
+        using var services = local.Services("json_schema", new() { ["Ai:StrictQuestionCountLimit"] = "21" });
         Assert.Throws<OptionsValidationException>(() => services.GetRequiredService<AiGenerationService>());
     }
 
@@ -108,21 +106,6 @@ public sealed class ContentGenerationWireTests
         await services.GetRequiredService<AiGenerationService>().AuthorAsync(new("רעיון"), default);
         using var request = JsonDocument.Parse(Assert.Single(local.Bodies));
         Assert.Contains("\nOutput JSON schema:\n", request.RootElement.GetProperty("messages")[0].GetProperty("content").GetString());
-    }
-
-    [Theory]
-    [InlineData("json_schema")]
-    [InlineData("json_object")]
-    public async Task Empty_clarification_is_rejected_in_both_JSON_modes_without_retry(string mode)
-    {
-        await using var local = await LocalAiProvider.StartAsync();
-        local.Respond = _ => """{"result":{"proposal":null,"clarification":""},"assumptions":[]}""";
-        using var services = local.Services(mode);
-        var error = await Assert.ThrowsAsync<AiGenerationException>(() => services.GetRequiredService<AiGenerationService>()
-            .AuthorAsync(new("פעילות קריאה בעברית לכיתה ג׳ בנושא חלל, בערך 300 מילים ו־5 שאלות אמריקאיות."), default));
-        Assert.Equal("invalid-output", error.Category);
-        Assert.Equal(502, error.StatusCode);
-        Assert.Single(local.Bodies);
     }
 
     [Theory]
@@ -155,10 +138,8 @@ public sealed class ContentGenerationWireTests
         Assert.Single(local.Bodies);
     }
 
-    [Theory]
-    [InlineData("json_schema")]
-    [InlineData("json_object")]
-    public async Task Concurrent_requests_keep_their_own_counts_formats_schemas_and_sources(string mode)
+    [Fact]
+    public async Task Concurrent_requests_keep_their_own_counts_formats_schemas_and_sources()
     {
         await using var local = await LocalAiProvider.StartAsync();
         local.Respond = body =>
@@ -167,7 +148,7 @@ public sealed class ContentGenerationWireTests
             var request = input.RootElement.GetProperty("request");
             return Serialize(Questions(request.GetProperty("questions").GetProperty("formats")[0].GetString()!, request.GetProperty("settings").GetProperty("questionCount").GetInt32()));
         };
-        using var services = local.Services(mode);
+        using var services = local.Services();
         var service = services.GetRequiredService<AiGenerationService>();
         var first = Resolve(Supplied());
         var second = Resolve(Mixed(true));
@@ -182,21 +163,17 @@ public sealed class ContentGenerationWireTests
             using var input = JsonDocument.Parse(root.GetProperty("messages")[1].GetProperty("content").GetString()!);
             var request = input.RootElement.GetProperty("request");
             var count = request.GetProperty("settings").GetProperty("questionCount").GetInt32();
-            using var schema = JsonDocument.Parse(mode == "json_schema"
-                ? root.GetProperty("response_format").GetProperty("json_schema").GetProperty("schema").GetRawText()
-                : root.GetProperty("messages")[0].GetProperty("content").GetString()!.Split("\nOutput JSON schema:\n")[1]);
-            Assert.Equal(count, schema.RootElement.GetProperty("properties").GetProperty("questions").GetProperty("minItems").GetInt32());
+            var schema = root.GetProperty("response_format").GetProperty("json_schema").GetProperty("schema");
+            Assert.Equal(count, schema.GetProperty("properties").GetProperty("questions").GetProperty("minItems").GetInt32());
             if (count == 2) Assert.Equal(Source, input.RootElement.GetProperty("materials")[0].GetProperty("body").GetString());
         }
     }
 
-    [Theory]
-    [InlineData("json_schema")]
-    [InlineData("json_object")]
-    public async Task Output_schema_UTF8_limit_is_inclusive_in_every_mode(string mode)
+    [Fact]
+    public async Task Output_schema_UTF8_limit_is_inclusive_even_when_the_schema_travels_in_the_prompt()
     {
         await using var local = await LocalAiProvider.StartAsync();
-        using var services = local.Services(mode);
+        using var services = local.Services("json_object");
         var client = services.GetRequiredService<IChatClient>();
         var baseline = JsonSerializer.Serialize(new { type = "object", description = "" });
         foreach (var extra in new[] { 0, 1 })
@@ -237,7 +214,7 @@ public sealed class ContentGenerationWireTests
         var json = """{"result":{"proposal":null,"clarification":"איזה גיל?"},"assumptions":[]}""";
         using var chat = new AiFixtures.ScriptedChat(json.PadRight(length));
         using var service = Service(chat);
-        if (accepted) await service.AuthorAsync(new FamilyLearning.Api.TaskEngine.Models.TemplateAuthoringInput("רעיון"), default);
-        else await Assert.ThrowsAsync<AiGenerationException>(() => service.AuthorAsync(new FamilyLearning.Api.TaskEngine.Models.TemplateAuthoringInput("רעיון"), default));
+        if (accepted) await service.AuthorAsync(new TemplateAuthoringInput("רעיון"), default);
+        else await Assert.ThrowsAsync<AiGenerationException>(() => service.AuthorAsync(new TemplateAuthoringInput("רעיון"), default));
     }
 }

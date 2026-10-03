@@ -11,10 +11,9 @@ using Microsoft.EntityFrameworkCore;
 
 namespace FamilyLearning.Api.Features.Activities;
 
-/// <summary>Owned draft checkpoints and immutable release. No endpoint in this feature calls a provider.</summary>
+/// <summary>Parent-only draft checkpoints, adoption and immutable release. No endpoint in this feature calls a provider.</summary>
 public static class ActivityEndpoints
 {
-    /// <summary>Maps parent-only activity checkpoints, adoption and release on the shared API group.</summary>
     public static void MapActivityEndpoints(this RouteGroupBuilder api)
     {
         var drafts = api.MapGroup("/activity-drafts");

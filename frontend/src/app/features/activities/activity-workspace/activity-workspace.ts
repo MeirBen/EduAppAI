@@ -80,7 +80,7 @@ import { PlanEditor, PlanStructureEdit } from '../plan-editor/plan-editor';
 import { TemplateChat } from '../template-chat/template-chat';
 
 /** One editable buffer; canonical plan/request values are derived projections, never a second draft. */
-export interface WorkspaceForm {
+interface WorkspaceForm {
   plan: PlanForm;
   input: InputForm;
   document: DocumentForm;

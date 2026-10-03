@@ -13,7 +13,7 @@ public sealed class MigrationTests
     [Fact]
     public async Task Restarting_the_real_host_preserves_a_reviewed_snapshot_and_account()
     {
-        var directory = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "family-learning-restart", Guid.NewGuid().ToString());
+        var directory = Path.Combine(Path.GetTempPath(), "family-learning-restart", Guid.NewGuid().ToString());
         Guid snapshotId;
         string snapshotJson;
         try

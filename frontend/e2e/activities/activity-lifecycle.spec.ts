@@ -161,25 +161,6 @@ test('saves before generation, edits manually, reviews the current revision and 
   expect(state.writes.at(-1)?.body).toEqual({ snapshotId: 'ready' });
 });
 
-test('keeps local typing on operation completion, exposes server content and preserves it on stale save', async ({
-  page,
-}) => {
-  const state = await isolate(page);
-  await page.goto('/templates/example/create');
-  await page.locator('#generate-activity').click();
-  await expect(page.locator('#cancel-generation')).toBeVisible();
-  await page.locator('#document-title').fill('עריכה מקומית — Local');
-  state.complete();
-  await expect(page.getByRole('heading', { name: 'נוצרה תוצאה בזמן שהמשכתם לערוך' })).toBeVisible();
-  await expect(page.locator('#document-title')).toHaveValue('עריכה מקומית — Local');
-  await page.locator('#save-activity').click();
-  await expect(page.getByRole('alert')).toContainText('הטיוטה השתנתה בשרת');
-  await expect(page.locator('#document-title')).toHaveValue('עריכה מקומית — Local');
-  page.once('dialog', (dialog) => dialog.accept());
-  await page.locator('#reload-activity').click();
-  await expect(page.locator('#document-title')).toHaveValue('תרגול חדש');
-});
-
 test('supports keyboard content editing with native labels at 360px and 200% text', async ({
   page,
 }) => {

@@ -227,10 +227,9 @@ public sealed class GenerationWorker(IServiceScopeFactory scopes, AiGenerationSe
     private sealed record Generated(TaskDocument Document, JsonElement Candidate);
 }
 
-/// <summary>Registers the single-process content worker in the application host.</summary>
+/// <summary>Registers the single-process content worker with existing persistence/provider services and validated polling options.</summary>
 public static class ActivityGenerationRegistration
 {
-    /// <summary>Registers one hosted worker with existing persistence/provider services and validated polling options.</summary>
     public static void AddActivityGeneration(this IServiceCollection services, IConfiguration configuration)
     {
         services.TryAddSingleton(TimeProvider.System);
