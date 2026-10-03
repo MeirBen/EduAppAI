@@ -8,7 +8,6 @@
     "**/dist/**",
     "**/test-results/**",
     "**/playwright-report/**",
-    "artifacts/**",
-    ".superpowers/**"
+    "artifacts/**"
   ]
 }

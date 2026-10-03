@@ -156,7 +156,7 @@ test('direct editing works without AI at 360px and 200% text with keyboard-acces
     true,
   );
   await page.screenshot({
-    path: '../.superpowers/sdd/2026-09-30-structured-templates/task8-plan-mobile.png',
+    path: test.info().outputPath('plan-mobile.png'),
     fullPage: true,
   });
 });

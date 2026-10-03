@@ -47,7 +47,7 @@ async function narrow(page: Page, name: string) {
   await page.evaluate(() => (document.documentElement.style.fontSize = '200%'));
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await page.screenshot({
-    path: '../.superpowers/sdd/2026-09-30-structured-templates/task8-' + name + '.png',
+    path: test.info().outputPath(`${name}-mobile.png`),
     fullPage: true,
   });
   await page.locator('footer').scrollIntoViewIfNeeded();

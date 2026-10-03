@@ -191,7 +191,7 @@ test('supports keyboard content editing with native labels at 360px and 200% tex
     true,
   );
   await page.screenshot({
-    path: '../.superpowers/sdd/2026-09-30-structured-templates/task8-content-mobile.png',
+    path: test.info().outputPath('content-mobile.png'),
     fullPage: true,
   });
 });
