@@ -43,8 +43,8 @@
   --ease-smooth: cubic-bezier(0.22, 1, 0.36, 1);
   --default-transition-duration: 200ms;
 
-  /* Leave room for enlarged text inside nested panels on narrow screens. */
-  --spacing-gutter: min(1.25rem, 5vw);
+  /* About 16px on phones and 20px from ~500px up; the viewport cap leaves room for enlarged text in nested panels. */
+  --spacing-gutter: min(1.25rem, 4vw);
   --text-sm--line-height: 1.7;
   --text-base--line-height: 1.7;
   --text-lg--line-height: 1.7;

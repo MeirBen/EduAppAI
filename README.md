@@ -19,7 +19,7 @@ Use the **.NET 8 SDK** (selected by `global.json`) and a Node version allowed by
 ./scripts/dev.sh
 ```
 
-Open <http://localhost:4200>. Parent passwords need 12–256 characters with
+Open <https://localhost:4200>. Parent passwords need 12–256 characters with
 upper and lowercase letters, a number and a symbol. Each provisioned parent gets
 a family; there is no default account or public registration.
 
@@ -29,6 +29,11 @@ AI calls. **Ctrl+C** stops all three; restart after configuration changes, and
 run `npm --prefix frontend ci` after dependency changes.
 Angular proxies `/api` to `http://localhost:5124`; use `localhost` consistently
 for cookies. Development applies the initial migration to an empty database.
+
+The client is served over HTTPS with Angular's development certificate, which
+each browser asks you to accept once. A phone on the same network opens
+`https://<this computer's network address>:4200`; browsers allow the APIs the
+app needs only on `localhost` or HTTPS.
 
 AI settings, evaluation, results and costs are in the [AI guide](docs/ai.md).
 
