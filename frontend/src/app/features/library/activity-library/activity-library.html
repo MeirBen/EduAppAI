@@ -40,14 +40,14 @@
               ><bdi>{{ draft.name }}</bdi></a
             >
             <span class="text-sm text-muted"
-              >עודכנה ב־<bdi>{{ draft.updatedAtUtc | date: 'd/M/y' }}</bdi></span
+              >עודכנה ב־<bdi>{{ draft.updatedAtUtc | date }}</bdi></span
             >
           </div>
           <button
             data-delete-draft
             type="button"
             class="text-link text-link-danger"
-            [attr.aria-label]="'מחיקת ' + draft.name"
+            [attr.aria-label]="'מחיקה: ' + draft.name"
             [disabled]="deleting()"
             (click)="remove('draft', draft.id, draft.name)"
           >
@@ -83,13 +83,13 @@
               ><bdi>{{ snapshot.title }}</bdi></a
             >
             <span class="text-sm text-muted"
-              >סומנה כמוכנה ב־<bdi>{{ snapshot.createdAtUtc | date: 'd/M/y' }}</bdi></span
+              >סומנה כמוכנה ב־<bdi>{{ snapshot.createdAtUtc | date }}</bdi></span
             >
           </div>
           <button
             type="button"
             class="text-link text-link-danger"
-            [attr.aria-label]="'מחיקת ' + snapshot.title"
+            [attr.aria-label]="'מחיקה: ' + snapshot.title"
             [disabled]="deleting()"
             (click)="remove('snapshot', snapshot.id, snapshot.title)"
           >
@@ -126,12 +126,20 @@
             <bdi>{{ template.name }}</bdi>
           </h3>
           <div class="flex flex-wrap gap-x-4">
-            <a class="text-link" [routerLink]="['/templates', template.id, 'create']"
+            <a
+              class="text-link"
+              [routerLink]="['/templates', template.id, 'create']"
+              [attr.aria-label]="'פעילות מהתבנית: ' + template.name"
               >פעילות מהתבנית</a
-            ><a class="text-link" [routerLink]="['/templates', template.id, 'edit']">עריכת התבנית</a
+            ><a
+              class="text-link"
+              [routerLink]="['/templates', template.id, 'edit']"
+              [attr.aria-label]="'עריכת התבנית: ' + template.name"
+              >עריכת התבנית</a
             ><button
               type="button"
               class="text-link text-link-danger"
+              [attr.aria-label]="'מחיקת התבנית: ' + template.name"
               [disabled]="deleting()"
               (click)="remove('template', template.id, template.name)"
             >

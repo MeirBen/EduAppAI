@@ -111,9 +111,9 @@
   }
 
   /*
-   * `dir="auto"` resolves an empty field to LTR, which misplaces the caret and
-   * the Hebrew placeholder. Fields keep the page direction until typed text
-   * sets each paragraph's direction.
+   * Typed text sets each paragraph's direction, while the field itself keeps the
+   * page direction. An empty field resolves `dir="auto"` to LTR, so FieldDirection
+   * drops it until there is text and the caret starts on the page's side.
    */
   :is(input, textarea)[dir='auto'] {
     direction: inherit;

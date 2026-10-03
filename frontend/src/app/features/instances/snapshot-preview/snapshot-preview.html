@@ -14,7 +14,7 @@
   } @else if (snapshot.hasValue()) {
     <div class="grid gap-1">
       <p>
-        עותק קבוע שנבדק ב־<bdi>{{ snapshot.value().reviewedAtUtc | date: 'd/M/y HH:mm' }}</bdi
+        עותק קבוע שנבדק ב־<bdi>{{ snapshot.value().reviewedAtUtc | date }}</bdi
         >. עריכה תיצור טיוטה חדשה.
       </p>
       @if (snapshot.value().measurements.length) {

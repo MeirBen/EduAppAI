@@ -4,7 +4,7 @@ import {
   LOCALE_ID,
   provideBrowserGlobalErrorListeners,
 } from '@angular/core';
-import { registerLocaleData } from '@angular/common';
+import { DATE_PIPE_DEFAULT_OPTIONS, registerLocaleData } from '@angular/common';
 import hebrew from '@angular/common/locales/he';
 import { provideHttpClient } from '@angular/common/http';
 import {
@@ -23,6 +23,8 @@ registerLocaleData(hebrew);
 export const appConfig: ApplicationConfig = {
   providers: [
     { provide: LOCALE_ID, useValue: 'he-IL' },
+    // One date style everywhere: a month name avoids day/month ambiguity, and the time is local.
+    { provide: DATE_PIPE_DEFAULT_OPTIONS, useValue: { dateFormat: 'd בMMM y, H:mm' } },
     provideBrowserGlobalErrorListeners(),
     // Default XSRF names match AuthConfiguration and the readable token issued by AuthEndpoints.
     provideHttpClient(),

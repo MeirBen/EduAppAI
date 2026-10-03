@@ -4,6 +4,7 @@ import { PlanMaterial } from '../../../core/api/models';
 import { Limits } from '../../../core/api/limits';
 import { ScopedRepair } from '../scoped-repair/scoped-repair';
 import { DocumentForm } from './document-form';
+import { FieldDirection } from '../../../shared/forms/field-direction';
 
 /** Structural edits remain in the route owner. New questions receive server IDs on save. */
 export type DocumentEdit =
@@ -14,7 +15,7 @@ export type DocumentEdit =
 /** Presentation only: edits the owner's native fields and emits explicit scoped actions. */
 @Component({
   selector: 'app-activity-document-editor',
-  imports: [FormField, ScopedRepair],
+  imports: [FormField, FieldDirection, ScopedRepair],
   templateUrl: './activity-document-editor.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { '(input)': 'onEdit($event)', '(change)': 'onEdit($event)' },

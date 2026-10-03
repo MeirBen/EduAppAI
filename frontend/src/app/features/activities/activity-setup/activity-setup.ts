@@ -12,6 +12,7 @@ import {
   LengthForm,
   PlanForm,
 } from '../plan-editor/plan-form';
+import { FieldDirection } from '../../../shared/forms/field-direction';
 
 /** One generated-length row: an adjustable word count, or a fixed requirement read aloud. */
 interface LengthChoice {
@@ -30,7 +31,7 @@ interface LengthChoice {
  */
 @Component({
   selector: 'app-activity-setup',
-  imports: [FormField, TaskSettingsFields, NgTemplateOutlet],
+  imports: [FormField, FieldDirection, TaskSettingsFields, NgTemplateOutlet],
   templateUrl: './activity-setup.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { '(input)': 'changed($event)', '(change)': 'changed($event)' },

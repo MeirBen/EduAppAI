@@ -12,6 +12,7 @@ import { RouterLink } from '@angular/router';
 import { LearningApi } from '../../../core/api/learning-api';
 import { apiError } from '../../../core/api/api-error';
 import { ActivityDocumentView } from '../../activities/activity-document-view/activity-document-view';
+import { focusHolder } from '../../../shared/focus-holder';
 import { LoadingIndicator } from '../../../shared/loading-indicator/loading-indicator';
 
 /** Immutable parent-only preview. Copying creates a separate editable draft without review or an AI call. */
@@ -25,6 +26,7 @@ export class SnapshotPreviewPage {
   readonly instanceId = input.required<string>();
   private readonly api = inject(LearningApi);
   private readonly lifetime = inject(DestroyRef);
+  private readonly holdFocus = focusHolder();
   protected readonly snapshot = this.api.snapshot(this.instanceId);
   protected readonly copying = signal(false);
   protected readonly copiedId = signal('');
@@ -33,6 +35,7 @@ export class SnapshotPreviewPage {
   protected readonly measurementText = measurementText;
   protected async copy() {
     if (this.copying() || this.copiedId()) return;
+    const restoreFocus = this.holdFocus();
     this.copying.set(true);
     this.error.set('');
     try {
@@ -42,7 +45,10 @@ export class SnapshotPreviewPage {
       if (!this.lifetime.destroyed)
         this.error.set(apiError(error) + ' ייתכן שהעותק נשמר. בדקו בספרייה לפני ניסיון נוסף.');
     } finally {
-      if (!this.lifetime.destroyed) this.copying.set(false);
+      if (!this.lifetime.destroyed) {
+        this.copying.set(false);
+        restoreFocus();
+      }
     }
   }
 }

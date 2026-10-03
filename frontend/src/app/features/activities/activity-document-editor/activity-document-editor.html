@@ -170,7 +170,7 @@
               >תשובה נכונה <span class="text-sm font-normal text-muted">(מוצגת רק לכם)</span></label
             ><input
               [id]="'question-' + i + '-answer'"
-              [attr.dir]="value.type === 'numeric-input' ? 'ltr' : 'auto'"
+              [dir]="value.type === 'numeric-input' ? 'ltr' : 'auto'"
               [formField]="question.answer"
             />
           </div>

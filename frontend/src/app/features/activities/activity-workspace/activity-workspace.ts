@@ -28,6 +28,7 @@ import {
   StartGeneration,
 } from '../../../core/api/models';
 import { requestResult } from '../../../core/api/request-result';
+import { focusHolder } from '../../../shared/focus-holder';
 import { taskSettingsSchema } from '../../../shared/forms/task-settings';
 import { LoadingIndicator } from '../../../shared/loading-indicator/loading-indicator';
 import {
@@ -109,6 +110,7 @@ export class ActivityWorkspace {
   private readonly api = inject(LearningApi);
   private readonly location = inject(Location);
   private readonly document = inject(DOCUMENT);
+  private readonly holdFocus = focusHolder();
   private readonly router = inject(Router);
   private readonly lifetime = inject(DestroyRef);
   protected readonly limits = inject(Limits).current;
@@ -515,6 +517,7 @@ export class ActivityWorkspace {
       return;
     }
     this.cancelAuthor();
+    const restoreFocus = this.holdFocus();
     this.saving.set(true);
     this.publishing.set(true);
     try {
@@ -538,6 +541,7 @@ export class ActivityWorkspace {
       if (!this.lifetime.destroyed) {
         this.saving.set(false);
         this.publishing.set(false);
+        restoreFocus();
       }
     }
   }
@@ -771,13 +775,17 @@ export class ActivityWorkspace {
 
   /** Runs one draft request under the shared saving lock; a failure keeps local work and says what to check. */
   private async runDraftRequest(work: () => Promise<void>) {
+    const restoreFocus = this.holdFocus();
     this.saving.set(true);
     try {
       await work();
     } catch (error) {
       if (!this.lifetime.destroyed) this.activityError.set(this.activityFailure(error));
     } finally {
-      if (!this.lifetime.destroyed) this.saving.set(false);
+      if (!this.lifetime.destroyed) {
+        this.saving.set(false);
+        restoreFocus();
+      }
     }
   }
 

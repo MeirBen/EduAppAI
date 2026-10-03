@@ -73,9 +73,11 @@ test('login feedback belongs to the failed navigation and does not survive a rel
   await login(page);
 });
 
-test('a page opened from a scrolled page starts at its top', async ({ page }) => {
+test('the parent keeps their place: pages open at the top, focus follows the action and the caret starts on the page side', async ({
+  page,
+}) => {
   await page.setViewportSize({ width: 390, height: 600 });
-  await login(page);
+  await login(page, 'races@example.test');
   await page.locator('footer').scrollIntoViewIfNeeded();
   expect(await page.evaluate(() => scrollY)).toBeGreaterThan(0);
   // A DOM click follows the link from where the parent is, without the test runner scrolling first.
@@ -85,6 +87,26 @@ test('a page opened from a scrolled page starts at its top', async ({ page }) =>
     .evaluate((link: HTMLElement) => link.click());
   await expect(page.getByRole('heading', { name: 'המרחב שלנו', level: 1 })).toBeVisible();
   await expect.poll(() => page.evaluate(() => scrollY)).toBe(0);
+
+  // A request disables its own button; focus returns to it, or to the section that replaced it.
+  await propose(page, 'קריאה עם סגנון לבחירה והמתנה');
+  // An empty field follows the page direction; typed text sets its own.
+  const composer = page.locator('#chat-message');
+  const direction = () =>
+    composer.evaluate((field) => (field.matches(':dir(rtl)') ? 'rtl' : 'ltr'));
+  expect(await direction()).toBe('rtl');
+  await composer.fill('Hello');
+  await expect.poll(direction).toBe('ltr');
+  await composer.fill('');
+  await expect.poll(direction).toBe('rtl');
+  await page.locator('#save-activity').focus();
+  await page.keyboard.press('Enter');
+  await expect(page.getByText('נשמר', { exact: true })).toBeVisible();
+  await expect(page.locator('#save-activity')).toBeFocused();
+  await page.locator('#generate-activity').focus();
+  await page.keyboard.press('Enter');
+  await expect(page.locator('#cancel-generation')).toBeVisible();
+  await expect(page.locator('#actions-title')).toBeFocused();
 });
 
 test('prompt to editable activity, independent template, scoped repair and frozen parent preview', async ({
@@ -308,10 +330,10 @@ test('library deletion confirms intent, preserves independent items and recovers
   const templates = page.locator('section[aria-labelledby="templates-title"]');
   const snapshots = page.locator('section[aria-labelledby="ready-title"]');
   page.once('dialog', (dialog) => dialog.dismiss());
-  await templates.getByRole('button', { name: 'מחיקת התבנית', exact: true }).click();
+  await templates.getByRole('button', { name: /^מחיקת התבנית: / }).click();
   await expect(templates.locator('article')).toHaveCount(1);
   page.once('dialog', (dialog) => dialog.accept());
-  await templates.getByRole('button', { name: 'מחיקת התבנית', exact: true }).click();
+  await templates.getByRole('button', { name: /^מחיקת התבנית: / }).click();
   await expect(templates.locator('article')).toHaveCount(0);
   await expect(snapshots.locator('article')).toHaveCount(1);
   expect((await page.request.get(state.draftPath)).status()).toBe(200);

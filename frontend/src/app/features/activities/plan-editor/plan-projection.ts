@@ -7,6 +7,7 @@ import {
   PlanControl,
   QuestionFormat,
 } from '../../../core/api/models';
+import { count } from '../../../core/api/limits';
 import { isIntegerInput } from '../../../shared/forms/integer-input';
 import { Projection } from '../../../shared/forms/projection';
 import { TaskSettingsDraft, taskSettingsValue } from '../../../shared/forms/task-settings';
@@ -29,7 +30,7 @@ function checkText(
   required = false,
 ) {
   if ((required && !value.trim()) || value.length > limit)
-    errors.push(`${label}: יש להזין ${required ? 'טקסט ' : ''}עד ${limit} תווים.`);
+    errors.push(`${label}: יש להזין ${required ? 'טקסט ' : ''}עד ${count(limit)} תווים.`);
 }
 function integer(
   value: string,

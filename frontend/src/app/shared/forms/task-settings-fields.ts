@@ -1,11 +1,12 @@
 import { ChangeDetectionStrategy, Component, input } from '@angular/core';
 import { FieldTree, FormField } from '@angular/forms/signals';
 import { difficultyLabels, TaskSettingsDraft } from './task-settings';
+import { FieldDirection } from './field-direction';
 
 /** The same accessible controls edit template defaults and task choices. The parent owns the form. */
 @Component({
   selector: 'app-task-settings-fields',
-  imports: [FormField],
+  imports: [FormField, FieldDirection],
   templateUrl: './task-settings-fields.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })

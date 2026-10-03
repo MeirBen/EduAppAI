@@ -2,6 +2,7 @@ import { DecimalPipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, inject, input, output } from '@angular/core';
 import { FieldTree, FormField } from '@angular/forms/signals';
 import { Limits } from '../../../core/api/limits';
+import { FieldDirection } from '../../../shared/forms/field-direction';
 
 /**
  * New text for a fixed or per-activity source, kept exactly as typed. Edits the owner's field and
@@ -9,7 +10,7 @@ import { Limits } from '../../../core/api/limits';
  */
 @Component({
   selector: 'app-source-replacement',
-  imports: [FormField, DecimalPipe],
+  imports: [FormField, FieldDirection, DecimalPipe],
   templateUrl: './source-replacement.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })

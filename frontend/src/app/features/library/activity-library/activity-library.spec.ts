@@ -41,10 +41,10 @@ describe('Activity library', () => {
       .expectOne((r) => r.url === '/api/activity-drafts/draft' && r.method === 'DELETE')
       .flush(null);
     await vi.waitFor(() => expect(root.textContent).toContain('הפריט נמחק'));
-    http.expectOne('/api/templates').flush([]);
-    http.expectOne('/api/instances').flush([]);
-    http.expectOne('/api/activity-drafts').flush([]);
     await fixture.whenStable();
+    expect(root.querySelector('a[href="/activities/draft"]')).toBeNull();
+    expect(root.querySelector('a[href="/instances/ready"]')).not.toBeNull();
+    // The confirmed deletion leaves its list without refetching the library.
     http.verify();
     vi.restoreAllMocks();
   });

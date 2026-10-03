@@ -10,6 +10,7 @@ import {
 } from '@angular/core';
 import { form, FormField, maxLength } from '@angular/forms/signals';
 import { Limits } from '../../../core/api/limits';
+import { FieldDirection } from '../../../shared/forms/field-direction';
 
 /**
  * Contextual AI improvement for one material or question. It keeps only its disclosure state and
@@ -17,7 +18,7 @@ import { Limits } from '../../../core/api/limits';
  */
 @Component({
   selector: 'app-scoped-repair',
-  imports: [FormField],
+  imports: [FormField, FieldDirection],
   templateUrl: './scoped-repair.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
   // The instruction is not activity content, so its edits must not reach the editor's change tracking.

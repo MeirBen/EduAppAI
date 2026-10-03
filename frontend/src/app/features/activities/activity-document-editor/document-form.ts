@@ -74,7 +74,7 @@ export function documentValue(
   let total = 0;
   const check = (value: string, max: number) => {
     total += value.length;
-    if (value.length > max) errors.push(`שדה תוכן ארוך מדי (עד ${max} תווים).`);
+    if (value.length > max) errors.push(`שדה תוכן ארוך מדי (עד ${count(max)} תווים).`);
   };
   check(raw.title, limits.titleLength);
   check(raw.instructions, limits.instructionsLength);

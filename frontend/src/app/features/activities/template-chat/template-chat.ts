@@ -13,6 +13,7 @@ import {
 import { FieldTree, FormField } from '@angular/forms/signals';
 import { AuthoringTurn } from '../../../core/api/models';
 import { LoadingIndicator } from '../../../shared/loading-indicator/loading-indicator';
+import { FieldDirection } from '../../../shared/forms/field-direction';
 
 /** Starter requests that only fill the composer; every request still goes through the parent's send. */
 const suggestions = [
@@ -27,7 +28,7 @@ const suggestions = [
  * route owns message text, unresolved context and all requests; this component only emits.
  */
 @Component({
-  imports: [FormField, LoadingIndicator],
+  imports: [FormField, FieldDirection, LoadingIndicator],
   selector: 'app-template-chat',
   templateUrl: './template-chat.html',
   changeDetection: ChangeDetectionStrategy.OnPush,

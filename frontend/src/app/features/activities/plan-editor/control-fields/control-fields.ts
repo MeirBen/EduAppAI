@@ -3,6 +3,7 @@ import { FieldTree, FormField } from '@angular/forms/signals';
 import { Limits } from '../../../../core/api/limits';
 import { ControlForm } from '../plan-form';
 import type { PlanStructureEdit } from '../plan-editor';
+import { FieldDirection } from '../../../../shared/forms/field-direction';
 
 /** The block repeats once per part a choice can belong to, so its copy names that part. */
 const partCopy = {
@@ -13,7 +14,7 @@ const partCopy = {
 
 /** Reused at plan/material/question scope. It edits the owner's field tree and never creates draft state. */
 @Component({
-  imports: [FormField],
+  imports: [FormField, FieldDirection],
   selector: 'app-control-fields',
   templateUrl: './control-fields.html',
   changeDetection: ChangeDetectionStrategy.OnPush,

@@ -21,7 +21,7 @@
           [id]="id"
           [formField]="fields()[control.key]"
           aria-required="true"
-          [attr.dir]="control.key === 'questionCount' ? 'ltr' : 'auto'"
+          [dir]="control.key === 'questionCount' ? 'ltr' : 'auto'"
           [attr.inputmode]="control.key === 'questionCount' ? 'numeric' : 'text'"
           [attr.aria-invalid]="field().touched() && field().invalid()"
           [attr.aria-describedby]="id + '-help'"

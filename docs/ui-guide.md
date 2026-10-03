@@ -32,7 +32,8 @@ parent labels keep their original language and values.
   production bundle budgets.
 - Label controls; associate errors with fields. Provide keyboard access, visible
   focus, loading status, error alerts and distinguishable repeated
-  links/disclosures.
+  links/disclosures. A button its own request disables or replaces returns
+  focus through `focusHolder`: to the button, or to its section's heading.
 
 ## Spacing
 
@@ -83,10 +84,12 @@ device changes live. The brand `theme-color` suits both themes.
 Set `lang="he"`, `dir="rtl"` and Angular's `he-IL` locale; keep the manifest
 aligned. Use logical spacing (`ms`, `me`, `ps`, `pe`, `inset-s`, `inset-e`) and
 normal DOM order. Use `dir="auto"` for learning text and `<bdi>` for inline user
-values; isolate email and numeric inputs as LTR. Empty `dir="auto"` fields keep
-the page direction for the caret and placeholder. Back arrows point right, and
-decorative gradients start at the reading edge. Dates display in Hebrew while
-stored timestamps remain UTC.
+values; isolate email and numeric inputs as LTR. Bind text fields' `dir` with
+`[formField]`: `FieldDirection` keeps an empty `auto` field in the page
+direction, so the caret and placeholder start on the page's side. Back arrows
+point right, and decorative gradients start at the reading edge. Dates display
+in Hebrew with a month name and local time through the app-wide `DatePipe`
+default, while stored timestamps remain UTC.
 
 Read every size limit, count cap and the numbers in their messages from the
 server's `Limits`; never hard-code them in templates or forms.

@@ -69,7 +69,7 @@
             @default {
               <input
                 [id]="control.id + '-default'"
-                [attr.dir]="control.type === 'integer' ? 'ltr' : 'auto'"
+                [dir]="control.type === 'integer' ? 'ltr' : 'auto'"
                 [attr.inputmode]="control.type === 'integer' ? 'numeric' : 'text'"
                 [formField]="c.defaultValue"
               />

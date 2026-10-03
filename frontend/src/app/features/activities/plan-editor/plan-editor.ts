@@ -6,6 +6,7 @@ import { TaskSettingsFields } from '../../../shared/forms/task-settings-fields';
 import { formFormats, PlanForm } from './plan-form';
 import { ControlFields } from './control-fields/control-fields';
 import { LengthFields } from './length-fields/length-fields';
+import { FieldDirection } from '../../../shared/forms/field-direction';
 
 /** Structural edits are applied by the workspace, which also owns history and source acceptance. */
 export type PlanStructureEdit =
@@ -19,7 +20,7 @@ export type PlanStructureEdit =
  * definitions. Per-activity choices and source text live in ActivitySetup. No HTTP or copied draft.
  */
 @Component({
-  imports: [FormField, TaskSettingsFields, ControlFields, LengthFields],
+  imports: [FormField, FieldDirection, TaskSettingsFields, ControlFields, LengthFields],
   selector: 'app-plan-editor',
   templateUrl: './plan-editor.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
