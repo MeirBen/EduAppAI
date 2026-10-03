@@ -30,10 +30,28 @@ run `npm --prefix frontend ci` after dependency changes.
 Angular proxies `/api` to `http://localhost:5124`; use `localhost` consistently
 for cookies. Development applies the initial migration to an empty database.
 
-The client is served over HTTPS with Angular's development certificate, which
-each browser asks you to accept once. A phone on the same network opens
-`https://<this computer's network address>:4200`; browsers allow the APIs the
-app needs only on `localhost` or HTTPS.
+The client uses HTTPS, since browsers allow the APIs the app needs only on
+`localhost` or HTTPS. Trust a development certificate authority once per
+computer with [mkcert][mkcert], then restart the browser:
+
+```bash
+sudo apt install mkcert libnss3-tools # Ubuntu
+# Chrome on Linux reads trusted authorities from this database.
+if [ ! -d ~/.pki/nssdb ]; then
+  mkdir -p ~/.pki/nssdb
+  certutil -d sql:$HOME/.pki/nssdb -N --empty-password
+fi
+mkcert -install
+```
+
+`npm start` then issues a trusted certificate for `localhost` and this
+computer's network addresses. To use a phone on the same network, install
+`$(mkcert -CAROOT)/rootCA.pem` on it once as a CA certificate (Android:
+**Settings → Security → Encryption & credentials → Install a certificate → CA
+certificate**) and open `https://<network address>:4200`. Never share
+`rootCA-key.pem`.
+
+[mkcert]: https://github.com/FiloSottile/mkcert
 
 AI settings, evaluation, results and costs are in the [AI guide](docs/ai.md).
 

@@ -19,6 +19,7 @@ data/
 .DS_Store
 .idea/
 frontend/tmp/
+frontend/.certs/
 **/.history/
 **/npm-debug.log
 **/yarn-error.log
