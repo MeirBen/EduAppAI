@@ -1,5 +1,6 @@
-import { ChangeDetectionStrategy, Component, input, output } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject, input, output } from '@angular/core';
 import { FieldTree, FormField } from '@angular/forms/signals';
+import { Limits } from '../../../../core/api/limits';
 import { ControlForm } from '../plan-form';
 import type { PlanStructureEdit } from '../plan-editor';
 
@@ -12,6 +13,7 @@ import type { PlanStructureEdit } from '../plan-editor';
 })
 export class ControlFields {
   readonly fields = input.required<FieldTree<ControlForm[]>>();
+  protected readonly limits = inject(Limits).current;
   readonly scope = input.required<string>();
   readonly locked = input(false);
   readonly structureChanged = output<PlanStructureEdit>();

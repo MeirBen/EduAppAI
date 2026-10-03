@@ -226,7 +226,8 @@
             aria-describedby="replacement-source-help"
           ></textarea>
           <p id="replacement-source-help" class="mt-2 text-sm text-muted">
-            עד 4,000 תווים. אחרי ההחלפה כדאי לבדוק את השאלות שתלויות בטקסט. התבנית בספרייה לא תשתנה.
+            עד {{ limits.bodyLength | number }} תווים. אחרי ההחלפה כדאי לבדוק את השאלות שתלויות
+            בטקסט. התבנית בספרייה לא תשתנה.
           </p>
         </div>
         <div class="flex flex-wrap items-center gap-3">

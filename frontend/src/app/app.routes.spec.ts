@@ -4,11 +4,12 @@ import { RouterTestingHarness } from '@angular/router/testing';
 import { appConfig } from './app.config';
 import { ActivityWorkspace } from './features/activities/activity-workspace/activity-workspace';
 import { numericPlan } from './features/activities/learning-plan.fixture';
+import { provideLimits } from './core/api/limits.fixture';
 
 describe('Template navigation', () => {
   beforeEach(() =>
     TestBed.configureTestingModule({
-      providers: [...appConfig.providers, provideHttpClientTesting()],
+      providers: [...appConfig.providers, provideHttpClientTesting(), provideLimits()],
     }),
   );
   afterEach(() => TestBed.inject(HttpTestingController).verify());
@@ -54,7 +55,7 @@ async function openTemplate(harness: RouterTestingHarness, id: string) {
 describe('Workspace route composition', () => {
   beforeEach(() =>
     TestBed.configureTestingModule({
-      providers: [...appConfig.providers, provideHttpClientTesting()],
+      providers: [...appConfig.providers, provideHttpClientTesting(), provideLimits()],
     }),
   );
   afterEach(() => TestBed.inject(HttpTestingController).verify());

@@ -20,7 +20,7 @@ public static class ActivityEndpoints
         drafts.MapPost("/", CreateAsync);
         drafts.MapGet("/", async (ClaimsPrincipal user, LearningDbContext db, CancellationToken ct) =>
             await db.ActivityDrafts.AsNoTracking().Where(d => d.FamilyId == user.FamilyId() && d.ReleasedSnapshotId == null)
-                .OrderByDescending(d => d.UpdatedAtUtc).Take(100)
+                .OrderByDescending(d => d.UpdatedAtUtc).Take(EngineValidation.ListLimit)
                 .Select(d => new ActivitySummary(d.Id, d.Name, d.Revision, d.UpdatedAtUtc)).ToListAsync(ct));
         drafts.MapGet("/{id:guid}", async (Guid id, ClaimsPrincipal user, LearningDbContext db, CancellationToken ct) =>
         {
@@ -105,7 +105,7 @@ public static class ActivityEndpoints
         var draft = await Owned(db, user, id).SingleOrDefaultAsync(ct);
         if (draft is null) return Results.NotFound();
         if (draft.ReleasedSnapshotId.HasValue || draft.Revision != body.ExpectedRevision || draft.ActiveOperationId.HasValue) return Conflict();
-        if (body.MaterialIds is not { Length: <= 4 } || body.QuestionIds is not { Length: <= EngineValidation.MaxQuestionCount } ||
+        if (body.MaterialIds is not { Length: <= EngineValidation.MaxMaterials } || body.QuestionIds is not { Length: <= EngineValidation.MaxQuestionCount } ||
             body.MaterialIds.Length + body.QuestionIds.Length == 0)
             return Invalid("selection", "יש לבחור תוכן לבדיקה ולאימוץ.");
         var request = Resolve(StoredJson.Read<LearningPlan>(draft.PlanJson), StoredJson.Read<TaskRequest>(draft.InputJson));

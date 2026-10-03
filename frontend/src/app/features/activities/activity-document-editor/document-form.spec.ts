@@ -1,4 +1,5 @@
 import { documentForm, documentValue } from './document-form';
+import { limits } from '../../../core/api/limits.fixture';
 
 describe('Editable document boundary', () => {
   it('keeps incomplete answers and invalid option associations without guessing a replacement', () => {
@@ -17,9 +18,9 @@ describe('Editable document boundary', () => {
       ],
     });
     raw.questions[0].options[0].value = 'ג';
-    expect(documentValue(raw).value?.questions[0].answer).toEqual({ value: 'א' });
+    expect(documentValue(raw, limits).value?.questions[0].answer).toEqual({ value: 'א' });
     raw.questions[0].answer = '';
-    expect(documentValue(raw).value?.questions[0].answer).toEqual({ value: '' });
+    expect(documentValue(raw, limits).value?.questions[0].answer).toEqual({ value: '' });
   });
   it('preserves raw invalid points and rejects them before HTTP submission', () => {
     const raw = documentForm({
@@ -37,10 +38,10 @@ describe('Editable document boundary', () => {
       ],
     });
     raw.questions[0].points = '1.5';
-    expect(documentValue(raw).value).toBeUndefined();
+    expect(documentValue(raw, limits).value).toBeUndefined();
     expect(raw.questions[0].points).toBe('1.5');
     raw.questions[0].points = '0';
-    expect(documentValue(raw).value?.questions[0]).toMatchObject({ id: null, points: 0 });
+    expect(documentValue(raw, limits).value?.questions[0]).toMatchObject({ id: null, points: 0 });
   });
   it('bounds aggregate content and strips snapshot metadata at the editable boundary', () => {
     const raw = documentForm({
@@ -66,9 +67,9 @@ describe('Editable document boundary', () => {
       ],
       questions: [],
     });
-    expect(documentValue(raw).value).toBeUndefined();
+    expect(documentValue(raw, limits).value).toBeUndefined();
     raw.materials[1].body = 'Hello\nשלום!';
-    expect(documentValue(raw).value?.materials[1]).toEqual({
+    expect(documentValue(raw, limits).value?.materials[1]).toEqual({
       id: 'b',
       title: null,
       body: 'Hello\nשלום!',

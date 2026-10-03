@@ -8,7 +8,7 @@ namespace FamilyLearning.Api.TaskEngine.Validation;
 internal static partial class QuestionRules
 {
     internal static bool ValidOptions(string[]? options) => options is { Length: >= EngineValidation.MinChoiceCount and <= EngineValidation.MaxChoiceCount } &&
-        options.All(option => EngineValidation.HasText(option, 200) && option == option.Trim() &&
+        options.All(option => EngineValidation.HasText(option, EngineValidation.AnswerLength) && option == option.Trim() &&
             !option.Contains('\r') && !option.Contains('\n')) &&
         options.Distinct(StringComparer.Ordinal).Count() == options.Length;
 
@@ -17,7 +17,8 @@ internal static partial class QuestionRules
 
     internal static string? AnswerError(QuestionInteraction interaction, QuestionAnswer? answer)
     {
-        if (answer is null || !EngineValidation.HasText(answer.Value, 200)) return "יש להזין תשובה באורך של 1 עד 200 תווים.";
+        if (answer is null || !EngineValidation.HasText(answer.Value, EngineValidation.AnswerLength))
+            return $"יש להזין תשובה באורך של 1 עד {EngineValidation.AnswerLength} תווים.";
         if (interaction.Type == "single-choice" && interaction.Options?.Count(o => o == answer.Value) != 1)
             return "התשובה הנכונה חייבת להיות אחת מהאפשרויות.";
         if (interaction.Type == "numeric-input" && !ValidNumericAnswer(answer.Value))

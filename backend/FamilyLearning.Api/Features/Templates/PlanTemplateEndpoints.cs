@@ -16,7 +16,7 @@ public static class PlanTemplateEndpoints
         var templates = api.MapGroup("/templates");
         templates.MapGet("/", async (ClaimsPrincipal user, LearningDbContext db, CancellationToken ct) =>
             await db.TaskTemplates.AsNoTracking().Where(t => t.FamilyId == user.FamilyId()).OrderByDescending(t => t.CreatedAtUtc)
-                .Take(100).Select(t => new TemplateSummary(t.Id, t.Name, t.CurrentVersion, t.CreatedAtUtc)).ToListAsync(ct));
+                .Take(EngineValidation.ListLimit).Select(t => new TemplateSummary(t.Id, t.Name, t.CurrentVersion, t.CreatedAtUtc)).ToListAsync(ct));
         templates.MapGet("/{id:guid}", async (Guid id, ClaimsPrincipal user, LearningDbContext db, CancellationToken ct) =>
         {
             var version = await (from template in db.TaskTemplates

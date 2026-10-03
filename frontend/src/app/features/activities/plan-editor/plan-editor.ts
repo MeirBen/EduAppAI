@@ -1,5 +1,6 @@
-import { ChangeDetectionStrategy, Component, input, output } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject, input, output } from '@angular/core';
 import { FieldTree, FormField } from '@angular/forms/signals';
+import { Limits } from '../../../core/api/limits';
 import { PlanMaterial } from '../../../core/api/models';
 import { TaskSettingsFields } from '../../../shared/forms/task-settings-fields';
 import { MaterialForm, PlanForm } from './plan-form';
@@ -32,6 +33,7 @@ export class PlanEditor {
     'per-task': 'טקסט חדש שתזינו בכל פעילות',
   };
   readonly fields = input.required<FieldTree<PlanForm>>();
+  protected readonly limits = inject(Limits).current;
   readonly locked = input(false);
   readonly edited = output<{ key: string }>();
   readonly structureChanged = output<PlanStructureEdit>();

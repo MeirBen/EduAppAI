@@ -5,11 +5,17 @@ import { provideRouter } from '@angular/router';
 import { ActivityWorkspace } from '../../features/activities/activity-workspace/activity-workspace';
 import { ActivityLibrary } from '../../features/library/activity-library/activity-library';
 import { SnapshotPreviewPage } from '../../features/instances/snapshot-preview/snapshot-preview';
+import { provideLimits } from '../../core/api/limits.fixture';
 
 describe('Page HTTP lifetime', () => {
   beforeEach(() =>
     TestBed.configureTestingModule({
-      providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([])],
+      providers: [
+        provideHttpClient(),
+        provideHttpClientTesting(),
+        provideRouter([]),
+        provideLimits(),
+      ],
     }),
   );
   afterEach(() => {

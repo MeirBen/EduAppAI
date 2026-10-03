@@ -264,3 +264,33 @@ export interface TemplateSummary {
   currentVersion: number;
   createdAtUtc: string;
 }
+
+/** Server-enforced limits. The client mirrors them for native validation, caps and copy; the API stays authoritative. */
+export interface ContentLimits {
+  maxQuestionCount: number;
+  minChoiceCount: number;
+  maxChoiceCount: number;
+  maxMaterials: number;
+  maxControls: number;
+  maxSelectOptions: number;
+  maxPoints: number;
+  nameLength: number;
+  goalLength: number;
+  guidanceLength: number;
+  scopedGuidanceLength: number;
+  meaningLength: number;
+  textValueLength: number;
+  selectOptionLength: number;
+  selectOptionMeaningLength: number;
+  settingTextLength: number;
+  titleLength: number;
+  instructionsLength: number;
+  bodyLength: number;
+  promptLength: number;
+  answerLength: number;
+  contentLength: number;
+  messageLength: number;
+  maxContextTurns: number;
+  contextLength: number;
+  listLimit: number;
+}

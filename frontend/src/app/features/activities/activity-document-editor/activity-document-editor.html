@@ -236,7 +236,7 @@
                 <button
                   type="button"
                   class="text-link"
-                  [disabled]="locked() || value.options.length >= 6"
+                  [disabled]="locked() || value.options.length >= limits.maxChoiceCount"
                   (click)="structureChanged.emit({ kind: 'add-option', index: i })"
                 >
                   הוספת אפשרות
@@ -278,7 +278,7 @@
     id="add-question"
     type="button"
     class="button button-secondary w-fit"
-    [disabled]="locked() || fields().questions().value().length >= maxQuestionCount"
+    [disabled]="locked() || fields().questions().value().length >= limits.maxQuestionCount"
     (click)="structureChanged.emit({ kind: 'add-question' })"
   >
     הוספת שאלה ידנית

@@ -1,7 +1,7 @@
-import { ChangeDetectionStrategy, Component, input, output } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject, input, output } from '@angular/core';
 import { FieldTree, FormField } from '@angular/forms/signals';
 import { PlanMaterial } from '../../../core/api/models';
-import { maxQuestionCount } from '../../../shared/forms/task-settings';
+import { Limits } from '../../../core/api/limits';
 import { ScopedRepair } from '../scoped-repair/scoped-repair';
 import { DocumentForm } from './document-form';
 
@@ -23,7 +23,7 @@ export class ActivityDocumentEditor {
   readonly fields = input.required<FieldTree<DocumentForm>>();
   readonly materials = input.required<Pick<PlanMaterial, 'id' | 'source' | 'label'>[]>();
   readonly locked = input(false);
-  protected readonly maxQuestionCount = maxQuestionCount;
+  protected readonly limits = inject(Limits).current;
   readonly aiAvailable = input(false);
   readonly operationActive = input(false);
   /** No content yet: the editor stays available for manual writing without dominating the page. */

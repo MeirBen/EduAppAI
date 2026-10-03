@@ -39,6 +39,7 @@ public static class ApiConfiguration
     public static void MapApplicationApi(this WebApplication app)
     {
         var api = ParentApi(app);
+        api.MapGet("/limits", () => ContentLimits.Current);
         api.MapPlanAuthoringEndpoints();
         api.MapActivityEndpoints();
         api.MapGenerationOperationEndpoints();

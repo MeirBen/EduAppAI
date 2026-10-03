@@ -78,6 +78,9 @@ the page direction for the caret and placeholder. Back arrows point right, and
 decorative gradients start at the reading edge. Dates display in Hebrew while
 stored timestamps remain UTC.
 
+Read every size limit, count cap and the numbers in their messages from the
+server's `Limits`; never hard-code them in templates or forms.
+
 Write concise Hebrew for labels, validation, loading and errors, and never expose
 raw framework or provider errors. Render generated text through interpolation,
 never HTML, and never rewrite saved content for presentation. Control labels and

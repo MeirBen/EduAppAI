@@ -1,6 +1,7 @@
 import { Component } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { ScopedRepair } from './scoped-repair';
+import { provideLimits } from '../../../core/api/limits.fixture';
 
 @Component({
   imports: [ScopedRepair],
@@ -13,6 +14,7 @@ class Host {
   requests: string[] = [];
 }
 describe('ScopedRepair', () => {
+  beforeEach(() => TestBed.configureTestingModule({ providers: [provideLimits()] }));
   async function render() {
     const fixture = TestBed.createComponent(Host);
     await fixture.whenStable();

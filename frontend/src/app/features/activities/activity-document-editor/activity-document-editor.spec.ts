@@ -3,6 +3,7 @@ import { form, apply } from '@angular/forms/signals';
 import { TestBed } from '@angular/core/testing';
 import { ActivityDocumentEditor, DocumentEdit } from './activity-document-editor';
 import { documentForm, documentSchema } from './document-form';
+import { limits, provideLimits } from '../../../core/api/limits.fixture';
 @Component({
   imports: [ActivityDocumentEditor],
   template: `<app-activity-document-editor
@@ -28,7 +29,7 @@ class Host {
       ],
     }),
   );
-  readonly fields = form(this.raw, (path) => apply(path, documentSchema));
+  readonly fields = form(this.raw, (path) => apply(path, documentSchema(limits)));
   edit(event: DocumentEdit) {
     if (event.kind === 'remove-option')
       this.raw.update((raw) => ({
@@ -41,6 +42,7 @@ class Host {
   }
 }
 describe('ActivityDocumentEditor native fields', () => {
+  beforeEach(() => TestBed.configureTestingModule({ providers: [provideLimits()] }));
   it('preserves the old answer when an option is changed or removed and labels each control', async () => {
     const fixture = TestBed.createComponent(Host);
     await fixture.whenStable();

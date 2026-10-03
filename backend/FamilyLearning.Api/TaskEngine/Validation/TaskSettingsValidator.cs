@@ -14,10 +14,10 @@ public static class TaskSettingsValidator
             errors[path] = ["יש לציין את הגדרות המשימה."];
             return errors;
         }
-        if (string.IsNullOrWhiteSpace(settings.Topic) || settings.Topic.Length > 200)
-            errors[$"{path}.topic"] = ["יש להזין נושא באורך של 1 עד 200 תווים."];
-        if (string.IsNullOrWhiteSpace(settings.Audience) || settings.Audience.Length > 200)
-            errors[$"{path}.audience"] = ["יש לתאר את קהל היעד באורך של 1 עד 200 תווים."];
+        if (string.IsNullOrWhiteSpace(settings.Topic) || settings.Topic.Length > EngineValidation.SettingTextLength)
+            errors[$"{path}.topic"] = [$"יש להזין נושא באורך של 1 עד {EngineValidation.SettingTextLength} תווים."];
+        if (string.IsNullOrWhiteSpace(settings.Audience) || settings.Audience.Length > EngineValidation.SettingTextLength)
+            errors[$"{path}.audience"] = [$"יש לתאר את קהל היעד באורך של 1 עד {EngineValidation.SettingTextLength} תווים."];
         if (settings.Difficulty is not ("easy" or "medium" or "hard"))
             errors[$"{path}.difficulty"] = ["יש לבחור רמת קושי."];
         if (settings.QuestionCount is < 1 or > EngineValidation.MaxQuestionCount)

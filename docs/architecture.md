@@ -41,6 +41,7 @@ All routes are under `/api`; writes enforce CSRF.
 
 | Request                                   | Result                |
 | ----------------------------------------- | --------------------- |
+| `GET limits`                              | Server content limits |
 | `POST ai/template-drafts`                 | Unsaved proposal      |
 | `POST templates`                          | Template version 1    |
 | `POST templates/{id}/versions`            | Publish a version     |
@@ -54,6 +55,10 @@ All routes are under `/api`; writes enforce CSRF.
 | `DELETE instances/{id}`                   | One snapshot          |
 | `DELETE templates/{id}`                   | Template and versions |
 | `DELETE templates`                        | Family learning reset |
+
+`EngineValidation` names every client-visible limit once; validators, their
+messages, prompts and `ContentLimits` (served by `GET limits`) all read those
+constants, so the client never hard-codes a limit.
 
 `LearningPlan` holds shared settings, scoped controls, material sources and
 question requirements; `TaskRequest` supplies per-activity choices.
@@ -177,7 +182,9 @@ caller's injection context and cancel on route change or destruction; check
 `requestResult`, bound to the caller's lifetime, without retries; cancellation
 does not guarantee a server rollback. Changing route parameters destroys the
 page and cancels its writes, while query and fragment changes keep its edits.
-Guards cancel superseded session checks, and the server authorizes requests.
+Guards cancel superseded session checks and load the server's `ContentLimits`
+once before a private page renders; forms, caps and copy read them through
+`Limits`. The server still authorizes and validates every request.
 
 `ActivityWorkspace` owns the template and activity URLs, one form buffer for
 plan and per-activity input, derived canonical projections, source confirmation

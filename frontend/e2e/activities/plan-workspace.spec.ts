@@ -4,6 +4,7 @@ import {
   suppliedPlan,
   sourceText,
 } from '../../src/app/features/activities/learning-plan.fixture';
+import limits from '../../src/app/core/api/limits.fixture.json';
 
 async function isolate(page: Page, configured = true) {
   const writes: { url: string; body: Record<string, unknown> }[] = [];
@@ -14,6 +15,7 @@ async function isolate(page: Page, configured = true) {
     if (path === '/api/auth/me')
       return route.fulfill({ json: { email: 'parent@example.test', familyId: 'isolated' } });
     if (path === '/api/auth/csrf') return route.fulfill({ json: { token: 'isolated' } });
+    if (path === '/api/limits') return route.fulfill({ json: limits });
     if (path === '/api/ai/status')
       return route.fulfill({ json: { configured, schemaVersion: numericPlan.schemaVersion } });
     if (path === '/api/templates/example')

@@ -9,6 +9,7 @@ import {
 import { DatePipe } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { LearningApi } from '../../../core/api/learning-api';
+import { Limits } from '../../../core/api/limits';
 import { apiError } from '../../../core/api/api-error';
 import { LoadingIndicator } from '../../../shared/loading-indicator/loading-indicator';
 
@@ -22,6 +23,7 @@ import { LoadingIndicator } from '../../../shared/loading-indicator/loading-indi
 export class ActivityLibrary {
   private readonly api = inject(LearningApi);
   private readonly lifetime = inject(DestroyRef);
+  protected readonly limits = inject(Limits).current;
   protected readonly templates = this.api.templates();
   protected readonly drafts = this.api.activities();
   protected readonly snapshots = this.api.snapshots();

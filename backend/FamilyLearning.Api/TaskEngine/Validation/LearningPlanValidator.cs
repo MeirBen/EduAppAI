@@ -17,9 +17,9 @@ public static class LearningPlanValidator
             return errors;
         }
         if (plan.SchemaVersion != EngineVersions.SchemaVersion) errors.AddError("schemaVersion", "גרסת התכנית אינה נתמכת.");
-        if (!HasText(plan.Name, 100)) errors.AddError("name", "יש להזין שם באורך של 1 עד 100 תווים.");
-        if (!HasText(plan.Goal, 500)) errors.AddError("goal", "יש להזין מטרה באורך של 1 עד 500 תווים.");
-        if (plan.Guidance is null || plan.Guidance.Length > 4000) errors.AddError("guidance", "ההנחיות מוגבלות ל־4,000 תווים.");
+        if (!HasText(plan.Name, NameLength)) errors.AddError("name", $"יש להזין שם באורך של 1 עד {NameLength} תווים.");
+        if (!HasText(plan.Goal, GoalLength)) errors.AddError("goal", $"יש להזין מטרה באורך של 1 עד {GoalLength} תווים.");
+        if (plan.Guidance is null || plan.Guidance.Length > GuidanceLength) errors.AddError("guidance", $"ההנחיות מוגבלות ל־{Count(GuidanceLength)} תווים.");
         foreach (var error in TaskSettingsValidator.Validate(plan.Defaults, "defaults")) errors.AddError(error.Key, error.Value[0]);
         var ids = new HashSet<string>(StringComparer.Ordinal);
         var controlCount = 0;
@@ -45,9 +45,9 @@ public static class LearningPlanValidator
     private static void ValidateMaterials(MaterialDefinition[]? materials, HashSet<string> ids,
         ref int controlCount, Dictionary<string, string[]> errors)
     {
-        if (materials is not { Length: <= 4 })
+        if (materials is not { Length: <= MaxMaterials })
         {
-            errors.AddError("materials", "יש לציין עד ארבעה חומרים.");
+            errors.AddError("materials", $"יש לציין עד {MaxMaterials} חומרים.");
             return;
         }
         for (var i = 0; i < materials.Length; i++)
@@ -60,11 +60,12 @@ public static class LearningPlanValidator
                 continue;
             }
             ValidateId(material.Id, path, ids, errors);
-            if (!HasText(material.Label, 100)) errors.AddError(path + ".label", "תווית החומר אינה תקינה.");
-            if (material.Guidance is null || material.Guidance.Length > 1000) errors.AddError(path + ".guidance", "ההנחיות מוגבלות ל־1,000 תווים.");
+            if (!HasText(material.Label, NameLength)) errors.AddError(path + ".label", "תווית החומר אינה תקינה.");
+            if (material.Guidance is null || material.Guidance.Length > ScopedGuidanceLength)
+                errors.AddError(path + ".guidance", $"ההנחיות מוגבלות ל־{Count(ScopedGuidanceLength)} תווים.");
             if (material.Source is not ("generated" or "fixed" or "per-task")) errors.AddError(path + ".source", "סוג המקור אינו נתמך.");
             if (material.Source == "fixed" ? !HasText(material.Text, BodyLimit) : material.Text is not null)
-                errors.AddError(path + ".text", "טקסט מקור נדרש רק לחומר קבוע, עד 4,000 תווים.");
+                errors.AddError(path + ".text", $"טקסט מקור נדרש רק לחומר קבוע, עד {Count(BodyLimit)} תווים.");
             if (material.Source != "generated" && material.Length is not null) errors.AddError(path + ".length", "אורך מבוקש מתאים רק לחומר שנוצר.");
             ValidateLength(material.Length, path + ".length", errors);
             ValidateControls(material.Controls, path + ".controls", ids, ref controlCount, errors);
@@ -93,7 +94,8 @@ public static class LearningPlanValidator
         if (questions.CountBounds is { } bounds && (!ValidBounds(bounds.Min, bounds.Max) || bounds.Max > MaxQuestionCount ||
             count < bounds.Min || count > bounds.Max))
             errors.AddError("questions.countBounds", "גבולות מספר השאלות או ברירת המחדל אינם תקינים.");
-        if (questions.Guidance is null || questions.Guidance.Length > 1000) errors.AddError("questions.guidance", "ההנחיות מוגבלות ל־1,000 תווים.");
+        if (questions.Guidance is null || questions.Guidance.Length > ScopedGuidanceLength)
+            errors.AddError("questions.guidance", $"ההנחיות מוגבלות ל־{Count(ScopedGuidanceLength)} תווים.");
         ValidateControls(questions.Controls, "questions.controls", ids, ref controlCount, errors);
     }
 
@@ -135,15 +137,15 @@ public static class LearningPlanValidator
                 continue;
             }
             ValidateId(control.Id, key, ids, errors);
-            if (!HasText(control.Label, 100) || !HasText(control.Meaning, 500) || control.Unit is { Length: > 100 })
+            if (!HasText(control.Label, NameLength) || !HasText(control.Meaning, MeaningLength) || control.Unit is { Length: > NameLength })
                 errors.AddError(key, "תווית השדה, המשמעות או היחידה אינן תקינות.");
             if (control.Type is not ("text" or "integer" or "select" or "boolean") ||
                 (control.Type != "integer" && (control.Min.HasValue || control.Max.HasValue || control.Unit is not null)) ||
                 (control.Type != "text" && control.MaxLength.HasValue) || (control.Type != "select" && control.Options is not null) ||
-                control.Min > control.Max || control.MaxLength is < 1 or > 500)
+                control.Min > control.Max || control.MaxLength is < 1 or > TextValueLength)
                 errors.AddError(key, "סוג השדה וההגבלות אינם תואמים.");
             if (control.Type == "select" && (control.Options is not { Length: >= 1 and <= MaxSelectOptions } ||
-                control.Options.Any(o => o is null || !HasText(o.Value, 100) || o.Value != o.Value.Trim() || o.Value.Contains('\n') || o.Value.Contains('\r') || o.Meaning is { Length: > 200 }) ||
+                control.Options.Any(o => o is null || !HasText(o.Value, SelectOptionLength) || o.Value != o.Value.Trim() || o.Value.Contains('\n') || o.Value.Contains('\r') || o.Meaning is { Length: > SelectOptionMeaningLength }) ||
                 control.Options.Select(o => o.Value).Distinct(StringComparer.Ordinal).Count() != control.Options.Length))
                 errors.AddError(key, $"יש להגדיר עד {MaxSelectOptions} אפשרויות שונות ותקינות.");
             if (control.Default is { ValueKind: not JsonValueKind.Null } value && ValidateControlValue(control, value) is { } error)
@@ -153,7 +155,7 @@ public static class LearningPlanValidator
 
     internal static string? ValidateControlValue(ControlDefinition definition, JsonElement value) => definition.Type switch
     {
-        "text" when value.ValueKind == JsonValueKind.String && value.GetString()!.Length <= (definition.MaxLength ?? 500) &&
+        "text" when value.ValueKind == JsonValueKind.String && value.GetString()!.Length <= (definition.MaxLength ?? TextValueLength) &&
             (!definition.Required || !string.IsNullOrWhiteSpace(value.GetString())) => null,
         "integer" when value.ValueKind == JsonValueKind.Number && value.TryGetInt32(out var number) &&
             !(number < definition.Min) && !(number > definition.Max) => null,

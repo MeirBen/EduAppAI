@@ -46,7 +46,7 @@ public static class TaskAssembly
             throw new TaskValidationException(errors);
         }
         candidate = candidate with { Materials = candidate.Materials?.ToArray()! };
-        if (candidate.Materials is not { Length: <= 4 } items || items.Length != expected.Length)
+        if (candidate.Materials is not { Length: <= MaxMaterials } items || items.Length != expected.Length)
         {
             errors.AddError("materials", "רשימת החומרים שנוצרו אינה תואמת לדרישה.");
             return new(null, candidate, errors);
@@ -54,7 +54,7 @@ public static class TaskAssembly
         var ids = new HashSet<string>(StringComparer.Ordinal);
         foreach (var item in items)
             if (item is null || !ids.Add(item.Id) || !expected.Any(m => m.Id == item.Id) ||
-                !HasText(item.Body, BodyLimit) || item.Title is { Length: > 100 })
+                !HasText(item.Body, BodyLimit) || item.Title is { Length: > TitleLength })
                 errors.AddError("materials", "החומרים שנוצרו כוללים מזהה או תוכן לא תקינים.");
         if (errors.Count > 0) return new(null, candidate, errors);
         var existingMaterials = RestoreSources(request, current.Materials);
@@ -115,7 +115,7 @@ public static class TaskAssembly
     public static TaskDocument ReplaceMaterial(MaterialReplacementInput input, MaterialCandidate candidate, GenerationMetadata? metadata = null)
     {
         var target = MaterialTarget(input);
-        if (candidate is null || candidate.Id != target.Id || !HasText(candidate.Body, BodyLimit) || candidate.Title?.Length > 100)
+        if (candidate is null || candidate.Id != target.Id || !HasText(candidate.Body, BodyLimit) || candidate.Title?.Length > TitleLength)
             throw TargetError("materials");
         var fingerprint = TaskRequestResolver.Fingerprint(input.Request);
         var document = input.Current with
@@ -201,7 +201,8 @@ public static class TaskAssembly
 
     private static void RequireInstruction(string? instruction)
     {
-        if (instruction?.Length > 4000) throw new TaskValidationException(new Dictionary<string, string[]>() { ["instruction"] = ["ההנחיה מוגבלת ל־4,000 תווים."] });
+        if (instruction?.Length > MessageLength)
+            throw new TaskValidationException(new Dictionary<string, string[]>() { ["instruction"] = [$"ההנחיה מוגבלת ל־{Count(MessageLength)} תווים."] });
     }
 
     private static TaskValidationException TargetError(string field) => new(new Dictionary<string, string[]>() { [field] = ["יש לבחור פריט מתאים ולהחזיר אותו במלואו."] });

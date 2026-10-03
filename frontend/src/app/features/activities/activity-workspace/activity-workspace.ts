@@ -20,7 +20,6 @@ import {
   validate,
 } from '@angular/forms/signals';
 import {
-  maxQuestionCount,
   TaskSettingsDraft,
   taskSettingsDraft,
   taskSettingsSchema,
@@ -32,7 +31,7 @@ import { ActivityReview } from '../activity-review/activity-review';
 import { ActivityDocumentView } from '../activity-document-view/activity-document-view';
 import { ActivitySetup } from '../activity-setup/activity-setup';
 import { activitySummary, reviewIssues, staleContent } from '../activity-presentation';
-import { Location, NgTemplateOutlet } from '@angular/common';
+import { DecimalPipe, Location, NgTemplateOutlet } from '@angular/common';
 import { timer, exhaustMap, switchMap, map, takeWhile } from 'rxjs';
 import { requestResult } from '../../../core/api/request-result';
 import {
@@ -60,6 +59,7 @@ import {
   GenerationOperation,
   StartGeneration,
 } from '../../../core/api/models';
+import { Limits } from '../../../core/api/limits';
 import { LoadingIndicator } from '../../../shared/loading-indicator/loading-indicator';
 import {
   controlForm,
@@ -109,6 +109,7 @@ const blankPlan = JSON.stringify(planForm());
     GenerationStatus,
     ActivityDocumentView,
     NgTemplateOutlet,
+    DecimalPipe,
   ],
   templateUrl: './activity-workspace.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -119,6 +120,7 @@ export class ActivityWorkspace {
   private readonly location = inject(Location);
   private readonly router = inject(Router);
   private readonly lifetime = inject(DestroyRef);
+  protected readonly limits = inject(Limits).current;
   readonly templateId = input<string>();
   readonly activityId = input<string>();
   readonly context = input<'template' | 'activity'>('activity');
@@ -168,7 +170,9 @@ export class ActivityWorkspace {
     { draftId: string; request: StartGeneration } | undefined
   >(undefined);
   protected readonly activityError = signal('');
-  protected readonly documentProjection = computed(() => documentValue(this.raw().document));
+  protected readonly documentProjection = computed(() =>
+    documentValue(this.raw().document, this.limits),
+  );
   readonly resumeOperation = input<string | undefined>(undefined, { alias: 'operation' });
   private readonly pollRefresh = signal(0);
   protected readonly measurements = computed(() =>
@@ -182,17 +186,19 @@ export class ActivityWorkspace {
     this.operationActive() ? (this.operation()?.artifacts?.targetId ?? null) : null,
   );
   protected readonly sourceReplacement = signal({ id: '', text: '' });
-  protected readonly sourceFields = form(this.sourceReplacement, (p) => maxLength(p.text, 4000));
+  protected readonly sourceFields = form(this.sourceReplacement, (p) =>
+    maxLength(p.text, this.limits.bodyLength),
+  );
   private operationClientRevision = 0;
   protected readonly loading = computed(
     () => this.template.isLoading() || this.activity.isLoading(),
   );
   protected readonly loadError = computed(() => this.template.error() || this.activity.error());
   protected readonly apiError = apiError;
-  protected readonly projection = computed(() => planValue(this.raw().plan));
+  protected readonly projection = computed(() => planValue(this.raw().plan, this.limits));
   protected readonly inputProjection = computed(() => {
     const plan = this.projection().value;
-    return plan ? requestValue(plan, this.raw().input) : { errors: [] };
+    return plan ? requestValue(plan, this.raw().input, this.limits) : { errors: [] };
   });
   protected readonly pendingSources = computed(() =>
     this.raw()
@@ -209,22 +215,25 @@ export class ActivityWorkspace {
   );
   protected readonly needsConsolidation = computed(
     () =>
-      this.conversation().length > 6 ||
-      this.conversation().reduce((sum, turn) => sum + turn.text.length, 0) > 12000,
+      this.conversation().length > this.limits.maxContextTurns ||
+      this.conversation().reduce((sum, turn) => sum + turn.text.length, 0) >
+        this.limits.contextLength,
   );
   protected readonly fields = form(this.raw, (path) => {
     disabled(path, () => this.saving() || this.loading() || this.released());
-    apply(path.document, documentSchema);
-    apply(path.plan, planFormSchema);
-    apply(path.input.settings, taskSettingsSchema);
-    applyEach(path.input.materials, (material) => maxLength(material.sourceText, 4000));
+    apply(path.document, documentSchema(this.limits));
+    apply(path.plan, planFormSchema(this.limits));
+    apply(path.input.settings, taskSettingsSchema(this.limits));
+    applyEach(path.input.materials, (material) =>
+      maxLength(material.sourceText, this.limits.bodyLength),
+    );
     applyEach(path.input.controls, (control) =>
       validate(control.value, ({ valueOf }) => {
         const plan = this.projection().value;
         const definition =
           plan && planControls(plan).find((item) => item.id === valueOf(control.id));
         return definition
-          ? controlInputValue(definition, {
+          ? controlInputValue(definition, this.limits, {
               id: valueOf(control.id),
               provided: valueOf(control.provided),
               value: valueOf(control.value),
@@ -235,8 +244,8 @@ export class ActivityWorkspace {
   });
   protected readonly chatFields = form(this.chat, (path) => {
     disabled(path, () => this.saving() || this.authoring() || this.released());
-    maxLength(path.message, 4000);
-    maxLength(path.consolidated, 4000);
+    maxLength(path.message, this.limits.messageLength);
+    maxLength(path.consolidated, this.limits.messageLength);
   });
   private readonly cancelled = new Subject<void>();
   private activeRequest: string | undefined;
@@ -307,7 +316,7 @@ export class ActivityWorkspace {
         );
         if (template) {
           this.publication.set(template);
-          this.publishedPlan.set(JSON.stringify(planValue(this.raw().plan).value));
+          this.publishedPlan.set(JSON.stringify(planValue(this.raw().plan, this.limits).value));
         }
         this.baseline.set(structuredClone(this.raw()));
         this.previous = this.snapshot();
@@ -376,7 +385,7 @@ export class ActivityWorkspace {
   protected changeStructure(edit: PlanStructureEdit) {
     if (this.saving() || this.released()) return;
     const raw = structuredClone(this.raw());
-    if (edit.kind === 'add-material' && raw.plan.materials.length < 4)
+    if (edit.kind === 'add-material' && raw.plan.materials.length < this.limits.maxMaterials)
       raw.plan.materials.push(materialForm());
     if (edit.kind === 'remove-material')
       raw.plan.materials = raw.plan.materials.filter((material) => material.id !== edit.id);
@@ -392,7 +401,8 @@ export class ActivityWorkspace {
         raw.plan.controls.length +
         raw.plan.questions.controls.length +
         raw.plan.materials.reduce((sum, material) => sum + material.controls.length, 0);
-      if (edit.kind === 'add-control' && count < 16) controls.push(controlForm());
+      if (edit.kind === 'add-control' && count < this.limits.maxControls)
+        controls.push(controlForm());
       if (edit.kind === 'remove-control') {
         const index = controls.findIndex((control) => control.id === edit.id);
         if (index >= 0) controls.splice(index, 1);
@@ -547,7 +557,7 @@ export class ActivityWorkspace {
     )
       return;
     const message = consolidate ? this.chat().consolidated : this.chat().message;
-    if (!message.trim() || message.length > 4000) return;
+    if (!message.trim() || message.length > this.limits.messageLength) return;
     const baseDefinition = this.projection().value;
     if (!baseDefinition && this.hasPlan()) {
       this.attempted.set(true);
@@ -711,7 +721,7 @@ export class ActivityWorkspace {
     if (this.saving() || this.released()) return;
     const raw = structuredClone(this.raw()),
       doc = raw.document;
-    if (edit.kind === 'add-question' && doc.questions.length < maxQuestionCount)
+    if (edit.kind === 'add-question' && doc.questions.length < this.limits.maxQuestionCount)
       doc.questions.push({
         id: '',
         key: crypto.randomUUID(),
@@ -727,7 +737,7 @@ export class ActivityWorkspace {
       const question = doc.questions[edit.index];
       if (!question) return;
       if (edit.kind === 'remove-question') doc.questions.splice(edit.index, 1);
-      if (edit.kind === 'add-option' && question.options.length < 6)
+      if (edit.kind === 'add-option' && question.options.length < this.limits.maxChoiceCount)
         question.options.push({ value: '' });
       if (edit.kind === 'remove-option') question.options.splice(edit.option, 1);
       const next =
@@ -756,7 +766,7 @@ export class ActivityWorkspace {
   }
   protected acceptSourceReplacement() {
     const { id, text } = this.sourceReplacement();
-    if (!text.trim() || text.length > 4000 || this.saving()) return;
+    if (!text.trim() || text.length > this.limits.bodyLength || this.saving()) return;
     const raw = structuredClone(this.raw()),
       material = raw.plan.materials.find((m) => m.id === id);
     if (!material) return;
@@ -995,8 +1005,9 @@ export class ActivityWorkspace {
         operation.artifacts?.targetId ?? null,
         this.raw().document,
         plan,
+        this.limits,
       );
-      const preview = document && documentValue(document).value;
+      const preview = document && documentValue(document, this.limits).value;
       return document && preview
         ? [
             {

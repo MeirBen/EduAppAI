@@ -88,7 +88,7 @@
       id="add-material"
       type="button"
       class="button button-secondary w-fit"
-      [disabled]="locked() || f.materials().value().length >= 4"
+      [disabled]="locked() || f.materials().value().length >= limits.maxMaterials"
       (click)="structureChanged.emit({ kind: 'add-material' })"
     >
       הוספת טקסט

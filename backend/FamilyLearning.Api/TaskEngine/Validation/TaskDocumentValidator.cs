@@ -6,6 +6,8 @@ namespace FamilyLearning.Api.TaskEngine.Validation;
 /// <summary>Owns safe draft shape and strict deterministic release/candidate checks.</summary>
 public static class TaskDocumentValidator
 {
+    private static readonly string InstructionsError = $"ההנחיות מוגבלות ל־{Count(InstructionsLength)} תווים.";
+
     /// <summary>Incomplete safe content is retained with bounded diagnostics; unsafe content returns Errors.</summary>
     public static DraftDocumentCheck ValidateDraft(ResolvedTaskRequest request, TaskDocument document) =>
         ValidateDraft(request, document, null);
@@ -20,15 +22,15 @@ public static class TaskDocumentValidator
             errors.AddError("document", "יש לציין תוכן פעילות.");
             return new(errors, diagnostics);
         }
-        ValidateText(document.Title, 100, "title", errors, diagnostics);
-        if (document.Instructions?.Length > 1000) errors.AddError("instructions", "ההנחיות מוגבלות ל־1,000 תווים.");
+        ValidateText(document.Title, TitleLength, "title", errors, diagnostics);
+        if (document.Instructions?.Length > InstructionsLength) errors.AddError("instructions", InstructionsError);
         long length = (long)(document.Title?.Length ?? 0) + (document.Instructions?.Length ?? 0);
         var fingerprint = TaskRequestResolver.Fingerprint(request);
         var ids = new HashSet<string>(StringComparer.Ordinal);
         materialCheck ??= ValidateMaterials(request, document);
         foreach (var error in materialCheck.Errors) errors.AddError(error.Key, error.Value[0]);
         foreach (var diagnostic in materialCheck.Diagnostics) diagnostics.AddError(diagnostic.Key, diagnostic.Value[0]);
-        if (document.Materials is { Length: <= 4 })
+        if (document.Materials is { Length: <= MaxMaterials })
             foreach (var material in document.Materials)
             {
                 if (material is null) continue;
@@ -80,7 +82,7 @@ public static class TaskDocumentValidator
         var ids = new HashSet<string>(StringComparer.Ordinal);
         var fingerprint = TaskRequestResolver.Fingerprint(request);
         long length = 0;
-        if (document.Materials is not { Length: <= 4 }) errors.AddError("materials", "יש לציין עד ארבעה חומרים.");
+        if (document.Materials is not { Length: <= MaxMaterials }) errors.AddError("materials", $"יש לציין עד {MaxMaterials} חומרים.");
         else
         {
             foreach (var material in document.Materials)
@@ -95,7 +97,7 @@ public static class TaskDocumentValidator
                 var expected = request.Materials.FirstOrDefault(m => m.Id == material.Id);
                 if (expected is null) errors.AddError("materials", "מזהה חומר אינו מוכר.");
                 if (material.Revision < 1) errors.AddError(path + ".revision", "גרסת החומר אינה תקינה.");
-                if (material.Title?.Length > 100) errors.AddError(path + ".title", "כותרת מוגבלת ל־100 תווים.");
+                if (material.Title?.Length > TitleLength) errors.AddError(path + ".title", $"כותרת מוגבלת ל־{TitleLength} תווים.");
                 ValidateText(material.Body, BodyLimit, path + ".body", errors, diagnostics);
                 length += (long)(material.Title?.Length ?? 0) + (material.Body?.Length ?? 0);
                 ValidateEvidence(material.Origin, material.Acceptance, path, errors);
@@ -149,8 +151,8 @@ public static class TaskDocumentValidator
             errors.AddError("candidate", "יש לציין שאלות שנוצרו.");
             return errors;
         }
-        ValidateText(candidate.Title, 100, "title", errors, errors);
-        if (candidate.Instructions?.Length > 1000) errors.AddError("instructions", "ההנחיות מוגבלות ל־1,000 תווים.");
+        ValidateText(candidate.Title, TitleLength, "title", errors, errors);
+        if (candidate.Instructions?.Length > InstructionsLength) errors.AddError("instructions", InstructionsError);
         if (candidate.Questions is not { Length: <= MaxQuestionCount } questions || questions.Length != request.Settings.QuestionCount)
         {
             errors.AddError("questions", "מספר השאלות אינו תואם לדרישה.");
@@ -185,9 +187,9 @@ public static class TaskDocumentValidator
     private static void ValidateQuestion(string? prompt, QuestionInteraction? interaction, QuestionAnswer? answer, int points,
         ResolvedQuestions requirements, string path, Dictionary<string, string[]> errors, Dictionary<string, string[]> diagnostics)
     {
-        ValidateText(prompt, 500, path + ".prompt", errors, diagnostics);
-        if (points is < 0 or > 100) errors.AddError(path + ".points", "הניקוד חייב להיות בין 0 ל־100.");
-        if (answer?.Value is { Length: > 200 }) errors.AddError(path + ".answer", "תשובה מוגבלת ל־200 תווים.");
+        ValidateText(prompt, PromptLength, path + ".prompt", errors, diagnostics);
+        if (points is < 0 or > MaxPoints) errors.AddError(path + ".points", $"הניקוד חייב להיות בין 0 ל־{MaxPoints}.");
+        if (answer?.Value is { Length: > AnswerLength }) errors.AddError(path + ".answer", $"תשובה מוגבלת ל־{AnswerLength} תווים.");
         if (interaction is null || !IsFormat(interaction.Type))
         {
             errors.AddError(path + ".interaction", "סוג השאלה אינו נתמך.");
@@ -196,7 +198,7 @@ public static class TaskDocumentValidator
         if (!requirements.Formats.Contains(interaction.Type)) diagnostics.AddError(path + ".format", "סוג השאלה אינו תואם לתכנית.");
         if (interaction.Options is { } options)
         {
-            if (interaction.Type != "single-choice" || options.Length > MaxChoiceCount || options.Any(o => o is null || o.Length > 200))
+            if (interaction.Type != "single-choice" || options.Length > MaxChoiceCount || options.Any(o => o is null || o.Length > AnswerLength))
                 errors.AddError(path + ".options", "אפשרויות התשובה אינן בטווח הנתמך.");
         }
         if (interaction.Type == "single-choice" &&
@@ -223,7 +225,7 @@ public static class TaskDocumentValidator
     {
         if (origin is null || origin.Kind is not ("manual" or "generated" or "supplied")) errors.AddError(path + ".origin", "מקור התוכן אינו תקין.");
         if (acceptance is not null && (acceptance.InputFingerprint is not { Length: 64 } ||
-            acceptance.Sources is not { Length: <= 4 } || acceptance.Sources.Any(s => s is null || !IsId(s.Id) || s.Revision < 1) ||
+            acceptance.Sources is not { Length: <= MaxMaterials } || acceptance.Sources.Any(s => s is null || !IsId(s.Id) || s.Revision < 1) ||
             acceptance.AdoptedAtUtc is { Kind: not DateTimeKind.Utc })) errors.AddError(path + ".acceptance", "פרטי קבלת התוכן אינם תקינים.");
     }
 }

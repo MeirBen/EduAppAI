@@ -1,5 +1,4 @@
-import { EditableQuestion, LearningPlan } from '../../../core/api/models';
-import { maxQuestionCount } from '../../../shared/forms/task-settings';
+import { ContentLimits, EditableQuestion, LearningPlan } from '../../../core/api/models';
 import {
   DocumentForm,
   documentForm,
@@ -12,19 +11,19 @@ const object = (value: unknown): Record<string, unknown> | undefined =>
     : undefined;
 const text = (value: unknown, max: number): value is string =>
   typeof value === 'string' && value.length <= max;
-function question(value: unknown): EditableQuestion | undefined {
+function question(value: unknown, limits: ContentLimits): EditableQuestion | undefined {
   const q = object(value),
     interaction = object(q?.['interaction']),
     answer = object(q?.['answer']);
   if (
     !q ||
     !interaction ||
-    !text(q['prompt'], 500) ||
-    !text(answer?.['value'], 200) ||
+    !text(q['prompt'], limits.promptLength) ||
+    !text(answer?.['value'], limits.answerLength) ||
     typeof q['points'] !== 'number' ||
     !Number.isInteger(q['points']) ||
     q['points'] < 0 ||
-    q['points'] > 100
+    q['points'] > limits.maxPoints
   )
     return;
   const type = interaction['type'],
@@ -32,7 +31,9 @@ function question(value: unknown): EditableQuestion | undefined {
   if (type !== 'numeric-input' && type !== 'text-input' && type !== 'single-choice') return;
   if (
     type === 'single-choice'
-      ? !Array.isArray(options) || options.length > 6 || !options.every((o) => text(o, 200))
+      ? !Array.isArray(options) ||
+        options.length > limits.maxChoiceCount ||
+        !options.every((o) => text(o, limits.answerLength))
       : options != null
   )
     return;
@@ -51,6 +52,7 @@ export function candidateEdit(
   target: string | null,
   current: DocumentForm,
   plan: LearningPlan,
+  limits: ContentLimits,
 ): DocumentForm | undefined {
   if (typeof candidate === 'string') {
     if (candidate.length > 64000) return;
@@ -65,7 +67,7 @@ export function candidateEdit(
   const next = structuredClone(current);
   if (stage === 'replace-question') {
     const index = next.questions.findIndex((q) => q.id === target),
-      q = question(value);
+      q = question(value, limits);
     if (index < 0 || !q) return;
     next.questions[index] = documentForm({
       title: '',
@@ -75,13 +77,13 @@ export function candidateEdit(
     }).questions[0];
   } else if (stage === 'questions') {
     if (
-      !text(value['title'], 100) ||
-      !(value['instructions'] == null || text(value['instructions'], 1000)) ||
+      !text(value['title'], limits.titleLength) ||
+      !(value['instructions'] == null || text(value['instructions'], limits.instructionsLength)) ||
       !Array.isArray(value['questions']) ||
-      value['questions'].length > maxQuestionCount
+      value['questions'].length > limits.maxQuestionCount
     )
       return;
-    const questions = value['questions'].map(question);
+    const questions = value['questions'].map((q) => question(q, limits));
     if (questions.some((q) => !q)) return;
     next.title = value['title'];
     next.instructions = (value['instructions'] as string) ?? '';
@@ -93,7 +95,8 @@ export function candidateEdit(
     }).questions;
   } else if (stage === 'materials' || stage === 'replace-material') {
     const candidates = stage === 'materials' ? value['materials'] : [value];
-    if (!Array.isArray(candidates) || !candidates.length || candidates.length > 4) return;
+    if (!Array.isArray(candidates) || !candidates.length || candidates.length > limits.maxMaterials)
+      return;
     const seen = new Set<string>();
     for (const item of candidates) {
       const material = object(item),
@@ -103,8 +106,8 @@ export function candidateEdit(
         seen.has(id) ||
         !plan.materials.some((m) => m.id === id && m.source === 'generated') ||
         (stage === 'replace-material' && id !== target) ||
-        !text(material?.['body'], 4000) ||
-        !(material?.['title'] == null || text(material['title'], 100))
+        !text(material?.['body'], limits.bodyLength) ||
+        !(material?.['title'] == null || text(material['title'], limits.titleLength))
       )
         return;
       seen.add(id);
@@ -118,5 +121,5 @@ export function candidateEdit(
       else next.materials[index] = edit;
     }
   } else return;
-  return documentValue(next).value ? next : undefined;
+  return documentValue(next, limits).value ? next : undefined;
 }

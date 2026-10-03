@@ -1,7 +1,12 @@
 import { applyEach, maxLength, schema, validate } from '@angular/forms/signals';
-import { ActivityDocument, EditableActivity, QuestionFormat } from '../../../core/api/models';
+import { count } from '../../../core/api/limits';
+import {
+  ActivityDocument,
+  ContentLimits,
+  EditableActivity,
+  QuestionFormat,
+} from '../../../core/api/models';
 import { isIntegerInput } from '../../../shared/forms/integer-input';
-import { maxQuestionCount } from '../../../shared/forms/task-settings';
 import { Projection } from '../plan-editor/plan-form';
 
 /** Editable-only values. Blank/invalid numeric keystrokes never become an accidental zero. */
@@ -20,22 +25,23 @@ export interface DocumentForm {
     points: string;
   }[];
 }
-export const documentSchema = schema<DocumentForm>((path) => {
-  maxLength(path.title, 100);
-  maxLength(path.instructions, 1000);
-  applyEach(path.materials, (material) => {
-    maxLength(material.title, 100);
-    maxLength(material.body, 4000);
+export const documentSchema = (limits: ContentLimits) =>
+  schema<DocumentForm>((path) => {
+    maxLength(path.title, limits.titleLength);
+    maxLength(path.instructions, limits.instructionsLength);
+    applyEach(path.materials, (material) => {
+      maxLength(material.title, limits.titleLength);
+      maxLength(material.body, limits.bodyLength);
+    });
+    applyEach(path.questions, (question) => {
+      maxLength(question.prompt, limits.promptLength);
+      maxLength(question.answer, limits.answerLength);
+      applyEach(question.options, (option) => maxLength(option.value, limits.answerLength));
+      validate(question.points, ({ value }) =>
+        validPoints(value(), limits) ? [] : [{ kind: 'points', message: pointsError(limits) }],
+      );
+    });
   });
-  applyEach(path.questions, (question) => {
-    maxLength(question.prompt, 500);
-    maxLength(question.answer, 200);
-    applyEach(question.options, (option) => maxLength(option.value, 200));
-    validate(question.points, ({ value }) =>
-      validPoints(value()) ? [] : [{ kind: 'points', message: 'יש להזין מספר שלם בין 0 ל־100.' }],
-    );
-  });
-});
 export function documentForm(document?: EditableActivity | ActivityDocument): DocumentForm {
   return {
     title: document?.title ?? '',
@@ -54,34 +60,43 @@ export function documentForm(document?: EditableActivity | ActivityDocument): Do
       })) ?? [],
   };
 }
-const validPoints = (value: string) =>
-  isIntegerInput(value) && Number(value) >= 0 && Number(value) <= 100;
+const validPoints = (value: string, limits: ContentLimits) =>
+  isIntegerInput(value) && Number(value) >= 0 && Number(value) <= limits.maxPoints;
+const pointsError = (limits: ContentLimits) => `יש להזין מספר שלם בין 0 ל־${limits.maxPoints}.`;
 /** Lenient draft projection: structural bounds only; incomplete answers stay repairable server diagnostics. */
-export function documentValue(raw: DocumentForm): Projection<EditableActivity> {
+export function documentValue(
+  raw: DocumentForm,
+  limits: ContentLimits,
+): Projection<EditableActivity> {
   const errors: string[] = [];
   let total = 0;
   const check = (value: string, max: number) => {
     total += value.length;
     if (value.length > max) errors.push(`שדה תוכן ארוך מדי (עד ${max} תווים).`);
   };
-  check(raw.title, 100);
-  check(raw.instructions, 1000);
+  check(raw.title, limits.titleLength);
+  check(raw.instructions, limits.instructionsLength);
   for (const m of raw.materials) {
-    check(m.title, 100);
-    check(m.body, 4000);
+    check(m.title, limits.titleLength);
+    check(m.body, limits.bodyLength);
   }
   for (const q of raw.questions) {
-    check(q.prompt, 500);
-    check(q.answer, 200);
-    if (!validPoints(q.points)) errors.push('נקודות: יש להזין מספר שלם בין 0 ל־100.');
+    check(q.prompt, limits.promptLength);
+    check(q.answer, limits.answerLength);
+    if (!validPoints(q.points, limits)) errors.push(`נקודות: ${pointsError(limits)}`);
     if (q.type === 'single-choice') {
-      if (q.options.length > 6) errors.push('אפשר להזין עד שש אפשרויות.');
-      for (const o of q.options) check(o.value, 200);
+      if (q.options.length > limits.maxChoiceCount)
+        errors.push(`אפשר להזין עד ${limits.maxChoiceCount} אפשרויות.`);
+      for (const o of q.options) check(o.value, limits.answerLength);
     }
   }
-  if (total > 8000 || raw.materials.length > 4 || raw.questions.length > maxQuestionCount)
+  if (
+    total > limits.contentLength ||
+    raw.materials.length > limits.maxMaterials ||
+    raw.questions.length > limits.maxQuestionCount
+  )
     errors.push(
-      `תוכן הפעילות חורג מהמגבלה: עד 8,000 תווים, ארבעה חומרים ו־${maxQuestionCount} שאלות.`,
+      `תוכן הפעילות חורג מהמגבלה: עד ${count(limits.contentLength)} תווים, ${limits.maxMaterials} חומרים ו־${limits.maxQuestionCount} שאלות.`,
     );
   return {
     errors,

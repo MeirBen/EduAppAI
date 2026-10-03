@@ -3,10 +3,16 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { ActivityLibrary } from './activity-library';
+import { provideLimits } from '../../../core/api/limits.fixture';
 describe('Activity library', () => {
   it('separates editable drafts and ready snapshots, and deletes only the explicitly selected draft', async () => {
     TestBed.configureTestingModule({
-      providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([])],
+      providers: [
+        provideHttpClient(),
+        provideHttpClientTesting(),
+        provideRouter([]),
+        provideLimits(),
+      ],
     });
     const fixture = TestBed.createComponent(ActivityLibrary),
       http = TestBed.inject(HttpTestingController);

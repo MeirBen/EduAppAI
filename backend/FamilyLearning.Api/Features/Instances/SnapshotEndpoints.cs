@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using FamilyLearning.Api.Infrastructure.Auth;
 using FamilyLearning.Api.Infrastructure.Persistence;
+using FamilyLearning.Api.TaskEngine.Validation;
 using Microsoft.EntityFrameworkCore;
 
 namespace FamilyLearning.Api.Features.Instances;
@@ -13,7 +14,7 @@ public static class SnapshotEndpoints
         var snapshots = api.MapGroup("/instances");
         snapshots.MapGet("/", async (ClaimsPrincipal user, LearningDbContext db, CancellationToken ct) =>
             await db.TaskSnapshots.AsNoTracking().Where(s => s.FamilyId == user.FamilyId()).OrderByDescending(s => s.ReviewedAtUtc)
-                .Take(100).Select(s => new SnapshotSummary(s.Id, s.Title, "Ready", s.ReviewedAtUtc)).ToListAsync(ct));
+                .Take(EngineValidation.ListLimit).Select(s => new SnapshotSummary(s.Id, s.Title, "Ready", s.ReviewedAtUtc)).ToListAsync(ct));
         snapshots.MapGet("/{id:guid}", async (Guid id, ClaimsPrincipal user, LearningDbContext db, CancellationToken ct) =>
         {
             var snapshot = await db.TaskSnapshots.AsNoTracking().SingleOrDefaultAsync(s => s.Id == id && s.FamilyId == user.FamilyId(), ct);

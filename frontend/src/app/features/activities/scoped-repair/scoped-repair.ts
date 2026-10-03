@@ -2,12 +2,14 @@ import {
   ChangeDetectionStrategy,
   Component,
   ElementRef,
+  inject,
   input,
   output,
   signal,
   viewChild,
 } from '@angular/core';
 import { form, FormField, maxLength } from '@angular/forms/signals';
+import { Limits } from '../../../core/api/limits';
 
 /**
  * Contextual AI improvement for one material or question. It keeps only its disclosure state and
@@ -34,7 +36,10 @@ export class ScopedRepair {
   readonly requested = output<string>();
   protected readonly open = signal(false);
   private readonly draft = signal({ instruction: '' });
-  protected readonly fields = form(this.draft, (path) => maxLength(path.instruction, 4000));
+  private readonly limits = inject(Limits).current;
+  protected readonly fields = form(this.draft, (path) =>
+    maxLength(path.instruction, this.limits.messageLength),
+  );
   private readonly trigger = viewChild.required<ElementRef<HTMLButtonElement>>('trigger');
   protected submit() {
     if (this.disabled()) return;

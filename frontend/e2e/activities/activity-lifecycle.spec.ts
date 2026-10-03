@@ -5,6 +5,7 @@ import {
   GenerationOperation,
   SnapshotPreview,
 } from '../../src/app/core/api/models';
+import limits from '../../src/app/core/api/limits.fixture.json';
 
 async function isolate(page: Page) {
   let draft: ActivityDetail = {
@@ -32,6 +33,7 @@ async function isolate(page: Page) {
     if (path === '/api/auth/me')
       return route.fulfill({ json: { email: 'parent@example.test', familyId: 'family' } });
     if (path === '/api/auth/csrf') return route.fulfill({ json: { token: 'isolated' } });
+    if (path === '/api/limits') return route.fulfill({ json: limits });
     if (path === '/api/ai/status')
       return route.fulfill({ json: { configured: true, schemaVersion: 1 } });
     if (path === '/api/templates/example')

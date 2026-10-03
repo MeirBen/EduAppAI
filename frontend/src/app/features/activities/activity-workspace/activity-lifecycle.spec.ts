@@ -12,6 +12,7 @@ import { RouterTestingHarness } from '@angular/router/testing';
 import { ActivityWorkspace } from './activity-workspace';
 import { numericPlan, suppliedPlan, sourceText } from '../learning-plan.fixture';
 import { ActivityDetail } from '../../../core/api/models';
+import { provideLimits } from '../../../core/api/limits.fixture';
 
 const savedQuestion = {
   id: 'q',
@@ -73,6 +74,7 @@ describe('Activity lifecycle', () => {
   beforeEach(async () => {
     TestBed.configureTestingModule({
       providers: [
+        provideLimits(),
         provideHttpClient(),
         provideHttpClientTesting(),
         provideRouter(

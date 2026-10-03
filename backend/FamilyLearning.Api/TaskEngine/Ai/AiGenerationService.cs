@@ -127,10 +127,11 @@ public sealed class AiGenerationService(IEnumerable<IChatClient> clients, ILogge
     private static void ValidateAuthoring(TemplateAuthoringInput input)
     {
         var errors = input.BaseDefinition is null ? new Dictionary<string, string[]>() : LearningPlanValidator.Validate(input.BaseDefinition);
-        if (string.IsNullOrWhiteSpace(input.Message) || input.Message.Length > 4000) errors["message"] = ["יש לכתוב בקשה באורך של עד 4,000 תווים."];
-        if (input.Context is { } context && (context.Length > 6 || context.Any(t => t is null ||
-            t.Role is not ("parent" or "assistant") || string.IsNullOrWhiteSpace(t.Text)) || context.Sum(t => (long)t.Text.Length) > 12000))
-            errors["context"] = ["יש לאחד את הבקשה לפני שממשיכים: עד שישה תורים ו־12,000 תווים."];
+        if (string.IsNullOrWhiteSpace(input.Message) || input.Message.Length > EngineValidation.MessageLength)
+            errors["message"] = [$"יש לכתוב בקשה באורך של עד {EngineValidation.Count(EngineValidation.MessageLength)} תווים."];
+        if (input.Context is { } context && (context.Length > EngineValidation.MaxContextTurns || context.Any(t => t is null ||
+            t.Role is not ("parent" or "assistant") || string.IsNullOrWhiteSpace(t.Text)) || context.Sum(t => (long)t.Text.Length) > EngineValidation.ContextLength))
+            errors["context"] = [$"יש לאחד את הבקשה לפני שממשיכים: עד {EngineValidation.MaxContextTurns} תורים ו־{EngineValidation.Count(EngineValidation.ContextLength)} תווים."];
         if (errors.Count > 0) throw new TaskValidationException(errors);
     }
 

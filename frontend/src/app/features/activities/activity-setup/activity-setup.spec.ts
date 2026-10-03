@@ -12,6 +12,7 @@ import {
 } from '../plan-editor/plan-form';
 import { numericPlan, readingPlan, suppliedPlan } from '../learning-plan.fixture';
 import { LearningPlan } from '../../../core/api/models';
+import { limits, provideLimits } from '../../../core/api/limits.fixture';
 
 @Component({
   imports: [ActivitySetup, PlanEditor],
@@ -25,7 +26,7 @@ import { LearningPlan } from '../../../core/api/models';
 })
 class Host {
   readonly raw = signal({ plan: planForm(numericPlan), input: inputForm(numericPlan) });
-  readonly fields = form(this.raw, (path) => apply(path.plan, planFormSchema));
+  readonly fields = form(this.raw, (path) => apply(path.plan, planFormSchema(limits)));
   readonly pending = signal<string[]>([]);
   readonly reusable = signal(false);
 }
@@ -42,6 +43,7 @@ const visibleText = (root: HTMLElement) =>
     .join(' ');
 
 describe('Activity setup', () => {
+  beforeEach(() => TestBed.configureTestingModule({ providers: [provideLimits()] }));
   it('shows supplied-source text in parent language without length fields or invented choices', async () => {
     const { root } = await render(suppliedPlan, (host) =>
       host.pending.set([suppliedPlan.materials[0].id]),
@@ -158,18 +160,15 @@ describe('Activity setup', () => {
     }
     root.querySelector<HTMLInputElement>(`#${'c'.repeat(32)}-provided`)!.click();
     await fixture.whenStable();
-    const request = requestValue(plan, host.raw().input);
+    const request = requestValue(plan, host.raw().input, limits);
     expect(request.errors).toEqual([]);
     expect(request.value?.controlValues).toEqual({
       ['a'.repeat(32)]: 0,
       ['b'.repeat(32)]: false,
       ['c'.repeat(32)]: '',
     });
-    expect(planValue(host.raw().plan).value?.controls.map((control) => control.default)).toEqual([
-      4,
-      true,
-      'רגיל',
-      undefined,
-    ]);
+    expect(
+      planValue(host.raw().plan, limits).value?.controls.map((control) => control.default),
+    ).toEqual([4, true, 'רגיל', undefined]);
   });
 });

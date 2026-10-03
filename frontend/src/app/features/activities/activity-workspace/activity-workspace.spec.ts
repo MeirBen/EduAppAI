@@ -11,6 +11,7 @@ import { PageReuseStrategy } from '../../../core/page-reuse-strategy';
 import { LearningPlan } from '../../../core/api/models';
 import { ActivityWorkspace } from './activity-workspace';
 import { numericPlan, suppliedPlan, sourceText } from '../learning-plan.fixture';
+import { provideLimits } from '../../../core/api/limits.fixture';
 
 describe('ActivityWorkspace plan ownership', () => {
   let harness: RouterTestingHarness;
@@ -70,6 +71,7 @@ describe('ActivityWorkspace plan ownership', () => {
   beforeEach(async () => {
     TestBed.configureTestingModule({
       providers: [
+        provideLimits(),
         provideHttpClient(),
         provideHttpClientTesting(),
         provideRouter(

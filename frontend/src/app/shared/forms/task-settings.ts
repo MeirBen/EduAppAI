@@ -1,5 +1,5 @@
 import { schema, validate } from '@angular/forms/signals';
-import { TaskSettings } from '../../core/api/models';
+import { ContentLimits, TaskSettings } from '../../core/api/models';
 import { isIntegerInput } from './integer-input';
 
 /** Keep numeric input as text until submission so blank or fractional values stay invalid. */
@@ -10,29 +10,30 @@ export const difficultyLabels = { easy: 'קלה', medium: 'בינונית', hard
   string
 >;
 
-/** Mirrors the API's per-activity question cap. */
-export const maxQuestionCount = 20;
-
 /** Shared by template defaults and per-task choices; the API validates independently. */
-export const taskSettingsSchema = schema<TaskSettingsDraft>((path) => {
-  for (const key of ['topic', 'audience'] as const) {
-    validate(path[key], ({ value }) =>
-      value().trim() && value().length <= 200
+export const taskSettingsSchema = (limits: ContentLimits) =>
+  schema<TaskSettingsDraft>((path) => {
+    for (const key of ['topic', 'audience'] as const) {
+      validate(path[key], ({ value }) =>
+        value().trim() && value().length <= limits.settingTextLength
+          ? undefined
+          : { kind: key, message: `יש להזין טקסט עד ${limits.settingTextLength} תווים.` },
+      );
+    }
+    validate(path.difficulty, ({ value }) =>
+      Object.hasOwn(difficultyLabels, value())
         ? undefined
-        : { kind: key, message: 'יש להזין טקסט עד 200 תווים.' },
+        : { kind: 'difficulty', message: 'יש לבחור רמת קושי.' },
     );
-  }
-  validate(path.difficulty, ({ value }) =>
-    Object.hasOwn(difficultyLabels, value())
-      ? undefined
-      : { kind: 'difficulty', message: 'יש לבחור רמת קושי.' },
-  );
-  validate(path.questionCount, ({ value }) =>
-    isIntegerInput(value()) && Number(value()) >= 1 && Number(value()) <= maxQuestionCount
-      ? undefined
-      : { kind: 'questionCount', message: `יש להזין מספר שלם בין 1 ל־${maxQuestionCount}.` },
-  );
-});
+    validate(path.questionCount, ({ value }) =>
+      isIntegerInput(value()) && Number(value()) >= 1 && Number(value()) <= limits.maxQuestionCount
+        ? undefined
+        : {
+            kind: 'questionCount',
+            message: `יש להזין מספר שלם בין 1 ל־${limits.maxQuestionCount}.`,
+          },
+    );
+  });
 
 export function taskSettingsDraft(settings: TaskSettings): TaskSettingsDraft {
   return { ...settings, questionCount: String(settings.questionCount) };

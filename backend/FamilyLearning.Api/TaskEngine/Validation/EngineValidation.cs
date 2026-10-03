@@ -15,9 +15,31 @@ internal static class EngineValidation
     // Stated in the authoring prompt, not as schema bounds: bounded control and option lists exceed provider schema budgets.
     internal const int MaxControls = 16;
     internal const int MaxSelectOptions = 20;
+    internal const int MaxMaterials = 4;
+    internal const int MaxPoints = 100;
+    // Field lengths; ContentLimits publishes them so the client mirrors exactly what these validators enforce.
+    internal const int NameLength = 100;
+    internal const int GoalLength = 500;
+    internal const int GuidanceLength = 4000;
+    internal const int ScopedGuidanceLength = 1000;
+    internal const int MeaningLength = 500;
+    internal const int TextValueLength = 500;
+    internal const int SelectOptionLength = 100;
+    internal const int SelectOptionMeaningLength = 200;
+    internal const int SettingTextLength = 200;
+    internal const int TitleLength = 100;
+    internal const int InstructionsLength = 1000;
+    internal const int PromptLength = 500;
+    internal const int AnswerLength = 200;
+    internal const int MessageLength = 4000;
+    internal const int MaxContextTurns = 6;
+    internal const int ContextLength = 12000;
+    internal const int ListLimit = 100;
 
-    internal static readonly string ContentLimitError =
-        string.Create(CultureInfo.InvariantCulture, $"התוכן כולו מוגבל ל־{ContentLimit:N0} תווים.");
+    internal static readonly string ContentLimitError = $"התוכן כולו מוגבל ל־{Count(ContentLimit)} תווים.";
+
+    /// <summary>Formats a limit for Hebrew feedback with invariant digit grouping, independent of server culture.</summary>
+    internal static string Count(int value) => value.ToString("N0", CultureInfo.InvariantCulture);
 
     internal static long MinimumQuestionLength(int count, string[] formats, int? choices, string? selectedFormat = null)
     {
