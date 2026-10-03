@@ -82,7 +82,8 @@ copied exactly by `TaskAssembly`. Accepted material checkpoints survive question
 failure. No automatic repair or retry is made. A question replacement is atomic
 over its prompt, options and answer; sibling content stays unchanged.
 
-`AiSchemas` builds request-owned schemas with exact counts and allowed IDs; the
+`AiSchemas` builds request-owned schemas with exact counts (questions up to
+`Ai:StrictQuestionCountLimit` in schema mode) and allowed IDs; the
 schema files hold structure, and engine constants (schema version, question cap)
 are applied in code so they cannot drift from the validators. Prompts state
 limits from the same `EngineValidation` constants.

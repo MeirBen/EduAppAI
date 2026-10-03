@@ -1,6 +1,7 @@
 using System.ClientModel;
 using System.ClientModel.Primitives;
 using FamilyLearning.Api.TaskEngine.Ai;
+using FamilyLearning.Api.TaskEngine.Validation;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Options;
 using OpenAI;
@@ -24,6 +25,8 @@ public static class OpenRouterRegistration
                 "Ai:MaxRequestBytes must be positive and at most 512 KiB.")
             .Validate(options => options.MaxSchemaBytes is >= 1 and <= AiGenerationOptions.SchemaByteLimit,
                 "Ai:MaxSchemaBytes must be positive and at most 64 KiB.")
+            .Validate(options => options.StrictQuestionCountLimit is >= 0 and <= EngineValidation.MaxQuestionCount,
+                $"Ai:StrictQuestionCountLimit must be between 0 and {EngineValidation.MaxQuestionCount}.")
             .ValidateOnStart();
         services.AddSingleton<AiGenerationService>();
         var key = configuration["Ai:ApiKey"] ?? configuration["OPENROUTER_API_KEY"];

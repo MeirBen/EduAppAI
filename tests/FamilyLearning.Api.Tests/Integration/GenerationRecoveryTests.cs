@@ -61,6 +61,7 @@ public sealed class GenerationRecoveryTests
     [InlineData("Ai:Model", "another-isolated-model", "conflict")]
     [InlineData("Ai:ResponseFormat", "text", "conflict")]
     [InlineData("Ai:SchemaInPrompt", "true", "conflict")]
+    [InlineData("Ai:StrictQuestionCountLimit", "10", "conflict")]
     public async Task Restart_compares_the_nonsecret_profile_and_allows_credential_rotation(string setting, string value, string expected)
     {
         await using var app = new GenerationHarness(Questions());

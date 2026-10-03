@@ -125,8 +125,8 @@ Server limits include:
   guidance 4,000; material/question guidance 1,000.
 - Up to 16 controls across all scopes; text values up to 500 characters; select
   controls have 1–20 distinct options, each up to 100 characters.
-- Questions: 1–20 per activity, the largest exact count the strict AI schema
-  accepts for every question shape (see [AI guide](ai.md#strict-schema-contract)).
+- Questions: 1–20 per activity. Strict AI schemas carry the exact count up to a
+  configured endpoint limit (see [AI guide](ai.md#strict-schema-contract)).
 - Documents: 0–4 materials and 8,000 total text characters; at least one complete
   question is required for release, while bounded incomplete drafts can be saved.
 - Title 100; instructions 1,000; material body 4,000; prompt 500; answer/option

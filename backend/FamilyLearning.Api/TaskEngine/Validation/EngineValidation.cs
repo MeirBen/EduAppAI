@@ -8,7 +8,7 @@ internal static class EngineValidation
     internal const int ContentLimit = 8000;
     internal const int BodyLimit = 4000;
     internal const int PlanLimit = 24000;
-    // Exact question and choice counts are strict-schema constraints; 20 keeps every valid shape within provider schema budgets.
+    // Product caps. Strict schemas carry exact question counts up to Ai:StrictQuestionCountLimit, choice counts always.
     internal const int MaxQuestionCount = 20;
     internal const int MinChoiceCount = 2;
     internal const int MaxChoiceCount = 6;

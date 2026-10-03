@@ -25,8 +25,9 @@ answer keys or educational content are consistently good.
 - Live acceptance ran six cases covering every stage in three rounds: 42 calls,
   all automatic checks passed, every response contract-valid, no retry or
   repair. This small sample is not a reliability rate.
-- An activity has at most 20 questions (owner decision, 2 October). Larger
-  exact-count question arrays exceed Gemini's budget for heavier shapes.
+- An activity has at most 20 questions (owner decision, 2 October). How many
+  of those a strict schema counts exactly is an endpoint setting, measured at
+  20 for Gemini.
 - Keep the earlier material instructions and clearer authoring-field
   descriptions: they improved sampled contract adherence on DeepSeek. The latest
   shared material replacement instructions are a cleanup with comparable
@@ -74,7 +75,8 @@ override the file. Restart after changes. Credentials never belong in reports.
 Current profile: `google/gemini-3.8-flash`, strict `json_schema`, reasoning
 enabled at `medium`, no fixed reasoning-token budget, no temperature/top-p/top-k
 overrides, no strict-mode prompt copy, 16,384 requested output tokens,
-180-second deadline, no fallback model and no excluded providers. The compiled
+180-second deadline, a strict question-count limit of 20, no fallback model and
+no excluded providers. The compiled
 request ceiling is 512 KiB; the schema ceiling is 64 KiB. The output character
 limit is separately enforced by the engine. Requests set `strict: true` and
 `provider.require_parameters`, so OpenRouter routes only to endpoints supporting
@@ -96,6 +98,7 @@ occurred; the reason its display differs between models has not been verified.
 | `Model`                       | Required OpenRouter model ID.  |
 | `ResponseFormat`              | Schema, JSON object, or text.  |
 | `SchemaInPrompt`              | Strict-mode prompt copy.       |
+| `StrictQuestionCountLimit`    | Exact-count ceiling; 0–20.     |
 | `ReasoningEnabled`            | True, false, or null.          |
 | `ReasoningEffort`             | Supported effort; empty omits. |
 | `ReasoningMaxTokens`          | Budget; null omits.            |
@@ -138,8 +141,9 @@ the reasoning and sampling controls it supports, then choose the response mode.
 Use `json_schema` when the endpoint accepts the full schema in a strict
 acceptance run, otherwise `json_object`. Set `SchemaInPrompt` when the endpoint
 enforces the schema without showing it to the model; Gemini shows field names
-and descriptions. Engine limits are product limits verified within Gemini's
-schema budget; an endpoint with a smaller budget needs `json_object`.
+and descriptions. Set `StrictQuestionCountLimit` to the largest exact question
+batch the endpoint accepts; larger batches still work, with the count enforced
+by validation instead of decoding.
 Any fallback must support the same controls;
 [fallback routing][fallback] handles provider errors, not invalid or poor content.
 The app makes one call per applicable stage. The optional evaluation judge uses
@@ -164,8 +168,9 @@ the declared key order.
   Google lists "long array length limits" and nested arrays as causes.
   Size policies that the validator owns, such as 16 controls per plan and 1–20
   distinct options, are therefore not decoding bounds. Generation counts stay
-  exact: up to four materials and 1–20 questions. The heaviest valid question
-  shape (all formats, six choices) is accepted at 20 and rejected at 25.
+  exact: up to four materials, and questions up to `StrictQuestionCountLimit`.
+  For Gemini the heaviest valid question shape (all formats, six choices) is
+  accepted at 20 and rejected at 25, so its limit is 20.
   The authoring prompt states the control and option limits instead, from the
   same constants the validators use. Without
   that line, a request naming 25 topics returned a 25-option select that the
@@ -195,15 +200,16 @@ Every limit is enforced by the validators and shown to the model where Gemini
 can carry it. Over-limit requests for 30 questions, six passages and a
 25-option select each drew a focused clarification instead of a rejected plan.
 
-- **Provider-driven:** questions 1–20 and choices 2–6 are exact schema counts.
-  Google documents the array-length cost but publishes no budget, so 20 is the
-  ceiling measured for the heaviest shape at six choices; raising either needs a
-  new acceptance probe. Unbounded control and option lists, the missing prompt
+- **Provider-driven:** `StrictQuestionCountLimit` is the endpoint's exact-count
+  ceiling. Google documents the array-length cost but publishes no budget, so
+  it is measured: 20 for Gemini at six choices. Re-measure it for a new model or
+  a higher choice cap. Unbounded control and option lists, the missing prompt
   copy, equal version bounds ([string enums only][vertex-schema]) and ignored
   length/pattern keywords ([supported subset][gemini-schema]) are also
   provider-driven.
-- **Product policy:** 16 controls per plan, 1–20 select options, 0–4
-  materials, 8,000 content characters and field lengths are owner-set limits in
+- **Product policy:** 1–20 questions, 2–6 choices, 16 controls per plan, 1–20
+  select options, 0–4 materials, 8,000 content characters and field lengths are
+  owner-set limits in
   the [product specification](product-specification.md); no third-party source
   sets them. They bound untrusted input, storage and model output. Materials use
   schema `maxItems`; controls and options are stated in the authoring prompt.
@@ -612,7 +618,7 @@ transport/accounting, negative replacement and compiled prompt-scope checks pass
 The browser workflow did not change during tuning, so its cutover suite was not
 rerun for those changes. These are dated engineering results, not AI quality scores.
 
-The 2 October strict-schema change passed `scripts/verify.sh`: 558 backend, 123
+The 2 October strict-schema change passed `scripts/verify.sh`: 564 backend, 123
 Angular and 23 dashboard tests plus builds, formatting, Markdown and TypeScript
 checks. New regressions cover null-only wire branches, unbounded control lists
 with validator-owned limits, and the 20-question cap in the API and plan editor;

@@ -1,5 +1,6 @@
 using System.Globalization;
 using FamilyLearning.Api.TaskEngine.Ai;
+using FamilyLearning.Api.TaskEngine.Validation;
 
 namespace FamilyLearning.Api.Infrastructure.Ai;
 
@@ -19,6 +20,8 @@ public static class AiProfile
         if (ignoredProviders.Length > 0)
             profile["IgnoredProviders"] = string.Join(",", ignoredProviders.Order(StringComparer.Ordinal));
         if (configuration.GetValue<bool>("Ai:SchemaInPrompt")) profile["SchemaInPrompt"] = bool.TrueString;
+        if (configuration.GetValue<int?>("Ai:StrictQuestionCountLimit") is { } limit && limit != EngineValidation.MaxQuestionCount)
+            profile["StrictQuestionCountLimit"] = limit.ToString(CultureInfo.InvariantCulture);
         return profile;
     }
 }

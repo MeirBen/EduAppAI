@@ -18,7 +18,8 @@ public sealed class AiGenerationService(IEnumerable<IChatClient> clients, ILogge
     private readonly TimeSpan requestTimeout = options.Value.RequestTimeout;
     private readonly int maxOutputTokens = options.Value.MaxOutputTokens;
     private readonly int maxSchemaBytes = options.Value.MaxSchemaBytes;
-    private readonly bool promptSchema = options.Value.ResponseFormat != "json_schema" || options.Value.SchemaInPrompt;
+    private readonly bool promptSchema = !options.Value.StrictSchema || options.Value.SchemaInPrompt;
+    private readonly int exactQuestionCountLimit = options.Value.StrictSchema ? options.Value.StrictQuestionCountLimit : int.MaxValue;
     private readonly SemaphoreSlim capacity = new(2, 2);
     private static readonly JsonSerializerOptions Json = EngineJson.Options;
 
@@ -68,7 +69,7 @@ public sealed class AiGenerationService(IEnumerable<IChatClient> clients, ILogge
         var prepared = TaskAssembly.PrepareQuestions(input.Request, current);
         var result = await RequestAsync<QuestionCandidateBatch>(AiPrompts.QuestionGeneration,
             JsonSerializer.Serialize(new { request = EffectiveInput(input.Request), materials = SourceContext(prepared.Materials) }, Json),
-            AiSchemas.QuestionsFor(input.Request), AiPrompts.Version("questions"), ct, evidence: evidence);
+            AiSchemas.QuestionsFor(input.Request, exactQuestionCountLimit), AiPrompts.Version("questions"), ct, evidence: evidence);
         var errors = TaskDocumentValidator.ValidateQuestionBatch(input.Request, current with { Materials = prepared.Materials }, result.Value);
         if (errors.Count > 0) throw InvalidOutput("question-validation", result.Metadata.PromptVersion, errors);
         return result;
@@ -102,7 +103,7 @@ public sealed class AiGenerationService(IEnumerable<IChatClient> clients, ILogge
                 target = new { target.Prompt, target.Interaction, target.Answer, target.Points },
                 materials = SourceContext(input.Current.Materials),
                 input.Instruction
-            }, Json), AiSchemas.QuestionsFor(input.Request, replacement: true), AiPrompts.Version("replace-question"), ct, evidence: evidence);
+            }, Json), AiSchemas.QuestionsFor(input.Request, exactQuestionCountLimit, replacement: true), AiPrompts.Version("replace-question"), ct, evidence: evidence);
         try { TaskAssembly.ReplaceQuestion(input, result.Value, result.Metadata); }
         catch (TaskValidationException exception) { throw InvalidOutput("question-validation", result.Metadata.PromptVersion, exception.Errors); }
         return result;

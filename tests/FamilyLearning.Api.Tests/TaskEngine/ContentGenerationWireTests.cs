@@ -8,6 +8,7 @@ using FamilyLearning.Api.TaskEngine.Validation;
 using FamilyLearning.Api.Tests.Fixtures;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 using static FamilyLearning.Api.Tests.TaskEngine.ContentGenerationTests;
 using static FamilyLearning.Api.Tests.TaskEngine.LearningPlanFixture;
 
@@ -62,6 +63,38 @@ public sealed class ContentGenerationWireTests
             JsonValueKind.Array => node.EnumerateArray().SelectMany(Types),
             _ => []
         };
+    }
+
+    [Theory]
+    [InlineData("json_schema", "2", false)]
+    [InlineData("json_schema", "3", true)]
+    [InlineData("json_object", "2", true)]
+    public async Task Strict_question_count_limit_bounds_exact_counts_in_strict_schemas_only(string mode, string limit, bool exact)
+    {
+        await using var local = await LocalAiProvider.StartAsync();
+        local.Respond = _ => Serialize(Questions(count: 3));
+        using var services = local.Services(mode, new() { ["Ai:StrictQuestionCountLimit"] = limit });
+        var request = Resolve(Numeric(3));
+        await services.GetRequiredService<AiGenerationService>().GenerateQuestionsAsync(
+            TaskAssembly.PrepareQuestions(request, TaskAssembly.CreateDocument(request)), default);
+        using var body = JsonDocument.Parse(Assert.Single(local.Bodies));
+        var root = body.RootElement;
+        using var schema = JsonDocument.Parse(mode == "json_schema"
+            ? root.GetProperty("response_format").GetProperty("json_schema").GetProperty("schema").GetRawText()
+            : root.GetProperty("messages")[0].GetProperty("content").GetString()!.Split("\nOutput JSON schema:\n")[1]);
+        var questions = schema.RootElement.GetProperty("properties").GetProperty("questions");
+        Assert.Equal(exact, questions.TryGetProperty("minItems", out _));
+        Assert.Equal(exact, questions.TryGetProperty("maxItems", out _));
+    }
+
+    [Theory]
+    [InlineData("-1")]
+    [InlineData("21")]
+    public async Task Strict_question_count_limit_stays_within_the_product_cap(string limit)
+    {
+        await using var local = await LocalAiProvider.StartAsync();
+        using var services = local.Services("json_schema", new() { ["Ai:StrictQuestionCountLimit"] = limit });
+        Assert.Throws<OptionsValidationException>(() => services.GetRequiredService<AiGenerationService>());
     }
 
     [Theory]

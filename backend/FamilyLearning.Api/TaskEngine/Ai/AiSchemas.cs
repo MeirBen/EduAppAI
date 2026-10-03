@@ -22,12 +22,16 @@ internal static class AiSchemas
         return JsonSerializer.SerializeToElement(replacement ? materials["items"] : schema);
     }
 
-    public static JsonElement QuestionsFor(ResolvedTaskRequest request, bool replacement = false)
+    public static JsonElement QuestionsFor(ResolvedTaskRequest request, int exactCountLimit, bool replacement = false)
     {
         var schema = JsonSerializer.SerializeToNode(Questions)!;
         var questions = schema["properties"]!["questions"]!;
-        questions["minItems"] = request.Settings.QuestionCount;
-        questions["maxItems"] = request.Settings.QuestionCount;
+        // Above the endpoint's limit an exact-count array exceeds its schema budget; the prompt and validator own the count.
+        if (request.Settings.QuestionCount <= exactCountLimit)
+        {
+            questions["minItems"] = request.Settings.QuestionCount;
+            questions["maxItems"] = request.Settings.QuestionCount;
+        }
         var interaction = questions["items"]!["properties"]!["interaction"]!["properties"]!;
         interaction["type"]!["enum"] = JsonSerializer.SerializeToNode(request.Questions.Formats);
         if (request.Questions.ChoiceCount is { } count)
