@@ -18,6 +18,7 @@ public static class AiProfile
         var ignoredProviders = configuration.GetSection("Ai:IgnoredProviders").Get<string[]>() ?? [];
         if (ignoredProviders.Length > 0)
             profile["IgnoredProviders"] = string.Join(",", ignoredProviders.Order(StringComparer.Ordinal));
+        if (configuration.GetValue<bool>("Ai:SchemaInPrompt")) profile["SchemaInPrompt"] = bool.TrueString;
         return profile;
     }
 }

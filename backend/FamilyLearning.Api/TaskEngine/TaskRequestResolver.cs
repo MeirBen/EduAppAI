@@ -99,6 +99,7 @@ public static class TaskRequestResolver
         foreach (var property in input.EnumerateObject())
         {
             if (!values.TryAdd(property.Name, property.Value)) errors.AddError(path, "אין לחזור על אותו שדה.");
+            // No legitimate map, including material inputs, needs more entries than the plan-wide control limit.
             if (values.Count > MaxControls)
             {
                 errors.AddError(path, "יש יותר מדי שדות.");

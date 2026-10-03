@@ -35,7 +35,7 @@ internal static class AiSchemas
             interaction["options"]!["minItems"] = count;
             interaction["options"]!["maxItems"] = count;
         }
-        // OpenRouter's Gemini conversion widens a standalone null type to a nullable string; ["null"] stays exact.
+        // ["null"] is the portable null-only form; OpenRouter widens a standalone null type to a nullable string for Gemini.
         else interaction["options"] = new JsonObject { ["type"] = new JsonArray("null") };
         if (request.Questions.Formats is ["single-choice"]) interaction["options"]!["type"] = "array";
         return JsonSerializer.SerializeToElement(replacement ? questions["items"] : schema);
@@ -46,7 +46,7 @@ internal static class AiSchemas
         var schema = JsonSerializer.SerializeToNode(Read("template.schema.json"))!;
         var definitions = schema["$defs"]!;
         var plan = definitions["plan"]!["properties"]!;
-        // OpenRouter's Gemini conversion drops this plan with an integer enum; equal bounds preserve the exact version.
+        // Equal bounds pin the version portably; integer enums are not universally supported (OpenRouter erases this plan for Gemini).
         plan["schemaVersion"]!["minimum"] = EngineVersions.SchemaVersion;
         plan["schemaVersion"]!["maximum"] = EngineVersions.SchemaVersion;
         plan["defaults"]!["properties"]!["questionCount"]!["maximum"] = EngineValidation.MaxQuestionCount;

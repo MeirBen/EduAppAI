@@ -18,7 +18,7 @@ public sealed class AiGenerationService(IEnumerable<IChatClient> clients, ILogge
     private readonly TimeSpan requestTimeout = options.Value.RequestTimeout;
     private readonly int maxOutputTokens = options.Value.MaxOutputTokens;
     private readonly int maxSchemaBytes = options.Value.MaxSchemaBytes;
-    private readonly bool nativeSchema = options.Value.ResponseFormat == "json_schema";
+    private readonly bool promptSchema = options.Value.ResponseFormat != "json_schema" || options.Value.SchemaInPrompt;
     private readonly SemaphoreSlim capacity = new(2, 2);
     private static readonly JsonSerializerOptions Json = EngineJson.Options;
 
@@ -144,8 +144,8 @@ public sealed class AiGenerationService(IEnumerable<IChatClient> clients, ILogge
         var started = Stopwatch.GetTimestamp();
         try
         {
-            // One schema source. Strict mode delivers it natively; Gemini's guidance warns that a prompt copy can lower quality.
-            var instructions = nativeSchema ? systemPrompt : $"{systemPrompt}\nOutput JSON schema:\n{JsonSerializer.Serialize(schema, Json)}";
+            // Endpoints that show the native schema need no copy, which can lower output quality; other modes rely on it.
+            var instructions = promptSchema ? $"{systemPrompt}\nOutput JSON schema:\n{JsonSerializer.Serialize(schema, Json)}" : systemPrompt;
             if (evidence is not null)
             {
                 evidence.Request = instructions + "\n" + input;

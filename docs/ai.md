@@ -73,11 +73,12 @@ override the file. Restart after changes. Credentials never belong in reports.
 
 Current profile: `google/gemini-3.8-flash`, strict `json_schema`, reasoning
 enabled at `medium`, no fixed reasoning-token budget, no temperature/top-p/top-k
-overrides, 16,384 requested output tokens, 180-second deadline, no fallback
-model and no excluded providers. The compiled request ceiling is 512 KiB; the
-schema ceiling is 64 KiB. The output character limit is separately enforced by
-the engine. Requests set `strict: true` and `provider.require_parameters`, so
-OpenRouter routes only to endpoints supporting structured outputs.
+overrides, no strict-mode prompt copy, 16,384 requested output tokens,
+180-second deadline, no fallback model and no excluded providers. The compiled
+request ceiling is 512 KiB; the schema ceiling is 64 KiB. The output character
+limit is separately enforced by the engine. Requests set `strict: true` and
+`provider.require_parameters`, so OpenRouter routes only to endpoints supporting
+structured outputs.
 
 Medium reasoning and omitted sampling follow the reviewed [Google guidance][gemini]
 and [OpenRouter reasoning mapping][reasoning]. These are a starting profile, not
@@ -94,6 +95,7 @@ occurred; the reason its display differs between models has not been verified.
 | ----------------------------- | ------------------------------ |
 | `Model`                       | Required OpenRouter model ID.  |
 | `ResponseFormat`              | Schema, JSON object, or text.  |
+| `SchemaInPrompt`              | Strict-mode prompt copy.       |
 | `ReasoningEnabled`            | True, false, or null.          |
 | `ReasoningEffort`             | Supported effort; empty omits. |
 | `ReasoningMaxTokens`          | Budget; null omits.            |
@@ -130,10 +132,14 @@ OpenRouter key spending limit. A [community token-overshoot report][token-report
 remains unverified here; [community low-thinking reports][community] concern other
 workloads and do not establish Hebrew educational quality.
 
-Before switching models, check [endpoint metadata][metadata] and official provider
-docs, then review the entire profile. Schema acceptance is provider-specific:
-rerun strict acceptance, and confirm the endpoint exposes the schema to the model
-(Gemini uses field names and descriptions), before relying on strict mode there.
+Switching models is a configuration change: no code branches on the model.
+Check [endpoint metadata][metadata] and official provider docs, set `Model` and
+the reasoning and sampling controls it supports, then choose the response mode.
+Use `json_schema` when the endpoint accepts the full schema in a strict
+acceptance run, otherwise `json_object`. Set `SchemaInPrompt` when the endpoint
+enforces the schema without showing it to the model; Gemini shows field names
+and descriptions. Engine limits are product limits verified within Gemini's
+schema budget; an endpoint with a smaller budget needs `json_object`.
 Any fallback must support the same controls;
 [fallback routing][fallback] handles provider errors, not invalid or poor content.
 The app makes one call per applicable stage. The optional evaluation judge uses
@@ -147,10 +153,11 @@ with OpenRouter's [upstream debug echo][upstream-debug]: the app's schemas now
 reach Google unchanged apart from an added `propertyOrdering`, which matches
 the declared key order.
 
-- **No prompt copy in strict mode.** Google's [structured output guidance][vertex-schema]
-  says to supply the schema only as the response schema, because a prompt copy
-  can lower quality. Gemini counts the native schema as input, so removing the
-  copy and the noise below cut authoring input from about 7,100 to 5,000 tokens.
+- **No prompt copy in strict mode** unless `SchemaInPrompt` is set. Google's
+  [structured output guidance][vertex-schema] says to supply the schema only as
+  the response schema, because a prompt copy can lower quality. Gemini counts
+  the native schema as input, so removing the copy and the noise below cut
+  authoring input from about 7,100 to 5,000 tokens.
 - **Stay inside the complexity budget.** Gemini compiles the schema into a
   decoding constraint and expands bounded arrays per item. Past an undisclosed
   budget it returns a bare HTTP 400 `INVALID_ARGUMENT` that names no field;
@@ -183,6 +190,25 @@ the declared key order.
   acceptance round invented adjustable choice and length counts for the space
   prompt, matching three earlier observations; the next two rounds did not.
   That sample is too small to estimate a rate.
+
+Every limit is enforced by the validators and shown to the model where Gemini
+can carry it. Over-limit requests for 30 questions, six passages and a
+25-option select each drew a focused clarification instead of a rejected plan.
+
+- **Provider-driven:** questions 1–20 and choices 2–6 are exact schema counts.
+  Google documents the array-length cost but publishes no budget, so 20 is the
+  ceiling measured for the heaviest shape at six choices; raising either needs a
+  new acceptance probe. Unbounded control and option lists, the missing prompt
+  copy, equal version bounds ([string enums only][vertex-schema]) and ignored
+  length/pattern keywords ([supported subset][gemini-schema]) are also
+  provider-driven.
+- **Product policy:** 16 controls per plan, 1–20 select options, 0–4
+  materials, 8,000 content characters and field lengths are owner-set limits in
+  the [product specification](product-specification.md); no third-party source
+  sets them. They bound untrusted input, storage and model output. Materials use
+  schema `maxItems`; controls and options are stated in the authoring prompt.
+- **Configuration:** 16,384 output tokens (validated up to 32,768) stay below
+  the endpoint maximum of 65,536 in [OpenRouter metadata][metadata].
 
 ## Evaluation results
 
@@ -385,13 +411,14 @@ conservative allowances for missing costs, **not confirmed charges**.
 | Gemini strict schema  |    11 | $0.0117457500 | $0.326841750 |
 | Strict root cause     |    96 | $0.5185207500 | $0.199239750 |
 | Control limits        |     3 | $0.0293505000 | $0.000000000 |
-| Total                 |   362 | $1.4000133406 | $1.630131600 |
+| Plan limits           |     2 | $0.0192232500 | $0.000000000 |
+| Total                 |   364 | $1.4192365906 | $1.630131600 |
 
 First tuning includes the post-cutover material and qualification experiments.
 
-Total charged/reserved: **$3.0301449406**. The owner authorized up to $3 of live
-calls for the 2 October root-cause session and its 3 October follow-up. Their
-known cost was $0.5479; the
+Total charged/reserved: **$3.0493681906**. The owner authorized up to $3 of live
+calls for the 2 October root-cause session and its 3 October follow-ups. Their
+known cost was $0.5671; the
 reserve covers 28 HTTP 400 schema rejections at full output price. Key usage
 afterwards matched reported per-call costs exactly, including two rejections at
 $0, so the rejections appear free, but they stay reserved under this ledger's
@@ -435,7 +462,9 @@ harness rounds (`harness/`, `harness-final/`, `harness-release/`) and
 `gemini-strict-contract-2026-10-02/support-reproduction.md`; it predates the
 dropped-`description` finding. The closed `gemini-control-limits-2026-10-03/`
 ledger keeps the three prompt-limit calls: the 25-topic baseline, its repeat
-after the prompt line, and the space-prompt regression check.
+after the prompt line, and the space-prompt regression check. The closed
+`gemini-plan-limits-2026-10-03/` ledger keeps the 30-question and six-passage
+clarification checks.
 Do not edit historical reports to match new code or report formats. The latest manifest
 hashes captured source versions, not this subsequently consolidated documentation.
 
@@ -583,7 +612,7 @@ transport/accounting, negative replacement and compiled prompt-scope checks pass
 The browser workflow did not change during tuning, so its cutover suite was not
 rerun for those changes. These are dated engineering results, not AI quality scores.
 
-The 2 October strict-schema change passed `scripts/verify.sh`: 555 backend, 123
+The 2 October strict-schema change passed `scripts/verify.sh`: 558 backend, 123
 Angular and 23 dashboard tests plus builds, formatting, Markdown and TypeScript
 checks. New regressions cover null-only wire branches, unbounded control lists
 with validator-owned limits, and the 20-question cap in the API and plan editor;

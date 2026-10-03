@@ -65,6 +65,19 @@ public sealed class ContentGenerationWireTests
     }
 
     [Theory]
+    [InlineData("json_schema", "true")]
+    [InlineData("json_object", "false")]
+    public async Task Schema_in_prompt_adds_a_strict_mode_copy_but_never_removes_a_required_one(string mode, string schemaInPrompt)
+    {
+        await using var local = await LocalAiProvider.StartAsync();
+        local.Respond = _ => """{"result":{"proposal":null,"clarification":"לאיזה גיל?"},"assumptions":[]}""";
+        using var services = local.Services(mode, new() { ["Ai:SchemaInPrompt"] = schemaInPrompt });
+        await services.GetRequiredService<AiGenerationService>().AuthorAsync(new("רעיון"), default);
+        using var request = JsonDocument.Parse(Assert.Single(local.Bodies));
+        Assert.Contains("\nOutput JSON schema:\n", request.RootElement.GetProperty("messages")[0].GetProperty("content").GetString());
+    }
+
+    [Theory]
     [InlineData("json_schema")]
     [InlineData("json_object")]
     public async Task Empty_clarification_is_rejected_in_both_JSON_modes_without_retry(string mode)

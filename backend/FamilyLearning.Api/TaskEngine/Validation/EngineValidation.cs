@@ -8,11 +8,11 @@ internal static class EngineValidation
     internal const int ContentLimit = 8000;
     internal const int BodyLimit = 4000;
     internal const int PlanLimit = 24000;
-    // Strict provider schemas pin exact question and choice counts; Gemini's schema budget accepted 20 for every valid shape.
+    // Exact question and choice counts are strict-schema constraints; 20 keeps every valid shape within provider schema budgets.
     internal const int MaxQuestionCount = 20;
     internal const int MinChoiceCount = 2;
     internal const int MaxChoiceCount = 6;
-    // Stated in the authoring prompt, not as schema bounds: bounded control and option lists exceed Gemini's schema budget.
+    // Stated in the authoring prompt, not as schema bounds: bounded control and option lists exceed provider schema budgets.
     internal const int MaxControls = 16;
     internal const int MaxSelectOptions = 20;
 

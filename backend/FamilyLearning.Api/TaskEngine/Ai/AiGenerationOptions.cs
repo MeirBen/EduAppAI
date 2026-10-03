@@ -20,6 +20,9 @@ public sealed class AiGenerationOptions
     /// <summary>json_schema, json_object or text; registration validates it. Only json_schema delivers the schema natively.</summary>
     public string ResponseFormat { get; set; } = "json_object";
 
+    /// <summary>Also prompts with the schema in json_schema mode, for endpoints that enforce it without showing it to the model.</summary>
+    public bool SchemaInPrompt { get; set; }
+
     /// <summary>Per-call deadline; configuration validation accepts 1–300 seconds.</summary>
     public int RequestTimeoutSeconds { get; set; } = 180;
 

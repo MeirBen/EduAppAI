@@ -86,8 +86,9 @@ over its prompt, options and answer; sibling content stays unchanged.
 schema files hold structure, and engine constants (schema version, question cap)
 are applied in code so they cannot drift from the validators. Prompts state
 limits from the same `EngineValidation` constants.
-Each call has one schema source: schema mode sends it only as the native
-response format; JSON-object and text modes carry it in the prompt instead.
+Schema mode sends the schema as the native response format, and also in the
+prompt only when `Ai:SchemaInPrompt` is set; JSON-object and text modes always
+carry it in the prompt.
 The OpenRouter adapter uses the SDK's native response-format option, preserving
 schema constraints. It owns transport and configuration;
 the engine owns prompts and validation. No tools are sent. Responses must finish
