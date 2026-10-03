@@ -6,7 +6,7 @@ import { TemplateChat } from './template-chat';
 @Component({
   imports: [TemplateChat],
   template:
-    '<app-template-chat [fields]="fields" [configured]="configured()" [busy]="busy()" [clarification]="question()" (sent)="submitted = raw().message" />',
+    '<app-template-chat [fields]="fields" [configured]="configured()" [busy]="busy()" [clarification]="question()" [refining]="refining()" (sent)="submitted = raw().message" />',
 })
 class Host {
   readonly raw = signal({ message: '', consolidated: '' });
@@ -14,6 +14,7 @@ class Host {
   readonly configured = signal(true);
   readonly question = signal('');
   readonly busy = signal(false);
+  readonly refining = signal(false);
   submitted = '';
 }
 describe('TemplateChat presentation', () => {
@@ -54,6 +55,24 @@ describe('TemplateChat presentation', () => {
     expect(host.submitted).toBe('');
     press(false);
     expect(host.submitted).toBe(field.value);
+  });
+
+  it('offers change ideas for an existing plan, but not while a question awaits an answer', async () => {
+    const fixture = TestBed.createComponent(Host),
+      host = fixture.componentInstance;
+    host.refining.set(true);
+    await fixture.whenStable();
+    const root: HTMLElement = fixture.nativeElement;
+    const idea = root.querySelector<HTMLButtonElement>('.chip')!;
+    idea.click();
+    await fixture.whenStable();
+    expect(root.querySelector<HTMLTextAreaElement>('#chat-message')!.value).toBe(
+      idea.textContent!.trim(),
+    );
+    expect(host.submitted).toBe('');
+    host.question.set('לאיזה גיל?');
+    await fixture.whenStable();
+    expect(root.querySelector('.chip')).toBeNull();
   });
 
   it('keeps keyboard focus on the swapped send and stop controls without taking it elsewhere', async () => {

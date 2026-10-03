@@ -22,10 +22,10 @@
     <div>
       <label [for]="key() + '-instruction'">{{ prompt() }}</label>
       <textarea
+        #instruction
         [id]="key() + '-instruction'"
         dir="auto"
         rows="2"
-        [placeholder]="example()"
         [formField]="fields.instruction"
         [attr.aria-describedby]="key() + '-instruction-help'"
       ></textarea>
@@ -33,6 +33,15 @@
         אפשר להשאיר ריק. רק החלק הזה יוחלף, ושאר הפעילות לא תשתנה.
       </p>
     </div>
+    @if (ideas().length) {
+      <app-idea-chips
+        [key]="key() + '-improve'"
+        label="רעיונות לשיפור"
+        [ideas]="ideas()"
+        [disabled]="disabled()"
+        (picked)="pick($event)"
+      />
+    }
     <div class="flex flex-wrap items-center gap-3">
       <button
         type="submit"

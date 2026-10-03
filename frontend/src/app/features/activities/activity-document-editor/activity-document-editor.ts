@@ -12,6 +12,13 @@ export type DocumentEdit =
   | { kind: 'remove-question' | 'move-up' | 'move-down' | 'add-option'; index: number }
   | { kind: 'remove-option'; index: number; option: number }
   | { kind: 'add-material'; id: string };
+/** Improvements that keep the activity's settings, so a picked idea cannot contradict the plan. */
+const materialIdeas = ['שפה פשוטה יותר', 'דוגמאות מוחשיות יותר', 'פתיחה מעניינת יותר'];
+const questionIdeas = [
+  'ניסוח פשוט וברור יותר',
+  'שאלה שבודקת הבנה ולא זיכרון',
+  'שאלה אחרת באותו נושא',
+];
 /** Presentation only: edits the owner's native fields and emits explicit scoped actions. */
 @Component({
   selector: 'app-activity-document-editor',
@@ -22,6 +29,8 @@ export type DocumentEdit =
 })
 export class ActivityDocumentEditor {
   protected readonly limits = inject(Limits).current;
+  protected readonly materialIdeas = materialIdeas;
+  protected readonly questionIdeas = questionIdeas;
   readonly fields = input.required<FieldTree<DocumentForm>>();
   readonly materials = input.required<Pick<PlanMaterial, 'id' | 'source' | 'label'>[]>();
   readonly locked = input(false);

@@ -11,6 +11,7 @@ import {
 import { form, FormField, maxLength } from '@angular/forms/signals';
 import { Limits } from '../../../core/api/limits';
 import { FieldDirection } from '../../../shared/forms/field-direction';
+import { IdeaChips } from '../../../shared/idea-chips/idea-chips';
 
 /**
  * Contextual AI improvement for one material or question. It keeps only its disclosure state and
@@ -18,7 +19,7 @@ import { FieldDirection } from '../../../shared/forms/field-direction';
  */
 @Component({
   selector: 'app-scoped-repair',
-  imports: [FormField, FieldDirection],
+  imports: [FormField, FieldDirection, IdeaChips],
   templateUrl: './scoped-repair.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
   // The instruction is not activity content, so its edits must not reach the editor's change tracking.
@@ -30,8 +31,8 @@ export class ScopedRepair {
   /** Distinguishes repeated triggers for assistive technology, for example "שאלה 2". */
   readonly name = input.required<string>();
   readonly prompt = input('מה תרצו לשנות?');
-  readonly example = input('');
   readonly submitLabel = input('שיפור');
+  readonly ideas = input<readonly string[]>([]);
   readonly disabled = input(false);
   /** Sent as the operation's optional instruction; blank means a plain replacement. */
   readonly requested = output<string>();
@@ -42,6 +43,11 @@ export class ScopedRepair {
     maxLength(path.instruction, this.limits.messageLength),
   );
   private readonly trigger = viewChild.required<ElementRef<HTMLButtonElement>>('trigger');
+  private readonly instruction = viewChild.required<ElementRef<HTMLTextAreaElement>>('instruction');
+  protected pick(idea: string) {
+    this.draft.set({ instruction: idea });
+    this.instruction().nativeElement.focus();
+  }
   protected submit() {
     if (this.disabled()) return;
     this.requested.emit(this.draft().instruction.trim());

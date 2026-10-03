@@ -6,7 +6,12 @@ import { provideLimits } from '../../../core/api/limits.fixture';
 @Component({
   imports: [ScopedRepair],
   template: `<div (input)="bubbled = bubbled + 1" (change)="bubbled = bubbled + 1">
-    <app-scoped-repair key="q" name="שאלה 1" (requested)="requests.push($event)" />
+    <app-scoped-repair
+      key="q"
+      name="שאלה 1"
+      [ideas]="['ניסוח פשוט יותר']"
+      (requested)="requests.push($event)"
+    />
   </div>`,
 })
 class Host {
@@ -42,6 +47,21 @@ describe('ScopedRepair', () => {
     expect(host.requests).toEqual(['פשטו את הניסוח']);
     expect(form.hidden).toBe(true);
     expect(document.activeElement).toBe(trigger);
+    root.remove();
+  });
+
+  it('fills the instruction from an idea without sending, then sends it on submit', async () => {
+    const { fixture, root, host } = await render();
+    root.querySelector<HTMLButtonElement>('#q-improve')!.click();
+    await fixture.whenStable();
+    root.querySelector<HTMLButtonElement>('#q-improve-form .chip')!.click();
+    await fixture.whenStable();
+    const instruction = root.querySelector<HTMLTextAreaElement>('#q-instruction')!;
+    expect(instruction.value).toBe('ניסוח פשוט יותר');
+    expect(document.activeElement).toBe(instruction);
+    expect(host.requests).toEqual([]);
+    root.querySelector<HTMLButtonElement>('#q-improve-submit')!.click();
+    expect(host.requests).toEqual(['ניסוח פשוט יותר']);
     root.remove();
   });
 

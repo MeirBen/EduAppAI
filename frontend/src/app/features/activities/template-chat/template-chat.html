@@ -92,7 +92,7 @@
             ? 'התשובה שלכם…'
             : start
               ? 'למשל: קטע קריאה על דינוזאורים לכיתה ג׳ עם 4 שאלות'
-              : 'מה לשנות? למשל: שאלות קלות יותר'
+              : 'מה לשנות?'
         "
         [formField]="message"
         [attr.aria-labelledby]="titled() ? labelledBy() : null"
@@ -133,24 +133,24 @@
       </div>
     </div>
   </form>
-  @if (start && !started() && configured()) {
-    <div class="grid gap-2">
-      <p id="chat-ideas" class="text-sm font-medium text-muted">רעיונות להתחלה</p>
-      <ul role="list" class="flex flex-wrap gap-2" aria-labelledby="chat-ideas">
-        @for (idea of suggestions; track idea) {
-          <li>
-            <button
-              type="button"
-              class="chip"
-              [disabled]="busy() || locked()"
-              (click)="suggest(idea)"
-            >
-              <span class="ai-icon size-4 text-brand" aria-hidden="true"></span>{{ idea }}
-            </button>
-          </li>
-        }
-      </ul>
-    </div>
+  @if (configured()) {
+    @if (start && !started()) {
+      <app-idea-chips
+        key="chat-start"
+        label="רעיונות להתחלה"
+        [ideas]="starterIdeas"
+        [disabled]="busy() || locked()"
+        (picked)="suggest($event)"
+      />
+    } @else if (!start && !clarification()) {
+      <app-idea-chips
+        key="chat-change"
+        label="רעיונות לשינוי"
+        [ideas]="changeIdeas"
+        [disabled]="busy() || locked()"
+        (picked)="suggest($event)"
+      />
+    }
   }
   @if (consolidationRequired()) {
     <form class="callout grid gap-4" (submit)="$event.preventDefault(); consolidated.emit()">

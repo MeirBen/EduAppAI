@@ -63,8 +63,8 @@
           [key]="'material-' + i"
           [name]="label(id)"
           prompt="מה תרצו לשנות בטקסט?"
-          example="לדוגמה: פשטו מעט את השפה בלי לשנות את המשמעות"
           submitLabel="שיפור הטקסט"
+          [ideas]="materialIdeas"
           [disabled]="locked() || operationActive() || !aiAvailable()"
           (requested)="
             replaced.emit({ kind: 'ReplaceMaterial', targetId: id, instruction: $event })
@@ -180,8 +180,8 @@
             [key]="'question-' + i"
             [name]="'שאלה ' + (i + 1)"
             prompt="מה תרצו לשנות בשאלה הזו?"
-            example="לדוגמה: תקנו את הניסוח והפכו את המסיחים לסבירים יותר"
             submitLabel="שיפור השאלה"
+            [ideas]="questionIdeas"
             [disabled]="locked() || operationActive() || !aiAvailable()"
             (requested)="
               replaced.emit({ kind: 'ReplaceQuestion', targetId: id, instruction: $event })
