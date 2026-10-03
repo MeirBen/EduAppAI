@@ -147,17 +147,14 @@ function plan(message, schemaVersion) {
             guidance: '',
             length: supplied
               ? null
-              : {
-                  mode: message.includes('אורך קשיח') ? 'exact' : 'target',
-                  count: {
-                    value: message.includes('אורך קשיח') ? 100 : 20,
-                    adjustable: !message.includes('אורך קשיח'),
-                    min: null,
-                    max: null,
+              : message.includes('אורך קשיח')
+                ? { mode: 'range', count: null, lower: 100, upper: 120 }
+                : {
+                    mode: 'target',
+                    count: { value: 20, adjustable: true },
+                    lower: null,
+                    upper: null,
                   },
-                  lower: null,
-                  upper: null,
-                },
             controls: [],
           },
         ],
@@ -166,7 +163,6 @@ function plan(message, schemaVersion) {
       selectableFormat: false,
       defaultFormat: null,
       choiceCount: null,
-      countBounds: null,
       guidance: '',
       controls: [],
     },

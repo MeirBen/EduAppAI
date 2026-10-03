@@ -32,18 +32,13 @@ public sealed record QuestionPlan(
     [property: JsonRequired] bool SelectableFormat,
     string? DefaultFormat,
     IntegerChoice? ChoiceCount,
-    IntegerBounds? CountBounds,
     [property: JsonRequired] string Guidance,
     [property: JsonRequired] ControlDefinition[] Controls);
 
-/// <summary>A positive count with optional explicit bounds only when adjustable.</summary>
-public sealed record IntegerChoice([property: JsonRequired] int Value, [property: JsonRequired] bool Adjustable,
-    int? Min = null, int? Max = null);
+/// <summary>A positive count; adjustable values may change per activity within the application's limits.</summary>
+public sealed record IntegerChoice([property: JsonRequired] int Value, [property: JsonRequired] bool Adjustable);
 
-/// <summary>Inclusive, explicitly requested input bounds; absent endpoints leave that side unbounded.</summary>
-public sealed record IntegerBounds(int? Min = null, int? Max = null);
-
-/// <summary>Target/exact use Count; a fixed inclusive range uses Lower and Upper instead.</summary>
+/// <summary>An approximate target uses Count; a strict inclusive range uses Lower below Upper instead.</summary>
 public sealed record LengthExpectation([property: JsonRequired] string Mode, IntegerChoice? Count = null,
     int? Lower = null, int? Upper = null);
 

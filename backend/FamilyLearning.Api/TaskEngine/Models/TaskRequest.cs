@@ -16,7 +16,7 @@ public sealed record TaskRequest(
 /// <summary>Either a complete effective request or field errors. A failed resolution never exposes partial values.</summary>
 public sealed record TaskResolution(ResolvedTaskRequest? Value, Dictionary<string, string[]> Errors);
 
-/// <summary>Effective requirements only, with defaults and input bounds removed. Treat collections as immutable after resolution.</summary>
+/// <summary>Effective requirements only, with defaults applied. Treat collections as immutable after resolution.</summary>
 public sealed record ResolvedTaskRequest(int SchemaVersion, int EngineRevision, string Goal, string Guidance,
     TaskSettings Settings, ResolvedMaterial[] Materials, ResolvedQuestions Questions,
     ResolvedControl[] Controls, ResolvedLength? TotalLength);
@@ -32,5 +32,5 @@ public sealed record ResolvedQuestions(string[] Formats, int? ChoiceCount, strin
 public sealed record ResolvedControl(string Id, string Label, string Type, string Meaning, string? Unit,
     JsonElement Value, string? OptionMeaning);
 
-/// <summary>An output expectation, independent of the bounds formerly used to choose its value.</summary>
+/// <summary>A generated-word expectation: an advisory target Value, or a strict inclusive Lower–Upper range.</summary>
 public sealed record ResolvedLength(string Mode, int? Value = null, int? Lower = null, int? Upper = null);

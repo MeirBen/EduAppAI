@@ -16,7 +16,6 @@ public sealed class ActivityReleaseTests
 {
     [Theory]
     [InlineData("target", HttpStatusCode.Created)]
-    [InlineData("exact", HttpStatusCode.BadRequest)]
     [InlineData("range", HttpStatusCode.BadRequest)]
     public async Task Only_strict_length_expectations_block_reviewed_release(string mode, HttpStatusCode expected)
     {

@@ -187,7 +187,15 @@ export class ActivityWorkspace {
     () => this.saving() || this.operationActive() || !!this.startRecovery(),
   );
   protected readonly canGenerate = computed(() => this.aiConfigured() && !this.contentBusy());
-  protected readonly projection = computed(() => planValue(this.raw().plan, this.limits));
+  /** Outside template editing, the activity's own settings are its plan defaults; one set of fields owns them. */
+  private readonly settingsAreDefaults = computed(() => this.context() !== 'template');
+  protected readonly projection = computed(() => {
+    const { plan, input } = this.raw();
+    return planValue(
+      this.settingsAreDefaults() ? { ...plan, settings: input.settings } : plan,
+      this.limits,
+    );
+  });
   protected readonly inputProjection = computed(() => {
     const plan = this.projection().value;
     return plan ? requestValue(plan, this.raw().input, this.limits) : { errors: [] };
@@ -319,7 +327,7 @@ export class ActivityWorkspace {
       this.confirmed.set(fixedSources(plan));
       if (template) {
         this.publication.set(template);
-        this.publishedPlan.set(JSON.stringify(planValue(this.raw().plan, this.limits).value));
+        this.publishedPlan.set(JSON.stringify(this.projection().value));
       }
       this.baseline.set(structuredClone(this.raw()));
       this.history.checkpoint();
@@ -753,7 +761,7 @@ export class ActivityWorkspace {
       })),
     };
     this.history.push();
-    this.raw.set(proposedWorkspace(this.raw(), plan, refining));
+    this.raw.set(proposedWorkspace(this.raw(), plan, refining, this.settingsAreDefaults()));
     this.confirmed.set(fixedSources(plan, this.confirmed()));
     this.clientRevision++;
     this.history.checkpoint();

@@ -45,9 +45,9 @@ function integer(
   }
   return Number(value);
 }
-function bounds(min: string, max: string, label: string, errors: string[], minimum = -2147483648) {
-  const lower = integer(min, label, errors, false, minimum),
-    upper = integer(max, label, errors, false, minimum);
+function bounds(min: string, max: string, label: string, errors: string[]) {
+  const lower = integer(min, label, errors),
+    upper = integer(max, label, errors);
   if (lower !== undefined && upper !== undefined && lower > upper)
     errors.push(`${label}: המינימום גדול מהמקסימום.`);
   return {
@@ -70,20 +70,20 @@ function choiceValue(
   errors: string[],
   minimum = 1,
 ): IntegerChoice {
-  const value = integer(form.value, label, errors, true, minimum) ?? 0;
-  const range = form.adjustable ? bounds(form.min, form.max, label, errors, minimum) : {};
-  inBounds(value, range, label, errors);
-  return { value, adjustable: form.adjustable, ...range };
+  return {
+    value: integer(form.value, label, errors, true, minimum) ?? 0,
+    adjustable: form.adjustable,
+  };
 }
 function lengthValue(form: LengthForm, errors: string[]): LengthExpectation | null {
   if (!form.mode) return null;
   if (form.mode === 'range') {
     const lower = integer(form.lower, 'אורך מינימלי', errors, true, 1) ?? 0;
     const upper = integer(form.upper, 'אורך מרבי', errors, true, 1) ?? 0;
-    if (lower > upper) errors.push('אורך: המינימום גדול מהמקסימום.');
+    if (lower >= upper) errors.push('אורך: המינימום חייב להיות קטן מהמקסימום.');
     return { mode: 'range', lower, upper };
   }
-  return { mode: form.mode, count: choiceValue(form, 'מספר מילים', errors) };
+  return { mode: 'target', count: choiceValue(form, 'מספר מילים', errors) };
 }
 const questionCountRange = (limits: ContentLimits) =>
   `מספר השאלות חייב להיות בין 1 ל־${limits.maxQuestionCount}.`;
@@ -181,19 +181,11 @@ export function planValue(form: PlanForm, limits: ContentLimits): Projection<Lea
     errors.push('יש לבחור סוג שאלה כברירת מחדל.');
   if (!form.questions.selectableFormat && defaults.questionCount < formats.length)
     errors.push('נדרשת לפחות שאלה אחת מכל סוג שנבחר.');
-  const questionBounds = bounds(form.questions.min, form.questions.max, 'מספר שאלות', errors, 1);
-  inBounds(defaults.questionCount, questionBounds, 'מספר שאלות', errors);
-  if ((questionBounds.max ?? 0) > limits.maxQuestionCount) errors.push(questionCountRange(limits));
   const { minChoiceCount, maxChoiceCount } = limits;
   const choiceCount = form.questions.choice
     ? choiceValue(form.questions.choiceCount, 'מספר אפשרויות', errors, minChoiceCount)
     : null;
-  if (
-    choiceCount &&
-    (choiceCount.value > maxChoiceCount ||
-      (choiceCount.max ?? maxChoiceCount) > maxChoiceCount ||
-      (choiceCount.min ?? minChoiceCount) < minChoiceCount)
-  )
+  if (choiceCount && choiceCount.value > maxChoiceCount)
     errors.push(`מספר האפשרויות חייב להיות בין ${minChoiceCount} ל־${maxChoiceCount}.`);
   checkText(form.questions.guidance, 'הנחיות לשאלות', limits.scopedGuidanceLength, errors);
   const materials = form.materials.map((material) => {
@@ -232,7 +224,6 @@ export function planValue(form: PlanForm, limits: ContentLimits): Projection<Lea
         ? (form.questions.defaultFormat as QuestionFormat)
         : null,
       choiceCount,
-      countBounds: Object.keys(questionBounds).length ? questionBounds : null,
       guidance: form.questions.guidance,
       controls: form.questions.controls.map((control) => controlValue(control, errors, limits)),
     },
@@ -270,16 +261,11 @@ export function requestValue(
       true,
       limits.minChoiceCount,
     );
-    if (value.choiceCount !== undefined) {
-      inBounds(value.choiceCount, plan.questions.choiceCount, 'מספר אפשרויות', errors);
-      if (value.choiceCount > limits.maxChoiceCount)
-        errors.push(`עד ${limits.maxChoiceCount} אפשרויות.`);
-    }
+    if (value.choiceCount !== undefined && value.choiceCount > limits.maxChoiceCount)
+      errors.push(`עד ${limits.maxChoiceCount} אפשרויות.`);
   }
   if (plan.totalLength?.count?.adjustable && form.totalWordCount !== '') {
     value.totalWordCount = integer(form.totalWordCount, 'מספר מילים כולל', errors, true, 1);
-    if (value.totalWordCount !== undefined)
-      inBounds(value.totalWordCount, plan.totalLength.count, 'מספר מילים כולל', errors);
   }
   const materialInputs: NonNullable<ActivityInput['materialInputs']> = {};
   for (const material of plan.materials) {
@@ -294,10 +280,7 @@ export function requestValue(
       fields?.wordCount
     ) {
       const wordCount = integer(fields.wordCount, material.label, errors, true, 1);
-      if (wordCount !== undefined) {
-        inBounds(wordCount, material.length.count, material.label, errors);
-        materialInputs[material.id] = { wordCount };
-      }
+      if (wordCount !== undefined) materialInputs[material.id] = { wordCount };
     }
   }
   if (Object.keys(materialInputs).length) value.materialInputs = materialInputs;
@@ -309,7 +292,6 @@ export function requestValue(
     if (selected.value !== undefined) controlValues[control.id] = selected.value;
   }
   if (Object.keys(controlValues).length) value.controlValues = controlValues;
-  inBounds(value.settings.questionCount, plan.questions.countBounds ?? {}, 'מספר שאלות', errors);
   return { value: errors.length ? undefined : value, errors };
 }
 

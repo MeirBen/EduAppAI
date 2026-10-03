@@ -361,11 +361,8 @@
         "defaultFormat": null,
         "choiceCount": {
           "value": 3,
-          "adjustable": false,
-          "min": null,
-          "max": null
+          "adjustable": false
         },
-        "countBounds": null,
         "guidance": "שאלה אחת של איתור מידע, שאלה אחת של הסקת מסקנה ושאלה אחת של קשר בין פרטים.",
         "controls": []
       },
@@ -411,7 +408,6 @@
         "selectableFormat": false,
         "defaultFormat": null,
         "choiceCount": null,
-        "countBounds": null,
         "guidance": "שאלה אחת של איתור מידע, שאלה אחת של הסקת מסקנה ושאלה אחת של קשר בין פרטים.",
         "controls": []
       },
@@ -447,7 +443,6 @@
         "selectableFormat": false,
         "defaultFormat": null,
         "choiceCount": null,
-        "countBounds": null,
         "guidance": "תרגילי חיבור וחיסור במספרים שלמים.",
         "controls": []
       },
@@ -504,7 +499,6 @@
         "selectableFormat": false,
         "defaultFormat": null,
         "choiceCount": null,
-        "countBounds": null,
         "guidance": "תרגילי חיבור וחיסור במספרים שלמים.",
         "controls": []
       },

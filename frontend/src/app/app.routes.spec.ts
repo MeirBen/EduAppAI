@@ -17,16 +17,16 @@ describe('Template navigation', () => {
   it('preserves entered choices when only the query or fragment changes', async () => {
     const harness = await RouterTestingHarness.create();
     await openTemplate(harness, 'first');
-    const field = harness.routeNativeElement!.querySelector<HTMLInputElement>('#plan-topic')!;
+    const field = harness.routeNativeElement!.querySelector<HTMLInputElement>('#activity-topic')!;
     field.value = 'החלל';
     field.dispatchEvent(new Event('input'));
 
     await harness.navigateByUrl('/templates/first/create?source=library#practice-title');
     await harness.fixture.whenStable();
 
-    expect(harness.routeNativeElement!.querySelector<HTMLInputElement>('#plan-topic')!.value).toBe(
-      'החלל',
-    );
+    expect(
+      harness.routeNativeElement!.querySelector<HTMLInputElement>('#activity-topic')!.value,
+    ).toBe('החלל');
     TestBed.inject(HttpTestingController).expectNone('/api/templates/first');
   });
 });

@@ -79,8 +79,8 @@ the schema through the SDK's native response format; responses must finish
 normally and pass size, shape, numeric and domain validation. See
 [AI configuration](ai.md#configuration).
 
-`TextLength` measures material bodies only. Unmet exact or range requirements
-block acceptance and release; targets are advisory, and supplied sources are
+`TextLength` measures material bodies only. Unmet strict ranges block
+acceptance and release; targets are advisory, and supplied sources are
 never adjusted. `TaskAssembly` owns input fingerprints, acceptance and
 readiness. Valid structure does not prove correct content, so release requires
 the parent's review of the saved revision.

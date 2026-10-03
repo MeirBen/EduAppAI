@@ -103,7 +103,6 @@ describe('Plan projection', () => {
     material.length.mode = 'target';
     material.length.value = '120';
     material.length.adjustable = false;
-    material.length.min = 'nonsense';
     const generated = planValue(form, limits).value!;
     expect(generated.materials[0].text).toBeNull();
     expect(generated.materials[0].length).toEqual({

@@ -191,13 +191,31 @@ describe('ActivityWorkspace plan ownership', () => {
     http.expectNone('/api/ai/template-drafts');
   });
 
+  it('uses the activity settings as its plan defaults, including in AI changes', async () => {
+    await open();
+    reply(await ask());
+    await settle();
+    expect(root().querySelector('#plan-questionCount')).toBeNull();
+    await type('activity-questionCount', '7');
+    const refine = await ask('שאלות קשות יותר');
+    expect(refine.request.body.baseDefinition.defaults.questionCount).toBe(7);
+    reply(
+      refine,
+      { ...numericPlan, defaults: { ...numericPlan.defaults, questionCount: 9 } },
+      null,
+      [{ kind: 'changed', path: 'defaults' }],
+    );
+    await settle();
+    expect(field('activity-questionCount').value).toBe('9');
+  });
+
   it('keeps invalid initial edits instead of sending a request without their context', async () => {
     await open();
-    await type('plan-questionCount', '');
+    await type('plan-name', 'תכנית חלקית');
     await type('chat-message', 'תרגול חשבון');
     await click('chat-send');
     http.expectNone('/api/ai/template-drafts');
-    expect(field('plan-questionCount').value).toBe('');
+    expect(field('plan-name').value).toBe('תכנית חלקית');
     expect(root().textContent).toContain('תקנו את ההגדרות המסומנות');
   });
 

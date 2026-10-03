@@ -157,7 +157,7 @@ public sealed class ActivityDraftTests
     {
         await using var app = new ApiFactory();
         using var parent = await app.ParentAsync();
-        var plan = Reading() with { Defaults = Numeric(1).Defaults, Materials = [Reading().Materials[0] with { Length = new("exact", new(2, false)) }] };
+        var plan = Reading() with { Defaults = Numeric(1).Defaults, Materials = [Reading().Materials[0] with { Length = new("range", Lower: 2, Upper: 3) }] };
         var draft = await Create(parent, plan);
         var edit = Edit(draft);
         edit["document"] = Document();
@@ -257,7 +257,7 @@ public sealed class ActivityDraftTests
     {
         await using var app = new ApiFactory();
         using var parent = await app.ParentAsync();
-        var plan = Numeric(1) with { Questions = new(["single-choice"], false, null, new(2, false), null, "", []) };
+        var plan = Numeric(1) with { Questions = new(["single-choice"], false, null, new(2, false), "", []) };
         var draft = await Create(parent, plan);
         var edit = Edit(draft);
         edit["document"] = Document();

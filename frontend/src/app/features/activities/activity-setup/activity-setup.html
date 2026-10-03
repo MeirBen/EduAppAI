@@ -57,7 +57,7 @@
               aria-describedby="input-choice-count-help"
             />
             <p id="input-choice-count-help" class="mt-2 text-sm text-muted">
-              ברירת המחדל: {{ questions.choiceCount.value }}{{ bounds(questions.choiceCount) }}
+              ברירת המחדל: {{ questions.choiceCount.value }}
             </p>
           </div>
         }
@@ -87,7 +87,7 @@
                 <span class="shrink-0" [id]="choice.id + '-words-unit'">מילים</span>
               </div>
               <p [id]="choice.id + '-words-help'" class="mt-2 text-sm text-muted">
-                {{ choice.requirement }} אם לא תשנו{{ bounds(choice.length) }}
+                {{ choice.requirement }} אם לא תשנו
               </p>
             </div>
           } @else {

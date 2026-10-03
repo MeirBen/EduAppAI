@@ -54,10 +54,11 @@ public sealed class StructuredEvaluationTests : IDisposable
 
     [Theory]
     [InlineData("target", true)]
-    [InlineData("exact", false)]
-    public async Task Target_is_advisory_while_exact_length_rejects_the_same_candidate(string mode, bool accepted)
+    [InlineData("range", false)]
+    public async Task Target_is_advisory_while_a_strict_range_rejects_the_same_candidate(string mode, bool accepted)
     {
-        var plan = Reading() with { Materials = [Reading().Materials[0] with { Length = new(mode, new(100, false)) }] };
+        var length = mode == "range" ? new LengthExpectation(mode, Lower: 100, Upper: 150) : new(mode, new(100, false));
+        var plan = Reading() with { Materials = [Reading().Materials[0] with { Length = length }] };
         using var chat = new AiFixtures.ScriptedChat(JsonSerializer.Serialize(new
         {
             materials = new[]

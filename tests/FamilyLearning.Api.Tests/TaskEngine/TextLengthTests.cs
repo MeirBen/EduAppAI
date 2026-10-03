@@ -40,20 +40,14 @@ public sealed class TextLengthTests
     }
 
     [Theory]
-    [InlineData("exact", 120, true)]
-    [InlineData("exact", 119, false)]
-    [InlineData("range", 99, false)]
-    [InlineData("range", 100, true)]
-    [InlineData("range", 150, true)]
-    [InlineData("range", 151, false)]
-    public void Exact_and_historical_100_to_150_range_remain_strict(string mode, int words, bool expected)
+    [InlineData(99, false)]
+    [InlineData(100, true)]
+    [InlineData(150, true)]
+    [InlineData(151, false)]
+    public void Historical_100_to_150_range_remains_strict(int words, bool expected)
     {
         var plan = Reading();
-        plan = plan with
-        {
-            Materials = [plan.Materials[0] with { Length = mode == "exact"
-            ? new("exact", new(120, false)) : new("range", Lower: 100, Upper: 150) }]
-        };
+        plan = plan with { Materials = [plan.Materials[0] with { Length = new("range", Lower: 100, Upper: 150) }] };
         var document = new TaskDocument("", null, [new(MaterialId, 1, "ignored", string.Join(' ', Enumerable.Repeat("א", words)), new("manual"), null)], []);
         var result = Assert.Single(TextLength.Measure(Resolve(plan), document));
         Assert.Equal(expected, result.Satisfied);

@@ -15,7 +15,7 @@ internal static class AiPrompts
         Preserve false, zero and empty optional values; an omitted choice adds no instruction. Never invent a selection.
         Use the requested language for each part and interpret difficulty relative to the audience.
         Keep total content within {ContentLimit} characters, including titles, directions, materials, prompts, options and answers.
-        Approximate target word counts guide generation; exact counts and inclusive ranges are strict requirements.
+        Approximate target word counts guide generation; inclusive word ranges are strict requirements.
         Supplied source strings are authoritative and inserted by the app; never return or rewrite them as generated materials.
         """;
 
@@ -32,19 +32,20 @@ internal static class AiPrompts
         Do not invent passage, genre, tone or length controls. Use material scope for material choices and question scope for question choices.
         Preserve exact supplied source text and requested language distinctions. A transformation is a separate generated material.
         Store known counts/lengths as typed requirements, not duplicate custom fields or prose defaults.
-        Ordinary word counts are targets; use exact/range only when expressly requested. Preserve combined passage lengths as totalLength.
+        Word counts are approximate targets, even when phrased as exact; note that in assumptions. Use a range only when the parent
+        states both a minimum and a larger maximum. Preserve combined passage lengths as totalLength.
         Do not combine totalLength with per-material length. Clarify which scope to use if both are requested.
         Fixed multiple formats mean a flexible mixture covering every format. Selectable format means one format per task.
         Set choiceCount ({MinChoiceCount}–{MaxChoiceCount} options per question) exactly when formats include single-choice; otherwise null.
         Exact per-format quotas are unsupported: clarify and offer a flexible mixture or uniform format; never discard quotas silently.
-        Keep optional irrelevant settings null and requested defaults/bounds/values unchanged.
+        Keep optional irrelevant settings null and requested defaults and values unchanged.
         """ + "\n\n" + StructuredRules + "\n\n" + LanguageQuality;
 
     private const string MaterialWritingRules = """
         Do not append the activity's questions, answer choices, answer key or learner instructions to a material body.
         Word counts apply to bodies only: include headings inside a body, but exclude the separate title field.
         Count whitespace-separated tokens containing a letter or number; attached prefixes, vowel marks and hyphens do not split words.
-        For a strict range, plan near its midpoint; for an exact count, meet that count. totalLength counts generated bodies together.
+        For a strict range, plan near its midpoint. totalLength counts generated bodies together.
         Before returning, silently check and revise bodies to meet their lengths while preserving coherent, useful content.
         Do not add filler, count reports or appendices to reach a length. Approximate targets remain advisory.
         """;

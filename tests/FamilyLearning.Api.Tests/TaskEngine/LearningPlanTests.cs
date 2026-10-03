@@ -26,8 +26,8 @@ public sealed class LearningPlanTests
             plan with { Controls = [material.Controls[0]] },
             plan with { Materials = [material with { Text = "not generated" }] },
             plan with { Materials = [material with { Source = "fixed", Text = "source" }] },
-            plan with { TotalLength = new("exact", new(120, false)) },
-            plan with { Materials = [material with { Length = new("target", new(120, false, 100, 150)) }] },
+            plan with { Materials = [material with { Length = new("exact", new(120, false)) }] },
+            plan with { Materials = [material with { Length = new("range", Lower: 120, Upper: 120) }] },
             plan with { Materials = [material with { Length = new("range", Lower: 150, Upper: 100) }] },
             LearningPlanFixture.Mixed() with { Defaults = plan.Defaults },
             LearningPlanFixture.Mixed() with { Questions = LearningPlanFixture.Mixed().Questions with { ChoiceCount = new(7, false) } },
@@ -53,8 +53,6 @@ public sealed class LearningPlanTests
     public void Question_count_and_option_limits_belong_to_the_validator()
     {
         Assert.Contains("defaults.questionCount", LearningPlanValidator.Validate(LearningPlanFixture.Numeric(21)).Keys);
-        var bounded = LearningPlanFixture.Numeric(20) with { Questions = LearningPlanFixture.Numeric().Questions with { CountBounds = new(1, 21) } };
-        Assert.Contains("questions.countBounds", LearningPlanValidator.Validate(bounded).Keys);
         var select = new ControlDefinition(LearningPlanFixture.ControlId, "בחירה", "select", "משמעות",
             Options: Enumerable.Range(1, 21).Select(n => new ControlOption(n.ToString())).ToArray());
         Assert.NotEmpty(LearningPlanValidator.Validate(LearningPlanFixture.Numeric() with { Controls = [select] }));
@@ -78,23 +76,20 @@ public sealed class LearningPlanTests
         {
             Materials = Enumerable.Range(1, 4).Select(i => new MaterialDefinition(i.ToString("x32"),
                 "חומר", "generated", "", null, null, [])).ToArray(),
-            TotalLength = new("exact", new(4000, false))
+            TotalLength = new("range", Lower: 4000, Upper: 4100)
         };
         // Four 1,999-character bodies plus a one-character title, prompt and answer fit in 7,999 characters.
         Assert.Empty(LearningPlanValidator.Validate(plan));
-        Assert.NotEmpty(LearningPlanValidator.Validate(plan with { TotalLength = new("exact", new(4001, false)) }));
+        Assert.NotEmpty(LearningPlanValidator.Validate(plan with { TotalLength = new("range", Lower: 4001, Upper: 4100) }));
     }
 
     [Fact]
-    public void Scoped_controls_share_one_global_limit_and_count_bounds_are_explicit()
+    public void Scoped_controls_share_one_global_limit()
     {
         var plan = LearningPlanFixture.Reading();
         var controls = Enumerable.Range(4, 17).Select(i => new ControlDefinition(i.ToString("x32"), "בחירה", "boolean", "משמעות")).ToArray();
         plan = plan with { Controls = controls[..8], Materials = [plan.Materials[0] with { Controls = controls[8..] }] };
         Assert.NotEmpty(LearningPlanValidator.Validate(plan));
-        plan = LearningPlanFixture.Numeric(15) with { Questions = LearningPlanFixture.Numeric().Questions with { CountBounds = new(11, 20) } };
-        Assert.Empty(LearningPlanValidator.Validate(plan));
-        Assert.NotEmpty(LearningPlanValidator.Validate(plan with { Defaults = plan.Defaults with { QuestionCount = 10 } }));
     }
 
 }

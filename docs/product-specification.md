@@ -61,8 +61,10 @@ ownership on every read and write.
 
 Shared settings are topic and audience (required, up to 200 characters),
 difficulty (`easy`, `medium` or `hard`, relative to the audience) and a question
-count from 1 to 20. Per-activity settings override plan defaults, and
-feasibility and total content limits also bound the count.
+count from 1 to 20. Per-activity settings override template defaults; inside an
+activity they are its plan defaults, which a saved template keeps. Feasibility
+and total content limits also bound the count. A value the parent may change
+per activity is bounded only by these application limits.
 
 Controls hold text, integer, select or boolean values in plan, material or
 question scope, with stable application-owned IDs and a human-readable meaning.
@@ -77,10 +79,12 @@ retained fixed source.
 
 Material sources are generated, fixed verbatim text, or text supplied per
 activity. Length requirements apply only to generated bodies, either per
-material or as a combined total, never both: a target is advisory, while exact
-counts and inclusive ranges are strict. Counted words contain a Unicode letter
-or digit; body headings count, but titles, instructions, questions and answers
-do not. An explicitly requested bounded input never becomes an output tolerance.
+material or as a combined total, never both: an approximate target is advisory,
+while an inclusive range, whose minimum is below its maximum, is strict. Exact
+word counts are not offered, since generation cannot meet them reliably; a
+request for one becomes a target. Counted words contain a Unicode letter or
+digit; body headings count, but titles, instructions, questions and answers do
+not.
 Transforming supplied text needs a separate generated material that preserves
 the original. A failed strict material stage blocks questions and release.
 

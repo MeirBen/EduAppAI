@@ -65,7 +65,7 @@ public sealed class TaskAssemblyTests
         var candidate = new MaterialCandidateBatch([new(MaterialId, null, "שלום עולם")]);
         var request = Resolve(plan);
         Assert.NotNull(TaskAssembly.AcceptMaterials(request, Empty, candidate).Document);
-        plan = plan with { Materials = [plan.Materials[0] with { Length = new("exact", new(120, false)) }] };
+        plan = plan with { Materials = [plan.Materials[0] with { Length = new("range", Lower: 120, Upper: 130) }] };
         var rejected = TaskAssembly.AcceptMaterials(Resolve(plan), Empty, candidate);
         Assert.Null(rejected.Document);
         Assert.NotEmpty(rejected.Diagnostics);
@@ -175,7 +175,7 @@ public sealed class TaskAssemblyTests
         var document = TaskAssembly.AcceptMaterials(request, Empty, new([new(MaterialId, null, "שלום עולם")])).Document!;
         document = TaskAssembly.AcceptQuestions(request, document, Questions(Enumerable.Repeat(Question("text-input"), 20).ToArray()));
         document = WithFiveDiagnosticsPerQuestion(document);
-        var strict = Resolve(plan with { Materials = [plan.Materials[0] with { Length = new("exact", new(120, false)) }] });
+        var strict = Resolve(plan with { Materials = [plan.Materials[0] with { Length = new("range", Lower: 120, Upper: 130) }] });
         Assert.Contains("remainingErrors", TaskDocumentValidator.ValidateDraft(strict, document).Diagnostics.Keys);
         Assert.Null(TaskAssembly.AcceptMaterials(strict, document, new([new(MaterialId, null, "קצר מדי")])).Document);
         Assert.Throws<TaskValidationException>(() => TaskAssembly.Adopt(strict, document, [MaterialId], [], DateTime.UtcNow));

@@ -5,7 +5,6 @@ import { TaskSettingsFields } from '../../../shared/forms/task-settings-fields';
 import { lengthText } from '../activity-document-view/measurements';
 import { activityFormats, formatNames } from '../activity-presentation';
 import {
-  ChoiceForm,
   ControlForm,
   formControls,
   formFormats,
@@ -96,13 +95,14 @@ export class ActivitySetup {
       this.choiceCountApplies() ||
       !!this.lengthChoices().length,
   );
-  protected bounds(choice: Pick<ChoiceForm, 'min' | 'max'>) {
-    return choice.min && choice.max
-      ? ` · אפשר לבחור ${choice.min}–${choice.max}`
-      : choice.min
-        ? ` · לפחות ${choice.min}`
-        : choice.max
-          ? ` · עד ${choice.max}`
+  /** Reads an integer choice's allowed range as parents say it. */
+  protected bounds(control: Pick<ControlForm, 'min' | 'max'>) {
+    return control.min && control.max
+      ? ` · אפשר לבחור ${control.min}–${control.max}`
+      : control.min
+        ? ` · לפחות ${control.min}`
+        : control.max
+          ? ` · עד ${control.max}`
           : '';
   }
   protected defaultLabel(control: ControlForm) {

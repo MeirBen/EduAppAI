@@ -91,31 +91,24 @@ public static class LearningPlanValidator
             if (questions.Formats.Contains("single-choice") != (questions.ChoiceCount is not null)) errors.AddError("questions.choiceCount", "יש להגדיר מספר אפשרויות רק כאשר שאלת בחירה מותרת.");
         }
         if (questions.ChoiceCount is { } choice) ValidateChoice(choice, "questions.choiceCount", errors, MinChoiceCount, MaxChoiceCount);
-        if (questions.CountBounds is { } bounds && (!ValidBounds(bounds.Min, bounds.Max) || bounds.Max > MaxQuestionCount ||
-            count < bounds.Min || count > bounds.Max))
-            errors.AddError("questions.countBounds", "גבולות מספר השאלות או ברירת המחדל אינם תקינים.");
         if (questions.Guidance is null || questions.Guidance.Length > ScopedGuidanceLength)
             errors.AddError("questions.guidance", $"ההנחיות מוגבלות ל־{Count(ScopedGuidanceLength)} תווים.");
         ValidateControls(questions.Controls, "questions.controls", ids, ref controlCount, errors);
     }
 
-    private static bool ValidBounds(int? min, int? max) => min is not < 1 && max is not < 1 && !(min > max);
-
     private static void ValidateChoice(IntegerChoice choice, string path, Dictionary<string, string[]> errors, int min = 1, int max = int.MaxValue)
     {
-        if (choice.Value < min || choice.Value > max || !ValidBounds(choice.Min, choice.Max) ||
-            choice.Min < min || choice.Max > max || choice.Value < choice.Min || choice.Value > choice.Max ||
-            (!choice.Adjustable && (choice.Min.HasValue || choice.Max.HasValue)))
-            errors.AddError(path, "הערך והגבולות חייבים להתאים לאפשרות השינוי ולטווח הנתמך.");
+        if (choice.Value < min || choice.Value > max) errors.AddError(path, "הערך מחוץ לטווח הנתמך.");
     }
 
+    // A strict range needs room between its ends; an equal pair would reintroduce exact counts that generation cannot meet reliably.
     private static void ValidateLength(LengthExpectation? length, string path, Dictionary<string, string[]> errors)
     {
         if (length is null) return;
-        if (length.Mode is "target" or "exact" && length.Count is { } count && length.Lower is null && length.Upper is null)
+        if (length.Mode == "target" && length.Count is { } count && length.Lower is null && length.Upper is null)
             ValidateChoice(count, path, errors);
-        else if (length.Mode != "range" || length.Count is not null || length.Lower is not > 0 || length.Upper is not > 0 || length.Lower > length.Upper)
-            errors.AddError(path, "יש להגדיר יעד, אורך מדויק או טווח חיובי תקין.");
+        else if (length.Mode != "range" || length.Count is not null || length.Lower is not > 0 || length.Upper is not > 0 || length.Lower >= length.Upper)
+            errors.AddError(path, "יש להגדיר אורך משוער, או טווח שבו המינימום קטן מהמקסימום.");
     }
 
     private static void ValidateControls(ControlDefinition[]? controls, string path, HashSet<string> ids,
@@ -187,8 +180,8 @@ public static class LearningPlanValidator
             else minimum = checked(minimum + (material.Text?.Length ?? 1));
         }
         // Each body boundary separates words without consuming a whitespace character.
-        var totalMinimum = total is { Mode: "exact" or "range" }
-            ? Math.Max(generatedCount, checked(2L * (total.Value ?? total.Lower!.Value) - generatedCount))
+        var totalMinimum = total is { Mode: "range" }
+            ? Math.Max(generatedCount, checked(2L * total.Lower!.Value - generatedCount))
             : generatedCount;
         if (total is not null && totalMinimum > (long)generatedCount * BodyLimit)
             errors.AddError("totalLength", "האורך הכולל אינו מתאים לטקסטים שהוגדרו.");
@@ -196,10 +189,6 @@ public static class LearningPlanValidator
         if (minimum > ContentLimit) errors.AddError("settings.questionCount", "הדרישות אינן יכולות להתאים למגבלת התוכן.");
     }
 
-    private static long MinimumLength(ResolvedLength? length) => length?.Mode switch
-    {
-        "exact" => checked(2L * length.Value!.Value - 1),
-        "range" => checked(2L * length.Lower!.Value - 1),
-        _ => 1
-    };
+    private static long MinimumLength(ResolvedLength? length) =>
+        length is { Mode: "range" } ? checked(2L * length.Lower!.Value - 1) : 1;
 }

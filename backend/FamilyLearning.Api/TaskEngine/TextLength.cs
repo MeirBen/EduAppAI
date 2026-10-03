@@ -41,5 +41,5 @@ public static class TextLength
     }
 
     private static LengthMeasurement Measurement(string scope, ResolvedLength expected, int actual) => new(scope, expected, actual,
-        expected.Mode switch { "exact" => actual == expected.Value, "range" => actual >= expected.Lower && actual <= expected.Upper, _ => null });
+        expected.Mode == "range" ? actual >= expected.Lower && actual <= expected.Upper : null);
 }

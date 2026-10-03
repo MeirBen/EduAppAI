@@ -27,10 +27,12 @@
         </select>
       </div>
       <div class="grid gap-1">
-        <label class="flex items-center gap-2"
-          ><input [id]="control.id + '-required'" type="checkbox" [formField]="c.required" />חובה
-          לבחור ערך</label
-        >
+        @if (!control.hasDefault) {
+          <label class="flex items-center gap-2"
+            ><input [id]="control.id + '-required'" type="checkbox" [formField]="c.required" />חובה
+            לבחור ערך</label
+          >
+        }
         <label class="flex items-center gap-2"
           ><input
             [id]="control.id + '-has-default'"

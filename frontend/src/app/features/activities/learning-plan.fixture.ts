@@ -14,7 +14,6 @@ export const numericPlan: LearningPlan = {
     selectableFormat: false,
     defaultFormat: null,
     choiceCount: null,
-    countBounds: null,
     guidance: '',
     controls: [],
   },

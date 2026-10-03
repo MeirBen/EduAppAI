@@ -19,8 +19,6 @@ import {
 export interface ChoiceForm {
   value: string;
   adjustable: boolean;
-  min: string;
-  max: string;
 }
 export interface LengthForm extends ChoiceForm {
   mode: '' | LengthExpectation['mode'];
@@ -66,8 +64,6 @@ export interface PlanForm {
     selectableFormat: boolean;
     defaultFormat: '' | QuestionFormat;
     choiceCount: ChoiceForm;
-    min: string;
-    max: string;
     guidance: string;
     controls: ControlForm[];
   };
@@ -127,8 +123,6 @@ const text = (value: string | number | boolean | null | undefined) =>
 const choiceForm = (choice?: IntegerChoice | null): ChoiceForm => ({
   value: text(choice?.value),
   adjustable: choice?.adjustable ?? false,
-  min: text(choice?.min),
-  max: text(choice?.max),
 });
 const lengthForm = (length?: LengthExpectation | null): LengthForm => ({
   ...choiceForm(length?.count),
@@ -188,8 +182,6 @@ export function planForm(plan?: LearningPlan): PlanForm {
       selectableFormat: plan?.questions.selectableFormat ?? false,
       defaultFormat: plan?.questions.defaultFormat ?? '',
       choiceCount: choiceForm(plan?.questions.choiceCount),
-      min: text(plan?.questions.countBounds?.min),
-      max: text(plan?.questions.countBounds?.max),
       guidance: plan?.questions.guidance ?? '',
       controls: plan?.questions.controls.map(controlForm) ?? [],
     },

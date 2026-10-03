@@ -54,8 +54,6 @@ internal static class AiSchemas
         plan["schemaVersion"]!["minimum"] = EngineVersions.SchemaVersion;
         plan["schemaVersion"]!["maximum"] = EngineVersions.SchemaVersion;
         plan["defaults"]!["properties"]!["questionCount"]!["maximum"] = EngineValidation.MaxQuestionCount;
-        definitions["bounds"]!["properties"]!["min"]!["maximum"] = EngineValidation.MaxQuestionCount;
-        definitions["bounds"]!["properties"]!["max"]!["maximum"] = EngineValidation.MaxQuestionCount;
         return JsonSerializer.SerializeToElement(schema);
     }
 

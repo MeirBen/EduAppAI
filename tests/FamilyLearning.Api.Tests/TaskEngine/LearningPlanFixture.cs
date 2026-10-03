@@ -15,17 +15,17 @@ internal static class LearningPlanFixture
 
     internal static LearningPlan Numeric(int count = 2) => new(
         "מספרים", "תרגול חשבון", "", new("חשבון", "כיתה ג", "medium", count), [],
-        new(["numeric-input"], false, null, null, null, "", []), []);
+        new(["numeric-input"], false, null, null, "", []), []);
 
     internal static LearningPlan Reading() => Numeric() with
     {
         Name = "קריאה",
         Goal = "הבנת הנקרא",
         Materials = [new(MaterialId, "סיפור", "generated", "עברית", null,
-            new("target", new(120, true, 100, 150)),
+            new("target", new(120, true)),
             [new(ControlId, "סוג סיפור", "select", "בחר את סוג הסיפור", true,
                 Json("\"דמיון\""), Options: [new("דמיון", "סיפור דמיוני"), new("עובדות")])])],
-        Questions = new(["text-input"], false, null, null, null, "", [])
+        Questions = new(["text-input"], false, null, null, "", [])
     };
 
     internal static LearningPlan Supplied(string source = "fixed") => Numeric() with
@@ -36,7 +36,7 @@ internal static class LearningPlanFixture
     internal static LearningPlan Mixed(bool selectable = false) => Numeric(3) with
     {
         Questions = new(["numeric-input", "text-input", "single-choice"], selectable,
-            selectable ? "single-choice" : null, new(3, true, 2, 6), null, "", [])
+            selectable ? "single-choice" : null, new(3, true), "", [])
     };
 
     internal static ResolvedTaskRequest Resolve(LearningPlan plan, TaskRequest? input = null)

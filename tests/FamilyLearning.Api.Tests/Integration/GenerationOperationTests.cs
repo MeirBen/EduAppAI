@@ -154,7 +154,7 @@ public sealed class GenerationOperationTests
     {
         await using var app = new GenerationHarness();
         using var parent = await app.ParentAsync();
-        var plan = Reading() with { Defaults = Numeric(1).Defaults, Materials = [Reading().Materials[0] with { Length = new("exact", new(3, false)) }] };
+        var plan = Reading() with { Defaults = Numeric(1).Defaults, Materials = [Reading().Materials[0] with { Length = new("range", Lower: 3, Upper: 4) }] };
         var draft = await Create(parent, plan);
         var edit = Edit(draft);
         edit["document"]!["materials"] = new JsonArray(new JsonObject { ["id"] = MaterialId, ["body"] = "קצר" });
@@ -279,7 +279,7 @@ public sealed class GenerationOperationTests
         await using var app = new GenerationHarness(GenerationHarness.Materials, "{}", GenerationHarness.Questions("text-input"));
         using var parent = await app.ParentAsync();
         var plan = Reading() with { Defaults = Numeric(1).Defaults };
-        if (rejectMaterial) plan = plan with { Materials = [plan.Materials[0] with { Length = new("exact", new(3, false)) }] };
+        if (rejectMaterial) plan = plan with { Materials = [plan.Materials[0] with { Length = new("range", Lower: 3, Upper: 4) }] };
         var draft = await Create(parent, plan);
         var operation = await GenerationHarness.Start(parent, draft);
         await app.Worker.RunNextAsync(default);

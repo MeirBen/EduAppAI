@@ -21,16 +21,14 @@ export interface GenerationMetadata {
 
 /** Supported application-owned question interactions. */
 export type QuestionFormat = 'numeric-input' | 'text-input' | 'single-choice';
-/** A fixed value or a parent-adjustable default with explicitly requested bounds. */
+/** A fixed value, or a default the parent may change per activity within the application's limits. */
 export interface IntegerChoice {
   value: number;
   adjustable: boolean;
-  min?: number | null;
-  max?: number | null;
 }
-/** Generated-body word expectation; supplied sources have no length requirement. */
+/** Generated-body words: an advisory target count or a strict range; supplied sources have none. */
 export interface LengthExpectation {
-  mode: 'target' | 'exact' | 'range';
+  mode: 'target' | 'range';
   count?: IntegerChoice | null;
   lower?: number | null;
   upper?: number | null;
@@ -74,7 +72,6 @@ export interface LearningPlan {
     selectableFormat: boolean;
     defaultFormat?: QuestionFormat | null;
     choiceCount?: IntegerChoice | null;
-    countBounds?: { min?: number | null; max?: number | null } | null;
     guidance: string;
     controls: PlanControl[];
   };
@@ -161,9 +158,9 @@ export interface ContentAcceptance {
   sources: { id: string; revision: number }[];
   adoptedAtUtc?: string | null;
 }
-/** A resolved generated-body expectation; adjustable bounds are already applied to `value`. */
+/** A resolved generated-body expectation; a chosen per-activity count is already applied to `value`. */
 export interface ResolvedLength {
-  mode: 'target' | 'exact' | 'range';
+  mode: 'target' | 'range';
   value: number | null;
   lower: number | null;
   upper: number | null;

@@ -158,19 +158,23 @@ export function reconcile(
 
 /**
  * The buffer after an AI proposal. When refining, per-activity values, including invalid typing,
- * survive by identity; the HTTP projection omits overrides the new plan no longer accepts.
+ * survive by identity; the HTTP projection omits overrides the new plan no longer accepts. When an
+ * activity's settings are its plan defaults, the proposed defaults replace them.
  */
 export function proposedWorkspace(
   raw: WorkspaceForm,
   plan: LearningPlan,
   refining: boolean,
+  settingsAreDefaults: boolean,
 ): WorkspaceForm {
   const input = inputForm(plan),
     prior = raw.input;
   if (refining)
     Object.assign(input, {
       ...prior,
-      settings: followDefaults(raw.plan.settings, taskSettingsDraft(plan.defaults), prior.settings),
+      settings: settingsAreDefaults
+        ? taskSettingsDraft(plan.defaults)
+        : followDefaults(raw.plan.settings, taskSettingsDraft(plan.defaults), prior.settings),
       materials: input.materials.map(
         (item) => prior.materials.find((old) => old.id === item.id) ?? item,
       ),

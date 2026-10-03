@@ -103,10 +103,14 @@ manual entry. Ordinary choices (topic, audience, difficulty, question count and
 only the applicable length, format, option count, requested choices and source
 text) stay visible. Activities show a derived four-step indicator (describe,
 settings, review, ready); only the current step keeps its label on narrow
-screens. The plan definition, guidance, bounds and choice
-definitions sit under **אפשרויות מתקדמות**, open by default only for template
-editing. Once content exists, settings collapse to a derived one-line summary
-and the content becomes the main surface.
+screens. The plan definition, guidance and choice definitions sit under
+**אפשרויות מתקדמות**, open by default only for template editing; only template
+editing shows separate defaults, since an activity's own settings are its plan
+defaults. Options that have no effect in the current state stay hidden: the
+combined length needs several generated texts, one format per activity needs
+several formats, and a required flag is moot once a choice has a default.
+Once content exists, settings collapse to a derived one-line summary and the
+content becomes the main surface.
 
 Authoring is a conversation: the parent's turns sit at the end edge, the
 assistant's replies carry the `ai-mark` with the computed changes and
@@ -116,10 +120,10 @@ button, keeping keyboard focus on whichever is present; a failed or cancelled
 request returns its text to the composer.
 Starter suggestions only fill the composer. Mark AI actions with `ai-icon`.
 
-Use parent language, never internal terms: say "הגדרות" for the plan and
-"טקסט" for materials; source kinds read as "כתבו עבורי
-תוכן חדש", "יש לי טקסט משלי" and, for templates, "אבחר טקסט חדש בכל פעם";
-length reads as words, not modes. Keep plan defaults, per-activity choices and
+Use parent language, never internal terms: say "הגדרות" for the plan and "טקסט"
+for materials; source kinds read as "כתבו עבורי תוכן חדש", "יש לי טקסט משלי"
+and, for templates, "אבחר טקסט חדש בכל פעם"; length reads as approximate words
+or a strict range, never modes. Keep template defaults, per-activity choices and
 editable content visibly distinct. Saving a template publishes only the plan;
 saving a draft retains editable work; marking ready freezes the reviewed
 revision. Give each state one primary action: create the activity, then mark it
@@ -137,7 +141,7 @@ language, keep stages, outcomes, cost and raw output behind **פרטים טכנ�
 and never imply that another paid attempt is automatic.
 
 Display server length measurements beside saved diagnostics. Distinguish
-advisory targets from strict exact/range blockers, and technical readiness from
+advisory targets from strict range blockers, and technical readiness from
 the parent's educational review. Offer adoption only in a callout beside content
 that saved diagnostics mark as stale. Frozen previews expose answers in native
 disclosures and offer an explicit copy to a new draft.

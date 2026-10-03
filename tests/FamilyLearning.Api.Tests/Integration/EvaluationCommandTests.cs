@@ -61,7 +61,7 @@ public sealed class EvaluationCommandTests : IDisposable
                         Id = null, Controls = [],
                         Length = new("range", Lower: 100, Upper: 150)
                     }],
-                    Questions = new(["single-choice"], false, null, new(4, false), null, "", [])
+                    Questions = new(["single-choice"], false, null, new(4, false), "", [])
                 };
                 output = JsonNode.Parse(StructuredEvaluationTests.Proposal(plan))!;
             }

@@ -16,9 +16,7 @@ type WordRequirement = Pick<ResolvedLength, 'mode'> &
 export function lengthText(expected: WordRequirement): string {
   return expected.mode === 'range'
     ? `${expected.lower}–${expected.upper} מילים`
-    : expected.mode === 'exact'
-      ? `בדיוק ${expected.value} מילים`
-      : `בערך ${expected.value} מילים`;
+    : `בערך ${expected.value} מילים`;
 }
 
 /** Formats server-owned counts; the client never reimplements Unicode counting or a target tolerance. */

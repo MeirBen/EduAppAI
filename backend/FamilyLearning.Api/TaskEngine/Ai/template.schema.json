@@ -268,18 +268,6 @@
             }
           ]
         },
-        "countBounds": {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/bounds"
-            },
-            {
-              "type": [
-                "null"
-              ]
-            }
-          ]
-        },
         "guidance": {
           "type": "string",
           "maxLength": 1000
@@ -297,7 +285,6 @@
         "selectableFormat",
         "defaultFormat",
         "choiceCount",
-        "countBounds",
         "guidance",
         "controls"
       ],
@@ -426,53 +413,13 @@
           "minimum": 1
         },
         "adjustable": {
-          "description": "True only when the parent explicitly asks to change this value for each activity; min and max may then bound it. When false, min and max are null.",
+          "description": "True only when the parent explicitly asks to change this value for each activity.",
           "type": "boolean"
-        },
-        "min": {
-          "type": [
-            "integer",
-            "null"
-          ],
-          "minimum": 1
-        },
-        "max": {
-          "type": [
-            "integer",
-            "null"
-          ],
-          "minimum": 1
         }
       },
       "required": [
         "value",
-        "adjustable",
-        "min",
-        "max"
-      ],
-      "additionalProperties": false
-    },
-    "bounds": {
-      "type": "object",
-      "properties": {
-        "min": {
-          "type": [
-            "integer",
-            "null"
-          ],
-          "minimum": 1
-        },
-        "max": {
-          "type": [
-            "integer",
-            "null"
-          ],
-          "minimum": 1
-        }
-      },
-      "required": [
-        "min",
-        "max"
+        "adjustable"
       ],
       "additionalProperties": false
     },
@@ -483,7 +430,6 @@
           "type": "string",
           "enum": [
             "target",
-            "exact",
             "range"
           ]
         },

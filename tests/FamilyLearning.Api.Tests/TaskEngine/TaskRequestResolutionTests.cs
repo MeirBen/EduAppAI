@@ -73,11 +73,11 @@ public sealed class TaskRequestResolutionTests
             new(plan.Defaults, TotalWordCount: Json("120")),
             new(plan.Defaults, MaterialInputs: Json($$$"""{"{{{MaterialId}}}":null}""")),
             new(plan.Defaults, MaterialInputs: Json($$$"""{"{{{MaterialId}}}":{"wordCount":"120"}}""")),
-            new(plan.Defaults, MaterialInputs: Json($$$"""{"{{{MaterialId}}}":{"wordCount":99}}""")),
+            new(plan.Defaults, MaterialInputs: Json($$$"""{"{{{MaterialId}}}":{"wordCount":0}}""")),
             new(plan.Defaults, MaterialInputs: Json($$$"""{"{{{MaterialId}}}":{"sourceText":"source"}}""")),
             new(plan.Defaults, MaterialInputs: Json($$$"""{"{{{MaterialId}}}":{"lower":100}}"""))];
         foreach (var input in invalid) Assert.NotEmpty(TaskRequestResolver.Resolve(plan, input).Errors);
-        var fixedPlan = plan with { Materials = [plan.Materials[0] with { Length = new("exact", new(120, false)) }] };
+        var fixedPlan = plan with { Materials = [plan.Materials[0] with { Length = new("target", new(120, false)) }] };
         Assert.NotEmpty(TaskRequestResolver.Resolve(fixedPlan, new(plan.Defaults,
             MaterialInputs: Json($$$"""{"{{{MaterialId}}}":{"wordCount":120}}"""))).Errors);
     }

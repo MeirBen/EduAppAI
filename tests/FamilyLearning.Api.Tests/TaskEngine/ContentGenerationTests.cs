@@ -124,7 +124,7 @@ public sealed class ContentGenerationTests
     [Fact]
     public async Task Strict_material_failure_stops_questions_and_retains_prior_content()
     {
-        var plan = Reading() with { Materials = [Reading().Materials[0] with { Length = new("exact", new(100, false)) }] };
+        var plan = Reading() with { Materials = [Reading().Materials[0] with { Length = new("range", Lower: 100, Upper: 150) }] };
         var request = Resolve(plan);
         using var chat = new AiFixtures.ScriptedChat(Serialize(Materials()));
         using var service = Service(chat);
@@ -146,7 +146,7 @@ public sealed class ContentGenerationTests
         Assert.NotNull(TaskAssembly.PrepareMaterials(request, document));
         Assert.Null(TaskAssembly.AcceptMaterials(request, document, new([new(MaterialId, null, "ג")])).Document);
         Assert.NotNull(TaskAssembly.AcceptMaterials(request, document, new([new(MaterialId, null, "ג"), new(OtherId, null, "ד")])).Document);
-        var strict = Resolve(Reading() with { Materials = [Reading().Materials[0] with { Length = new("exact", new(100, false)) }] });
+        var strict = Resolve(Reading() with { Materials = [Reading().Materials[0] with { Length = new("range", Lower: 100, Upper: 150) }] });
         var manual = new TaskDocument("", null, [new(MaterialId, 1, null, "קצר", new("manual"), new(TaskRequestResolver.Fingerprint(strict), []))], []);
         Assert.Throws<TaskValidationException>(() => TaskAssembly.PrepareQuestions(strict, manual));
     }
@@ -208,7 +208,7 @@ public sealed class ContentGenerationTests
     {
         var plan = Reading() with
         {
-            Materials = [Reading().Materials[0] with { Length = new("exact", new(2, false)) },
+            Materials = [Reading().Materials[0] with { Length = new("range", Lower: 2, Upper: 3) },
                 Supplied().Materials[0] with { Id = OtherId }]
         };
         var request = Resolve(plan);

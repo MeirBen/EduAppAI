@@ -1,9 +1,9 @@
-import { ChangeDetectionStrategy, Component, inject, input, output } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, input, output } from '@angular/core';
 import { FieldTree, FormField } from '@angular/forms/signals';
 import { Limits } from '../../../core/api/limits';
 import { PlanMaterial } from '../../../core/api/models';
 import { TaskSettingsFields } from '../../../shared/forms/task-settings-fields';
-import { MaterialForm, PlanForm } from './plan-form';
+import { formFormats, PlanForm } from './plan-form';
 import { ControlFields } from './control-fields/control-fields';
 import { LengthFields } from './length-fields/length-fields';
 
@@ -29,9 +29,21 @@ export class PlanEditor {
   protected readonly limits = inject(Limits).current;
   readonly fields = input.required<FieldTree<PlanForm>>();
   readonly locked = input(false);
+  /** Template editing shows the defaults; inside an activity its own settings become them on publication. */
+  readonly reusable = input(false);
   readonly edited = output<{ key: string }>();
   readonly structureChanged = output<PlanStructureEdit>();
-  protected readonly isGenerated = (material: MaterialForm) => material.source === 'generated';
+  /** A combined length only differs from a text's own length when several texts are generated. */
+  protected readonly generatedCount = computed(
+    () =>
+      this.fields()()
+        .value()
+        .materials.filter((m) => m.source === 'generated').length,
+  );
+  /** Choosing one format per activity only matters when the plan offers several. */
+  protected readonly formatCount = computed(
+    () => formFormats(this.fields()().value().questions).length,
+  );
   protected readonly sourceNames: Record<PlanMaterial['source'], string> = {
     generated: 'הטקסט ייכתב בעזרת AI',
     fixed: 'טקסט קבוע שסיפקתם',

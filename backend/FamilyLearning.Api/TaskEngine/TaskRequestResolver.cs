@@ -47,9 +47,8 @@ public static class TaskRequestResolver
             else formats = [selected];
         }
         else if (input.QuestionFormat.ValueKind != JsonValueKind.Undefined) errors.AddError("questionFormat", "סוגי השאלות קבועים בתכנית.");
-        if (input.Settings.QuestionCount < formats.Length || input.Settings.QuestionCount < questionPlan.CountBounds?.Min ||
-            input.Settings.QuestionCount > questionPlan.CountBounds?.Max)
-            errors.AddError("settings.questionCount", "מספר השאלות אינו מתאים לדרישות התכנית.");
+        if (input.Settings.QuestionCount < formats.Length)
+            errors.AddError("settings.questionCount", "נדרשת לפחות שאלה אחת מכל סוג שנבחר.");
         var choices = formats.Contains("single-choice")
             ? ResolveChoice(questionPlan.ChoiceCount, input.ChoiceCount, "choiceCount", errors, MinChoiceCount, MaxChoiceCount) : null;
         if (!formats.Contains("single-choice") && input.ChoiceCount.ValueKind != JsonValueKind.Undefined)
@@ -153,7 +152,7 @@ public static class TaskRequestResolver
     {
         if (input.ValueKind == JsonValueKind.Undefined) return choice?.Value;
         if (choice is not { Adjustable: true } || input.ValueKind != JsonValueKind.Number || !input.TryGetInt32(out var value) ||
-            value < minimum || value > maximum || value < choice.Min || value > choice.Max)
+            value < minimum || value > maximum)
         {
             errors.AddError(path, "יש לבחור מספר שלם בגבולות המותרים ורק כאשר השדה ניתן לשינוי.");
             return null;

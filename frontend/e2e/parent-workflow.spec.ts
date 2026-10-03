@@ -172,7 +172,7 @@ test('strict material rejection stops questions, while a question failure retain
   let state = await start(page);
   let draft = await finish(page, state, 'failed');
   await expect(page.getByText('הטקסט שנוצר לא עמד בדרישת האורך.')).toBeVisible();
-  await expect(page.getByText('נדרש: בדיוק 100 מילים', { exact: true })).toBeVisible();
+  await expect(page.getByText('נדרש: 100–120 מילים', { exact: true })).toBeVisible();
   await expect(page.getByText('הפעילות נוצרה.')).toHaveCount(0);
   expect(draft.document.materials).toEqual([]);
   expect(draft.document.questions).toEqual([]);
