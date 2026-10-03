@@ -84,7 +84,8 @@ over its prompt, options and answer; sibling content stays unchanged.
 
 `AiSchemas` builds request-owned schemas with exact counts and allowed IDs; the
 schema files hold structure, and engine constants (schema version, question cap)
-are applied in code so they cannot drift from the validators.
+are applied in code so they cannot drift from the validators. Prompts state
+limits from the same `EngineValidation` constants.
 Each call has one schema source: schema mode sends it only as the native
 response format; JSON-object and text modes carry it in the prompt instead.
 The OpenRouter adapter uses the SDK's native response-format option, preserving

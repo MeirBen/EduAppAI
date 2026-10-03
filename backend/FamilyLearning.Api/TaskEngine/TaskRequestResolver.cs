@@ -44,7 +44,7 @@ public static class TaskRequestResolver
             input.Settings.QuestionCount > questionPlan.CountBounds?.Max)
             errors.AddError("settings.questionCount", "מספר השאלות אינו מתאים לדרישות התכנית.");
         var choices = formats.Contains("single-choice")
-            ? ResolveChoice(questionPlan.ChoiceCount, input.ChoiceCount, "choiceCount", errors, 2, 6) : null;
+            ? ResolveChoice(questionPlan.ChoiceCount, input.ChoiceCount, "choiceCount", errors, MinChoiceCount, MaxChoiceCount) : null;
         if (!formats.Contains("single-choice") && input.ChoiceCount.ValueKind != JsonValueKind.Undefined)
             errors.AddError("choiceCount", "מספר אפשרויות אינו מתאים לסוג השאלה שנבחר.");
         var materialInputs = ReadMap(input.MaterialInputs, "materialInputs", errors);
@@ -99,8 +99,7 @@ public static class TaskRequestResolver
         foreach (var property in input.EnumerateObject())
         {
             if (!values.TryAdd(property.Name, property.Value)) errors.AddError(path, "אין לחזור על אותו שדה.");
-            // No legitimate map needs more than the total custom-control limit.
-            if (values.Count > 16)
+            if (values.Count > MaxControls)
             {
                 errors.AddError(path, "יש יותר מדי שדות.");
                 break;

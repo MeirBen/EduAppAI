@@ -30,7 +30,7 @@ public static class LearningPlanValidator
         if (plan.TotalLength is not null && plan.Materials is { } materials &&
             (!materials.Any(m => m?.Source == "generated") || materials.Any(m => m?.Length is not null)))
             errors.AddError("totalLength", "יש לבחור אורך כולל או אורך לכל חומר שנוצר, ללא חפיפה.");
-        if (controlCount > 16) errors.AddError("controls", "אפשר להגדיר עד 16 שדות בכל התכנית.");
+        if (controlCount > MaxControls) errors.AddError("controls", $"אפשר להגדיר עד {MaxControls} שדות בכל התכנית.");
         if (errors.Count == 0)
         {
             if (JsonSerializer.Serialize(plan, EngineJson.Options).Length > PlanLimit) errors.AddError("plan", "התכנית גדולה מדי.");
@@ -89,7 +89,7 @@ public static class LearningPlanValidator
             if (!questions.SelectableFormat && count < questions.Formats.Length) errors.AddError("defaults.questionCount", "אין מספיק שאלות לכל הסוגים המבוקשים.");
             if (questions.Formats.Contains("single-choice") != (questions.ChoiceCount is not null)) errors.AddError("questions.choiceCount", "יש להגדיר מספר אפשרויות רק כאשר שאלת בחירה מותרת.");
         }
-        if (questions.ChoiceCount is { } choice) ValidateChoice(choice, "questions.choiceCount", errors, 2, 6);
+        if (questions.ChoiceCount is { } choice) ValidateChoice(choice, "questions.choiceCount", errors, MinChoiceCount, MaxChoiceCount);
         if (questions.CountBounds is { } bounds && (!ValidBounds(bounds.Min, bounds.Max) || bounds.Max > MaxQuestionCount ||
             count < bounds.Min || count > bounds.Max))
             errors.AddError("questions.countBounds", "גבולות מספר השאלות או ברירת המחדל אינם תקינים.");
@@ -119,12 +119,9 @@ public static class LearningPlanValidator
     private static void ValidateControls(ControlDefinition[]? controls, string path, HashSet<string> ids,
         ref int count, Dictionary<string, string[]> errors)
     {
-        if (controls is not
-            {
-                Length: <= 16
-            })
+        if (controls is not { Length: <= MaxControls })
         {
-            errors.AddError(path, "יש לציין עד 16 שדות.");
+            errors.AddError(path, $"יש לציין עד {MaxControls} שדות.");
             return;
         }
         count += controls.Length;
@@ -145,10 +142,10 @@ public static class LearningPlanValidator
                 (control.Type != "text" && control.MaxLength.HasValue) || (control.Type != "select" && control.Options is not null) ||
                 control.Min > control.Max || control.MaxLength is < 1 or > 500)
                 errors.AddError(key, "סוג השדה וההגבלות אינם תואמים.");
-            if (control.Type == "select" && (control.Options is not { Length: >= 1 and <= 20 } ||
+            if (control.Type == "select" && (control.Options is not { Length: >= 1 and <= MaxSelectOptions } ||
                 control.Options.Any(o => o is null || !HasText(o.Value, 100) || o.Value != o.Value.Trim() || o.Value.Contains('\n') || o.Value.Contains('\r') || o.Meaning is { Length: > 200 }) ||
                 control.Options.Select(o => o.Value).Distinct(StringComparer.Ordinal).Count() != control.Options.Length))
-                errors.AddError(key, "יש להגדיר עד 20 אפשרויות שונות ותקינות.");
+                errors.AddError(key, $"יש להגדיר עד {MaxSelectOptions} אפשרויות שונות ותקינות.");
             if (control.Default is { ValueKind: not JsonValueKind.Null } value && ValidateControlValue(control, value) is { } error)
                 errors.AddError(key + ".default", error);
         }

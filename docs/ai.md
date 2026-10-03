@@ -159,6 +159,10 @@ the declared key order.
   distinct options, are therefore not decoding bounds. Generation counts stay
   exact: up to four materials and 1–20 questions. The heaviest valid question
   shape (all formats, six choices) is accepted at 20 and rejected at 25.
+  The authoring prompt states the control and option limits instead, from the
+  same constants the validators use. Without
+  that line, a request naming 25 topics returned a 25-option select that the
+  validator rejects; with it, the model asked to merge topics or use free text.
 - **Only meaningful constraints.** Numeric bounds are the validator's real ones:
   question count 1–20, positive counts and lengths, and text-control length
   1–500, with the version and question cap applied from engine constants. C#
@@ -380,12 +384,14 @@ conservative allowances for missing costs, **not confirmed charges**.
 | DeepSeek verification |     4 | $0.0066341346 | $0.000000000 |
 | Gemini strict schema  |    11 | $0.0117457500 | $0.326841750 |
 | Strict root cause     |    96 | $0.5185207500 | $0.199239750 |
-| Total                 |   359 | $1.3706628406 | $1.630131600 |
+| Control limits        |     3 | $0.0293505000 | $0.000000000 |
+| Total                 |   362 | $1.4000133406 | $1.630131600 |
 
 First tuning includes the post-cutover material and qualification experiments.
 
-Total charged/reserved: **$3.0007944406**. The owner authorized up to $3 of live
-calls for the 2 October root-cause session. Its known cost was $0.5185; the
+Total charged/reserved: **$3.0301449406**. The owner authorized up to $3 of live
+calls for the 2 October root-cause session and its 3 October follow-up. Their
+known cost was $0.5479; the
 reserve covers 28 HTTP 400 schema rejections at full output price. Key usage
 afterwards matched reported per-call costs exactly, including two rejections at
 $0, so the rejections appear free, but they stay reserved under this ledger's
@@ -427,7 +433,9 @@ response, exact application wire captures, upstream echoes and diffs, the three
 harness rounds (`harness/`, `harness-final/`, `harness-release/`) and
 `acceptance-summary.json`. The OpenRouter reproduction for support remains
 `gemini-strict-contract-2026-10-02/support-reproduction.md`; it predates the
-dropped-`description` finding.
+dropped-`description` finding. The closed `gemini-control-limits-2026-10-03/`
+ledger keeps the three prompt-limit calls: the 25-topic baseline, its repeat
+after the prompt line, and the space-prompt regression check.
 Do not edit historical reports to match new code or report formats. The latest manifest
 hashes captured source versions, not this subsequently consolidated documentation.
 

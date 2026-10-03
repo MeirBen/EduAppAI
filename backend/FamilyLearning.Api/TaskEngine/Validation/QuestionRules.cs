@@ -7,7 +7,7 @@ namespace FamilyLearning.Api.TaskEngine.Validation;
 /// <summary>Answer and option rules shared by candidate, draft and release validation.</summary>
 internal static partial class QuestionRules
 {
-    internal static bool ValidOptions(string[]? options) => options is { Length: >= 2 and <= 6 } &&
+    internal static bool ValidOptions(string[]? options) => options is { Length: >= EngineValidation.MinChoiceCount and <= EngineValidation.MaxChoiceCount } &&
         options.All(option => EngineValidation.HasText(option, 200) && option == option.Trim() &&
             !option.Contains('\r') && !option.Contains('\n')) &&
         options.Distinct(StringComparer.Ordinal).Count() == options.Length;

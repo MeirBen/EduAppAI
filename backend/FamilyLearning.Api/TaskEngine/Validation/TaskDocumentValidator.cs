@@ -60,7 +60,7 @@ public static class TaskDocumentValidator
             }
             if (request.Questions.Formats.Any(f => !seenFormats.Contains(f))) diagnostics.AddError("questions.formats", "חסרים סוגי שאלות שהתבקשו.");
         }
-        if (length > ContentLimit) errors.AddError("document", "התוכן כולו מוגבל ל־8,000 תווים.");
+        if (length > ContentLimit) errors.AddError("document", ContentLimitError);
         return new(errors, diagnostics);
     }
 
@@ -173,7 +173,7 @@ public static class TaskDocumentValidator
             if (question.Interaction is { } interaction) formats.Add(interaction.Type);
         }
         if (request.Questions.Formats.Any(f => !formats.Contains(f))) errors.AddError("questions.formats", "חסרים סוגי שאלות שהתבקשו.");
-        if (length > ContentLimit) errors.AddError("document", "התוכן כולו מוגבל ל־8,000 תווים.");
+        if (length > ContentLimit) errors.AddError("document", ContentLimitError);
         return errors;
     }
 
@@ -196,7 +196,7 @@ public static class TaskDocumentValidator
         if (!requirements.Formats.Contains(interaction.Type)) diagnostics.AddError(path + ".format", "סוג השאלה אינו תואם לתכנית.");
         if (interaction.Options is { } options)
         {
-            if (interaction.Type != "single-choice" || options.Length > 6 || options.Any(o => o is null || o.Length > 200))
+            if (interaction.Type != "single-choice" || options.Length > MaxChoiceCount || options.Any(o => o is null || o.Length > 200))
                 errors.AddError(path + ".options", "אפשרויות התשובה אינן בטווח הנתמך.");
         }
         if (interaction.Type == "single-choice" &&
@@ -215,7 +215,7 @@ public static class TaskDocumentValidator
     private static long QuestionLength(string? prompt, QuestionInteraction? interaction, QuestionAnswer? answer)
     {
         long length = (long)(prompt?.Length ?? 0) + (answer?.Value?.Length ?? 0);
-        if (interaction?.Options is { Length: <= 6 } options) foreach (var option in options) length += option?.Length ?? 0;
+        if (interaction?.Options is { Length: <= MaxChoiceCount } options) foreach (var option in options) length += option?.Length ?? 0;
         return length;
     }
 
