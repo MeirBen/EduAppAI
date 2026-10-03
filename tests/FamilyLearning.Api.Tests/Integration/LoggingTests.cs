@@ -1,9 +1,11 @@
+using System.Diagnostics;
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using FamilyLearning.Api.Infrastructure.Logging;
 using FamilyLearning.Api.TaskEngine.Models;
+using FamilyLearning.Api.Tests.Fixtures;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
@@ -16,6 +18,21 @@ namespace FamilyLearning.Api.Tests.Integration;
 public sealed class LoggingTests : IDisposable
 {
     private readonly string directory = TemporaryDirectory();
+
+    [Fact]
+    public async Task Invalid_configuration_is_logged_before_the_host_exists()
+    {
+        Directory.CreateDirectory(directory);
+        await File.WriteAllTextAsync(System.IO.Path.Combine(directory, "appsettings.json"), "{invalid");
+        var start = new ProcessStartInfo("dotnet");
+        start.ArgumentList.Add(typeof(Program).Assembly.Location);
+        start.ArgumentList.Add("--contentRoot");
+        start.ArgumentList.Add(directory);
+        var result = await TestProcess.RunAsync(start);
+
+        Assert.NotEqual(0, result.ExitCode);
+        Assert.Contains("Host configuration failed", result.Output);
+    }
 
     [Theory]
     [InlineData(true)]
@@ -31,7 +48,7 @@ public sealed class LoggingTests : IDisposable
         await using (var host = builder.Build()) host.Logger.LogInformation("Logging location verified");
 
         var entries = ReadEntries(inRepository ? directory : contentRoot);
-        Assert.Contains(entries, entry => entry.GetProperty("@mt").GetString() == "Logging location verified");
+        Assert.Contains(entries, entry => entry.GetProperty("@m").GetString() == "Logging location verified");
         if (inRepository) Assert.False(Directory.Exists(System.IO.Path.Combine(contentRoot, "logs")));
     }
 
@@ -57,6 +74,8 @@ public sealed class LoggingTests : IDisposable
         Assert.False(success.TryGetProperty("@l", out _)); // Compact JSON omits the default Information level.
         Assert.True(success.TryGetProperty("Elapsed", out _));
         Assert.True(success.TryGetProperty("@tr", out _));
+        Assert.Contains("responded 204 in ", success.GetProperty("@m").GetString());
+        Assert.DoesNotContain("{Request", success.GetProperty("@m").GetString());
         Assert.DoesNotContain(entries, entry => HasPath(entry, "/health"));
         var text = string.Join('\n', entries);
         Assert.DoesNotContain("secret-value", text);

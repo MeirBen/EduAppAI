@@ -10,12 +10,12 @@ using Microsoft.EntityFrameworkCore;
 using Serilog;
 
 var management = args.Length > 0 && args[0] is "--migrate" or "--create-parent";
-var builder = WebApplication.CreateBuilder(management ? [] : args);
 using var bootstrapLogger = new LoggerConfiguration().WriteTo.Console().CreateLogger();
-builder.AddApplicationLogging();
 WebApplication? app = null;
 try
 {
+    var builder = WebApplication.CreateBuilder(management ? [] : args);
+    builder.AddApplicationLogging();
     var dataDirectory = Path.GetFullPath(builder.Configuration["Storage:Directory"] ?? "data", builder.Environment.ContentRootPath);
     if (OperatingSystem.IsWindows()) Directory.CreateDirectory(dataDirectory);
     else Directory.CreateDirectory(dataDirectory, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);

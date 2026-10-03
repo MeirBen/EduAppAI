@@ -105,9 +105,9 @@ trace/span IDs and scoped `OperationId`, `DraftId` and `Stage` connect related
 events. Logs exclude request bodies, query strings, credentials and learning
 content; keep deployment access restricted.
 
-In JSON, `@mt` preserves the fixed message template and its values are separate
-properties; the console renders those values into the message. `@t` is UTC, and
-an omitted `@l` means Information.
+In JSON, `@m` contains the rendered message for quick reading; structured values
+remain separate properties and `@i` identifies the message template. `@t` is UTC,
+and an omitted `@l` means Information.
 
 File writes use a bounded 10,000-event background queue, flushed on orderly
 shutdown. If full, new events are dropped to preserve request throughput; sink
