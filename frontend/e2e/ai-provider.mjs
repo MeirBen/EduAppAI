@@ -26,7 +26,7 @@ export async function startAiProvider() {
       assert.equal(input.response_format.json_schema.strict, true);
       assert.equal(input.tools, undefined);
       assert.equal(input.messages.length, 2);
-      // Strict mode sends the schema once, natively; a prompt copy can lower Gemini's output quality.
+      // The default strict profile sends the schema natively only (Ai:SchemaInPrompt is false).
       assert.ok(!input.messages[0].content.includes('Output JSON schema'));
       const schema = input.response_format.json_schema.schema;
       assert.equal(schema.additionalProperties, false);

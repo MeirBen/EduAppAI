@@ -17,7 +17,7 @@ namespace FamilyLearning.Api.Tests.TaskEngine;
 public sealed class ContentGenerationWireTests
 {
     [Fact]
-    public async Task Strict_wire_schemas_follow_the_Gemini_schema_contract()
+    public async Task Strict_wire_schemas_use_portable_forms()
     {
         await using var local = await LocalAiProvider.StartAsync();
         local.Respond = body => body.GetProperty("response_format").GetProperty("json_schema").GetProperty("name").GetString()!.Contains("author")

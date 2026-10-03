@@ -52,7 +52,6 @@ public sealed class LearningPlanTests
     [Fact]
     public void Question_count_and_option_limits_belong_to_the_validator()
     {
-        // Exact-count question arrays above 20 can exceed Gemini's strict schema budget for some valid shapes.
         Assert.Contains("defaults.questionCount", LearningPlanValidator.Validate(LearningPlanFixture.Numeric(21)).Keys);
         var bounded = LearningPlanFixture.Numeric(20) with { Questions = LearningPlanFixture.Numeric().Questions with { CountBounds = new(1, 21) } };
         Assert.Contains("questions.countBounds", LearningPlanValidator.Validate(bounded).Keys);

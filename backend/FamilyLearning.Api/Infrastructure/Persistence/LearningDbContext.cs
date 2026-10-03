@@ -2,6 +2,7 @@ using FamilyLearning.Api.Features.Activities;
 using FamilyLearning.Api.Features.Instances;
 using FamilyLearning.Api.Features.Templates;
 using FamilyLearning.Api.Infrastructure.Auth;
+using FamilyLearning.Api.TaskEngine.Validation;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
@@ -31,7 +32,7 @@ public sealed class LearningDbContext(DbContextOptions<LearningDbContext> option
             .OnDelete(DeleteBehavior.Restrict);
         model.Entity<TaskTemplate>(entity =>
         {
-            entity.Property(t => t.Name).HasMaxLength(100);
+            entity.Property(t => t.Name).HasMaxLength(EngineValidation.NameLength);
             entity.Property(t => t.CreatedAtUtc).HasConversion(utcTimestamp);
             entity.Property(t => t.UpdatedAtUtc).HasConversion(utcTimestamp);
             // Reject a stale writer even when both requests passed the initial revision check.
@@ -47,7 +48,7 @@ public sealed class LearningDbContext(DbContextOptions<LearningDbContext> option
         });
         model.Entity<ActivityDraft>(entity =>
         {
-            entity.Property(d => d.Name).HasMaxLength(100);
+            entity.Property(d => d.Name).HasMaxLength(EngineValidation.NameLength);
             entity.Property(d => d.Revision).IsConcurrencyToken();
             // Starting work does not advance content revision, but must still fence an already-read release.
             entity.Property(d => d.ActiveOperationId).IsConcurrencyToken();
@@ -58,7 +59,7 @@ public sealed class LearningDbContext(DbContextOptions<LearningDbContext> option
         });
         model.Entity<TaskSnapshot>(entity =>
         {
-            entity.Property(s => s.Title).HasMaxLength(100);
+            entity.Property(s => s.Title).HasMaxLength(EngineValidation.TitleLength);
             entity.Property(s => s.DraftCreatedAtUtc).HasConversion(utcTimestamp);
             entity.Property(s => s.ReviewedAtUtc).HasConversion(utcTimestamp);
             entity.HasIndex(s => s.SourceDraftId).IsUnique();

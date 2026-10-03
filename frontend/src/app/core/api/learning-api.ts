@@ -164,7 +164,7 @@ export class LearningApi {
       lifetime,
     );
   }
-  /** Returns up to 100 of the family's most recently created templates. */
+  /** Returns the family's most recently created templates, up to the server's list limit. */
   templates() {
     return httpResource<TemplateSummary[]>(() => '/api/templates');
   }
