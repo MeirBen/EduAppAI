@@ -18,7 +18,7 @@
             id="plan-undo"
             class="text-link"
             type="button"
-            [disabled]="saving() || released() || !history.entries().length"
+            [disabled]="locked() || !history.entries().length"
             (click)="undo()"
           >
             ביטול השינוי האחרון
@@ -67,7 +67,7 @@
             [plan]="fields.plan"
             [inputs]="fields.input"
             [pendingSources]="pendingSources()"
-            [locked]="saving() || released()"
+            [locked]="locked()"
             [reusable]="isTemplate"
             (edited)="edited($event)"
             (sourceConfirmed)="confirmSource($event)"
@@ -75,9 +75,9 @@
         }
         <app-template-chat
           [fields]="chatFields"
-          [configured]="ai.value()?.configured ?? false"
+          [configured]="aiConfigured()"
           [busy]="authoring()"
-          [locked]="saving() || released()"
+          [locked]="locked()"
           [clarification]="clarification()"
           [context]="conversation()"
           [consolidationRequired]="needsConsolidation()"
@@ -117,7 +117,7 @@
           <summary>{{ hasPlan() ? 'אפשרויות מתקדמות' : 'מילוי הפרטים ידנית' }}</summary>
           <app-plan-editor
             [fields]="fields.plan"
-            [locked]="saving() || released()"
+            [locked]="locked()"
             (edited)="edited($event)"
             (structureChanged)="changeStructure($event)"
           />
@@ -147,8 +147,8 @@
     @if (operation(); as current) {
       <app-generation-status
         [operation]="current"
-        [locked]="saving() || released()"
-        [configured]="ai.value()?.configured ?? false"
+        [locked]="locked()"
+        [configured]="aiConfigured()"
         (cancelled)="cancelGeneration()"
         (retried)="activityAction($event)"
         (checked)="reloadActivity()"
@@ -178,8 +178,8 @@
       <app-activity-document-editor
         [fields]="fields.document"
         [materials]="raw().plan.materials"
-        [locked]="saving() || released()"
-        [aiAvailable]="ai.value()?.configured ?? false"
+        [locked]="locked()"
+        [aiAvailable]="aiConfigured()"
         [operationActive]="operationActive()"
         [empty]="!hasContent()"
         [staleMaterials]="stale().materials"
@@ -196,7 +196,7 @@
       <app-source-replacement
         [field]="sourceFields.text"
         [locked]="saving()"
-        (typed)="sourceTyping()"
+        (typed)="markLocalChange()"
         (accepted)="acceptSourceReplacement()"
         (cancelled)="sourceReplacement.set({ id: '', text: '' })"
       />
@@ -241,9 +241,7 @@
               class="button"
               [class.button-secondary]="isTemplate"
               type="button"
-              [disabled]="
-                saving() || operationActive() || !!startRecovery() || !ai.value()?.configured
-              "
+              [disabled]="!canGenerate()"
               (click)="activityAction('GenerateActivity')"
             >
               יצירת הפעילות
@@ -271,7 +269,7 @@
               id="release-activity"
               class="button"
               type="button"
-              [disabled]="saving() || operationActive() || !!startRecovery()"
+              [disabled]="contentBusy()"
               (click)="activityAction('release')"
             >
               סימון כמוכנה
@@ -293,9 +291,7 @@
                 id="generate-questions"
                 class="text-link"
                 type="button"
-                [disabled]="
-                  saving() || operationActive() || !!startRecovery() || !ai.value()?.configured
-                "
+                [disabled]="!canGenerate()"
                 (click)="activityAction('GenerateQuestions')"
               >
                 יצירת כל השאלות מחדש
@@ -304,9 +300,7 @@
                 id="generate-activity"
                 class="text-link"
                 type="button"
-                [disabled]="
-                  saving() || operationActive() || !!startRecovery() || !ai.value()?.configured
-                "
+                [disabled]="!canGenerate()"
                 (click)="activityAction('GenerateActivity')"
               >
                 יצירת הפעילות מחדש, כולל טקסט שאינו עדכני

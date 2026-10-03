@@ -202,10 +202,10 @@ public static class TaskAssembly
     private static void RequireInstruction(string? instruction)
     {
         if (instruction?.Length > MessageLength)
-            throw new TaskValidationException(new Dictionary<string, string[]>() { ["instruction"] = [$"ההנחיה מוגבלת ל־{Count(MessageLength)} תווים."] });
+            throw new TaskValidationException("instruction", $"ההנחיה מוגבלת ל־{Count(MessageLength)} תווים.");
     }
 
-    private static TaskValidationException TargetError(string field) => new(new Dictionary<string, string[]>() { [field] = ["יש לבחור פריט מתאים ולהחזיר אותו במלואו."] });
+    private static TaskValidationException TargetError(string field) => new(field, "יש לבחור פריט מתאים ולהחזיר אותו במלואו.");
 
     private static void RequireMaterials(DraftDocumentCheck check)
     {

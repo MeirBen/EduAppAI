@@ -23,6 +23,13 @@ public static class TaskRequestResolver
             request.TotalLength
         }, EngineJson.Options))).ToLowerInvariant();
 
+    /// <summary>Resolves a request whose errors the caller reports as a <see cref="TaskValidationException"/>.</summary>
+    public static ResolvedTaskRequest ResolveOrThrow(LearningPlan plan, TaskRequest input)
+    {
+        var resolution = Resolve(plan, input);
+        return resolution.Value ?? throw new TaskValidationException(resolution.Errors);
+    }
+
     /// <summary>Rejects impossible requirements before any count-sized allocation or provider work.</summary>
     public static TaskResolution Resolve(LearningPlan plan, TaskRequest input)
     {
@@ -64,7 +71,7 @@ public static class TaskRequestResolver
             if (material.Source == "per-task")
             {
                 if (sourceText.ValueKind != JsonValueKind.String || !HasText(sourceText.GetString(), BodyLimit))
-                    errors.AddError(path + ".sourceText", "יש להזין מקור באורך של 1 עד 4,000 תווים.");
+                    errors.AddError(path + ".sourceText", $"יש להזין מקור באורך של 1 עד {Count(BodyLimit)} תווים.");
                 else text = sourceText.GetString();
             }
             else if (sourceText.ValueKind != JsonValueKind.Undefined) errors.AddError(path + ".sourceText", "לא ניתן לשנות את המקור בשדה זה.");

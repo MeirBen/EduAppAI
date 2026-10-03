@@ -4,5 +4,7 @@ namespace FamilyLearning.Api.TaskEngine.Validation;
 public sealed class TaskValidationException(IReadOnlyDictionary<string, string[]> errors)
     : Exception("תוכן הפעילות אינו עומד בדרישות.")
 {
+    public TaskValidationException(string field, string message) : this(new Dictionary<string, string[]> { [field] = [message] }) { }
+
     public IReadOnlyDictionary<string, string[]> Errors { get; } = errors;
 }

@@ -52,7 +52,7 @@ public sealed class AiGenerationService(IEnumerable<IChatClient> clients, ILogge
     {
         var current = new TaskDocument("", null, input.Materials, []);
         var prepared = TaskAssembly.PrepareMaterials(input.Request, current)
-            ?? throw new TaskValidationException(new Dictionary<string, string[]>() { ["materials"] = ["אין חומרים חסרים או מיושנים ליצירה."] });
+            ?? throw new TaskValidationException("materials", "אין חומרים חסרים או מיושנים ליצירה.");
         current = current with { Materials = prepared.Materials };
         var ids = input.Request.Materials.Where(m => m.Source == "generated").Select(m => m.Id).ToArray();
         var result = await RequestAsync<MaterialCandidateBatch>(AiPrompts.MaterialGeneration,

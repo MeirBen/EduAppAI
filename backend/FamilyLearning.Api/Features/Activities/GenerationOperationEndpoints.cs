@@ -4,7 +4,6 @@ using FamilyLearning.Api.Infrastructure.Auth;
 using FamilyLearning.Api.Infrastructure.Persistence;
 using FamilyLearning.Api.TaskEngine;
 using FamilyLearning.Api.TaskEngine.Models;
-using FamilyLearning.Api.TaskEngine.Validation;
 using Microsoft.EntityFrameworkCore;
 
 namespace FamilyLearning.Api.Features.Activities;
@@ -70,9 +69,8 @@ public static class GenerationOperationEndpoints
             await db.GenerationOperations.CountAsync(o => o.Status == "queued" || o.Status == "calling", ct) >= GenerationOperationOptions.GlobalLimit ||
             await db.GenerationOperations.CountAsync(o => o.FamilyId == familyId && (o.Status == "queued" || o.Status == "calling"), ct) >= GenerationOperationOptions.FamilyLimit)
             return Results.Problem(statusCode: 429, title: "מכסת פעולות היצירה מלאה. אפשר להמשיך לערוך או ליצור עותק חדש במפורש.");
-        var input = TaskRequestResolver.Resolve(StoredJson.Read<LearningPlan>(draft.PlanJson), StoredJson.Read<TaskRequest>(draft.InputJson));
-        var request = input.Value ?? throw new TaskValidationException(input.Errors);
-        var document = StoredJson.Read<TaskDocument>(draft.DocumentJson);
+        var request = TaskRequestResolver.ResolveOrThrow(draft.Plan, draft.Input);
+        var document = draft.Document;
         var stage = SelectStage(body, request, document);
         if (!limiter.TryAcquire(familyId)) return Results.StatusCode(429);
         var operation = new GenerationOperation(draft, body, request, document, stage, worker.ProfileFingerprint, clock.GetUtcNow().UtcDateTime);

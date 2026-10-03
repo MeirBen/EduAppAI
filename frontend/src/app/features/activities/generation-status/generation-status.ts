@@ -4,6 +4,22 @@ import { LoadingIndicator } from '../../../shared/loading-indicator/loading-indi
 import { lengthText } from '../activity-document-view/measurements';
 import { isRunning, stageNames } from './operation-state';
 
+type Scope = 'activity' | 'material' | 'question';
+const scopes: Partial<Record<GenerationKind, Scope>> = {
+  ReplaceMaterial: 'material',
+  ReplaceQuestion: 'question',
+};
+const runningTitles: Record<Scope, string> = {
+  activity: 'יוצרים את הפעילות…',
+  material: 'משפרים את הטקסט…',
+  question: 'משפרים את השאלה…',
+};
+const completedTitles: Record<Scope, string> = {
+  activity: 'הפעילות נוצרה.',
+  material: 'הטקסט עודכן.',
+  question: 'השאלה עודכנה.',
+};
+
 /** A parent-facing reading of one operation; `retry` is an explicit new request, never automatic. */
 interface StatusView {
   title: string;
@@ -51,33 +67,18 @@ export class GenerationStatus {
   };
   protected readonly view = computed((): StatusView => {
     const operation = this.operation();
-    const scope =
-      operation.kind === 'ReplaceMaterial'
-        ? 'material'
-        : operation.kind === 'ReplaceQuestion'
-          ? 'question'
-          : 'activity';
+    const scope = scopes[operation.kind] ?? 'activity';
     switch (operation.status) {
       case 'queued':
       case 'calling':
         return {
-          title:
-            scope === 'material'
-              ? 'משפרים את הטקסט…'
-              : scope === 'question'
-                ? 'משפרים את השאלה…'
-                : 'יוצרים את הפעילות…',
+          title: runningTitles[scope],
           details: [this.stages[operation.stage] ?? ''],
           problem: false,
         };
       case 'completed':
         return {
-          title:
-            scope === 'material'
-              ? 'הטקסט עודכן.'
-              : scope === 'question'
-                ? 'השאלה עודכנה.'
-                : 'הפעילות נוצרה.',
+          title: completedTitles[scope],
           details: [
             scope === 'material'
               ? 'בדקו את הטקסט ואת השאלות שתלויות בו לפני סימון כמוכנה.'
@@ -108,7 +109,7 @@ export class GenerationStatus {
         };
     }
   });
-  private failure(operation: GenerationOperation, scope: string): StatusView {
+  private failure(operation: GenerationOperation, scope: Scope): StatusView {
     const unchanged = 'התוצאה לא החליפה את התוכן הקיים.';
     const lengths = (operation.artifacts?.steps ?? []).flatMap((step) =>
       Object.keys(step.diagnostics ?? {}).filter((key) => key.startsWith('length.')),

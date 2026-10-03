@@ -86,31 +86,26 @@ public sealed class GenerationWorker(IServiceScopeFactory scopes, AiGenerationSe
         if (operation is null) return (false, null);
         var draft = await db.ActivityDrafts.SingleAsync(d => d.Id == operation.DraftId, ct);
         if (!Compatible(operation) || !Matches(operation, draft))
-        {
-            operation.Finish("conflict", Compatible(operation) ? "draft-changed" : "configuration-changed", UtcNow);
-            draft.ClearOperation(operation.Id, UtcNow);
-            await db.SaveChangesAsync(ct);
-            await transaction.CommitAsync(ct);
-            return (true, null);
-        }
+            return await RejectAsync("conflict", Compatible(operation) ? "draft-changed" : "configuration-changed");
         var artifacts = operation.Artifacts;
-        var steps = operation.Steps;
-        var stage = new GenerationStepArtifact(operation.Stage, artifacts.Current);
-        artifacts = artifacts with { Steps = [.. artifacts.Steps, stage] };
-        if (!operation.StoreArtifacts(artifacts, [.. steps, new(operation.Stage, "calling")]))
-        {
-            operation.Finish("failed", "evidence-limit", UtcNow);
-            draft.ClearOperation(operation.Id, UtcNow);
-            await db.SaveChangesAsync(ct);
-            await transaction.CommitAsync(ct);
-            return (true, null);
-        }
+        artifacts = artifacts with { Steps = [.. artifacts.Steps, new(operation.Stage, artifacts.Current)] };
+        if (!operation.StoreArtifacts(artifacts, [.. operation.Steps, new(operation.Stage, "calling")]))
+            return await RejectAsync("failed", "evidence-limit");
         operation.Claim();
         // Register before committing the claim so cancellation cannot slip between the claim and transport registration.
         lock (transportLock) { callingId = operation.Id; transport = cancellation; }
         await db.SaveChangesAsync(ct);
         await transaction.CommitAsync(ct);
         return (true, new(operation.Id, operation.Stage, artifacts));
+
+        async Task<(bool, ClaimedCall?)> RejectAsync(string status, string failure)
+        {
+            operation.Finish(status, failure, UtcNow);
+            draft.ClearOperation(operation.Id, UtcNow);
+            await db.SaveChangesAsync(ct);
+            await transaction.CommitAsync(ct);
+            return (true, null);
+        }
     }
 
     private async Task<Generated> GenerateAsync(ClaimedCall call, AiCallEvidence evidence, CancellationToken ct)
@@ -122,18 +117,18 @@ public sealed class GenerationWorker(IServiceScopeFactory scopes, AiGenerationSe
             case "materials":
                 var materials = await ai.GenerateMaterialsAsync(TaskAssembly.PrepareMaterials(input, current)!, ct, evidence);
                 var accepted = TaskAssembly.AcceptMaterials(input, current, materials.Value, materials.Metadata);
-                return new(accepted.Document ?? throw new TaskValidationException(accepted.Diagnostics), JsonSerializer.SerializeToElement(materials.Value, EngineJson.Options));
+                return new(accepted.Document ?? throw new TaskValidationException(accepted.Diagnostics), Candidate(materials.Value));
             case "questions":
                 var questions = await ai.GenerateQuestionsAsync(TaskAssembly.PrepareQuestions(input, current), ct, evidence);
-                return new(TaskAssembly.AcceptQuestions(input, current, questions.Value, questions.Metadata), JsonSerializer.SerializeToElement(questions.Value, EngineJson.Options));
+                return new(TaskAssembly.AcceptQuestions(input, current, questions.Value, questions.Metadata), Candidate(questions.Value));
             case "replace-material":
                 var materialInput = new MaterialReplacementInput(input, current, call.Artifacts.TargetId!, call.Artifacts.Instruction);
                 var material = await ai.ReplaceMaterialAsync(materialInput, ct, evidence);
-                return new(TaskAssembly.ReplaceMaterial(materialInput, material.Value, material.Metadata), JsonSerializer.SerializeToElement(material.Value, EngineJson.Options));
+                return new(TaskAssembly.ReplaceMaterial(materialInput, material.Value, material.Metadata), Candidate(material.Value));
             case "replace-question":
                 var questionInput = new QuestionReplacementInput(input, current, call.Artifacts.TargetId!, call.Artifacts.Instruction);
                 var question = await ai.ReplaceQuestionAsync(questionInput, ct, evidence);
-                return new(TaskAssembly.ReplaceQuestion(questionInput, question.Value, question.Metadata), JsonSerializer.SerializeToElement(question.Value, EngineJson.Options));
+                return new(TaskAssembly.ReplaceQuestion(questionInput, question.Value, question.Metadata), Candidate(question.Value));
             default: throw new InvalidOperationException("Unsupported stored generation stage.");
         }
     }
@@ -221,6 +216,8 @@ public sealed class GenerationWorker(IServiceScopeFactory scopes, AiGenerationSe
 
     private static bool Matches(GenerationOperation operation, ActivityDraft draft) => draft.FamilyId == operation.FamilyId &&
         draft.ReleasedSnapshotId is null && draft.ActiveOperationId == operation.Id && draft.Revision == operation.ExpectedRevision;
+
+    private static JsonElement Candidate<T>(T value) => JsonSerializer.SerializeToElement(value, EngineJson.Options);
 
     private sealed record ClaimedCall(Guid Id, string Stage, GenerationArtifacts Artifacts);
     private sealed record Generated(TaskDocument Document, JsonElement Candidate);

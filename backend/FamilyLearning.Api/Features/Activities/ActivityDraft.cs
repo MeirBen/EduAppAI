@@ -1,3 +1,6 @@
+using FamilyLearning.Api.Infrastructure.Persistence;
+using FamilyLearning.Api.TaskEngine.Models;
+
 namespace FamilyLearning.Api.Features.Activities;
 
 /// <summary>Family-owned editable checkpoint. Revisions fence concurrent writes; release metadata remains after snapshot deletion.</summary>
@@ -19,6 +22,10 @@ public sealed class ActivityDraft(Guid familyId, string name, string planJson, s
     public DateTime UpdatedAtUtc { get; private set; } = DateTime.UtcNow;
     public Guid? ReleasedSnapshotId { get; private set; }
     public long? ReleasedSourceRevision { get; private set; }
+
+    internal LearningPlan Plan => StoredJson.Read<LearningPlan>(PlanJson);
+    internal TaskRequest Input => StoredJson.Read<TaskRequest>(InputJson);
+    internal TaskDocument Document => StoredJson.Read<TaskDocument>(DocumentJson);
 
     /// <summary>Stages the active reference; its concurrency token fences release without advancing the content revision.</summary>
     internal void StartOperation(Guid operationId) => ActiveOperationId = operationId;

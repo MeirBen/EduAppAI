@@ -20,10 +20,10 @@ export type DocumentEdit =
   host: { '(input)': 'onEdit($event)', '(change)': 'onEdit($event)' },
 })
 export class ActivityDocumentEditor {
+  protected readonly limits = inject(Limits).current;
   readonly fields = input.required<FieldTree<DocumentForm>>();
   readonly materials = input.required<Pick<PlanMaterial, 'id' | 'source' | 'label'>[]>();
   readonly locked = input(false);
-  protected readonly limits = inject(Limits).current;
   readonly aiAvailable = input(false);
   readonly operationActive = input(false);
   /** No content yet: the editor stays available for manual writing without dominating the page. */

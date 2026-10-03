@@ -1,45 +1,20 @@
-import { Routes } from '@angular/router';
+import { Route, Routes } from '@angular/router';
 import type { ActivityWorkspace } from './activity-workspace/activity-workspace';
 
-const workspace = () =>
-  import('./activity-workspace/activity-workspace').then((module) => module.ActivityWorkspace);
-const leave = (component: ActivityWorkspace) => component.canLeave();
+const route = (path: string, title: string, context: 'template' | 'activity'): Route => ({
+  path,
+  title: `${title} · לומדים ביחד`,
+  data: { context },
+  loadComponent: () =>
+    import('./activity-workspace/activity-workspace').then((module) => module.ActivityWorkspace),
+  canDeactivate: [(component: ActivityWorkspace) => component.canLeave()],
+});
 
 /** Template and activity routes share one workspace and its unsaved-change guard. */
 export const activityWorkspaceRoutes: Routes = [
-  {
-    path: 'templates/new',
-    title: 'תבנית חדשה · לומדים ביחד',
-    data: { context: 'template' },
-    loadComponent: workspace,
-    canDeactivate: [leave],
-  },
-  {
-    path: 'templates/:templateId/edit',
-    title: 'עריכת תבנית · לומדים ביחד',
-    data: { context: 'template' },
-    loadComponent: workspace,
-    canDeactivate: [leave],
-  },
-  {
-    path: 'templates/:templateId/create',
-    title: 'פעילות חדשה מתבנית · לומדים ביחד',
-    data: { context: 'activity' },
-    loadComponent: workspace,
-    canDeactivate: [leave],
-  },
-  {
-    path: 'activities/new',
-    title: 'פעילות חדשה · לומדים ביחד',
-    data: { context: 'activity' },
-    loadComponent: workspace,
-    canDeactivate: [leave],
-  },
-  {
-    path: 'activities/:activityId',
-    title: 'עריכת פעילות · לומדים ביחד',
-    data: { context: 'activity' },
-    loadComponent: workspace,
-    canDeactivate: [leave],
-  },
+  route('templates/new', 'תבנית חדשה', 'template'),
+  route('templates/:templateId/edit', 'עריכת תבנית', 'template'),
+  route('templates/:templateId/create', 'פעילות חדשה מתבנית', 'activity'),
+  route('activities/new', 'פעילות חדשה', 'activity'),
+  route('activities/:activityId', 'עריכת פעילות', 'activity'),
 ];

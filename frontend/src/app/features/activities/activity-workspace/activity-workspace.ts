@@ -173,6 +173,14 @@ export class ActivityWorkspace {
   private readonly pollRefresh = signal(0);
 
   protected readonly released = computed(() => !!this.saved()?.releasedSnapshotId);
+  /** Edits wait for any running save and stop for good once the activity is released. */
+  protected readonly locked = computed(() => this.saving() || this.released());
+  protected readonly aiConfigured = computed(() => this.ai.value()?.configured ?? false);
+  /** Content actions wait for a running save or operation and for any unresolved start. */
+  protected readonly contentBusy = computed(
+    () => this.saving() || this.operationActive() || !!this.startRecovery(),
+  );
+  protected readonly canGenerate = computed(() => this.aiConfigured() && !this.contentBusy());
   protected readonly projection = computed(() => planValue(this.raw().plan, this.limits));
   protected readonly inputProjection = computed(() => {
     const plan = this.projection().value;
@@ -337,7 +345,7 @@ export class ActivityWorkspace {
   }
 
   protected edited(edit: { key: string; sourceId?: string }) {
-    if (this.saving() || this.released()) return;
+    if (this.locked()) return;
     if (edit.sourceId) {
       const source = this.raw().plan.materials.find((material) => material.id === edit.sourceId);
       if (source) this.confirmed.update((values) => ({ ...values, [source.id]: source.text }));
@@ -346,7 +354,7 @@ export class ActivityWorkspace {
   }
 
   protected changeStructure(edit: PlanStructureEdit) {
-    if (this.saving() || this.released()) return;
+    if (this.locked()) return;
     const next = editPlanStructure(this.raw(), edit, this.limits);
     if (!next) return;
     this.raw.set(next);
@@ -354,7 +362,7 @@ export class ActivityWorkspace {
   }
 
   protected confirmSource(id: string) {
-    if (this.saving() || this.released()) return;
+    if (this.locked()) return;
     const source = this.raw().plan.materials.find((material) => material.id === id);
     if (!source) return;
     this.confirmed.update((values) => ({ ...values, [id]: source.text }));
@@ -362,12 +370,12 @@ export class ActivityWorkspace {
   }
 
   protected async undo() {
-    if (this.saving() || this.released() || !this.history.entries().length) return;
+    if (this.locked() || !this.history.entries().length) return;
     const previous = this.history.pop()!;
     this.raw.set(structuredClone(previous.raw));
     this.confirmed.set({ ...previous.confirmed });
     this.history.checkpoint();
-    this.localChange();
+    this.markLocalChange();
     this.clearPlanFeedback();
     const saved = this.saved();
     if (saved) this.raw.update((raw) => withSavedQuestionIds(raw, saved));
@@ -384,11 +392,10 @@ export class ActivityWorkspace {
   /** Sends one correlated authoring request; any local change before the reply discards it. */
   protected async author(consolidate = false) {
     if (
-      this.saving() ||
+      this.locked() ||
       this.authoring() ||
-      this.released() ||
       !!this.sourceReplacement().id ||
-      !this.ai.value()?.configured ||
+      !this.aiConfigured() ||
       (!consolidate && this.needsConsolidation())
     )
       return;
@@ -495,7 +502,7 @@ export class ActivityWorkspace {
   }
 
   protected editDocument(edit: DocumentEdit) {
-    if (this.saving() || this.released()) return;
+    if (this.locked()) return;
     const next = editDocumentStructure(this.raw(), edit, this.limits);
     if (!next) return;
     this.raw.set(next);
@@ -505,10 +512,6 @@ export class ActivityWorkspace {
   protected replaceSource(id: string) {
     const text = sourceText(this.raw(), id);
     if (text !== undefined) this.sourceReplacement.set({ id, text });
-  }
-
-  protected sourceTyping() {
-    this.localChange();
   }
 
   protected acceptSourceReplacement() {
@@ -541,24 +544,13 @@ export class ActivityWorkspace {
       questionIds?: string[];
     },
   ) {
-    if (
-      this.saving() ||
-      this.released() ||
-      (action !== 'save' && this.operationActive()) ||
-      (action !== 'save' && this.startRecovery())
-    )
+    if (this.locked() || (action !== 'save' && (this.operationActive() || this.startRecovery())))
       return;
-    if (
-      action !== 'save' &&
-      action !== 'release' &&
-      action !== 'adopt' &&
-      !this.ai.value()?.configured
-    )
+    if (action !== 'save' && action !== 'release' && action !== 'adopt' && !this.aiConfigured())
       return;
-    this.saving.set(true);
-    this.cancelAuthor();
-    this.activityError.set('');
-    try {
+    await this.runDraftRequest(async () => {
+      this.cancelAuthor();
+      this.activityError.set('');
       const saved = await this.flushDraft();
       if (!saved || this.lifetime.destroyed || action === 'save') return;
       if (action === 'adopt') {
@@ -591,11 +583,7 @@ export class ActivityWorkspace {
         this.startRecovery.set({ draftId: saved.id, request });
         await this.submitOperation(saved.id, request);
       }
-    } catch (error) {
-      if (!this.lifetime.destroyed) this.activityError.set(this.activityFailure(error));
-    } finally {
-      if (!this.lifetime.destroyed) this.saving.set(false);
-    }
+    });
   }
 
   protected async reloadActivity() {
@@ -603,10 +591,9 @@ export class ActivityWorkspace {
     if (!saved || this.saving()) return;
     if (this.dirty() && !window.confirm('טעינת המצב השמור תחליף את העריכה המקומית. להמשיך?'))
       return;
-    this.saving.set(true);
-    try {
+    await this.runDraftRequest(async () => {
       const latest = await requestResult(this.api.readActivity(saved.id), this.lifetime);
-      this.localChange();
+      this.markLocalChange();
       this.operationClientRevision = this.clientRevision;
       this.sourceReplacement.set({ id: '', text: '' });
       this.acceptCheckpoint(latest);
@@ -614,44 +601,30 @@ export class ActivityWorkspace {
       this.operationId.set(latest.activeOperationId ?? this.operationId());
       this.pollRefresh.update((value) => value + 1);
       this.activityError.set('');
-    } catch (error) {
-      if (!this.lifetime.destroyed) this.activityError.set(this.activityFailure(error));
-    } finally {
-      if (!this.lifetime.destroyed) this.saving.set(false);
-    }
+    });
   }
 
   protected async recoverStart() {
     const pending = this.startRecovery();
     if (!pending || this.saving()) return;
-    this.saving.set(true);
-    try {
+    await this.runDraftRequest(async () => {
       await this.submitOperation(pending.draftId, pending.request);
       this.activityError.set('');
-    } catch (error) {
-      if (!this.lifetime.destroyed) this.activityError.set(this.activityFailure(error));
-    } finally {
-      if (!this.lifetime.destroyed) this.saving.set(false);
-    }
+    });
   }
 
   protected async cancelGeneration() {
     const id = this.saved()?.id,
       operationId = this.operationId();
     if (!id || !operationId || this.saving()) return;
-    this.saving.set(true);
-    try {
+    await this.runDraftRequest(async () => {
       const result = await this.api.cancelGeneration(id, operationId, this.lifetime);
       if (this.lifetime.destroyed) return;
       this.operation.set(result);
       const saved = await requestResult(this.api.readActivity(id), this.lifetime);
       if (!this.dirty()) this.acceptCheckpoint(saved);
       else this.receiveCheckpoint(saved);
-    } catch (error) {
-      if (!this.lifetime.destroyed) this.activityError.set(this.activityFailure(error));
-    } finally {
-      if (!this.lifetime.destroyed) this.saving.set(false);
-    }
+    });
   }
 
   /** Explicit copy of the frozen snapshot into a new draft; no AI call and the snapshot never changes. */
@@ -686,11 +659,10 @@ export class ActivityWorkspace {
       !window.confirm('פעילות חדשה תיפתח ללא התוכן והשינויים המקומיים בפעילות הזאת. להמשיך?')
     )
       return;
-    this.saving.set(true);
-    try {
+    await this.runDraftRequest(async () => {
       const created = await this.api.createActivity(plan, input, undefined, this.lifetime);
       if (this.lifetime.destroyed) return;
-      this.localChange();
+      this.markLocalChange();
       this.history.clear();
       this.operationId.set(undefined);
       this.operation.set(undefined);
@@ -698,11 +670,7 @@ export class ActivityWorkspace {
       this.sourceReplacement.set({ id: '', text: '' });
       this.acceptCheckpoint(created);
       this.location.replaceState('/activities/' + created.id);
-    } catch (error) {
-      if (!this.lifetime.destroyed) this.activityError.set(this.activityFailure(error));
-    } finally {
-      if (!this.lifetime.destroyed) this.saving.set(false);
-    }
+    });
   }
 
   /** Native route guard and browser-close warning protect local-only keystrokes. */
@@ -720,14 +688,14 @@ export class ActivityWorkspace {
       reconcile(this.raw(), this.history.recorded.raw.plan.settings, this.saved()?.plan),
     );
     if (!this.history.record(key)) return;
-    this.localChange();
+    this.markLocalChange();
     this.clearPlanFeedback();
     this.notice.set('');
     this.templateNotice.set('');
   }
 
   /** A local change: a pending authoring reply and the clarification thread no longer apply. */
-  private localChange() {
+  protected markLocalChange() {
     this.clientRevision++;
     this.cancelAuthor();
     this.conversation.set([]);
@@ -760,6 +728,18 @@ export class ActivityWorkspace {
         ? 'התכנית עודכנה. אפשר לערוך או לבטל את השינוי.'
         : 'הכנו הגדרות לפי הבקשה. בדקו אותן וצרו את הפעילות.',
     );
+  }
+
+  /** Runs one draft request under the shared saving lock; a failure keeps local work and says what to check. */
+  private async runDraftRequest(work: () => Promise<void>) {
+    this.saving.set(true);
+    try {
+      await work();
+    } catch (error) {
+      if (!this.lifetime.destroyed) this.activityError.set(this.activityFailure(error));
+    } finally {
+      if (!this.lifetime.destroyed) this.saving.set(false);
+    }
   }
 
   private async flushDraft(): Promise<ActivityDetail | undefined> {

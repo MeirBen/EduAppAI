@@ -26,17 +26,17 @@ export type PlanStructureEdit =
   host: { '(input)': 'changed($event)', '(change)': 'changed($event)' },
 })
 export class PlanEditor {
+  protected readonly limits = inject(Limits).current;
+  readonly fields = input.required<FieldTree<PlanForm>>();
+  readonly locked = input(false);
+  readonly edited = output<{ key: string }>();
+  readonly structureChanged = output<PlanStructureEdit>();
   protected readonly isGenerated = (material: MaterialForm) => material.source === 'generated';
   protected readonly sourceNames: Record<PlanMaterial['source'], string> = {
     generated: 'הטקסט ייכתב בעזרת AI',
     fixed: 'טקסט קבוע שסיפקתם',
     'per-task': 'טקסט חדש שתזינו בכל פעילות',
   };
-  readonly fields = input.required<FieldTree<PlanForm>>();
-  protected readonly limits = inject(Limits).current;
-  readonly locked = input(false);
-  readonly edited = output<{ key: string }>();
-  readonly structureChanged = output<PlanStructureEdit>();
   protected changed(event: Event) {
     if (this.locked() || !(event.target instanceof HTMLElement)) return;
     this.edited.emit({ key: event.target.id });

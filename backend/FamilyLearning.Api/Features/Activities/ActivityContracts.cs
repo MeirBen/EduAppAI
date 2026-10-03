@@ -1,6 +1,5 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using FamilyLearning.Api.Infrastructure.Persistence;
 using FamilyLearning.Api.TaskEngine;
 using FamilyLearning.Api.TaskEngine.Models;
 using FamilyLearning.Api.TaskEngine.Validation;
@@ -42,9 +41,7 @@ public sealed record ActivityDetail(Guid Id, long Revision, LearningPlan Plan, T
 {
     internal static ActivityDetail From(ActivityDraft draft)
     {
-        var plan = StoredJson.Read<LearningPlan>(draft.PlanJson);
-        var input = StoredJson.Read<TaskRequest>(draft.InputJson);
-        var document = StoredJson.Read<TaskDocument>(draft.DocumentJson);
+        var (plan, input, document) = (draft.Plan, draft.Input, draft.Document);
         var resolved = TaskRequestResolver.Resolve(plan, input).Value ?? throw new InvalidOperationException("Invalid stored activity input.");
         var check = TaskDocumentValidator.ValidateDraft(resolved, document);
         return new(draft.Id, draft.Revision, plan, input, document, check.Diagnostics, TextLength.Measure(resolved, document), draft.ActiveOperationId,

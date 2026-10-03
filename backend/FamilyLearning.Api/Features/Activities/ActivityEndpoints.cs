@@ -38,7 +38,7 @@ public static class ActivityEndpoints
     {
         LearningPlan plan;
         TaskRequest input;
-        TaskDocument document;
+        TaskDocument? document = null;
         Guid? templateVersionId = null;
         Guid? sourceSnapshotId = null;
         if (body.SnapshotId.ValueKind != JsonValueKind.Undefined)
@@ -74,10 +74,10 @@ public static class ActivityEndpoints
                 plan = Read<LearningPlan>(body.Plan);
             }
             input = Read<TaskRequest>(body.Input);
-            document = TaskAssembly.CreateDocument(Resolve(plan, input));
         }
         // Copying a snapshot keeps content/provenance, but never copies its parent review or terminal state.
-        var resolved = Resolve(plan, input);
+        var resolved = TaskRequestResolver.ResolveOrThrow(plan, input);
+        document ??= TaskAssembly.CreateDocument(resolved);
         var errors = TaskDocumentValidator.ValidateDraft(resolved, document).Errors;
         if (errors.Count > 0) return Results.ValidationProblem(errors);
         var draft = new ActivityDraft(user.FamilyId(), plan.Name, StoredJson.Write(plan), StoredJson.Write(input),
@@ -93,9 +93,9 @@ public static class ActivityEndpoints
         if (draft is null) return Results.NotFound();
         if (draft.ReleasedSnapshotId.HasValue || draft.Revision != body.ExpectedRevision) return Conflict();
         if (body.Input is null) return Invalid("input", "יש לציין קלט לפעילות.");
-        var before = Resolve(StoredJson.Read<LearningPlan>(draft.PlanJson), StoredJson.Read<TaskRequest>(draft.InputJson));
-        var request = Resolve(body.Plan, body.Input);
-        var document = ActivityDraftChanges.Apply(before, request, StoredJson.Read<TaskDocument>(draft.DocumentJson), body.Document);
+        var before = TaskRequestResolver.ResolveOrThrow(draft.Plan, draft.Input);
+        var request = TaskRequestResolver.ResolveOrThrow(body.Plan, body.Input);
+        var document = ActivityDraftChanges.Apply(before, request, draft.Document, body.Document);
         draft.Save(body.Plan.Name, StoredJson.Write(body.Plan), StoredJson.Write(body.Input), StoredJson.Write(document));
         return await SaveCheckpointAsync(draft, db, user, ct);
     }
@@ -108,8 +108,8 @@ public static class ActivityEndpoints
         if (body.MaterialIds is not { Length: <= EngineValidation.MaxMaterials } || body.QuestionIds is not { Length: <= EngineValidation.MaxQuestionCount } ||
             body.MaterialIds.Length + body.QuestionIds.Length == 0)
             return Invalid("selection", "יש לבחור תוכן לבדיקה ולאימוץ.");
-        var request = Resolve(StoredJson.Read<LearningPlan>(draft.PlanJson), StoredJson.Read<TaskRequest>(draft.InputJson));
-        var document = TaskAssembly.Adopt(request, StoredJson.Read<TaskDocument>(draft.DocumentJson), body.MaterialIds, body.QuestionIds, DateTime.UtcNow);
+        var request = TaskRequestResolver.ResolveOrThrow(draft.Plan, draft.Input);
+        var document = TaskAssembly.Adopt(request, draft.Document, body.MaterialIds, body.QuestionIds, DateTime.UtcNow);
         draft.Save(draft.Name, draft.PlanJson, draft.InputJson, StoredJson.Write(document));
         return await SaveCheckpointAsync(draft, db, user, ct);
     }
@@ -130,8 +130,8 @@ public static class ActivityEndpoints
         if (draft is null) return Results.NotFound();
         if (draft.ReleasedSnapshotId.HasValue) return await ReplayAsync(draft, body.ExpectedRevision, db, ct);
         if (draft.Revision != body.ExpectedRevision || draft.ActiveOperationId.HasValue) return Conflict();
-        var input = Resolve(StoredJson.Read<LearningPlan>(draft.PlanJson), StoredJson.Read<TaskRequest>(draft.InputJson));
-        var document = StoredJson.Read<TaskDocument>(draft.DocumentJson);
+        var input = TaskRequestResolver.ResolveOrThrow(draft.Plan, draft.Input);
+        var document = draft.Document;
         var errors = TaskDocumentValidator.ValidateRelease(input, document);
         if (errors.Count > 0) return Results.ValidationProblem(errors);
         var reviewedAt = DateTime.UtcNow;
@@ -166,12 +166,6 @@ public static class ActivityEndpoints
     private static IQueryable<ActivityDraft> Owned(LearningDbContext db, ClaimsPrincipal user, Guid id) =>
         db.ActivityDrafts.Where(d => d.Id == id && d.FamilyId == user.FamilyId());
 
-    private static ResolvedTaskRequest Resolve(LearningPlan plan, TaskRequest input)
-    {
-        var result = TaskRequestResolver.Resolve(plan, input);
-        return result.Value ?? throw new TaskValidationException(result.Errors);
-    }
-
     // JsonElement retains omission versus null; native strict deserialization also rejects quoted numbers and unknown members.
     private static T Read<T>(JsonElement value)
     {
@@ -180,7 +174,7 @@ public static class ActivityEndpoints
             return value.ValueKind is JsonValueKind.Undefined or JsonValueKind.Null
                 ? throw new JsonException() : value.Deserialize<T>(EngineJson.Options) ?? throw new JsonException();
         }
-        catch (JsonException) { throw new TaskValidationException(new Dictionary<string, string[]> { ["request"] = ["הבקשה אינה במבנה נתמך."] }); }
+        catch (JsonException) { throw new TaskValidationException("request", "הבקשה אינה במבנה נתמך."); }
     }
 
     private static IResult Invalid(string field, string message) => Results.ValidationProblem(new Dictionary<string, string[]> { [field] = [message] });

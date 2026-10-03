@@ -12,8 +12,8 @@ import type { PlanStructureEdit } from '../plan-editor';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ControlFields {
-  readonly fields = input.required<FieldTree<ControlForm[]>>();
   protected readonly limits = inject(Limits).current;
+  readonly fields = input.required<FieldTree<ControlForm[]>>();
   readonly scope = input.required<string>();
   readonly locked = input(false);
   readonly structureChanged = output<PlanStructureEdit>();
