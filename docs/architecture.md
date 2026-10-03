@@ -169,6 +169,15 @@ response metadata, finish reason, size, timing, tokens and failure categories,
 never prompts, answers or reasoning. `/api/ai/status` checks configuration
 without a call.
 
+Serilog integrates through ASP.NET Core's logging provider; application code uses
+`ILogger<T>`, fixed message templates and native scopes. Worker events use
+source-generated `LoggerMessage` methods with stable event IDs. One request
+completion event owns duration, status, request correlation and unexpected
+exceptions; the framework's duplicate exception-handler event is suppressed.
+Generation scopes carry only operation/draft IDs and stage, and outcome events
+follow successful database commits. File limits, levels and sink settings are in
+the server's `appsettings.json`; see [server logs](../README.md#server-logs).
+
 Management commands compose only persistence and authentication, so migrations
 and provisioning work without AI configuration. Tests cover migration, HTTPS
 redirect, HSTS, secure cookies and CSRF; deployment is in the

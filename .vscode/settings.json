@@ -1,6 +1,14 @@
 {
     "css.customData": [".vscode/tailwind.css-data.json"],
     "dotnet.defaultSolution": "FamilyLearning.sln",
+    "logViewer.watch": [
+        {
+            "title": "Family Learning API",
+            "pattern": "${workspaceFolder}/logs/server-*.jsonl",
+            "options": { "encoding": "utf8" }
+        }
+    ],
+    "logViewer.followTailMode": "auto",
     "workbench.colorCustomizations": {
         "activityBar.activeBackground": "#727b5f",
         "activityBar.activeBorder": "#e7e7e7",

@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.AI;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
@@ -23,6 +24,10 @@ public sealed class ApiFactory(Action<IServiceCollection>? configureServices = n
     {
         builder.UseEnvironment(environment);
         builder.UseSetting("Storage:Directory", dataDirectory);
+        builder.ConfigureAppConfiguration((_, configuration) => configuration.AddInMemoryCollection(new Dictionary<string, string?>
+        {
+            ["Serilog:WriteTo:File:Args:configure:0:Args:path"] = Path.Combine(dataDirectory, "logs", "server-.jsonl")
+        }));
         // Developer secrets/environment must never enable a real provider in automated tests.
         builder.UseSetting("Ai:ApiKey", "");
         builder.UseSetting("OPENROUTER_API_KEY", "");

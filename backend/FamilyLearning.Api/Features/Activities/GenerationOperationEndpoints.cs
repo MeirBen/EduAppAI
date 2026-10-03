@@ -5,6 +5,7 @@ using FamilyLearning.Api.Infrastructure.Persistence;
 using FamilyLearning.Api.TaskEngine;
 using FamilyLearning.Api.TaskEngine.Models;
 using Microsoft.EntityFrameworkCore;
+using Serilog;
 
 namespace FamilyLearning.Api.Features.Activities;
 
@@ -25,7 +26,7 @@ public static class GenerationOperationEndpoints
     }
 
     private static async Task<IResult> CancelAsync(Guid id, Guid operationId, ClaimsPrincipal user, LearningDbContext db,
-        GenerationWorker worker, TimeProvider clock, CancellationToken ct)
+        GenerationWorker worker, TimeProvider clock, IDiagnosticContext diagnostics, CancellationToken ct)
     {
         GenerationOperation operation;
         await using (var transaction = await db.Database.BeginTransactionAsync(ct))
@@ -47,11 +48,14 @@ public static class GenerationOperationEndpoints
         }
         // Durable cancellation wins before touching transport; a late completion can only attach known usage.
         if (operation.Status == "cancelled") await worker.CancelTransportAsync(operation.Id);
+        diagnostics.Set("OperationId", operation.Id);
+        diagnostics.Set("DraftId", operation.DraftId);
+        diagnostics.Set("Status", operation.Status);
         return Results.Ok(GenerationOperationDetail.From(operation));
     }
 
     private static async Task<IResult> StartAsync(Guid id, StartGenerationRequest body, ClaimsPrincipal user,
-        LearningDbContext db, AiStartLimiter limiter, GenerationWorker worker, TimeProvider clock, CancellationToken ct)
+        LearningDbContext db, AiStartLimiter limiter, GenerationWorker worker, TimeProvider clock, IDiagnosticContext diagnostics, CancellationToken ct)
     {
         // SQLite's immediate write transaction makes count admission, key insertion and draft assignment one decision.
         await using var transaction = await db.Database.BeginTransactionAsync(ct);
@@ -60,7 +64,7 @@ public static class GenerationOperationEndpoints
         if (draft is null) return Results.NotFound();
         var existing = await db.GenerationOperations.SingleOrDefaultAsync(o => o.FamilyId == familyId && o.OperationKey == body.OperationKey, ct);
         if (existing is not null)
-            return existing.RequestFingerprint == GenerationOperation.Fingerprint(id, body) ? Accepted(existing) : Conflict();
+            return existing.RequestFingerprint == GenerationOperation.Fingerprint(id, body) ? Accepted(existing, diagnostics) : Conflict();
         if (body.OperationKey == Guid.Empty || body.Kind is not ("GenerateActivity" or "GenerateQuestions" or "ReplaceMaterial" or "ReplaceQuestion") ||
             (body.Kind is "GenerateActivity" or "GenerateQuestions" && (body.TargetId is not null || body.Instruction is not null)))
             return Results.ValidationProblem(new Dictionary<string, string[]> { ["operation"] = ["יש לבחור פעולת יצירה והנחיה תקינות."] });
@@ -78,7 +82,7 @@ public static class GenerationOperationEndpoints
         db.GenerationOperations.Add(operation);
         await db.SaveChangesAsync(ct);
         await transaction.CommitAsync(ct);
-        return Accepted(operation);
+        return Accepted(operation, diagnostics);
     }
 
     internal static string SelectStage(StartGenerationRequest body, ResolvedTaskRequest input, TaskDocument document)
@@ -94,7 +98,12 @@ public static class GenerationOperationEndpoints
         }
     }
 
-    private static IResult Accepted(GenerationOperation operation) => Results.Accepted(
-        $"/api/activity-drafts/{operation.DraftId}/operations/{operation.Id}", GenerationOperationDetail.From(operation));
+    private static IResult Accepted(GenerationOperation operation, IDiagnosticContext diagnostics)
+    {
+        diagnostics.Set("OperationId", operation.Id);
+        diagnostics.Set("DraftId", operation.DraftId);
+        diagnostics.Set("Status", operation.Status);
+        return Results.Accepted($"/api/activity-drafts/{operation.DraftId}/operations/{operation.Id}", GenerationOperationDetail.From(operation));
+    }
     private static IResult Conflict() => Results.Problem(statusCode: 409, title: "בקשת היצירה או הטיוטה השתנתה. יש לטעון את המצב השמור.");
 }

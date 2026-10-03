@@ -18,6 +18,7 @@ namespace FamilyLearning.Api.Tests.Integration;
 internal sealed class GenerationHarness(params string[] responses) : IAsyncDisposable
 {
     private ApiFactory? app;
+    internal string? StorageDirectory { get; init; }
     internal ApiFactory App => app ?? throw new InvalidOperationException("Create a parent before accessing the test host.");
     internal AiFixtures.ScriptedChat Chat { get; } = new(responses);
     internal TestClock Clock { get; } = new();
@@ -38,7 +39,7 @@ internal sealed class GenerationHarness(params string[] responses) : IAsyncDispo
             // Deterministic tests drive the same worker transitions without its polling loop.
             services.RemoveAll<IHostedService>();
             configure?.Invoke(services);
-        });
+        }, storageDirectory: StorageDirectory);
         return App.ParentAsync();
     }
 

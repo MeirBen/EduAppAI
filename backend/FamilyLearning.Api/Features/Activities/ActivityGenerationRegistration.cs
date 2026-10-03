@@ -14,7 +14,8 @@ public static class ActivityGenerationRegistration
         services.AddOptions<GenerationOperationOptions>().Bind(configuration.GetSection("GenerationOperations"))
             .Validate(o => o.PollIntervalSeconds is >= 1 and <= 60, "GenerationOperations:PollIntervalSeconds must be between 1 and 60.").ValidateOnStart();
         services.AddSingleton(p => new GenerationWorker(p.GetRequiredService<IServiceScopeFactory>(), p.GetRequiredService<AiGenerationService>(),
-            p.GetRequiredService<TimeProvider>(), p.GetRequiredService<IOptions<GenerationOperationOptions>>(), p.GetRequiredService<IOptions<AiGenerationOptions>>(), configuration));
+            p.GetRequiredService<TimeProvider>(), p.GetRequiredService<IOptions<GenerationOperationOptions>>(), p.GetRequiredService<IOptions<AiGenerationOptions>>(), configuration,
+            p.GetRequiredService<ILogger<GenerationWorker>>()));
         services.AddHostedService(p => p.GetRequiredService<GenerationWorker>());
     }
 }

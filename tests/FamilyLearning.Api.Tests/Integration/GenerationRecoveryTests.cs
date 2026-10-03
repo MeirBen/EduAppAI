@@ -71,7 +71,8 @@ public sealed class GenerationRecoveryTests
         app.Configuration[setting] = value;
         using var restarted = new GenerationWorker(app.App.Services.GetRequiredService<IServiceScopeFactory>(),
             app.App.Services.GetRequiredService<AiGenerationService>(), app.Clock, Options.Create(new GenerationOperationOptions()),
-            app.App.Services.GetRequiredService<IOptions<AiGenerationOptions>>(), app.Configuration);
+            app.App.Services.GetRequiredService<IOptions<AiGenerationOptions>>(), app.Configuration,
+            app.App.Services.GetRequiredService<Microsoft.Extensions.Logging.ILogger<GenerationWorker>>());
         await restarted.RecoverAsync(default);
         await restarted.RunNextAsync(default);
         Assert.Equal(expected, (await parent.GetFromJsonAsync<JsonNode>(OperationPath(operation)))!["status"]!.GetValue<string>());

@@ -11,6 +11,7 @@
 **/test-results/
 artifacts/
 data/
+logs/
 **/*.db
 **/*.db-shm
 **/*.db-wal

@@ -78,6 +78,42 @@ behavior and 360px/200% text. Read the [comment rules](docs/commenting-guide.md)
 and [UI guide](docs/ui-guide.md) before editing; open `FamilyLearning.sln` for
 backend work.
 
+## Server logs
+
+Serilog writes console output and structured JSON Lines to `logs/server-YYYYMMDD.jsonl`
+at the repository root. Outside the repository, relative paths use the deployed
+application's content root. Logs stay outside `wwwroot` and are ignored by Git.
+The workspace configures **Log Viewer** (`berublan.vscode-log-viewer`) to follow
+`logs/server-*.jsonl`, including rolled files; open **Family Learning API** in
+its Watches view.
+
+Configure levels, output, rolling and retention in
+[`backend/FamilyLearning.Api/appsettings.json`](backend/FamilyLearning.Api/appsettings.json)
+under `Serilog`. Files roll daily or at 20 MiB, retaining the latest 14 files
+(not necessarily 14 days). To use persistent deployment storage, override
+`Serilog__WriteTo__File__Args__configure__0__Args__path` with an absolute filename
+pattern such as `/var/log/family-learning/server-.jsonl`. Restart after sink changes;
+existing minimum-level settings support configuration reload.
+Failures before the host logger is created are reported to the console.
+
+Successful API writes and generation outcomes are Information; HTTP 4xx responses,
+recoverable AI call failures and interrupted generation are Warning. HTTP 5xx
+responses and unexpected failures are Error; host termination is Fatal. Successful
+GET/HEAD requests (including health checks and operation polling) and static assets
+are Debug-only. Requests carry `RequestId` matching the ProblemDetails `traceId`;
+trace/span IDs and scoped `OperationId`, `DraftId` and `Stage` connect related
+events. Logs exclude request bodies, query strings, credentials and learning
+content; keep deployment access restricted.
+
+In JSON, `@mt` preserves the fixed message template and its values are separate
+properties; the console renders those values into the message. `@t` is UTC, and
+an omitted `@l` means Information.
+
+File writes use a bounded 10,000-event background queue, flushed on orderly
+shutdown. If full, new events are dropped to preserve request throughput; sink
+failures and drops appear on standard error. Abrupt process termination can lose
+queued events. These are operational logs, not an audit ledger.
+
 ## Data
 
 The library deletes individual drafts, templates or snapshots independently;

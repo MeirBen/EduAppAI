@@ -7,6 +7,7 @@ using FamilyLearning.Api.Features.Instances;
 using FamilyLearning.Api.Features.Templates;
 using FamilyLearning.Api.TaskEngine.Ai;
 using FamilyLearning.Api.TaskEngine.Validation;
+using Serilog;
 
 namespace FamilyLearning.Api.Infrastructure.Web;
 
@@ -57,6 +58,7 @@ public static class ApiConfiguration
             try { return await next(context); }
             catch (AiGenerationException exception)
             {
+                context.HttpContext.RequestServices.GetRequiredService<IDiagnosticContext>().Set("Failure", exception.Category);
                 return Results.Problem(statusCode: exception.StatusCode, title: exception.Message, type: exception.ProblemType,
                     extensions: exception.ValidationErrors is null ? null : new Dictionary<string, object?> { ["errors"] = exception.ValidationErrors });
             }

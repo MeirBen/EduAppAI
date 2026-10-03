@@ -12,8 +12,9 @@ using Microsoft.Extensions.Options;
 namespace FamilyLearning.Api.Features.Activities;
 
 /// <summary>One process, one sequential content caller. SQLite checkpoints own recovery; no transaction crosses a provider call.</summary>
-public sealed class GenerationWorker(IServiceScopeFactory scopes, AiGenerationService ai, TimeProvider clock,
-    IOptions<GenerationOperationOptions> options, IOptions<AiGenerationOptions> aiOptions, IConfiguration configuration) : BackgroundService
+public sealed partial class GenerationWorker(IServiceScopeFactory scopes, AiGenerationService ai, TimeProvider clock,
+    IOptions<GenerationOperationOptions> options, IOptions<AiGenerationOptions> aiOptions, IConfiguration configuration,
+    ILogger<GenerationWorker> logger) : BackgroundService
 {
     private readonly object transportLock = new();
     private Guid? callingId;
@@ -55,6 +56,13 @@ public sealed class GenerationWorker(IServiceScopeFactory scopes, AiGenerationSe
         {
             var (found, call) = await ClaimAsync(cancellation, ct);
             if (call is null) return found;
+            using var logScope = logger.BeginScope(new Dictionary<string, object>
+            {
+                ["OperationId"] = call.Id,
+                ["DraftId"] = call.DraftId,
+                ["Stage"] = call.Stage
+            });
+            LogStageClaimed(logger);
             var evidence = new AiCallEvidence();
             Generated? generated = null;
             AiGenerationException? failure = null;
@@ -96,7 +104,7 @@ public sealed class GenerationWorker(IServiceScopeFactory scopes, AiGenerationSe
         lock (transportLock) { callingId = operation.Id; transport = cancellation; }
         await db.SaveChangesAsync(ct);
         await transaction.CommitAsync(ct);
-        return (true, new(operation.Id, operation.Stage, artifacts));
+        return (true, new(operation.Id, operation.DraftId, operation.Stage, artifacts));
 
         async Task<(bool, ClaimedCall?)> RejectAsync(string status, string failure)
         {
@@ -104,6 +112,7 @@ public sealed class GenerationWorker(IServiceScopeFactory scopes, AiGenerationSe
             draft.ClearOperation(operation.Id, UtcNow);
             await db.SaveChangesAsync(ct);
             await transaction.CommitAsync(ct);
+            LogOperationRejected(logger, operation.Id, operation.DraftId, failure);
             return (true, null);
         }
     }
@@ -176,6 +185,8 @@ public sealed class GenerationWorker(IServiceScopeFactory scopes, AiGenerationSe
         }
         await db.SaveChangesAsync(ct);
         await transaction.CommitAsync(ct);
+        LogStageCheckpointed(logger, operation.Status is "failed" or "conflict" ? LogLevel.Warning : LogLevel.Information,
+            operation.Status, operation.Failure);
     }
 
     internal async Task RecoverAsync(CancellationToken ct)
@@ -197,6 +208,9 @@ public sealed class GenerationWorker(IServiceScopeFactory scopes, AiGenerationSe
         }
         await db.SaveChangesAsync(ct);
         await transaction.CommitAsync(ct);
+        foreach (var operation in operations)
+            if (operation.Status is "unknown" or "conflict")
+                LogOperationRecovered(logger, operation.Id, operation.DraftId, operation.Status, operation.Failure);
     }
 
     internal async Task PurgeAsync(CancellationToken ct)
@@ -207,8 +221,9 @@ public sealed class GenerationWorker(IServiceScopeFactory scopes, AiGenerationSe
         var expired = await db.GenerationOperations.Where(o => o.FinishedAtUtc <= cutoff && o.ArtifactsJson != null)
             .OrderBy(o => o.FinishedAtUtc).Select(o => o.Id).Take(GenerationOperationOptions.PurgeBatchSize).ToListAsync(ct);
         // Avoid loading up to 64 MiB just to discard it; concurrent draft deletion is harmless.
-        await db.GenerationOperations.Where(o => expired.Contains(o.Id) && o.FinishedAtUtc <= cutoff)
+        var purged = await db.GenerationOperations.Where(o => expired.Contains(o.Id) && o.FinishedAtUtc <= cutoff)
             .ExecuteUpdateAsync(update => update.SetProperty(o => o.ArtifactsJson, (string?)null), ct);
+        if (purged > 0) LogArtifactsExpired(logger, purged);
     }
 
     private bool Compatible(GenerationOperation operation) => operation.EngineRevision == EngineVersions.Revision &&
@@ -219,6 +234,21 @@ public sealed class GenerationWorker(IServiceScopeFactory scopes, AiGenerationSe
 
     private static JsonElement Candidate<T>(T value) => JsonSerializer.SerializeToElement(value, EngineJson.Options);
 
-    private sealed record ClaimedCall(Guid Id, string Stage, GenerationArtifacts Artifacts);
+    [LoggerMessage(1001, LogLevel.Debug, "Generation stage claimed")]
+    private static partial void LogStageClaimed(ILogger logger);
+
+    [LoggerMessage(1002, LogLevel.Warning, "Generation operation {OperationId} for draft {DraftId} rejected before calling: {Failure}")]
+    private static partial void LogOperationRejected(ILogger logger, Guid operationId, Guid draftId, string failure);
+
+    [LoggerMessage(EventId = 1003, Message = "Generation stage checkpointed with status {Status} and failure {Failure}")]
+    private static partial void LogStageCheckpointed(ILogger logger, LogLevel level, string status, string? failure);
+
+    [LoggerMessage(1004, LogLevel.Warning, "Generation operation {OperationId} for draft {DraftId} recovered as {Status}: {Failure}")]
+    private static partial void LogOperationRecovered(ILogger logger, Guid operationId, Guid draftId, string status, string? failure);
+
+    [LoggerMessage(1005, LogLevel.Debug, "Expired generation artifacts for {OperationCount} operations")]
+    private static partial void LogArtifactsExpired(ILogger logger, int operationCount);
+
+    private sealed record ClaimedCall(Guid Id, Guid DraftId, string Stage, GenerationArtifacts Artifacts);
     private sealed record Generated(TaskDocument Document, JsonElement Candidate);
 }
