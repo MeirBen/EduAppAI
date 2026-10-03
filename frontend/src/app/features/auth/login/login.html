@@ -1,29 +1,36 @@
 <div class="grid items-center gap-10 py-2 lg:grid-cols-2 lg:gap-20 lg:py-10">
-  <section class="max-w-lg">
-    <p class="badge mb-4">מרחב קטן ללמידה משותפת</p>
-    <h1 class="mb-6 text-4xl sm:text-5xl">
-      לומדים משהו חדש.<br /><span
-        class="bg-linear-to-t from-accent from-40% to-transparent to-40% box-decoration-clone text-brand"
-        >צומחים ביחד.</span
-      >
-    </h1>
+  <section class="grid max-w-lg gap-6">
+    <div class="grid justify-items-start gap-4">
+      <p class="badge">מרחב קטן ללמידה משותפת</p>
+      <h1 class="text-4xl sm:text-5xl">
+        לומדים משהו חדש.<br /><span
+          class="bg-linear-to-t from-accent from-40% to-transparent to-40% box-decoration-clone text-brand"
+          >צומחים ביחד.</span
+        >
+      </h1>
+    </div>
     <p class="max-w-md text-lg text-muted">
       תרגול שמתאים למשפחה שלכם. יוצרים תבנית, בוחרים את רמת האתגר, וחוזרים ללמוד — כל פעם קצת אחרת.
     </p>
-    <div class="panel mt-6 flex flex-wrap items-start gap-4 bg-surface/70 shadow-none">
+    <div class="panel flex flex-wrap items-start gap-4 bg-surface/70 shadow-none">
       <span class="icon-tile size-12 text-2xl" aria-hidden="true">✳</span>
-      <div class="min-w-0 flex-1 basis-48">
+      <div class="grid min-w-0 flex-1 basis-48 gap-1">
         <p class="font-medium">רעיון אחד, הרבה אפשרויות</p>
-        <p class="mt-1 text-sm text-muted">התבנית נשמרת. התרגילים מתחדשים.</p>
+        <p class="text-sm text-muted">התבנית נשמרת. התרגילים מתחדשים.</p>
       </div>
     </div>
   </section>
-  <section class="panel w-full max-w-lg lg:justify-self-end" aria-labelledby="sign-in-title">
-    <span class="badge">כניסת הורים</span>
-    <h2 id="sign-in-title" class="mt-4 mb-1 text-2xl">טוב שחזרתם</h2>
-    <p class="text-muted">נכנסים למרחב הלמידה המשפחתי.</p>
+  <section
+    class="panel grid w-full max-w-lg gap-4 lg:justify-self-end"
+    aria-labelledby="sign-in-title"
+  >
+    <span class="badge justify-self-start">כניסת הורים</span>
+    <div class="grid gap-1">
+      <h2 id="sign-in-title" class="text-2xl">טוב שחזרתם</h2>
+      <p class="text-muted">נכנסים למרחב הלמידה המשפחתי.</p>
+    </div>
     <form
-      class="mt-4 grid gap-4"
+      class="grid gap-4"
       (submit)="signIn($event)"
       novalidate
       [attr.aria-busy]="fields().submitting()"
@@ -69,12 +76,8 @@
         {{ fields().submitting() ? 'מתחברים…' : 'כניסה למרחב שלנו' }}
       </button>
     </form>
-    <app-loading-indicator
-      class="mt-4"
-      [active]="fields().submitting()"
-      label="מתחברים למרחב שלכם…"
-    />
-    <p class="mt-6 border-t border-line pt-4 text-sm text-muted">
+    <app-loading-indicator [active]="fields().submitting()" label="מתחברים למרחב שלכם…" />
+    <p class="border-t border-line pt-4 text-sm text-muted">
       מרחב פרטי ליצירת תרגול אישי ולשמירת רעיונות ללמידה.
     </p>
   </section>

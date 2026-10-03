@@ -97,188 +97,194 @@
     }
   }
   @let count = fields().questions().value().length;
-  <ol role="list" class="grid gap-4">
-    @for (value of fields().questions().value(); track value.key; let i = $index) {
-      @let question = fields().questions[i];
-      @let id = question.id().value();
-      <li class="well grid gap-4" [attr.aria-labelledby]="'question-' + i + '-heading'">
-        <h3 [id]="'question-' + i + '-heading'">שאלה {{ i + 1 }}</h3>
-        @if (id && staleQuestions().has(id)) {
-          <div class="callout grid gap-4">
-            <p>השאלה נכתבה לפני שהטקסט או ההגדרות השתנו. בדקו שהיא עדיין מתאימה.</p>
-            <button
-              type="button"
-              class="button button-secondary w-fit"
-              [disabled]="locked() || operationActive()"
-              (click)="adopted.emit({ materialIds: [], questionIds: [id] })"
-            >
-              בדקתי, אפשר להשתמש בגרסה הזו<span class="sr-only"> — שאלה {{ i + 1 }}</span>
-            </button>
-          </div>
-        }
-        @if (id && activeTarget() === id) {
-          <p class="text-sm text-muted">מכינים גרסה חדשה לשאלה…</p>
-        }
-        <div>
-          <label [for]="'question-' + i + '-prompt'">נוסח השאלה</label
-          ><textarea
-            [id]="'question-' + i + '-prompt'"
-            dir="auto"
-            [formField]="question.prompt"
-          ></textarea>
-        </div>
-        @if (value.type === 'single-choice') {
-          <div class="grid gap-4">
-            @for (option of value.options; track $index; let j = $index) {
-              <div>
-                <label [for]="'question-' + i + '-option-' + j">אפשרות {{ j + 1 }}</label
-                ><input
-                  [id]="'question-' + i + '-option-' + j"
-                  dir="auto"
-                  [formField]="question.options[j].value"
-                />
-              </div>
-            }
-          </div>
+  @if (count) {
+    <ol role="list" class="grid gap-4">
+      @for (value of fields().questions().value(); track value.key; let i = $index) {
+        @let question = fields().questions[i];
+        @let id = question.id().value();
+        <li class="well grid gap-4" [attr.aria-labelledby]="'question-' + i + '-heading'">
+          <h3 [id]="'question-' + i + '-heading'">שאלה {{ i + 1 }}</h3>
+          @if (id && staleQuestions().has(id)) {
+            <div class="callout grid gap-4">
+              <p>השאלה נכתבה לפני שהטקסט או ההגדרות השתנו. בדקו שהיא עדיין מתאימה.</p>
+              <button
+                type="button"
+                class="button button-secondary w-fit"
+                [disabled]="locked() || operationActive()"
+                (click)="adopted.emit({ materialIds: [], questionIds: [id] })"
+              >
+                בדקתי, אפשר להשתמש בגרסה הזו<span class="sr-only"> — שאלה {{ i + 1 }}</span>
+              </button>
+            </div>
+          }
+          @if (id && activeTarget() === id) {
+            <p class="text-sm text-muted">מכינים גרסה חדשה לשאלה…</p>
+          }
           <div>
-            <label [for]="'question-' + i + '-answer'"
-              >תשובה נכונה <span class="text-sm font-normal text-muted">(מוצגת רק לכם)</span></label
-            >
-            <select
-              [id]="'question-' + i + '-answer'"
-              [formField]="question.answer"
-              [attr.aria-describedby]="'question-' + i + '-answer-help'"
-              [attr.aria-invalid]="!!value.answer && !matches(value)"
-            >
-              <option value="">בחרו את התשובה הנכונה</option>
-              @if (value.answer && !matches(value)) {
-                <option [value]="value.answer">{{ value.answer }} — אינה תואמת לאף אפשרות</option>
-              }
+            <label [for]="'question-' + i + '-prompt'">נוסח השאלה</label
+            ><textarea
+              [id]="'question-' + i + '-prompt'"
+              dir="auto"
+              [formField]="question.prompt"
+            ></textarea>
+          </div>
+          @if (value.type === 'single-choice') {
+            <div class="grid gap-4">
               @for (option of value.options; track $index; let j = $index) {
-                @if (option.value) {
-                  <option [value]="option.value">{{ j + 1 }}. {{ option.value }}</option>
-                }
+                <div>
+                  <label [for]="'question-' + i + '-option-' + j">אפשרות {{ j + 1 }}</label
+                  ><input
+                    [id]="'question-' + i + '-option-' + j"
+                    dir="auto"
+                    [formField]="question.options[j].value"
+                  />
+                </div>
               }
-            </select>
-            <p [id]="'question-' + i + '-answer-help'" class="mt-2 text-sm text-muted">
-              שינוי נוסח של אפשרות אינו משנה את התשובה הנכונה. אם צריך, בחרו אותה מחדש.
-            </p>
-          </div>
-        } @else {
-          <div>
-            <label [for]="'question-' + i + '-answer'"
-              >תשובה נכונה <span class="text-sm font-normal text-muted">(מוצגת רק לכם)</span></label
-            ><input
-              [id]="'question-' + i + '-answer'"
-              [dir]="value.type === 'numeric-input' ? 'ltr' : 'auto'"
-              [formField]="question.answer"
-            />
-          </div>
-        }
-        @if (id) {
-          <app-scoped-repair
-            [key]="'question-' + i"
-            [name]="'שאלה ' + (i + 1)"
-            prompt="מה תרצו לשנות בשאלה הזו?"
-            submitLabel="שיפור השאלה"
-            [ideas]="questionIdeas"
-            [disabled]="locked() || operationActive() || !aiAvailable()"
-            (requested)="
-              replaced.emit({ kind: 'ReplaceQuestion', targetId: id, instruction: $event })
-            "
-          />
-        }
-        <details>
-          <summary>
-            אפשרויות נוספות לשאלה {{ i + 1 }}
-            @if (question.points().invalid()) {
-              <span class="text-danger">· יש לתקן את הניקוד</span>
-            }
-          </summary>
-          <div class="grid gap-4">
-            <div>
-              <label [for]="'question-' + i + '-type'">סוג התשובה</label
-              ><select [id]="'question-' + i + '-type'" [formField]="question.type">
-                <option value="numeric-input">מספר</option>
-                <option value="text-input">טקסט קצר</option>
-                <option value="single-choice">בחירה מתוך אפשרויות</option>
-              </select>
             </div>
             <div>
-              <label [for]="'question-' + i + '-points'">נקודות</label
-              ><input
-                [id]="'question-' + i + '-points'"
-                class="max-w-28"
-                dir="ltr"
-                inputmode="numeric"
-                [formField]="question.points"
-                [attr.aria-invalid]="question.points().invalid()"
-                [attr.aria-describedby]="'question-' + i + '-points-error'"
-              />
-              <div [id]="'question-' + i + '-points-error'">
-                @for (error of question.points().errors(); track $index) {
-                  <p class="field-error mt-2">{{ error.message }}</p>
+              <label [for]="'question-' + i + '-answer'"
+                >תשובה נכונה
+                <span class="text-sm font-normal text-muted">(מוצגת רק לכם)</span></label
+              >
+              <select
+                [id]="'question-' + i + '-answer'"
+                [formField]="question.answer"
+                [attr.aria-describedby]="'question-' + i + '-answer-help'"
+                [attr.aria-invalid]="!!value.answer && !matches(value)"
+              >
+                <option value="">בחרו את התשובה הנכונה</option>
+                @if (value.answer && !matches(value)) {
+                  <option [value]="value.answer">{{ value.answer }} — אינה תואמת לאף אפשרות</option>
                 }
-              </div>
-            </div>
-            @if (value.type === 'single-choice') {
-              <div class="flex flex-wrap gap-x-4">
                 @for (option of value.options; track $index; let j = $index) {
+                  @if (option.value) {
+                    <option [value]="option.value">{{ j + 1 }}. {{ option.value }}</option>
+                  }
+                }
+              </select>
+              <p [id]="'question-' + i + '-answer-help'" class="mt-2 text-sm text-muted">
+                שינוי נוסח של אפשרות אינו משנה את התשובה הנכונה. אם צריך, בחרו אותה מחדש.
+              </p>
+            </div>
+          } @else {
+            <div>
+              <label [for]="'question-' + i + '-answer'"
+                >תשובה נכונה
+                <span class="text-sm font-normal text-muted">(מוצגת רק לכם)</span></label
+              ><input
+                [id]="'question-' + i + '-answer'"
+                [dir]="value.type === 'numeric-input' ? 'ltr' : 'auto'"
+                [formField]="question.answer"
+              />
+            </div>
+          }
+          @if (id) {
+            <app-scoped-repair
+              [key]="'question-' + i"
+              [name]="'שאלה ' + (i + 1)"
+              prompt="מה תרצו לשנות בשאלה הזו?"
+              submitLabel="שיפור השאלה"
+              [ideas]="questionIdeas"
+              [disabled]="locked() || operationActive() || !aiAvailable()"
+              (requested)="
+                replaced.emit({ kind: 'ReplaceQuestion', targetId: id, instruction: $event })
+              "
+            />
+          }
+          <details>
+            <summary>
+              אפשרויות נוספות לשאלה {{ i + 1 }}
+              @if (question.points().invalid()) {
+                <span class="text-danger">· יש לתקן את הניקוד</span>
+              }
+            </summary>
+            <div class="grid gap-4">
+              <div>
+                <label [for]="'question-' + i + '-type'">סוג התשובה</label
+                ><select [id]="'question-' + i + '-type'" [formField]="question.type">
+                  <option value="numeric-input">מספר</option>
+                  <option value="text-input">טקסט קצר</option>
+                  <option value="single-choice">בחירה מתוך אפשרויות</option>
+                </select>
+              </div>
+              <div>
+                <label [for]="'question-' + i + '-points'">נקודות</label
+                ><input
+                  [id]="'question-' + i + '-points'"
+                  class="max-w-28"
+                  dir="ltr"
+                  inputmode="numeric"
+                  [formField]="question.points"
+                  [attr.aria-invalid]="question.points().invalid()"
+                  [attr.aria-describedby]="'question-' + i + '-points-error'"
+                />
+                <div [id]="'question-' + i + '-points-error'">
+                  @for (error of question.points().errors(); track $index) {
+                    <p class="field-error mt-2">{{ error.message }}</p>
+                  }
+                </div>
+              </div>
+              @if (value.type === 'single-choice') {
+                <div class="flex flex-wrap gap-x-4">
+                  @for (option of value.options; track $index; let j = $index) {
+                    <button
+                      type="button"
+                      class="text-link"
+                      [disabled]="locked()"
+                      (click)="
+                        structureChanged.emit({ kind: 'remove-option', index: i, option: j })
+                      "
+                    >
+                      מחיקת אפשרות {{ j + 1 }}
+                    </button>
+                  }
                   <button
                     type="button"
                     class="text-link"
-                    [disabled]="locked()"
-                    (click)="structureChanged.emit({ kind: 'remove-option', index: i, option: j })"
+                    [disabled]="locked() || value.options.length >= limits.maxChoiceCount"
+                    (click)="structureChanged.emit({ kind: 'add-option', index: i })"
                   >
-                    מחיקת אפשרות {{ j + 1 }}
+                    הוספת אפשרות
                   </button>
-                }
+                </div>
+              }
+              <div class="flex flex-wrap gap-x-4">
                 <button
                   type="button"
                   class="text-link"
-                  [disabled]="locked() || value.options.length >= limits.maxChoiceCount"
-                  (click)="structureChanged.emit({ kind: 'add-option', index: i })"
+                  [disabled]="locked() || i === 0"
+                  (click)="structureChanged.emit({ kind: 'move-up', index: i })"
                 >
-                  הוספת אפשרות
+                  הזזת שאלה {{ i + 1 }} למעלה
+                </button>
+                <button
+                  type="button"
+                  class="text-link"
+                  [disabled]="locked() || i === count - 1"
+                  (click)="structureChanged.emit({ kind: 'move-down', index: i })"
+                >
+                  הזזת שאלה {{ i + 1 }} למטה
+                </button>
+                <button
+                  type="button"
+                  class="text-link text-link-danger"
+                  [disabled]="locked()"
+                  (click)="structureChanged.emit({ kind: 'remove-question', index: i })"
+                >
+                  מחיקת שאלה {{ i + 1 }}
                 </button>
               </div>
-            }
-            <div class="flex flex-wrap gap-x-4">
-              <button
-                type="button"
-                class="text-link"
-                [disabled]="locked() || i === 0"
-                (click)="structureChanged.emit({ kind: 'move-up', index: i })"
-              >
-                הזזת שאלה {{ i + 1 }} למעלה
-              </button>
-              <button
-                type="button"
-                class="text-link"
-                [disabled]="locked() || i === count - 1"
-                (click)="structureChanged.emit({ kind: 'move-down', index: i })"
-              >
-                הזזת שאלה {{ i + 1 }} למטה
-              </button>
-              <button
-                type="button"
-                class="text-link text-link-danger"
-                [disabled]="locked()"
-                (click)="structureChanged.emit({ kind: 'remove-question', index: i })"
-              >
-                מחיקת שאלה {{ i + 1 }}
-              </button>
             </div>
-          </div>
-        </details>
-      </li>
-    }
-  </ol>
+          </details>
+        </li>
+      }
+    </ol>
+  }
   <button
     id="add-question"
     type="button"
     class="button button-secondary w-fit"
-    [disabled]="locked() || fields().questions().value().length >= limits.maxQuestionCount"
+    [disabled]="locked() || count >= limits.maxQuestionCount"
     (click)="structureChanged.emit({ kind: 'add-question' })"
   >
     הוספת שאלה ידנית

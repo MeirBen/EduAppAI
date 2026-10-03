@@ -5,11 +5,6 @@
   min-inline-size: 0;
 }
 
-/* An empty live region stays mounted without retaining the caller's spacing. */
-:host(.loading-idle) {
-  margin: 0;
-}
-
 /* Feedback fades in only once work is slow enough to need it, so quick requests never flash. */
 :host(:not(.loading-idle)) {
   animation: loader-appear 0.25s ease-out 0.3s backwards;

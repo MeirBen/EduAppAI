@@ -7,11 +7,11 @@
       [attr.aria-labelledby]="control.id + '-heading'"
     >
       @if (part() === 'material') {
-        <h5 [id]="control.id + '-heading'" class="font-medium">
+        <h5 [id]="control.id + '-heading'">
           <bdi>{{ control.label || 'בחירה חדשה' }}</bdi>
         </h5>
       } @else {
-        <h4 [id]="control.id + '-heading'" class="font-medium">
+        <h4 [id]="control.id + '-heading'">
           <bdi>{{ control.label || 'בחירה חדשה' }}</bdi>
         </h4>
       }
@@ -34,12 +34,12 @@
       </div>
       <div class="grid gap-1">
         @if (!control.hasDefault) {
-          <label class="flex items-center gap-2"
+          <label
             ><input [id]="control.id + '-required'" type="checkbox" [formField]="c.required" />חובה
             לבחור ערך</label
           >
         }
-        <label class="flex items-center gap-2"
+        <label
           ><input
             [id]="control.id + '-has-default'"
             type="checkbox"

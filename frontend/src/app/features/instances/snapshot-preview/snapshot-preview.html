@@ -1,7 +1,7 @@
-<section class="mx-auto grid max-w-5xl gap-6 py-gutter" aria-labelledby="snapshot-heading">
-  <header class="grid justify-items-start gap-1">
-    <a class="text-link" routerLink="/templates">חזרה לספרייה</a>
+<section class="mx-auto grid max-w-3xl gap-6 py-gutter" aria-labelledby="snapshot-heading">
+  <header class="flex flex-wrap items-center justify-between gap-3">
     <h1 id="snapshot-heading">פעילות מוכנה — תצוגה להורים</h1>
+    <a class="text-link" routerLink="/templates">לספרייה</a>
   </header>
   <app-loading-indicator
     [active]="snapshot.isLoading()"
@@ -9,8 +9,10 @@
     variant="panel"
   />
   @if (snapshot.error()) {
-    <p role="alert" class="field-error">{{ apiError(snapshot.error()) }}</p>
-    <button type="button" class="text-link" (click)="snapshot.reload()">ניסיון נוסף</button>
+    <div class="grid justify-items-start gap-1">
+      <p role="alert" class="field-error">{{ apiError(snapshot.error()) }}</p>
+      <button type="button" class="text-link" (click)="snapshot.reload()">ניסיון נוסף</button>
+    </div>
   } @else if (snapshot.hasValue()) {
     <div class="grid gap-1">
       <p>

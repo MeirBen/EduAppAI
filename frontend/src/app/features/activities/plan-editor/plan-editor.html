@@ -43,7 +43,7 @@
         class="well grid min-w-0 gap-4"
         [attr.aria-labelledby]="material.id + '-heading'"
       >
-        <h4 [id]="material.id + '-heading'" class="font-medium">
+        <h4 [id]="material.id + '-heading'">
           <bdi>{{ material.label || 'טקסט חדש' }}</bdi>
         </h4>
         <div>
@@ -107,22 +107,22 @@
     <h3 id="questions-title">השאלות</h3>
     <fieldset class="grid gap-1">
       <legend>סוגי שאלות</legend>
-      <label class="flex items-center gap-2"
+      <label
         ><input id="question-numeric" type="checkbox" [formField]="f.questions.numeric" />תשובה
         מספרית</label
       >
-      <label class="flex items-center gap-2"
+      <label
         ><input id="question-text" type="checkbox" [formField]="f.questions.text" />תשובה
         קצרה</label
       >
-      <label class="flex items-center gap-2"
+      <label
         ><input id="question-choice" type="checkbox" [formField]="f.questions.choice" />בחירה מתוך
         אפשרויות</label
       >
     </fieldset>
     @if (formatCount() > 1 || f.questions.selectableFormat().value()) {
       <div>
-        <label class="flex items-center gap-2"
+        <label
           ><input
             id="question-selectable"
             type="checkbox"
@@ -165,7 +165,7 @@
           [formField]="f.questions.choiceCount.value"
         />
       </div>
-      <label class="flex items-center gap-2"
+      <label
         ><input
           id="choice-adjustable"
           type="checkbox"

@@ -36,7 +36,9 @@
       </ol>
     }
     @if (!loading() && !loadError()) {
-      <div class="flex flex-wrap items-center gap-x-4 text-sm text-muted">
+      <div
+        class="flex flex-wrap items-center gap-x-4 text-sm text-muted not-has-[>:not(:empty)]:absolute"
+      >
         <span role="status" [class.font-medium]="unsaved()" [class.text-ink]="unsaved()">{{
           saveState()
         }}</span>

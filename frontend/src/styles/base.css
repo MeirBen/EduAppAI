@@ -36,9 +36,12 @@
     @apply bg-accent text-ink;
   }
 
+  /* Group headings inside cards (h4, h5) keep body size but outrank the medium-weight labels below them. */
   h1,
   h2,
-  h3 {
+  h3,
+  h4,
+  h5 {
     @apply font-semibold;
     line-height: 1.4;
     text-wrap: balance;
@@ -88,15 +91,10 @@
     @apply mb-2 block font-medium;
   }
 
-  label:has(+ input[type='checkbox']),
+  /* A label that wraps its checkbox is the whole field, with the box beside its text. */
   label:has(input[type='checkbox']) {
-    @apply min-h-11 cursor-pointer;
+    @apply mb-0 flex min-h-11 cursor-pointer items-center gap-2;
   }
-  /* A label that wraps its checkbox is the whole field. */
-  label:has(input[type='checkbox']) {
-    @apply mb-0;
-  }
-  label:has(+ input[type='checkbox']:disabled),
   label:has(input[type='checkbox']:disabled) {
     @apply cursor-not-allowed text-muted;
   }
