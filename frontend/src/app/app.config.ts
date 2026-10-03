@@ -7,7 +7,12 @@ import {
 import { registerLocaleData } from '@angular/common';
 import hebrew from '@angular/common/locales/he';
 import { provideHttpClient } from '@angular/common/http';
-import { provideRouter, RouteReuseStrategy, withComponentInputBinding } from '@angular/router';
+import {
+  provideRouter,
+  RouteReuseStrategy,
+  withComponentInputBinding,
+  withInMemoryScrolling,
+} from '@angular/router';
 import { provideServiceWorker } from '@angular/service-worker';
 import { routes } from './app.routes';
 import { PageReuseStrategy } from './core/page-reuse-strategy';
@@ -21,7 +26,12 @@ export const appConfig: ApplicationConfig = {
     provideBrowserGlobalErrorListeners(),
     // Default XSRF names match AuthConfiguration and the readable token issued by AuthEndpoints.
     provideHttpClient(),
-    provideRouter(routes, withComponentInputBinding()),
+    // New pages open at the top; Back restores the position the parent left.
+    provideRouter(
+      routes,
+      withComponentInputBinding(),
+      withInMemoryScrolling({ scrollPositionRestoration: 'enabled' }),
+    ),
     { provide: RouteReuseStrategy, useClass: PageReuseStrategy },
     provideServiceWorker('ngsw-worker.js', {
       enabled: !isDevMode(),

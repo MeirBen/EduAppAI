@@ -182,9 +182,11 @@ caller's injection context and cancel on route change or destruction; check
 `requestResult`, bound to the caller's lifetime, without retries; cancellation
 does not guarantee a server rollback. Changing route parameters destroys the
 page and cancels its writes, while query and fragment changes keep its edits.
-Guards cancel superseded session checks and load the server's `ContentLimits`
-once before a private page renders; forms, caps and copy read them through
-`Limits`. The server still authorizes and validates every request.
+Guards check the session on every private navigation and cancel superseded
+checks. The request token loads once per sign-in and the server's
+`ContentLimits` once per tab, both before a private page renders; forms, caps
+and copy read the limits through `Limits`. The server still authorizes and
+validates every request.
 
 `ActivityWorkspace` owns the template and activity URLs, one form buffer for
 plan and per-activity input, derived canonical projections, source confirmation
@@ -203,9 +205,10 @@ AI-extracted fixed source needs local confirmation, and changing a material's
 source kind creates a new material identity. Template publication briefly locks
 editing, uses `expectedVersion` and never writes an activity. Polling reads the
 operation status before the draft checkpoint so a terminal result includes its
-final commit; a changed revision or dirty buffer turns the result into an
-explicit reload offer. Lost start responses keep their key and request for
-replay, and candidates pass a bounded editable-field mapping before transfer.
+final commit, and pauses while the page is hidden; a changed revision or dirty
+buffer turns the result into an explicit reload offer. Lost start responses keep
+their key and request for replay, and candidates pass a bounded editable-field
+mapping before transfer.
 
 The library separates drafts, templates and snapshots; a snapshot copy creates
 a new draft without AI. The PWA caches assets only. One Playwright suite tests

@@ -5,6 +5,7 @@ import {
   Component,
   computed,
   DestroyRef,
+  DOCUMENT,
   effect,
   inject,
   input,
@@ -107,6 +108,7 @@ import {
 export class ActivityWorkspace {
   private readonly api = inject(LearningApi);
   private readonly location = inject(Location);
+  private readonly document = inject(DOCUMENT);
   private readonly router = inject(Router);
   private readonly lifetime = inject(DestroyRef);
   protected readonly limits = inject(Limits).current;
@@ -348,7 +350,7 @@ export class ActivityWorkspace {
         operationId = this.operationId();
       if (!id || !operationId) return;
       // One poll per draft and operation; a reload restarts it and the route disposes it.
-      const subscription = pollOperation(this.api, id, operationId).subscribe({
+      const subscription = pollOperation(this.api, this.document, id, operationId).subscribe({
         next: ({ operation, draft }) => {
           this.operation.set(operation);
           this.receiveCheckpoint(draft);

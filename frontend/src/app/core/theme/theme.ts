@@ -1,5 +1,4 @@
-import { DOCUMENT } from '@angular/common';
-import { DestroyRef, effect, inject, Injectable, signal } from '@angular/core';
+import { DestroyRef, DOCUMENT, effect, inject, Injectable, signal } from '@angular/core';
 
 /** `system` follows the device and is stored as the absence of a saved choice. */
 export type ThemePreference = 'system' | 'light' | 'dark';

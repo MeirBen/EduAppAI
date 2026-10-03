@@ -94,6 +94,7 @@
       <div id="setup-body" class="grid gap-6" [hidden]="!setupOpen()">
         @if (hasPlan()) {
           <app-activity-setup
+            class="motion-safe:animate-enter"
             [plan]="fields.plan"
             [inputs]="fields.input"
             [pendingSources]="pendingSources()"

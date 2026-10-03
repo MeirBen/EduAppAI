@@ -2,7 +2,8 @@ import { ChangeDetectionStrategy, Component, input } from '@angular/core';
 
 /**
  * Keep mounted outside aria-busy containers so the live region exists before a request starts.
- * Theme with --loader-color, --loader-size and --loader-duration; reduced motion disables rotation.
+ * Feedback appears only after a short delay. Theme with --loader-color, --loader-size and
+ * --loader-duration; reduced motion stops the spin and sweep. The out-of-flow bar is for navigation.
  */
 @Component({
   selector: 'app-loading-indicator',
@@ -14,6 +15,7 @@ import { ChangeDetectionStrategy, Component, input } from '@angular/core';
     'aria-live': 'polite',
     'aria-atomic': 'true',
     '[class.loading-panel]': "active() && variant() === 'panel'",
+    '[class.loading-bar]': "variant() === 'bar'",
     '[class.loading-idle]': '!active()',
   },
 })
@@ -21,5 +23,5 @@ export class LoadingIndicator {
   readonly active = input(false);
   readonly label = input('טוענים…');
   readonly detail = input('');
-  readonly variant = input<'inline' | 'panel'>('inline');
+  readonly variant = input<'inline' | 'panel' | 'bar'>('inline');
 }

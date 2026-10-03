@@ -11,6 +11,8 @@ import { ThemePicker } from './shared/theme-picker/theme-picker';
   imports: [LoadingIndicator, RouterOutlet, RouterLink, RouterLinkActive, ThemePicker],
   templateUrl: './app.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
+  // The footer rests at the window's bottom while a page is shorter, so loading never moves it up.
+  host: { class: 'flex min-h-dvh flex-col' },
 })
 export class App {
   protected readonly auth = inject(Auth);

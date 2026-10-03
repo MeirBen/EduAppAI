@@ -49,7 +49,7 @@ describe('Parent navigation', () => {
     },
   );
 
-  it('loads the server limits once, before activating the private page', async () => {
+  it('checks the session on every visit but reads the token and limits once', async () => {
     const harness = await RouterTestingHarness.create();
     const http = TestBed.inject(HttpTestingController);
     for (const visit of [1, 2]) {
@@ -57,13 +57,14 @@ describe('Parent navigation', () => {
       (await vi.waitFor(() => http.expectOne('/api/auth/me'))).flush({
         email: 'parent@example.test',
       });
-      (await vi.waitFor(() => http.expectOne('/api/auth/csrf'))).flush({});
       if (visit === 1) {
+        (await vi.waitFor(() => http.expectOne('/api/auth/csrf'))).flush({});
         expect(TestBed.inject(Router).url).not.toBe('/private');
         (await vi.waitFor(() => http.expectOne('/api/limits'))).flush(limits);
       }
       await navigation;
       expect(TestBed.inject(Router).url).toBe('/private');
+      http.expectNone('/api/auth/csrf');
       await harness.navigateByUrl('/public');
     }
     expect(TestBed.inject(Limits).current).toEqual(limits);
@@ -109,7 +110,6 @@ describe('Parent navigation', () => {
       (await vi.waitFor(() => http.expectOne('/api/auth/me'))).flush({
         email: 'parent@example.test',
       });
-      (await vi.waitFor(() => http.expectOne('/api/auth/csrf'))).flush({});
       (await vi.waitFor(() => http.expectOne('/api/limits'))).flush(
         {},
         { status: 503, statusText: 'Unavailable' },

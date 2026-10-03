@@ -57,18 +57,20 @@
   #mainContent
   id="main-content"
   tabindex="-1"
-  class="mx-auto min-h-[75vh] max-w-6xl px-gutter py-6 sm:px-8"
+  class="mx-auto w-full max-w-6xl flex-1 px-gutter py-6 sm:px-8"
 >
   @if (error()) {
     <p class="error mb-6" role="alert">{{ error() }}</p>
   }
   <app-loading-indicator
-    class="mb-6"
+    variant="bar"
     [active]="signingOut() || !!router.currentNavigation()"
     [label]="signingOut() ? 'מתנתקים מהחשבון…' : 'פותחים את המרחב…'"
   />
   <router-outlet />
 </main>
-<footer class="mx-auto max-w-6xl border-t border-line px-gutter py-6 text-sm text-muted sm:px-8">
+<footer
+  class="mx-auto w-full max-w-6xl border-t border-line px-gutter py-6 text-sm text-muted sm:px-8"
+>
   לומדים ביחד · בקצב של המשפחה שלכם
 </footer>

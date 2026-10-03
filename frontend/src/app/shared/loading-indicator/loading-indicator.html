@@ -1,4 +1,7 @@
-@if (active()) {
+@if (active() && variant() === 'bar') {
+  <span class="loader-bar" aria-hidden="true"></span>
+  <span class="sr-only">{{ label() }}</span>
+} @else if (active()) {
   <span class="loader-mark" aria-hidden="true">
     <svg viewBox="0 0 24 24" fill="currentColor" focusable="false">
       <path

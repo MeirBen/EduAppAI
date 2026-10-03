@@ -10,6 +10,11 @@
   margin: 0;
 }
 
+/* Feedback fades in only once work is slow enough to need it, so quick requests never flash. */
+:host(:not(.loading-idle)) {
+  animation: loader-appear 0.25s ease-out 0.3s backwards;
+}
+
 :host(.loading-panel) {
   flex-wrap: wrap;
   gap: 1rem;
@@ -54,6 +59,43 @@
   animation: loader-orbit var(--loader-duration, 1.6s) linear infinite;
 }
 
+/* Fixed above the page, so a navigation never shifts it. */
+:host(.loading-bar) {
+  display: block;
+  position: fixed;
+  inset-block-start: 0;
+  inset-inline: 0;
+  z-index: 30;
+  pointer-events: none;
+}
+
+/* Scale and opacity animate on the compositor and spread from the center in either direction. */
+.loader-bar {
+  display: block;
+  block-size: 0.1875rem;
+  background: var(--loader-color, var(--color-brand));
+  animation: loader-spread var(--loader-duration, 1.6s) var(--ease-smooth) infinite;
+}
+
+@keyframes loader-appear {
+  from {
+    opacity: 0;
+  }
+}
+
+/* The bar stays opaque while it spreads and fades only as each sweep ends. */
+@keyframes loader-spread {
+  from {
+    scale: 0 1;
+  }
+  60% {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
 @keyframes loader-orbit {
   to {
     transform: rotate(1turn);
@@ -61,7 +103,8 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .loader-mark::before {
+  .loader-mark::before,
+  .loader-bar {
     animation: none;
   }
 }

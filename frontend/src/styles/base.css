@@ -1,6 +1,8 @@
 @layer base {
   :root {
     font-size: 100%;
+    /* Pages shorter than the window keep the scrollbar's space, so routes never shift sideways. */
+    scrollbar-gutter: stable;
 
     /* Clears the pinned header when focus or fragment navigation scrolls content. */
     @variant pinned-header {

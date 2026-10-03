@@ -10,6 +10,9 @@ parent labels keep their original language and values.
   visible on screens at least 64rem wide and 40rem tall; let it scroll away on
   smaller screens. Reserve scroll padding for focus targets and include the
   skip link.
+- Route changes never move the layout: the root keeps a stable scrollbar
+  gutter, the footer rests at the window's bottom on short pages, new pages
+  open at the top and Back restores the previous position.
 - Use the shared light/dark theme tokens, visible focus/error states and locally
   bundled Heebo.
 - Use `panel` for raised surfaces and `button` for primary actions; add
@@ -154,10 +157,12 @@ disclosures and offer an explicit copy to a new draft.
 Keep the shared `LoadingIndicator` mounted outside `aria-busy` containers, with
 `active` bound to the request's pending state, so its empty live region exists
 before the status changes. Use `variant="panel"` for page loads and long AI
-calls and the default inline variant for shorter actions. Set `label` and an
-optional `detail`; never invent progress percentages or stages. Tune it with
-`--loader-color` (brand), `--loader-size` (1.5rem inline, 3rem panel) and
-`--loader-duration` (1.6s):
+calls and the default inline variant for shorter actions. Every variant fades in
+only after a short delay, so quick requests never flash; the shell's
+`variant="bar"` reports navigation from above the page without shifting content.
+Set `label` and an optional `detail`; never invent progress percentages or
+stages. Tune it with `--loader-color` (brand), `--loader-size` (1.5rem inline,
+3rem panel) and `--loader-duration` (1.6s):
 
 ```html
 <app-loading-indicator

@@ -12,12 +12,13 @@ export class Auth {
   readonly signedIn = this.session.asReadonly();
 
   /**
-   * Reads the session and token as one cancellable route-guard subscription.
-   * Emits true after both checks, false for HTTP 401; other failures remain errors.
+   * Reads the session as one cancellable route-guard subscription. The request token is read only
+   * when this tab has no session yet; it stays valid for the same identity, and sign-in renews it.
+   * Emits true for a session, false for HTTP 401; other failures remain errors.
    */
   loadSession(): Observable<boolean> {
     return this.http.get('/api/auth/me').pipe(
-      switchMap(() => this.refreshCsrf()),
+      switchMap(() => (this.session() ? of(null) : this.refreshCsrf())),
       map(() => true),
       catchError((error: unknown) =>
         error instanceof HttpErrorResponse && error.status === 401

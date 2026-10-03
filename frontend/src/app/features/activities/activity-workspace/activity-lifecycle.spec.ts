@@ -277,6 +277,45 @@ describe('Activity lifecycle', () => {
       vi.useRealTimers();
     }
   });
+  it('pauses operation polling while the page is hidden and reads at once when shown again', async () => {
+    vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] });
+    const visibility = vi.spyOn(document, 'visibilityState', 'get');
+    const show = (state: DocumentVisibilityState) => {
+      visibility.mockReturnValue(state);
+      document.dispatchEvent(new Event('visibilitychange'));
+    };
+    try {
+      await harness.navigateByUrl('/activities/draft', ActivityWorkspace);
+      http.expectOne('/api/ai/status').flush({ configured: true, schemaVersion: 1 });
+      http
+        .expectOne('/api/activity-drafts/draft')
+        .flush({ ...savedActivity, activeOperationId: 'op' });
+      await settle();
+      show('hidden');
+      vi.advanceTimersByTime(10_000);
+      http.expectNone('/api/activity-drafts/draft/operations/op');
+      show('visible');
+      vi.advanceTimersByTime(0);
+      http.expectOne('/api/activity-drafts/draft/operations/op').flush({
+        id: 'op',
+        draftId: 'draft',
+        kind: 'GenerateActivity',
+        status: 'completed',
+        stage: 'questions',
+        originalRevision: 1,
+        expectedRevision: 1,
+        failure: null,
+        diagnosticsExpired: false,
+        steps: [],
+        artifacts: null,
+      });
+      http.expectOne('/api/activity-drafts/draft').flush({ ...savedActivity, revision: 2 });
+      await settle();
+    } finally {
+      visibility.mockRestore();
+      vi.useRealTimers();
+    }
+  });
   it('saves canonical replacement source, then offers adoption only for the question it made stale', async () => {
     await harness.navigateByUrl('/activities/draft', ActivityWorkspace);
     http.expectOne('/api/ai/status').flush({ configured: false, schemaVersion: 1 });

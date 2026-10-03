@@ -73,6 +73,20 @@ test('login feedback belongs to the failed navigation and does not survive a rel
   await login(page);
 });
 
+test('a page opened from a scrolled page starts at its top', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 600 });
+  await login(page);
+  await page.locator('footer').scrollIntoViewIfNeeded();
+  expect(await page.evaluate(() => scrollY)).toBeGreaterThan(0);
+  // A DOM click follows the link from where the parent is, without the test runner scrolling first.
+  await page
+    .getByRole('navigation', { name: 'ניווט ראשי' })
+    .getByRole('link', { name: 'המרחב שלנו' })
+    .evaluate((link: HTMLElement) => link.click());
+  await expect(page.getByRole('heading', { name: 'המרחב שלנו', level: 1 })).toBeVisible();
+  await expect.poll(() => page.evaluate(() => scrollY)).toBe(0);
+});
+
 test('prompt to editable activity, independent template, scoped repair and frozen parent preview', async ({
   page,
 }) => {
