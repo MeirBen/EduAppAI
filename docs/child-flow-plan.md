@@ -5,7 +5,8 @@
 > selects it. Checkboxes track implementation, not completion of this document.
 
 **Status:** Proposed for review, 3 October 2026. No implementation task has
-started. The user requested this plan and the accompanying spec update together.
+started. The spec and plan have been checked against the current repository;
+implementation and acceptance evidence remain pending.
 
 **Goal:** A parent assigns reviewed work to an activated child device, the child
 saves and submits answers, and the parent sees stable results and grades short
@@ -65,7 +66,8 @@ These cases must have direct tests in the tasks that own them:
    without a second attempt or overwritten answers (Tasks 3, 4 and 6).
 3. Correctly worded short text must reach the parent unmodified and ungraded;
    pending and zero-point work must not display a misleading final percentage
-   (Tasks 3–6).
+   (Tasks 3–6). Numeric scoring must not award points because parsing rounded
+   distinct values to the same decimal (Task 3).
 4. Removing an assigned snapshot or racing withdrawal/reset against submission
    must not destroy retained history or leave partial state (Tasks 2, 3 and 7).
 5. A child response may leak keys through a nested reused parent DTO or an
@@ -112,7 +114,9 @@ names rather than inventing a second contract:
 - `ChildIdentity(Guid ChildId, Guid FamilyId, Guid DeviceGrantId)` and
   `ChildAccess.FindAsync(ClaimsPrincipal, LearningDbContext, DateTime utcNow,
 CancellationToken) -> Task<ChildIdentity?>`: validate the stored profile and
-  grant. A null result means no current access. Reuse inside write transactions.
+  grant through fresh `AsNoTracking` queries. A null result means no current
+  access. Reuse inside write transactions, sampling UTC after acquiring the
+  transaction; never reuse an authentication-time entity or access result.
 - `ChildSummary`: ID, name, enabled state, revision and creation time.
   `ChildSessionIdentity`: child's ID/name, grant expiry and `AnswerLength`;
   expose no parent identity or full parent limits document.
@@ -120,6 +124,9 @@ CancellationToken) -> Task<ChildIdentity?>`: validate the stored profile and
   descending creation-time/ID order with database `Skip`/`Take(pageSize + 1)`.
   Reject nonpositive pages, sizes outside 1–100 and offset overflow. Family
   lists are small; no count-all query or generic query framework is needed.
+  Filter and project summaries in SQL before pagination; do not load content
+  JSON or issue per-row queries. Add indexes for the owned list predicates and
+  ordering in their schema tasks.
 - `CreateAssignmentRequest(Guid ChildId, Guid SnapshotId)`;
   `AssignmentSummary`: ID, child ID/name, snapshot ID/title, status, revision,
   creation time and whether work has started. Child summaries omit other
@@ -145,6 +152,15 @@ CancellationToken) -> Task<ChildIdentity?>`: validate the stored profile and
   `SessionScoring.CompleteReview(SessionEvaluation, ParentGrade[])` completes
   only the pending rows; it never takes a live plan or recalculates automatic
   awards. Validate the exact pending ID set before calling it.
+
+Use separate revision counters deliberately: profile edits advance the child
+revision; withdrawal, submission and final review advance the assignment
+revision; answer saves, submission and final review advance the session
+revision. Start/save do not change assignment status or revision. Initialize
+revisions at 1, configure each as an EF concurrency token and return unchanged
+revisions/timestamps for idempotent replays. Check ownership and bounded request
+shape before recognizing a replay, and recognize it before checking an old
+expected revision. A pre-submission save is revision-checked, not replayable.
 
 ## Task 1: Child profiles and independent device access
 
@@ -172,18 +188,25 @@ confirmation and `core/api/learning-api.ts` comments in the frontend. Add
       `TimeProvider`, two concurrent redemptions with exactly one grant, and the
       specified rate limits. A test harness may derive a controllable TimeProvider;
       do not use sleeps or introduce a production clock wrapper.
+      Include issue-versus-disable, redeem-versus-disable and code replacement:
+      a committed disable leaves no usable code/grant, and only the latest issued
+      code can be redeemed. Verify persistent cookie expiry and no sliding renewal.
 - [ ] Run `dotnet test tests/FamilyLearning.Api.Tests --filter ChildAccessTests`.
       Confirm the new behavior fails before implementation; compile errors for new
       test contracts must be resolved before accepting a behavioral red test.
 - [ ] Add child/profile revision and enabled state, one activation slot per
       child (hash, device label, expiry/consumption), and device grants with fixed
       expiry/revocation. Family/child ownership is relational; enforce unique code
-      hashes and foreign keys. Generate migration `AddChildAccess` with the normal
-      EF tooling; inspect it and the updated model snapshot.
+      hashes and foreign keys. Reuse `EngineValidation.NameLength` for child/device
+      names so the existing parent `ContentLimits.NameLength` remains authoritative.
+      Apply the existing UTC timestamp conversion to all new timestamp properties.
+      Generate migration `AddChildAccess` with the normal EF tooling; inspect it
+      and the updated model snapshot.
 - [ ] Register a named `Child` cookie scheme and explicit `Parent`/`Child`
       policies. Keep the parent's Identity scheme, cookie behavior and existing
       routes. Use native cookie validation plus `ChildAccess.FindAsync`;
-      expire the cookie no later than the database grant. Name the child cookie
+      set `IsPersistent = true`, `ExpiresUtc` to the stored grant expiry and
+      `SlidingExpiration = false`. Name the child cookie
       `FamilyLearning.Child` with path `/` so opposite-mode checks can see it;
       policy selection, not cookie path, isolates access. Register
       `TimeProvider.System` once.
@@ -211,6 +234,11 @@ confirmation and `core/api/learning-api.ts` comments in the frontend. Add
 - [ ] Perform activation, disable and revocation atomically. Repeated revoke
       is harmless for an owned grant; foreign IDs remain 404. Do not expose a
       credential in list responses or automatically retry a consumed activation.
+      Use the existing short, non-deferred SQLite write transaction pattern;
+      acquire it before reading authorization/state used by the write. Query
+      current database values even if cookie validation used the same DbContext.
+      Later assignment/session mutations follow this same ordering; do not add a
+      process lock or a generic transaction/retry framework.
 - [ ] Extend the existing family reset transaction to remove grants, activation
       slots and child profiles. Update its confirmation and contract comments now,
       not after later tasks. Add reset-past-100 and cross-family tests. Update
@@ -271,6 +299,9 @@ contracts, `LearnerDocument` and read endpoints used by Tasks 3, 5 and 6.
       unassigned ones. Hide archived snapshots from the ordinary library, keep
       owned parent previews and assignment reads working, and expose metadata for
       accurate archive/delete copy. Update existing UI/API comments in this task.
+      Keep the existing DELETE success contract; confirmation must explain both
+      outcomes if a concurrent assignment changes deletion into archiving, and
+      success copy must not claim permanent deletion from stale list metadata.
 - [ ] Extend family reset to remove assignments before their referenced
       snapshots/children. Test delete-versus-assign,
       withdraw-versus-duplicate-create,
@@ -305,6 +336,9 @@ second independently mutable session status.
       choice/zero; `+02.00` equals key `2`; negative decimals; zero; reject commas,
       exponent and decimal overflow at submission; preserve Hebrew/niqqud text with
       unset points; blank text/zero; answered zero-point text/still pending review.
+      Include signed zero, long equal fractions with extra trailing zeros, and
+      unequal fractions that `decimal.TryParse` rounds to the same value, including
+      a nonzero fraction rounded to zero. Test both answer and key positions.
 - [ ] Add endpoint tests for empty/missing/null/duplicate/unknown answers,
       oversized strings/collections, save of unfinished numeric text, two starts
       producing one session, stale writes and independent sibling sessions.
@@ -319,10 +353,14 @@ second independently mutable session status.
       automatic awards cannot change. Generate and inspect
       migration `AddTaskSessions`. Reset deletes sessions before assignments.
 - [ ] Implement `SessionValidation.Validate` and the numeric/choice scoring
-      paths. Reuse the existing `QuestionRules` numeric grammar in the same
-      assembly; compare invariant decimals, never floating point. Never trim or
-      normalize a nonblank saved short-text answer. Method comments must state
-      whether validated input is required.
+      paths. Reuse `QuestionRules.ValidNumericAnswer` for existing grammar/range
+      validation. For equality, normalize the validated strings' leading sign,
+      leading integer zeros, trailing fractional zeros and signed zero; compare
+      ordinally without changing stored answers. Do not compare parsed decimals:
+      [`decimal.TryParse` can round distinct accepted values][decimal-parsing].
+      Keep this bounded comparison local to scoring; no numeric library or engine
+      change is needed. Never trim or normalize a nonblank saved short-text answer.
+      Method comments must state whether validated input is required.
 - [ ] Implement `POST /api/child/assignments/{id}/session` (idempotent start),
       `GET` and `PUT` at that session path, and
       `POST /api/child/assignments/{id}/session/submit`. Start reads existing terminal
@@ -336,10 +374,16 @@ second independently mutable session status.
       revision. Ignore collection ordering and blank-versus-omitted differences,
       but compare other strings exactly. Return the stored outcome; a changed set
       conflicts. The client never supplies totals or grades.
+      Validate required members, nulls, IDs, duplicates and raw bounds first;
+      replay cannot bypass validation. Use `string.IsNullOrWhiteSpace` for the
+      unanswered rule without trimming other strings. Test malformed replays and
+      oversized whitespace, as well as empty, omitted and reordered answers.
 - [ ] Add synchronized races for submit/submit, submit/withdraw, save/revoke,
       submit/disable and submit/reset. Assert the winning state, no partial results,
       no recreated deleted rows and no answer changes after submission. Test the
-      gap between cookie validation and the transaction's access recheck.
+      gap between cookie validation and the transaction's access recheck, with
+      access entities already read by that request. Also expire a grant while
+      waiting to start its write, and assert access uses the later clock value.
 - [ ] Verify focused tests and `./scripts/verify.sh`. Reopen the same disposable
       database in a fresh host and prove answers, automatic awards, pending state
       and revisions survive. Assert completion/session JSON allowlists and
@@ -377,6 +421,10 @@ metadata; none of this parent DTO is reused by the child API.
 - [ ] Finalize grades and assignment completion atomically with the session
       revision. Replaying the same grade set returns the stored report;
       changing completed grades conflicts. Test two parents finalizing concurrently.
+      On replay, compare against stored parent-graded rows, not the now-empty
+      pending set; validate raw bounds, nulls and duplicate IDs before comparing.
+      An identical reordered grade set with an old revision keeps the original
+      reviewer, timestamps and revisions. Add direct tests for these cases.
 - [ ] Test zero total points produces no percentage, pending work has no final
       total, archived snapshots remain readable, disabled children retain results,
       and a fresh host returns the identical stored awards after a restart.
@@ -415,6 +463,8 @@ snapshot preview owns selection of the child for its assign action.
       from existing server `ContentLimits` and point bounds from frozen questions;
       do not make the browser an independent source of limits. Preserve lifetime
       cancellation, safe failure copy, immutable buffers and busy/error states.
+      Map profile/assignment/review conflicts in their owning UI; the current
+      generic `apiError` 409 copy refers to template publication and is unsuitable.
 - [ ] Add assignment creation to the existing frozen preview, with a child
       selector and an existing-assignment link on replay. Add lists by child/status
       with pagination, withdrawal only while assigned, and archived-item messaging.
@@ -461,6 +511,9 @@ answer limit from `ChildSessionIdentity`.
       save/submit responses, terminal sessions, missing-answer confirmation and
       cancellation on navigation. Pending review shows receipt without a final
       score; completed zero-point work shows no percentage.
+      Verify 410 withdrawal locks the player, 401 requests activation, and
+      409/503 preserve local input with session-specific recovery feedback, never
+      the current `apiError` parent-login/template/AI copy.
 - [ ] Run the new Angular specs with `npm --prefix frontend test -- --watch=false`
       and targeted `--include` paths; confirm behavioral failures.
 - [ ] Implement shell separation with existing native routing. Preserve parent
@@ -468,9 +521,12 @@ answer limit from `ChildSessionIdentity`.
       loading indicators. Child home links stay in `/child`; do not expose a
       same-browser mode switch or duplicate the parent workspace into a child view.
 - [ ] Implement activation and child session checks using the native XSRF flow.
-      Clear codes after use/destruction and refresh the identity-bound token after
-      activation. Disconnect revokes the grant and clears the cookie. Superseded
-      guard reads are cancellable; distinguish invalid access from availability.
+      Explain persistent device access before activation, clear codes after
+      use/destruction and refresh the identity-bound token after activation.
+      Disconnect revokes the grant and clears the cookie. Superseded guard reads
+      are cancellable; distinguish invalid access from availability. If activation
+      or token refresh loses its response, check `/me` and refresh CSRF when a
+      grant cookie arrived; otherwise request a new code without replaying it.
 - [ ] Implement the paged inbox and explicit session start. Use learner DTOs
       only, rendering text through interpolation. The player keeps its own answer
       buffer, the last acknowledged revision and derived dirty state. Reuse small
@@ -509,6 +565,8 @@ child-flow spec and this plan. Keep evaluation history and costs intact.
       result. Assert zero AI calls and exact child response allowlists throughout.
 - [ ] Prove cross-scheme API denial, CSRF identity separation, production cookie
       flags and host restart persistence in the real middleware composition.
+      Reopen the child browser with its persistent cookie and verify access lasts
+      only until the original grant expiry, without another activation.
       Include a device revoked while a save is paused after authentication.
 - [ ] Run the race/retention suite for reset, withdrawal, archive, duplicate
       submission and final grading. Verify new pages can reach entries past 100,
@@ -537,3 +595,5 @@ answered short-text question, separate-device access, explicit save, one attempt
 per assignment, fixed grant expiry and the expanded destructive reset scope.
 The user may adjust these product choices before Task 1. Do not start code from
 this document merely because its checklists exist.
+
+[decimal-parsing]: https://learn.microsoft.com/dotnet/api/system.decimal.tryparse

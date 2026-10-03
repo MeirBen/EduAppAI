@@ -178,7 +178,9 @@ milestone. All existing question types remain available.
   minutes, displayed once and stored only as a SHA-256 hash. Send it in the
   activation request body, never a URL, log or browser storage. Copy/paste is
   sufficient for this release. Issuing a new code invalidates that child's
-  previous unconsumed code. A lost activation response requires a new code.
+  previous unconsumed code. After a lost activation response, check for a valid
+  child session first; if none exists, request a new code rather than replaying
+  the consumed one.
 - Consume a code and create its device grant in one transaction; concurrent
   redemption succeeds once. Invalid, expired and used codes give the same
   safe response. Rate-limit redemption to ten attempts per minute per source
@@ -186,8 +188,11 @@ milestone. All existing question types remain available.
   issuance is limited to ten per minute per authenticated parent.
 - A device grant lasts 30 days from activation without sliding renewal. The
   separate child authentication cookie is HttpOnly, SameSite Strict, Secure in
-  production, and never outlives the grant. The parent can revoke individual
-  devices; disconnecting on the child device revokes that grant too.
+  production, persists across browser restarts, and expires with the grant.
+  Activation explains that this browser keeps access for up to 30 days, until
+  disconnected or revoked; clearing browser cookies requires fresh activation.
+  The parent can revoke individual devices; disconnecting on the child device
+  revokes that grant too.
 - Bind parent and child policies to separate named authentication schemes,
   using [scheme-specific authorization][auth-schemes]. A child cookie never
   authorizes parent APIs, and a parent cookie never authorizes child APIs.
@@ -252,9 +257,12 @@ milestone. All existing question types remain available.
 - A save sends the complete answer collection and `expectedRevision`; an
   acknowledged write advances a server revision. Bound the collection by the
   snapshot's question count (at most 20) and each value by 200 characters.
-  Duplicate/unknown IDs and unknown JSON members are invalid. Missing or blank
-  values mean unanswered. Preserve nonblank text exactly; incomplete numeric
-  text may be saved for correction, but invalid choice values may not.
+  Require the collection, revision and each entry's question ID and string value;
+  null collections, entries or values are invalid. Duplicate/unknown IDs and
+  unknown JSON members are invalid. An omitted question, empty string or
+  whitespace-only value means unanswered. Preserve nonblank text exactly;
+  incomplete numeric text may be saved for correction, but invalid choice values
+  may not. Length/count limits apply before treating any value as unanswered.
 - A stale write returns 409 and keeps the child's local text visible. Offer an
   explicit reload of saved work. After a lost response, check the saved state
   before another write; do not automatically replay a submission or claim it
@@ -268,6 +276,10 @@ milestone. All existing question types remain available.
   by question ID regardless of request order, treating absent/blank values as
   unanswered; otherwise compare the preserved strings exactly. A revision
   mismatch before submission remains a conflict.
+- An owned withdrawn assignment returns 410 and stops editing with an explicit
+  withdrawal message. Lost access asks for activation; missing work returns 404.
+  Temporary failures offer a saved-state check without discarding the local
+  buffer or describing the problem as a parent-login, template or AI failure.
 - Submission freezes answers. It becomes `completed` immediately if no parent
   grades are needed, otherwise `awaiting-review`. Neither state accepts answer
   edits, withdrawal or another attempt. Start/resume calls return this saved
@@ -286,8 +298,12 @@ At submission:
   earns full points, another option earns zero.
 - **Numeric:** Use the existing invariant decimal grammar: an optional leading
   sign, digits and an optional decimal point followed by digits. No commas,
-  exponent, NaN or overflow. Numerically equal values earn full points; another
-  valid number earns zero. Invalid nonblank input blocks submission.
+  exponent, NaN or overflow. Compare the exact decimal values expressed by the
+  strings, ignoring leading integer zeros, trailing fractional zeros and the sign
+  of zero, without rounding or tolerance. `+02.00` equals `2`; a tiny nonzero
+  fraction does not equal `0`.
+  Equal values earn full points; another valid number earns zero. Invalid
+  nonblank input blocks submission. Existing key-validation rules stay unchanged.
 - **Short text:** Preserve the answer; points stay unset until parent review,
   even if it matches the key or the question is worth zero points.
 
@@ -345,11 +361,13 @@ Verify these with the real application and disposable data:
   activation/sign-in rejection; missing and wrong-identity CSRF; anonymous
   endpoint allowlist.
 - Expired, replayed and concurrently redeemed activation; grant expiry,
-  revocation and disable/re-enable; cancellation and lost activation response.
+  browser restart, revocation and disable/re-enable; cancellation and lost
+  activation response.
 - Complete child-response field allowlists, including nested content, errors,
   working sessions, pending review and completed history; no AI calls.
 - Save conflicts, two tabs/devices, start races, reordered submission replay,
-  missing answers, numeric boundaries and a lost submission acknowledgement.
+  missing/null/blank answers, exact numeric comparison at precision boundaries,
+  and a lost submission acknowledgement.
 - Submission versus withdrawal/revocation/reset; assignment versus deletion;
   concurrent parent grading; no partial writes or changed historical scores.
 - Pagination past 100 records; archived-content access through assignments;
