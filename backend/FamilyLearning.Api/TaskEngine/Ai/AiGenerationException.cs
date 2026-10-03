@@ -11,7 +11,7 @@ public sealed class AiGenerationException(int statusCode, string message, string
     /// <summary>Safe call outcome, independent of whether the caller already persisted earlier stages.</summary>
     public string Category { get; init; } = "provider";
     internal static AiGenerationException InputLimit(string category) => new(413,
-        "הבקשה ליצירה גדולה מדי. יש לצמצם את התכנית או את התוכן.", "urn:family-learning:ai-input-limit")
+        "הבקשה ליצירה גדולה מדי. יש לצמצם את ההגדרות או את התוכן.", "urn:family-learning:ai-input-limit")
     { Category = category };
     public static AiGenerationException InvalidOutput(IReadOnlyDictionary<string, string[]>? errors = null) => new(502,
         "התוכן שהתקבל לא עבר את בדיקות התקינות. אפשר לנסות שוב או לדייק את ההנחיות.",

@@ -49,7 +49,7 @@ export class GenerationStatus {
   readonly checked = output<void>();
   protected readonly active = computed(() => isRunning(this.operation()));
   protected readonly stages: Record<string, string> = {
-    materials: 'כותבים את חומר הלימוד',
+    materials: 'כותבים את הטקסט',
     questions: 'מכינים את השאלות',
     'replace-material': 'כותבים גרסה חדשה לטקסט',
     'replace-question': 'מכינים גרסה חדשה לשאלה',

@@ -1,5 +1,5 @@
 <a
-  class="fixed inset-s-4 top-4 z-50 -translate-y-32 rounded-xl bg-brand px-5 py-3 text-on-brand focus:translate-y-0"
+  class="fixed inset-s-4 top-4 z-50 -translate-y-32 rounded-button bg-brand px-5 py-3 text-on-brand focus:translate-y-0"
   href="#main-content"
   (click)="$event.preventDefault(); mainContent.focus()"
   >דילוג לתוכן הראשי</a
@@ -16,7 +16,7 @@
       aria-label="לומדים ביחד — עמוד הבית"
     >
       <span
-        class="grid size-11 shrink-0 place-items-center rounded-2xl bg-linear-to-bl from-brand to-brand-hover ltr:bg-linear-to-br text-on-brand shadow-button"
+        class="grid size-11 shrink-0 place-items-center rounded-inset bg-linear-to-bl from-brand to-brand-hover ltr:bg-linear-to-br text-on-brand shadow-button"
         aria-hidden="true"
       >
         <svg
@@ -43,7 +43,7 @@
             >המרחב שלנו</a
           >
           <button class="nav-link text-muted" (click)="logout()" [disabled]="signingOut()">
-            {{ signingOut() ? 'מתנתקים…' : 'יציאה מהחשבון' }}
+            {{ signingOut() ? 'מתנתקים…' : 'יציאה' }}
           </button>
         </nav>
       } @else {

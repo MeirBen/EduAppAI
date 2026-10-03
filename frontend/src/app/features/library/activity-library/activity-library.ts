@@ -46,8 +46,8 @@ export class ActivityLibrary {
     if (this.deleting()) return;
     const prompt =
       kind === 'all'
-        ? 'למחוק את כל נתוני הלמידה של המשפחה? החשבון נשמר.'
-        : `למחוק את הפריט ״${name}״? פריטים עצמאיים אחרים יישארו.`;
+        ? 'למחוק את כל נתוני הלמידה של המשפחה? אי אפשר לבטל את הפעולה. החשבון יישאר.'
+        : `למחוק את "${name}"? שאר הפריטים יישארו.`;
     if (!window.confirm(prompt)) return;
     this.deleting.set(true);
     this.error.set('');

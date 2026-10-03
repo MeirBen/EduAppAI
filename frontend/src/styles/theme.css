@@ -1,8 +1,9 @@
 /*
- * Design tokens. Only these colors and elevations exist: the default palettes are
- * cleared so every color in the app is theme-owned. Utilities read colors through
- * CSS variables, so a theme only redefines the color tokens on the root, as the
- * dark theme below does. Composed tokens are inlined and follow automatically.
+ * Design tokens. Only these colors, elevations and corner radii exist: the default
+ * palettes and scales are cleared so every value in the app is theme-owned. Utilities
+ * read tokens through CSS variables, so a theme only redefines tokens on the root, as
+ * the dark theme below does for colors. Composed tokens are inlined and follow
+ * automatically.
  *
  * Every theme keeps this contrast on each surface, tint and translucent layer a token
  * meets: ink ≥ 10:1; muted, brand, danger and on-* text ≥ 5.5:1; control edges, focus
@@ -11,6 +12,7 @@
 @theme static {
   --color-*: initial;
   --shadow-*: initial;
+  --radius-*: initial;
 
   --color-canvas: oklch(98.03% 0.0054 117.92);
   --color-surface: oklch(100% 0 0);
@@ -29,6 +31,13 @@
   --color-focus: oklch(53.42% 0.086 170.75);
   /* Elevation and modal backdrop tint; keep it dark in every theme. */
   --color-shadow: oklch(33.82% 0.0381 174.27);
+
+  /* Corner roles, smallest to largest; `rounded-full` stays for pills and circles. */
+  --radius-small: 0.375rem;
+  --radius-control: 0.5rem;
+  --radius-button: 0.75rem;
+  --radius-inset: 1rem;
+  --radius-card: 1.5rem;
 
   --font-sans: 'Heebo Variable', Arial, sans-serif;
   --ease-smooth: cubic-bezier(0.22, 1, 0.36, 1);

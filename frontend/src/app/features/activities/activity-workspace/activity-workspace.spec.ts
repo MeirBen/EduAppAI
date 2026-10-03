@@ -198,7 +198,7 @@ describe('ActivityWorkspace plan ownership', () => {
     await click('chat-send');
     http.expectNone('/api/ai/template-drafts');
     expect(field('plan-questionCount').value).toBe('');
-    expect(root().textContent).toContain('תקנו את פרטי התכנית');
+    expect(root().textContent).toContain('תקנו את ההגדרות המסומנות');
   });
 
   it('does not mark early local typing saved when the status version arrives later', async () => {
@@ -225,7 +225,7 @@ describe('ActivityWorkspace plan ownership', () => {
     expect(field('plan-name').value).toBe('מספרים');
     expect(root().querySelector('#plan-title')!.textContent).toContain('הגדרות הפעילות');
     expect(root().textContent).toContain('הכנו הגדרות לפי הבקשה');
-    expect(root().textContent).not.toContain('נוספה תכנית');
+    expect(root().textContent).not.toContain('נוספו הגדרות');
     http.expectNone('/api/templates');
     http.expectNone('/api/activity-drafts');
     await click('plan-undo');

@@ -13,8 +13,9 @@ parent labels keep their original language and values.
 - Use the shared light/dark theme tokens, visible focus/error states and locally
   bundled Heebo.
 - Use `panel` for raised surfaces and `button` for primary actions; add
-  `button-secondary` or `button-danger` for other actions. Keep one prominent
-  action per card, with quieter edit/delete links. Native disclosures reveal
+  `button-secondary`, or the quiet `button-danger` for destructive actions
+  guarded by a confirmation. Keep one prominent action per card, with quieter
+  edit links and `text-link-danger` deletions. Native disclosures reveal
   answers.
 - Keep hover/press feedback brief, exclude disabled controls and respect reduced
   motion. Use theme shadows and colors rather than page-specific copies.
@@ -47,26 +48,32 @@ than a `.well` fieldset legend. Optional content renders only when present.
 
 `frontend/src/styles.css` imports each layer from `frontend/src/styles/`:
 
-- `theme.css` owns shared theme tokens. Default Tailwind colors and shadows are
-  cleared, so templates can only use theme colors and elevations.
+- `theme.css` owns the colors, elevations and corner radii. Tailwind's default
+  palettes and scales are cleared, so templates can only use theme values.
 - `utilities.css` owns project variants: `pinned-header`, and `dark` for an
   explicit dark choice or a dark device without an explicit light choice.
 - `base.css` styles elements, including native form controls and focus.
-- `components.css` holds small shared primitives: panels, `well`, buttons,
-  links, `eyebrow`, `badge`, `icon-tile`, `steps`, `callout` for calm review
-  prompts, and field feedback.
+- `components.css` holds every shared visual treatment, grouped as actions
+  (buttons, links, `icon-button`, `chip`), surfaces (`panel`, `well`,
+  `list-row`, `empty-state`), conversation (`bubble`, `composer`), marks
+  (`badge`, `icon-tile`, `line-icon`, `status-icon`, `ai-mark`, `ai-icon`),
+  lists (`steps`, `progress-steps`) and feedback (`error`, `callout`).
 
-Single-use styling stays as utilities in the owning template; a component's own
-stylesheet uses theme variables only. Give `steps` lists `role="list"` so WebKit
-keeps list semantics.
+Primitives read only tokens; templates add layout utilities and token colors
+such as `text-muted`. A visual treatment used in more than one place becomes a
+primitive, and primitives take state from attributes (`aria-current`,
+`data-done`, `data-problem`) rather than alternative class lists. A
+component's own stylesheet uses theme variables only. Give `steps` and
+`progress-steps` lists `role="list"` so WebKit keeps list semantics.
 
-Themes redefine only the `--color-*` tokens, so templates need no `dark:`
-utilities. Keep the contrast contract in `theme.css` for every theme and check
-each token on every surface, tint and translucent layer it meets. The header's
-theme picker follows the device by default. `Theme` stores an explicit choice in
-localStorage, since no server render needs a cookie. The inline script in
-`index.html` applies it before first paint, and CSS follows device changes live.
-The brand `theme-color` suits both themes.
+A theme redefines only `--color-*` tokens and, optionally, the corner roles
+(`--radius-small`, `control`, `button`, `inset`, `card`), so templates need no
+`dark:` utilities. Keep the contrast contract in `theme.css` for every theme
+and check each token on every surface, tint and translucent layer it meets.
+The header's theme picker follows the device by default. `Theme` stores an
+explicit choice in localStorage, since no server render needs a cookie. The
+inline script in `index.html` applies it before first paint, and CSS follows
+device changes live. The brand `theme-color` suits both themes.
 
 ## Direction and copy
 
@@ -94,12 +101,22 @@ describe, then adjust settings, then review content. Phases are never stored or
 routed. Before a plan exists, the request dominates; a quiet disclosure offers
 manual entry. Ordinary choices (topic, audience, difficulty, question count and
 only the applicable length, format, option count, requested choices and source
-text) stay visible. The plan definition, guidance, bounds and choice
+text) stay visible. Activities show a derived four-step indicator (describe,
+settings, review, ready); only the current step keeps its label on narrow
+screens. The plan definition, guidance, bounds and choice
 definitions sit under **אפשרויות מתקדמות**, open by default only for template
 editing. Once content exists, settings collapse to a derived one-line summary
 and the content becomes the main surface.
 
-Use parent language, never internal terms: source kinds read as "כתבו עבורי
+Authoring is a conversation: the parent's turns sit at the end edge, the
+assistant's replies carry the `ai-mark` with the computed changes and
+assumptions, and a typing bubble shows while a request runs. The composer sends
+on Enter (Shift+Enter adds a line) and turns its send button into a stop
+button; a failed or cancelled request returns its text to the composer.
+Starter suggestions only fill the composer. Mark AI actions with `ai-icon`.
+
+Use parent language, never internal terms: say "הגדרות" for the plan and
+"טקסט" for materials; source kinds read as "כתבו עבורי
 תוכן חדש", "יש לי טקסט משלי" and, for templates, "אבחר טקסט חדש בכל פעם";
 length reads as words, not modes. Keep plan defaults, per-activity choices and
 editable content visibly distinct. Saving a template publishes only the plan;

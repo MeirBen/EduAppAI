@@ -29,11 +29,11 @@ public static class LearningPlanValidator
         ValidateLength(plan.TotalLength, "totalLength", errors);
         if (plan.TotalLength is not null && plan.Materials is { } materials &&
             (!materials.Any(m => m?.Source == "generated") || materials.Any(m => m?.Length is not null)))
-            errors.AddError("totalLength", "יש לבחור אורך כולל או אורך לכל חומר שנוצר, ללא חפיפה.");
-        if (controlCount > MaxControls) errors.AddError("controls", $"אפשר להגדיר עד {MaxControls} שדות בכל התכנית.");
+            errors.AddError("totalLength", "יש לבחור אורך כולל או אורך לכל טקסט שנוצר, לא את שניהם.");
+        if (controlCount > MaxControls) errors.AddError("controls", $"אפשר להגדיר עד {MaxControls} בחירות בסך הכול.");
         if (errors.Count == 0)
         {
-            if (JsonSerializer.Serialize(plan, EngineJson.Options).Length > PlanLimit) errors.AddError("plan", "התכנית גדולה מדי.");
+            if (JsonSerializer.Serialize(plan, EngineJson.Options).Length > PlanLimit) errors.AddError("plan", "ההגדרות גדולות מדי.");
             ValidateFeasibility(plan.Defaults!.QuestionCount, plan.Questions.Formats,
                 plan.Questions.SelectableFormat ? plan.Questions.DefaultFormat : null, plan.Questions.ChoiceCount?.Value,
                 plan.Materials.Select(m => (m.Source, m.Text, ResolveLength(m.Length))).ToArray(),
@@ -65,7 +65,7 @@ public static class LearningPlanValidator
                 errors.AddError(path + ".guidance", $"ההנחיות מוגבלות ל־{Count(ScopedGuidanceLength)} תווים.");
             if (material.Source is not ("generated" or "fixed" or "per-task")) errors.AddError(path + ".source", "סוג המקור אינו נתמך.");
             if (material.Source == "fixed" ? !HasText(material.Text, BodyLimit) : material.Text is not null)
-                errors.AddError(path + ".text", $"טקסט מקור נדרש רק לחומר קבוע, עד {Count(BodyLimit)} תווים.");
+                errors.AddError(path + ".text", $"טקסט משלכם נדרש רק כשבוחרים מקור קבוע, עד {Count(BodyLimit)} תווים.");
             if (material.Source != "generated" && material.Length is not null) errors.AddError(path + ".length", "אורך מבוקש מתאים רק לחומר שנוצר.");
             ValidateLength(material.Length, path + ".length", errors);
             ValidateControls(material.Controls, path + ".controls", ids, ref controlCount, errors);
@@ -181,7 +181,7 @@ public static class LearningPlanValidator
             {
                 generatedCount++;
                 var bodyMinimum = MinimumLength(material.Length);
-                if (bodyMinimum > BodyLimit) errors.AddError("materials", "האורך המבוקש אינו יכול להתאים למגבלת החומר.");
+                if (bodyMinimum > BodyLimit) errors.AddError("materials", "האורך המבוקש חורג מהאורך המרבי של טקסט.");
                 generatedMinimum = checked(generatedMinimum + bodyMinimum);
             }
             else minimum = checked(minimum + (material.Text?.Length ?? 1));
@@ -191,7 +191,7 @@ public static class LearningPlanValidator
             ? Math.Max(generatedCount, checked(2L * (total.Value ?? total.Lower!.Value) - generatedCount))
             : generatedCount;
         if (total is not null && totalMinimum > (long)generatedCount * BodyLimit)
-            errors.AddError("totalLength", "האורך הכולל אינו יכול להתאים לחומרים.");
+            errors.AddError("totalLength", "האורך הכולל אינו מתאים לטקסטים שהוגדרו.");
         minimum = checked(minimum + (total is null ? generatedMinimum : Math.Max(generatedMinimum, totalMinimum)));
         if (minimum > ContentLimit) errors.AddError("settings.questionCount", "הדרישות אינן יכולות להתאים למגבלת התוכן.");
     }

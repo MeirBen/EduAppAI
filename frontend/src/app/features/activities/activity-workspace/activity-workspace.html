@@ -1,6 +1,6 @@
 @let isTemplate = context() === 'template';
 <section class="mx-auto grid max-w-3xl gap-6 p-gutter" aria-labelledby="workspace-title">
-  <header class="grid gap-1">
+  <header class="grid gap-4">
     <div class="flex flex-wrap items-center justify-between gap-3">
       <div>
         <p class="eyebrow">{{ isTemplate ? 'תבנית לשימוש חוזר' : 'תכנון פעילות' }}</p>
@@ -8,6 +8,33 @@
       </div>
       <a routerLink="/templates" class="text-link">לספרייה</a>
     </div>
+    @if (!isTemplate && !loading() && !loadError()) {
+      <ol role="list" aria-label="שלבי הכנת הפעילות" class="progress-steps">
+        @for (step of steps; track step; let index = $index) {
+          @let done = index < stage();
+          <li
+            [attr.data-done]="done ? '' : null"
+            [attr.aria-current]="index === stage() ? 'step' : null"
+          >
+            <span class="step-marker" aria-hidden="true">
+              @if (done) {
+                <svg class="line-icon size-3.5" viewBox="0 0 16 16">
+                  <path d="m3.5 8.5 3 3 6-7" />
+                </svg>
+              } @else {
+                {{ index + 1 }}
+              }
+            </span>
+            <span class="step-label"
+              >{{ step }}
+              @if (done) {
+                <span class="sr-only">(הושלם)</span>
+              }
+            </span>
+          </li>
+        }
+      </ol>
+    }
     @if (!loading() && !loadError()) {
       <div class="flex flex-wrap items-center gap-x-4 text-sm text-muted">
         <span role="status" [class.font-medium]="unsaved()" [class.text-ink]="unsaved()">{{
@@ -59,7 +86,10 @@
           }
         </div>
       } @else {
-        <h2 id="plan-title">{{ isTemplate ? 'איזו תבנית תרצו להכין?' : 'מה תרצו להכין?' }}</h2>
+        <div class="flex items-center gap-3">
+          <span class="ai-mark size-11" aria-hidden="true"></span>
+          <h2 id="plan-title">{{ isTemplate ? 'איזו תבנית תרצו להכין?' : 'מה תרצו להכין?' }}</h2>
+        </div>
       }
       <div id="setup-body" class="grid gap-6" [hidden]="!setupOpen()">
         @if (hasPlan()) {
@@ -79,7 +109,10 @@
           [busy]="authoring()"
           [locked]="locked()"
           [clarification]="clarification()"
-          [context]="conversation()"
+          [thread]="thread()"
+          [pending]="pendingMessage()"
+          [changes]="changes()"
+          [assumptions]="assumptions()"
           [consolidationRequired]="needsConsolidation()"
           [refining]="hasPlan()"
           labelledBy="plan-title"
@@ -89,26 +122,6 @@
         />
         @if (authorError()) {
           <p role="alert" class="field-error">{{ authorError() }}</p>
-        }
-        @if (changes().length) {
-          <div class="grid gap-1 text-sm">
-            <p class="font-medium">מה השתנה:</p>
-            <ul class="list-disc ps-6">
-              @for (change of changes(); track $index) {
-                <li>{{ change }}</li>
-              }
-            </ul>
-          </div>
-        }
-        @if (assumptions().length) {
-          <details>
-            <summary>הנחות ששימשו לתכנון</summary>
-            <ul class="list-disc ps-6">
-              @for (assumption of assumptions(); track $index) {
-                <li dir="auto">{{ assumption }}</li>
-              }
-            </ul>
-          </details>
         }
         <details
           class="border-t border-line pt-2"
@@ -158,7 +171,7 @@
       <section class="panel grid gap-4" aria-labelledby="available-title">
         <div class="grid gap-1">
           <h2 id="available-title">נוצרה תוצאה בזמן שהמשכתם לערוך</h2>
-          <p>לא החלפנו את העבודה שלכם. אפשר לבדוק את התוצאה ולטעון אותה במקום העריכה המקומית.</p>
+          <p>לא החלפנו את העבודה שלכם. אפשר לבדוק את התוצאה ולטעון אותה במקום השינויים שלכם.</p>
         </div>
         <details class="well">
           <summary>בדיקת התוצאה</summary>
@@ -244,7 +257,7 @@
               [disabled]="!canGenerate()"
               (click)="activityAction('GenerateActivity')"
             >
-              יצירת הפעילות
+              <span class="ai-icon" aria-hidden="true"></span>יצירת הפעילות
             </button>
             <button
               id="save-activity"
@@ -294,7 +307,7 @@
                 [disabled]="!canGenerate()"
                 (click)="activityAction('GenerateQuestions')"
               >
-                יצירת כל השאלות מחדש
+                <span class="ai-icon" aria-hidden="true"></span>יצירת כל השאלות מחדש
               </button>
               <button
                 id="generate-activity"
@@ -303,7 +316,8 @@
                 [disabled]="!canGenerate()"
                 (click)="activityAction('GenerateActivity')"
               >
-                יצירת הפעילות מחדש, כולל טקסט שאינו עדכני
+                <span class="ai-icon" aria-hidden="true"></span>יצירת הפעילות מחדש, כולל טקסט שאינו
+                עדכני
               </button>
               <button
                 type="button"
@@ -312,7 +326,7 @@
                 [disabled]="saving()"
                 (click)="newActivity()"
               >
-                פעילות חדשה מאותה תכנית, בלי התוכן הנוכחי
+                פעילות חדשה עם אותן הגדרות, בלי התוכן הנוכחי
               </button>
               @if (reloadPlacement() === 'more') {
                 <ng-container [ngTemplateOutlet]="reload" />

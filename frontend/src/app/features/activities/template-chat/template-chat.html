@@ -1,9 +1,15 @@
 @let start = !refining();
-<div class="grid gap-4">
-  @if (start) {
-    <p id="chat-help">
-      תארו בקצרה מה הילד או הילדה צריכים ללמוד או לתרגל. אפשר לציין גיל או כיתה, נושא, אורך, סוג
-      שאלות וכל דבר שחשוב לכם.
+@let message = fields().message;
+<div class="grid gap-4" [class]="start ? '' : 'border-t border-line pt-6'">
+  @if (!start) {
+    <h3 class="flex items-center gap-3">
+      <span class="ai-mark size-8" aria-hidden="true"></span>רוצים לשנות משהו?
+    </h3>
+  }
+  @if (start && !started()) {
+    <p id="chat-help" class="text-muted">
+      ספרו במילים פשוטות מה הילד או הילדה צריכים ללמוד או לתרגל: גיל או כיתה, נושא, אורך וסוג
+      השאלות. העוזר יכין הגדרות שתוכלו לבדוק ולשנות.
     </p>
   }
   @if (!configured()) {
@@ -11,82 +17,155 @@
       יצירה בעזרת AI אינה זמינה כרגע. אפשר למלא את הפרטים ידנית.
     </p>
   }
-  @if (context().length) {
-    <details>
-      <summary>הבקשה והתשובות עד עכשיו</summary>
-      <ol class="grid gap-4">
-        @for (turn of context(); track $index) {
-          <li class="grid gap-1">
-            <strong>{{ turn.role === 'parent' ? 'הבקשה שלכם' : 'שאלת הבהרה' }}</strong>
-            <p class="whitespace-pre-wrap wrap-break-word" dir="auto">{{ turn.text }}</p>
-          </li>
-        }
-      </ol>
-    </details>
-  }
-  @if (clarification()) {
-    <p id="chat-clarification" class="well whitespace-pre-wrap" role="status" dir="auto">
-      {{ clarification() }}
-    </p>
-  }
-  <form class="grid gap-4" (submit)="$event.preventDefault(); sent.emit()">
-    <div>
-      @if (!titled()) {
-        <label for="chat-message">{{
-          clarification() ? 'התשובה שלכם' : 'רוצים לשנות משהו? תארו את השינוי'
-        }}</label>
+  <div class="grid gap-4" role="log" aria-live="polite" aria-label="השיחה עם העוזר">
+    @for (turn of thread(); track $index; let last = $last) {
+      @if (turn.role === 'parent') {
+        <div class="bubble bubble-own motion-safe:animate-enter">
+          <span class="sr-only">הבקשה שלכם:</span>
+          <p class="whitespace-pre-wrap" dir="auto">{{ turn.text }}</p>
+        </div>
+      } @else {
+        <div class="flex items-start gap-3 motion-safe:animate-enter">
+          <span class="ai-mark" aria-hidden="true"></span>
+          <div class="bubble bubble-reply grid min-w-0 gap-3">
+            <span class="sr-only">העוזר:</span>
+            <p
+              class="whitespace-pre-wrap"
+              dir="auto"
+              [id]="last && clarification() ? 'chat-clarification' : null"
+            >
+              {{ turn.text }}
+            </p>
+            @if (last && changes().length) {
+              <div class="grid gap-1 text-sm">
+                <p class="font-medium">מה השתנה:</p>
+                <ul class="list-disc ps-5">
+                  @for (change of changes(); track $index) {
+                    <li>{{ change }}</li>
+                  }
+                </ul>
+              </div>
+            }
+            @if (last && assumptions().length) {
+              <details class="text-sm">
+                <summary>הנחות שהעוזר הניח</summary>
+                <ul class="list-disc ps-5">
+                  @for (assumption of assumptions(); track $index) {
+                    <li dir="auto">{{ assumption }}</li>
+                  }
+                </ul>
+              </details>
+            }
+          </div>
+        </div>
       }
+    }
+    @if (pending()) {
+      <div class="bubble bubble-own motion-safe:animate-enter">
+        <span class="sr-only">הבקשה שלכם:</span>
+        <p class="whitespace-pre-wrap" dir="auto">{{ pending() }}</p>
+      </div>
+    }
+  </div>
+  <app-loading-indicator
+    [class]="busy() ? 'bubble bubble-reply w-fit max-w-full' : ''"
+    [active]="busy()"
+    [label]="start ? 'מכינים את ההגדרות…' : 'מעדכנים את ההגדרות…'"
+    detail="אפשר להמשיך לערוך את ההגדרות, אבל עריכה תבטל את הבקשה."
+  />
+  <form (submit)="$event.preventDefault(); sent.emit()">
+    @if (!titled()) {
+      <label for="chat-message" class="sr-only">{{
+        clarification() ? 'התשובה שלכם' : 'רוצים לשנות משהו? תארו את השינוי'
+      }}</label>
+    }
+    <div class="composer">
       <textarea
+        #composer
         id="chat-message"
         dir="auto"
-        [rows]="start ? 4 : 2"
-        [formField]="fields().message"
-        [attr.aria-labelledby]="titled() ? labelledBy() : null"
-        [attr.aria-describedby]="start ? 'chat-help chat-hint' : 'chat-hint'"
-      ></textarea>
-      <p id="chat-hint" class="mt-2 text-sm text-muted">
-        @if (start) {
-          לדוגמה: פעילות קריאה בעברית לכיתה ג׳ בנושא חלל, בערך 300 מילים ו־5 שאלות אמריקאיות.
-        } @else {
-          למשל: שאלות קלות יותר, או טקסט קצר יותר. אפשר לבטל כל שינוי.
-        }
-      </p>
-    </div>
-    <div class="flex flex-wrap gap-3">
-      <button
-        id="chat-send"
-        type="submit"
-        class="button"
-        [class.button-secondary]="!start"
-        [disabled]="
-          !configured() ||
-          busy() ||
-          locked() ||
-          consolidationRequired() ||
-          !fields().message().value().trim()
+        enterkeyhint="send"
+        [class.min-h-24]="start && !started()"
+        [class.min-h-12]="!start || started()"
+        [placeholder]="
+          clarification()
+            ? 'התשובה שלכם…'
+            : start
+              ? 'למשל: קטע קריאה על דינוזאורים לכיתה ג׳ עם 4 שאלות'
+              : 'מה לשנות? למשל: שאלות קלות יותר'
         "
-      >
-        {{ clarification() ? 'שליחת התשובה' : start ? 'שליחה' : 'עדכון התכנית' }}
-      </button>
-      @if (busy()) {
-        <button
-          id="chat-cancel"
-          type="button"
-          class="button button-secondary"
-          (click)="cancelled.emit()"
-        >
-          ביטול הבקשה
-        </button>
-      }
+        [formField]="message"
+        [attr.aria-labelledby]="titled() ? labelledBy() : null"
+        [attr.aria-describedby]="
+          (start && !started() ? 'chat-help ' : '') +
+          'chat-hint' +
+          (message().invalid() ? ' chat-error' : '')
+        "
+        (keydown.enter)="sendOnEnter($event)"
+      ></textarea>
+      <div class="flex items-center justify-between gap-3 ps-4 pe-2 pb-2">
+        <p id="chat-hint" class="text-sm text-muted pointer-coarse:sr-only">
+          <kbd dir="ltr" class="font-sans">Enter</kbd> לשליחה ·
+          <kbd dir="ltr" class="font-sans">Shift+Enter</kbd> לשורה חדשה
+        </p>
+        @if (busy()) {
+          <button
+            id="chat-cancel"
+            type="button"
+            class="icon-button icon-button-ink ms-auto"
+            aria-label="ביטול הבקשה"
+            (click)="cancelled.emit()"
+          >
+            <svg class="size-4" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+              <rect x="3" y="3" width="10" height="10" rx="2" />
+            </svg>
+          </button>
+        } @else {
+          <button
+            id="chat-send"
+            type="submit"
+            class="icon-button ms-auto"
+            [attr.aria-label]="clarification() ? 'שליחת התשובה' : start ? 'שליחה' : 'עדכון ההגדרות'"
+            [disabled]="!canSend()"
+          >
+            <svg class="line-icon" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M12 19V5m-6 6 6-6 6 6" />
+            </svg>
+          </button>
+        }
+      </div>
     </div>
+    @if (message().invalid()) {
+      <p id="chat-error" class="field-error mt-2">
+        ההודעה ארוכה מדי: עד {{ limits.messageLength | number }} תווים.
+      </p>
+    }
   </form>
+  @if (start && !started() && configured()) {
+    <div class="grid gap-2">
+      <p id="chat-ideas" class="text-sm font-medium text-muted">רעיונות להתחלה</p>
+      <ul role="list" class="flex flex-wrap gap-2" aria-labelledby="chat-ideas">
+        @for (idea of suggestions; track idea) {
+          <li>
+            <button
+              type="button"
+              class="chip"
+              [disabled]="busy() || locked()"
+              (click)="suggest(idea)"
+            >
+              <span class="ai-icon size-4 text-brand" aria-hidden="true"></span>{{ idea }}
+            </button>
+          </li>
+        }
+      </ul>
+    </div>
+  }
   @if (consolidationRequired()) {
-    <form class="well grid gap-4" (submit)="$event.preventDefault(); consolidated.emit()">
+    <form class="callout grid gap-4" (submit)="$event.preventDefault(); consolidated.emit()">
       <div class="grid gap-1">
         <h3>איחוד הבקשה</h3>
         <p id="consolidate-help">
-          השיחה הגיעה לגבול הבקשה. כתבו בקשה מאוחדת שכוללת את הדרישות והתשובות שחשוב לשמור. שום חלק
-          מהשיחה לא יושמט ללא פעולה זו.
+          השיחה הגיעה לאורך המרבי. כתבו בקשה אחת שמסכמת את מה שחשוב לשמור; היא תחליף את השיחה.
         </p>
       </div>
       <div>
@@ -109,9 +188,4 @@
       </button>
     </form>
   }
-  <app-loading-indicator
-    [active]="busy()"
-    [label]="start ? 'מכינים את התכנית…' : 'מעדכנים את התכנית…'"
-    detail="אפשר להמשיך לערוך ישירות; עריכה תבטל את הבקשה הממתינה."
-  />
 </div>

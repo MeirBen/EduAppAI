@@ -103,7 +103,7 @@ describe('GenerationStatus', () => {
           {
             stage: 'materials',
             candidate: null,
-            diagnostics: { 'length.m': ['אורך החומר אינו עומד בדרישה המדויקת או בטווח.'] },
+            diagnostics: { 'length.m': ['אורך הטקסט אינו עומד בדרישה המדויקת או בטווח.'] },
           },
         ],
       },
@@ -121,7 +121,7 @@ describe('GenerationStatus', () => {
       stage: 'materials',
     });
     expect(visible()).toContain('יוצרים את הפעילות…');
-    expect(visible()).toContain('כותבים את חומר הלימוד');
+    expect(visible()).toContain('כותבים את הטקסט');
     expect(visible()).not.toMatch(/%|עלות/);
     expect(root.querySelector('#cancel-generation')).not.toBeNull();
     expect(root.querySelector('#retry-generation')).toBeNull();

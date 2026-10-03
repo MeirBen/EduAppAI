@@ -1,4 +1,3 @@
-
 namespace FamilyLearning.Evaluation;
 
 /// <summary>Developer choices only. Confirmation authorizes a live UI run; preview never uses it.</summary>

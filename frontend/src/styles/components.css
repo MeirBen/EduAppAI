@@ -1,30 +1,79 @@
+/*
+ * Shared visual primitives. They read only theme tokens (colors, shadows, radii), so a new
+ * theme restyles every screen without touching templates; templates add layout utilities.
+ * Containers own spacing: these primitives carry no outer margin.
+ */
 @layer components {
+  /* Actions. `.button` is primary; add one variant for the other kinds. */
   .button {
-    @apply inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-transparent bg-brand px-gutter py-3 text-center font-medium text-on-brand no-underline shadow-button transition-[background-color,border-color,color,box-shadow,translate,scale] not-disabled:hover:bg-brand-hover not-disabled:hover:shadow-button-raised motion-safe:not-disabled:hover:-translate-y-0.5 motion-safe:not-disabled:active:translate-y-0 motion-safe:not-disabled:active:scale-98;
+    @apply inline-flex min-h-12 items-center justify-center gap-2 rounded-button border border-transparent bg-brand px-gutter py-3 text-center font-medium text-on-brand no-underline shadow-button transition-[background-color,border-color,color,box-shadow,translate,scale] not-disabled:hover:bg-brand-hover not-disabled:hover:shadow-button-raised motion-safe:not-disabled:hover:-translate-y-0.5 motion-safe:not-disabled:active:translate-y-0 motion-safe:not-disabled:active:scale-98;
     line-height: 1.5;
   }
-
   .button-secondary {
     @apply border-line bg-surface text-brand shadow-control not-disabled:hover:border-brand/30 not-disabled:hover:bg-soft not-disabled:hover:shadow-panel;
   }
+  /* Destructive actions stay quiet; the confirmation step guards the request itself. */
   .button-danger {
-    @apply bg-danger text-on-danger not-disabled:hover:bg-danger/90;
+    @apply border-line bg-surface text-danger shadow-control not-disabled:hover:border-danger/40 not-disabled:hover:bg-danger-soft not-disabled:hover:shadow-panel;
   }
   .text-link {
-    @apply inline-flex min-h-11 items-center gap-2 rounded-md py-2 font-medium text-brand underline decoration-transparent decoration-2 transition-[color,text-decoration-color] not-disabled:hover:decoration-current;
+    @apply inline-flex min-h-11 items-center gap-2 rounded-small py-2 font-medium text-brand underline decoration-transparent decoration-2 transition-[color,text-decoration-color] not-disabled:hover:decoration-current;
+  }
+  .text-link-danger {
+    @apply text-muted not-disabled:hover:text-danger;
   }
   .nav-link {
-    @apply inline-flex min-h-11 items-center rounded-xl px-4 py-2 font-medium text-brand transition-colors not-disabled:hover:bg-soft aria-[current=page]:bg-soft;
+    @apply inline-flex min-h-11 items-center rounded-button px-4 py-2 font-medium text-brand transition-colors not-disabled:hover:bg-soft aria-[current=page]:bg-soft;
+  }
+  /* A round icon-only action; it needs an aria-label. */
+  .icon-button {
+    @apply grid size-11 shrink-0 place-items-center rounded-full bg-brand text-on-brand shadow-button transition-[background-color,box-shadow] not-disabled:hover:bg-brand-hover not-disabled:hover:shadow-button-raised;
+  }
+  .icon-button-ink {
+    @apply bg-ink text-surface not-disabled:hover:bg-ink;
+  }
+  /* A suggestion that only fills a field; it never submits on its own. */
+  .chip {
+    @apply inline-flex min-h-11 items-center gap-2 rounded-full border border-line bg-surface px-4 py-2 text-start text-sm text-balance text-ink shadow-control transition-colors not-disabled:hover:border-brand/30 not-disabled:hover:bg-soft;
   }
 
+  /* Surfaces. */
   .panel {
-    @apply rounded-3xl border border-line bg-surface p-gutter shadow-panel sm:p-6;
+    @apply rounded-card border border-line bg-surface p-gutter shadow-panel sm:p-6;
   }
   /* Recessed area inside a panel for source text or grouped fields. */
   .well {
-    @apply rounded-2xl border border-line bg-canvas p-gutter;
+    @apply rounded-inset border border-line bg-canvas p-gutter;
+  }
+  /* One item in a panel's list; its link and actions stay native controls. */
+  .list-row {
+    @apply flex flex-wrap items-center gap-x-4 gap-y-2 rounded-inset border border-line bg-canvas p-4 transition-colors hover:border-brand/30;
+  }
+  /* An empty list says what will appear here and may offer the next step. */
+  .empty-state {
+    @apply grid justify-items-start gap-2 rounded-inset border border-dashed border-control p-5 text-muted;
   }
 
+  /* Conversation. The parent's own messages sit at the end edge, as in common chat layouts. */
+  .bubble {
+    @apply rounded-inset px-4 py-3;
+  }
+  .bubble-own {
+    @apply max-w-[85%] justify-self-end rounded-ee-small bg-soft ring-1 ring-brand/10 ring-inset;
+  }
+  .bubble-reply {
+    @apply rounded-ss-small border border-line bg-surface shadow-control;
+  }
+  /* One bordered box around an unframed, self-sizing field and its send action. */
+  .composer {
+    @apply grid rounded-card border border-control bg-surface shadow-control transition-[border-color,box-shadow] focus-within:border-focus focus-within:ring-4 focus-within:ring-focus/15 focus-within:inset-ring focus-within:inset-ring-focus has-aria-invalid:border-danger has-[textarea:disabled]:border-line has-[textarea:disabled]:bg-canvas;
+
+    & > textarea {
+      @apply max-h-60 resize-none rounded-card border-0 bg-transparent px-4 pt-3 pb-1 shadow-none field-sizing-content focus:ring-0 focus:inset-ring-0 disabled:bg-transparent;
+    }
+  }
+
+  /* Marks. */
   .eyebrow {
     @apply flex items-center gap-2 text-sm font-medium text-brand;
 
@@ -37,10 +86,41 @@
     @apply inline-flex items-center gap-1.5 rounded-full bg-soft px-3 py-1 text-sm font-medium text-brand ring-1 ring-brand/15 ring-inset;
   }
   .icon-tile {
-    @apply grid shrink-0 place-items-center rounded-2xl bg-accent text-brand ring-1 ring-brand/15 ring-inset;
+    @apply grid shrink-0 place-items-center rounded-inset bg-accent text-brand ring-1 ring-brand/15 ring-inset;
+  }
+  /* Inline stroke icons inherit the text color. */
+  .line-icon {
+    @apply size-5 shrink-0 fill-none stroke-current stroke-2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+  /* An outcome beside a status title; `data-problem` marks a failure. */
+  .status-icon {
+    @apply grid size-9 shrink-0 place-items-center rounded-full bg-soft text-brand;
+
+    &[data-problem] {
+      @apply bg-danger-soft text-danger;
+    }
+  }
+  /* The assistant's avatar and inline AI icon share the loader's sparkle, so AI surfaces read as one family. */
+  .ai-mark {
+    @apply grid size-9 shrink-0 place-items-center rounded-full bg-linear-to-bl from-brand to-focus text-on-brand shadow-button ltr:bg-linear-to-br;
+
+    &::before {
+      content: '';
+      @apply size-1/2 bg-current;
+    }
+  }
+  .ai-icon {
+    @apply inline-block size-5 shrink-0 bg-current;
+  }
+  .ai-mark::before,
+  .ai-icon {
+    mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M10 3c1.2 5.2 2.8 6.8 8 8-5.2 1.2-6.8 2.8-8 8-1.2-5.2-2.8-6.8-8-8 5.2-1.2 6.8-2.8 8-8Z'/%3E%3Cpath d='M19 2c.4 1.7.9 2.2 2.6 2.6-1.7.4-2.2.9-2.6 2.6-.4-1.7-.9-2.2-2.6-2.6 1.7-.4 2.2-.9 2.6-2.6Z'/%3E%3C/svg%3E")
+      center / contain no-repeat;
   }
 
-  /* Counters replace list markers; pair with role="list" so WebKit keeps list semantics. */
+  /* Lists. Counters replace markers; pair with role="list" so WebKit keeps list semantics. */
   .steps {
     counter-reset: step;
 
@@ -53,16 +133,49 @@
       @apply absolute inset-s-0 grid size-7 place-items-center rounded-full bg-soft text-sm font-semibold text-brand ring-1 ring-brand/15 ring-inset;
     }
   }
+  /* Derived phases: mark the current item aria-current="step" and finished items data-done. */
+  .progress-steps {
+    @apply flex flex-wrap items-center gap-2 text-sm text-muted;
 
-  /* Containers own spacing: these primitives carry no outer margin. */
+    & > li {
+      @apply flex items-center gap-2;
+    }
+    & > li + li::before {
+      content: '';
+      @apply h-px w-3 bg-control sm:w-8;
+    }
+    & > [data-done],
+    & > [aria-current='step'] {
+      @apply text-ink;
+    }
+    & > [aria-current='step'] {
+      @apply font-semibold;
+    }
+    /* Narrow screens keep only the current step's label visible. */
+    & > :not([aria-current='step']) .step-label {
+      @apply max-sm:sr-only;
+    }
+  }
+  .step-marker {
+    @apply grid size-6 shrink-0 place-items-center rounded-full text-xs font-semibold ring-1 ring-control;
+
+    [data-done] > & {
+      @apply bg-brand text-on-brand ring-0;
+    }
+    [aria-current='step'] > & {
+      @apply bg-soft text-brand ring-2 ring-brand;
+    }
+  }
+
+  /* Feedback. */
   .field-error {
     @apply text-sm text-danger;
   }
   .error {
-    @apply rounded-xl border border-s-4 border-danger/25 border-s-danger bg-danger-soft p-4 text-danger;
+    @apply rounded-button border border-s-4 border-danger/25 border-s-danger bg-danger-soft p-4 text-danger;
   }
   /* A calm prompt inside a card that asks the parent to review something; not an error. */
   .callout {
-    @apply rounded-xl border border-s-4 border-line border-s-brand bg-surface p-4;
+    @apply rounded-button border border-s-4 border-line border-s-brand bg-surface p-4;
   }
 }

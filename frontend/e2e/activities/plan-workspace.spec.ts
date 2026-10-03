@@ -131,7 +131,7 @@ test('local typing wins over a pending author request and publication conflicts 
   await expect(page.locator('#chat-cancel')).toBeHidden();
   release();
   await page.locator('#save-template').click();
-  await expect(page.getByRole('alert')).toContainText('העריכה המקומית');
+  await expect(page.getByRole('alert')).toContainText('השינויים שלכם נשארים כאן');
   await expect(page.getByLabel('שם התבנית')).toHaveValue('עריכה מקומית');
 });
 

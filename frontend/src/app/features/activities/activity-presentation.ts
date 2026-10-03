@@ -183,11 +183,11 @@ export function planChangeLabel(
   before: LearningPlan,
   after: LearningPlan,
 ): string {
-  if (change.path === 'plan') return 'נוספה תכנית';
+  if (change.path === 'plan') return 'נוספו הגדרות';
   const plan = change.kind === 'removed' ? before : after;
   const label =
     [...plan.materials, ...planControls(plan)].find((item) => item.id === change.id)?.label ??
     planFieldNames[change.path] ??
-    'פרטי התכנית';
+    'הגדרות הפעילות';
   return `${changeKinds[change.kind]}: ${label}`;
 }

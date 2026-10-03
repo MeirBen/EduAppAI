@@ -167,7 +167,7 @@ function scalarValue(
 /** UI shape feedback only. The shared server validator remains authoritative for full semantic/capacity checks. */
 export function planValue(form: PlanForm, limits: ContentLimits): Projection<LearningPlan> {
   const errors: string[] = [];
-  if (!form.schemaVersion) errors.push('ממתינים להגדרות התכנית מהשרת.');
+  if (!form.schemaVersion) errors.push('ההגדרות עדיין נטענות מהשרת. נסו שוב בעוד רגע.');
   checkText(form.name, 'שם התבנית', limits.nameLength, errors, true);
   checkText(form.goal, 'מטרת הפעילות', limits.goalLength, errors, true);
   checkText(form.guidance, 'הנחיות משותפות', limits.guidanceLength, errors);
@@ -197,8 +197,8 @@ export function planValue(form: PlanForm, limits: ContentLimits): Projection<Lea
     errors.push(`מספר האפשרויות חייב להיות בין ${minChoiceCount} ל־${maxChoiceCount}.`);
   checkText(form.questions.guidance, 'הנחיות לשאלות', limits.scopedGuidanceLength, errors);
   const materials = form.materials.map((material) => {
-    checkText(material.label, 'שם החומר', limits.nameLength, errors, true);
-    checkText(material.guidance, 'הנחיות לחומר', limits.scopedGuidanceLength, errors);
+    checkText(material.label, 'שם הטקסט', limits.nameLength, errors, true);
+    checkText(material.guidance, 'הנחיות לטקסט', limits.scopedGuidanceLength, errors);
     if (material.source === 'fixed')
       checkText(material.text, material.label, limits.bodyLength, errors, true);
     return {
@@ -215,7 +215,7 @@ export function planValue(form: PlanForm, limits: ContentLimits): Projection<Lea
     ? lengthValue(form.totalLength, errors)
     : null;
   if (totalLength && materials.some((material) => material.length))
-    errors.push('בחרו אורך כולל או אורך לכל חומר, לא את שניהם.');
+    errors.push('בחרו אורך כולל או אורך לכל טקסט, לא את שניהם.');
   const value: LearningPlan = {
     schemaVersion: form.schemaVersion,
     name: form.name,
@@ -238,7 +238,7 @@ export function planValue(form: PlanForm, limits: ContentLimits): Projection<Lea
     },
   };
   if (materials.length > limits.maxMaterials || planControls(value).length > limits.maxControls)
-    errors.push(`אפשר להוסיף עד ${limits.maxMaterials} חומרים ועד ${limits.maxControls} בחירות.`);
+    errors.push(`אפשר להוסיף עד ${limits.maxMaterials} טקסטים ועד ${limits.maxControls} בחירות.`);
   return { value: errors.length ? undefined : value, errors };
 }
 
@@ -252,7 +252,7 @@ export function requestValue(
   const value: ActivityInput = { settings: settingsValue(form.settings, errors, limits) };
   if (plan.questions.selectableFormat && form.questionFormat) {
     if (!plan.questions.formats.includes(form.questionFormat))
-      errors.push('סוג השאלה אינו זמין בתכנית.');
+      errors.push('סוג השאלה אינו זמין בהגדרות.');
     value.questionFormat = form.questionFormat;
   }
   const formats = plan.questions.selectableFormat

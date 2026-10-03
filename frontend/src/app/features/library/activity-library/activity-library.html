@@ -1,7 +1,12 @@
 <section class="mx-auto grid max-w-5xl gap-6 p-gutter" aria-labelledby="library-heading">
-  <header class="flex flex-wrap items-center justify-between gap-3">
-    <h1 id="library-heading">המרחב שלנו</h1>
-    <a class="button" routerLink="/activities/new">פעילות חדשה</a>
+  <header class="flex flex-wrap items-end justify-between gap-4">
+    <div class="grid gap-1">
+      <h1 id="library-heading">המרחב שלנו</h1>
+      <p class="text-muted">הפעילויות והתבניות של המשפחה, במקום אחד.</p>
+    </div>
+    <a class="button" routerLink="/activities/new"
+      ><span class="ai-icon" aria-hidden="true"></span>פעילות חדשה</a
+    >
   </header>
   <app-loading-indicator [active]="loading()" label="טוענים את הספרייה…" variant="panel" />
   @if (loadError()) {
@@ -14,61 +19,119 @@
   }
   @if (!loading() && !loadError()) {
     <section class="panel grid gap-4" aria-labelledby="drafts-title">
-      <h2 id="drafts-title">טיוטות פעילות לעריכה</h2>
+      <div class="grid gap-1">
+        <h2 id="drafts-title" class="flex items-center gap-3">
+          טיוטות לעריכה
+          @if (drafts.value()?.length) {
+            <span class="badge">{{ drafts.value()?.length }}</span>
+          }
+        </h2>
+        <p class="text-sm text-muted">פעילויות שעוד לא סומנו כמוכנות. אפשר לחזור ולערוך בכל זמן.</p>
+      </div>
       @for (draft of drafts.value(); track draft.id) {
-        <article class="well flex flex-wrap items-center gap-3">
-          <a class="text-link grow" [routerLink]="['/activities', draft.id]"
-            ><bdi>{{ draft.name }}</bdi></a
-          ><span>גרסה {{ draft.revision }}</span
-          ><button
+        <article class="list-row">
+          <span class="icon-tile size-10" aria-hidden="true">
+            <svg class="line-icon" viewBox="0 0 24 24">
+              <path d="M4 20h4L19 9l-4-4L4 16v4Zm9-13 4 4" />
+            </svg>
+          </span>
+          <div class="grid min-w-0 grow">
+            <a class="text-link min-h-0 py-0" [routerLink]="['/activities', draft.id]"
+              ><bdi>{{ draft.name }}</bdi></a
+            >
+            <span class="text-sm text-muted"
+              >עודכנה ב־<bdi>{{ draft.updatedAtUtc | date: 'd/M/y' }}</bdi></span
+            >
+          </div>
+          <button
             data-delete-draft
             type="button"
-            class="text-link"
+            class="text-link text-link-danger"
+            [attr.aria-label]="'מחיקת ' + draft.name"
             [disabled]="deleting()"
             (click)="remove('draft', draft.id, draft.name)"
           >
-            מחיקת <bdi>{{ draft.name }}</bdi>
+            מחיקה
           </button>
         </article>
       } @empty {
-        <p>אין טיוטות שמורות.</p>
+        <div class="empty-state">
+          <p>עוד אין טיוטות. כל פעילות שתתחילו נשמרת כאן עד שתסמנו אותה כמוכנה.</p>
+          <a class="text-link" routerLink="/activities/new">התחלת פעילות חדשה</a>
+        </div>
       }
     </section>
     <section class="panel grid gap-4" aria-labelledby="ready-title">
-      <h2 id="ready-title">פעילויות מוכנות — עותקים קבועים</h2>
+      <div class="grid gap-1">
+        <h2 id="ready-title" class="flex items-center gap-3">
+          פעילויות מוכנות
+          @if (snapshots.value()?.length) {
+            <span class="badge">{{ snapshots.value()?.length }}</span>
+          }
+        </h2>
+        <p class="text-sm text-muted">עותקים קבועים שבדקתם. שינוי נעשה בעותק חדש לעריכה.</p>
+      </div>
       @for (snapshot of snapshots.value(); track snapshot.id) {
-        <article class="well flex flex-wrap items-center gap-3">
-          <a class="text-link grow" [routerLink]="['/instances', snapshot.id]"
-            ><bdi>{{ snapshot.title }}</bdi></a
-          ><bdi>{{ snapshot.createdAtUtc | date: 'd/M/y' }}</bdi
-          ><button
+        <article class="list-row">
+          <span class="icon-tile size-10" aria-hidden="true">
+            <svg class="line-icon" viewBox="0 0 24 24">
+              <path d="M20 6 9 17l-5-5" />
+            </svg>
+          </span>
+          <div class="grid min-w-0 grow">
+            <a class="text-link min-h-0 py-0" [routerLink]="['/instances', snapshot.id]"
+              ><bdi>{{ snapshot.title }}</bdi></a
+            >
+            <span class="text-sm text-muted"
+              >סומנה כמוכנה ב־<bdi>{{ snapshot.createdAtUtc | date: 'd/M/y' }}</bdi></span
+            >
+          </div>
+          <button
             type="button"
-            class="text-link"
+            class="text-link text-link-danger"
+            [attr.aria-label]="'מחיקת ' + snapshot.title"
             [disabled]="deleting()"
             (click)="remove('snapshot', snapshot.id, snapshot.title)"
           >
-            מחיקת <bdi>{{ snapshot.title }}</bdi>
+            מחיקה
           </button>
         </article>
       } @empty {
-        <p>אין פעילויות מוכנות.</p>
+        <div class="empty-state">
+          <p>עוד אין פעילויות מוכנות. פעילות שבדקתם וסימנתם כמוכנה נשמרת כאן כעותק קבוע.</p>
+        </div>
       }
     </section>
     <section class="panel grid gap-4" aria-labelledby="templates-title">
-      <h2 id="templates-title">תבניות לשימוש חוזר</h2>
-      <a class="text-link" routerLink="/templates/new">תבנית חדשה</a>
+      <div class="flex flex-wrap items-start justify-between gap-x-4 gap-y-1">
+        <div class="grid gap-1">
+          <h2 id="templates-title" class="flex items-center gap-3">
+            תבניות לשימוש חוזר
+            @if (templates.value()?.length) {
+              <span class="badge">{{ templates.value()?.length }}</span>
+            }
+          </h2>
+          <p class="text-sm text-muted">הגדרות שמורות ליצירה מהירה של פעילויות דומות.</p>
+        </div>
+        <a class="text-link" routerLink="/templates/new">תבנית חדשה</a>
+      </div>
       @for (template of templates.value(); track template.id) {
-        <article class="well grid gap-2">
-          <h3>
+        <article class="list-row">
+          <span class="icon-tile size-10" aria-hidden="true">
+            <svg class="line-icon" viewBox="0 0 24 24">
+              <path d="m12 3 9 5-9 5-9-5 9-5Zm-9 9 9 5 9-5M3 16l9 5 9-5" />
+            </svg>
+          </span>
+          <h3 class="min-w-0 grow text-base">
             <bdi>{{ template.name }}</bdi>
           </h3>
-          <div class="flex flex-wrap gap-3">
+          <div class="flex flex-wrap gap-x-4">
             <a class="text-link" [routerLink]="['/templates', template.id, 'create']"
               >פעילות מהתבנית</a
             ><a class="text-link" [routerLink]="['/templates', template.id, 'edit']">עריכת התבנית</a
             ><button
               type="button"
-              class="text-link"
+              class="text-link text-link-danger"
               [disabled]="deleting()"
               (click)="remove('template', template.id, template.name)"
             >
@@ -77,20 +140,30 @@
           </div>
         </article>
       } @empty {
-        <p>אין תבניות שמורות.</p>
+        <div class="empty-state">
+          <p>עוד אין תבניות. שמרו הגדרות של פעילות כתבנית, כדי ליצור בקלות פעילויות דומות בהמשך.</p>
+        </div>
       }
     </section>
   }
-  <p class="text-sm text-muted">
-    מוצגים עד {{ limits.listLimit }} הפריטים האחרונים בכל רשימה. מחיקת תבנית אינה מוחקת פעילויות
-    שנוצרו ממנה.
-  </p>
-  <button
-    type="button"
-    class="button button-danger w-fit"
-    [disabled]="deleting()"
-    (click)="remove('all')"
+  <section
+    class="grid justify-items-start gap-3 border-t border-line pt-6"
+    aria-labelledby="data-title"
   >
-    איפוס נתוני הלמידה
-  </button>
+    <div class="grid gap-1">
+      <h2 id="data-title" class="text-base">ניהול נתונים</h2>
+      <p class="text-sm text-muted">
+        מוצגים עד {{ limits.listLimit }} הפריטים האחרונים בכל רשימה. מחיקת תבנית אינה מוחקת פעילויות
+        שנוצרו ממנה. איפוס מוחק את כל התבניות, הטיוטות והפעילויות המוכנות, ושומר את החשבון.
+      </p>
+    </div>
+    <button
+      type="button"
+      class="button button-danger"
+      [disabled]="deleting()"
+      (click)="remove('all')"
+    >
+      איפוס נתוני הלמידה
+    </button>
+  </section>
 </section>

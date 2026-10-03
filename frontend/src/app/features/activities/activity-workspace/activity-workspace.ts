@@ -153,14 +153,20 @@ export class ActivityWorkspace {
   protected readonly available = signal<ActivityDetail | undefined>(undefined);
 
   protected readonly chat = signal({ message: '', consolidated: '' });
-  protected readonly authoring = signal(false);
+  /** The request in flight; its text shows in the thread and returns to the composer unless answered. */
+  private readonly request = signal<{ id: string; text: string; consolidate: boolean } | undefined>(
+    undefined,
+  );
+  protected readonly authoring = computed(() => !!this.request());
+  protected readonly pendingMessage = computed(() => this.request()?.text ?? '');
+  /** The conversation behind the latest answer, shown until a local edit makes it stale. */
+  private readonly answered = signal<AuthoringTurn[]>([]);
   protected readonly authorError = signal('');
   protected readonly clarification = signal('');
   protected readonly conversation = signal<AuthoringTurn[]>([]);
   protected readonly assumptions = signal<string[]>([]);
   protected readonly changes = signal<string[]>([]);
   private readonly cancelled = new Subject<void>();
-  private activeRequest: string | undefined;
 
   protected readonly operation = signal<GenerationOperation | undefined>(undefined);
   protected readonly operationId = signal<string | undefined>(undefined);
@@ -202,6 +208,7 @@ export class ActivityWorkspace {
     () =>
       !!this.projection().value && !!this.inputProjection().value && !this.pendingSources().length,
   );
+  protected readonly thread = computed(() => [...this.answered(), ...this.conversation()]);
   protected readonly needsConsolidation = computed(
     () =>
       this.conversation().length > this.limits.maxContextTurns ||
@@ -222,11 +229,16 @@ export class ActivityWorkspace {
   protected readonly hasContent = computed(
     () => !!this.raw().document.materials.length || !!this.raw().document.questions.length,
   );
+  protected readonly steps = ['תיאור', 'הגדרות', 'בדיקה', 'מוכנה'];
+  /** The step indicator's phase: describe, set up, review, ready. */
+  protected readonly stage = computed(() =>
+    this.released() ? 3 : this.hasContent() ? 2 : this.hasPlan() ? 1 : 0,
+  );
   /** Setup collapses to its summary once content exists; the parent can reopen it at any time. */
   protected readonly setupOpen = linkedSignal(() => !this.hasContent());
   protected readonly summary = computed(() => activitySummary(this.raw().plan, this.raw().input));
   protected readonly saveState = computed(() =>
-    this.saving() ? 'שומר…' : this.dirty() ? 'לא נשמר' : this.saved() ? 'נשמר' : '',
+    this.saving() ? 'שומרים…' : this.dirty() ? 'לא נשמר' : this.saved() ? 'נשמר' : '',
   );
   protected readonly heading = computed(() => {
     if (this.context() === 'template') return this.templateId() ? 'עריכת תבנית' : 'תבנית חדשה';
@@ -338,7 +350,7 @@ export class ActivityWorkspace {
       cleanup(() => subscription.unsubscribe());
     });
     this.lifetime.onDestroy(() => {
-      this.activeRequest = undefined;
+      this.request.set(undefined);
       this.cancelled.next();
       this.cancelled.complete();
     });
@@ -384,9 +396,16 @@ export class ActivityWorkspace {
   }
 
   protected cancelAuthor() {
-    this.activeRequest = undefined; // Invalidate identity before unsubscribing from transport.
+    const pending = this.request();
+    this.request.set(undefined); // Invalidate identity before unsubscribing from transport.
     this.cancelled.next();
-    this.authoring.set(false);
+    // An unanswered request returns to the composer for editing or sending again.
+    if (pending)
+      this.chat.update((chat) =>
+        pending.consolidate
+          ? { ...chat, consolidated: pending.text }
+          : { ...chat, message: pending.text },
+      );
   }
 
   /** Sends one correlated authoring request; any local change before the reply discards it. */
@@ -404,15 +423,17 @@ export class ActivityWorkspace {
     const baseDefinition = this.projection().value;
     if (!baseDefinition && this.hasPlan()) {
       this.attempted.set(true);
-      this.authorError.set('תקנו את פרטי התכנית לפני שליחת בקשה נוספת.');
+      this.authorError.set('תקנו את ההגדרות המסומנות לפני שליחת בקשה נוספת.');
       return;
     }
     const requestId = crypto.randomUUID(),
       baseRevision = this.clientRevision;
     const basis = JSON.stringify(this.raw()),
       context = consolidate ? [] : this.conversation();
-    this.activeRequest = requestId;
-    this.authoring.set(true);
+    this.request.set({ id: requestId, text: message, consolidate });
+    this.chat.update((chat) =>
+      consolidate ? { ...chat, consolidated: '' } : { ...chat, message: '' },
+    );
     this.authorError.set('');
     try {
       const reply = await this.api.authorPlan(
@@ -422,13 +443,14 @@ export class ActivityWorkspace {
       );
       if (
         this.lifetime.destroyed ||
-        this.activeRequest !== requestId ||
+        this.request()?.id !== requestId ||
         reply.requestId !== requestId ||
         reply.baseRevision !== baseRevision ||
         this.clientRevision !== baseRevision ||
         JSON.stringify(this.raw()) !== basis
       )
         return;
+      this.request.set(undefined);
       this.assumptions.set(reply.assumptions);
       if (reply.proposal) {
         this.conversation.set([]);
@@ -441,9 +463,21 @@ export class ActivityWorkspace {
               )
             : [],
         );
+        this.answered.set([
+          ...context,
+          { role: 'parent', text: message },
+          {
+            role: 'assistant',
+            text: !reply.changes.length
+              ? 'ההגדרות כבר תואמות לבקשה.'
+              : baseDefinition
+                ? 'ההגדרות עודכנו. אפשר לערוך אותן או לבטל את השינוי.'
+                : 'הכנו הגדרות לפי הבקשה. בדקו אותן וצרו את הפעילות.',
+          },
+        ]);
         if (reply.changes.length) this.applyProposal(reply.proposal, !!baseDefinition);
-        else this.notice.set('התכנית כבר תואמת לבקשה.');
       } else if (reply.clarification) {
+        this.answered.set([]);
         this.conversation.set([
           ...context,
           { role: 'parent', text: message },
@@ -453,13 +487,10 @@ export class ActivityWorkspace {
       }
       this.chat.set({ message: '', consolidated: '' });
     } catch (error) {
-      if (!this.lifetime.destroyed && this.activeRequest === requestId)
+      if (!this.lifetime.destroyed && this.request()?.id === requestId)
         this.authorError.set(apiError(error));
     } finally {
-      if (this.activeRequest === requestId) {
-        this.activeRequest = undefined;
-        this.authoring.set(false);
-      }
+      if (this.request()?.id === requestId) this.cancelAuthor();
     }
   }
 
@@ -490,7 +521,7 @@ export class ActivityWorkspace {
       if (!this.lifetime.destroyed)
         this.error.set(
           error instanceof HttpErrorResponse && error.status === 409
-            ? 'התבנית השתנתה בינתיים. העריכה המקומית נשמרת כאן; בדקו את הגרסה בספרייה.'
+            ? 'התבנית השתנתה בינתיים. השינויים שלכם נשארים כאן; בדקו את הגרסה בספרייה.'
             : `${apiError(error)} לא ידוע אם התבנית נשמרה. בדקו בספרייה לפני ניסיון נוסף.`,
         );
     } finally {
@@ -589,7 +620,7 @@ export class ActivityWorkspace {
   protected async reloadActivity() {
     const saved = this.saved();
     if (!saved || this.saving()) return;
-    if (this.dirty() && !window.confirm('טעינת המצב השמור תחליף את העריכה המקומית. להמשיך?'))
+    if (this.dirty() && !window.confirm('טעינת הגרסה השמורה תחליף את השינויים שלא נשמרו. להמשיך?'))
       return;
     await this.runDraftRequest(async () => {
       const latest = await requestResult(this.api.readActivity(saved.id), this.lifetime);
@@ -656,7 +687,9 @@ export class ActivityWorkspace {
     }
     if (
       this.dirty() &&
-      !window.confirm('פעילות חדשה תיפתח ללא התוכן והשינויים המקומיים בפעילות הזאת. להמשיך?')
+      !window.confirm(
+        'פעילות חדשה תיפתח בלי התוכן של הפעילות הזאת, ושינויים שלא נשמרו יאבדו. להמשיך?',
+      )
     )
       return;
     await this.runDraftRequest(async () => {
@@ -703,6 +736,7 @@ export class ActivityWorkspace {
   }
 
   private clearPlanFeedback() {
+    this.answered.set([]);
     this.changes.set([]);
     this.assumptions.set([]);
     this.error.set('');
@@ -723,11 +757,6 @@ export class ActivityWorkspace {
     this.confirmed.set(fixedSources(plan, this.confirmed()));
     this.clientRevision++;
     this.history.checkpoint();
-    this.notice.set(
-      refining
-        ? 'התכנית עודכנה. אפשר לערוך או לבטל את השינוי.'
-        : 'הכנו הגדרות לפי הבקשה. בדקו אותן וצרו את הפעילות.',
-    );
   }
 
   /** Runs one draft request under the shared saving lock; a failure keeps local work and says what to check. */
@@ -826,9 +855,9 @@ export class ActivityWorkspace {
 
   private activityFailure(error: unknown): string {
     return error instanceof HttpErrorResponse && error.status === 409
-      ? 'הטיוטה השתנתה בשרת. העריכה המקומית נשמרת כאן; טענו את המצב השמור לפני המשך.'
+      ? 'הטיוטה השתנתה בשרת. השינויים שלכם נשארים כאן; טענו את הגרסה השמורה לפני שממשיכים.'
       : apiError(error) +
-          ' העריכה נשארת כאן. ייתכן שהבקשה נשמרה; בדקו את המצב השמור לפני ניסיון נוסף.';
+          ' השינויים שלכם נשארים כאן. ייתכן שהבקשה נשמרה; בדקו את הגרסה השמורה לפני ניסיון נוסף.';
   }
 
   private snapshot(): WorkspaceSnapshot {

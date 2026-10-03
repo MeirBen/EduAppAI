@@ -107,19 +107,19 @@ public static class TaskDocumentValidator
                         errors.AddError(path, "יש לשמור את טקסט המקור בדיוק כפי שאושר.");
                 }
                 else if (expected is not null && material.Acceptance?.InputFingerprint != fingerprint)
-                    diagnostics.AddError(path + ".stale", "החומר דורש יצירה מחדש או אימוץ תחת הדרישות הנוכחיות.");
+                    diagnostics.AddError(path + ".stale", "הטקסט נוצר לפי הגדרות קודמות. יש ליצור אותו מחדש או לאשר אותו.");
             }
             foreach (var expected in request.Materials)
-                if (!ids.Contains(expected.Id)) diagnostics.AddError($"materials.{expected.Id}", "חסר חומר נדרש.");
+                if (!ids.Contains(expected.Id)) diagnostics.AddError($"materials.{expected.Id}", "חסר טקסט נדרש.");
             if (document.Materials.Length == request.Materials.Length &&
                 !document.Materials.Select(m => m?.Id).SequenceEqual(request.Materials.Select(m => m.Id)))
                 errors.AddError("materials", "סדר החומרים חייב להתאים לתכנית.");
         }
         if (length + 1 + MinimumQuestionLength(request.Settings.QuestionCount, request.Questions.Formats, request.Questions.ChoiceCount) > ContentLimit)
-            diagnostics.AddError("materials.capacity", "לא נשאר מספיק מקום לחומרים ולשאלות המבוקשות.");
+            diagnostics.AddError("materials.capacity", "אין מספיק מקום לטקסטים ולשאלות שהתבקשו.");
         if (errors.Count == 0)
             foreach (var measurement in TextLength.Measure(request, document))
-                if (measurement.Satisfied == false) diagnostics.AddError($"length.{measurement.Scope}", "אורך החומר אינו עומד בדרישה המדויקת או בטווח.");
+                if (measurement.Satisfied == false) diagnostics.AddError($"length.{measurement.Scope}", "אורך הטקסט אינו עומד בדרישה המדויקת או בטווח.");
         return new(errors, diagnostics);
     }
 

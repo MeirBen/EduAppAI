@@ -103,7 +103,7 @@
   input:not([type='checkbox'], [type='radio']),
   select,
   textarea {
-    @apply min-h-11 w-full min-w-0 rounded-lg border border-control bg-surface px-3 py-2 text-base text-ink shadow-control transition-[border-color,box-shadow] enabled:hover:border-muted focus:border-focus focus:inset-ring focus:inset-ring-focus focus:ring-4 focus:ring-focus/15 focus:outline-hidden disabled:cursor-not-allowed disabled:border-line disabled:bg-canvas disabled:text-muted disabled:shadow-none;
+    @apply min-h-11 w-full min-w-0 rounded-control border border-control bg-surface px-3 py-2 text-base text-ink shadow-control transition-[border-color,box-shadow] enabled:hover:border-muted focus:border-focus focus:inset-ring focus:inset-ring-focus focus:ring-4 focus:ring-focus/15 focus:outline-hidden disabled:cursor-not-allowed disabled:border-line disabled:bg-canvas disabled:text-muted disabled:shadow-none;
     /* Native controls must inherit Hebrew typography, including on iOS. */
     font: inherit;
   }
@@ -154,10 +154,10 @@
       rotate: 180deg;
     }
     ::picker(select) {
-      @apply mt-1 max-h-66 overflow-y-auto overscroll-contain rounded-lg border border-line bg-surface p-1 text-ink shadow-raised motion-safe:animate-fade;
+      @apply mt-1 max-h-66 overflow-y-auto overscroll-contain rounded-control border border-line bg-surface p-1 text-ink shadow-raised motion-safe:animate-fade;
     }
     option {
-      @apply flex min-h-11 cursor-pointer items-center rounded-md px-3 py-2 transition-colors hover:bg-canvas focus-visible:inset-ring-2 focus-visible:inset-ring-focus focus-visible:outline-hidden checked:bg-soft checked:font-medium;
+      @apply flex min-h-11 cursor-pointer items-center rounded-small px-3 py-2 transition-colors hover:bg-canvas focus-visible:inset-ring-2 focus-visible:inset-ring-focus focus-visible:outline-hidden checked:bg-soft checked:font-medium;
 
       &::checkmark {
         display: none;
@@ -166,7 +166,7 @@
   }
 
   input[type='checkbox'] {
-    @apply m-0 grid size-6 shrink-0 cursor-pointer appearance-none place-content-center rounded-md border border-control bg-surface shadow-control transition-[background-color,border-color] enabled:hover:border-muted checked:border-brand checked:bg-brand enabled:checked:hover:border-brand-hover enabled:checked:hover:bg-brand-hover disabled:cursor-not-allowed disabled:border-line disabled:bg-canvas disabled:shadow-none disabled:checked:border-control disabled:checked:bg-control;
+    @apply m-0 grid size-6 shrink-0 cursor-pointer appearance-none place-content-center rounded-small border border-control bg-surface shadow-control transition-[background-color,border-color] enabled:hover:border-muted checked:border-brand checked:bg-brand enabled:checked:hover:border-brand-hover enabled:checked:hover:bg-brand-hover disabled:cursor-not-allowed disabled:border-line disabled:bg-canvas disabled:shadow-none disabled:checked:border-control disabled:checked:bg-control;
 
     &::before {
       content: '';

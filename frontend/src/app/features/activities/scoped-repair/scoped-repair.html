@@ -9,7 +9,9 @@
     [disabled]="disabled()"
     (click)="open.set(!open())"
   >
-    שיפור בעזרת AI<span class="sr-only"> — {{ name() }}</span>
+    <span class="ai-icon" aria-hidden="true"></span>שיפור בעזרת AI<span class="sr-only">
+      — {{ name() }}</span
+    >
   </button>
   <form
     [id]="key() + '-improve-form'"

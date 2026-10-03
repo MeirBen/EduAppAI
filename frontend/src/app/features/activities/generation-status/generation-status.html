@@ -8,12 +8,23 @@
       [label]="current.title"
       [detail]="current.details[0] ?? ''"
     />
-    <div role="status" class="grid gap-1">
+    <div role="status" class="flex items-start gap-3">
       @if (!active()) {
-        <p class="font-medium" [class.text-danger]="current.problem">{{ current.title }}</p>
-        @for (line of current.details; track $index) {
-          <p>{{ line }}</p>
-        }
+        <span
+          class="status-icon"
+          [attr.data-problem]="current.problem ? '' : null"
+          aria-hidden="true"
+        >
+          <svg class="line-icon" viewBox="0 0 24 24">
+            <path [attr.d]="current.problem ? 'M12 8v5m0 3.5v.01' : 'm5 12.5 4.5 4.5L19 7'" />
+          </svg>
+        </span>
+        <div class="grid min-w-0 gap-1">
+          <p class="font-medium" [class.text-danger]="current.problem">{{ current.title }}</p>
+          @for (line of current.details; track $index) {
+            <p>{{ line }}</p>
+          }
+        </div>
       }
     </div>
   </div>
@@ -28,7 +39,7 @@
       >
         ביטול
       </button>
-      <p class="text-sm text-muted">ביטול אינו מבטיח שבקשה שכבר נשלחה לא תושלם ולא תחויב.</p>
+      <p class="text-sm text-muted">בקשה שכבר נשלחה עשויה להסתיים ולהיות מחויבת גם אחרי ביטול.</p>
     </div>
   }
   @if (!active() && configured() && current.retry; as retry) {
@@ -53,7 +64,7 @@
       [disabled]="locked()"
       (click)="checked.emit()"
     >
-      בדיקת המצב השמור
+      בדיקת הגרסה השמורה
     </button>
   }
   <details>
@@ -81,7 +92,7 @@
             </summary>
             <div class="grid gap-4">
               <pre dir="auto" class="whitespace-pre-wrap wrap-break-word">{{ text }}</pre>
-              <p>אין העתקה אוטומטית לתוכן. תיקון ידני נשמר דרך בדיקות הטיוטה.</p>
+              <p>התשובה לא הועתקה לפעילות. תיקון ידני ייבדק בשמירת הטיוטה.</p>
             </div>
           </details>
         }

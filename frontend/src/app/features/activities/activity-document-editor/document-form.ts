@@ -98,7 +98,7 @@ export function documentValue(
     raw.questions.length > limits.maxQuestionCount
   )
     errors.push(
-      `תוכן הפעילות חורג מהמגבלה: עד ${count(limits.contentLength)} תווים, ${limits.maxMaterials} חומרים ו־${limits.maxQuestionCount} שאלות.`,
+      `תוכן הפעילות חורג מהמגבלה: עד ${count(limits.contentLength)} תווים, ${limits.maxMaterials} טקסטים ו־${limits.maxQuestionCount} שאלות.`,
     );
   return {
     errors,
