@@ -31,14 +31,32 @@ of reads and reconciliation in the editor. Fix this before building more live
 workflows on top of it; a transport rewrite would leave the important races
 unsolved.
 
-| Priority    | Finding and evidence                                                                                                                                                                                                                         | Consequence                                                                                                                                                 |
-| ----------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| High        | `activity-workspace.ts` applies every polling status, while `cancelGeneration` independently applies its POST response and another draft GET. A targeted component probe held an old poll until after cancellation, then returned `calling`. | The cancelled operation appears running again and the Cancel button returns. This is a UI race; it does not restart server generation.                      |
-| High        | `draft-elsewhere.ts` retains only `revision`; `ActivityDraft.StartOperation` changes `ActiveOperationId` without changing content revision. A second probe returned that same-revision change.                                               | Another tab's active operation is ignored; generation remains enabled until the server rejects another start. Server admission still protects the draft.    |
-| Medium      | `LearningApi.libraryChanges` completes its inner stream when EventSource becomes `CLOSED`, with no visible failure or explicit reconnect.                                                                                                    | A refused stream can silently stop updates until visibility changes or navigation recreates it. Ordinary reconnecting network errors are a different state. |
-| Medium      | `GenerationWorker.ClaimAsync` commits `queued` to `calling` without publishing; `PurgeAsync` expires diagnostics without publishing.                                                                                                         | The documented publication contract is incomplete. Polling masks the claim gap for the initiating tab; already-terminal diagnostics can remain stale.       |
-| Medium      | `activity-library.html` gates all three sections on one aggregate loading/error state.                                                                                                                                                       | Failure of one list hides otherwise available drafts, templates and snapshots.                                                                              |
-| Improvement | Each active poll reads the complete operation, including retained artifacts, then the complete draft. SSE checks, manual reload and cancellation reads have separate lifecycles.                                                             | Avoidable overlap and potentially large responses; artifacts are bounded to 2 MiB. Consolidate reads before adding a new endpoint or DTO.                   |
+1. **High — cancellation can regress in the UI.** `activity-workspace.ts`
+   applies every polling status while `cancelGeneration` independently applies
+   its POST response and another draft GET. A targeted component probe held an
+   old poll until after cancellation, then returned `calling`: the Cancel button
+   returned. This does not restart server generation.
+2. **High — external operation starts are ignored.** `draft-elsewhere.ts` keeps
+   only `revision`; `ActivityDraft.StartOperation` changes `ActiveOperationId`
+   without changing content revision. A second probe returned that change and
+   generation remained enabled. Server admission still protects the draft, but
+   the UI does not follow the operation until a manual reload.
+3. **Medium — terminal stream failures are silent.**
+   `LearningApi.libraryChanges` completes its inner stream on `CLOSED`, with no
+   visible failure or explicit reconnect. Updates can stop until visibility
+   changes or navigation recreates it. Reconnecting network errors are a
+   different state.
+4. **Medium — some worker commits are unannounced.**
+   `GenerationWorker.ClaimAsync` commits `queued` to `calling` without publishing;
+   `PurgeAsync` expires diagnostics without publishing. Polling masks the claim
+   gap for the initiating tab; terminal diagnostics can remain stale.
+5. **Medium — one list failure hides all library sections.**
+   `activity-library.html` gates all three sections on one aggregate
+   loading/error state, including otherwise available content.
+6. **Improvement — reads overlap and can carry large payloads.** Active polls
+   read the complete operation, including artifacts bounded to 2 MiB, then the
+   complete draft. SSE checks, manual reload and cancellation reads have
+   separate lifecycles. Consolidate these before adding another API contract.
 
 Additional lifecycle gaps found by inspection: hiding the page stops the poll
 timer but not its already-running inner HTTP chain; any poll error ends that
@@ -72,14 +90,18 @@ No production code was changed for this review and no paid AI calls were made.
 
 ## Design and ownership
 
-| Owner                                       | Responsibility                                                                               | Must not own                                          |
-| ------------------------------------------- | -------------------------------------------------------------------------------------------- | ----------------------------------------------------- |
-| Server feature handlers / generation worker | Transactions, ownership checks, operation state, post-commit publication                     | UI refresh decisions                                  |
-| `Features/Library`                          | Bounded delivery of family invalidations                                                     | Content, operation orchestration, event history       |
-| `core/api/library-changes.ts`               | Native EventSource lifetime, connection state and explicit reconnect                         | Auth redirects, draft state, resource reload policies |
-| `activity-workspace/draft-observer.ts`      | One current draft read lifecycle; coalesce SSE/timer refreshes; cancel obsolete reads        | Forms, Undo, focus, writes, automatic AI retries      |
-| `ActivityWorkspace`                         | Explicit commands and one reconciliation policy; protect edits; decide when to apply content | Independent background poll/subscription machinery    |
-| `ActivityLibrary`                           | Three list resources, section presentation, confirmed deletion updates                       | Draft generation state or a second entity cache       |
+| Owner                | Responsibility                                       |
+| -------------------- | ---------------------------------------------------- |
+| Server writers       | Transactions, ownership, post-commit publication     |
+| `Features/Library`   | Bounded family invalidation delivery                 |
+| `library-changes.ts` | EventSource lifetime and connection state            |
+| `draft-observer.ts`  | Current draft reads, coalescing and cancellation     |
+| `ActivityWorkspace`  | Commands, edit protection and content reconciliation |
+| `ActivityLibrary`    | Three list resources and section presentation        |
+
+The stream owns no content or auth redirects. The observer owns no forms,
+Undo, focus or writes. The workspace delegates background request machinery;
+the library does not acquire generation state or a second entity cache.
 
 ### Behavior contract
 
@@ -115,7 +137,7 @@ No production code was changed for this review and no paid AI calls were made.
 8. A read failure leaves local work intact and exposes a retry. A later hint,
    visibility return or explicit retry may read again; no failed GET should kill
    the entire observer. Keep the two-second cadence for a running operation
-   after transient network/5xx failures; stop automatic polling on 401/403/404.
+   after transient network/5xx failures; stop it on other HTTP failures.
    Writes and AI starts are never automatically retried by observation.
 9. Stream `CONNECTING` leaves reconnection to EventSource. Terminal `CLOSED`
    exposes an unavailable state and explicit retry. Do not guess the HTTP status
@@ -195,8 +217,10 @@ format unchanged. No new event types, operation fields or database counter.
 
 **Create:** `frontend/src/app/core/api/library-changes.ts` and its `.spec.ts`.
 
-**Modify:** `core/api/learning-api.ts`, `core/api/event-source.fixture.ts`, and
-the two existing consumers under `activity-library` and `draft-elsewhere`.
+**Modify:** `core/api/learning-api.ts`, `core/api/event-source.fixture.ts`,
+`features/library/activity-library/activity-library.ts` and its HTML,
+`features/activities/activity-workspace/activity-workspace.ts` and its HTML,
+and `draft-elsewhere.ts` in the workspace folder.
 All frontend paths in this task are under `frontend/src/app/`.
 
 **Interface:** An injection-context factory `libraryChanges()` returns
@@ -204,6 +228,8 @@ All frontend paths in this task are under `frontend/src/app/`.
 `state: Signal<'paused' | 'connecting' | 'connected' | 'unavailable'>` and
 `reconnect(): void`. One page owns one instance and one subscription; no root
 singleton connection, reference counting or global connection registry.
+The workspace creates its instance and passes its `changes` observable into
+`draftElsewhere`; Task 3 replaces that consumer without opening another stream.
 
 - [ ] Add failing tests for `CLOSED` becoming unavailable, explicit reconnect
       creating exactly one new source, `CONNECTING` retaining native retry,
@@ -215,8 +241,9 @@ singleton connection, reference counting or global connection registry.
 - [ ] Add a short Hebrew connection status and retry beside existing page
       refresh controls. Retrying must refresh visible state as well as reopen
       the stream; it must not cause navigation, generation or write replay.
-- [ ] Run the new stream spec and both existing library/lifecycle specs. Tests
-      must verify no second connection or busy retry loop after a terminal error.
+- [ ] Run `npm --prefix frontend test -- --watch=false`. The stream and existing
+      library/lifecycle tests must pass, including no second connection or busy
+      retry loop after a terminal error.
 
 ### Task 3: Consolidate draft observation and fence commands
 
@@ -230,8 +257,9 @@ and focused `.spec.ts` coverage for request lifetime/order.
 callers. Remove `pollRefresh` and the separate polling constructor effect.
 
 **Interface:** `observeDraft` is a component-owned injection-context helper.
-Its inputs are the current draft/operation IDs, command-busy state, and callbacks
-for a background observation or read error. An observation is
+Its inputs are the current draft/operation IDs, command-busy state, the page's
+Task 2 change observable, and callbacks for an observation or read error.
+An observation is
 `{ draft: ActivityDetail; operation?: GenerationOperation }`. Expose only
 `suspend(): void` to synchronously cancel obsolete background work and
 `read(): Promise<DraftObservation>` for explicit reload/reconciliation. Internal
@@ -262,8 +290,9 @@ in the workspace; do not add a copied domain store.
       destroyed or changed-identity pages cancel old reads; a transient read
       failure remains recoverable. Preserve the existing lost-start-response
       test: observation must never invent or replay a new start key.
-- [ ] Run the observer and full workspace spec set. Remove obsolete comments,
-      helpers and imports; do not leave both old and new read paths active.
+- [ ] Run `npm --prefix frontend test -- --watch=false`; the observer and all
+      workspace cases must pass. Remove obsolete comments, helpers and imports;
+      do not leave both old and new read paths active.
 
 ### Task 4: Contain library failures and verify the complete flow
 
@@ -286,7 +315,8 @@ or shared draft/list cache.
       edit protection, release/deletion, hidden-page catch-up and stream failure
       followed by retry. Assert convergence and preserved text, not sleep-based
       timing or exact notification counts. Use the local provider only.
-- [ ] Run `./scripts/verify.sh` and `npm --prefix frontend run e2e`. Require all
+- [ ] Run `./scripts/verify.sh`, then `./scripts/publish.sh` to refresh the
+      browser test build, then `npm --prefix frontend run e2e`. Require all
       checks to pass. Record request counts during a held operation and a burst:
       one current read chain, one pending refresh, no hidden/background writes,
       no timer after a terminal operation and no leaked stream on navigation.
