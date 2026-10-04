@@ -12,5 +12,6 @@ export default defineConfig({
     url: 'http://localhost:5199/health',
     reuseExistingServer: false,
     timeout: 60_000,
+    gracefulShutdown: { signal: 'SIGTERM', timeout: 10_000 },
   },
 });
