@@ -93,7 +93,9 @@ the original. A failed strict material stage blocks questions and release.
 Repeated generation of one plan varies: the model first lists several
 less-typical premises of different kinds that meet every requirement, then
 writes the one a number drawn by the application selects; improving a material
-keeps its premise.
+keeps its premise. Hebrew is written without niqqud, except full niqqud for
+beginning readers (usually first and second grade) or on request; a plan records
+niqqud only when the parent asks for it.
 
 Questions are numeric, short-text or single-choice, each with an application
 ID, prompt, typed interaction, answer and integer points. Numeric answers use
@@ -101,7 +103,8 @@ invariant decimal text; choice answers exactly match an option. A fixed set of
 formats means a mixture containing each at least once; a selectable format
 means one format for the activity, with an allowed default. Exact per-format
 quotas need clarification rather than approximation, and choice count applies
-only to single-choice questions.
+only to single-choice questions. A calculation is a whole prompt, option or
+answer rather than part of a sentence, so it displays left to right.
 
 Authoring gives one proposal or one focused clarification per parent message,
 with assumptions reflected in the plan. A request carries up to 4,000
