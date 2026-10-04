@@ -154,6 +154,15 @@ describe('Activity lifecycle', () => {
     http.expectNone((r) => r.method === 'PUT' || r.method === 'POST');
     expect((root().querySelector('#question-0-points') as HTMLInputElement).value).toBe('1.5');
   });
+  it('shows no release problems before there is content to mark ready', async () => {
+    await open(true, {
+      ...savedActivity,
+      document: { ...savedActivity.document, title: '' },
+      diagnostics: { title: ['יש למלא תוכן בשדה הזה.'], questions: ['נדרשות שאלות'] },
+    });
+    expect(root().querySelector('#document-title')!.getAttribute('aria-invalid')).toBeNull();
+    expect(root().querySelectorAll('#document-title-errors p')).toHaveLength(0);
+  });
   it('shows a saved question problem at its own field until that field changes', async () => {
     await open(true, {
       ...savedActivity,
