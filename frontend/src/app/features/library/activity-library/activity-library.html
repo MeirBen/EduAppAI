@@ -11,7 +11,7 @@
     </div>
   </header>
   @if (updates.state() === 'unavailable') {
-    <div class="grid justify-items-start gap-1">
+    <div class="grid gap-1">
       <p role="status" class="text-muted">העדכונים בזמן אמת נותקו. אפשר לנסות להתחבר שוב.</p>
       <button id="reconnect-library" type="button" class="text-link" (click)="updates.reconnect()">
         חיבור מחדש
@@ -34,7 +34,7 @@
       label="טוענים את הטיוטות…"
     />
     @if (drafts.error()) {
-      <div class="grid justify-items-start gap-1">
+      <div class="grid gap-1">
         <p role="alert" class="field-error">{{ apiError(drafts.error()) }}</p>
         <button type="button" class="text-link" (click)="drafts.reload()">ניסיון נוסף</button>
       </div>
@@ -46,7 +46,7 @@
               <path d="M4 20h4L19 9l-4-4L4 16v4Zm9-13 4 4" />
             </svg>
           </span>
-          <div class="grid min-w-0 grow basis-48 justify-items-start">
+          <div class="grid min-w-0 grow basis-48">
             <a class="row-link" [routerLink]="['/activities', draft.id]"
               ><bdi>{{ draft.name }}</bdi></a
             >
@@ -91,7 +91,7 @@
       label="טוענים את הפעילויות המוכנות…"
     />
     @if (snapshots.error()) {
-      <div class="grid justify-items-start gap-1">
+      <div class="grid gap-1">
         <p role="alert" class="field-error">{{ apiError(snapshots.error()) }}</p>
         <button type="button" class="text-link" (click)="snapshots.reload()">ניסיון נוסף</button>
       </div>
@@ -103,7 +103,7 @@
               <path d="M20 6 9 17l-5-5" />
             </svg>
           </span>
-          <div class="grid min-w-0 grow basis-48 justify-items-start">
+          <div class="grid min-w-0 grow basis-48">
             <a class="row-link" [routerLink]="['/instances', snapshot.id]"
               ><bdi>{{ snapshot.title }}</bdi></a
             >
@@ -146,7 +146,7 @@
       label="טוענים את התבניות…"
     />
     @if (templates.error()) {
-      <div class="grid justify-items-start gap-1">
+      <div class="grid gap-1">
         <p role="alert" class="field-error">{{ apiError(templates.error()) }}</p>
         <button type="button" class="text-link" (click)="templates.reload()">ניסיון נוסף</button>
       </div>
@@ -193,10 +193,7 @@
       }
     }
   </section>
-  <section
-    class="grid justify-items-start gap-3 border-t border-line pt-6"
-    aria-labelledby="data-title"
-  >
+  <section class="grid gap-4 border-t border-line pt-6" aria-labelledby="data-title">
     <div class="grid gap-1">
       <h2 id="data-title" class="text-base">ניהול נתונים</h2>
       <p class="text-sm text-muted">

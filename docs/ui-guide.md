@@ -64,19 +64,20 @@ Containers own spacing with `gap`; shared primitives carry no outer margin.
 `main` owns the page's side gutter, so page sections add only vertical padding.
 List pages span its width, so their edges meet the header's; activity documents,
 whether edited or frozen, sit in the `max-w-3xl` reading column. Use one scale
-everywhere: `gap-1` between a heading and its description or a status line and
-its list, `gap-3` between buttons in an action row, `gap-4` between fields and
-blocks in any stack, and `gap-6` between page sections and headed groups. A
-field is one block: its label sits `mb-2` above the control and help or error
-lines carry `mt-2`; never place a label and its control as separate children of
-a gapped container. Open disclosures space their summary from the content, and
-empty live regions take no layout slot, so they never double a gap. Group card
-fields with `role="group"` and a heading inside the padding rather than a
-`.well` fieldset legend; each later headed group in a card is a `card-section`,
-whose rule marks where the previous one ends. Short related fields share a row:
-settings fill one two-column grid, numbers sit beside their siblings and a
-list's remove link sits beside its item. Optional content renders only when
-present.
+everywhere: `gap-1` between a heading and its description, a status line and its
+list or action, and stacked text links, `gap-2` between a control and what it
+reveals, `gap-3` between buttons in an action row, `gap-4` between fields and
+blocks in any stack, including a row of fields and its action, and `gap-6`
+between page sections and headed groups. A field is one block: its label sits
+`mb-2` above the control and hints, help or error lines carry `mt-2` below it;
+never place a label and its control as separate children of a gapped container.
+Open disclosures space their summary from the content, and empty live regions
+take no layout slot, so they never double a gap. Group card fields with
+`role="group"` and a heading inside the padding rather than a `.well` fieldset
+legend; each later headed group in a card is a `card-section`, whose rule marks
+where the previous one ends. Short related fields share a row: settings fill one
+two-column grid, numbers sit beside their siblings and a list's remove link sits
+beside its item. Optional content renders only when present.
 
 ## Styles and theming
 

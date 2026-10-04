@@ -202,10 +202,11 @@
 
   /*
    * The select's chevron replaces the native marker: it points along the reading direction while
-   * closed and down once open, hanging beside the first line so wrapped labels stay aligned.
+   * closed and down once open, hanging beside the first line so wrapped labels stay aligned. It
+   * takes an icon's slot, so disclosure labels line up with icon-led actions.
    */
   summary {
-    @apply relative min-h-11 py-2 ps-6 font-medium text-brand;
+    @apply relative min-h-11 py-2 ps-7 font-medium text-brand;
     list-style: none;
 
     &::-webkit-details-marker {
@@ -213,7 +214,7 @@
     }
     &::before {
       content: '';
-      @apply absolute inset-s-0 size-4 rotate-90 bg-current ltr:-rotate-90 motion-safe:transition-[rotate] motion-safe:duration-300;
+      @apply absolute inset-s-0.5 size-4 rotate-90 bg-current ltr:-rotate-90 motion-safe:transition-[rotate] motion-safe:duration-300;
       inset-block-start: calc(0.5rem + (1lh - 1rem) / 2);
       mask: var(--icon-chevron) center / contain no-repeat;
     }

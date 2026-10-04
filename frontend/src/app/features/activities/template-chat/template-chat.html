@@ -27,7 +27,7 @@
       } @else {
         <div class="flex items-start gap-3 motion-safe:animate-enter">
           <span class="ai-mark" aria-hidden="true"></span>
-          <div class="bubble bubble-reply grid min-w-0 gap-3">
+          <div class="bubble bubble-reply grid min-w-0 gap-4">
             <span class="sr-only">העוזר:</span>
             <p
               class="whitespace-pre-wrap"
@@ -39,7 +39,7 @@
             @if (last && changes().length) {
               <div class="grid gap-1 text-sm">
                 <p class="font-medium">מה השתנה:</p>
-                <ul class="list-disc ps-5">
+                <ul class="list-disc ps-6">
                   @for (change of changes(); track $index) {
                     <li>{{ change }}</li>
                   }
@@ -49,7 +49,7 @@
             @if (last && assumptions().length) {
               <details class="text-sm">
                 <summary>הנחות שהעוזר הניח</summary>
-                <ul class="list-disc ps-5">
+                <ul class="list-disc ps-6">
                   @for (assumption of assumptions(); track $index) {
                     <li dir="auto">{{ assumption }}</li>
                   }

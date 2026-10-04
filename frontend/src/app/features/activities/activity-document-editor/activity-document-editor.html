@@ -131,7 +131,7 @@
           @if (value.type === 'single-choice') {
             <div class="grid gap-4">
               @for (option of value.options; track $index; let j = $index) {
-                <div class="flex flex-wrap items-end gap-x-4">
+                <div class="flex flex-wrap items-end gap-4">
                   <div class="min-w-0 grow basis-60">
                     <label [for]="'question-' + i + '-option-' + j">אפשרות {{ j + 1 }}</label
                     ><input
@@ -206,87 +206,93 @@
               />
             </div>
           }
-          @if (id) {
-            <app-scoped-repair
-              [key]="'question-' + i"
-              [name]="'שאלה ' + (i + 1)"
-              prompt="מה תרצו לשנות בשאלה הזו?"
-              submitLabel="שיפור השאלה"
-              [ideas]="questionIdeas"
-              [disabled]="locked() || operationActive() || !aiAvailable()"
-              (requested)="
-                replaced.emit({ kind: 'ReplaceQuestion', targetId: id, instruction: $event })
-              "
-            />
-          }
+          <div class="grid gap-1">
+            @if (id) {
+              <app-scoped-repair
+                [key]="'question-' + i"
+                [name]="'שאלה ' + (i + 1)"
+                prompt="מה תרצו לשנות בשאלה הזו?"
+                submitLabel="שיפור השאלה"
+                [ideas]="questionIdeas"
+                [disabled]="locked() || operationActive() || !aiAvailable()"
+                (requested)="
+                  replaced.emit({ kind: 'ReplaceQuestion', targetId: id, instruction: $event })
+                "
+              />
+            }
+            <details class="group">
+              <summary [id]="'question-' + i + '-more'">
+                אפשרויות נוספות לשאלה {{ i + 1 }}
+                @if (question.points().invalid()) {
+                  <span class="text-danger group-open:hidden">· יש לתקן את הניקוד</span>
+                }
+              </summary>
+              <div class="grid gap-4">
+                <div>
+                  <label [for]="'question-' + i + '-type'">סוג התשובה</label
+                  ><select [id]="'question-' + i + '-type'" [formField]="question.type">
+                    <option value="numeric-input">מספר</option>
+                    <option value="text-input">טקסט קצר</option>
+                    <option value="single-choice">בחירה מתוך אפשרויות</option>
+                  </select>
+                </div>
+                <div>
+                  <label [for]="'question-' + i + '-points'">נקודות</label
+                  ><input
+                    [id]="'question-' + i + '-points'"
+                    dir="ltr"
+                    inputmode="numeric"
+                    [formField]="question.points"
+                    [attr.aria-describedby]="'question-' + i + '-points-error'"
+                  />
+                  <app-field-errors
+                    [id]="'question-' + i + '-points-error'"
+                    [field]="question.points"
+                  />
+                </div>
+                <div class="flex flex-wrap gap-x-4">
+                  <button
+                    type="button"
+                    class="text-link"
+                    [id]="'question-' + i + '-move-up'"
+                    [disabledInteractive]="locked() || i === 0"
+                    (click)="
+                      edit({ kind: 'move-up', index: i }, 'question-' + (i - 1) + '-move-up')
+                    "
+                  >
+                    הזזת שאלה {{ i + 1 }} למעלה
+                  </button>
+                  <button
+                    type="button"
+                    class="text-link"
+                    [id]="'question-' + i + '-move-down'"
+                    [disabledInteractive]="locked() || i === count - 1"
+                    (click)="
+                      edit({ kind: 'move-down', index: i }, 'question-' + (i + 1) + '-move-down')
+                    "
+                  >
+                    הזזת שאלה {{ i + 1 }} למטה
+                  </button>
+                  <button
+                    type="button"
+                    class="text-link text-link-danger"
+                    [disabledInteractive]="locked()"
+                    (click)="
+                      edit({ kind: 'remove-question', index: i }, questionSuccessor(i, count))
+                    "
+                  >
+                    הסרת שאלה {{ i + 1 }}
+                  </button>
+                </div>
+              </div>
+            </details>
+          </div>
           @if (statusTarget() === id) {
             <ng-container
               [ngTemplateOutlet]="status()"
               [ngTemplateOutletContext]="{ inCard: true }"
             />
           }
-          <details class="group">
-            <summary [id]="'question-' + i + '-more'">
-              אפשרויות נוספות לשאלה {{ i + 1 }}
-              @if (question.points().invalid()) {
-                <span class="text-danger group-open:hidden">· יש לתקן את הניקוד</span>
-              }
-            </summary>
-            <div class="grid gap-4">
-              <div>
-                <label [for]="'question-' + i + '-type'">סוג התשובה</label
-                ><select [id]="'question-' + i + '-type'" [formField]="question.type">
-                  <option value="numeric-input">מספר</option>
-                  <option value="text-input">טקסט קצר</option>
-                  <option value="single-choice">בחירה מתוך אפשרויות</option>
-                </select>
-              </div>
-              <div>
-                <label [for]="'question-' + i + '-points'">נקודות</label
-                ><input
-                  [id]="'question-' + i + '-points'"
-                  dir="ltr"
-                  inputmode="numeric"
-                  [formField]="question.points"
-                  [attr.aria-describedby]="'question-' + i + '-points-error'"
-                />
-                <app-field-errors
-                  [id]="'question-' + i + '-points-error'"
-                  [field]="question.points"
-                />
-              </div>
-              <div class="flex flex-wrap gap-x-4">
-                <button
-                  type="button"
-                  class="text-link"
-                  [id]="'question-' + i + '-move-up'"
-                  [disabledInteractive]="locked() || i === 0"
-                  (click)="edit({ kind: 'move-up', index: i }, 'question-' + (i - 1) + '-move-up')"
-                >
-                  הזזת שאלה {{ i + 1 }} למעלה
-                </button>
-                <button
-                  type="button"
-                  class="text-link"
-                  [id]="'question-' + i + '-move-down'"
-                  [disabledInteractive]="locked() || i === count - 1"
-                  (click)="
-                    edit({ kind: 'move-down', index: i }, 'question-' + (i + 1) + '-move-down')
-                  "
-                >
-                  הזזת שאלה {{ i + 1 }} למטה
-                </button>
-                <button
-                  type="button"
-                  class="text-link text-link-danger"
-                  [disabledInteractive]="locked()"
-                  (click)="edit({ kind: 'remove-question', index: i }, questionSuccessor(i, count))"
-                >
-                  הסרת שאלה {{ i + 1 }}
-                </button>
-              </div>
-            </div>
-          </details>
         </li>
       }
     </ol>

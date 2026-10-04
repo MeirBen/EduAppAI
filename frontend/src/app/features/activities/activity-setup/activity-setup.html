@@ -110,9 +110,6 @@
                 — <bdi>{{ text }}</bdi>
               }
             </label>
-            @if (control.meaning) {
-              <p class="mb-2 text-sm text-muted" dir="auto">{{ control.meaning }}</p>
-            }
             @switch (control.type) {
               @case ('text') {
                 <div class="grid gap-2">
@@ -169,6 +166,9 @@
               }
             }
             <div [id]="control.id + '-input-help'">
+              @if (control.meaning) {
+                <p class="mt-2 text-sm text-muted" dir="auto">{{ control.meaning }}</p>
+              }
               @if (
                 control.type === 'integer' && (control.hasDefault || control.min || control.max)
               ) {

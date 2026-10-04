@@ -1,7 +1,7 @@
 @let isTemplate = context() === 'template';
 <section class="mx-auto grid max-w-3xl gap-6 py-gutter" aria-labelledby="workspace-title">
   <header class="grid gap-4">
-    <div class="grid justify-items-start gap-1">
+    <div class="grid gap-1">
       <a routerLink="/templates" class="text-link back-link">המרחב שלנו</a>
       <h1 id="workspace-title">{{ heading() }}</h1>
     </div>
@@ -186,7 +186,7 @@
           />
           <details>
             <summary>פעולות נוספות</summary>
-            <div class="grid justify-items-start gap-1">
+            <div class="grid gap-1">
               <button
                 id="generate-questions"
                 class="text-link"

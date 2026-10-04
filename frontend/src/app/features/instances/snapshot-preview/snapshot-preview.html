@@ -1,5 +1,5 @@
 <section class="mx-auto grid max-w-3xl gap-6 py-gutter" aria-labelledby="snapshot-heading">
-  <header class="grid justify-items-start gap-1">
+  <header class="grid gap-1">
     <a class="text-link back-link" routerLink="/templates">המרחב שלנו</a>
     <h1 id="snapshot-heading">פעילות מוכנה — תצוגה להורים</h1>
   </header>
@@ -9,7 +9,7 @@
     variant="panel"
   />
   @if (snapshot.error()) {
-    <div class="grid gap-2">
+    <div class="grid gap-1">
       <p role="alert" class="error">{{ apiError(snapshot.error()) }}</p>
       <button type="button" class="text-link" (click)="snapshot.reload()">ניסיון נוסף</button>
     </div>

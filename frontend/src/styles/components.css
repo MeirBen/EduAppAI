@@ -5,7 +5,7 @@
  */
 @layer components {
   /*
-   * Actions. They size to their content, even in a grid; `w-full` stretches one. `.button` is
+   * Actions and badges size to their content, even in a grid; `w-full` stretches one. `.button` is
    * primary; add one variant for the other kinds.
    */
   .button {
@@ -97,7 +97,7 @@
   }
   /* An empty list says what will appear here and may offer the next step. */
   .empty-state {
-    @apply grid justify-items-start gap-2 rounded-inset border border-dashed border-control p-5 text-muted;
+    @apply grid gap-1 rounded-inset border border-dashed border-control p-4 text-muted;
   }
 
   /* Conversation. The parent's own messages sit at the end edge, as in common chat layouts. */
@@ -129,7 +129,7 @@
 
   /* Marks. */
   .badge {
-    @apply inline-flex items-center gap-1.5 rounded-full bg-soft px-3 py-1 text-sm font-medium text-brand ring-1 ring-brand/15 ring-inset;
+    @apply inline-flex w-fit items-center gap-1.5 rounded-full bg-soft px-3 py-1 text-sm font-medium text-brand ring-1 ring-brand/15 ring-inset;
   }
   .icon-tile {
     @apply grid shrink-0 place-items-center rounded-inset bg-accent text-brand ring-1 ring-brand/15 ring-inset;
