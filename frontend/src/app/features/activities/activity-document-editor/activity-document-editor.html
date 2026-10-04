@@ -191,11 +191,11 @@
               "
             />
           }
-          <details>
+          <details class="group">
             <summary>
               אפשרויות נוספות לשאלה {{ i + 1 }}
               @if (question.points().invalid()) {
-                <span class="text-danger">· יש לתקן את הניקוד</span>
+                <span class="text-danger group-open:hidden">· יש לתקן את הניקוד</span>
               }
             </summary>
             <div class="grid gap-4">
