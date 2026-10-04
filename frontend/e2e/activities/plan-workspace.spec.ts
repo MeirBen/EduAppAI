@@ -152,13 +152,20 @@ test('direct editing works without AI at 360px and 200% text with keyboard-acces
   await page.keyboard.press('Enter');
   await expect(page.getByText('התבנית נשמרה בספרייה.', { exact: true })).toBeVisible();
   await expect(page.locator('[id$="-length-mode"]')).toHaveCount(0);
-  // A new blank choice opens for editing unflagged; closed, it shows what still needs fixing.
-  await page.locator('#add-choice').click();
+  // A new blank choice opens unflagged and focus stays on the add button; closed, it shows what
+  // still needs fixing, and removing the only choice returns focus to adding one.
+  await page.locator('#add-choice').focus();
+  await page.keyboard.press('Enter');
   const card = page.locator('section[aria-labelledby="choices-title"] details');
-  await expect(card.locator('input').first()).toBeFocused();
+  await expect(page.locator('#add-choice')).toBeFocused();
   await expect(card.getByText('יש לתקן את הבחירה')).toBeHidden();
   await card.locator('summary').click();
   await expect(card.getByText('יש לתקן את הבחירה')).toBeVisible();
+  await card.locator('summary').click();
+  await card.getByRole('button', { name: /הסרת הבחירה/ }).focus();
+  await page.keyboard.press('Enter');
+  await expect(card).toHaveCount(0);
+  await expect(page.locator('#add-choice')).toBeFocused();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(
     true,
   );

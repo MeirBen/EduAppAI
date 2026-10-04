@@ -34,7 +34,7 @@
         id="cancel-generation"
         type="button"
         class="button button-secondary w-fit"
-        [disabled]="locked()"
+        [disabledInteractive]="locked()"
         (click)="cancelled.emit()"
       >
         ביטול
@@ -48,7 +48,7 @@
         id="retry-generation"
         type="button"
         class="button w-fit"
-        [disabled]="locked()"
+        [disabledInteractive]="locked()"
         (click)="retried.emit(retry.kind)"
       >
         {{ retry.label }}
@@ -61,7 +61,7 @@
       id="check-saved"
       type="button"
       class="button button-secondary w-fit"
-      [disabled]="locked()"
+      [disabledInteractive]="locked()"
       (click)="checked.emit()"
     >
       בדיקת הגרסה השמורה

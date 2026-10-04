@@ -12,6 +12,7 @@ import {
   PlanForm,
 } from '../plan-editor/plan-form';
 import { FieldDirection } from '../../../shared/forms/field-direction';
+import { DisabledInteractive } from '../../../shared/disabled-interactive';
 
 /** One generated-length row: an adjustable word count, or a fixed requirement read aloud. */
 interface LengthChoice {
@@ -31,7 +32,7 @@ interface LengthChoice {
  */
 @Component({
   selector: 'app-activity-setup',
-  imports: [FormField, FieldDirection, TaskSettingsFields],
+  imports: [DisabledInteractive, FormField, FieldDirection, TaskSettingsFields],
   templateUrl: './activity-setup.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { '(input)': 'changed($event)', '(change)': 'changed($event)' },

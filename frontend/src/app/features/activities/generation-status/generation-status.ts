@@ -3,6 +3,7 @@ import { GenerationKind, GenerationOperation } from '../../../core/api/models';
 import { LoadingIndicator } from '../../../shared/loading-indicator/loading-indicator';
 import { lengthText } from '../activity-document-view/measurements';
 import { isRunning, stageNames } from './operation-state';
+import { DisabledInteractive } from '../../../shared/disabled-interactive';
 
 type Scope = 'activity' | 'material' | 'question';
 const scopes: Partial<Record<GenerationKind, Scope>> = {
@@ -35,7 +36,7 @@ interface StatusView {
  */
 @Component({
   selector: 'app-generation-status',
-  imports: [LoadingIndicator],
+  imports: [DisabledInteractive, LoadingIndicator],
   templateUrl: './generation-status.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })

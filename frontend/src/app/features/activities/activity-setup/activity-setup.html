@@ -230,7 +230,7 @@
                 [id]="'confirm-source-' + material.id"
                 type="button"
                 class="button button-secondary w-fit"
-                [disabled]="locked()"
+                [disabledInteractive]="locked()"
                 (click)="sourceConfirmed.emit(material.id)"
               >
                 הטקסט הועתק נכון

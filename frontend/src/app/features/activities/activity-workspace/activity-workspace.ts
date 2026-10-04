@@ -1,16 +1,20 @@
 import { Location, NgTemplateOutlet } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import {
+  afterNextRender,
   ChangeDetectionStrategy,
   Component,
   computed,
   DestroyRef,
   DOCUMENT,
   effect,
+  ElementRef,
   inject,
+  Injector,
   input,
   linkedSignal,
   signal,
+  viewChild,
 } from '@angular/core';
 import { apply, applyEach, disabled, form, maxLength, validate } from '@angular/forms/signals';
 import { Router, RouterLink } from '@angular/router';
@@ -80,6 +84,7 @@ import {
   workspaceForm,
   WorkspaceSnapshot,
 } from './workspace-form';
+import { DisabledInteractive } from '../../../shared/disabled-interactive';
 
 /**
  * Route owner for one template or activity: the editable buffer, chat correlation, source
@@ -90,6 +95,7 @@ import {
 @Component({
   selector: 'app-activity-workspace',
   imports: [
+    DisabledInteractive,
     PlanEditor,
     TemplateChat,
     LoadingIndicator,
@@ -111,6 +117,9 @@ export class ActivityWorkspace {
   private readonly api = inject(LearningApi);
   private readonly location = inject(Location);
   private readonly document = inject(DOCUMENT);
+  private readonly injector = inject(Injector);
+  /** Progress of the current operation; full generation brings it into view once. */
+  private readonly progress = viewChild(GenerationStatus, { read: ElementRef });
   private readonly holdFocus = focusHolder();
   private readonly router = inject(Router);
   private readonly lifetime = inject(DestroyRef);
@@ -505,8 +514,8 @@ export class ActivityWorkspace {
         ]);
         if (reply.changes.length) {
           this.applyProposal(reply.proposal, !!baseDefinition);
-          // The first plan re-creates the chat below the settings; only then can focus fall to the page.
-          if (!baseDefinition) restoreFocus();
+          // The first plan re-creates the chat below the settings; focus returns to its composer.
+          if (!baseDefinition) restoreFocus('chat-message');
         }
       } else if (reply.clarification) {
         this.answered.set([]);
@@ -653,6 +662,7 @@ export class ActivityWorkspace {
         };
         this.startRecovery.set({ draftId: saved.id, request });
         await this.submitOperation(saved.id, request);
+        if (action === 'GenerateActivity' || action === 'GenerateQuestions') this.revealProgress();
       }
     });
   }
@@ -866,14 +876,34 @@ export class ActivityWorkspace {
   private receiveCheckpoint(saved: ActivityDetail) {
     if (saved.revision <= (this.saved()?.revision ?? 0)) return;
     if (!this.dirty() && !this.saving() && this.clientRevision === this.operationClientRevision) {
+      const restoreFocus = this.holdFocus();
       this.history.push();
       this.clientRevision++;
       this.operationClientRevision = this.clientRevision;
       this.acceptCheckpoint(saved);
+      // Content that replaces the panel holding focus, such as the create actions, takes it.
+      restoreFocus('document-heading');
     } else {
       this.available.set(saved);
       this.notice.set('נוצרה תוצאה בזמן שהמשכתם לערוך. לא החלפנו את העבודה שלכם.');
     }
+  }
+
+  /**
+   * Full generation rebuilds the content right below its progress, so that card comes into view
+   * once, smoothly unless the parent prefers reduced motion. Focus stays on the started action.
+   */
+  private revealProgress() {
+    afterNextRender(
+      () => {
+        const reduced = this.document.defaultView?.matchMedia('(prefers-reduced-motion: reduce)');
+        this.progress()?.nativeElement.scrollIntoView({
+          block: 'start',
+          behavior: reduced?.matches ? 'auto' : 'smooth',
+        });
+      },
+      { injector: this.injector },
+    );
   }
 
   private async submitOperation(id: string, request: StartGeneration) {

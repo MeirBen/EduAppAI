@@ -72,7 +72,7 @@ describe('Plan editor choices', () => {
     expect(section.querySelector('#add-choice')).not.toBeNull();
   });
 
-  it('adds a choice to the chosen part, opens it and focuses its name', async () => {
+  it('adds a choice to the chosen part and opens it, leaving focus on the add button', async () => {
     const { root, host, fixture } = await render(readingPlan);
     const scope = root.querySelector<HTMLSelectElement>('#choice-scope')!;
     scope.value = material.id;
@@ -80,13 +80,15 @@ describe('Plan editor choices', () => {
     await fixture.whenStable();
     // Picking where a choice goes is not a plan edit; it must not reach Undo or cancel a request.
     expect(host.edits).toBe(0);
-    root.querySelector<HTMLButtonElement>('#add-choice')!.click();
+    const add = root.querySelector<HTMLButtonElement>('#add-choice')!;
+    add.focus();
+    add.click();
     await fixture.whenStable();
     const [added] = host.raw().plan.materials[0].controls;
     expect(added).toBeDefined();
     const name = root.querySelector<HTMLInputElement>(`[id="${added.id}-label"]`)!;
     expect(name.closest('details')!.open).toBe(true);
-    expect(document.activeElement).toBe(name);
+    expect(document.activeElement).toBe(add);
   });
 
   it('marks an invalid collapsed choice in its summary', async () => {
@@ -94,5 +96,45 @@ describe('Plan editor choices', () => {
     const card = section.querySelector('details')!;
     expect(card.open).toBe(false);
     expect(card.querySelector('summary')!.textContent).toContain('יש לתקן את הבחירה');
+  });
+
+  async function press(
+    fixture: { whenStable(): Promise<unknown> },
+    root: HTMLElement,
+    text: string,
+  ) {
+    const button = Array.from(root.querySelectorAll('button')).find(
+      (b) => b.textContent?.replace(/\s+/g, ' ').trim() === text,
+    )!;
+    button.focus();
+    button.click();
+    await fixture.whenStable();
+    return document.activeElement as HTMLElement;
+  }
+
+  it('moves focus from a removed choice to its neighbour, else to adding a choice', async () => {
+    const { root, fixture } = await render({
+      ...numericPlan,
+      controls: [
+        { ...choice('a'), label: 'ראשונה' },
+        { ...choice('b'), label: 'שנייה' },
+      ],
+    });
+    expect((await press(fixture, root, 'הסרת הבחירה ראשונה')).id).toBe('b'.repeat(32) + '-summary');
+    expect((await press(fixture, root, 'הסרת הבחירה שנייה')).id).toBe('add-choice');
+  });
+
+  it('moves focus from a removed text, or its last option, to adding one', async () => {
+    const id = 'd'.repeat(32);
+    const { root, fixture } = await render({
+      ...readingPlan,
+      controls: [
+        { id, label: 'סגנון', meaning: 'סגנון', type: 'select', options: [{ value: 'א' }] },
+      ],
+    });
+    root.querySelector<HTMLDetailsElement>(`[id="${id}-summary"]`)!.click();
+    await fixture.whenStable();
+    expect((await press(fixture, root, 'הסרת אפשרות 1')).id).toBe(id + '-add-option');
+    expect((await press(fixture, root, 'הסרת הטקסט קטע קריאה')).id).toBe('add-material');
   });
 });

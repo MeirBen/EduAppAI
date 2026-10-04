@@ -12,6 +12,7 @@ import { form, FormField, maxLength } from '@angular/forms/signals';
 import { Limits } from '../../../core/api/limits';
 import { FieldDirection } from '../../../shared/forms/field-direction';
 import { IdeaChips } from '../../../shared/idea-chips/idea-chips';
+import { DisabledInteractive } from '../../../shared/disabled-interactive';
 
 /**
  * Contextual AI improvement for one material or question. It keeps only its disclosure state and
@@ -19,7 +20,7 @@ import { IdeaChips } from '../../../shared/idea-chips/idea-chips';
  */
 @Component({
   selector: 'app-scoped-repair',
-  imports: [FormField, FieldDirection, IdeaChips],
+  imports: [DisabledInteractive, FormField, FieldDirection, IdeaChips],
   templateUrl: './scoped-repair.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
   // The instruction is not activity content, so its edits must not reach the editor's change tracking.
@@ -43,10 +44,8 @@ export class ScopedRepair {
     maxLength(path.instruction, this.limits.messageLength),
   );
   private readonly trigger = viewChild.required<ElementRef<HTMLButtonElement>>('trigger');
-  private readonly instruction = viewChild.required<ElementRef<HTMLTextAreaElement>>('instruction');
   protected pick(idea: string) {
     this.draft.set({ instruction: idea });
-    this.instruction().nativeElement.focus();
   }
   protected submit() {
     if (this.disabled()) return;

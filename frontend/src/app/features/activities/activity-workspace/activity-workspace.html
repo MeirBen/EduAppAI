@@ -50,7 +50,7 @@
             id="plan-undo"
             class="text-link"
             type="button"
-            [disabled]="locked() || !history.entries().length"
+            [disabledInteractive]="locked() || !history.entries().length"
             (click)="undo()"
           >
             ביטול השינוי האחרון
@@ -229,7 +229,7 @@
               id="copy-released"
               type="button"
               class="button button-secondary"
-              [disabled]="copying()"
+              [disabledInteractive]="copying()"
               (click)="copyReleased()"
             >
               עריכה כטיוטה חדשה
@@ -248,7 +248,7 @@
               id="generate-activity"
               class="button"
               type="button"
-              [disabled]="!canGenerate()"
+              [disabledInteractive]="!canGenerate()"
               (click)="activityAction('GenerateActivity')"
             >
               <span class="ai-icon" aria-hidden="true"></span>יצירת הפעילות
@@ -257,7 +257,7 @@
               id="save-activity"
               class="button button-secondary"
               type="button"
-              [disabled]="saving()"
+              [disabledInteractive]="saving()"
               (click)="activityAction('save')"
             >
               שמירת טיוטה
@@ -276,7 +276,7 @@
               id="release-activity"
               class="button"
               type="button"
-              [disabled]="contentBusy()"
+              [disabledInteractive]="contentBusy()"
               (click)="activityAction('release')"
             >
               סימון כמוכנה
@@ -285,7 +285,7 @@
               id="save-activity"
               class="button button-secondary"
               type="button"
-              [disabled]="saving()"
+              [disabledInteractive]="saving()"
               (click)="activityAction('save')"
             >
               שמירת טיוטה
@@ -298,7 +298,7 @@
                 id="generate-questions"
                 class="text-link"
                 type="button"
-                [disabled]="!canGenerate()"
+                [disabledInteractive]="!canGenerate()"
                 (click)="activityAction('GenerateQuestions')"
               >
                 <span class="ai-icon" aria-hidden="true"></span>יצירת כל השאלות מחדש
@@ -307,7 +307,7 @@
                 id="generate-activity"
                 class="text-link"
                 type="button"
-                [disabled]="!canGenerate()"
+                [disabledInteractive]="!canGenerate()"
                 (click)="activityAction('GenerateActivity')"
               >
                 <span class="ai-icon" aria-hidden="true"></span>יצירת הפעילות מחדש, כולל טקסט שאינו
@@ -317,7 +317,7 @@
                 type="button"
                 id="new-activity"
                 class="text-link"
-                [disabled]="saving()"
+                [disabledInteractive]="saving()"
                 (click)="newActivity()"
               >
                 פעילות חדשה עם אותן הגדרות, בלי התוכן הנוכחי
@@ -350,7 +350,7 @@
               id="recover-start"
               class="button button-secondary w-fit"
               type="button"
-              [disabled]="saving()"
+              [disabledInteractive]="saving()"
               (click)="recoverStart()"
             >
               בדיקת בקשת היצירה
@@ -410,7 +410,7 @@
     type="button"
     class="button w-fit"
     [class.button-secondary]="context() !== 'template'"
-    [disabled]="saving() || !templateChanged()"
+    [disabledInteractive]="saving() || !templateChanged()"
     (click)="saveTemplate()"
   >
     {{ publication() ? 'עדכון התבנית' : 'שמירה כתבנית' }}
@@ -430,7 +430,7 @@
     id="reload-activity"
     class="text-link w-fit"
     type="button"
-    [disabled]="saving()"
+    [disabledInteractive]="saving()"
     (click)="reloadActivity()"
   >
     טעינת הגרסה השמורה

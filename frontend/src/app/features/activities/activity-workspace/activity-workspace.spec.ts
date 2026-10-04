@@ -180,7 +180,7 @@ describe('ActivityWorkspace plan ownership', () => {
     for (let index = 0; index < 22; index++)
       await type(index % 2 === 0 ? 'plan-name' : 'plan-goal', `עריכה ${index}`);
     for (let index = 0; index < 20; index++) await click('plan-undo');
-    expect(root().querySelector<HTMLButtonElement>('#plan-undo')!.disabled).toBe(true);
+    expect(root().querySelector('#plan-undo')!.getAttribute('aria-disabled')).toBe('true');
     expect(field('plan-name').value).toBe('עריכה 0');
     expect(field('plan-goal').value).toBe('עריכה 1');
     http.expectNone('/api/ai/template-drafts');
@@ -250,7 +250,7 @@ describe('ActivityWorkspace plan ownership', () => {
     expect(field('plan-name').value).toBe('מספרים');
     expect(root().querySelector('#plan-title')!.textContent).toContain('הגדרות הפעילות');
     expect(chatFollowsSettings()).toBe(true);
-    expect(document.activeElement?.id).toBe('plan-title');
+    expect(document.activeElement?.id).toBe('chat-message');
     expect(root().textContent).toContain('הכנו הגדרות לפי הבקשה');
     expect(root().textContent).not.toContain('נוספו הגדרות');
     http.expectNone('/api/templates');
@@ -289,7 +289,7 @@ describe('ActivityWorkspace plan ownership', () => {
     const identical = await ask();
     reply(identical, numericPlan, null, []);
     await settle();
-    expect(root().querySelector<HTMLButtonElement>('#plan-undo')!.disabled).toBe(true);
+    expect(root().querySelector('#plan-undo')!.getAttribute('aria-disabled')).toBe('true');
     const pending = await ask('לשנות');
     reply(pending, null, 'איזה נושא?');
     await settle();

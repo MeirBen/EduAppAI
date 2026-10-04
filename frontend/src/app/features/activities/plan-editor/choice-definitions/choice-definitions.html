@@ -84,7 +84,7 @@
       [text]="choice.text"
       [open]="choice.id === opened()"
       [locked]="locked()"
-      (structureChanged)="structureChanged.emit($event)"
+      (structureChanged)="remove($event, $index)"
       (edited)="edited.emit($event)"
     />
   }
@@ -106,7 +106,7 @@
       id="add-choice"
       type="button"
       class="button button-secondary"
-      [disabled]="locked() || choices().length >= limits.maxControls"
+      [disabledInteractive]="locked() || choices().length >= limits.maxControls"
       (click)="add(scope.value)"
     >
       הוספת בחירה

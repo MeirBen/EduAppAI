@@ -32,8 +32,14 @@ parent labels keep their original language and values.
   production bundle budgets.
 - Label controls; associate errors with fields. Provide keyboard access, visible
   focus, loading status, error alerts and distinguishable repeated
-  links/disclosures. A button its own request disables or replaces returns
-  focus through `focusHolder`: to the button, or to its section's heading.
+  links/disclosures. Focus moves only to keep it from being lost: a button its
+  own action makes unavailable stays focusable through `disabledInteractive`,
+  and an action that removes, moves or replaces the focused control hands focus
+  through `focusHolder` to the successor its owner names (the same control, a
+  neighbour's disclosure or the list's add button), else to the nearest
+  surviving region heading. Results are announced, never focused or scrolled
+  to; only full generation brings its progress into view once, without motion
+  when reduced motion is preferred.
 
 ## Spacing
 
@@ -136,8 +142,8 @@ assumptions, and a typing bubble shows while a request runs. The composer sends
 on Enter (Shift+Enter adds a line) and turns its send button into a stop button,
 keeping keyboard focus on whichever is present; a failed or cancelled request
 returns its text to the composer. `IdeaChips` offer ready wording for the first
-request, common changes and scoped improvements; an idea only fills its field
-and never sends. Mark AI actions with `ai-icon`.
+request, common changes and scoped improvements; an idea only fills its field,
+leaving focus on the idea, and never sends. Mark AI actions with `ai-icon`.
 
 Use parent language, never internal terms: say "הגדרות" for the plan and "טקסט"
 for materials; source kinds read as "כתבו עבורי תוכן חדש", "יש לי טקסט משלי"

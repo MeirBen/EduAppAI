@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, input, output } from '@angular/core';
 import { ActivityDocumentView } from '../../activity-document-view/activity-document-view';
 import { UnappliedCandidate } from '../candidate-edit';
+import { DisabledInteractive } from '../../../../shared/disabled-interactive';
 
 /**
  * One operation result that was not applied, for inspection. Transfer is an explicit parent action
@@ -8,7 +9,7 @@ import { UnappliedCandidate } from '../candidate-edit';
  */
 @Component({
   selector: 'app-unapplied-result',
-  imports: [ActivityDocumentView],
+  imports: [DisabledInteractive, ActivityDocumentView],
   templateUrl: './unapplied-result.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })

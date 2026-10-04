@@ -6,6 +6,8 @@ import { PlanForm } from './plan-form';
 import { ChoiceDefinitions } from './choice-definitions/choice-definitions';
 import { LengthFields } from './length-fields/length-fields';
 import { FieldDirection } from '../../../shared/forms/field-direction';
+import { DisabledInteractive } from '../../../shared/disabled-interactive';
+import { focusHolder } from '../../../shared/focus-holder';
 
 /** Structural edits are applied by the workspace, which also owns history and source acceptance. */
 export type PlanStructureEdit =
@@ -20,7 +22,7 @@ export type PlanStructureEdit =
  * per-activity values live in ActivitySetup. No HTTP or copied draft.
  */
 @Component({
-  imports: [FormField, FieldDirection, ChoiceDefinitions, LengthFields],
+  imports: [DisabledInteractive, FormField, FieldDirection, ChoiceDefinitions, LengthFields],
   selector: 'app-plan-editor',
   templateUrl: './plan-editor.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -28,6 +30,7 @@ export type PlanStructureEdit =
 })
 export class PlanEditor {
   protected readonly limits = inject(Limits).current;
+  private readonly holdFocus = focusHolder();
   readonly fields = input.required<FieldTree<PlanForm>>();
   readonly locked = input(false);
   /** Whether this plan decides what its activities may change; one taken from a template does not. */
@@ -46,6 +49,12 @@ export class PlanEditor {
     fixed: 'טקסט קבוע שסיפקתם',
     'per-task': 'טקסט חדש שתזינו בכל פעילות',
   };
+  /** Removing a text moves focus to adding one; the texts have no other safe control. */
+  protected removeMaterial(id: string) {
+    const restore = this.holdFocus();
+    this.structureChanged.emit({ kind: 'remove-material', id });
+    restore('add-material');
+  }
   protected changed(event: Event) {
     if (this.locked() || !(event.target instanceof HTMLElement)) return;
     this.edited.emit({ key: event.target.id });

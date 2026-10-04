@@ -3,6 +3,7 @@ import { ChangeDetectionStrategy, Component, inject, input, output } from '@angu
 import { FieldTree, FormField } from '@angular/forms/signals';
 import { Limits } from '../../../core/api/limits';
 import { FieldDirection } from '../../../shared/forms/field-direction';
+import { DisabledInteractive } from '../../../shared/disabled-interactive';
 
 /**
  * New text for a fixed or per-activity source, kept exactly as typed. Edits the owner's field and
@@ -10,7 +11,7 @@ import { FieldDirection } from '../../../shared/forms/field-direction';
  */
 @Component({
   selector: 'app-source-replacement',
-  imports: [FormField, FieldDirection, DecimalPipe],
+  imports: [DisabledInteractive, FormField, FieldDirection, DecimalPipe],
   templateUrl: './source-replacement.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })

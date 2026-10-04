@@ -202,6 +202,16 @@ test('supports keyboard content editing with native labels at 360px and 200% tex
     path: test.info().outputPath('content-mobile.png'),
     fullPage: true,
   });
+  // Moving a question keeps focus on its move button; removing one hands it to a neighbour.
+  await page.locator('#add-question').focus();
+  await page.keyboard.press('Enter');
+  await page.getByText('אפשרויות נוספות לשאלה 2').click();
+  await page.locator('#question-1-move-up').focus();
+  await page.keyboard.press('Enter');
+  await expect(page.locator('#question-0-move-up')).toBeFocused();
+  await page.getByRole('button', { name: 'מחיקת שאלה 1', exact: true }).focus();
+  await page.keyboard.press('Enter');
+  await expect(page.locator('#question-0-more')).toBeFocused();
 });
 
 test('unknown outcomes retain local work and do not automatically start another operation', async ({

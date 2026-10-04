@@ -5,6 +5,8 @@ import { PlanControl } from '../../../../core/api/models';
 import { ControlForm } from '../plan-form';
 import type { PlanStructureEdit } from '../plan-editor';
 import { FieldDirection } from '../../../../shared/forms/field-direction';
+import { DisabledInteractive } from '../../../../shared/disabled-interactive';
+import { focusHolder } from '../../../../shared/focus-holder';
 
 /** The part a choice changes, as its summary names it and its effect field asks about it. */
 const partCopy = {
@@ -24,13 +26,14 @@ const typeNames: Record<PlanControl['type'], string> = {
  * changes and its default. It edits the owner's field tree and never creates draft state.
  */
 @Component({
-  imports: [FormField, FieldDirection],
+  imports: [DisabledInteractive, FormField, FieldDirection],
   selector: 'app-control-card',
   templateUrl: './control-card.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ControlCard {
   protected readonly limits = inject(Limits).current;
+  private readonly holdFocus = focusHolder();
   readonly field = input.required<FieldTree<ControlForm>>();
   /** `plan`, `questions` or the owning material's ID, as structural edits address it. */
   readonly scope = input.required<string>();
@@ -51,8 +54,10 @@ export class ControlCard {
     if (!hasDefault || !defaultValue) return '';
     return type === 'boolean' ? (defaultValue === 'true' ? 'כן' : 'לא') : defaultValue;
   });
+  /** Options are positional; removing the last one moves focus to adding an option. */
   protected editOption(remove?: number) {
     if (this.locked()) return;
+    const restore = this.holdFocus();
     this.field()
       .options()
       .value.update((values) =>
@@ -61,5 +66,6 @@ export class ControlCard {
           : values.filter((_, i) => i !== remove),
       );
     this.edited.emit({ key: '' });
+    restore(this.field()().value().id + '-add-option');
   }
 }

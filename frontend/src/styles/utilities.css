@@ -5,6 +5,9 @@
   }
 }
 
+/* Hover and press feedback only for controls that can act; `aria-disabled` keeps focus but not action. */
+@custom-variant actionable (&:not(:disabled, [aria-disabled='true']));
+
 /*
  * Dark applies for an explicit `data-theme="dark"`, or when the device prefers dark and
  * no explicit light choice exists. CSS follows device changes live; `Theme` owns the attribute.

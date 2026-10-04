@@ -67,7 +67,8 @@
   summary {
     cursor: pointer;
   }
-  button:disabled {
+  /* `aria-disabled` buttons stay focusable while their own action keeps them unavailable. */
+  button:is(:disabled, [aria-disabled='true']) {
     cursor: not-allowed;
     opacity: 0.55;
   }

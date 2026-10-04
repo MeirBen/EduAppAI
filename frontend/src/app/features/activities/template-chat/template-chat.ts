@@ -98,6 +98,5 @@ export class TemplateChat {
 
   protected suggest(text: string) {
     this.fields().message().value.set(text);
-    this.composer().nativeElement.focus();
   }
 }

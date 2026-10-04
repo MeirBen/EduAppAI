@@ -16,7 +16,7 @@
         type="button"
         data-edit-candidate
         class="button button-secondary w-fit"
-        [disabled]="locked()"
+        [disabledInteractive]="locked()"
         (click)="transferred.emit()"
       >
         העברת התוצאה לעריכה

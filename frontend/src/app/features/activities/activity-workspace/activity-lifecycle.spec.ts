@@ -49,7 +49,8 @@ describe('Activity lifecycle', () => {
   }
   async function click(id: string) {
     const button = root().querySelector<HTMLButtonElement>('#' + id)!;
-    await vi.waitFor(() => expect(button.disabled).toBe(false));
+    // Busy actions stay focusable and ignore activation until they are available again.
+    await vi.waitFor(() => expect(button.getAttribute('aria-disabled')).toBeNull());
     button.click();
     await settle();
   }
@@ -299,7 +300,7 @@ describe('Activity lifecycle', () => {
     const body = start.request.body;
     start.error(new ProgressEvent('error'));
     await settle();
-    expect((root().querySelector('#generate-activity') as HTMLButtonElement).disabled).toBe(true);
+    expect(root().querySelector('#generate-activity')!.getAttribute('aria-disabled')).toBe('true');
     await type('document-title', 'עריכה אחרי השליחה');
     await click('recover-start');
     const replay = http.expectOne('/api/activity-drafts/draft/operations');

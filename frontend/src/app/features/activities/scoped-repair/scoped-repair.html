@@ -6,7 +6,7 @@
     [id]="key() + '-improve'"
     [attr.aria-expanded]="open()"
     [attr.aria-controls]="key() + '-improve-form'"
-    [disabled]="disabled()"
+    [disabledInteractive]="disabled()"
     (click)="open.set(!open())"
   >
     <span class="ai-icon" aria-hidden="true"></span>שיפור בעזרת AI<span class="sr-only">
@@ -22,7 +22,6 @@
     <div>
       <label [for]="key() + '-instruction'">{{ prompt() }}</label>
       <textarea
-        #instruction
         [id]="key() + '-instruction'"
         dir="auto"
         rows="2"
@@ -47,7 +46,7 @@
         type="submit"
         class="button button-secondary"
         [id]="key() + '-improve-submit'"
-        [disabled]="disabled()"
+        [disabledInteractive]="disabled()"
       >
         <span class="ai-icon" aria-hidden="true"></span>{{ submitLabel() }}
       </button>

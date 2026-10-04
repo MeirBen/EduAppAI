@@ -1,7 +1,7 @@
 @let c = field();
 @let control = c().value();
 <details class="group well" [open]="open()">
-  <summary>
+  <summary [id]="control.id + '-summary'">
     <bdi>{{ control.label || 'בחירה חדשה' }}</bdi> · {{ typeNames[control.type] }} ·
     {{ copy().owner }}
     @if (part() === 'material') {
@@ -134,7 +134,7 @@
           <button
             type="button"
             class="text-link w-fit"
-            [disabled]="locked()"
+            [disabledInteractive]="locked()"
             (click)="editOption(optionIndex)"
           >
             הסרת אפשרות {{ optionIndex + 1 }}
@@ -144,7 +144,8 @@
       <button
         type="button"
         class="button button-secondary w-fit"
-        [disabled]="locked() || control.options.length >= limits.maxSelectOptions"
+        [id]="control.id + '-add-option'"
+        [disabledInteractive]="locked() || control.options.length >= limits.maxSelectOptions"
         (click)="editOption()"
       >
         הוספת אפשרות
@@ -153,7 +154,7 @@
     <button
       type="button"
       class="text-link text-link-danger w-fit"
-      [disabled]="locked()"
+      [disabledInteractive]="locked()"
       (click)="structureChanged.emit({ kind: 'remove-control', scope: scope(), id: control.id })"
     >
       הסרת הבחירה <bdi>{{ control.label }}</bdi>

@@ -1,11 +1,8 @@
 import {
-  afterNextRender,
   ChangeDetectionStrategy,
   Component,
   computed,
-  DOCUMENT,
   inject,
-  Injector,
   input,
   output,
   signal,
@@ -15,6 +12,8 @@ import { Limits } from '../../../../core/api/limits';
 import { formFormats, newPlanId, PlanForm } from '../plan-form';
 import type { PlanStructureEdit } from '../plan-editor';
 import { ControlCard } from '../control-card/control-card';
+import { focusHolder } from '../../../../shared/focus-holder';
+import { DisabledInteractive } from '../../../../shared/disabled-interactive';
 
 /**
  * Everything a parent may change per activity, in one place: the adjustable length, option-count
@@ -22,15 +21,14 @@ import { ControlCard } from '../control-card/control-card';
  * picking the part a new choice joins is not an edit, so its events never reach change tracking.
  */
 @Component({
-  imports: [FormField, ControlCard],
+  imports: [DisabledInteractive, FormField, ControlCard],
   selector: 'app-choice-definitions',
   templateUrl: './choice-definitions.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ChoiceDefinitions {
   protected readonly limits = inject(Limits).current;
-  private readonly document = inject(DOCUMENT);
-  private readonly injector = inject(Injector);
+  private readonly holdFocus = focusHolder();
   readonly fields = input.required<FieldTree<PlanForm>>();
   readonly locked = input(false);
   readonly structureChanged = output<PlanStructureEdit>();
@@ -88,13 +86,18 @@ export class ChoiceDefinitions {
   /** The choice just added opens for editing; loaded and proposed ones start as summaries. */
   protected readonly opened = signal('');
 
-  /** Adds a choice to `scope`, a value of `scopes`, and moves focus to its name. */
+  /** Removes the choice at `index`; focus moves to its neighbour's summary, else to adding one. */
+  protected remove(edit: PlanStructureEdit, index: number) {
+    const choices = this.choices(),
+      neighbour = choices[index + 1] ?? choices[index - 1];
+    const restore = this.holdFocus();
+    this.structureChanged.emit(edit);
+    restore(neighbour ? neighbour.id + '-summary' : 'add-choice');
+  }
+  /** Adds a choice to `scope`, a value of `scopes`; focus stays on the add button. */
   protected add(scope: string) {
     const id = newPlanId();
     this.structureChanged.emit({ kind: 'add-control', scope, id });
     this.opened.set(id);
-    afterNextRender(() => this.document.getElementById(id + '-label')?.focus(), {
-      injector: this.injector,
-    });
   }
 }

@@ -89,7 +89,7 @@ test('the parent keeps their place: pages open at the top, focus follows the act
   await expect(page.getByRole('heading', { name: 'המרחב שלנו', level: 1 })).toBeVisible();
   await expect.poll(() => page.evaluate(() => scrollY)).toBe(0);
 
-  // A request disables its own button; focus returns to it, or to the section that replaced it.
+  // A request keeps focus on its own button; content that replaces it takes focus at its heading.
   await propose(page, 'קריאה עם סגנון לבחירה והמתנה');
   // An empty field follows the page direction; typed text sets its own.
   const composer = page.locator('#chat-message');
@@ -107,7 +107,10 @@ test('the parent keeps their place: pages open at the top, focus follows the act
   await page.locator('#generate-activity').focus();
   await page.keyboard.press('Enter');
   await expect(page.locator('#cancel-generation')).toBeVisible();
-  await expect(page.locator('#actions-title')).toBeFocused();
+  // Starting generation keeps focus on its own, now unavailable, button and shows the progress.
+  await expect(page.locator('#generate-activity')).toBeFocused();
+  await expect(page.locator('app-generation-status')).toBeInViewport();
+  await expect(page.locator('#document-heading')).toBeFocused({ timeout: 15_000 });
 });
 
 test('prompt to editable activity, independent template, scoped repair and frozen parent preview', async ({

@@ -54,11 +54,13 @@ describe('ScopedRepair', () => {
     const { fixture, root, host } = await render();
     root.querySelector<HTMLButtonElement>('#q-improve')!.click();
     await fixture.whenStable();
-    root.querySelector<HTMLButtonElement>('#q-improve-form .chip')!.click();
+    const idea = root.querySelector<HTMLButtonElement>('#q-improve-form .chip')!;
+    idea.focus();
+    idea.click();
     await fixture.whenStable();
     const instruction = root.querySelector<HTMLTextAreaElement>('#q-instruction')!;
     expect(instruction.value).toBe('ניסוח פשוט יותר');
-    expect(document.activeElement).toBe(instruction);
+    expect(document.activeElement).toBe(idea);
     expect(host.requests).toEqual([]);
     root.querySelector<HTMLButtonElement>('#q-improve-submit')!.click();
     expect(host.requests).toEqual(['ניסוח פשוט יותר']);

@@ -64,11 +64,14 @@ describe('TemplateChat presentation', () => {
     await fixture.whenStable();
     const root: HTMLElement = fixture.nativeElement;
     const idea = root.querySelector<HTMLButtonElement>('.chip')!;
+    idea.focus();
     idea.click();
     await fixture.whenStable();
     expect(root.querySelector<HTMLTextAreaElement>('#chat-message')!.value).toBe(
       idea.textContent!.trim(),
     );
+    // An idea fills the composer in place; focus stays where the parent picked it.
+    expect(document.activeElement).toBe(idea);
     expect(host.submitted).toBe('');
     host.question.set('לאיזה גיל?');
     await fixture.whenStable();

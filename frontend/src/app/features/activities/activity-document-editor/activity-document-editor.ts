@@ -5,6 +5,8 @@ import { Limits } from '../../../core/api/limits';
 import { ScopedRepair } from '../scoped-repair/scoped-repair';
 import { DocumentForm } from './document-form';
 import { FieldDirection } from '../../../shared/forms/field-direction';
+import { DisabledInteractive } from '../../../shared/disabled-interactive';
+import { focusHolder } from '../../../shared/focus-holder';
 
 /** Structural edits remain in the route owner. New questions receive server IDs on save. */
 export type DocumentEdit =
@@ -22,13 +24,14 @@ const questionIdeas = [
 /** Presentation only: edits the owner's native fields and emits explicit scoped actions. */
 @Component({
   selector: 'app-activity-document-editor',
-  imports: [FormField, FieldDirection, ScopedRepair],
+  imports: [DisabledInteractive, FormField, FieldDirection, ScopedRepair],
   templateUrl: './activity-document-editor.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { '(input)': 'onEdit($event)', '(change)': 'onEdit($event)' },
 })
 export class ActivityDocumentEditor {
   protected readonly limits = inject(Limits).current;
+  private readonly holdFocus = focusHolder();
   protected readonly materialIdeas = materialIdeas;
   protected readonly questionIdeas = questionIdeas;
   readonly fields = input.required<FieldTree<DocumentForm>>();
@@ -55,6 +58,20 @@ export class ActivityDocumentEditor {
   }>();
   readonly adopted = output<{ materialIds: string[]; questionIds: string[] }>();
   readonly sourceReplaced = output<string>();
+  /**
+   * Applies a structural edit. Focus whose control it removes or moves goes to `successor`, an
+   * element ID: the same control after a move, else a neighbour's disclosure or the add button.
+   */
+  protected edit(change: DocumentEdit, successor: string) {
+    const restore = this.holdFocus();
+    this.structureChanged.emit(change);
+    restore(successor);
+  }
+  /** After removing question `index`, its neighbour's options, else adding a question. */
+  protected questionSuccessor(index: number, count: number) {
+    const neighbour = index < count - 1 ? index : index - 1;
+    return neighbour < 0 ? 'add-question' : `question-${neighbour}-more`;
+  }
   protected missing(id: string) {
     return !this.fields()
       .materials()

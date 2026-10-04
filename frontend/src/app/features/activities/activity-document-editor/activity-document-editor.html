@@ -36,7 +36,7 @@
             <button
               type="button"
               class="button button-secondary w-fit"
-              [disabled]="locked() || operationActive()"
+              [disabledInteractive]="locked() || operationActive()"
               (click)="adopted.emit({ materialIds: [id], questionIds: [] })"
             >
               בדקתי, אפשר להשתמש בגרסה הזו<span class="sr-only"> — {{ label(id) }}</span>
@@ -76,7 +76,7 @@
         <button
           type="button"
           class="text-link w-fit"
-          [disabled]="locked()"
+          [disabledInteractive]="locked()"
           (click)="sourceReplaced.emit(id)"
         >
           החלפת הטקסט<span class="sr-only"> {{ label(id) }}</span>
@@ -89,7 +89,7 @@
       <button
         type="button"
         class="text-link w-fit"
-        [disabled]="locked()"
+        [disabledInteractive]="locked()"
         (click)="structureChanged.emit({ kind: 'add-material', id: material.id })"
       >
         כתיבת הטקסט ידנית: <bdi>{{ material.label }}</bdi>
@@ -110,7 +110,7 @@
               <button
                 type="button"
                 class="button button-secondary w-fit"
-                [disabled]="locked() || operationActive()"
+                [disabledInteractive]="locked() || operationActive()"
                 (click)="adopted.emit({ materialIds: [], questionIds: [id] })"
               >
                 בדקתי, אפשר להשתמש בגרסה הזו<span class="sr-only"> — שאלה {{ i + 1 }}</span>
@@ -192,7 +192,7 @@
             />
           }
           <details class="group">
-            <summary>
+            <summary [id]="'question-' + i + '-more'">
               אפשרויות נוספות לשאלה {{ i + 1 }}
               @if (question.points().invalid()) {
                 <span class="text-danger group-open:hidden">· יש לתקן את הניקוד</span>
@@ -230,9 +230,12 @@
                     <button
                       type="button"
                       class="text-link"
-                      [disabled]="locked()"
+                      [disabledInteractive]="locked()"
                       (click)="
-                        structureChanged.emit({ kind: 'remove-option', index: i, option: j })
+                        edit(
+                          { kind: 'remove-option', index: i, option: j },
+                          'question-' + i + '-add-option'
+                        )
                       "
                     >
                       מחיקת אפשרות {{ j + 1 }}
@@ -241,7 +244,10 @@
                   <button
                     type="button"
                     class="text-link"
-                    [disabled]="locked() || value.options.length >= limits.maxChoiceCount"
+                    [id]="'question-' + i + '-add-option'"
+                    [disabledInteractive]="
+                      locked() || value.options.length >= limits.maxChoiceCount
+                    "
                     (click)="structureChanged.emit({ kind: 'add-option', index: i })"
                   >
                     הוספת אפשרות
@@ -252,24 +258,28 @@
                 <button
                   type="button"
                   class="text-link"
-                  [disabled]="locked() || i === 0"
-                  (click)="structureChanged.emit({ kind: 'move-up', index: i })"
+                  [id]="'question-' + i + '-move-up'"
+                  [disabledInteractive]="locked() || i === 0"
+                  (click)="edit({ kind: 'move-up', index: i }, 'question-' + (i - 1) + '-move-up')"
                 >
                   הזזת שאלה {{ i + 1 }} למעלה
                 </button>
                 <button
                   type="button"
                   class="text-link"
-                  [disabled]="locked() || i === count - 1"
-                  (click)="structureChanged.emit({ kind: 'move-down', index: i })"
+                  [id]="'question-' + i + '-move-down'"
+                  [disabledInteractive]="locked() || i === count - 1"
+                  (click)="
+                    edit({ kind: 'move-down', index: i }, 'question-' + (i + 1) + '-move-down')
+                  "
                 >
                   הזזת שאלה {{ i + 1 }} למטה
                 </button>
                 <button
                   type="button"
                   class="text-link text-link-danger"
-                  [disabled]="locked()"
-                  (click)="structureChanged.emit({ kind: 'remove-question', index: i })"
+                  [disabledInteractive]="locked()"
+                  (click)="edit({ kind: 'remove-question', index: i }, questionSuccessor(i, count))"
                 >
                   מחיקת שאלה {{ i + 1 }}
                 </button>
@@ -284,7 +294,7 @@
     id="add-question"
     type="button"
     class="button button-secondary w-fit"
-    [disabled]="locked() || count >= limits.maxQuestionCount"
+    [disabledInteractive]="locked() || count >= limits.maxQuestionCount"
     (click)="structureChanged.emit({ kind: 'add-question' })"
   >
     הוספת שאלה ידנית

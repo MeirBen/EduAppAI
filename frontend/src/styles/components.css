@@ -6,35 +6,35 @@
 @layer components {
   /* Actions. `.button` is primary; add one variant for the other kinds. */
   .button {
-    @apply inline-flex min-h-12 items-center justify-center gap-2 rounded-button border border-transparent bg-brand px-gutter py-3 text-center font-medium text-on-brand no-underline shadow-button transition-[background-color,border-color,color,box-shadow,translate,scale] not-disabled:hover:bg-brand-hover not-disabled:hover:shadow-button-raised motion-safe:not-disabled:hover:-translate-y-0.5 motion-safe:not-disabled:active:translate-y-0 motion-safe:not-disabled:active:scale-98;
+    @apply inline-flex min-h-12 items-center justify-center gap-2 rounded-button border border-transparent bg-brand px-gutter py-3 text-center font-medium text-on-brand no-underline shadow-button transition-[background-color,border-color,color,box-shadow,translate,scale] actionable:hover:bg-brand-hover actionable:hover:shadow-button-raised motion-safe:actionable:hover:-translate-y-0.5 motion-safe:actionable:active:translate-y-0 motion-safe:actionable:active:scale-98;
     line-height: 1.5;
   }
   .button-secondary {
-    @apply border-line bg-surface text-brand shadow-control not-disabled:hover:border-brand/30 not-disabled:hover:bg-soft not-disabled:hover:shadow-panel;
+    @apply border-line bg-surface text-brand shadow-control actionable:hover:border-brand/30 actionable:hover:bg-soft actionable:hover:shadow-panel;
   }
   /* Destructive actions stay quiet; the confirmation step guards the request itself. */
   .button-danger {
-    @apply border-line bg-surface text-danger shadow-control not-disabled:hover:border-danger/40 not-disabled:hover:bg-danger-soft not-disabled:hover:shadow-panel;
+    @apply border-line bg-surface text-danger shadow-control actionable:hover:border-danger/40 actionable:hover:bg-danger-soft actionable:hover:shadow-panel;
   }
   .text-link {
-    @apply inline-flex min-h-11 items-center gap-2 rounded-small py-2 font-medium text-brand underline decoration-transparent decoration-2 transition-[color,text-decoration-color] not-disabled:hover:decoration-current;
+    @apply inline-flex min-h-11 items-center gap-2 rounded-small py-2 font-medium text-brand underline decoration-transparent decoration-2 transition-[color,text-decoration-color] actionable:hover:decoration-current;
   }
   .text-link-danger {
-    @apply text-muted not-disabled:hover:text-danger;
+    @apply text-muted actionable:hover:text-danger;
   }
   .nav-link {
-    @apply inline-flex min-h-11 items-center rounded-button px-4 py-2 font-medium text-brand transition-colors not-disabled:hover:bg-soft aria-[current=page]:bg-soft;
+    @apply inline-flex min-h-11 items-center rounded-button px-4 py-2 font-medium text-brand transition-colors actionable:hover:bg-soft aria-[current=page]:bg-soft;
   }
   /* A round icon-only action; it needs an aria-label. */
   .icon-button {
-    @apply grid size-11 shrink-0 place-items-center rounded-full bg-brand text-on-brand shadow-button transition-[background-color,box-shadow] not-disabled:hover:bg-brand-hover not-disabled:hover:shadow-button-raised;
+    @apply grid size-11 shrink-0 place-items-center rounded-full bg-brand text-on-brand shadow-button transition-[background-color,box-shadow] actionable:hover:bg-brand-hover actionable:hover:shadow-button-raised;
   }
   .icon-button-ink {
-    @apply bg-ink text-surface not-disabled:hover:bg-ink;
+    @apply bg-ink text-surface actionable:hover:bg-ink;
   }
   /* A suggestion that only fills a field; it never submits on its own. */
   .chip {
-    @apply inline-flex min-h-11 items-center gap-2 rounded-full border border-line bg-surface px-4 py-2 text-start text-sm text-balance text-ink shadow-control transition-colors not-disabled:hover:border-brand/30 not-disabled:hover:bg-soft;
+    @apply inline-flex min-h-11 items-center gap-2 rounded-full border border-line bg-surface px-4 py-2 text-start text-sm text-balance text-ink shadow-control transition-colors actionable:hover:border-brand/30 actionable:hover:bg-soft;
   }
 
   /* Surfaces. */

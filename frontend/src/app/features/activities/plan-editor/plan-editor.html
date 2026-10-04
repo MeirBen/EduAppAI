@@ -56,8 +56,8 @@
         <button
           type="button"
           class="text-link text-link-danger w-fit"
-          [disabled]="locked()"
-          (click)="structureChanged.emit({ kind: 'remove-material', id: material.id })"
+          [disabledInteractive]="locked()"
+          (click)="removeMaterial(material.id)"
         >
           הסרת הטקסט <bdi>{{ material.label }}</bdi>
         </button>
@@ -67,7 +67,7 @@
       id="add-material"
       type="button"
       class="button button-secondary w-fit"
-      [disabled]="locked() || f.materials().value().length >= limits.maxMaterials"
+      [disabledInteractive]="locked() || f.materials().value().length >= limits.maxMaterials"
       (click)="structureChanged.emit({ kind: 'add-material' })"
     >
       הוספת טקסט
