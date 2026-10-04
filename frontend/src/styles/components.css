@@ -16,7 +16,7 @@
   }
   /* Destructive actions stay quiet; the confirmation step guards the request itself. */
   .button-danger {
-    @apply border-line bg-surface text-danger shadow-control actionable:hover:border-danger/40 actionable:hover:bg-danger-soft actionable:hover:shadow-panel;
+    @apply border-line bg-surface text-danger shadow-control actionable:hover:border-danger/30 actionable:hover:bg-danger-soft actionable:hover:shadow-panel;
   }
   .text-link {
     @apply inline-flex min-h-11 w-fit items-center gap-2 rounded-small py-2 font-medium text-brand underline decoration-transparent decoration-2 transition-[color,text-decoration-color] actionable:hover:decoration-current;
@@ -146,7 +146,7 @@
     @apply rounded-inset px-4 py-3;
   }
   .bubble-own {
-    @apply max-w-[85%] justify-self-end rounded-ee-small bg-soft ring-1 ring-brand/10 ring-inset;
+    @apply max-w-[85%] justify-self-end rounded-ee-small bg-soft ring-1 ring-brand/15 ring-inset;
   }
   .bubble-reply {
     @apply rounded-ss-small border border-line bg-surface shadow-control;

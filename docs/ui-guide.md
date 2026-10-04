@@ -118,10 +118,13 @@ below half the row. Optional content renders only when present.
   drawn for right-to-left reading where they point.
 
 Primitives read only tokens; templates add layout utilities and token colors
-such as `text-muted`. A visual treatment used in more than one place becomes a
-primitive, and primitives take state from attributes (`aria-current`,
-`data-done`, `data-problem`) rather than alternative class lists. A
-component's own stylesheet uses theme variables only. Give `steps` and
+such as `text-muted`. Color tints have one role each: `/15` for brand
+hairlines and focus halos, `/25` for the error edge and `/30` for hover edges.
+A visual treatment used in
+more than one place becomes a primitive, and primitives take state from
+attributes (`aria-current`, `data-done`, `data-problem`) rather than
+alternative class lists. A component's own stylesheet uses theme variables
+only. Give `steps` and
 `progress-steps` lists `role="list"` so WebKit keeps list semantics.
 
 A theme redefines only `--color-*` tokens and, optionally, the corner roles

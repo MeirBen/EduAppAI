@@ -47,9 +47,9 @@
   content: '';
   position: absolute;
   inset: 0;
-  border: 0.125rem solid color-mix(in srgb, currentColor 15%, transparent);
+  border: 0.125rem solid color-mix(in oklab, currentColor 15%, transparent);
   border-block-start-color: currentColor;
-  border-inline-end-color: color-mix(in srgb, currentColor 55%, transparent);
+  border-inline-end-color: color-mix(in oklab, currentColor 55%, transparent);
   border-radius: 50%;
   animation: loader-orbit var(--loader-duration, 1.6s) linear infinite;
 }

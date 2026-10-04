@@ -27,7 +27,6 @@
   --color-on-brand: oklch(100% 0 0);
   --color-danger: oklch(45.52% 0.1371 24.38);
   --color-danger-soft: oklch(97.27% 0.0136 34.3);
-  --color-on-danger: oklch(100% 0 0);
   --color-focus: oklch(53.42% 0.086 170.75);
   /* Elevation and modal backdrop tint; keep it dark in every theme. */
   --color-shadow: oklch(33.82% 0.0381 174.27);
@@ -106,7 +105,6 @@
       --color-on-brand: oklch(20% 0.03 172);
       --color-danger: oklch(75% 0.13 25);
       --color-danger-soft: oklch(26% 0.045 25);
-      --color-on-danger: oklch(20% 0.04 25);
       --color-focus: oklch(76% 0.11 168);
       --color-shadow: oklch(0% 0 0);
     }
