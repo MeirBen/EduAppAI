@@ -42,6 +42,8 @@ interface StatusView {
 })
 export class GenerationStatus {
   readonly operation = input.required<GenerationOperation>();
+  /** Shown inside the card of the material or question it changes, under that card's heading. */
+  readonly inCard = input(false);
   readonly locked = input(false);
   /** Whether AI is configured; a retry is offered only when it could start. */
   readonly configured = input(false);

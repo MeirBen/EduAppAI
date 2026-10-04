@@ -157,15 +157,8 @@
         }
       </section>
     }
-    @if (operation(); as current) {
-      <app-generation-status
-        [operation]="current"
-        [locked]="locked()"
-        [configured]="aiConfigured()"
-        (cancelled)="cancelGeneration()"
-        (retried)="activityAction($event)"
-        (checked)="reloadActivity()"
-      />
+    @if (!operationTarget()) {
+      <ng-container [ngTemplateOutlet]="operationStatus" />
     }
     @if (available(); as result) {
       <section class="panel grid gap-4" aria-labelledby="available-title">
@@ -197,7 +190,8 @@
         [empty]="!hasContent()"
         [staleMaterials]="stale().materials"
         [staleQuestions]="stale().questions"
-        [activeTarget]="activeTarget()"
+        [status]="operationStatus"
+        [statusTarget]="operationTarget()"
         (edited)="edited($event)"
         (structureChanged)="editDocument($event)"
         (replaced)="activityAction($event.kind, $event)"
@@ -401,6 +395,20 @@
   />
   @if (authorError()) {
     <p role="alert" class="field-error">{{ authorError() }}</p>
+  }
+</ng-template>
+
+<ng-template #operationStatus let-inCard="inCard">
+  @if (operation(); as current) {
+    <app-generation-status
+      [operation]="current"
+      [inCard]="!!inCard"
+      [locked]="locked()"
+      [configured]="aiConfigured()"
+      (cancelled)="cancelGeneration()"
+      (retried)="activityAction($event)"
+      (checked)="reloadActivity()"
+    />
   }
 </ng-template>
 

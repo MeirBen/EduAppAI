@@ -743,6 +743,34 @@ describe('Activity lifecycle', () => {
     await settle();
     expect(root().querySelector<HTMLTextAreaElement>('#question-0-prompt')!.value).toBe('שאלה');
   });
+  it('shows a single-item improvement in its own card instead of above the content', async () => {
+    await open(true, {
+      ...savedActivity,
+      document: {
+        ...savedActivity.document,
+        questions: [savedQuestion, { ...savedQuestion, id: 'q2', prompt: 'שנייה' }],
+      },
+    });
+    await click('question-1-improve');
+    await click('question-1-improve-submit');
+    http.expectOne('/api/activity-drafts/draft/operations').flush({
+      id: 'op',
+      draftId: 'draft',
+      kind: 'ReplaceQuestion',
+      status: 'calling',
+      stage: 'replace-question',
+      originalRevision: 1,
+      expectedRevision: 1,
+      failure: null,
+      diagnosticsExpired: false,
+      steps: [],
+      artifacts: { targetId: 'q2', steps: [] },
+    });
+    await settle();
+    const cancel = root().querySelector('#cancel-generation')!;
+    expect(cancel.closest('li')!.querySelector('h3')!.textContent).toBe('שאלה 2');
+    expect(root().querySelector('#operation-heading')).toBeNull();
+  });
   it('offers adoption only beside content the saved diagnostics mark as stale', async () => {
     await open(true, {
       ...savedActivity,

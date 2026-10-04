@@ -1,10 +1,17 @@
 @let current = view();
-<section class="panel grid gap-4" aria-labelledby="operation-heading">
-  <h2 id="operation-heading" class="sr-only">מצב היצירה</h2>
+<section
+  class="grid gap-4"
+  [class]="inCard() ? 'border-t border-line pt-4' : 'panel'"
+  [attr.aria-labelledby]="inCard() ? null : 'operation-heading'"
+  [attr.aria-label]="inCard() ? current.title : null"
+>
+  @if (!inCard()) {
+    <h2 id="operation-heading" class="sr-only">מצב היצירה</h2>
+  }
   <div>
     <app-loading-indicator
       [active]="active()"
-      variant="panel"
+      [variant]="inCard() ? 'inline' : 'panel'"
       [label]="current.title"
       [detail]="current.details[0] ?? ''"
     />

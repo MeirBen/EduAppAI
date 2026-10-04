@@ -43,9 +43,6 @@
             </button>
           </div>
         }
-        @if (activeTarget() === id) {
-          <p class="text-sm text-muted">כותבים גרסה חדשה לטקסט…</p>
-        }
         <div>
           <label [for]="'material-' + i + '-title'">כותרת</label
           ><input [id]="'material-' + i + '-title'" dir="auto" [formField]="material.title" />
@@ -70,6 +67,12 @@
             replaced.emit({ kind: 'ReplaceMaterial', targetId: id, instruction: $event })
           "
         />
+        @if (statusTarget() === id) {
+          <ng-container
+            [ngTemplateOutlet]="status()"
+            [ngTemplateOutletContext]="{ inCard: true }"
+          />
+        }
       } @else {
         <p dir="auto" class="whitespace-pre-wrap">{{ material.body().value() }}</p>
         <p class="text-sm text-muted">הטקסט שלכם נשמר בדיוק כפי שהוזן.</p>
@@ -116,9 +119,6 @@
                 בדקתי, אפשר להשתמש בגרסה הזו<span class="sr-only"> — שאלה {{ i + 1 }}</span>
               </button>
             </div>
-          }
-          @if (id && activeTarget() === id) {
-            <p class="text-sm text-muted">מכינים גרסה חדשה לשאלה…</p>
           }
           <div>
             <label [for]="'question-' + i + '-prompt'">נוסח השאלה</label
@@ -189,6 +189,12 @@
               (requested)="
                 replaced.emit({ kind: 'ReplaceQuestion', targetId: id, instruction: $event })
               "
+            />
+          }
+          @if (statusTarget() === id) {
+            <ng-container
+              [ngTemplateOutlet]="status()"
+              [ngTemplateOutletContext]="{ inCard: true }"
             />
           }
           <details class="group">

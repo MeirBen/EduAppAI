@@ -294,9 +294,12 @@ export class ActivityWorkspace {
   protected readonly operationActive = computed(
     () => !!this.operationId() && (!this.operation() || isRunning(this.operation()!)),
   );
-  /** Running scoped replacement, shown inside the affected card. */
-  protected readonly activeTarget = computed(() =>
-    this.operationActive() ? (this.operation()?.artifacts?.targetId ?? null) : null,
+  /**
+   * The material or question a scoped operation changes; its status shows in that card. Without a
+   * known target, such as after diagnostics expire, the status shows above the content.
+   */
+  protected readonly operationTarget = computed(
+    () => this.operation()?.artifacts?.targetId ?? null,
   );
   protected readonly editableCandidates = computed(() => {
     const plan = this.projection().value,

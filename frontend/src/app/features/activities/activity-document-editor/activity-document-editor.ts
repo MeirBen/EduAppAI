@@ -1,4 +1,12 @@
-import { ChangeDetectionStrategy, Component, inject, input, output } from '@angular/core';
+import { NgTemplateOutlet } from '@angular/common';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  inject,
+  input,
+  output,
+  TemplateRef,
+} from '@angular/core';
 import { FieldTree, FormField } from '@angular/forms/signals';
 import { PlanMaterial } from '../../../core/api/models';
 import { Limits } from '../../../core/api/limits';
@@ -24,7 +32,7 @@ const questionIdeas = [
 /** Presentation only: edits the owner's native fields and emits explicit scoped actions. */
 @Component({
   selector: 'app-activity-document-editor',
-  imports: [DisabledInteractive, FormField, FieldDirection, ScopedRepair],
+  imports: [DisabledInteractive, FormField, FieldDirection, NgTemplateOutlet, ScopedRepair],
   templateUrl: './activity-document-editor.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { '(input)': 'onEdit($event)', '(change)': 'onEdit($event)' },
@@ -47,8 +55,9 @@ export class ActivityDocumentEditor {
    */
   readonly staleMaterials = input<ReadonlySet<string>>(new Set());
   readonly staleQuestions = input<ReadonlySet<string>>(new Set());
-  /** Target of the running scoped operation, if any. */
-  readonly activeTarget = input<string | null>(null);
+  /** The owner's operation status, rendered in the card of the material or question it changes. */
+  readonly status = input<TemplateRef<{ inCard: boolean }> | null>(null);
+  readonly statusTarget = input<string | null>(null);
   readonly edited = output<{ key: string }>();
   readonly structureChanged = output<DocumentEdit>();
   readonly replaced = output<{

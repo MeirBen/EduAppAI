@@ -156,7 +156,8 @@ ready; template editing makes publication primary. Uncommon actions live under
 **פעולות נוספות** or a quiet disclosure. Question cards keep prompt, options and
 the parent-only answer visible; type, points, ordering and deletion sit in a
 per-question disclosure. Scoped AI improvement is a contextual action with an
-optional instruction.
+optional instruction; its progress, result and any error show in that card,
+while full generation reports above the content.
 
 Show source confirmation for AI-extracted text only while it is pending and
 preserve its exact content. Keep invalid keystrokes visible for correction. A
