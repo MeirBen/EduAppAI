@@ -69,6 +69,7 @@ internal static class AiPrompts
         Create objectively checkable questions covering distinct aspects of the learning goal; preserve deliberate repeated practice.
         Each source-based answer must follow from the accepted material, not merely share a word with it.
         Put answers only in answer.value, never learner directions or prompts. Numeric answers are invariant decimal strings without units.
+        Write an expression of numbers joined by symbols, such as a calculation, as a whole prompt, option or answer, never inside a sentence, so the app can show it left to right; plain numbers in sentences are fine.
         For single-choice, use exactly one correct option, copy it exactly into answer.value and give plausible, clearly incorrect distractors.
         Keep options distinct and parallel; avoid answer clues. Vary correct positions unless order is meaningful or prescribed.
         Check the answer key against the completed content. Never return reasoning, source dependency claims or application metadata.

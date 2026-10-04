@@ -62,6 +62,27 @@ describe('ActivityDocumentEditor native fields', () => {
     for (const input of root.querySelectorAll<HTMLInputElement>('input,textarea,select'))
       expect(root.querySelector(`label[for="${input.id}"]`)).not.toBeNull();
   });
+
+  it('isolates learner values in answer choices so a calculation keeps its own order', async () => {
+    const fixture = TestBed.createComponent(Host);
+    fixture.componentInstance.raw.update((raw) => ({
+      ...raw,
+      questions: raw.questions.map((q) => ({
+        ...q,
+        options: [{ value: '58 - 23' }, { value: '-35' }],
+        answer: '-7',
+      })),
+    }));
+    await fixture.whenStable();
+    const answer = (fixture.nativeElement as HTMLElement).querySelector('#question-0-answer')!;
+    // <option> cannot hold <bdi>, so first-strong isolates (FSI…PDI) carry the same contract.
+    expect(Array.from(answer.querySelectorAll('option'), (o) => o.textContent?.trim())).toEqual([
+      'בחרו את התשובה הנכונה',
+      '⁨-7⁩ — אינה תואמת לאף אפשרות',
+      '1. ⁨58 - 23⁩',
+      '2. ⁨-35⁩',
+    ]);
+  });
 });
 
 const choiceQuestion = (id: string) => ({

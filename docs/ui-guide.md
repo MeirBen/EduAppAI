@@ -92,8 +92,12 @@ device changes live. The brand `theme-color` suits both themes.
 
 Set `lang="he"`, `dir="rtl"` and Angular's `he-IL` locale; keep the manifest
 aligned. Use logical spacing (`ms`, `me`, `ps`, `pe`, `inset-s`, `inset-e`) and
-normal DOM order. Use `dir="auto"` for learning text and `<bdi>` for inline user
-values; isolate email and numeric inputs as LTR. Bind text fields' `dir` with
+normal DOM order. Use `dir="auto"` for learning-text blocks such as titles,
+instructions and materials. Wrap inline user values and question prompts,
+options and answers in `<bdi>`, so their own direction never moves them out of
+the page's alignment or reorders a calculation. `<option>` text cannot hold
+markup, so wrap its user values in first-strong isolates (`&#x2068;…&#x2069;`).
+Isolate email and numeric inputs as LTR. Bind text fields' `dir` with
 `[formField]`: `FieldDirection` keeps an empty `auto` field in the page
 direction, so the caret and placeholder start on the page's side. Back arrows
 point right, and decorative gradients start at the reading edge. Dates display

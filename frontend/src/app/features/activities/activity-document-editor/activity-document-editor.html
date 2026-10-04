@@ -176,11 +176,15 @@
               >
                 <option value="">בחרו את התשובה הנכונה</option>
                 @if (value.answer && !matches(value)) {
-                  <option [value]="value.answer">{{ value.answer }} — אינה תואמת לאף אפשרות</option>
+                  <option [value]="value.answer">
+                    &#x2068;{{ value.answer }}&#x2069; — אינה תואמת לאף אפשרות
+                  </option>
                 }
                 @for (option of value.options; track $index; let j = $index) {
                   @if (option.value) {
-                    <option [value]="option.value">{{ j + 1 }}. {{ option.value }}</option>
+                    <option [value]="option.value">
+                      {{ j + 1 }}. &#x2068;{{ option.value }}&#x2069;
+                    </option>
                   }
                 }
               </select>
