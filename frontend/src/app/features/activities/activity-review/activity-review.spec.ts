@@ -43,11 +43,11 @@ describe('ActivityReview', () => {
       ),
     });
     const [advisory, strict] = Array.from(root.querySelectorAll('li'));
-    expect(advisory.textContent).toContain('אורך מבוקש: בערך 300 מילים');
-    expect(advisory.textContent).toContain('בפועל: 284 מילים');
+    expect(advisory.textContent).toContain('284 מילים');
+    expect(advisory.textContent).toContain('מבוקש: בערך 300 מילים');
     expect(advisory.textContent).not.toContain('לפני סימון כמוכנה');
-    expect(strict.textContent).toContain('אורך נדרש: 100–150 מילים');
-    expect(strict.textContent).toContain('בפועל: 82 מילים');
+    expect(strict.textContent).toContain('82 מילים');
+    expect(strict.textContent).toContain('נדרש: 100–150 מילים');
     expect(strict.textContent).toContain('לפני סימון כמוכנה');
   });
 

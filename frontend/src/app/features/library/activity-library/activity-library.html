@@ -208,10 +208,20 @@
   <section class="grid gap-4 border-t border-line pt-6" aria-labelledby="data-title">
     <div class="grid gap-1">
       <h2 id="data-title" class="text-base">ניהול נתונים</h2>
-      <p class="text-sm text-muted">
-        מוצגים עד {{ limits.listLimit }} הפריטים האחרונים בכל רשימה. מחיקת תבנית אינה מוחקת פעילויות
-        שנוצרו ממנה. איפוס מוחק את כל התבניות, הטיוטות והפעילויות המוכנות, ושומר את החשבון.
-      </p>
+      <ul role="list" class="grid gap-1">
+        <li class="note">
+          <span class="icon icon-info" aria-hidden="true"></span>מוצגים עד
+          {{ limits.listLimit }} הפריטים האחרונים בכל רשימה.
+        </li>
+        <li class="note">
+          <span class="icon icon-template" aria-hidden="true"></span>מחיקת תבנית אינה מוחקת פעילויות
+          שנוצרו ממנה.
+        </li>
+        <li class="note">
+          <span class="icon icon-alert" aria-hidden="true"></span>איפוס מוחק את כל התבניות, הטיוטות
+          והפעילויות המוכנות, ושומר את החשבון.
+        </li>
+      </ul>
     </div>
     <button
       type="button"

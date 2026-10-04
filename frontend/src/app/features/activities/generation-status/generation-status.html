@@ -43,7 +43,10 @@
       >
         <span class="icon icon-close" aria-hidden="true"></span>ביטול
       </button>
-      <p class="text-sm text-muted">בקשה שכבר נשלחה עשויה להסתיים ולהיות מחויבת גם אחרי ביטול.</p>
+      <p class="note">
+        <span class="icon icon-info" aria-hidden="true"></span>בקשה שכבר נשלחה עשויה להסתיים ולהיות
+        מחויבת גם אחרי ביטול.
+      </p>
     </div>
   }
   @if (!active() && configured() && current.retry; as retry) {
@@ -57,7 +60,9 @@
       >
         <span class="icon icon-refresh" aria-hidden="true"></span>{{ retry.label }}
       </button>
-      <p class="text-sm text-muted">ניסיון נוסף שולח בקשה חדשה לשירות ה־AI.</p>
+      <p class="note">
+        <span class="icon icon-ai" aria-hidden="true"></span>ניסיון נוסף שולח בקשה חדשה לשירות ה־AI.
+      </p>
     </div>
   }
   @if (!active() && current.checkSaved) {
@@ -73,21 +78,29 @@
   }
   <details>
     <summary>פרטים טכניים</summary>
-    <div class="grid gap-4 text-sm">
+    <div class="grid gap-4">
       <ol role="list" class="grid gap-1">
         @for (step of operation().steps; track $index) {
-          <li>
-            {{ stageNames[step.stage] || 'יצירת תוכן' }}: {{ outcomes[step.outcome] || 'לא הוחל' }}.
-            עלות מדווחת: {{ step.usage?.costCredits ?? 'לא ידועה' }}
+          @let outcome = outcomes[step.outcome];
+          <li class="note">
+            <span class="icon" [class]="outcome?.icon ?? 'icon-info'" aria-hidden="true"></span
+            >{{ stageNames[step.stage] || 'יצירת תוכן' }} · {{ outcome?.label ?? 'לא הוחל' }} · עלות
+            מדווחת: {{ step.usage?.costCredits ?? 'לא ידועה' }}
           </li>
         }
       </ol>
       @if (operation().diagnosticsExpired) {
-        <p>פג תוקף פרטי האבחון. התוכן השמור וסיכום הפעולה נשמרו.</p>
+        <p class="note">
+          <span class="icon icon-info" aria-hidden="true"></span>פג תוקף פרטי האבחון. התוכן השמור
+          וסיכום הפעולה נשמרו.
+        </p>
       }
       @for (step of operation().artifacts?.steps; track $index) {
         @for (message of messages(step.diagnostics); track $index) {
-          <p>{{ stageNames[step.stage] || 'יצירת תוכן' }}: {{ message }}</p>
+          <p class="note">
+            <span class="icon icon-alert" aria-hidden="true"></span
+            >{{ stageNames[step.stage] || 'יצירת תוכן' }}: {{ message }}
+          </p>
         }
         @if (candidateText(step.candidate, step.call?.output); as text) {
           <details class="well">
@@ -95,8 +108,14 @@
               תשובת השירות לאבחון — {{ stageNames[step.stage] || 'יצירת תוכן' }}, לא תוכן שאושר
             </summary>
             <div class="grid gap-4">
-              <pre dir="auto" class="whitespace-pre-wrap wrap-break-word">{{ text }}</pre>
-              <p>התשובה לא הועתקה לפעילות. תיקון ידני ייבדק בשמירת הטיוטה.</p>
+              <div class="flex items-center justify-between gap-3">
+                <p class="note">
+                  <span class="icon icon-info" aria-hidden="true"></span>התשובה לא נכנסה לפעילות.
+                  תיקון ידני ייבדק בשמירת הטיוטה.
+                </p>
+                <app-copy-button [text]="text" label="העתקת התשובה" />
+              </div>
+              <pre dir="auto" class="text-sm whitespace-pre-wrap wrap-break-word">{{ text }}</pre>
             </div>
           </details>
         }

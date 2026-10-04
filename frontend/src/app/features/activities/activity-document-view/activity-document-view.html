@@ -6,9 +6,12 @@
 }
 @for (material of document().materials; track material.id) {
   <section class="well grid gap-1">
-    @if (material.title) {
-      <h3 dir="auto">{{ material.title }}</h3>
-    }
+    <div class="flex items-center justify-between gap-3">
+      @if (material.title) {
+        <h3 dir="auto">{{ material.title }}</h3>
+      }
+      <app-copy-button class="ms-auto" [text]="material.body" label="העתקת הטקסט" />
+    </div>
     <p dir="auto" class="whitespace-pre-wrap">{{ material.body }}</p>
   </section>
 }

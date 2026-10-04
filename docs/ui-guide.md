@@ -8,8 +8,9 @@ parent labels keep their original language and values.
 
 - Use native HTML, document scrolling and accessible controls. The header stays
   visible on screens at least 64rem wide and 40rem tall; let it scroll away on
-  smaller screens. Reserve scroll padding for focus targets and include the
-  skip link.
+  smaller screens. On phones it keeps one row: nav links show only their icons,
+  and the signed-in brand only its mark. Reserve scroll padding for focus
+  targets and include the skip link.
 - Route changes never move the layout: the root keeps a stable scrollbar
   gutter, the footer rests at the window's bottom on short pages, new pages
   open at the top and Back restores the previous position.
@@ -101,9 +102,11 @@ sits beside its item. Optional content renders only when present.
   (`panel`, `well`, `card-section`, `action-bar`, `list-row` with its
   `row-link`, `empty-state`), conversation (`bubble`, `composer`), marks
   (`badge`, `icon-tile`, `status-icon`, `ai-mark`), lists (`steps`,
-  `progress-steps`) and feedback (`error`, `field-error`, `callout`). Use
-  `error` for a failure that replaces a page's content and `field-error` beside
-  the field, card or action that failed.
+  `progress-steps`) and feedback (`note`, `error`, `field-error`, `callout`).
+  Use `note`, with one icon, for a short fact about how the app behaves, such as
+  kept text, costs or limits; help on what to enter stays plain text under its
+  field. Use `error` for a failure that replaces a page's content and
+  `field-error` beside the field, card or action that failed.
 - `icons.css` holds the icon set: masks painted with the current text color,
   drawn for right-to-left reading where they point.
 
@@ -215,7 +218,9 @@ Display server length measurements beside saved diagnostics. Distinguish
 advisory targets from strict range blockers, and technical readiness from
 the parent's educational review. Offer adoption only in a callout beside content
 that saved diagnostics mark as stale. Frozen previews expose answers in native
-disclosures and offer an explicit copy to a new draft.
+disclosures and offer an explicit copy to a new draft. A read-only box whose
+text a parent may reuse, such as an AI response or a material text, carries a
+`CopyButton`; editable fields copy natively.
 
 ## Loading
 

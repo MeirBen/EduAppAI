@@ -218,16 +218,12 @@
                   material.id + '-source-help ' + material.id + '-source-errors'
                 "
               ></textarea>
-              @if (pendingSources().includes(material.id)) {
-                <div [id]="material.id + '-source-help'" class="mt-2 grid gap-1">
+              <div [id]="material.id + '-source-help'" class="mt-2 grid gap-1">
+                @if (pendingSources().includes(material.id)) {
                   <p class="font-medium" role="status">בדקו שהטקסט הועתק נכון לפני שממשיכים.</p>
-                  <p class="text-sm text-muted">הטקסט יישמר בדיוק כפי שהוזן.</p>
-                </div>
-              } @else {
-                <p [id]="material.id + '-source-help'" class="mt-2 text-sm text-muted">
-                  הטקסט יישמר בדיוק כפי שהוזן.
-                </p>
-              }
+                }
+                <p class="text-sm text-muted">הטקסט יישמר בדיוק כפי שהוזן.</p>
+              </div>
               <app-field-errors [id]="material.id + '-source-errors'" [field]="m.text" />
             </div>
             @if (pendingSources().includes(material.id)) {

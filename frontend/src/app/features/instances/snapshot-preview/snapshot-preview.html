@@ -19,19 +19,16 @@
     </div>
   } @else if (snapshot.hasValue()) {
     <div class="grid gap-1">
-      <p>
-        עותק קבוע שנבדק ב־<bdi>{{ snapshot.value().reviewedAtUtc | date }}</bdi
-        >. עריכה תיצור טיוטה חדשה.
+      <p class="note">
+        <span class="icon icon-check" aria-hidden="true"></span>נבדקה ב־<bdi>{{
+          snapshot.value().reviewedAtUtc | date
+        }}</bdi>
       </p>
-      @if (snapshot.value().measurements.length) {
-        <ul aria-label="מדידות אורך">
-          @for (
-            measurement of measurementText(snapshot.value().measurements, snapshot.value().plan);
-            track $index
-          ) {
-            <li>{{ measurement }}</li>
-          }
-        </ul>
+      <p class="note">
+        <span class="icon icon-lock" aria-hidden="true"></span>עותק קבוע. עריכה יוצרת טיוטה חדשה.
+      </p>
+      @if (measurements().length) {
+        <app-measurement-list [items]="measurements()" />
       }
     </div>
     <div class="panel"><app-activity-document-view [document]="snapshot.value().document" /></div>
@@ -46,8 +43,9 @@
           <a class="button" [routerLink]="['/activities', copiedId()]"
             ><span class="icon icon-edit" aria-hidden="true"></span>פתיחת הטיוטה החדשה</a
           >
-          <p role="status" class="text-sm text-muted">
-            נוצר עותק לעריכה. הפעילות המוכנה נשארה ללא שינוי.
+          <p role="status" class="note">
+            <span class="icon icon-check" aria-hidden="true"></span>נוצר עותק לעריכה. הפעילות המוכנה
+            נשארה ללא שינוי.
           </p>
         </div>
       } @else {

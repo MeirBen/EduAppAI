@@ -1,10 +1,11 @@
 import { LearningPlan, LengthMeasurement, ResolvedLength } from '../../../core/api/models';
 
-/** Parent wording for one saved measurement; advisory targets never read as failures. */
+/** One saved measurement in parent terms; advisory targets never read as failures. */
 export interface MeasurementItem {
   label: string;
+  /** Words in the saved text, as the server counted them. */
+  actual: number;
   requirement: string;
-  actual: string;
   state: 'advisory' | 'met' | 'blocking';
 }
 
@@ -29,19 +30,8 @@ export function measurementItems(
       measurement.scope === 'total'
         ? 'כל הטקסטים יחד'
         : (plan?.materials.find((m) => m.id === measurement.scope)?.label ?? 'טקסט'),
-    requirement:
-      (measurement.satisfied === null ? 'אורך מבוקש: ' : 'אורך נדרש: ') +
-      lengthText(measurement.expected),
-    actual: `בפועל: ${measurement.actual} מילים`,
+    actual: measurement.actual,
+    requirement: lengthText(measurement.expected),
     state: measurement.satisfied === null ? 'advisory' : measurement.satisfied ? 'met' : 'blocking',
   }));
-}
-
-/** One line per measurement for frozen previews, flagging requirements that block release. */
-export function measurementText(measurements: LengthMeasurement[], plan?: LearningPlan): string[] {
-  return measurementItems(measurements, plan).map(
-    (item) =>
-      `${item.label}: ${item.requirement} · ${item.actual}` +
-      (item.state === 'blocking' ? ' · יש לתקן לפני סימון כמוכנה' : ''),
-  );
 }

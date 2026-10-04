@@ -25,8 +25,13 @@
   .text-link-danger {
     @apply text-muted actionable:hover:text-danger;
   }
+  /* On phones a nav link keeps only its icon; its label stays the accessible name. */
   .nav-link {
-    @apply inline-flex min-h-11 items-center gap-2 rounded-button px-4 py-2 font-medium text-brand transition-colors actionable:hover:bg-soft aria-[current=page]:bg-soft;
+    @apply inline-flex min-h-11 items-center gap-2 rounded-button px-4 py-2 font-medium text-brand transition-colors actionable:hover:bg-soft aria-[current=page]:bg-soft max-sm:px-3;
+
+    & > :not(.icon) {
+      @apply max-sm:sr-only;
+    }
   }
   /* A round icon-only action, named by its `tooltip`. Quiet ones sit in rows and cards. */
   .icon-button {
@@ -234,6 +239,22 @@
   }
 
   /* Feedback. */
+  /*
+   * A short technical fact in muted text. Its icon hangs beside the first line, so wrapped text and
+   * inline values stay in place; `data-problem` marks a failure.
+   */
+  .note {
+    @apply relative text-sm text-muted;
+    padding-inline-start: 1.75em;
+
+    & > .icon {
+      @apply absolute inset-s-0;
+      inset-block-start: calc((1lh - 1.25em) / 2);
+    }
+    &[data-problem] {
+      @apply text-danger;
+    }
+  }
   .field-error {
     @apply text-sm text-danger;
   }

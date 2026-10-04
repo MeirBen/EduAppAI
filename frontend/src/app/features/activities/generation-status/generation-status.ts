@@ -4,6 +4,7 @@ import { LoadingIndicator } from '../../../shared/loading-indicator/loading-indi
 import { lengthText } from '../activity-document-view/measurements';
 import { isRunning, stageNames } from './operation-state';
 import { DisabledInteractive } from '../../../shared/disabled-interactive';
+import { CopyButton } from '../../../shared/copy-button/copy-button';
 
 type Scope = 'activity' | 'material' | 'question';
 const scopes: Partial<Record<GenerationKind, Scope>> = {
@@ -36,7 +37,7 @@ interface StatusView {
  */
 @Component({
   selector: 'app-generation-status',
-  imports: [DisabledInteractive, LoadingIndicator],
+  imports: [DisabledInteractive, LoadingIndicator, CopyButton],
   templateUrl: './generation-status.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
@@ -58,15 +59,15 @@ export class GenerationStatus {
     'replace-question': 'מכינים גרסה חדשה לשאלה',
   };
   protected readonly stageNames = stageNames;
-  protected readonly outcomes: Record<string, string> = {
-    calling: 'בפנייה לשירות',
-    accepted: 'תוכן התקבל',
-    applied: 'תוכן התקבל',
-    completed: 'הושלם',
-    failed: 'נכשל',
-    conflict: 'לא הוחל בגלל שינוי בטיוטה',
-    cancelled: 'בוטל',
-    unknown: 'תוצאה לא ידועה',
+  protected readonly outcomes: Partial<Record<string, { label: string; icon: string }>> = {
+    calling: { label: 'בפנייה לשירות', icon: 'icon-refresh' },
+    accepted: { label: 'תוכן התקבל', icon: 'icon-check' },
+    applied: { label: 'תוכן התקבל', icon: 'icon-check' },
+    completed: { label: 'הושלם', icon: 'icon-check' },
+    failed: { label: 'נכשל', icon: 'icon-alert' },
+    conflict: { label: 'לא הוחל בגלל שינוי בטיוטה', icon: 'icon-alert' },
+    cancelled: { label: 'בוטל', icon: 'icon-close' },
+    unknown: { label: 'תוצאה לא ידועה', icon: 'icon-alert' },
   };
   protected readonly view = computed((): StatusView => {
     const operation = this.operation();

@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
 import { MeasurementItem } from '../activity-document-view/measurements';
+import { MeasurementList } from '../measurement-list/measurement-list';
 
 /**
  * Readiness of the saved revision in parent language: what still blocks Mark Ready, and the saved
@@ -7,6 +8,7 @@ import { MeasurementItem } from '../activity-document-view/measurements';
  */
 @Component({
   selector: 'app-activity-review',
+  imports: [MeasurementList],
   templateUrl: './activity-review.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'grid gap-4' },

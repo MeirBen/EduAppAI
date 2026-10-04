@@ -8,7 +8,7 @@
   class="border-b border-line/70 bg-surface/85 backdrop-blur-md pinned-header:sticky pinned-header:inset-bs-0 pinned-header:z-20"
 >
   <div
-    class="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-x-6 gap-y-2 px-gutter py-3 sm:px-8"
+    class="group mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-x-4 gap-y-2 px-gutter py-3 sm:px-8"
   >
     <a
       class="flex min-h-11 items-center gap-3 text-lg font-semibold text-brand"
@@ -21,7 +21,7 @@
       >
         <span class="icon icon-book size-6"></span>
       </span>
-      לומדים ביחד
+      <span class="max-sm:group-has-[nav]:hidden">לומדים ביחד</span>
     </a>
     <div class="flex flex-wrap items-center gap-x-4 gap-y-2">
       @if (auth.signedIn()) {
@@ -32,11 +32,11 @@
             routerLinkActive
             [routerLinkActiveOptions]="{ exact: true }"
             ariaCurrentWhenActive="page"
-            ><span class="icon icon-home" aria-hidden="true"></span>המרחב שלנו</a
+            ><span class="icon icon-home" aria-hidden="true"></span><span>המרחב שלנו</span></a
           >
           <button class="nav-link text-muted" (click)="logout()" [disabled]="signingOut()">
             <span class="icon icon-sign-out" aria-hidden="true"></span
-            >{{ signingOut() ? 'מתנתקים…' : 'יציאה' }}
+            ><span>{{ signingOut() ? 'מתנתקים…' : 'יציאה' }}</span>
           </button>
         </nav>
       } @else {

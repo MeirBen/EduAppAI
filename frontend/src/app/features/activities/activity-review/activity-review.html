@@ -7,31 +7,17 @@
       }
     </ul>
     @if (outdated()) {
-      <p class="text-sm text-muted">הבדיקה מתייחסת לגרסה השמורה ומתעדכנת אחרי שמירה.</p>
+      <p class="note">
+        <span class="icon icon-info" aria-hidden="true"></span>הבדיקה מתייחסת לגרסה השמורה ומתעדכנת
+        אחרי שמירה.
+      </p>
     }
   }
 </div>
 @if (measurements().length) {
-  <ul class="grid gap-2" aria-label="אורך הטקסט בגרסה השמורה">
-    @for (item of measurements(); track $index) {
-      <li [class.error]="item.state === 'blocking'">
-        <span class="font-medium"
-          ><bdi>{{ item.label }}</bdi
-          >:</span
-        >
-        {{ item.requirement }} · {{ item.actual }}
-        @if (item.state === 'met') {
-          · עומד בדרישה
-        }
-        @if (item.state === 'blocking') {
-          <strong class="block">
-            יש לקצר או להאריך את הטקסט, או לשפר אותו בעזרת AI, לפני סימון כמוכנה.
-          </strong>
-        }
-      </li>
-    }
-  </ul>
+  <app-measurement-list [items]="measurements()" />
 }
-<p class="text-sm text-muted">
-  בדקו את השפה, העובדות והתשובות. סימון כמוכנה שומר עותק קבוע של הגרסה הזו.
+<p class="note">
+  <span class="icon icon-info" aria-hidden="true"></span>בדקו את השפה, העובדות והתשובות. סימון
+  כמוכנה שומר עותק קבוע של הגרסה הזו.
 </p>

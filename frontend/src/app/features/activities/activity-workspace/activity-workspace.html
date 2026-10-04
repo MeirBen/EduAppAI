@@ -339,7 +339,10 @@
               saveState()
             }}</span>
             @if (updates.state() === 'unavailable') {
-              <span role="status">העדכונים בזמן אמת נותקו.</span>
+              <span role="status" class="note"
+                ><span class="icon icon-alert" aria-hidden="true"></span>העדכונים בזמן אמת
+                נותקו.</span
+              >
               <button
                 id="reconnect-draft"
                 type="button"
@@ -363,8 +366,9 @@
           </div>
         </div>
         @if (isTemplate) {
-          <p class="text-sm text-muted">
-            השמירה מפרסמת גרסה של התבנית בספרייה, ואינה יוצרת פעילות.
+          <p class="note">
+            <span class="icon icon-info" aria-hidden="true"></span>השמירה מפרסמת גרסה של התבנית
+            בספרייה, ואינה יוצרת פעילות.
           </p>
         }
         <app-loading-indicator [active]="copying()" label="יוצרים טיוטה חדשה…" />

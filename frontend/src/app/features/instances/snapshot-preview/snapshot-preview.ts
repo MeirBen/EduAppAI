@@ -1,7 +1,9 @@
-import { measurementText } from '../../activities/activity-document-view/measurements';
+import { measurementItems } from '../../activities/activity-document-view/measurements';
+import { MeasurementList } from '../../activities/measurement-list/measurement-list';
 import {
   ChangeDetectionStrategy,
   Component,
+  computed,
   DestroyRef,
   inject,
   input,
@@ -18,7 +20,7 @@ import { LoadingIndicator } from '../../../shared/loading-indicator/loading-indi
 /** Immutable parent-only preview. Copying creates a separate editable draft without review or an AI call. */
 @Component({
   selector: 'app-snapshot-preview',
-  imports: [DatePipe, RouterLink, ActivityDocumentView, LoadingIndicator],
+  imports: [DatePipe, RouterLink, ActivityDocumentView, LoadingIndicator, MeasurementList],
   templateUrl: './snapshot-preview.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
@@ -32,7 +34,10 @@ export class SnapshotPreviewPage {
   protected readonly copiedId = signal('');
   protected readonly error = signal('');
   protected readonly apiError = apiError;
-  protected readonly measurementText = measurementText;
+  protected readonly measurements = computed(() => {
+    const snapshot = this.snapshot.hasValue() ? this.snapshot.value() : undefined;
+    return snapshot ? measurementItems(snapshot.measurements, snapshot.plan) : [];
+  });
   protected async copy() {
     if (this.copying() || this.copiedId()) return;
     const restoreFocus = this.holdFocus();

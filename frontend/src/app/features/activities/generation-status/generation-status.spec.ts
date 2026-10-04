@@ -57,7 +57,7 @@ describe('GenerationStatus', () => {
     expect(visible()).not.toContain('0.25');
     const technical = root.querySelector('details')!;
     expect(technical.querySelector('summary')!.textContent).toContain('פרטים טכניים');
-    expect(technical.textContent).toContain('טקסט שנוצר: תוכן התקבל');
+    expect(technical.textContent).toContain('טקסט שנוצר · תוכן התקבל');
     expect(technical.textContent).toContain('0.25');
     expect(root.querySelector('script')).toBeNull();
     expect(technical.textContent).toContain('<script>');
