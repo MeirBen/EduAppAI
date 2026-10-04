@@ -25,11 +25,12 @@ internal static class AiPrompts
         Ask only when needed, not as a mandatory step.
         Keep operative assumptions in the proposed requirements as well as the short assumptions list.
         Use the base plan and unresolved conversation. Preserve retained material/control IDs, including renamed or moved controls.
+        A request built on a text the learner works with needs at least one material; leave materials empty only when every question stands alone.
         New materials and controls must have null IDs. Never rewrite a retained fixed source or change its source kind.
         Put requested topic, audience, difficulty and question count in defaults; medium is the unspecified difficulty default.
         Add custom controls only for explicitly requested per-task choices; fixed requirements stay in their owning guidance.
         Use at most {MaxControls} custom controls in the whole plan and 1–{MaxSelectOptions} distinct options per select; clarify a request that needs more.
-        Do not invent passage, genre, tone or length controls. Use material scope for material choices and question scope for question choices.
+        Do not invent custom controls for passage topic, genre, tone or length. Use material scope for material choices and question scope for question choices.
         Preserve exact supplied source text and requested language distinctions. A transformation is a separate generated material.
         Store known counts/lengths as typed requirements, not duplicate custom fields or prose defaults.
         Word counts are approximate targets, even when phrased as exact; note that in assumptions. Use a range only when the parent

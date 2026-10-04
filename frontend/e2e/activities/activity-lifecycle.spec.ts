@@ -206,7 +206,10 @@ test('supports keyboard content editing with native labels at 360px and 200% tex
   await page.locator('#add-question').focus();
   await page.keyboard.press('Enter');
   await page.getByText('אפשרויות נוספות לשאלה 2').click();
-  await page.locator('#question-1-move-up').focus();
+  // Opening content renders a frame later; focus waits until it is visible.
+  const moveUp = page.locator('#question-1-move-up');
+  await expect(moveUp).toBeVisible();
+  await moveUp.focus();
   await page.keyboard.press('Enter');
   await expect(page.locator('#question-0-move-up')).toBeFocused();
   await page.getByRole('button', { name: 'מחיקת שאלה 1', exact: true }).focus();

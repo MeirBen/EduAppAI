@@ -115,6 +115,7 @@
           "additionalProperties": false
         },
         "materials": {
+          "description": "Every text the learner reads, hears or answers questions about, such as a passage, story, article, poem or dialogue.",
           "type": "array",
           "items": {
             "$ref": "#/$defs/material"

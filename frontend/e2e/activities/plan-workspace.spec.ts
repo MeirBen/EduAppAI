@@ -162,7 +162,10 @@ test('direct editing works without AI at 360px and 200% text with keyboard-acces
   await card.locator('summary').click();
   await expect(card.getByText('יש לתקן את הבחירה')).toBeVisible();
   await card.locator('summary').click();
-  await card.getByRole('button', { name: /הסרת הבחירה/ }).focus();
+  // Opening content renders a frame later; focus waits until it is visible.
+  const remove = card.getByRole('button', { name: /הסרת הבחירה/ });
+  await expect(remove).toBeVisible();
+  await remove.focus();
   await page.keyboard.press('Enter');
   await expect(card).toHaveCount(0);
   await expect(page.locator('#add-choice')).toBeFocused();
