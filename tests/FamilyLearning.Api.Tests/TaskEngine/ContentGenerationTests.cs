@@ -152,15 +152,22 @@ public sealed class ContentGenerationTests
     }
 
     [Fact]
-    public async Task Material_generation_asks_for_one_of_the_numbered_premises()
+    public async Task Material_generation_lists_premises_before_writing_the_numbered_one()
     {
         var request = Resolve(Reading());
-        using var chat = new AiFixtures.ScriptedChat(Serialize(Materials()));
+        var premises = Enumerable.Range(1, AiPrompts.Variations).Select(i => new MaterialPremise($"רעיון {i}", 0.05)).ToArray();
+        using var chat = new AiFixtures.ScriptedChat(Serialize(Materials() with { Premises = premises }));
         using var service = Service(chat);
-        await service.GenerateMaterialsAsync(TaskAssembly.PrepareMaterials(request, Empty)!, default);
+        var result = await service.GenerateMaterialsAsync(TaskAssembly.PrepareMaterials(request, Empty)!, default);
+        Assert.Equal(premises, result.Value.Premises);
         using var input = JsonDocument.Parse(chat.Requests[0].Input.Split('\n')[^1]);
         Assert.InRange(input.RootElement.GetProperty("variation").GetInt32(), 1, AiPrompts.Variations);
         Assert.Equal(request.Goal, input.RootElement.GetProperty("goal").GetString());
+        // Output follows schema key order, so the listed premises condition the materials written after them.
+        var schema = Assert.IsType<ChatResponseFormatJson>(chat.Requests[0].Options!.ResponseFormat).Schema!.Value.GetProperty("properties");
+        Assert.Equal(["premises", "materials"], schema.EnumerateObject().Select(property => property.Name));
+        Assert.Equal(AiPrompts.Variations, schema.GetProperty("premises").GetProperty("minItems").GetInt32());
+        Assert.Equal(AiPrompts.Variations, schema.GetProperty("premises").GetProperty("maxItems").GetInt32());
     }
 
     [Fact]

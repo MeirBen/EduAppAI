@@ -8,7 +8,7 @@ internal static class AiPrompts
 {
     internal static string Version(string stage) => $"content-first-{stage}-v{EngineVersions.Revision}";
 
-    /// <summary>Premises the material stage weighs; the app picks which one it writes, so repeated plans vary.</summary>
+    /// <summary>Premises the material stage lists (verbalized sampling); the app picks which one it writes, so repeated plans vary.</summary>
     internal const int Variations = 5;
 
     private static readonly string StructuredRules = $"""
@@ -60,8 +60,9 @@ internal static class AiPrompts
         This stage creates materials only. Question requirements describe what the materials must support in a later stage.
         """ + "\n" + MaterialWritingRules + "\n" + $"""
         Create fresh content, with no claim of uniqueness across unseen runs. Supplied sources are context only.
-        Privately consider {Variations} distinct premises that meet every requirement, from most to least predictable,
-        and write the one numbered variation; never mention premises or the number.
+        First list {Variations} premises in premises with their probabilities, sampled from the full distribution of premises that meet every requirement; give each a probability below 0.1.
+        Make them differ in kind, such as point of view, situation and central event, not only in names or setting.
+        Then write the materials for the premise numbered by variation; never mention premises or the number in materials.
         """ + "\n\n" + StructuredRules + "\n\n" + LanguageQuality;
 
     private const string QuestionQuality = """

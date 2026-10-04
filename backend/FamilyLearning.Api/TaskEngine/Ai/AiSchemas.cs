@@ -19,7 +19,10 @@ internal static class AiSchemas
         materials["minItems"] = ids.Length;
         materials["maxItems"] = ids.Length;
         if (ids.Length > 0) materials["items"]!["properties"]!["id"]!["enum"] = JsonSerializer.SerializeToNode(ids);
-        return JsonSerializer.SerializeToElement(replacement ? materials["items"] : schema);
+        if (replacement) return JsonSerializer.SerializeToElement(materials["items"]);
+        schema["properties"]!["premises"]!["minItems"] = AiPrompts.Variations;
+        schema["properties"]!["premises"]!["maxItems"] = AiPrompts.Variations;
+        return JsonSerializer.SerializeToElement(schema);
     }
 
     public static JsonElement QuestionsFor(ResolvedTaskRequest request, int exactCountLimit, bool replacement = false)

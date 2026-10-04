@@ -11,14 +11,18 @@ public sealed record QuestionGenerationInput(ResolvedTaskRequest Request, Materi
 /// <summary>An application-selected generated material. Current content supports aggregate safety checks, not unrestricted model edits.</summary>
 public sealed record MaterialReplacementInput(ResolvedTaskRequest Request, TaskDocument Current, string MaterialId, string? Instruction = null);
 
-/// <summary>An application-selected question. Only that question and needed source context enter the provider request.</summary>
+/// <summary>An application-selected question; the rest of the activity is read-only context and app-owned identities never enter the provider request.</summary>
 public sealed record QuestionReplacementInput(ResolvedTaskRequest Request, TaskDocument Current, string QuestionId, string? Instruction = null);
 
 /// <summary>Untrusted generated-only material output; IDs must exactly match the selected generated requirements.</summary>
 public sealed record MaterialCandidate([property: JsonRequired] string Id, string? Title, [property: JsonRequired] string Body);
 
+/// <summary>One premise the material stage lists before writing the app-numbered one; evidence, never content.</summary>
+public sealed record MaterialPremise(string Premise, double Probability);
+
 /// <summary>An indivisible batch of generated materials, without supplied-source echoes.</summary>
-public sealed record MaterialCandidateBatch([property: JsonRequired] MaterialCandidate[] Materials);
+/// <remarks>Premises are optional so acceptance never depends on them.</remarks>
+public sealed record MaterialCandidateBatch([property: JsonRequired] MaterialCandidate[] Materials, MaterialPremise[]? Premises = null);
 
 /// <summary>A complete untrusted question with no model-owned identity, revision or provenance.</summary>
 public sealed record QuestionCandidate([property: JsonRequired] string Prompt,
