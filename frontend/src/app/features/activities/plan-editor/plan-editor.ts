@@ -11,13 +11,13 @@ import { FieldDirection } from '../../../shared/forms/field-direction';
 export type PlanStructureEdit =
   | { kind: 'add-material' }
   | { kind: 'remove-material'; id: string }
-  | { kind: 'add-control'; scope: string }
+  | { kind: 'add-control'; scope: string; id: string }
   | { kind: 'remove-control'; scope: string; id: string };
 
 /**
- * Advanced, reusable plan definition: goal, guidance, structure, length policy and, in one section,
- * everything a parent may change per activity. The defaults and per-activity values live in
- * ActivitySetup. No HTTP or copied draft.
+ * Advanced, reusable plan definition: goal, guidance, structure, length policy and, for a template,
+ * everything a parent may change per activity in one section. The defaults and per-activity values
+ * live in ActivitySetup. No HTTP or copied draft.
  */
 @Component({
   imports: [FormField, FieldDirection, ChoiceDefinitions, LengthFields],
@@ -30,6 +30,8 @@ export class PlanEditor {
   protected readonly limits = inject(Limits).current;
   readonly fields = input.required<FieldTree<PlanForm>>();
   readonly locked = input(false);
+  /** Template editing: only a template decides what its later activities may change. */
+  readonly reusable = input(false);
   readonly edited = output<{ key: string }>();
   readonly structureChanged = output<PlanStructureEdit>();
   /** A combined length only differs from a text's own length when several texts are generated. */

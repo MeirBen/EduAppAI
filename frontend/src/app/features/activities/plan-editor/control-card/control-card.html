@@ -1,6 +1,6 @@
 @let c = field();
 @let control = c().value();
-<details #card class="well" [open]="open()" (toggle)="expanded.set(card.open)">
+<details class="group well" [open]="open()">
   <summary>
     <bdi>{{ control.label || 'בחירה חדשה' }}</bdi> · {{ typeNames[control.type] }} ·
     {{ copy().owner }}
@@ -10,8 +10,8 @@
     @if (defaultText()) {
       · ברירת מחדל: <bdi>{{ defaultText() }}</bdi>
     }
-    @if (c().invalid() && !expanded()) {
-      <span class="text-danger">· יש לתקן את הבחירה</span>
+    @if (c().invalid()) {
+      <span class="text-danger group-open:hidden">· יש לתקן את הבחירה</span>
     }
   </summary>
   <div class="grid min-w-0 gap-4">

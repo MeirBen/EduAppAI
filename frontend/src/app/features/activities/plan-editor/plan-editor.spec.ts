@@ -12,6 +12,7 @@ import { limits, provideLimits } from '../../../core/api/limits.fixture';
   imports: [PlanEditor],
   template: `<app-plan-editor
     [fields]="fields.plan"
+    [reusable]="true"
     (edited)="edits = edits + 1"
     (structureChanged)="change($event)"
   />`,
@@ -86,8 +87,6 @@ describe('Plan editor choices', () => {
     const name = root.querySelector<HTMLInputElement>(`[id="${added.id}-label"]`)!;
     expect(name.closest('details')!.open).toBe(true);
     expect(document.activeElement).toBe(name);
-    // An open card shows its own fields, so a new blank choice is not flagged as a mistake.
-    expect(name.closest('details')!.querySelector('summary')!.textContent).not.toContain('יש לתקן');
   });
 
   it('marks an invalid collapsed choice in its summary', async () => {

@@ -82,7 +82,7 @@
       [field]="choice.field"
       [scope]="choice.scope"
       [text]="choice.text"
-      [open]="added().has(choice.id)"
+      [open]="choice.id === opened()"
       [locked]="locked()"
       (structureChanged)="structureChanged.emit($event)"
       (edited)="edited.emit($event)"
@@ -92,15 +92,13 @@
     <div class="grow">
       <label for="choice-scope">על מה הבחירה משפיעה?</label>
       <select
-        #scopeField
+        #scope
         id="choice-scope"
         (input)="$event.stopPropagation()"
-        (change)="$event.stopPropagation(); scope.set(scopeField.value)"
+        (change)="$event.stopPropagation()"
       >
         @for (option of scopes(); track option.value) {
-          <option [value]="option.value" [selected]="option.value === scope()">
-            {{ option.label }}
-          </option>
+          <option [value]="option.value">{{ option.label }}</option>
         }
       </select>
     </div>
@@ -109,7 +107,7 @@
       type="button"
       class="button button-secondary"
       [disabled]="locked() || choices().length >= limits.maxControls"
-      (click)="add()"
+      (click)="add(scope.value)"
     >
       הוספת בחירה
     </button>

@@ -113,6 +113,7 @@ describe('ActivityWorkspace plan ownership', () => {
     await open('/templates/example/edit', numericPlan);
     expect(root().querySelector('#workspace-title')!.textContent).toContain('עריכת תבנית');
     expect(field('plan-name').closest('details')!.open).toBe(true);
+    expect(root().querySelector('#choices-title')).not.toBeNull();
     expect(field('activity-topic').closest('details')).toBeNull();
     expect(root().querySelector('#plan-topic')).toBeNull();
     expect(root().querySelector('#generate-activity')).toBeNull();
@@ -145,6 +146,8 @@ describe('ActivityWorkspace plan ownership', () => {
     expect(field('activity-topic').closest('details')).toBeNull();
     expect(field('activity-questionCount').value).toBe('2');
     expect(field('plan-name').closest('details')!.open).toBe(false);
+    // What later activities may change is a template's concern; an activity sets its own values.
+    expect(root().querySelector('#choices-title')).toBeNull();
     expect(root().querySelector('#save-template')!.closest('details')!.open).toBe(false);
     expect(root().querySelector('#generate-activity')!.closest('details')).toBeNull();
     expect(root().querySelector('#release-activity')).toBeNull();

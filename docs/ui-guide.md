@@ -116,14 +116,14 @@ of its own, so it creates none and links to creating one once a version exists.
 Activities show a derived four-step indicator (describe, settings, review,
 ready); only the current step keeps its label on narrow screens. The plan
 definition and guidance sit under **אפשרויות מתקדמות**, open by default only for
-template editing. Its last section, **מה אפשר לשנות בכל פעילות**, holds
-everything a parent may change per activity: the applicable length, option-count
-and one-format toggles, and every choice definition as a compact card that
-names the part it changes and is added with one button. Options that have no
-effect in the current state stay hidden: the combined length needs several
-generated texts, one format per activity needs several formats, and a required
-flag is moot once a choice has a default. With several texts, each text's
-fields and choices name that text.
+template editing. Only a template decides what its later activities may change,
+so only template editing ends with **מה אפשר לשנות בכל פעילות**: the applicable
+length, option-count and one-format toggles, and every choice definition as a
+compact card that names the part it changes and is added with one button.
+Options that have no effect in the current state stay hidden: the combined
+length needs several generated texts, one format per activity needs several
+formats, and a required flag is moot once a choice has a default. With several
+texts, each text's fields and choices name that text.
 Once a plan exists, the change conversation follows every setting, including
 the advanced options. Once content exists, settings collapse to a derived
 one-line summary, shown only while they are collapsed, and the content becomes

@@ -192,7 +192,7 @@ export function editPlanStructure(
           : plan.materials.find((material) => material.id === edit.scope)?.controls;
     if (!controls) return undefined;
     if (edit.kind === 'add-control' && formControls(plan).length < limits.maxControls)
-      controls.push(controlForm());
+      controls.push({ ...controlForm(), id: edit.id });
     if (edit.kind === 'remove-control') {
       const index = controls.findIndex((control) => control.id === edit.id);
       if (index >= 0) controls.splice(index, 1);

@@ -1,12 +1,4 @@
-import {
-  ChangeDetectionStrategy,
-  Component,
-  computed,
-  inject,
-  input,
-  linkedSignal,
-  output,
-} from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, input, output } from '@angular/core';
 import { FieldTree, FormField } from '@angular/forms/signals';
 import { Limits } from '../../../../core/api/limits';
 import { PlanControl } from '../../../../core/api/models';
@@ -49,8 +41,6 @@ export class ControlCard {
   readonly structureChanged = output<PlanStructureEdit>();
   readonly edited = output<{ key: string }>();
   protected readonly typeNames = typeNames;
-  /** Tracks the disclosure, manual toggling included; a problem is flagged only while it is closed. */
-  protected readonly expanded = linkedSignal(() => this.open());
   protected readonly part = computed(() => {
     const scope = this.scope();
     return scope === 'plan' || scope === 'questions' ? scope : 'material';

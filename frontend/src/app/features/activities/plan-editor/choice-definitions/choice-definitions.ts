@@ -7,20 +7,19 @@ import {
   inject,
   Injector,
   input,
-  linkedSignal,
   output,
   signal,
 } from '@angular/core';
 import { FieldTree, FormField } from '@angular/forms/signals';
 import { Limits } from '../../../../core/api/limits';
-import { formFormats, PlanForm } from '../plan-form';
+import { formFormats, newPlanId, PlanForm } from '../plan-form';
 import type { PlanStructureEdit } from '../plan-editor';
 import { ControlCard } from '../control-card/control-card';
 
 /**
  * Everything a parent may change per activity, in one place: the adjustable length, option-count
  * and format requirements, and the plan's choices at every scope. Structural edits go to the owner;
- * the part a new choice will join is local state, not an edit.
+ * picking the part a new choice joins is not an edit, so its events never reach change tracking.
  */
 @Component({
   imports: [FormField, ControlCard],
@@ -86,23 +85,14 @@ export class ChoiceDefinitions {
     ...this.plan().materials.map((m) => ({ value: m.id, label: `הטקסט ${m.label || 'טקסט חדש'}` })),
     { value: 'questions', label: 'השאלות' },
   ]);
-  /** The part a new choice joins; it falls back to the whole activity when its text is removed. */
-  protected readonly scope = linkedSignal({
-    source: this.scopes,
-    computation: (scopes, previous?: { value: string }) =>
-      previous && scopes.some((scope) => scope.value === previous.value) ? previous.value : 'plan',
-  });
-  /** Choices added here open for editing; loaded and proposed ones start as summaries. */
-  protected readonly added = signal<ReadonlySet<string>>(new Set());
+  /** The choice just added opens for editing; loaded and proposed ones start as summaries. */
+  protected readonly opened = signal('');
 
-  protected add() {
-    if (this.locked()) return;
-    const known = new Set(this.choices().map((choice) => choice.id));
-    this.structureChanged.emit({ kind: 'add-control', scope: this.scope() });
-    // The owner applies structural edits synchronously, so the new choice is the unknown identity.
-    const id = this.choices().find((choice) => !known.has(choice.id))?.id;
-    if (!id) return;
-    this.added.update((ids) => new Set(ids).add(id));
+  /** Adds a choice to `scope`, a value of `scopes`, and moves focus to its name. */
+  protected add(scope: string) {
+    const id = newPlanId();
+    this.structureChanged.emit({ kind: 'add-control', scope, id });
+    this.opened.set(id);
     afterNextRender(() => this.document.getElementById(id + '-label')?.focus(), {
       injector: this.injector,
     });
