@@ -70,7 +70,24 @@ describe('Activity setup', () => {
     expect(Array.from(source.options).map((option) => option.value)).toContain('per-task');
     expect(root.querySelector(`#confirm-source-${suppliedPlan.materials[0].id}`)).toBeNull();
     expect(root.textContent).not.toContain('בדקו שהטקסט הועתק נכון');
-    expect(root.querySelector('details summary')?.textContent).toContain('בחירות לפעילות');
+  });
+
+  it('shows a template its defaults and sources but no per-activity values', async () => {
+    const id = 'f'.repeat(32);
+    const { root } = await render(
+      {
+        ...readingPlan,
+        controls: [{ id, label: 'סגנון', meaning: 'סגנון', type: 'boolean' }],
+        materials: [{ ...readingPlan.materials[0], source: 'per-task', length: null }],
+      },
+      (host) => host.reusable.set(true),
+    );
+    const setup = root.querySelector('app-activity-setup')!;
+    expect(setup.querySelector('#activity-topic')).not.toBeNull();
+    expect(setup.textContent).toContain('כל פעילות חדשה מהתבנית מתחילה מהערכים האלה.');
+    expect(setup.querySelector('[id$="-source"]')).not.toBeNull();
+    for (const selector of ['#input-format', '#input-choice-count', `#${id}-input`, 'textarea'])
+      expect(setup.querySelector(selector)).toBeNull();
   });
 
   it('shows an approximate adjustable length as a word count with its default, not a mode', async () => {
@@ -126,7 +143,7 @@ describe('Activity setup', () => {
     expect(root.querySelector(`#${id}-input-help`)?.textContent).toContain('אפשר לבחור 10–1000');
   });
 
-  it('names the part that each repeated choice block and text choice belongs to', async () => {
+  it('names the text that each text choice belongs to', async () => {
     const choice = (id: string) => ({
       id: id.repeat(32),
       label: 'רמה',
@@ -144,14 +161,6 @@ describe('Activity setup', () => {
       questions: { ...readingPlan.questions, controls: [choice('c')] },
     };
     const { root } = await render(plan);
-    const editor = root.querySelector('app-plan-editor')!;
-    expect(Array.from(editor.querySelectorAll('summary'), (s) => s.textContent?.trim())).toEqual([
-      'הוספת בחירה לפעילות כולה',
-      'הוספת בחירה לטקסט הזה',
-      'הוספת בחירה לטקסט הזה',
-      'הוספת בחירה לשאלות',
-    ]);
-    expect(editor.querySelector(`#${'b'.repeat(32)}-heading`)?.tagName).toBe('H5');
     const label = (id: string) =>
       root.querySelector(`label[for="${id.repeat(32)}-input"]`)?.textContent?.trim();
     expect(label('a')).toBe('רמה');

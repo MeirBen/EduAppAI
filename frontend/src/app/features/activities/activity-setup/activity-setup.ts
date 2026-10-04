@@ -1,4 +1,3 @@
-import { NgTemplateOutlet } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, input, output } from '@angular/core';
 import { FieldTree, FormField } from '@angular/forms/signals';
 import { TaskSettingsFields } from '../../../shared/forms/task-settings-fields';
@@ -26,12 +25,13 @@ interface LengthChoice {
 }
 
 /**
- * Ordinary per-activity choices and source text in parent language. Edits the owner's field trees
- * and emits events; it holds no draft copy, requests or confirmation state.
+ * The plan defaults and source text in parent language, and for an activity its per-activity
+ * choices. Edits the owner's field trees and emits events; it holds no draft copy, requests or
+ * confirmation state.
  */
 @Component({
   selector: 'app-activity-setup',
-  imports: [FormField, FieldDirection, TaskSettingsFields, NgTemplateOutlet],
+  imports: [FormField, FieldDirection, TaskSettingsFields],
   templateUrl: './activity-setup.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { '(input)': 'changed($event)', '(change)': 'changed($event)' },
@@ -41,7 +41,7 @@ export class ActivitySetup {
   readonly inputs = input.required<FieldTree<InputForm>>();
   readonly pendingSources = input<string[]>([]);
   readonly locked = input(false);
-  /** Template context: per-activity choices become secondary and every source mode is offered. */
+  /** Template context: there is no activity yet, so only defaults and sources show, with every source mode. */
   readonly reusable = input(false);
   readonly edited = output<{ key: string; sourceId?: string }>();
   readonly sourceConfirmed = output<string>();

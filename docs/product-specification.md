@@ -31,7 +31,8 @@ Save template: independently publish the reusable plan at any point
 
 Saving a template publishes only the reusable plan; it never saves activity
 edits, generates content or releases a snapshot, and later versions never change
-existing drafts or snapshots.
+existing drafts or snapshots. Template editing defines only the plan and its
+defaults; activities are created from a saved version.
 
 The URL keeps the draft and operation for reload during generation; chat,
 unsaved edits and Undo stay local. Cancellation preserves saved checkpoints. An

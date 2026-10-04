@@ -145,12 +145,12 @@ test('direct editing works without AI at 360px and 200% text with keyboard-acces
   await expect(page.getByText('יצירה בעזרת AI אינה זמינה כרגע.', { exact: false })).toBeVisible();
   await page.getByLabel('שם התבנית').fill('תרגול ידני');
   await page.getByLabel('מה רוצים ללמוד או לתרגל?').fill('תרגול מספרים');
-  await page.locator('#plan-topic').fill('חשבון');
-  await page.locator('#plan-audience').fill('כיתה ג');
-  await page.locator('#plan-questionCount').fill('3');
+  await page.locator('#activity-topic').fill('חשבון');
+  await page.locator('#activity-audience').fill('כיתה ג');
+  await page.locator('#activity-questionCount').fill('3');
   await page.locator('#save-template').focus();
   await page.keyboard.press('Enter');
-  await expect(page.getByText('התבנית נשמרה בספרייה. הפעילות לא השתנתה.')).toBeVisible();
+  await expect(page.getByText('התבנית נשמרה בספרייה.', { exact: true })).toBeVisible();
   await expect(page.locator('[id$="-length-mode"]')).toHaveCount(0);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(
     true,

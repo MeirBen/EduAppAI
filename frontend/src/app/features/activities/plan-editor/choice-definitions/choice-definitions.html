@@ -1,0 +1,117 @@
+@let f = fields();
+@let p = plan();
+<section class="grid gap-4" aria-labelledby="choices-title">
+  <div class="grid gap-1">
+    <h3 id="choices-title">מה אפשר לשנות בכל פעילות</h3>
+    <p class="text-sm text-muted">
+      נושא, קהל יעד, רמת קושי ומספר שאלות תמיד אפשר לשנות. כאן מגדירים מה עוד יהיה אפשר לבחור בכל
+      פעילות, למשל סגנון כתיבה. דרישה קבועה כתבו בהנחיות.
+    </p>
+  </div>
+  @if (hasRequirements()) {
+    <fieldset class="grid gap-1">
+      <legend>בכל פעילות יהיה אפשר לשנות גם</legend>
+      @for (length of lengths(); track length.material.id) {
+        <label
+          ><input
+            [id]="length.material.id + '-adjustable'"
+            type="checkbox"
+            [formField]="f.materials[length.index].length.adjustable"
+          />אורך הטקסט
+          @if (severalTexts()) {
+            — <bdi>{{ length.material.label }}</bdi>
+          }
+        </label>
+      }
+      @if (p.totalLength.mode === 'target') {
+        <label
+          ><input
+            id="total-adjustable"
+            type="checkbox"
+            [formField]="f.totalLength.adjustable"
+          />האורך הכולל של הטקסטים</label
+        >
+      }
+      @if (p.questions.choice) {
+        <label
+          ><input
+            id="choice-adjustable"
+            type="checkbox"
+            [formField]="f.questions.choiceCount.adjustable"
+          />מספר האפשרויות לשאלה</label
+        >
+      }
+      @if (formatCount() > 1 || p.questions.selectableFormat) {
+        <div>
+          <label
+            ><input
+              id="question-selectable"
+              type="checkbox"
+              [formField]="f.questions.selectableFormat"
+              aria-describedby="question-selectable-help"
+            />סוג השאלות (סוג אחד לכל פעילות)</label
+          >
+          @if (!p.questions.selectableFormat) {
+            <p id="question-selectable-help" class="mt-2 text-sm text-muted">
+              אם נבחרו כמה סוגים, הפעילות תשלב לפחות שאלה אחת מכל סוג.
+            </p>
+          }
+        </div>
+      }
+    </fieldset>
+  }
+  @if (p.questions.selectableFormat) {
+    <div>
+      <label for="question-default-format">סוג ברירת המחדל</label
+      ><select id="question-default-format" [formField]="f.questions.defaultFormat">
+        <option value="">בחרו סוג</option>
+        @if (p.questions.numeric) {
+          <option value="numeric-input">תשובה מספרית</option>
+        }
+        @if (p.questions.text) {
+          <option value="text-input">תשובה קצרה</option>
+        }
+        @if (p.questions.choice) {
+          <option value="single-choice">בחירה מתוך אפשרויות</option>
+        }
+      </select>
+    </div>
+  }
+  @for (choice of choices(); track choice.id) {
+    <app-control-card
+      [field]="choice.field"
+      [scope]="choice.scope"
+      [text]="choice.text"
+      [open]="added().has(choice.id)"
+      [locked]="locked()"
+      (structureChanged)="structureChanged.emit($event)"
+      (edited)="edited.emit($event)"
+    />
+  }
+  <div class="flex flex-wrap items-end gap-3">
+    <div class="grow">
+      <label for="choice-scope">על מה הבחירה משפיעה?</label>
+      <select
+        #scopeField
+        id="choice-scope"
+        (input)="$event.stopPropagation()"
+        (change)="$event.stopPropagation(); scope.set(scopeField.value)"
+      >
+        @for (option of scopes(); track option.value) {
+          <option [value]="option.value" [selected]="option.value === scope()">
+            {{ option.label }}
+          </option>
+        }
+      </select>
+    </div>
+    <button
+      id="add-choice"
+      type="button"
+      class="button button-secondary"
+      [disabled]="locked() || choices().length >= limits.maxControls"
+      (click)="add()"
+    >
+      הוספת בחירה
+    </button>
+  </div>
+</section>

@@ -2,9 +2,8 @@ import { ChangeDetectionStrategy, Component, computed, inject, input, output } f
 import { FieldTree, FormField } from '@angular/forms/signals';
 import { Limits } from '../../../core/api/limits';
 import { PlanMaterial } from '../../../core/api/models';
-import { TaskSettingsFields } from '../../../shared/forms/task-settings-fields';
-import { formFormats, PlanForm } from './plan-form';
-import { ControlFields } from './control-fields/control-fields';
+import { PlanForm } from './plan-form';
+import { ChoiceDefinitions } from './choice-definitions/choice-definitions';
 import { LengthFields } from './length-fields/length-fields';
 import { FieldDirection } from '../../../shared/forms/field-direction';
 
@@ -16,11 +15,12 @@ export type PlanStructureEdit =
   | { kind: 'remove-control'; scope: string; id: string };
 
 /**
- * Advanced, reusable plan definition: goal, guidance, defaults, structure, length policy and choice
- * definitions. Per-activity choices and source text live in ActivitySetup. No HTTP or copied draft.
+ * Advanced, reusable plan definition: goal, guidance, structure, length policy and, in one section,
+ * everything a parent may change per activity. The defaults and per-activity values live in
+ * ActivitySetup. No HTTP or copied draft.
  */
 @Component({
-  imports: [FormField, FieldDirection, TaskSettingsFields, ControlFields, LengthFields],
+  imports: [FormField, FieldDirection, ChoiceDefinitions, LengthFields],
   selector: 'app-plan-editor',
   templateUrl: './plan-editor.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -30,8 +30,6 @@ export class PlanEditor {
   protected readonly limits = inject(Limits).current;
   readonly fields = input.required<FieldTree<PlanForm>>();
   readonly locked = input(false);
-  /** Template editing shows the defaults; inside an activity its own settings become them on publication. */
-  readonly reusable = input(false);
   readonly edited = output<{ key: string }>();
   readonly structureChanged = output<PlanStructureEdit>();
   /** A combined length only differs from a text's own length when several texts are generated. */
@@ -40,10 +38,6 @@ export class PlanEditor {
       this.fields()()
         .value()
         .materials.filter((m) => m.source === 'generated').length,
-  );
-  /** Choosing one format per activity only matters when the plan offers several. */
-  protected readonly formatCount = computed(
-    () => formFormats(this.fields()().value().questions).length,
   );
   protected readonly sourceNames: Record<PlanMaterial['source'], string> = {
     generated: 'הטקסט ייכתב בעזרת AI',

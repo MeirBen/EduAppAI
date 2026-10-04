@@ -121,7 +121,6 @@
           <app-plan-editor
             [fields]="fields.plan"
             [locked]="locked()"
-            [reusable]="isTemplate"
             (edited)="edited($event)"
             (structureChanged)="changeStructure($event)"
           />
@@ -144,11 +143,17 @@
       <section class="panel grid gap-4" aria-labelledby="publication-title">
         <div class="grid gap-1">
           <h2 id="publication-title">שמירת התבנית</h2>
-          <p>
-            שמירה מפרסמת גרסה של התבנית בספרייה. היא אינה יוצרת תוכן ואינה שומרת שינויים בפעילות.
-          </p>
+          <p>שמירה מפרסמת גרסה של התבנית בספרייה. היא אינה יוצרת תוכן.</p>
         </div>
         <ng-container [ngTemplateOutlet]="publish" />
+        @if (publication(); as current) {
+          <a
+            id="create-from-template"
+            class="text-link w-fit"
+            [routerLink]="['/templates', current.id, 'create']"
+            >פעילות מהתבנית</a
+          >
+        }
       </section>
     }
     @if (operation(); as current) {
@@ -208,7 +213,7 @@
         (cancelled)="sourceReplacement.set({ id: '', text: '' })"
       />
     }
-    @if (hasPlan() || saved()) {
+    @if (!isTemplate && (hasPlan() || saved())) {
       <section class="panel grid gap-4" aria-labelledby="actions-title">
         @if (released()) {
           <div class="grid gap-1">
@@ -231,12 +236,7 @@
           </div>
           <app-loading-indicator [active]="copying()" label="יוצרים טיוטה חדשה…" />
         } @else if (!hasContent()) {
-          <h2 id="actions-title" [class.sr-only]="!isTemplate">
-            {{ isTemplate ? 'פעילות מהתבנית' : 'יצירת הפעילות' }}
-          </h2>
-          @if (isTemplate) {
-            <p class="text-sm text-muted">אפשר ליצור פעילות עכשיו, גם בלי לשמור את התבנית.</p>
-          }
+          <h2 id="actions-title" class="sr-only">יצירת הפעילות</h2>
           @if (hasPlan() && !canSubmitActivity()) {
             <p class="text-sm text-muted">
               כדי ליצור את הפעילות, השלימו את ההגדרות ואשרו את הטקסט שלכם.
@@ -246,7 +246,6 @@
             <button
               id="generate-activity"
               class="button"
-              [class.button-secondary]="isTemplate"
               type="button"
               [disabled]="!canGenerate()"
               (click)="activityAction('GenerateActivity')"

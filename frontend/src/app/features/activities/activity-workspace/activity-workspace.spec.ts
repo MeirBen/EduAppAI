@@ -82,6 +82,7 @@ describe('ActivityWorkspace plan ownership', () => {
               component: ActivityWorkspace,
               data: { context: 'template' },
             },
+            { path: 'templates/:templateId/create', component: ActivityWorkspace },
           ],
           withComponentInputBinding(),
         ),
@@ -95,7 +96,7 @@ describe('ActivityWorkspace plan ownership', () => {
 
   it('associates requested-choice errors with the native field while preserving invalid typing', async () => {
     const id = 'a'.repeat(32);
-    await open('/templates/example/edit', {
+    await open('/templates/example/create', {
       ...numericPlan,
       controls: [{ id, label: 'היסט', meaning: 'היסט התרגול', type: 'integer', required: true }],
     });
@@ -108,42 +109,33 @@ describe('ActivityWorkspace plan ownership', () => {
     http.expectNone('/api/ai/template-drafts');
   });
 
-  it.each(['unchanged', 'topic', 'invalid-count'])(
-    'follows refined defaults while retaining %s activity choices',
-    async (scenario) => {
-      await open('/templates/example/edit', numericPlan);
-      if (scenario === 'topic') await type('activity-topic', 'נושא לפעילות הזאת');
-      if (scenario === 'invalid-count') await type('activity-questionCount', '');
-      const request = await ask('עשר שאלות');
-      reply(
-        request,
-        { ...numericPlan, defaults: { ...numericPlan.defaults, questionCount: 10 } },
-        null,
-        [{ kind: 'changed', path: 'defaults' }],
-      );
-      await settle();
-      expect(field('activity-questionCount').value).toBe(scenario === 'invalid-count' ? '' : '10');
-      expect(field('activity-topic').value).toBe(
-        scenario === 'topic' ? 'נושא לפעילות הזאת' : 'חשבון',
-      );
-    },
-  );
-
-  it('follows manually edited defaults without discarding another activity override', async () => {
-    await open('/templates/example/edit', numericPlan);
-    await type('activity-topic', 'נושא לפעילות הזאת');
-    await type('plan-questionCount', '10');
-    expect(field('activity-questionCount').value).toBe('10');
-    expect(field('activity-topic').value).toBe('נושא לפעילות הזאת');
-    http.expectNone('/api/ai/template-drafts');
-  });
-
-  it('keeps reusable definition and publication prominent only when editing a template', async () => {
+  it('edits a template definition and its defaults without creating activities', async () => {
     await open('/templates/example/edit', numericPlan);
     expect(root().querySelector('#workspace-title')!.textContent).toContain('עריכת תבנית');
     expect(field('plan-name').closest('details')!.open).toBe(true);
+    expect(field('activity-topic').closest('details')).toBeNull();
+    expect(root().querySelector('#plan-topic')).toBeNull();
+    expect(root().querySelector('#generate-activity')).toBeNull();
+    expect(root().querySelector('#save-activity')).toBeNull();
     expect(root().querySelector('#save-template')!.closest('details')).toBeNull();
-    expect(field('activity-topic').closest('details')!.open).toBe(false);
+    expect(
+      root().querySelector<HTMLAnchorElement>('#create-from-template')!.getAttribute('href'),
+    ).toBe('/templates/example/create');
+    await type('activity-topic', 'נושא חדש');
+    await click('save-template');
+    const save = http.expectOne('/api/templates/example/versions');
+    expect(save.request.body.definition.defaults.topic).toBe('נושא חדש');
+    save.flush({
+      id: 'example',
+      currentVersion: 4,
+      versionId: 'v4',
+      definition: save.request.body.definition,
+    });
+    await settle();
+    expect(root().textContent).toContain('התבנית נשמרה בספרייה.');
+    expect(root().textContent).not.toContain('הפעילות לא השתנתה');
+    expect(root().textContent).not.toContain('לא נשמר');
+    http.expectNone('/api/activity-drafts');
   });
 
   it('keeps ordinary choices visible and template internals quiet for a new activity', async () => {
@@ -191,23 +183,28 @@ describe('ActivityWorkspace plan ownership', () => {
     http.expectNone('/api/ai/template-drafts');
   });
 
-  it('uses the activity settings as its plan defaults, including in AI changes', async () => {
-    await open();
-    reply(await ask());
-    await settle();
-    expect(root().querySelector('#plan-questionCount')).toBeNull();
-    await type('activity-questionCount', '7');
-    const refine = await ask('שאלות קשות יותר');
-    expect(refine.request.body.baseDefinition.defaults.questionCount).toBe(7);
-    reply(
-      refine,
-      { ...numericPlan, defaults: { ...numericPlan.defaults, questionCount: 9 } },
-      null,
-      [{ kind: 'changed', path: 'defaults' }],
-    );
-    await settle();
-    expect(field('activity-questionCount').value).toBe('9');
-  });
+  it.each(['/activities/new', '/templates/example/edit'])(
+    'uses the visible settings as the plan defaults at %s, including in AI changes',
+    async (path) => {
+      if (path === '/activities/new') {
+        await open();
+        reply(await ask());
+        await settle();
+      } else await open(path, numericPlan);
+      expect(root().querySelector('#plan-questionCount')).toBeNull();
+      await type('activity-questionCount', '7');
+      const refine = await ask('שאלות קשות יותר');
+      expect(refine.request.body.baseDefinition.defaults.questionCount).toBe(7);
+      reply(
+        refine,
+        { ...numericPlan, defaults: { ...numericPlan.defaults, questionCount: 9 } },
+        null,
+        [{ kind: 'changed', path: 'defaults' }],
+      );
+      await settle();
+      expect(field('activity-questionCount').value).toBe('9');
+    },
+  );
 
   it('keeps invalid initial edits instead of sending a request without their context', async () => {
     await open();
@@ -266,13 +263,13 @@ describe('ActivityWorkspace plan ownership', () => {
       if (action === 'undo') await type('plan-name', 'שלי');
       const request = await ask('לשנות את השם');
       if (action === 'typing') await type('plan-name', 'עריכה מקומית');
-      if (action === 'invalid') await type('plan-questionCount', '');
+      if (action === 'invalid') await type('activity-questionCount', '');
       if (action === 'undo') await click('plan-undo');
       if (action === 'cancel') await click('chat-cancel');
       if (!request.cancelled) reply(request, { ...numericPlan, name: 'ישן' });
       await settle();
       expect(field('plan-name').value).not.toBe('ישן');
-      if (action === 'invalid') expect(field('plan-questionCount').value).toBe('');
+      if (action === 'invalid') expect(field('activity-questionCount').value).toBe('');
     },
   );
 

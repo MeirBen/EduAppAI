@@ -108,19 +108,22 @@ application-owned labels, and only difficulty has fixed options.
 The workspace owns one editable buffer and derives its presentation from it:
 describe, then adjust settings, then review content. Phases are never stored or
 routed. Before a plan exists, the request dominates; a quiet disclosure offers
-manual entry. Ordinary choices (topic, audience, difficulty, question count and
-only the applicable length, format, option count, requested choices and source
-text) stay visible. Activities show a derived four-step indicator (describe,
-settings, review, ready); only the current step keeps its label on narrow
-screens. The plan definition, guidance and choice definitions sit under
-**אפשרויות מתקדמות**, open by default only for template editing; only template
-editing shows separate defaults, since an activity's own settings are its plan
-defaults. Options that have no effect in the current state stay hidden: the
-combined length needs several generated texts, one format per activity needs
-several formats, and a required flag is moot once a choice has a default.
-A block that repeats per part names it: choice definitions say whether they
-belong to the whole activity, a text or the questions, and with several texts,
-each text's fields and choices name that text.
+manual entry. The visible settings (topic, audience, difficulty and question
+count) are the plan's defaults in a template and an activity alike, and the
+source text stays beside them. An activity also shows only the applicable
+length, format, option count and requested choices; a template has no activity
+of its own, so it creates none and links to creating one once a version exists.
+Activities show a derived four-step indicator (describe, settings, review,
+ready); only the current step keeps its label on narrow screens. The plan
+definition and guidance sit under **אפשרויות מתקדמות**, open by default only for
+template editing. Its last section, **מה אפשר לשנות בכל פעילות**, holds
+everything a parent may change per activity: the applicable length, option-count
+and one-format toggles, and every choice definition as a compact card that
+names the part it changes and is added with one button. Options that have no
+effect in the current state stay hidden: the combined length needs several
+generated texts, one format per activity needs several formats, and a required
+flag is moot once a choice has a default. With several texts, each text's
+fields and choices name that text.
 Once a plan exists, the change conversation follows every setting, including
 the advanced options. Once content exists, settings collapse to a derived
 one-line summary, shown only while they are collapsed, and the content becomes

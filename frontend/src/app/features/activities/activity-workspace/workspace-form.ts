@@ -6,7 +6,6 @@ import {
   LearningPlan,
   PlanMaterial,
 } from '../../../core/api/models';
-import { TaskSettingsDraft, taskSettingsDraft } from '../../../shared/forms/task-settings';
 import { DocumentEdit } from '../activity-document-editor/activity-document-editor';
 import { DocumentForm, documentForm } from '../activity-document-editor/document-form';
 import { PlanStructureEdit } from '../plan-editor/plan-editor';
@@ -95,30 +94,11 @@ export function materialIdentity(
   return existing && existing.source !== source ? newPlanId() : id;
 }
 
-/** Per-activity settings still equal to the old plan default follow the new one; overrides stay. */
-function followDefaults(
-  before: TaskSettingsDraft,
-  after: TaskSettingsDraft,
-  input: TaskSettingsDraft,
-): TaskSettingsDraft {
-  return {
-    topic: input.topic === before.topic ? after.topic : input.topic,
-    audience: input.audience === before.audience ? after.audience : input.audience,
-    difficulty: input.difficulty === before.difficulty ? after.difficulty : input.difficulty,
-    questionCount:
-      input.questionCount === before.questionCount ? after.questionCount : input.questionCount,
-  };
-}
-
 /**
  * Re-aligns the buffer after a plan edit: material identities, per-activity inputs and document
- * materials follow the plan, and untouched settings follow changed defaults.
+ * materials follow the plan.
  */
-export function reconcile(
-  raw: WorkspaceForm,
-  previousDefaults: TaskSettingsDraft,
-  saved: LearningPlan | undefined,
-): WorkspaceForm {
+export function reconcile(raw: WorkspaceForm, saved: LearningPlan | undefined): WorkspaceForm {
   const plan = {
     ...raw.plan,
     materials: raw.plan.materials.map((material) => ({
@@ -135,7 +115,6 @@ export function reconcile(
     },
     input: {
       ...raw.input,
-      settings: followDefaults(previousDefaults, plan.settings, raw.input.settings),
       controls: formControls(plan).map(
         (control) =>
           raw.input.controls.find((value) => value.id === control.id) ?? {
@@ -158,23 +137,20 @@ export function reconcile(
 
 /**
  * The buffer after an AI proposal. When refining, per-activity values, including invalid typing,
- * survive by identity; the HTTP projection omits overrides the new plan no longer accepts. When an
- * activity's settings are its plan defaults, the proposed defaults replace them.
+ * survive by identity; the HTTP projection omits overrides the new plan no longer accepts. The
+ * settings are the plan defaults, so the proposed defaults replace them.
  */
 export function proposedWorkspace(
   raw: WorkspaceForm,
   plan: LearningPlan,
   refining: boolean,
-  settingsAreDefaults: boolean,
 ): WorkspaceForm {
   const input = inputForm(plan),
     prior = raw.input;
   if (refining)
     Object.assign(input, {
       ...prior,
-      settings: settingsAreDefaults
-        ? taskSettingsDraft(plan.defaults)
-        : followDefaults(raw.plan.settings, taskSettingsDraft(plan.defaults), prior.settings),
+      settings: input.settings,
       materials: input.materials.map(
         (item) => prior.materials.find((old) => old.id === item.id) ?? item,
       ),

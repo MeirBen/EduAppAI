@@ -18,11 +18,6 @@ export class UndoHistory<T> {
     this.last = snapshot();
   }
 
-  /** The state at the last recorded edit or checkpoint. */
-  get recorded(): T {
-    return this.last;
-  }
-
   /** Records the change since the last recorded state; returns false when nothing changed. */
   record(key: string): boolean {
     const current = this.snapshot();

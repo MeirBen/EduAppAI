@@ -197,14 +197,10 @@ export class ActivityWorkspace {
     () => this.contentBusy(),
   );
   protected readonly canGenerate = computed(() => this.aiConfigured() && !this.contentBusy());
-  /** Outside template editing, the activity's own settings are its plan defaults; one set of fields owns them. */
-  private readonly settingsAreDefaults = computed(() => this.context() !== 'template');
+  /** The visible settings are the plan defaults, in a template and an activity alike; one set of fields owns them. */
   protected readonly projection = computed(() => {
     const { plan, input } = this.raw();
-    return planValue(
-      this.settingsAreDefaults() ? { ...plan, settings: input.settings } : plan,
-      this.limits,
-    );
+    return planValue({ ...plan, settings: input.settings }, this.limits);
   });
   protected readonly inputProjection = computed(() => {
     const plan = this.projection().value;
@@ -543,10 +539,16 @@ export class ActivityWorkspace {
       this.publication.set(saved);
       this.publishedPlan.set(JSON.stringify(plan));
       this.history.endCoalescing();
-      // Template publication cannot claim that activity edits or per-task input were saved.
-      if (!this.saved())
-        this.baseline.update((raw) => ({ ...raw, plan: structuredClone(this.raw().plan) }));
-      this.templateNotice.set('התבנית נשמרה בספרייה. הפעילות לא השתנתה.');
+      if (this.context() === 'template') {
+        // A template is its plan and defaults, so publication saves the whole buffer.
+        this.baseline.set(structuredClone(this.raw()));
+        this.templateNotice.set('התבנית נשמרה בספרייה.');
+      } else {
+        // Publication from an activity cannot claim that its edits or per-task input were saved.
+        if (!this.saved())
+          this.baseline.update((raw) => ({ ...raw, plan: structuredClone(this.raw().plan) }));
+        this.templateNotice.set('התבנית נשמרה בספרייה. הפעילות לא השתנתה.');
+      }
     } catch (error) {
       if (!this.lifetime.destroyed)
         this.error.set(
@@ -748,9 +750,7 @@ export class ActivityWorkspace {
 
   /** Records one edit for Undo, coalescing by field key, and clears replies about the earlier plan. */
   private recordEdit(key: string) {
-    this.raw.set(
-      reconcile(this.raw(), this.history.recorded.raw.plan.settings, this.saved()?.plan),
-    );
+    this.raw.set(reconcile(this.raw(), this.saved()?.plan));
     if (!this.history.record(key)) return;
     this.markLocalChange();
     this.clearPlanFeedback();
@@ -784,7 +784,7 @@ export class ActivityWorkspace {
       })),
     };
     this.history.push();
-    this.raw.set(proposedWorkspace(this.raw(), plan, refining, this.settingsAreDefaults()));
+    this.raw.set(proposedWorkspace(this.raw(), plan, refining));
     this.confirmed.set(fixedSources(plan, this.confirmed()));
     this.clientRevision++;
     this.history.checkpoint();

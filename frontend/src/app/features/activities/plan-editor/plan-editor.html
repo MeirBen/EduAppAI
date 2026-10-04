@@ -14,23 +14,7 @@
       <label for="plan-guidance">הנחיות משותפות</label
       ><textarea id="plan-guidance" dir="auto" rows="3" [formField]="f.guidance"></textarea>
     </div>
-    <app-control-fields
-      [fields]="f.controls"
-      scope="plan"
-      [locked]="locked()"
-      (structureChanged)="structureChanged.emit($event)"
-      (edited)="edited.emit($event)"
-    />
   </section>
-  @if (reusable()) {
-    <section class="grid gap-4" aria-labelledby="defaults-title">
-      <div class="grid gap-1">
-        <h3 id="defaults-title">ברירות מחדל לתבנית</h3>
-        <p class="text-sm text-muted">כל פעילות חדשה מהתבנית מתחילה מהערכים האלה.</p>
-      </div>
-      <app-task-settings-fields [fields]="f.settings" prefix="plan" />
-    </section>
-  }
   <section class="grid gap-4" aria-labelledby="materials-title">
     <h3 id="materials-title">טקסטים לפעילות</h3>
     @if (!f.materials().value().length) {
@@ -69,13 +53,6 @@
         @if (material.source === 'generated') {
           <app-length-fields [fields]="m.length" [prefix]="material.id" />
         }
-        <app-control-fields
-          [fields]="m.controls"
-          [scope]="material.id"
-          [locked]="locked()"
-          (structureChanged)="structureChanged.emit($event)"
-          (edited)="edited.emit($event)"
-        />
         <button
           type="button"
           class="text-link text-link-danger w-fit"
@@ -120,40 +97,6 @@
         אפשרויות</label
       >
     </fieldset>
-    @if (formatCount() > 1 || f.questions.selectableFormat().value()) {
-      <div>
-        <label
-          ><input
-            id="question-selectable"
-            type="checkbox"
-            [formField]="f.questions.selectableFormat"
-            aria-describedby="question-selectable-help"
-          />בחירת סוג אחד לכל פעילות</label
-        >
-        @if (!f.questions.selectableFormat().value()) {
-          <p id="question-selectable-help" class="mt-2 text-sm text-muted">
-            אם נבחרו כמה סוגים, הפעילות תשלב לפחות שאלה אחת מכל סוג.
-          </p>
-        }
-      </div>
-    }
-    @if (f.questions.selectableFormat().value()) {
-      <div>
-        <label for="question-default-format">סוג ברירת המחדל</label
-        ><select id="question-default-format" [formField]="f.questions.defaultFormat">
-          <option value="">בחרו סוג</option>
-          @if (f.questions.numeric().value()) {
-            <option value="numeric-input">תשובה מספרית</option>
-          }
-          @if (f.questions.text().value()) {
-            <option value="text-input">תשובה קצרה</option>
-          }
-          @if (f.questions.choice().value()) {
-            <option value="single-choice">בחירה מתוך אפשרויות</option>
-          }
-        </select>
-      </div>
-    }
     @if (f.questions.choice().value()) {
       <div>
         <label for="choice-count">מספר האפשרויות לשאלה</label
@@ -165,24 +108,16 @@
           [formField]="f.questions.choiceCount.value"
         />
       </div>
-      <label
-        ><input
-          id="choice-adjustable"
-          type="checkbox"
-          [formField]="f.questions.choiceCount.adjustable"
-        />אפשר לשנות בכל פעילות</label
-      >
     }
     <div>
       <label for="question-guidance">הנחיות לשאלות</label
       ><textarea id="question-guidance" dir="auto" [formField]="f.questions.guidance"></textarea>
     </div>
-    <app-control-fields
-      [fields]="f.questions.controls"
-      scope="questions"
-      [locked]="locked()"
-      (structureChanged)="structureChanged.emit($event)"
-      (edited)="edited.emit($event)"
-    />
   </section>
+  <app-choice-definitions
+    [fields]="f"
+    [locked]="locked()"
+    (structureChanged)="structureChanged.emit($event)"
+    (edited)="edited.emit($event)"
+  />
 </div>

@@ -1,0 +1,162 @@
+@let c = field();
+@let control = c().value();
+<details #card class="well" [open]="open()" (toggle)="expanded.set(card.open)">
+  <summary>
+    <bdi>{{ control.label || 'בחירה חדשה' }}</bdi> · {{ typeNames[control.type] }} ·
+    {{ copy().owner }}
+    @if (part() === 'material') {
+      <bdi>{{ text() || 'טקסט חדש' }}</bdi>
+    }
+    @if (defaultText()) {
+      · ברירת מחדל: <bdi>{{ defaultText() }}</bdi>
+    }
+    @if (c().invalid() && !expanded()) {
+      <span class="text-danger">· יש לתקן את הבחירה</span>
+    }
+  </summary>
+  <div class="grid min-w-0 gap-4">
+    <div>
+      <label [for]="control.id + '-label'">איך תיקרא הבחירה?</label
+      ><input [id]="control.id + '-label'" dir="auto" [formField]="c.label" />
+    </div>
+    <div>
+      <label [for]="control.id + '-meaning'">{{ copy().effect }}</label
+      ><textarea
+        [id]="control.id + '-meaning'"
+        dir="auto"
+        [formField]="c.meaning"
+        [attr.aria-describedby]="control.id + '-meaning-help'"
+      ></textarea>
+      <p [id]="control.id + '-meaning-help'" class="mt-2 text-sm text-muted">
+        העוזר משתמש בהסבר הזה כשהוא כותב את הפעילות.
+      </p>
+    </div>
+    <div>
+      <label [for]="control.id + '-type'">איך בוחרים?</label
+      ><select [id]="control.id + '-type'" [formField]="c.type">
+        <option value="text">{{ typeNames.text }}</option>
+        <option value="integer">{{ typeNames.integer }}</option>
+        <option value="select">{{ typeNames.select }}</option>
+        <option value="boolean">{{ typeNames.boolean }}</option>
+      </select>
+    </div>
+    <div class="grid gap-1">
+      @if (!control.hasDefault) {
+        <label
+          ><input [id]="control.id + '-required'" type="checkbox" [formField]="c.required" />חובה
+          לבחור ערך</label
+        >
+      }
+      <label
+        ><input
+          [id]="control.id + '-has-default'"
+          type="checkbox"
+          [formField]="c.hasDefault"
+        />הגדרת ברירת מחדל</label
+      >
+    </div>
+    @if (control.hasDefault) {
+      <div>
+        <label [for]="control.id + '-default'">ברירת מחדל</label>
+        @switch (control.type) {
+          @case ('boolean') {
+            <select [id]="control.id + '-default'" [formField]="c.defaultValue">
+              <option value="">בחרו</option>
+              <option value="true">כן</option>
+              <option value="false">לא</option>
+            </select>
+          }
+          @case ('select') {
+            <select [id]="control.id + '-default'" [formField]="c.defaultValue">
+              <option value="">ללא בחירה</option>
+              @for (option of control.options; track $index) {
+                <option [value]="option.value">{{ option.value }}</option>
+              }
+            </select>
+          }
+          @default {
+            <input
+              [id]="control.id + '-default'"
+              [dir]="control.type === 'integer' ? 'ltr' : 'auto'"
+              [attr.inputmode]="control.type === 'integer' ? 'numeric' : 'text'"
+              [formField]="c.defaultValue"
+            />
+          }
+        }
+      </div>
+    }
+    @if (control.type === 'integer') {
+      <div class="grid gap-4 sm:grid-cols-2">
+        <div>
+          <label [for]="control.id + '-min'">מינימום (רשות)</label
+          ><input [id]="control.id + '-min'" dir="ltr" inputmode="numeric" [formField]="c.min" />
+        </div>
+        <div>
+          <label [for]="control.id + '-max'">מקסימום (רשות)</label
+          ><input [id]="control.id + '-max'" dir="ltr" inputmode="numeric" [formField]="c.max" />
+        </div>
+      </div>
+      <div>
+        <label [for]="control.id + '-unit'">יחידת מידה (רשות)</label
+        ><input [id]="control.id + '-unit'" dir="auto" [formField]="c.unit" />
+      </div>
+    }
+    @if (control.type === 'text') {
+      <div>
+        <label [for]="control.id + '-max-length'">מספר תווים מרבי (רשות)</label
+        ><input
+          [id]="control.id + '-max-length'"
+          dir="ltr"
+          inputmode="numeric"
+          [formField]="c.maxLength"
+        />
+      </div>
+    }
+    @if (control.type === 'select') {
+      @for (option of control.options; track $index; let optionIndex = $index) {
+        <div class="grid gap-4 sm:grid-cols-2">
+          <div>
+            <label [for]="control.id + '-option-' + optionIndex">אפשרות {{ optionIndex + 1 }}</label
+            ><input
+              [id]="control.id + '-option-' + optionIndex"
+              dir="auto"
+              [formField]="c.options[optionIndex].value"
+            />
+          </div>
+          <div>
+            <label [for]="control.id + '-meaning-' + optionIndex">הסבר לאפשרות (רשות)</label
+            ><input
+              [id]="control.id + '-meaning-' + optionIndex"
+              dir="auto"
+              [formField]="c.options[optionIndex].meaning"
+            />
+          </div>
+          <button
+            type="button"
+            class="text-link w-fit"
+            [disabled]="locked()"
+            (click)="editOption(optionIndex)"
+          >
+            הסרת אפשרות {{ optionIndex + 1 }}
+          </button>
+        </div>
+      }
+      <button
+        type="button"
+        class="button button-secondary w-fit"
+        [disabled]="locked() || control.options.length >= limits.maxSelectOptions"
+        (click)="editOption()"
+      >
+        הוספת אפשרות
+      </button>
+    }
+    <button
+      type="button"
+      class="text-link text-link-danger w-fit"
+      [disabled]="locked()"
+      (click)="structureChanged.emit({ kind: 'remove-control', scope: scope(), id: control.id })"
+    >
+      הסרת הבחירה <bdi>{{ control.label }}</bdi>
+    </button>
+  </div>
+</details>

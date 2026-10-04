@@ -167,7 +167,7 @@ test('prompt to editable activity, independent template, scoped repair and froze
   await page.goto('/templates/' + template.id + '/edit');
   await page.getByLabel('שם התבנית', { exact: true }).fill('תבנית ששונתה');
   await page.locator('#save-template').click();
-  await expect(page.getByText('התבנית נשמרה בספרייה. הפעילות לא השתנתה.')).toBeVisible();
+  await expect(page.getByText('התבנית נשמרה בספרייה.', { exact: true })).toBeVisible();
   await page.goto(frozenUrl);
   expect(await (await page.request.get(frozenPath)).json()).toEqual(frozen);
   expect(errors).toEqual([]);
