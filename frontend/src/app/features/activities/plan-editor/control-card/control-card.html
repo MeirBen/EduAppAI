@@ -153,23 +153,25 @@
         @let errorsId = control.id + '-option-' + optionIndex + '-errors';
         <div>
           <div class="flex flex-wrap items-end gap-4">
-            <div class="min-w-0 grow basis-48">
-              <label [for]="control.id + '-option-' + optionIndex"
-                >אפשרות {{ optionIndex + 1 }}</label
-              ><input
-                [id]="control.id + '-option-' + optionIndex"
-                dir="auto"
-                [formField]="value"
-                [attr.aria-describedby]="errorsId"
-              />
-            </div>
-            <div class="min-w-0 grow basis-48">
-              <label [for]="control.id + '-meaning-' + optionIndex">הסבר לאפשרות (רשות)</label
-              ><input
-                [id]="control.id + '-meaning-' + optionIndex"
-                dir="auto"
-                [formField]="c.options[optionIndex].meaning"
-              />
+            <div class="flex min-w-1/2 flex-1 flex-wrap gap-4">
+              <div class="min-w-0 grow basis-48">
+                <label [for]="control.id + '-option-' + optionIndex"
+                  >אפשרות {{ optionIndex + 1 }}</label
+                ><input
+                  [id]="control.id + '-option-' + optionIndex"
+                  dir="auto"
+                  [formField]="value"
+                  [attr.aria-describedby]="errorsId"
+                />
+              </div>
+              <div class="min-w-0 grow basis-48">
+                <label [for]="control.id + '-meaning-' + optionIndex">הסבר לאפשרות (רשות)</label
+                ><input
+                  [id]="control.id + '-meaning-' + optionIndex"
+                  dir="auto"
+                  [formField]="c.options[optionIndex].meaning"
+                />
+              </div>
             </div>
             <button
               type="button"

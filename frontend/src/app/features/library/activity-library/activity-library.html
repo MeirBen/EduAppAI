@@ -14,7 +14,9 @@
   </header>
   @if (updates.state() === 'unavailable') {
     <div class="grid gap-1">
-      <p role="status" class="text-muted">העדכונים בזמן אמת נותקו. אפשר לנסות להתחבר שוב.</p>
+      <p role="status" class="note">
+        <span class="icon icon-alert" aria-hidden="true"></span>העדכונים בזמן אמת נותקו.
+      </p>
       <button id="reconnect-library" type="button" class="text-link" (click)="updates.reconnect()">
         <span class="icon icon-refresh" aria-hidden="true"></span>חיבור מחדש
       </button>
@@ -48,7 +50,7 @@
           <span class="icon-tile size-10" aria-hidden="true"
             ><span class="icon icon-edit"></span
           ></span>
-          <div class="grid min-w-0 grow basis-48">
+          <div class="grid min-w-1/2 flex-1">
             <a class="row-link" [routerLink]="['/activities', draft.id]"
               ><bdi>{{ draft.name }}</bdi></a
             >
@@ -108,7 +110,7 @@
           <span class="icon-tile size-10" aria-hidden="true"
             ><span class="icon icon-check"></span
           ></span>
-          <div class="grid min-w-0 grow basis-48">
+          <div class="grid min-w-1/2 flex-1">
             <a class="row-link" [routerLink]="['/instances', snapshot.id]"
               ><bdi>{{ snapshot.title }}</bdi></a
             >
@@ -164,7 +166,7 @@
           <span class="icon-tile size-10" aria-hidden="true"
             ><span class="icon icon-template"></span
           ></span>
-          <h3 class="min-w-0 grow basis-48 text-base">
+          <h3 class="min-w-1/2 flex-1 text-base">
             <bdi>{{ template.name }}</bdi>
           </h3>
           <div class="flex flex-wrap items-center gap-x-4">

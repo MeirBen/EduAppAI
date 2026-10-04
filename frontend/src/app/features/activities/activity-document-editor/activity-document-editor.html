@@ -174,7 +174,7 @@
             <div class="grid gap-4">
               @for (option of value.options; track $index; let j = $index) {
                 <div class="flex flex-wrap items-end gap-4">
-                  <div class="min-w-0 grow basis-60">
+                  <div class="min-w-1/2 flex-1">
                     <label [for]="'question-' + i + '-option-' + j">אפשרות {{ j + 1 }}</label
                     ><input
                       [id]="'question-' + i + '-option-' + j"

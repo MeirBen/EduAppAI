@@ -46,7 +46,9 @@ parent labels keep their original language and values.
   Text areas grow with their text where the browser supports it, so the page
   scrolls once; numeric fields size to a few digits.
   Use the viewport-capped `gutter` spacing for narrow containers so padding does
-  not crowd enlarged text. Preserve browser zoom, iOS text scaling and the
+  not crowd enlarged text. On phones, buttons take the 44px control height, the
+  page heading steps down one size and list rows drop their decorative tile;
+  body and field text stay 16px. Preserve browser zoom, iOS text scaling and the
   production bundle budgets.
 - Label controls; associate errors with fields. Provide keyboard access, visible
   focus, loading status, error alerts and distinguishable repeated
@@ -85,7 +87,9 @@ take no layout slot, so they never double a gap. Group card fields with
 legend; each later headed group in a card is a `card-section`, whose rule marks
 where the previous one ends. Short related fields share a row: settings fill one
 two-column grid, numbers sit beside their siblings and a list's remove action
-sits beside its item. Optional content renders only when present.
+sits beside its item. Content with trailing actions takes `min-w-1/2 flex-1`,
+so the actions stay beside it and wrap only once it would fall below half the
+row. Optional content renders only when present.
 
 ## Styles and theming
 
