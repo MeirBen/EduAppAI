@@ -18,7 +18,7 @@ export class ActivityReview {
   readonly measurements = input.required<MeasurementItem[]>();
   /** The checks describe the latest saved revision. */
   readonly saved = input(false);
-  /** Local edits exist, so the checks may change after the next save. */
+  /** Local edits or a running generation may still change the checks. */
   readonly outdated = input(false);
   protected readonly summary = computed(() =>
     this.issues().length

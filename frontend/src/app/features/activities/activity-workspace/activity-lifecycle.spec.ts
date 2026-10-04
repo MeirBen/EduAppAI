@@ -163,6 +163,16 @@ describe('Activity lifecycle', () => {
     expect(root().querySelector('#document-title')!.getAttribute('aria-invalid')).toBeNull();
     expect(root().querySelectorAll('#document-title-errors p')).toHaveLength(0);
   });
+  it('holds release problems while a generation is still writing the content', async () => {
+    await open(true, {
+      ...savedActivity,
+      activeOperationId: 'op',
+      document: { ...savedActivity.document, title: '', questions: [savedQuestion] },
+      diagnostics: { title: ['יש למלא תוכן בשדה הזה.'] },
+    });
+    expect(root().querySelector('#document-title')!.getAttribute('aria-invalid')).toBeNull();
+    expect(root().querySelector('app-activity-review')!.textContent).not.toContain('מוכנה לבדיקה');
+  });
   it('shows a saved question problem at its own field until that field changes', async () => {
     await open(true, {
       ...savedActivity,

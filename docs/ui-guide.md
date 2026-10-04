@@ -231,14 +231,15 @@ attempt is automatic.
 
 Display server length measurements beside saved diagnostics. Distinguish
 advisory targets from strict range blockers, and technical readiness from
-the parent's educational review. Once there is content to mark ready, a saved
-diagnostic of one field, such as the title, a text or a question's answer, shows
-at that field like a validation error until the field changes; the review names
-where to fix and lists only blockers without a field. Offer adoption only in
-a callout beside content that saved diagnostics mark as stale. Frozen previews
-expose answers in native disclosures and offer an explicit copy to a new draft.
-A read-only box whose text a parent may reuse, such as an AI response or a
-material text, carries a `CopyButton`; editable fields copy natively.
+the parent's educational review. Once content is ready to review, present and no
+generation writing it, a saved diagnostic of one field, such as the title, a text
+or a question's answer, shows at that field like a validation error until the
+field changes; the review names where to fix and lists only blockers without a
+field, and never calls content ready while a generation runs. Offer adoption
+only in a callout beside content that saved diagnostics mark as stale. Frozen
+previews expose answers in native disclosures and offer an explicit copy to a
+new draft. A read-only box whose text a parent may reuse, such as an AI response
+or a material text, carries a `CopyButton`; editable fields copy natively.
 
 ## Loading
 

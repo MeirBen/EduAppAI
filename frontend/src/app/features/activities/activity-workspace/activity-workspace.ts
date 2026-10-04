@@ -327,10 +327,10 @@ export class ActivityWorkspace {
   protected readonly measurements = computed(() =>
     measurementItems(this.saved()?.measurements ?? [], this.saved()?.plan),
   );
-  /** Release problems matter once there is content to mark ready, like the review and its action. */
+  /** Release problems matter once content is ready to review: present, and no generation writing it. */
   protected readonly contentIssues = computed(() =>
     savedContentIssues(
-      this.hasContent() ? this.saved() : undefined,
+      this.hasContent() && !this.operationActive() ? this.saved() : undefined,
       this.raw().document,
       this.baseline().document,
     ),

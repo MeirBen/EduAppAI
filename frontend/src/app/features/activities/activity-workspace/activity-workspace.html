@@ -188,7 +188,7 @@
             [issues]="issues()"
             [measurements]="measurements()"
             [saved]="!!saved()"
-            [outdated]="dirty()"
+            [outdated]="dirty() || operationActive()"
           />
           <details>
             <summary>פעולות נוספות</summary>
