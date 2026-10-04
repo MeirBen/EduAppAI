@@ -44,7 +44,14 @@ describe('Workspace routes', () => {
     field.value = 'החלל';
     field.dispatchEvent(new Event('input'));
 
-    await harness.navigateByUrl('/templates/first/create?source=library#practice-title');
+    const navigation = harness.navigateByUrl(
+      '/templates/first/create?source=library#practice-title',
+    );
+    (await vi.waitFor(() => http.expectOne('/api/auth/me'))).flush({
+      email: 'parent@example.test',
+      familyId: 'family',
+    });
+    await navigation;
     await harness.fixture.whenStable();
 
     expect(

@@ -1,21 +1,30 @@
 import { Routes } from '@angular/router';
 import { parentGuard } from './core/auth/parent-guard';
-import { signOutGuard } from './core/auth/sign-out-guard';
+import { loginGuard, signOutGuard } from './core/auth/login-guard';
 import { activityWorkspaceRoutes } from './features/activities/activity.routes';
 
 /** Lazy parent routes; server authorization remains authoritative. */
 export const routes: Routes = [
   {
     path: 'login',
+    canMatch: [loginGuard],
     canActivate: [signOutGuard],
-    // Back or an access-check failure can leave a signed-in parent on this page.
+    // Sign-out can arrive while login is still waiting for private navigation.
     runGuardsAndResolvers: 'always',
     title: 'כניסת הורים · לומדים ביחד',
     loadComponent: () => import('./features/auth/login/login').then((m) => m.Login),
   },
   {
+    path: 'access-unavailable',
+    title: 'המרחב לא זמין · לומדים ביחד',
+    loadComponent: () =>
+      import('./features/auth/access-unavailable/access-unavailable').then(
+        (m) => m.AccessUnavailable,
+      ),
+  },
+  {
     path: '',
-    canActivateChild: [parentGuard],
+    canMatch: [parentGuard],
     children: [
       ...activityWorkspaceRoutes,
       {

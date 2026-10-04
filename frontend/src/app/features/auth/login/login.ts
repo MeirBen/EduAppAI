@@ -1,15 +1,7 @@
-import {
-  ChangeDetectionStrategy,
-  Component,
-  DestroyRef,
-  inject,
-  linkedSignal,
-  signal,
-} from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, inject, signal } from '@angular/core';
 import { Router } from '@angular/router';
 import { disabled, email, form, FormField, required, submit } from '@angular/forms/signals';
 import { Auth } from '../../../core/auth/auth';
-import { parentAccessUnavailable } from '../../../core/auth/parent-guard';
 import { apiError } from '../../../core/api/api-error';
 import { LoadingIndicator } from '../../../shared/loading-indicator/loading-indicator';
 
@@ -31,13 +23,7 @@ export class Login {
     email(path.email);
     required(path.password);
   });
-  protected readonly error = linkedSignal({
-    source: this.router.lastSuccessfulNavigation,
-    computation: (navigation): string =>
-      navigation?.extras.info === parentAccessUnavailable
-        ? 'לא הצלחנו לפתוח את המרחב. אפשר לנסות להיכנס שוב.'
-        : '',
-  });
+  protected readonly error = signal('');
 
   protected async signIn(event: Event) {
     event.preventDefault();
@@ -48,7 +34,7 @@ export class Login {
         await this.auth.login(this.model().email, this.model().password, this.lifetime);
         if (this.lifetime.destroyed) return;
         this.model.update((value) => ({ ...value, password: '' }));
-        await this.router.navigateByUrl('/');
+        await this.router.navigateByUrl('/', { replaceUrl: true });
       } catch (error) {
         if (!this.lifetime.destroyed) this.error.set(apiError(error));
       }

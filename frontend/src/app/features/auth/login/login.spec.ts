@@ -47,7 +47,7 @@ describe('Sign-in request lifetime', () => {
     (await vi.waitFor(() => http.expectOne('/api/auth/login'))).flush(null);
     (await vi.waitFor(() => http.expectOne('/api/auth/csrf'))).flush({ token: 'signed-in' });
     await fixture.whenStable();
-    await vi.waitFor(() => expect(navigate).toHaveBeenCalledWith('/'));
+    await vi.waitFor(() => expect(navigate).toHaveBeenCalledWith('/', { replaceUrl: true }));
   });
 
   it.each(['token', 'credentials', 'refreshed-token'])(

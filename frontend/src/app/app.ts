@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { Auth } from './core/auth/auth';
-import { parentSignOut } from './core/auth/sign-out-guard';
+import { parentSignOut } from './core/auth/login-guard';
 import { apiError } from './core/api/api-error';
 import { LoadingIndicator } from './shared/loading-indicator/loading-indicator';
 import { ThemePicker } from './shared/theme-picker/theme-picker';

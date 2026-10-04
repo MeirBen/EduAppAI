@@ -57,23 +57,6 @@ async function narrow(page: Page, name: string) {
   await page.setViewportSize({ width: 1440, height: 1000 });
 }
 
-test('login feedback belongs to the failed navigation and does not survive a reload', async ({
-  page,
-}) => {
-  await page.goto('/login?connection=unavailable');
-  await expect(page.getByRole('heading', { name: 'טוב שחזרתם' })).toBeVisible();
-  await expect(page.getByRole('alert')).toHaveCount(0);
-  await page.route('**/api/auth/me', (route) => route.fulfill({ status: 503, json: {} }));
-  await page.goto('/');
-  await expect(page).toHaveURL('/login');
-  await expect(page.getByRole('alert')).toContainText('לא הצלחנו לפתוח את המרחב');
-  await page.reload();
-  await expect(page.getByRole('heading', { name: 'טוב שחזרתם' })).toBeVisible();
-  await expect(page.getByRole('alert')).toHaveCount(0);
-  await page.unroute('**/api/auth/me');
-  await login(page);
-});
-
 test('the parent keeps their place: pages open at the top, focus follows the action and the caret starts on the page side', async ({
   page,
 }) => {

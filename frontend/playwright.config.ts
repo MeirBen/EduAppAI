@@ -7,11 +7,20 @@ export default defineConfig({
   workers: 1,
   reporter: 'list',
   use: { baseURL: 'http://localhost:5199', trace: 'retain-on-failure', serviceWorkers: 'block' },
-  webServer: {
-    command: 'node e2e/start-server.mjs',
-    url: 'http://localhost:5199/health',
+  projects: [
+    { name: 'workflows', testIgnore: '**/auth-navigation.spec.ts' },
+    {
+      name: 'auth',
+      testMatch: '**/auth-navigation.spec.ts',
+      use: { baseURL: 'http://localhost:5200' },
+    },
+  ],
+  // Real sign-in tests get their own disposable host and login rate-limit budget.
+  webServer: [5199, 5200].map((port) => ({
+    command: `node e2e/start-server.mjs ${port}`,
+    url: `http://localhost:${port}/health`,
     reuseExistingServer: false,
     timeout: 60_000,
-    gracefulShutdown: { signal: 'SIGTERM', timeout: 10_000 },
-  },
+    gracefulShutdown: { signal: 'SIGTERM' as const, timeout: 10_000 },
+  })),
 });

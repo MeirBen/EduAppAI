@@ -204,7 +204,11 @@ caller's injection context and cancel on route change or destruction; check
 does not guarantee a server rollback. Changing route parameters destroys the
 page and cancels its writes, while query and fragment changes keep its edits.
 Guards check the session on every private navigation and cancel superseded
-checks. The request token loads once per sign-in and the server's
+checks. Matching guards resolve access redirects before unsaved-work confirmation;
+explicit sign-out runs only after the outgoing page accepts navigation. A valid
+server session bypasses login, and successful sign-in replaces its history entry.
+Failed access checks use a separate retry page without requesting credentials.
+The request token loads once per sign-in and the server's
 `ContentLimits` once per tab, both before a private page renders; forms, caps
 and copy read the limits through `Limits`. The server still authorizes and
 validates every request.

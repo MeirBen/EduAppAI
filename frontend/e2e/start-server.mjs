@@ -11,7 +11,7 @@ const environment = {
   ...process.env,
   DOTNET_HOSTBUILDER__RELOADCONFIGONCHANGE: 'false',
   ASPNETCORE_ENVIRONMENT: 'Development',
-  ASPNETCORE_URLS: 'http://localhost:5199',
+  ASPNETCORE_URLS: `http://localhost:${process.argv[2] ?? '5199'}`,
   Storage__Directory: dataDirectory,
   Ai__ApiKey: 'isolated-test-key',
   Ai__Model: 'test/schema-model',

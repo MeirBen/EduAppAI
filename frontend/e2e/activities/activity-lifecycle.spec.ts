@@ -36,10 +36,6 @@ async function isolate(page: Page) {
         signedIn ? { json: { email: 'parent@example.test', familyId: 'family' } } : { status: 401 },
       );
     if (path === '/api/auth/csrf') return route.fulfill({ json: { token: 'isolated' } });
-    if (path === '/api/auth/login') {
-      signedIn = true;
-      return route.fulfill({ status: 204 });
-    }
     if (path === '/api/auth/logout') {
       signedIn = false;
       return route.fulfill({ status: 204 });
@@ -205,23 +201,6 @@ test('failed sign-out keeps edits and asks again before a later attempt', async 
   await expect(signOut).toBeEnabled();
   expect(prompts).toBe(2);
   expect(state.writes.filter((write) => write.path === '/api/auth/logout')).toHaveLength(0);
-});
-
-test('sign-out still works after Back returns a signed-in parent to the login page', async ({
-  page,
-}) => {
-  const state = await isolate(page);
-  await page.goto('/login');
-  await page.getByLabel('כתובת דוא״ל', { exact: true }).fill('parent@example.test');
-  await page.getByLabel('סיסמה', { exact: true }).fill('TestOnly!Parent12345');
-  await page.getByRole('button', { name: 'כניסה למרחב שלנו' }).click();
-  await expect(page.getByRole('heading', { name: 'פעילות חדשה', exact: true })).toBeVisible();
-  await page.goBack();
-  await expect(page).toHaveURL(/\/login$/);
-  const signOut = page.getByRole('button', { name: 'יציאה', exact: true });
-  await signOut.click();
-  await expect(signOut).toHaveCount(0);
-  expect(state.writes.filter((write) => write.path === '/api/auth/logout')).toHaveLength(1);
 });
 
 test('removing a scoped generation target keeps progress and cancellation accessible', async ({
