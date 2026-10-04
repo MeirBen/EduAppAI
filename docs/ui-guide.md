@@ -15,7 +15,10 @@ parent labels keep their original language and values.
   gutter, the footer rests at the window's bottom on short pages, new pages
   open at the top and Back restores the previous position.
 - Use the shared light/dark theme tokens, visible focus/error states and locally
-  bundled Heebo.
+  bundled Heebo in three weights: semibold headings with snug leading, medium
+  field captions and actions, and regular body, option and help text with the
+  theme's 1.7 leading. Underlines share one offset; Hebrew text keeps its
+  natural letter spacing.
 - Use `panel` for raised surfaces and `button` for primary actions; add
   `button-secondary`, or the quiet `button-danger` for destructive actions
   guarded by a confirmation. Actions size to their content. Keep one prominent

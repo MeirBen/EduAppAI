@@ -9,8 +9,7 @@
    * primary; add one variant for the other kinds. On phones it takes the 44px control height.
    */
   .button {
-    @apply inline-flex min-h-11 w-fit items-center justify-center gap-2 rounded-button border border-transparent bg-brand px-gutter py-2 text-center sm:min-h-12 sm:py-3 font-medium text-on-brand no-underline shadow-button transition-[background-color,border-color,color,box-shadow,translate,scale] actionable:hover:bg-brand-hover actionable:hover:shadow-button-raised motion-safe:actionable:hover:-translate-y-0.5 motion-safe:actionable:active:translate-y-0 motion-safe:actionable:active:scale-98;
-    line-height: 1.5;
+    @apply inline-flex min-h-11 w-fit items-center justify-center gap-2 rounded-button border border-transparent bg-brand px-gutter py-2 text-center leading-normal font-medium text-on-brand no-underline shadow-button transition-[background-color,border-color,color,box-shadow,translate,scale] actionable:hover:bg-brand-hover actionable:hover:shadow-button-raised motion-safe:actionable:hover:-translate-y-0.5 motion-safe:actionable:active:translate-y-0 motion-safe:actionable:active:scale-98 sm:min-h-12 sm:py-3;
   }
   .button-secondary {
     @apply border-line bg-surface text-brand shadow-control actionable:hover:border-brand/30 actionable:hover:bg-soft actionable:hover:shadow-panel;

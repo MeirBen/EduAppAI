@@ -48,11 +48,6 @@
   --text-sm--line-height: 1.7;
   --text-base--line-height: 1.7;
   --text-lg--line-height: 1.7;
-  --text-xl--line-height: 1.5;
-  --text-2xl--line-height: 1.4;
-  --text-3xl--line-height: 1.4;
-  --text-4xl--line-height: 1.4;
-  --text-5xl--line-height: 1.4;
 }
 
 @theme inline {

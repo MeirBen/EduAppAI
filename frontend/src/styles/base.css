@@ -17,7 +17,7 @@
   }
 
   body {
-    @apply bg-canvas font-sans text-ink antialiased;
+    @apply bg-canvas text-base text-ink antialiased;
     /* Gradients have no logical keywords, so the glow edges follow the reading direction here. */
     --glow-start: right;
     --glow-end: left;
@@ -29,8 +29,8 @@
         transparent 32rem
       );
     background-repeat: no-repeat;
-    line-height: 1.7;
     overflow-wrap: anywhere;
+    text-underline-offset: 0.25em;
 
     &:dir(ltr) {
       --glow-start: left;
@@ -48,8 +48,7 @@
   h3,
   h4,
   h5 {
-    @apply font-semibold;
-    line-height: 1.4;
+    @apply font-semibold leading-snug;
     text-wrap: balance;
   }
 
@@ -66,9 +65,6 @@
     text-wrap: pretty;
   }
 
-  a {
-    text-underline-offset: 0.25em;
-  }
   button,
   summary {
     cursor: pointer;
@@ -100,7 +96,7 @@
 
   /* A label that wraps its checkbox is the whole field, with the box beside its text. */
   label:has(input[type='checkbox']) {
-    @apply mb-0 flex min-h-11 cursor-pointer items-center gap-2;
+    @apply mb-0 flex min-h-11 cursor-pointer items-center gap-2 font-normal;
   }
   label:has(input[type='checkbox']:disabled) {
     @apply cursor-not-allowed text-muted;
@@ -111,8 +107,6 @@
   select,
   textarea {
     @apply min-h-11 w-full min-w-0 rounded-control border border-control bg-surface px-3 py-2 text-base text-ink shadow-control transition-[border-color,box-shadow] enabled:hover:border-muted focus:border-focus focus:inset-ring focus:inset-ring-focus focus:ring-4 focus:ring-focus/15 focus:outline-hidden disabled:cursor-not-allowed disabled:border-line disabled:bg-canvas disabled:text-muted disabled:shadow-none;
-    /* Native controls must inherit Hebrew typography, including on iOS. */
-    font: inherit;
   }
 
   /*
