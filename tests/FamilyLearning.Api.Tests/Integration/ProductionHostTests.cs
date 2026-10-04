@@ -26,6 +26,7 @@ public sealed class ProductionHostTests
         if (command == "--create-parent") start.ArgumentList.Add("management@example.test");
         start.Environment["ASPNETCORE_ENVIRONMENT"] = "Production";
         start.Environment["Storage__Directory"] = dataDirectory;
+        start.Environment["Serilog__WriteTo__File__Args__configure__0__Args__path"] = Path.Combine(dataDirectory, "logs", "server-.jsonl");
         start.Environment["Ai__ApiKey"] = "isolated-test-key";
         start.Environment["Ai__Model"] = " ";
         try
@@ -106,6 +107,7 @@ public sealed class ProductionHostTests
         start.ArgumentList.Add("--migrate");
         start.Environment["ASPNETCORE_ENVIRONMENT"] = "Production";
         start.Environment["Storage__Directory"] = directory;
+        start.Environment["Serilog__WriteTo__File__Args__configure__0__Args__path"] = Path.Combine(directory, "logs", "server-.jsonl");
         // Production must apply the baseline before starting its durable worker.
         start.Environment["Ai__ApiKey"] = "";
         start.Environment["OPENROUTER_API_KEY"] = "";

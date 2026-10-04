@@ -55,7 +55,7 @@ describe('ActivityDocumentEditor native fields', () => {
     await fixture.whenStable();
     expect(root.querySelector<HTMLInputElement>('#question-0-answer')!.value).toBe('א');
     Array.from(root.querySelectorAll('button'))
-      .find((b) => b.textContent?.includes('מחיקת אפשרות 1'))!
+      .find((b) => b.textContent?.includes('הסרת אפשרות 1'))!
       .click();
     await fixture.whenStable();
     expect(root.querySelector<HTMLInputElement>('#question-0-answer')!.value).toBe('א');
@@ -112,13 +112,24 @@ describe('ActivityDocumentEditor structure focus', () => {
     return document.activeElement as HTMLElement;
   }
 
+  it("edits a question's options beside them, keeping the disclosure for the question itself", async () => {
+    const fixture = TestBed.createComponent(Questions);
+    await fixture.whenStable();
+    const root: HTMLElement = fixture.nativeElement;
+    const button = (text: string) =>
+      Array.from(root.querySelectorAll('button')).find((b) => b.textContent?.trim() === text)!;
+    for (const text of ['הוספת אפשרות', 'הסרת אפשרות 1'])
+      expect(button(text).closest('details')).toBeNull();
+    expect(button('הסרת שאלה 1').closest('details')).not.toBeNull();
+  });
+
   it('moves focus from a removed question to its neighbour, else to the add button', async () => {
     const fixture = TestBed.createComponent(Questions);
     await fixture.whenStable();
     const root: HTMLElement = fixture.nativeElement;
-    expect((await press(fixture, root, 'מחיקת שאלה 2')).id).toBe('question-1-more');
-    expect((await press(fixture, root, 'מחיקת שאלה 2')).id).toBe('question-0-more');
-    expect((await press(fixture, root, 'מחיקת שאלה 1')).id).toBe('add-question');
+    expect((await press(fixture, root, 'הסרת שאלה 2')).id).toBe('question-1-more');
+    expect((await press(fixture, root, 'הסרת שאלה 2')).id).toBe('question-0-more');
+    expect((await press(fixture, root, 'הסרת שאלה 1')).id).toBe('add-question');
   });
 
   it("keeps focus on a moved question and in a removed option's place, else on adding one", async () => {
@@ -130,9 +141,7 @@ describe('ActivityDocumentEditor structure focus', () => {
     );
     expect(fixture.componentInstance.raw().document.questions[1].prompt).toBe('שאלה a');
     // Options are positional: the next option takes the removed one's place and its button.
-    expect((await press(fixture, root, 'מחיקת אפשרות 1')).textContent?.trim()).toBe(
-      'מחיקת אפשרות 1',
-    );
-    expect((await press(fixture, root, 'מחיקת אפשרות 1')).id).toBe('question-0-add-option');
+    expect((await press(fixture, root, 'הסרת אפשרות 1')).textContent?.trim()).toBe('הסרת אפשרות 1');
+    expect((await press(fixture, root, 'הסרת אפשרות 1')).id).toBe('question-0-add-option');
   });
 });

@@ -2,9 +2,11 @@ import { numericPlan, suppliedPlan, sourceText } from '../learning-plan.fixture'
 import { inputForm, planForm } from './plan-form';
 import { planValue, requestValue } from './plan-projection';
 import { LearningPlan } from '../../../core/api/models';
+import { taskSettingsDraft } from '../../../shared/forms/task-settings';
 import { limits } from '../../../core/api/limits.fixture';
 
 describe('Plan projection', () => {
+  const defaults = () => taskSettingsDraft(numericPlan.defaults);
   it('omits integer-only metadata after changing a requested choice to text', () => {
     const form = planForm({
       ...numericPlan,
@@ -21,7 +23,7 @@ describe('Plan projection', () => {
       ],
     });
     form.controls[0].type = 'text';
-    const control = planValue(form, limits).value?.controls[0];
+    const control = planValue(form, defaults(), limits).value?.controls[0];
     expect(control).not.toHaveProperty('unit');
     expect(control).not.toHaveProperty('min');
     expect(control).not.toHaveProperty('max');
@@ -29,15 +31,18 @@ describe('Plan projection', () => {
   });
   it('preserves accepted source text and the server version without normalizing content', () => {
     const form = planForm({ ...suppliedPlan, schemaVersion: 23 });
-    expect(planValue(form, limits).value?.materials[0].text).toBe(sourceText);
-    expect(planValue(form, limits).value?.schemaVersion).toBe(23);
-    form.settings.questionCount = '';
-    expect(planValue(form, limits).value).toBeUndefined();
-    expect(form.settings.questionCount).toBe('');
-    form.settings.questionCount = '21';
-    expect(planValue(form, limits).errors).toContain('מספר השאלות חייב להיות בין 1 ל־20.');
-    form.settings.questionCount = '20';
-    expect(planValue(form, limits).value?.defaults.questionCount).toBe(20);
+    const settings = defaults();
+    expect(planValue(form, settings, limits).value?.materials[0].text).toBe(sourceText);
+    expect(planValue(form, settings, limits).value?.schemaVersion).toBe(23);
+    settings.questionCount = '';
+    expect(planValue(form, settings, limits).value).toBeUndefined();
+    expect(settings.questionCount).toBe('');
+    settings.questionCount = '21';
+    expect(planValue(form, settings, limits).errors).toContain(
+      'מספר השאלות חייב להיות בין 1 ל־20.',
+    );
+    settings.questionCount = '20';
+    expect(planValue(form, settings, limits).value?.defaults.questionCount).toBe(20);
   });
 
   it('maps blanks to omission, preserving explicit empty text, false and zero', () => {
@@ -103,14 +108,14 @@ describe('Plan projection', () => {
     material.length.mode = 'target';
     material.length.value = '120';
     material.length.adjustable = false;
-    const generated = planValue(form, limits).value!;
+    const generated = planValue(form, defaults(), limits).value!;
     expect(generated.materials[0].text).toBeNull();
     expect(generated.materials[0].length).toEqual({
       mode: 'target',
       count: { value: 120, adjustable: false },
     });
     material.source = 'per-task';
-    const perTask = planValue(form, limits).value!;
+    const perTask = planValue(form, defaults(), limits).value!;
     expect(perTask.materials[0].length).toBeNull();
     const inputs = inputForm(perTask);
     expect(requestValue(perTask, inputs, limits).value).toBeUndefined();
@@ -131,12 +136,16 @@ describe('Plan projection', () => {
       ],
     };
     const form = planForm(plan);
-    expect(planValue(form, limits).value?.controls.map((c) => c.default)).toEqual(['', 0, false]);
+    expect(planValue(form, defaults(), limits).value?.controls.map((c) => c.default)).toEqual([
+      '',
+      0,
+      false,
+    ]);
     form.controls[0].type = 'select';
     form.controls[0].options = [{ value: 'חדש', meaning: '' }];
     form.controls[0].defaultValue = 'לא קיים';
-    expect(planValue(form, limits).value).toBeUndefined();
+    expect(planValue(form, defaults(), limits).value).toBeUndefined();
     form.controls[0].defaultValue = 'חדש';
-    expect(planValue(form, limits).value?.controls[0].default).toBe('חדש');
+    expect(planValue(form, defaults(), limits).value?.controls[0].default).toBe('חדש');
   });
 });

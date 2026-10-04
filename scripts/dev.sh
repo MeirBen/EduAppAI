@@ -11,6 +11,8 @@ for tool in dotnet node npm; do
 done
 dotnet --version >/dev/null
 if [[ ! -x frontend/node_modules/.bin/ng ]]; then npm --prefix frontend ci; fi
+# Each run starts with clean server logs.
+rm -rf -- "$repo_dir/logs"
 # Build before starting the API watcher: both projects share the backend dependency.
 dotnet build tools/FamilyLearning.Evaluation
 

@@ -139,7 +139,29 @@
                     [formField]="question.options[j].value"
                   />
                 </div>
+                <button
+                  type="button"
+                  class="text-link w-fit"
+                  [disabledInteractive]="locked()"
+                  (click)="
+                    edit(
+                      { kind: 'remove-option', index: i, option: j },
+                      'question-' + i + '-add-option'
+                    )
+                  "
+                >
+                  הסרת אפשרות {{ j + 1 }}
+                </button>
               }
+              <button
+                type="button"
+                class="button button-secondary w-fit"
+                [id]="'question-' + i + '-add-option'"
+                [disabledInteractive]="locked() || value.options.length >= limits.maxChoiceCount"
+                (click)="structureChanged.emit({ kind: 'add-option', index: i })"
+              >
+                הוספת אפשרות
+              </button>
             </div>
             <div>
               <label [for]="'question-' + i + '-answer'"
@@ -230,36 +252,6 @@
                   }
                 </div>
               </div>
-              @if (value.type === 'single-choice') {
-                <div class="flex flex-wrap gap-x-4">
-                  @for (option of value.options; track $index; let j = $index) {
-                    <button
-                      type="button"
-                      class="text-link"
-                      [disabledInteractive]="locked()"
-                      (click)="
-                        edit(
-                          { kind: 'remove-option', index: i, option: j },
-                          'question-' + i + '-add-option'
-                        )
-                      "
-                    >
-                      מחיקת אפשרות {{ j + 1 }}
-                    </button>
-                  }
-                  <button
-                    type="button"
-                    class="text-link"
-                    [id]="'question-' + i + '-add-option'"
-                    [disabledInteractive]="
-                      locked() || value.options.length >= limits.maxChoiceCount
-                    "
-                    (click)="structureChanged.emit({ kind: 'add-option', index: i })"
-                  >
-                    הוספת אפשרות
-                  </button>
-                </div>
-              }
               <div class="flex flex-wrap gap-x-4">
                 <button
                   type="button"
@@ -287,7 +279,7 @@
                   [disabledInteractive]="locked()"
                   (click)="edit({ kind: 'remove-question', index: i }, questionSuccessor(i, count))"
                 >
-                  מחיקת שאלה {{ i + 1 }}
+                  הסרת שאלה {{ i + 1 }}
                 </button>
               </div>
             </div>

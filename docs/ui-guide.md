@@ -153,9 +153,11 @@ editable content visibly distinct. Saving a template publishes only the plan;
 saving a draft retains editable work; marking ready freezes the reviewed
 revision. Give each state one primary action: create the activity, then mark it
 ready; template editing makes publication primary. Uncommon actions live under
-**פעולות נוספות** or a quiet disclosure. Question cards keep prompt, options and
-the parent-only answer visible; type, points, ordering and deletion sit in a
-per-question disclosure. Scoped AI improvement is a contextual action with an
+**פעולות נוספות** or a quiet disclosure. Question cards keep prompt, options
+with their add and remove actions, and the parent-only answer visible; type,
+points, ordering and removal sit in a per-question disclosure. Every form list
+edits the same way: a remove link (**הסרת**) beside each item and one secondary
+add button after the list. Scoped AI improvement is a contextual action with an
 optional instruction; its progress, result and any error show in that card,
 while full generation reports above the content.
 

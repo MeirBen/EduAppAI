@@ -212,7 +212,7 @@ test('supports keyboard content editing with native labels at 360px and 200% tex
   await moveUp.focus();
   await page.keyboard.press('Enter');
   await expect(page.locator('#question-0-move-up')).toBeFocused();
-  await page.getByRole('button', { name: 'מחיקת שאלה 1', exact: true }).focus();
+  await page.getByRole('button', { name: 'הסרת שאלה 1', exact: true }).focus();
   await page.keyboard.press('Enter');
   await expect(page.locator('#question-0-more')).toBeFocused();
 });

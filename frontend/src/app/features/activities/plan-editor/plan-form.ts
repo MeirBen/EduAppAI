@@ -1,4 +1,4 @@
-import { apply, applyEach, maxLength, required, schema } from '@angular/forms/signals';
+import { applyEach, maxLength, required, schema } from '@angular/forms/signals';
 import {
   ActivityInput,
   ContentLimits,
@@ -9,11 +9,7 @@ import {
   PlanMaterial,
   QuestionFormat,
 } from '../../../core/api/models';
-import {
-  TaskSettingsDraft,
-  taskSettingsDraft,
-  taskSettingsSchema,
-} from '../../../shared/forms/task-settings';
+import { TaskSettingsDraft, taskSettingsDraft } from '../../../shared/forms/task-settings';
 
 /** Initialized presentation values retain blank/invalid keystrokes outside canonical HTTP records. */
 export interface ChoiceForm {
@@ -53,7 +49,6 @@ export interface PlanForm {
   name: string;
   goal: string;
   guidance: string;
-  settings: TaskSettingsDraft;
   materials: MaterialForm[];
   controls: ControlForm[];
   totalLength: LengthForm;
@@ -105,7 +100,6 @@ export const planFormSchema = (limits: ContentLimits) =>
     required(path.goal);
     maxLength(path.goal, limits.goalLength);
     maxLength(path.guidance, limits.guidanceLength);
-    apply(path.settings, taskSettingsSchema(limits));
     maxLength(path.questions.guidance, limits.scopedGuidanceLength);
     applyEach(path.controls, controls);
     applyEach(path.questions.controls, controls);
@@ -169,9 +163,6 @@ export function planForm(plan?: LearningPlan): PlanForm {
     name: plan?.name ?? '',
     goal: plan?.goal ?? '',
     guidance: plan?.guidance ?? '',
-    settings: plan
-      ? taskSettingsDraft(plan.defaults)
-      : { topic: '', audience: '', difficulty: 'medium', questionCount: '1' },
     materials: plan?.materials.map(materialForm) ?? [],
     controls: plan?.controls.map(controlForm) ?? [],
     totalLength: lengthForm(plan?.totalLength),

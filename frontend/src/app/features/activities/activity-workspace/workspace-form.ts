@@ -44,7 +44,7 @@ export function emptyWorkspace(): WorkspaceForm {
     plan: planForm(),
     document: documentForm(),
     input: {
-      settings: planForm().settings,
+      settings: { topic: '', audience: '', difficulty: 'medium', questionCount: '1' },
       questionFormat: '',
       choiceCount: '',
       totalWordCount: '',

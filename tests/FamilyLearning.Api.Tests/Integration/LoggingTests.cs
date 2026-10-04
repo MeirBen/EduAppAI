@@ -53,6 +53,30 @@ public sealed class LoggingTests : IDisposable
     }
 
     [Fact]
+    public async Task Hosts_sharing_a_log_file_keep_every_entry_whole()
+    {
+        Directory.CreateDirectory(directory);
+        WebApplication Host()
+        {
+            var builder = WebApplication.CreateBuilder(new WebApplicationOptions { ContentRootPath = directory });
+            builder.Configuration.AddJsonFile(System.IO.Path.Combine(AppContext.BaseDirectory, "appsettings.json"));
+            builder.AddApplicationLogging();
+            return builder.Build();
+        }
+        await using (var server = Host())
+        await using (var command = Host())
+            for (var i = 0; i < 10; i++)
+            {
+                server.Logger.LogInformation("Server entry {Index}", i);
+                command.Logger.LogInformation("Command {Index}", i);
+            }
+
+        var messages = ReadEntries(directory).Select(entry => entry.GetProperty("@m").GetString()).ToArray();
+        Assert.Equal(10, messages.Count(message => message!.StartsWith("Server entry")));
+        Assert.Equal(10, messages.Count(message => message!.StartsWith("Command")));
+    }
+
+    [Fact]
     public async Task Requests_persist_once_with_levels_and_correlation_without_credentials_or_query_strings()
     {
         string traceId;

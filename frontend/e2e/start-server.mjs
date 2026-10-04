@@ -13,7 +13,6 @@ const environment = {
   ASPNETCORE_ENVIRONMENT: 'Development',
   ASPNETCORE_URLS: 'http://localhost:5199',
   Storage__Directory: dataDirectory,
-  Logging__LogLevel__Default: 'Warning',
   Ai__ApiKey: 'isolated-test-key',
   Ai__Model: 'test/schema-model',
   Ai__FallbackModel: '',
@@ -58,7 +57,19 @@ for (const email of [
 const server = spawn(
   'dotnet',
   ['artifacts/app/FamilyLearning.Api.dll', '--contentRoot', resolve(root, 'artifacts/app')],
-  { cwd: root, env: environment, stdio: 'inherit' },
+  {
+    cwd: root,
+    // Account setup runs without appsettings.json, so only the server takes the log location.
+    env: {
+      ...environment,
+      Serilog__WriteTo__File__Args__configure__0__Args__path: resolve(
+        dataDirectory,
+        'logs',
+        'server-.jsonl',
+      ),
+    },
+    stdio: 'inherit',
+  },
 );
 for (const signal of ['SIGINT', 'SIGTERM']) process.on(signal, () => server.kill('SIGTERM'));
 server.on('exit', (code) => {

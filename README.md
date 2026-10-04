@@ -85,7 +85,10 @@ at the repository root. Outside the repository, relative paths use the deployed
 application's content root. Logs stay outside `wwwroot` and are ignored by Git.
 The workspace configures **Log Viewer** (`berublan.vscode-log-viewer`) to follow
 `logs/server-*.jsonl`, including rolled files; open **Family Learning API** in
-its Watches view.
+its Watches view. `scripts/dev.sh` deletes `logs/` when it starts, so each run
+begins with clean logs. The file sink runs in shared mode, so management commands
+and other local instances append whole entries to the same file; automated tests
+write logs under their own temporary storage.
 
 Configure levels, output, rolling and retention in
 [`backend/FamilyLearning.Api/appsettings.json`](backend/FamilyLearning.Api/appsettings.json)

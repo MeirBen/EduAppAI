@@ -166,13 +166,17 @@ function scalarValue(
 }
 
 /** UI shape feedback only. The shared server validator remains authoritative for full semantic/capacity checks. */
-export function planValue(form: PlanForm, limits: ContentLimits): Projection<LearningPlan> {
+export function planValue(
+  form: PlanForm,
+  settings: TaskSettingsDraft,
+  limits: ContentLimits,
+): Projection<LearningPlan> {
   const errors: string[] = [];
   if (!form.schemaVersion) errors.push('ההגדרות עדיין נטענות מהשרת. נסו שוב בעוד רגע.');
   checkText(form.name, 'שם התבנית', limits.nameLength, errors, true);
   checkText(form.goal, 'מטרת הפעילות', limits.goalLength, errors, true);
   checkText(form.guidance, 'הנחיות משותפות', limits.guidanceLength, errors);
-  const defaults = settingsValue(form.settings, errors, limits);
+  const defaults = settingsValue(settings, errors, limits);
   const formats = formFormats(form.questions);
   if (!formats.length) errors.push('יש לבחור לפחות סוג שאלה אחד.');
   if (

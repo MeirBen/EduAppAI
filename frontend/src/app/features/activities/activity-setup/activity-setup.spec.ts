@@ -208,7 +208,9 @@ describe('Activity setup', () => {
       ['c'.repeat(32)]: '',
     });
     expect(
-      planValue(host.raw().plan, limits).value?.controls.map((control) => control.default),
+      planValue(host.raw().plan, host.raw().input.settings, limits).value?.controls.map(
+        (control) => control.default,
+      ),
     ).toEqual([4, true, 'רגיל', undefined]);
   });
 });

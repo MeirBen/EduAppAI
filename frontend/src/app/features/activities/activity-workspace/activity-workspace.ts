@@ -209,7 +209,7 @@ export class ActivityWorkspace {
   /** The visible settings are the plan defaults, in a template and an activity alike; one set of fields owns them. */
   protected readonly projection = computed(() => {
     const { plan, input } = this.raw();
-    return planValue({ ...plan, settings: input.settings }, this.limits);
+    return planValue(plan, input.settings, this.limits);
   });
   protected readonly inputProjection = computed(() => {
     const plan = this.projection().value;
