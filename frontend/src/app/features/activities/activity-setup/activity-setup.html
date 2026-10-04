@@ -183,7 +183,7 @@
     }
   </div>
   @if (materials.length) {
-    <section class="grid gap-4" aria-labelledby="setup-content-title">
+    <section class="grid gap-4 border-t border-line pt-6" aria-labelledby="setup-content-title">
       <h3 id="setup-content-title">מקור הטקסט</h3>
       @for (material of materials; track $index; let index = $index) {
         @let m = p.materials[index];
