@@ -48,6 +48,7 @@ internal static class AiPrompts
 
     private const string MaterialWritingRules = """
         Do not append the activity's questions, answer choices, answer key or learner instructions to a material body.
+        Break prose into paragraphs of a few sentences separated by a blank line; keep poem lines and dialogue turns on separate lines.
         Word counts apply to bodies only: include headings inside a body, but exclude the separate title field.
         Count whitespace-separated tokens containing a letter or number; attached prefixes, vowel marks and hyphens do not split words.
         For a strict range, plan near its midpoint. totalLength counts generated bodies together.
@@ -96,7 +97,7 @@ internal static class AiPrompts
         ## Language and presentation
         Use the language requested for each part; default to Hebrew. Keep labels and short answers concise.
         Keep terminology, register, recurring names, units and notation consistent across comparable fields.
-        Use full niqqud for beginning readers, usually first and second grade, or when requested; otherwise write Hebrew without niqqud.
+        Use full niqqud for beginning readers up to second grade, or when requested; otherwise write Hebrew without niqqud.
         Partial niqqud marks only words a reader could otherwise misread.
         Explicit language, register, niqqud and transliteration requests override these style defaults.
         Preserve exact identifiers, supplied parameter values, requested verbatim text and intentional language exercises.

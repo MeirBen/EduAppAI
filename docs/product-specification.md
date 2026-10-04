@@ -95,8 +95,9 @@ Repeated generation of one plan varies: the model first lists several
 less-typical premises of different kinds that meet every requirement, then
 writes the one a number drawn by the application selects; improving a material
 keeps its premise. Hebrew is written without niqqud, except full niqqud for
-beginning readers (usually first and second grade) or on request; a plan records
-niqqud only when the parent asks for it.
+beginning readers up to second grade or on request; a plan records
+niqqud only when the parent asks for it. Prose is split into paragraphs of a
+few sentences; poems and dialogue keep their lines.
 
 Questions are numeric, short-text or single-choice, each with an application
 ID, prompt, typed interaction, answer and integer points. Numeric answers use

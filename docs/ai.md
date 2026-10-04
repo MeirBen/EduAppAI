@@ -19,7 +19,7 @@ keys or educational content are good.
   model; see [resolved failures](#resolved-strict-mode-failures).
 - Six acceptance cases covering every stage passed in three rounds (42 calls,
   no retry or repair). That sample is not a reliability rate, and it predates
-  the 4 October prompt revisions (through 23), which targeted live replays
+  the 4 October prompt revisions (through 25), which targeted live replays
   checked instead; see [prompt decisions](#prompt-decisions).
 - Keep parent review, strict validation and explicit recovery. No automatic
   output repair, weakened tests, model-specific branch or production retry.
@@ -66,6 +66,12 @@ only the lines under test; counts are small samples, not reliability rates.
 - **Niqqud:** the plan chat added unrequested niqqud for third grade in 3/4
   plans; with a stated default, 0/4. Third-grade texts had no points, and
   first-grade texts kept full niqqud (6/6) once the rule led with that case.
+  A third-grade story still came back vocalized once in about 33 runs, so the
+  rule now says "up to second grade" instead of "usually first and second
+  grade" (third grade 0/4, first grade 2/2 full afterwards).
+- **Paragraphs:** without guidance, 62% of 60–149-word texts came back as one
+  block. A paragraph rule split 120-word stories into 3–4 paragraphs (0/3
+  before, 3/3 after), left long texts paragraphed and kept poem lines.
 - **Dropped:** a "shared directions belong in the instructions" line had no
   effect on drills, and "find the facts in the text; no clues across
   questions" showed none over 48 questions per arm (4% restated operands
