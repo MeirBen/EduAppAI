@@ -27,11 +27,6 @@ test('the color theme follows the device, remembers a choice and applies it befo
   await page.reload();
   await expect(option('כהה')).toBeChecked();
   expect(await colorScheme(page)).toBe('dark');
-  await page.screenshot({
-    animations: 'disabled',
-    path: '../artifacts/login-dark-desktop.png',
-    fullPage: true,
-  });
 
   await page.route(/\/main-[^/]+\.js$/, (route) => route.abort());
   await page.reload();

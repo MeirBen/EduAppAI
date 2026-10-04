@@ -75,7 +75,7 @@ describe('TemplateChat presentation', () => {
     expect(host.submitted).toBe('');
     host.question.set('לאיזה גיל?');
     await fixture.whenStable();
-    expect(root.querySelector('.chip')).toBeNull();
+    expect(root.querySelector('app-idea-chips')).toBeNull();
   });
 
   it('keeps keyboard focus on the swapped send and stop controls without taking it elsewhere', async () => {
