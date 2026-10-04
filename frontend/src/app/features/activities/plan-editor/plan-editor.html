@@ -114,7 +114,7 @@
       ><textarea id="question-guidance" dir="auto" [formField]="f.questions.guidance"></textarea>
     </div>
   </section>
-  @if (reusable()) {
+  @if (definesChoices()) {
     <app-choice-definitions
       [fields]="f"
       [locked]="locked()"

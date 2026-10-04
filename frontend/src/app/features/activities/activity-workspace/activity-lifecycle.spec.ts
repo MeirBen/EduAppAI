@@ -92,6 +92,17 @@ describe('Activity lifecycle', () => {
     harness = await RouterTestingHarness.create();
   });
   afterEach(() => http.verify());
+  it.each([
+    ['its own plan', true, null, true],
+    ['a template being used', false, null, false],
+    ['a draft from a template', true, 'v3', false],
+  ] as const)(
+    'defines what activities may change only in %s',
+    async (_, existing, templateVersionId, defines) => {
+      await open(existing, { ...savedActivity, templateVersionId });
+      expect(!!root().querySelector('#choices-title')).toBe(defines);
+    },
+  );
   it('creates a durable draft from a valid plan before starting generation without template publication', async () => {
     await open(false);
     await click('generate-activity');

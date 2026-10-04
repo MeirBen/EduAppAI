@@ -12,7 +12,7 @@ import { limits, provideLimits } from '../../../core/api/limits.fixture';
   imports: [PlanEditor],
   template: `<app-plan-editor
     [fields]="fields.plan"
-    [reusable]="true"
+    [definesChoices]="true"
     (edited)="edits = edits + 1"
     (structureChanged)="change($event)"
   />`,

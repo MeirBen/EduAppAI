@@ -238,6 +238,10 @@ export class ActivityWorkspace {
   protected readonly templateChanged = computed(
     () => JSON.stringify(this.projection().value) !== this.publishedPlan(),
   );
+  /** A template or an activity's own plan defines what activities may change; a template's activity only sets values. */
+  protected readonly definesChoices = computed(
+    () => this.context() === 'template' || (!this.templateId() && !this.saved()?.templateVersionId),
+  );
   /** Any proposed, loaded or typed plan; an invalid edit keeps the setup visible for correction. */
   protected readonly hasPlan = computed(() => hasPlanContent(this.raw().plan));
   protected readonly hasContent = computed(

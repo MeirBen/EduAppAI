@@ -116,10 +116,11 @@ of its own, so it creates none and links to creating one once a version exists.
 Activities show a derived four-step indicator (describe, settings, review,
 ready); only the current step keeps its label on narrow screens. The plan
 definition and guidance sit under **אפשרויות מתקדמות**, open by default only for
-template editing. Only a template decides what its later activities may change,
-so only template editing ends with **מה אפשר לשנות בכל פעילות**: the applicable
-length, option-count and one-format toggles, and every choice definition as a
-compact card that names the part it changes and is added with one button.
+template editing. A plan authored here, a template or a new activity's own
+plan, ends with **מה אפשר לשנות בכל פעילות**: the applicable length,
+option-count and one-format toggles, and every choice definition as a compact
+card that names the part it changes and is added with one button. An activity
+created from a template only sets the values its template allows.
 Options that have no effect in the current state stay hidden: the combined
 length needs several generated texts, one format per activity needs several
 formats, and a required flag is moot once a choice has a default. With several

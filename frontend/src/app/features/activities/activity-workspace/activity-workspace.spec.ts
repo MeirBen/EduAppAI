@@ -146,8 +146,8 @@ describe('ActivityWorkspace plan ownership', () => {
     expect(field('activity-topic').closest('details')).toBeNull();
     expect(field('activity-questionCount').value).toBe('2');
     expect(field('plan-name').closest('details')!.open).toBe(false);
-    // What later activities may change is a template's concern; an activity sets its own values.
-    expect(root().querySelector('#choices-title')).toBeNull();
+    // A new activity authors its own plan, so it may define choices that a template keeps.
+    expect(root().querySelector('#choices-title')).not.toBeNull();
     expect(root().querySelector('#save-template')!.closest('details')!.open).toBe(false);
     expect(root().querySelector('#generate-activity')!.closest('details')).toBeNull();
     expect(root().querySelector('#release-activity')).toBeNull();

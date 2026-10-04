@@ -121,7 +121,7 @@
           <app-plan-editor
             [fields]="fields.plan"
             [locked]="locked()"
-            [reusable]="isTemplate"
+            [definesChoices]="definesChoices()"
             (edited)="edited($event)"
             (structureChanged)="changeStructure($event)"
           />
