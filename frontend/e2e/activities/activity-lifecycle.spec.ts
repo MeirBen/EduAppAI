@@ -8,6 +8,7 @@ import {
 import limits from '../../src/app/core/api/limits.fixture.json';
 
 async function isolate(page: Page) {
+  let signedIn = true;
   let draft: ActivityDetail = {
     id: 'draft',
     revision: 1,
@@ -31,8 +32,18 @@ async function isolate(page: Page) {
       method = request.method();
     if (method === 'POST' || method === 'PUT') writes.push({ path, body: request.postDataJSON() });
     if (path === '/api/auth/me')
-      return route.fulfill({ json: { email: 'parent@example.test', familyId: 'family' } });
+      return route.fulfill(
+        signedIn ? { json: { email: 'parent@example.test', familyId: 'family' } } : { status: 401 },
+      );
     if (path === '/api/auth/csrf') return route.fulfill({ json: { token: 'isolated' } });
+    if (path === '/api/auth/login') {
+      signedIn = true;
+      return route.fulfill({ status: 204 });
+    }
+    if (path === '/api/auth/logout') {
+      signedIn = false;
+      return route.fulfill({ status: 204 });
+    }
     if (path === '/api/limits') return route.fulfill({ json: limits });
     // No other device exists here; 204 closes the change stream without a retry.
     if (path === '/api/library/changes') return route.fulfill({ status: 204 });
@@ -48,6 +59,7 @@ async function isolate(page: Page) {
       return route.fulfill({ status: 201, json: draft });
     }
     if (path === '/api/activity-drafts/draft' && method === 'PUT') {
+      if (!signedIn) return route.fulfill({ status: 401 });
       const body = request.postDataJSON();
       if (body.expectedRevision !== draft.revision)
         return route.fulfill({ status: 409, json: { title: 'התנגשות' } });
@@ -70,13 +82,18 @@ async function isolate(page: Page) {
         failure: null,
         diagnosticsExpired: false,
         steps: [],
-        artifacts: null,
+        artifacts: body.targetId ? { targetId: body.targetId, steps: [] } : null,
       };
       draft = { ...draft, activeOperationId: 'op' };
       return route.fulfill({ status: 202, json: operation });
     }
     if (path === '/api/activity-drafts/draft/operations/op')
       return route.fulfill({ json: operation });
+    if (path === '/api/activity-drafts/draft/operations/op/cancel') {
+      operation = { ...operation!, status: 'cancelled' };
+      draft = { ...draft, activeOperationId: null };
+      return route.fulfill({ json: operation });
+    }
     if (path === '/api/activity-drafts/draft/release') {
       expect(request.postDataJSON()).toEqual({ expectedRevision: draft.revision });
       snapshot = {
@@ -132,6 +149,103 @@ async function isolate(page: Page) {
     },
   };
 }
+
+test('sign-out respects a cancelled unsaved-work warning and asks only once when accepted', async ({
+  page,
+}) => {
+  const state = await isolate(page);
+  await page.goto('/activities/draft');
+  await page.locator('#document-title').fill('שינוי שלא נשמר');
+  let accept = false;
+  let prompts = 0;
+  page.on('dialog', async (dialog) => {
+    prompts++;
+    if (accept) await dialog.accept();
+    else await dialog.dismiss();
+  });
+  const signOut = page.getByRole('button', { name: 'יציאה', exact: true });
+  await signOut.click();
+  await expect(signOut).toBeEnabled();
+  expect(prompts).toBe(1);
+  expect(state.writes.filter((write) => write.path === '/api/auth/logout')).toHaveLength(0);
+  await expect(page).toHaveURL(/\/activities\/draft$/);
+  await expect(page.locator('#document-title')).toHaveValue('שינוי שלא נשמר');
+  await page.locator('#save-activity').click();
+  await expect(page.getByText('נשמר', { exact: true })).toBeVisible();
+
+  await page.locator('#document-title').fill('שינוי נוסף');
+  accept = true;
+  await signOut.click();
+  await expect(page).toHaveURL(/\/login$/);
+  expect(prompts).toBe(2);
+  expect(state.writes.filter((write) => write.path === '/api/auth/logout')).toHaveLength(1);
+});
+
+test('failed sign-out keeps edits and asks again before a later attempt', async ({ page }) => {
+  const state = await isolate(page);
+  await page.route('**/api/auth/logout', (route) =>
+    route.fulfill({ status: 503, json: { title: 'לא ניתן לצאת כעת' } }),
+  );
+  await page.goto('/activities/draft');
+  await page.locator('#document-title').fill('שינוי שלא נשמר');
+  let prompts = 0;
+  page.on('dialog', async (dialog) => {
+    prompts++;
+    if (prompts === 1) await dialog.accept();
+    else await dialog.dismiss();
+  });
+  const signOut = page.getByRole('button', { name: 'יציאה', exact: true });
+  await signOut.click();
+  await expect(page.locator('#main-content > [role="alert"]')).toBeVisible();
+  expect(prompts).toBe(1);
+  await expect(page).toHaveURL(/\/activities\/draft$/);
+  await expect(page.locator('#document-title')).toHaveValue('שינוי שלא נשמר');
+  await page.unroute('**/api/auth/logout');
+  await signOut.click();
+  await expect(signOut).toBeEnabled();
+  expect(prompts).toBe(2);
+  expect(state.writes.filter((write) => write.path === '/api/auth/logout')).toHaveLength(0);
+});
+
+test('sign-out still works after Back returns a signed-in parent to the login page', async ({
+  page,
+}) => {
+  const state = await isolate(page);
+  await page.goto('/login');
+  await page.getByLabel('כתובת דוא״ל', { exact: true }).fill('parent@example.test');
+  await page.getByLabel('סיסמה', { exact: true }).fill('TestOnly!Parent12345');
+  await page.getByRole('button', { name: 'כניסה למרחב שלנו' }).click();
+  await expect(page.getByRole('heading', { name: 'פעילות חדשה', exact: true })).toBeVisible();
+  await page.goBack();
+  await expect(page).toHaveURL(/\/login$/);
+  const signOut = page.getByRole('button', { name: 'יציאה', exact: true });
+  await signOut.click();
+  await expect(signOut).toHaveCount(0);
+  expect(state.writes.filter((write) => write.path === '/api/auth/logout')).toHaveLength(1);
+});
+
+test('removing a scoped generation target keeps progress and cancellation accessible', async ({
+  page,
+}) => {
+  const state = await isolate(page);
+  await page.goto('/templates/example/create');
+  await page.locator('#generate-activity').click();
+  await expect(page.locator('#cancel-generation')).toBeVisible();
+  state.complete();
+  await expect(page.locator('#question-0-answer')).toHaveValue('2');
+  await page.locator('#question-0-improve').click();
+  await page.locator('#question-0-improve-submit').click();
+  await expect(page.locator('#cancel-generation')).toBeVisible();
+  await page.getByText('אפשרויות נוספות לשאלה 1', { exact: true }).click();
+  await page.getByRole('button', { name: 'הסרת שאלה 1', exact: true }).click();
+  await expect(page.locator('#cancel-generation')).toBeVisible();
+  await expect(page.locator('app-generation-status')).toHaveCount(1);
+  await expect(page.locator('#generate-activity')).toHaveAttribute('aria-disabled', 'true');
+  await page.locator('#cancel-generation').click();
+  await expect(page.locator('#cancel-generation')).toHaveCount(0);
+  expect(state.writes.filter((write) => write.path.endsWith('/cancel'))).toHaveLength(1);
+  await expect(page.locator('#question-0-prompt')).toHaveValue('כמה הם 2+1?');
+});
 
 test('saves before generation, edits manually, reviews the current revision and opens an immutable copy', async ({
   page,

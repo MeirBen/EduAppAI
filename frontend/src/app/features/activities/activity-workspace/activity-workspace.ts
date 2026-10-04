@@ -295,12 +295,24 @@ export class ActivityWorkspace {
     () => !!this.operationId() && (!this.operation() || isRunning(this.operation()!)),
   );
   /**
-   * The material or question a scoped operation changes; its status shows in that card. Without a
-   * known target, such as after diagnostics expire, the status shows above the content.
+   * The scoped target whose card can display status. Removing it or changing its source keeps
+   * progress and cancellation above the content instead; restoring the card moves them back.
    */
-  protected readonly operationTarget = computed(
-    () => this.operation()?.artifacts?.targetId ?? null,
-  );
+  protected readonly operationTarget = computed(() => {
+    const operation = this.operation(),
+      target = operation?.artifacts?.targetId;
+    if (!target) return null;
+    const { document, plan } = this.raw();
+    const hasCard =
+      operation.kind === 'ReplaceQuestion'
+        ? document.questions.some((question) => question.id === target)
+        : operation.kind === 'ReplaceMaterial' &&
+          document.materials.some((material) => material.id === target) &&
+          plan.materials.some(
+            (material) => material.id === target && material.source === 'generated',
+          );
+    return hasCard ? target : null;
+  });
   protected readonly editableCandidates = computed(() => {
     const plan = this.projection().value,
       operation = this.operation();
