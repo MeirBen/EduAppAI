@@ -624,6 +624,29 @@ describe('Activity lifecycle', () => {
     expect(root().querySelector<HTMLInputElement>('#document-title')!.disabled).toBe(true);
     expect(root().querySelector('#release-activity')).toBeNull();
   });
+  it('does not ask to release a revision its saved check still blocks', async () => {
+    await open(true, {
+      ...savedActivity,
+      document: { ...savedActivity.document, questions: [savedQuestion] },
+    });
+    await type('document-title', 'לבדיקה');
+    await click('release-activity');
+    http.expectOne('/api/activity-drafts/draft').flush({
+      ...savedActivity,
+      revision: 2,
+      document: { ...savedActivity.document, title: 'לבדיקה', questions: [savedQuestion] },
+      diagnostics: { 'questions[0].stale': ['השאלה דורשת יצירה מחדש או אימוץ.'] },
+    });
+    await vi.waitFor(() =>
+      expect(root().querySelector('[role="alert"]')?.textContent?.trim()).toBe(
+        'יש לתקן את המסומן לפני סימון כמוכנה.',
+      ),
+    );
+    http.expectNone('/api/activity-drafts/draft/release');
+    expect(
+      root().querySelector('[role="alert"]')!.parentElement!.querySelector('#reload-activity'),
+    ).toBeNull();
+  });
   it('keeps an undo checkpoint for automatically applied generation content', async () => {
     vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] });
     try {

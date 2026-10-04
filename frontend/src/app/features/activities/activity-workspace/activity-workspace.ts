@@ -19,7 +19,7 @@ import {
 import { apply, applyEach, disabled, form, maxLength, validateTree } from '@angular/forms/signals';
 import { Router, RouterLink } from '@angular/router';
 import { Subject } from 'rxjs';
-import { apiError } from '../../../core/api/api-error';
+import { apiError, rejected } from '../../../core/api/api-error';
 import { LearningApi } from '../../../core/api/learning-api';
 import { Limits } from '../../../core/api/limits';
 import {
@@ -47,11 +47,10 @@ import { ActivityDocumentView } from '../activity-document-view/activity-documen
 import { measurementItems } from '../activity-document-view/measurements';
 import {
   activitySummary,
-  flaggedQuestions,
+  fieldPointers,
   planChangeLabel,
-  QuestionIssues,
   reviewIssues,
-  savedQuestionIssues,
+  savedContentIssues,
   staleContent,
 } from '../activity-presentation';
 import { ActivityReview } from '../activity-review/activity-review';
@@ -168,7 +167,10 @@ export class ActivityWorkspace {
   );
   protected readonly notice = signal('');
   protected readonly templateNotice = signal('');
-  protected readonly activityError = signal('');
+  /** The last action's problem; `reload` marks a request whose outcome the saved version may show. */
+  protected readonly activityError = signal<{ message: string; reload?: boolean } | undefined>(
+    undefined,
+  );
   protected readonly readError = signal('');
   protected readonly publication = signal<PlanTemplateDetail | undefined>(undefined);
   protected readonly saved = signal<ActivityDetail | undefined>(undefined);
@@ -319,34 +321,18 @@ export class ActivityWorkspace {
   protected readonly reloadPlacement = computed(() => {
     if (!this.saved() || this.elsewhere() === 'deleted') return 'none';
     if (this.available()) return 'available';
-    if (this.activityError() || this.readError()) return 'error';
+    if (this.activityError()?.reload || this.readError()) return 'error';
     return 'more';
   });
   protected readonly measurements = computed(() =>
     measurementItems(this.saved()?.measurements ?? [], this.saved()?.plan),
   );
-  /** The saved check's question problems, each shown until its field differs from the saved value. */
-  protected readonly questionIssues = computed(() => {
-    const shown = new Map<string, QuestionIssues>();
-    for (const [id, issues] of savedQuestionIssues(this.saved())) {
-      const now = this.raw().document.questions.find((q) => q.id === id),
-        then = this.baseline().document.questions.find((q) => q.id === id);
-      if (!now || !then) continue;
-      const kept = Object.entries(issues).filter(([field]) => {
-        const key = field as keyof QuestionIssues;
-        return JSON.stringify(now[key]) === JSON.stringify(then[key]);
-      });
-      if (kept.length) shown.set(id, Object.fromEntries(kept));
-    }
-    return shown;
-  });
+  protected readonly contentIssues = computed(() =>
+    savedContentIssues(this.saved(), this.raw().document, this.baseline().document),
+  );
   protected readonly issues = computed(() => [
     ...reviewIssues(this.saved()),
-    ...flaggedQuestions(
-      this.raw().document.questions.flatMap((q, i) =>
-        this.questionIssues().has(q.id) ? [i + 1] : [],
-      ),
-    ),
+    ...fieldPointers(this.contentIssues(), this.raw().document, this.saved()?.plan),
   ]);
   protected readonly stale = computed(() => staleContent(this.saved()));
   protected readonly operationActive = computed(
@@ -684,7 +670,7 @@ export class ActivityWorkspace {
     this.fields().markAsTouched();
     await this.runDraftRequest(async () => {
       this.cancelAuthor();
-      this.activityError.set('');
+      this.activityError.set(undefined);
       const saved = await this.flushDraft();
       if (!saved || this.lifetime.destroyed || action === 'save') return;
       if (action === 'adopt') {
@@ -698,6 +684,11 @@ export class ActivityWorkspace {
           ),
         );
       } else if (action === 'release') {
+        // Every saved diagnostic blocks release, and each already shows at its content or review.
+        if (Object.keys(saved.diagnostics).length) {
+          this.activityError.set({ message: 'יש לתקן את המסומן לפני סימון כמוכנה.' });
+          return;
+        }
         const snapshot = await this.api.releaseActivity(saved.id, saved.revision, this.lifetime);
         if (!this.lifetime.destroyed)
           this.saved.set({
@@ -733,7 +724,7 @@ export class ActivityWorkspace {
       this.sourceReplacement.set({ id: '', text: '' });
       this.receiveObservation(latest, true);
       this.history.clear();
-      this.activityError.set('');
+      this.activityError.set(undefined);
     });
   }
 
@@ -742,7 +733,7 @@ export class ActivityWorkspace {
     if (!pending || this.saving()) return;
     await this.runDraftRequest(async () => {
       await this.submitOperation(pending.draftId, pending.request);
-      this.activityError.set('');
+      this.activityError.set(undefined);
     });
   }
 
@@ -763,15 +754,17 @@ export class ActivityWorkspace {
     const id = (this.available() ?? this.saved())?.releasedSnapshotId;
     if (!id || this.copying()) return;
     this.copying.set(true);
-    this.activityError.set('');
+    this.activityError.set(undefined);
     try {
       const draft = await this.api.copySnapshot(id, this.lifetime);
       if (!this.lifetime.destroyed) await this.router.navigate(['/activities', draft.id]);
     } catch (error) {
       if (!this.lifetime.destroyed)
-        this.activityError.set(
-          apiError(error) + ' ייתכן שהעותק נשמר. בדקו בספרייה לפני ניסיון נוסף.',
-        );
+        this.activityError.set({
+          message:
+            apiError(error) +
+            (rejected(error) ? '' : ' ייתכן שהעותק נשמר. בדקו בספרייה לפני ניסיון נוסף.'),
+        });
     } finally {
       if (!this.lifetime.destroyed) this.copying.set(false);
     }
@@ -782,7 +775,7 @@ export class ActivityWorkspace {
     const plan = this.projection().value,
       input = this.inputProjection().value;
     if (!plan || !input || this.pendingSources().length) {
-      this.activityError.set(this.blocker());
+      this.activityError.set({ message: this.blocker() });
       return;
     }
     if (
@@ -865,7 +858,8 @@ export class ActivityWorkspace {
     try {
       await work();
     } catch (error) {
-      if (!this.lifetime.destroyed) this.activityError.set(this.activityFailure(error));
+      if (!this.lifetime.destroyed)
+        this.activityError.set({ message: this.activityFailure(error), reload: true });
     } finally {
       if (!this.lifetime.destroyed) {
         this.saving.set(false);
@@ -879,7 +873,7 @@ export class ActivityWorkspace {
       input = this.inputProjection().value,
       document = this.documentProjection().value;
     if (!plan || !input || !document || this.blocker()) {
-      this.activityError.set(this.blocker());
+      this.activityError.set({ message: this.blocker() });
       return;
     }
     let saved = this.saved();
@@ -985,18 +979,17 @@ export class ActivityWorkspace {
       );
       this.startRecovery.set(undefined);
     } catch (error) {
-      // A client error is a definite rejection; anything else may have started and stays recoverable.
-      if (error instanceof HttpErrorResponse && error.status >= 400 && error.status < 500)
-        this.startRecovery.set(undefined);
+      // Anything but a definite rejection may have started and stays recoverable.
+      if (rejected(error)) this.startRecovery.set(undefined);
       throw error;
     }
   }
 
   private activityFailure(error: unknown): string {
-    return error instanceof HttpErrorResponse && error.status === 409
-      ? 'הטיוטה השתנתה בשרת. השינויים שלכם נשארים כאן; טענו את הגרסה השמורה לפני שממשיכים.'
-      : apiError(error) +
-          ' השינויים שלכם נשארים כאן. ייתכן שהבקשה נשמרה; בדקו את הגרסה השמורה לפני ניסיון נוסף.';
+    if (error instanceof HttpErrorResponse && error.status === 409)
+      return 'הטיוטה השתנתה בשרת. השינויים שלכם נשארים כאן; טענו את הגרסה השמורה לפני שממשיכים.';
+    const uncertain = ' ייתכן שהבקשה נשמרה; בדקו את הגרסה השמורה לפני ניסיון נוסף.';
+    return `${apiError(error)} השינויים שלכם נשארים כאן.${rejected(error) ? '' : uncertain}`;
   }
 
   private snapshot(): WorkspaceSnapshot {

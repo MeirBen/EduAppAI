@@ -1,9 +1,10 @@
 import { ActivityDetail } from '../../core/api/models';
+import { documentForm } from './activity-document-editor/document-form';
 import {
   activitySummary,
-  flaggedQuestions,
-  savedQuestionIssues,
+  fieldPointers,
   reviewIssues,
+  savedContentIssues,
   staleContent,
 } from './activity-presentation';
 import { numericPlan, readingPlan } from './learning-plan.fixture';
@@ -68,29 +69,50 @@ describe('Parent-facing activity presentation', () => {
     );
   });
 
-  it('places question problems at their fields and keeps other blockers in the review', () => {
+  it('places each field problem at its field until it changes and points the review there', () => {
+    const material = readingPlan.materials[0];
     const saved = draft({
       document: {
-        title: 'פעילות',
+        title: '',
         instructions: null,
-        materials: [],
+        materials: [
+          {
+            id: material.id,
+            title: null,
+            body: '',
+            revision: 1,
+            origin: { kind: 'generated' },
+            acceptance: null,
+          },
+        ],
         questions: [question('q1', ['א', 'ב'], 'ג'), question('q2', null, '')],
       },
       diagnostics: {
+        title: ['יש למלא תוכן בשדה הזה.'],
+        [`materials.${material.id}.body`]: ['יש למלא תוכן בשדה הזה.'],
         'questions[0].answer': ['התשובה הנכונה חייבת להיות אחת מהאפשרויות.'],
         'questions[1].answer': ['יש להזין תשובה באורך של 1 עד 200 תווים.'],
         'length.22222222222222222222222222222222': ['אורך הטקסט אינו עומד בדרישה.'],
         'materials.capacity': ['אין מספיק מקום לטקסטים ולשאלות שהתבקשו.'],
       },
     });
-    expect(savedQuestionIssues(saved)).toEqual(
-      new Map([
+    const form = documentForm(saved.document);
+    const issues = savedContentIssues(saved, form, form);
+    expect(issues).toEqual({
+      title: 'חסרה כותרת לפעילות.',
+      materials: new Map([[material.id, 'הטקסט ריק.']]),
+      questions: new Map([
         ['q1', { answer: 'התשובה הנכונה כבר אינה תואמת לאחת האפשרויות. בחרו אותה מחדש.' }],
         ['q2', { answer: 'חסרה תשובה נכונה.' }],
       ]),
-    );
+    });
     expect(reviewIssues(saved)).toEqual(['אין מספיק מקום לטקסטים ולשאלות שהתבקשו.']);
-    expect(flaggedQuestions([1, 3])).toEqual(['יש לתקן את המסומן בשאלות 1 ו-3.']);
+    expect(fieldPointers(issues, form, saved.plan)).toEqual([
+      'יש לתקן את המסומן בכותרת.',
+      `יש לתקן את המסומן בטקסט "${material.label}".`,
+      'יש לתקן את המסומן בשאלות 1 ו-2.',
+    ]);
+    expect(savedContentIssues(saved, { ...form, title: 'פעילות' }, form).title).toBeUndefined();
   });
 
   it('maps stale diagnostics to saved identities and explains a changed source text', () => {

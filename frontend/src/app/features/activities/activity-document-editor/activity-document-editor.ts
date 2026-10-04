@@ -11,7 +11,7 @@ import { FieldTree, FormField } from '@angular/forms/signals';
 import { PlanMaterial } from '../../../core/api/models';
 import { Limits } from '../../../core/api/limits';
 import { ScopedRepair } from '../scoped-repair/scoped-repair';
-import { QuestionIssues } from '../activity-presentation';
+import { ContentIssues } from '../activity-presentation';
 import { DocumentForm } from './document-form';
 import { FieldDirection } from '../../../shared/forms/field-direction';
 import { DisabledInteractive } from '../../../shared/disabled-interactive';
@@ -72,8 +72,8 @@ export class ActivityDocumentEditor {
    */
   readonly staleMaterials = input<ReadonlySet<string>>(new Set());
   readonly staleQuestions = input<ReadonlySet<string>>(new Set());
-  /** Release problems the saved check found, by question identity, each shown at its field. */
-  readonly questionIssues = input<ReadonlyMap<string, QuestionIssues>>(new Map());
+  /** Release problems the saved check found, each shown at its field. */
+  readonly contentIssues = input<ContentIssues>({ materials: new Map(), questions: new Map() });
   /** The owner's operation status, rendered in the card of the material or question it changes. */
   readonly status = input<TemplateRef<{ inCard: boolean }> | null>(null);
   readonly statusTarget = input<string | null>(null);

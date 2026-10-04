@@ -1,5 +1,6 @@
 import { ActivityDetail, LearningPlan, PlanChange, QuestionFormat } from '../../core/api/models';
 import { isIntegerInput } from '../../shared/forms/integer-input';
+import { DocumentForm } from './activity-document-editor/document-form';
 import { lengthText } from './activity-document-view/measurements';
 import {
   formFormats,
@@ -87,22 +88,50 @@ export function staleContent(saved: ActivityDetail | undefined) {
 }
 
 /** A saved question's release problems, keyed by the form field each one concerns. */
-export type QuestionIssues = Partial<Record<'prompt' | 'type' | 'options' | 'answer', string>>;
+type QuestionIssues = Partial<Record<'prompt' | 'type' | 'options' | 'answer', string>>;
+
+/** Saved release problems that belong to one editable field, by material and question identity. */
+export interface ContentIssues {
+  title?: string;
+  materials: Map<string, string>;
+  questions: Map<string, QuestionIssues>;
+}
 
 const questionField = /^questions\[(\d+)\]\.(prompt|format|options|answer)$/;
+const materialBody = /^materials\.([^.]+)\.body$/;
 
-/** Question diagnostics in parent words by saved identity, so each shows at its own field. */
-export function savedQuestionIssues(saved: ActivityDetail | undefined) {
-  const issues = new Map<string, QuestionIssues>();
+/**
+ * The saved check's field problems in parent words. Each stays while its field in `now` still
+ * holds the checked value from `then`, the saved form, so a fix hides it until the next save.
+ */
+export function savedContentIssues(
+  saved: ActivityDetail | undefined,
+  now: DocumentForm,
+  then: DocumentForm,
+): ContentIssues {
+  const issues: ContentIssues = { materials: new Map(), questions: new Map() };
+  const unchanged = (read: (form: DocumentForm) => unknown) => {
+    const value = read(now);
+    return value !== undefined && JSON.stringify(value) === JSON.stringify(read(then));
+  };
   for (const [key, [message = '']] of Object.entries(saved?.diagnostics ?? {})) {
-    const match = questionField.exec(key);
-    const question = match && saved!.document.questions[Number(match[1])];
-    if (!match || !question?.id) continue;
-    const field = match[2] === 'format' ? 'type' : (match[2] as keyof QuestionIssues);
-    issues.set(question.id, {
-      ...issues.get(question.id),
-      [field]: questionIssue(question, field, message),
-    });
+    const material = materialBody.exec(key)?.[1],
+      question = questionField.exec(key),
+      target = question && saved!.document.questions[Number(question[1])];
+    if (key === 'title') {
+      if (unchanged((form) => form.title)) issues.title = 'חסרה כותרת לפעילות.';
+    } else if (material) {
+      if (unchanged((form) => form.materials.find((m) => m.id === material)?.body))
+        issues.materials.set(material, 'הטקסט ריק.');
+    } else if (question && target?.id) {
+      const id = target.id,
+        field = question[2] === 'format' ? 'type' : (question[2] as keyof QuestionIssues);
+      if (unchanged((form) => form.questions.find((q) => q.id === id)?.[field]))
+        issues.questions.set(id, {
+          ...issues.questions.get(id),
+          [field]: questionIssue(target, field, message),
+        });
+    }
   }
   return issues;
 }
@@ -120,11 +149,22 @@ function questionIssue(
   return message;
 }
 
-/** Points the review at the questions whose fields show a release problem, numbered as shown. */
-export function flaggedQuestions(numbers: number[]): string[] {
-  if (!numbers.length) return [];
+/** Review lines naming where a field shows a saved problem; questions are numbered as they read now. */
+export function fieldPointers(
+  issues: ContentIssues,
+  document: DocumentForm,
+  plan: LearningPlan | undefined,
+): string[] {
+  const label = (id: string) => plan?.materials.find((m) => m.id === id)?.label ?? 'הטקסט';
+  const numbers = document.questions.flatMap((q, i) => (issues.questions.has(q.id) ? [i + 1] : []));
   const list = new Intl.ListFormat('he', { type: 'conjunction' }).format(numbers.map(String));
-  return [`יש לתקן את המסומן ${numbers.length === 1 ? 'בשאלה' : 'בשאלות'} ${list}.`];
+  return [
+    ...(issues.title ? ['יש לתקן את המסומן בכותרת.'] : []),
+    ...[...issues.materials.keys()].map((id) => `יש לתקן את המסומן בטקסט "${label(id)}".`),
+    ...(numbers.length
+      ? [`יש לתקן את המסומן ${numbers.length === 1 ? 'בשאלה' : 'בשאלות'} ${list}.`]
+      : []),
+  ];
 }
 
 /** Acceptance records the material revisions a question was written against. */
@@ -147,8 +187,8 @@ function sourceChanged(saved: ActivityDetail, indexes: number[]) {
 
 /**
  * Parent wording for server-derived release diagnostics. Unknown keys keep the server's Hebrew
- * message, so no blocker is ever hidden. Length keys and question fields are omitted: measurements
- * show lengths beside their counts, and each question field shows its own problem.
+ * message, so no blocker is ever hidden. Lengths and field problems are omitted: measurements show
+ * lengths beside their counts, and `savedContentIssues` places each field problem at its field.
  */
 export function reviewIssues(saved: ActivityDetail | undefined): string[] {
   if (!saved) return [];
@@ -158,18 +198,22 @@ export function reviewIssues(saved: ActivityDetail | undefined): string[] {
   for (const [key, [message = '']] of Object.entries(saved.diagnostics)) {
     const question = /^questions\[(\d+)\]\.(\w+)$/.exec(key);
     const material = /^materials\.([^.]+)(?:\.(\w+))?$/.exec(key);
-    if (key.startsWith('length.') || questionField.test(key)) continue;
+    if (
+      key === 'title' ||
+      key.startsWith('length.') ||
+      materialBody.test(key) ||
+      questionField.test(key)
+    )
+      continue;
     if (question?.[2] === 'stale') staleQuestions.push(Number(question[1]));
     else if (question) issues.push(`בשאלה ${Number(question[1]) + 1}: ${message}`);
     else if (material && material[1] !== 'capacity')
       issues.push(
         material[2] === 'stale'
           ? `הטקסט "${label(material[1])}" נוצר לפי הגדרות קודמות. בדקו אותו או צרו אותו מחדש.`
-          : material[2] === 'body'
-            ? `הטקסט "${label(material[1])}" ריק.`
-            : material[2]
-              ? message
-              : `עדיין אין טקסט עבור "${label(material[1])}".`,
+          : material[2]
+            ? message
+            : `עדיין אין טקסט עבור "${label(material[1])}".`,
       );
     else if (key === 'questions')
       issues.push(
@@ -178,7 +222,6 @@ export function reviewIssues(saved: ActivityDetail | undefined): string[] {
           : 'עדיין אין שאלות בפעילות.',
       );
     else if (key === 'questions.formats') issues.push('חסרים סוגי שאלות שנבחרו בהגדרות.');
-    else if (key === 'title') issues.push('חסרה כותרת לפעילות.');
     else issues.push(message);
   }
   if (staleQuestions.length)

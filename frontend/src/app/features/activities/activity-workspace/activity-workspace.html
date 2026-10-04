@@ -156,7 +156,7 @@
         [empty]="!hasContent()"
         [staleMaterials]="stale().materials"
         [staleQuestions]="stale().questions"
-        [questionIssues]="questionIssues()"
+        [contentIssues]="contentIssues()"
         [status]="operationStatus"
         [statusTarget]="operationTarget()"
         (edited)="edited($event)"
@@ -247,9 +247,9 @@
     @if (actionBar()) {
       <section class="action-bar" aria-labelledby="actions-title">
         <h2 id="actions-title" class="sr-only">שמירה ופעולות</h2>
-        @if (activityError() || readError()) {
+        @if (activityError()?.message || readError()) {
           <div class="flex flex-wrap items-center gap-x-4">
-            <p role="alert" class="field-error">{{ activityError() || readError() }}</p>
+            <p role="alert" class="field-error">{{ activityError()?.message || readError() }}</p>
             @if (reloadPlacement() === 'error') {
               <ng-container [ngTemplateOutlet]="reload" />
             }

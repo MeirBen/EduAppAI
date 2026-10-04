@@ -1,6 +1,11 @@
 import { HttpErrorResponse } from '@angular/common/http';
 
 /** Hebrew plain-text errors; hides framework/provider details. Render through interpolation. */
+/** A client error is a definite rejection: the server applied nothing. */
+export function rejected(error: unknown): boolean {
+  return error instanceof HttpErrorResponse && error.status >= 400 && error.status < 500;
+}
+
 export function apiError(error: unknown): string {
   if (!(error instanceof HttpErrorResponse)) return 'משהו השתבש. אפשר לנסות שוב.';
   if (error.status === 0) return 'לא ניתן להתחבר לשרת. יש לבדוק את החיבור ולנסות שוב.';
@@ -23,7 +28,8 @@ export function apiError(error: unknown): string {
     const messages = Object.values(problem.errors)
       .flat()
       .filter((value): value is string => typeof value === 'string');
-    if (messages.length) return messages.join(' ') + (aiValidation ? ' אפשר לנסות שוב.' : '');
+    if (messages.length)
+      return [...new Set(messages)].join(' ') + (aiValidation ? ' אפשר לנסות שוב.' : '');
   }
   if (error.status === 502) {
     if (type === 'urn:family-learning:ai-output-limit')

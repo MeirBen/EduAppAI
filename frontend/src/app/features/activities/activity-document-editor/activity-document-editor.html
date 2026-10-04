@@ -16,7 +16,18 @@
   </div>
   <div>
     <label for="document-title">כותרת הפעילות</label
-    ><input id="document-title" dir="auto" [formField]="fields().title" />
+    ><input
+      id="document-title"
+      dir="auto"
+      [formField]="fields().title"
+      [flagged]="!!contentIssues().title"
+      aria-describedby="document-title-errors"
+    />
+    <app-field-errors
+      id="document-title-errors"
+      [field]="fields().title"
+      [problem]="contentIssues().title"
+    />
   </div>
   <div>
     <label for="document-instructions">הוראות ללומדים</label
@@ -55,7 +66,14 @@
             rows="8"
             dir="auto"
             [formField]="material.body"
+            [flagged]="!!contentIssues().materials.get(id)"
+            [attr.aria-describedby]="'material-' + i + '-body-errors'"
           ></textarea>
+          <app-field-errors
+            [id]="'material-' + i + '-body-errors'"
+            [field]="material.body"
+            [problem]="contentIssues().materials.get(id)"
+          />
         </div>
         <app-scoped-repair
           [key]="'material-' + i"
@@ -111,7 +129,7 @@
       @for (value of fields().questions().value(); track value.key; let i = $index) {
         @let question = fields().questions[i];
         @let id = question.id().value();
-        @let issue = questionIssues().get(id);
+        @let issue = contentIssues().questions.get(id);
         <li class="well grid gap-4" [attr.aria-labelledby]="'question-' + i + '-heading'">
           <div class="flex flex-wrap items-center justify-between gap-x-3">
             <h3 [id]="'question-' + i + '-heading'">שאלה {{ i + 1 }}</h3>

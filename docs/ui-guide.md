@@ -222,15 +222,19 @@ preserve its exact content. Keep invalid keystrokes visible for correction. A
 generation result cannot replace later local edits or Undo; offer the saved
 server result for inspection and explicit reload. A save or deletion on another
 device reads in the save state, beside the reload control when there is a
-version to load. Describe operations in plain
-language, keep stages, outcomes, cost and raw output behind **פרטים טכניים**,
-and never imply that another paid attempt is automatic.
+version to load. A failed request offers that reload beside its message and,
+unless the server definitely rejected it, says it may have applied; a local
+blocker, such as content that still blocks Mark Ready, sends nothing and offers
+no reload. Describe operations in plain language, keep stages, outcomes, cost
+and raw output behind **פרטים טכניים**, and never imply that another paid
+attempt is automatic.
 
 Display server length measurements beside saved diagnostics. Distinguish
 advisory targets from strict range blockers, and technical readiness from
-the parent's educational review. A saved question diagnostic shows at its own
-field, like a validation error, until that field changes; the review names the
-questions to fix and lists only blockers without a field. Offer adoption only in
+the parent's educational review. A saved diagnostic of one field, such as the
+title, a text or a question's answer, shows at that field like a validation
+error until the field changes; the review names where to fix and lists only
+blockers without a field. Offer adoption only in
 a callout beside content that saved diagnostics mark as stale. Frozen previews
 expose answers in native disclosures and offer an explicit copy to a new draft.
 A read-only box whose text a parent may reuse, such as an AI response or a

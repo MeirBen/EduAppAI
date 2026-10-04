@@ -27,7 +27,9 @@ describe('Hebrew API feedback', () => {
   });
 
   it('shows API validation feedback but never server-error details', () => {
-    const error = { errors: { questionCount: ['המספר מחוץ לטווח המותר.'] } };
+    const error = {
+      errors: { questionCount: ['המספר מחוץ לטווח המותר.'], total: ['המספר מחוץ לטווח המותר.'] },
+    };
     expect(apiError(new HttpErrorResponse({ status: 400, error }))).toBe('המספר מחוץ לטווח המותר.');
     expect(apiError(new HttpErrorResponse({ status: 500, error }))).not.toContain('המספר');
     expect(apiError(new Error('Technical details'))).not.toContain('Technical details');
