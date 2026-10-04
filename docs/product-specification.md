@@ -104,7 +104,8 @@ formats means a mixture containing each at least once; a selectable format
 means one format for the activity, with an allowed default. Exact per-format
 quotas need clarification rather than approximation, and choice count applies
 only to single-choice questions. A calculation is a whole prompt, option or
-answer rather than part of a sentence, so it displays left to right.
+answer; inside sentences, including texts and instructions, operations are
+written in words, so everything displays in order.
 
 Authoring gives one proposal or one focused clarification per parent message,
 with assumptions reflected in the plan. A request carries up to 4,000
