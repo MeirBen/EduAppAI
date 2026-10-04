@@ -236,11 +236,10 @@ editing, uses `expectedVersion` and never writes an activity. Polling reads the
 operation status before the draft checkpoint so a terminal result includes its
 final commit, and pauses while the page is hidden. Only a revision confirmed by
 the operation and its unchanged local edit fence is applied automatically; other
-content stays
-an explicit reload offer. A checkpoint between the two GETs waits for a later
-status read to confirm ownership. Lost start responses keep their key and request
-for replay, and candidates pass a bounded editable-field
-mapping before transfer.
+content stays an explicit reload offer. A checkpoint between the two GETs waits
+for a later status read to confirm ownership. Lost start responses keep their key
+and request for replay, and candidates pass a bounded editable-field mapping
+before transfer.
 
 `core/api/library-changes` owns each page's native change stream, pauses it while
 hidden and exposes a refused connection for explicit retry. The library's three

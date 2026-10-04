@@ -164,6 +164,13 @@ Before inviting other families, add account recovery and tested backup/restore.
 Shared-parent onboarding, dashboards, broad library pagination, update notices,
 offline synchronization and native packaging remain later work.
 
+Deferred maintenance from the live-update work:
+
+- Correct shared 502–504 feedback to use general server messages unless the
+  response identifies an AI-specific problem.
+- Review the `braces` advisory (GHSA-vfj7-8cjw-p6xm) in the Markdown lint tool's
+  development dependencies before choosing a dependency change.
+
 ## Child flow — next milestone
 
 **Design for review, 3 October 2026; not implemented.** This milestone completes
