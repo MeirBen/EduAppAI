@@ -452,6 +452,7 @@ export class ActivityWorkspace {
       baseRevision = this.clientRevision;
     const basis = JSON.stringify(this.raw()),
       context = consolidate ? [] : this.conversation();
+    const restoreFocus = this.holdFocus();
     this.request.set({ id: requestId, text: message, consolidate });
     this.chat.update((chat) =>
       consolidate ? { ...chat, consolidated: '' } : { ...chat, message: '' },
@@ -494,10 +495,16 @@ export class ActivityWorkspace {
               ? 'ההגדרות כבר תואמות לבקשה.'
               : baseDefinition
                 ? 'ההגדרות עודכנו. אפשר לערוך אותן או לבטל את השינוי.'
-                : 'הכנו הגדרות לפי הבקשה. בדקו אותן וצרו את הפעילות.',
+                : this.context() === 'template'
+                  ? 'הכנו הגדרות לפי הבקשה. בדקו אותן ושמרו את התבנית.'
+                  : 'הכנו הגדרות לפי הבקשה. בדקו אותן וצרו את הפעילות.',
           },
         ]);
-        if (reply.changes.length) this.applyProposal(reply.proposal, !!baseDefinition);
+        if (reply.changes.length) {
+          this.applyProposal(reply.proposal, !!baseDefinition);
+          // The first plan re-creates the chat below the settings; only then can focus fall to the page.
+          if (!baseDefinition) restoreFocus();
+        }
       } else if (reply.clarification) {
         this.answered.set([]);
         this.conversation.set([

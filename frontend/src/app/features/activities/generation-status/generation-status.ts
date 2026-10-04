@@ -79,11 +79,9 @@ export class GenerationStatus {
       case 'completed':
         return {
           title: completedTitles[scope],
-          details: [
-            scope === 'material'
-              ? 'בדקו את הטקסט ואת השאלות שתלויות בו לפני סימון כמוכנה.'
-              : 'עברו על התוכן והתשובות לפני סימון כמוכנה.',
-          ],
+          // The review panel below already asks for a general review; only a new text adds a check.
+          details:
+            scope === 'material' ? ['בדקו את הטקסט ואת השאלות שתלויות בו לפני סימון כמוכנה.'] : [],
           problem: false,
         };
       case 'failed':

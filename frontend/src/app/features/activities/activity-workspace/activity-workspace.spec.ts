@@ -233,15 +233,24 @@ describe('ActivityWorkspace plan ownership', () => {
 
   it('applies a clean proposal locally without publication and moves from the request to settings', async () => {
     await open();
+    const chatFollowsSettings = () =>
+      !!(
+        field('plan-name').compareDocumentPosition(field('chat-message')) &
+        Node.DOCUMENT_POSITION_FOLLOWING
+      );
     expect(root().querySelector('#plan-title')!.textContent).toContain('מה תרצו להכין?');
     expect(field('chat-message').getAttribute('aria-labelledby')).toBe('plan-title');
+    expect(chatFollowsSettings()).toBe(false);
     expect(root().querySelector('#save-template')).toBeNull();
     expect(root().querySelector('#generate-activity')).toBeNull();
+    field('chat-message').focus();
     const request = await ask();
     reply(request);
     await settle();
     expect(field('plan-name').value).toBe('מספרים');
     expect(root().querySelector('#plan-title')!.textContent).toContain('הגדרות הפעילות');
+    expect(chatFollowsSettings()).toBe(true);
+    expect(document.activeElement?.id).toBe('plan-title');
     expect(root().textContent).toContain('הכנו הגדרות לפי הבקשה');
     expect(root().textContent).not.toContain('נוספו הגדרות');
     http.expectNone('/api/templates');

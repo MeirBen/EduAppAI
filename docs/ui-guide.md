@@ -121,8 +121,10 @@ several formats, and a required flag is moot once a choice has a default.
 A block that repeats per part names it: choice definitions say whether they
 belong to the whole activity, a text or the questions, and with several texts,
 each text's fields and choices name that text.
-Once content exists, settings collapse to a derived one-line summary and the
-content becomes the main surface.
+Once a plan exists, the change conversation follows every setting, including
+the advanced options. Once content exists, settings collapse to a derived
+one-line summary, shown only while they are collapsed, and the content becomes
+the main surface.
 
 Authoring is a conversation: the parent's turns sit at the end edge, the
 assistant's replies carry the `ai-mark` with the computed changes and

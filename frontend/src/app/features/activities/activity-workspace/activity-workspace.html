@@ -69,14 +69,16 @@
         <div class="flex flex-wrap items-start justify-between gap-x-4 gap-y-1">
           <div class="grid min-w-0 gap-1">
             <h2 id="plan-title">{{ isTemplate ? 'הגדרות התבנית' : 'הגדרות הפעילות' }}</h2>
-            <p class="text-muted">
-              @for (part of summary(); track $index) {
-                <bdi>{{ part }}</bdi>
-                @if (!$last) {
-                  <span aria-hidden="true"> · </span>
+            @if (!setupOpen()) {
+              <p class="text-muted">
+                @for (part of summary(); track $index) {
+                  <bdi>{{ part }}</bdi>
+                  @if (!$last) {
+                    <span aria-hidden="true"> · </span>
+                  }
                 }
-              }
-            </p>
+              </p>
+            }
           </div>
           @if (hasContent()) {
             <button
@@ -108,26 +110,8 @@
             (edited)="edited($event)"
             (sourceConfirmed)="confirmSource($event)"
           />
-        }
-        <app-template-chat
-          [fields]="chatFields"
-          [configured]="aiConfigured()"
-          [busy]="authoring()"
-          [locked]="locked()"
-          [clarification]="clarification()"
-          [thread]="thread()"
-          [pending]="pendingMessage()"
-          [changes]="changes()"
-          [assumptions]="assumptions()"
-          [consolidationRequired]="needsConsolidation()"
-          [refining]="hasPlan()"
-          labelledBy="plan-title"
-          (sent)="author()"
-          (consolidated)="author(true)"
-          (cancelled)="cancelAuthor()"
-        />
-        @if (authorError()) {
-          <p role="alert" class="field-error">{{ authorError() }}</p>
+        } @else {
+          <ng-container [ngTemplateOutlet]="authorChat" />
         }
         <details
           class="border-t border-line pt-2"
@@ -142,6 +126,9 @@
             (structureChanged)="changeStructure($event)"
           />
         </details>
+        @if (hasPlan()) {
+          <ng-container [ngTemplateOutlet]="authorChat" />
+        }
       </div>
       @if (attempted() && projection().errors.length) {
         <div role="alert" class="field-error">
@@ -393,6 +380,29 @@
     }
   }
 </section>
+
+<ng-template #authorChat>
+  <app-template-chat
+    [fields]="chatFields"
+    [configured]="aiConfigured()"
+    [busy]="authoring()"
+    [locked]="locked()"
+    [clarification]="clarification()"
+    [thread]="thread()"
+    [pending]="pendingMessage()"
+    [changes]="changes()"
+    [assumptions]="assumptions()"
+    [consolidationRequired]="needsConsolidation()"
+    [refining]="hasPlan()"
+    labelledBy="plan-title"
+    (sent)="author()"
+    (consolidated)="author(true)"
+    (cancelled)="cancelAuthor()"
+  />
+  @if (authorError()) {
+    <p role="alert" class="field-error">{{ authorError() }}</p>
+  }
+</ng-template>
 
 <ng-template #publish>
   <button

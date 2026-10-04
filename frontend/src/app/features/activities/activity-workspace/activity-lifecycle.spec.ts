@@ -702,6 +702,7 @@ describe('Activity lifecycle', () => {
     await settle();
     expect(body.hidden).toBe(false);
     expect(toggle.getAttribute('aria-expanded')).toBe('true');
+    expect(root().querySelector('#plan-title')!.nextElementSibling).toBeNull();
   });
   it.each([
     ['פשטו את הניסוח', { instruction: 'פשטו את הניסוח' }],

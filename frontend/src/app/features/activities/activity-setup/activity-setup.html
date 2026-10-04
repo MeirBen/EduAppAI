@@ -199,7 +199,7 @@
 
 <ng-template #content>
   <section class="grid gap-4" aria-labelledby="setup-content-title">
-    <h3 id="setup-content-title">תוכן הפעילות</h3>
+    <h3 id="setup-content-title">מקור הטקסט</h3>
     @for (material of materials; track $index; let index = $index) {
       @let m = p.materials[index];
       <div class="well grid min-w-0 gap-4" role="group" [attr.aria-label]="material.label">
