@@ -178,12 +178,12 @@ public sealed class ContentGenerationTests
     }
 
     [Fact]
-    public async Task Scoped_repair_preserves_unrelated_incomplete_questions_and_task_fields()
+    public async Task Scoped_repair_reads_other_questions_as_context_and_preserves_them_and_task_fields()
     {
         var request = Resolve(Reading());
         var document = TaskAssembly.AcceptMaterials(request, Empty, Materials()).Document!;
         document = TaskAssembly.AcceptQuestions(request, document, Questions("text-input"));
-        document.Questions[1] = document.Questions[1] with { Prompt = "unrelated-private-question", Answer = null };
+        document.Questions[1] = document.Questions[1] with { Prompt = "other-incomplete-question", Answer = null };
         var target = document.Questions[0];
         var replacement = Question("text-input") with { Prompt = "שאלה חדשה" };
         using var chat = new AiFixtures.ScriptedChat(Serialize(replacement));
@@ -195,8 +195,12 @@ public sealed class ContentGenerationTests
         Assert.Equal(document.Instructions, changed.Instructions);
         Assert.Equal(target.Id, changed.Questions[0].Id);
         Assert.Equal(Serialize(document.Questions[1]), Serialize(changed.Questions[1]));
-        Assert.DoesNotContain("unrelated-private-question", chat.Requests[0].Input);
-        Assert.DoesNotContain(target.Id, chat.Requests[0].Input);
+        // The model sees the rest of the activity so the replacement stays distinct and consistent; identities stay app-owned.
+        using var sent = JsonDocument.Parse(chat.Requests[0].Input.Split('\n')[^1]);
+        Assert.Equal("other-incomplete-question", Assert.Single(sent.RootElement.GetProperty("otherQuestions").EnumerateArray()).GetProperty("prompt").GetString());
+        Assert.Equal(document.Instructions, sent.RootElement.GetProperty("learnerInstructions").GetString());
+        Assert.Equal(document.Materials.Single().Body, Assert.Single(sent.RootElement.GetProperty("materials").EnumerateArray()).GetProperty("body").GetString());
+        Assert.All(document.Questions, question => Assert.DoesNotContain(question.Id, chat.Requests[0].Input));
         Assert.Equal(document.Materials.Select(m => new MaterialRevision(m.Id, m.Revision)), changed.Questions[0].Acceptance!.Sources);
     }
 

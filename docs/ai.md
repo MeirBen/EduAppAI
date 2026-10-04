@@ -30,7 +30,9 @@ questions → editable saved draft → parent review → immutable snapshot. Tem
 publication is independent. Supplied sources are assembled verbatim by the app;
 question-only and supplied-source activities skip material generation. Scoped
 replacement preserves unrelated content, and replacing material makes
-dependent questions stale instead of regenerating them.
+dependent questions stale instead of regenerating them. A question replacement
+reads the other questions and learner instructions as context, so it stays
+distinct from them and consistent with the instructions.
 
 On 1 October the owner chose this split flow for source preservation, editing
 and checkpoint recovery, although the comparative threshold was **not met**: a

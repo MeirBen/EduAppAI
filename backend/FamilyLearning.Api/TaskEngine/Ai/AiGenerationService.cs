@@ -95,7 +95,7 @@ public sealed class AiGenerationService(IEnumerable<IChatClient> clients, ILogge
         return result;
     }
 
-    /// <summary>One complete question replacement; unrelated questions and app-owned target identity never enter the provider request.</summary>
+    /// <summary>One complete question replacement; the rest of the activity is read-only context and app-owned identities never enter the provider request.</summary>
     public async Task<AiResult<QuestionCandidate>> ReplaceQuestionAsync(QuestionReplacementInput input, CancellationToken ct, AiCallEvidence? evidence = null)
     {
         var target = TaskAssembly.QuestionTarget(input);
@@ -103,7 +103,9 @@ public sealed class AiGenerationService(IEnumerable<IChatClient> clients, ILogge
             JsonSerializer.Serialize(new
             {
                 request = EffectiveInput(input.Request),
-                target = new { target.Prompt, target.Interaction, target.Answer, target.Points },
+                target = QuestionContext(target),
+                otherQuestions = input.Current.Questions.Where(q => q.Id != target.Id).Select(QuestionContext).ToArray(),
+                learnerInstructions = input.Current.Instructions,
                 materials = SourceContext(input.Current.Materials),
                 input.Instruction
             }, Json), AiSchemas.QuestionsFor(input.Request, exactQuestionCountLimit, replacement: true), AiPrompts.Version("replace-question"), ct, evidence: evidence);
@@ -126,6 +128,9 @@ public sealed class AiGenerationService(IEnumerable<IChatClient> clients, ILogge
 
     private static object SourceContext(IEnumerable<MaterialContent> materials) =>
         materials.Select(m => new { m.Id, m.Revision, m.Title, m.Body }).ToArray();
+
+    private static object QuestionContext(DocumentQuestion question) =>
+        new { question.Prompt, question.Interaction, question.Answer, question.Points };
 
     private static void ValidateAuthoring(TemplateAuthoringInput input)
     {

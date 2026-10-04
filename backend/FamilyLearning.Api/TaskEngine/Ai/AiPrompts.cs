@@ -87,6 +87,7 @@ internal static class AiPrompts
     internal static readonly string QuestionReplacement = """
         Replace only the selected question with a complete prompt, interaction, answer and points under the current requirements.
         Follow the parent's instruction. Return no question identity, other questions, activity title or learner instructions.
+        Other questions and learner instructions are context only: keep the replacement distinct from those questions and consistent with the instructions.
         """ + "\n\n" + QuestionQuality + "\n\n" + StructuredRules + "\n\n" + LanguageQuality;
 
     private const string LanguageQuality = """

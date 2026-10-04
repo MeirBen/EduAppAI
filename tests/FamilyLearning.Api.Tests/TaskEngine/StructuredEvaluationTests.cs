@@ -150,7 +150,6 @@ public sealed class StructuredEvaluationTests : IDisposable
         var replacement = Assert.Single(result.Replacements);
         Assert.True(replacement.Applied);
         Assert.Equal(result.Document.Questions[0].Id, replacement.TargetId);
-        Assert.DoesNotContain("כמה הם 2+1?", chat.Requests[1].Input);
     }
 
     [Fact]
