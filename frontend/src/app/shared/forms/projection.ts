@@ -1,4 +1,4 @@
-import { ValidationError } from '@angular/forms/signals';
+import { ReadonlyFieldTree, ValidationError } from '@angular/forms/signals';
 
 /** A broken rule at the path of the workspace field that holds it; an empty path is the whole form. */
 export interface FieldIssue {
@@ -13,7 +13,7 @@ export interface Projection<T> {
 }
 
 /** Attaches each issue to its field, so every message shows where the parent can fix it. */
-export function validationErrors(root: unknown, issues: readonly FieldIssue[]) {
+export function validationErrors(root: ReadonlyFieldTree<unknown>, issues: readonly FieldIssue[]) {
   return issues.map(({ path, message }): ValidationError.WithOptionalFieldTree => ({
     kind: 'projection',
     message,

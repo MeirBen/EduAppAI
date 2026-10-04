@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import { numericPlan } from '../src/app/features/activities/learning-plan.fixture';
+import { textSize } from './text-size';
 
 async function login(page: Page, email = 'browser@example.test') {
   await page.goto('/');
@@ -51,7 +52,7 @@ async function finish(
 
 async function narrow(page: Page, name: string) {
   await page.setViewportSize({ width: 360, height: 800 });
-  await page.evaluate(() => (document.documentElement.style.fontSize = '200%'));
+  await textSize(page, 32);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await page.screenshot({
     path: test.info().outputPath(`${name}-mobile.png`),
@@ -59,7 +60,7 @@ async function narrow(page: Page, name: string) {
   });
   await page.locator('footer').scrollIntoViewIfNeeded();
   await expect(page.getByRole('banner')).not.toBeInViewport();
-  await page.evaluate(() => (document.documentElement.style.fontSize = '100%'));
+  await textSize(page, 16);
   await page.setViewportSize({ width: 1440, height: 1000 });
 }
 

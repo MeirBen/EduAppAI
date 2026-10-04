@@ -149,36 +149,38 @@
     }
     @if (control.type === 'select') {
       @for (option of control.options; track $index; let optionIndex = $index) {
-        <div class="flex flex-wrap items-end gap-4">
-          <div class="min-w-0 grow basis-48">
-            <label [for]="control.id + '-option-' + optionIndex">אפשרות {{ optionIndex + 1 }}</label
-            ><input
-              [id]="control.id + '-option-' + optionIndex"
-              dir="auto"
-              [formField]="c.options[optionIndex].value"
-              [attr.aria-describedby]="control.id + '-option-' + optionIndex + '-errors'"
-            />
-            <app-field-errors
-              [id]="control.id + '-option-' + optionIndex + '-errors'"
-              [field]="c.options[optionIndex].value"
-            />
+        @let value = c.options[optionIndex].value;
+        @let errorsId = control.id + '-option-' + optionIndex + '-errors';
+        <div>
+          <div class="flex flex-wrap items-end gap-4">
+            <div class="min-w-0 grow basis-48">
+              <label [for]="control.id + '-option-' + optionIndex"
+                >אפשרות {{ optionIndex + 1 }}</label
+              ><input
+                [id]="control.id + '-option-' + optionIndex"
+                dir="auto"
+                [formField]="value"
+                [attr.aria-describedby]="errorsId"
+              />
+            </div>
+            <div class="min-w-0 grow basis-48">
+              <label [for]="control.id + '-meaning-' + optionIndex">הסבר לאפשרות (רשות)</label
+              ><input
+                [id]="control.id + '-meaning-' + optionIndex"
+                dir="auto"
+                [formField]="c.options[optionIndex].meaning"
+              />
+            </div>
+            <button
+              type="button"
+              class="text-link text-link-danger"
+              [disabledInteractive]="locked()"
+              (click)="editOption(optionIndex)"
+            >
+              הסרת אפשרות {{ optionIndex + 1 }}
+            </button>
           </div>
-          <div class="min-w-0 grow basis-48">
-            <label [for]="control.id + '-meaning-' + optionIndex">הסבר לאפשרות (רשות)</label
-            ><input
-              [id]="control.id + '-meaning-' + optionIndex"
-              dir="auto"
-              [formField]="c.options[optionIndex].meaning"
-            />
-          </div>
-          <button
-            type="button"
-            class="text-link text-link-danger"
-            [disabledInteractive]="locked()"
-            (click)="editOption(optionIndex)"
-          >
-            הסרת אפשרות {{ optionIndex + 1 }}
-          </button>
+          <app-field-errors [id]="errorsId" [field]="value" />
         </div>
       }
       <app-field-errors [id]="control.id + '-options-errors'" [field]="c.options" />

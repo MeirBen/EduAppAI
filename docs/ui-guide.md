@@ -84,8 +84,9 @@ present.
 
 - `theme.css` owns the colors, elevations and corner radii. Tailwind's default
   palettes and scales are cleared, so templates can only use theme values.
-- `utilities.css` owns project variants: `pinned-header`, and `dark` for an
-  explicit dark choice or a dark device without an explicit light choice.
+- `utilities.css` owns project variants: `pinned-header`, `pinned-actions`, and
+  `dark` for an explicit dark choice or a dark device without an explicit light
+  choice.
 - `base.css` styles elements, including native form controls and focus.
 - `components.css` holds every shared visual treatment, grouped as actions
   (buttons, links, `back-link`, `icon-button`, `chip`), surfaces (`panel`,
@@ -234,4 +235,6 @@ The animation respects reduced motion; the readable status remains.
 
 Follow the [verification commands](../README.md#verify). Check keyboard
 navigation and 360px screenshots at 200% text, including long mixed-language
-content, and review screen-reader behavior when changing an interaction.
+content, and review screen-reader behavior when changing an interaction. Enlarge
+text through the browser's text size, as the browser tests do: media queries
+ignore text that page styles enlarge.

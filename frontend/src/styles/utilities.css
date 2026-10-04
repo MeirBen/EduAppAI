@@ -5,6 +5,13 @@
   }
 }
 
+/* An action bar stays pinned wherever the window is tall enough to keep reading room around it. */
+@custom-variant pinned-actions {
+  @media (min-height: 40rem) {
+    @slot;
+  }
+}
+
 /* Hover and press feedback only for controls that can act; `aria-disabled` keeps focus but not action. */
 @custom-variant actionable (&:not(:disabled, [aria-disabled='true']));
 

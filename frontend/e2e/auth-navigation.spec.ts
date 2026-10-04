@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { textSize } from './text-size';
 
 async function signIn(page: Page) {
   await page.goto('/login');
@@ -113,7 +114,7 @@ for (const endpoint of ['auth/me', 'auth/csrf', 'limits']) {
     expect(attempts).toBe(2);
     if (endpoint === 'auth/me') {
       await page.setViewportSize({ width: 360, height: 800 });
-      await page.evaluate(() => (document.documentElement.style.fontSize = '200%'));
+      await textSize(page, 32);
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
         true,
       );

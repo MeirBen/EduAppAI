@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
+import { ReadonlyFieldTree } from '@angular/forms/signals';
 
 /**
  * A field's messages once the parent has left it or tried to save; name this element in the
@@ -16,8 +17,7 @@ import { ChangeDetectionStrategy, Component, computed, input } from '@angular/co
   host: { '[hidden]': '!messages().length' },
 })
 export class FieldErrors {
-  readonly field =
-    input.required<() => { touched(): boolean; errors(): readonly { message?: string }[] }>();
+  readonly field = input.required<ReadonlyFieldTree<unknown>>();
   protected readonly messages = computed(() => {
     const state = this.field()();
     return state.touched() ? state.errors().flatMap(({ message }) => message ?? []) : [];

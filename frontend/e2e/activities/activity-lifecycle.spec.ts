@@ -6,6 +6,7 @@ import {
   SnapshotPreview,
 } from '../../src/app/core/api/models';
 import limits from '../../src/app/core/api/limits.fixture.json';
+import { textSize } from '../text-size';
 
 async function isolate(page: Page) {
   let signedIn = true;
@@ -270,7 +271,7 @@ test('supports keyboard content editing with native labels at 360px and 200% tex
   await isolate(page);
   await page.setViewportSize({ width: 360, height: 800 });
   await page.goto('/activities/draft');
-  await page.addStyleTag({ content: 'html { font-size:200%; }' });
+  await textSize(page, 32);
   await page.locator('#add-question').focus();
   await page.keyboard.press('Enter');
   await page.getByLabel('נוסח השאלה', { exact: true }).fill('מה פירוש Hello — שלום?');

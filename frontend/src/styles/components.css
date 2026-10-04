@@ -63,14 +63,10 @@
   .card-section {
     @apply grid gap-4 border-t border-line pt-6;
   }
-  /*
-   * The page's save state and current actions, pinned at the window's bottom until the page reaches
-   * it. Media queries ignore text the page enlarges, so the offset decides: its percentage is the
-   * window's height, and below 40rem of current text it turns hugely negative and never sticks.
-   */
+  /* The page's save state and current actions, pinned at the window's bottom until the page reaches it. */
   .action-bar {
-    @apply sticky z-10 grid gap-3 rounded-card border border-line bg-surface p-3 shadow-raised sm:p-4;
-    inset-block-end: min(max(--spacing(3), env(safe-area-inset-bottom)), (100% - 40rem) * 1000);
+    @apply z-10 grid gap-3 rounded-card border border-line bg-surface p-3 shadow-raised pinned-actions:sticky sm:p-4;
+    inset-block-end: max(--spacing(3), env(safe-area-inset-bottom));
 
     /* On phones its buttons share the bar's width. */
     & .button {

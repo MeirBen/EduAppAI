@@ -10,9 +10,11 @@
     @variant pinned-header {
       scroll-padding-block-start: 6rem;
     }
-    /* Keeps focused fields clear of an action bar while it can pin; see `.action-bar`. */
+    /* Keeps focused fields clear of a pinned action bar. */
     &:has(.action-bar) {
-      scroll-padding-block-end: clamp(0rem, (100% - 40rem) * 1000, 9rem);
+      @variant pinned-actions {
+        scroll-padding-block-end: 9rem;
+      }
     }
   }
 

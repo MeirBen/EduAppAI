@@ -5,6 +5,7 @@ import {
   sourceText,
 } from '../../src/app/features/activities/learning-plan.fixture';
 import limits from '../../src/app/core/api/limits.fixture.json';
+import { textSize } from '../text-size';
 
 async function isolate(page: Page, configured = true) {
   const writes: { url: string; body: Record<string, unknown> }[] = [];
@@ -141,7 +142,7 @@ test('direct editing works without AI at 360px and 200% text with keyboard-acces
   await isolate(page, false);
   await page.setViewportSize({ width: 360, height: 800 });
   await page.goto('/templates/new');
-  await page.addStyleTag({ content: 'html { font-size: 200%; }' });
+  await textSize(page, 32);
   await expect(page.getByText('יצירה בעזרת AI אינה זמינה כרגע.', { exact: false })).toBeVisible();
   await page.getByLabel('שם התבנית').fill('תרגול ידני');
   await page.getByLabel('מה רוצים ללמוד או לתרגל?').fill('תרגול מספרים');
