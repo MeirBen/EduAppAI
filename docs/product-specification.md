@@ -15,7 +15,8 @@ Save template: independently publish the reusable plan at any point
 ## Current workflow
 
 1. Describe the goal, audience and requirements. AI proposes a structured plan
-   or asks one clarification; direct editing and Undo remain available.
+   or asks one clarification; direct editing and Undo remain available. A
+   request built on a text the learner works with always includes that text.
 2. Review shared settings, material sources, question formats and explicitly
    requested controls, and confirm exact source text extracted from a prompt.
    Supplied sources keep their original text.

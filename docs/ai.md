@@ -18,7 +18,9 @@ keys or educational content are good.
 - Strict mode's former instability came from the schema contract, not the
   model; see [resolved failures](#resolved-strict-mode-failures).
 - Six acceptance cases covering every stage passed in three rounds (42 calls,
-  no retry or repair). That sample is not a reliability rate.
+  no retry or repair). That sample is not a reliability rate, and it predates
+  the 4 October prompt revisions (through 23), which targeted live replays
+  checked instead; see [prompt decisions](#prompt-decisions).
 - Keep parent review, strict validation and explicit recovery. No automatic
   output repair, weakened tests, model-specific branch or production retry.
 - Representative content needs human review before further quality tuning.
@@ -41,6 +43,34 @@ three repetitions, one-shot passed 9/9 structural trials and split 7/9; split
 cost about 3× and took 3.4× median provider latency. The one-shot
 implementation and its schemas were removed without compatibility readers.
 Development database setup is in the [README](../README.md#data).
+
+## Prompt decisions
+
+On 4 October each change replayed the app's exact provider request, varying
+only the lines under test; counts are small samples, not reliability rates.
+
+- **Variety:** the material stage lists five less-typical premises of different
+  kinds before writing the one an app-drawn number selects. Over 30 stories per
+  arm, the chance that two share a premise kind fell from 0.34 to 0.22 (p =
+  0.015; two thirds classified blind); informational texts stayed varied. Naming
+  characters in premises was rejected: it spread names but narrowed premise
+  kinds.
+- **Question replacement:** with the other questions and learner instructions
+  as context, "another question" stopped duplicating existing ones (4/8 before,
+  0/8 after).
+- **Calculations:** drills embedded expressions in Hebrew sentences, which
+  render reversed (16/25); the expression rule made them whole items (0/25),
+  kept requested word problems (20/20) and left reading questions unchanged.
+  Applied to texts too, it caused no regression; texts showed no symbol
+  expressions with or without it.
+- **Niqqud:** the plan chat added unrequested niqqud for third grade in 3/4
+  plans; with a stated default, 0/4. Third-grade texts had no points, and
+  first-grade texts kept full niqqud (6/6) once the rule led with that case.
+- **Dropped:** a "shared directions belong in the instructions" line had no
+  effect on drills, and "find the facts in the text; no clues across
+  questions" showed none over 48 questions per arm (4% restated operands
+  either way, no leaks). Duplicate rules were removed so each stage receives
+  every rule once.
 
 ## Configuration
 
@@ -223,9 +253,10 @@ Google publishes no budget, so any new schema feature needs live acceptance.
 - **Availability:** Google 429/504 and AI Studio 503 responses occurred at zero
   cost. They are upstream serving errors; later successes show intermittent
   availability, not stability.
-- **Content:** inference coverage, natural Hebrew/niqqud, factual precision and
-  answer clarity need human review; one confirmation passage claimed orbit has
-  no gravity. Tests, schema mode and a same-model judge cannot certify content.
+- **Content:** inference coverage, natural Hebrew/niqqud, factual precision,
+  answer-key arithmetic and answer clarity need human review; one confirmation
+  passage claimed orbit has no gravity. Tests, schema mode and a same-model
+  judge cannot certify content.
 - **Evaluation judge:** it still appends its schema to its prompt in strict
   mode. Its prompt is part of the calibration fingerprint, so changing it needs
   a recalibration run.
