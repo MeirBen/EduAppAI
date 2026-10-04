@@ -85,8 +85,7 @@ active profile. `scripts/configure-ai.sh` stores the key in development user
 secrets outside the repo; `Ai__ApiKey` or `OPENROUTER_API_KEY` supply server
 secrets, and Production ignores user secrets. Environment variables (`Ai__…`)
 and development secrets (`Ai:…`) override the file; restart after changes.
-The [public launcher](../README.md#public-https-address) explicitly passes the
-saved key to the API through its environment. Credentials never belong in reports.
+Credentials never belong in reports.
 
 | Setting                       | Contract                       |
 | ----------------------------- | ------------------------------ |

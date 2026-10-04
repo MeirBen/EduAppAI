@@ -12,7 +12,7 @@ if (( $# )); then
   public_domain="blimp-extending-elaborate.ngrok-free.dev"
 fi
 tools=(dotnet node npm)
-if [[ -n "$public_domain" ]]; then tools=(dotnet node ngrok curl); fi
+if [[ -n "$public_domain" ]]; then tools+=(ngrok); fi
 for tool in "${tools[@]}"; do
   if ! command -v "$tool" >/dev/null 2>&1; then
     echo "Missing $tool. Install the prerequisites listed in README.md, then try again." >&2
@@ -21,40 +21,18 @@ for tool in "${tools[@]}"; do
 done
 dotnet --version >/dev/null
 if [[ -n "$public_domain" ]]; then
-  if [[ ! -f artifacts/app/FamilyLearning.Api.dll || ! -f artifacts/app/wwwroot/index.html ]]; then
-    printf 'Publish the app first with scripts/publish.sh.\n' >&2
-    exit 1
-  fi
   ngrok config check
-  if curl --silent --max-time 1 http://127.0.0.1:5124/health >/dev/null; then
-    printf 'Port 5124 is already serving an app. Stop it before starting this launcher.\n' >&2
-    exit 1
-  fi
-  public_ai_key="${Ai__ApiKey-${OPENROUTER_API_KEY-}}"
-  # The local launcher passes the saved key only to the API, using Production's environment configuration.
-  if [[ ! -v Ai__ApiKey && ! -v OPENROUTER_API_KEY ]]; then
-    public_ai_key="$(dotnet user-secrets list --project backend/FamilyLearning.Api --json | node -e '
-      const input = require("node:fs").readFileSync(0, "utf8");
-      try {
-        process.stdout.write(JSON.parse(input.replace(/^\/\/.*$/gm, ""))["Ai:ApiKey"] ?? "");
-      } catch {
-        console.error("Could not read the saved AI key. Run scripts/configure-ai.sh.");
-        process.exit(1);
-      }
-    ')"
-  fi
-else
-  if [[ ! -x frontend/node_modules/.bin/ng ]]; then npm --prefix frontend ci; fi
-  # Each development run starts with clean server logs.
-  rm -rf -- "$repo_dir/logs"
-  # Build before starting the API watcher: both projects share the backend dependency.
-  dotnet build tools/FamilyLearning.Evaluation
-
-  printf '\nStarting Family Learning with automatic reload.\n'
-  printf 'App: https://localhost:4200\nAPI: http://localhost:5124\nEvaluation: http://127.0.0.1:5180\n'
-  printf 'Evaluation starts without AI calls; confirm runs in its dashboard.\n'
-  printf 'Press Ctrl+C to stop all three servers.\n\n'
 fi
+if [[ ! -x frontend/node_modules/.bin/ng ]]; then npm --prefix frontend ci; fi
+# Each development run starts with clean server logs.
+rm -rf -- "$repo_dir/logs"
+# Build before starting the API watcher: both projects share the backend dependency.
+dotnet build tools/FamilyLearning.Evaluation
+
+printf '\nStarting Family Learning with automatic reload.\n'
+printf 'App: https://localhost:4200\nAPI: http://localhost:5124\nEvaluation: http://127.0.0.1:5180\n'
+printf 'Evaluation starts without AI calls; confirm runs in its dashboard.\n'
+printf 'Press Ctrl+C to stop all services.\n\n'
 
 # Separate process groups let cleanup stop each service and its children together.
 set -m
@@ -73,34 +51,21 @@ trap 'exit 129' HUP
 trap 'exit 130' INT
 trap 'exit 143' TERM
 
+# The browser uses Angular's origin; the API watcher should not open a second browser tab.
+DOTNET_WATCH_SUPPRESS_LAUNCH_BROWSER=1 \
+  dotnet watch --non-interactive --project backend/FamilyLearning.Api --launch-profile http </dev/null &
+server_pids+=("$!")
+# Allow the app's domain for Vite's live-reload WebSocket.
+__VITE_ADDITIONAL_SERVER_ALLOWED_HOSTS="$public_domain" npm --prefix frontend start </dev/null &
+server_pids+=("$!")
+DOTNET_ENVIRONMENT="${DOTNET_ENVIRONMENT:-Development}" \
+  dotnet run --no-build --project tools/FamilyLearning.Evaluation --no-launch-profile -- --ui </dev/null &
+server_pids+=("$!")
+
 if [[ -n "$public_domain" ]]; then
-  Storage__Directory="${Storage__Directory:-$repo_dir/backend/FamilyLearning.Api/data}" \
-    Ai__ApiKey="$public_ai_key" \
-    ASPNETCORE_ENVIRONMENT=Production DOTNET_ENVIRONMENT=Production ASPNETCORE_HTTPS_PORT=443 \
-    dotnet artifacts/app/FamilyLearning.Api.dll \
-    --contentRoot "$repo_dir/artifacts/app" --urls http://127.0.0.1:5124 \
-    --AllowedHosts "$public_domain" </dev/null &
-  server_pids+=("$!")
-  # Probe with the HTTPS metadata the trusted local proxy supplies.
-  deadline=$((SECONDS + 30))
-  until curl --fail --silent --max-time 1 -H "Host: $public_domain" -H 'X-Forwarded-Proto: https' \
-    http://127.0.0.1:5124/health >/dev/null; do
-    if ! kill -0 "${server_pids[0]}" 2>/dev/null; then wait "${server_pids[0]}"; exit 1; fi
-    if (( SECONDS >= deadline )); then printf 'The app did not become ready within 30 seconds.\n' >&2; exit 1; fi
-    sleep 0.2
-  done
-  printf '\nApp: https://%s\nPress Ctrl+C to stop the app and ngrok.\n\n' "$public_domain"
-  ngrok http http://127.0.0.1:5124 --url "https://$public_domain" --inspect=false </dev/null &
-  server_pids+=("$!")
-else
-  # The browser uses Angular's origin; the API watcher should not open a second browser tab.
-  DOTNET_WATCH_SUPPRESS_LAUNCH_BROWSER=1 \
-    dotnet watch --non-interactive --project backend/FamilyLearning.Api --launch-profile http </dev/null &
-  server_pids+=("$!")
-  npm --prefix frontend start </dev/null &
-  server_pids+=("$!")
-  DOTNET_ENVIRONMENT="${DOTNET_ENVIRONMENT:-Development}" \
-    dotnet run --no-build --project tools/FamilyLearning.Evaluation --no-launch-profile -- --ui </dev/null &
+  printf 'Public app: https://%s (available after the initial build)\n\n' "$public_domain"
+  # Logging disables ngrok's interactive dashboard, which cannot own this launcher's terminal.
+  ngrok http https://localhost:4200 --url "https://$public_domain" --inspect=false --log=stdout </dev/null &
   server_pids+=("$!")
 fi
 

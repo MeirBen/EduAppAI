@@ -23,13 +23,13 @@ Open <https://localhost:4200>. Parent passwords need 12–256 characters with
 upper and lowercase letters, a number and a symbol. Each provisioned parent gets
 a family; there is no default account or public registration.
 
-With no arguments, `dev.sh` installs missing client dependencies, runs the API
+`dev.sh` installs missing client dependencies, runs the API
 and client reload watchers and starts the evaluation dashboard at
 <http://127.0.0.1:5180>, without AI calls. **Ctrl+C** stops all three; restart
 after configuration changes, and run `npm --prefix frontend ci` after dependency
 changes. Use
 [`npm --prefix frontend run start:public`](#public-https-address) to run the
-published app and ngrok together.
+same development app through ngrok as well.
 Angular proxies `/api` to `http://localhost:5124`; use `localhost` consistently
 for cookies. Development applies the initial migration to an empty database.
 
@@ -54,6 +54,38 @@ mkcert -install
 [mkcert]: https://github.com/FiloSottile/mkcert
 
 AI settings, evaluation, results and costs are in the [AI guide](docs/ai.md).
+
+### Public HTTPS address
+
+An account-assigned ngrok domain provides the web app's stable HTTPS address.
+ngrok manages its certificate and [supports SSE](https://ngrok.com/compare/cloudflare-tunnel)
+for live updates. UI, API and event streams share that origin.
+
+Follow ngrok's [setup instructions](https://ngrok.com/download/linux) and keep
+the account token outside the repository. [dev.sh](scripts/dev.sh) owns the
+app's assigned domain; `start:public` calls it with `--public`. The
+[free plan](https://ngrok.com/docs/pricing-limits/free-plan-limits) has usage
+limits and a browser warning; choose **Visit** to continue.
+
+Start the development services and tunnel in one terminal:
+
+```bash
+npm --prefix frontend run start:public
+```
+
+The domain forwards to the same Angular server at <https://localhost:4200>.
+`ng serve` rebuilds the frontend and `dotnet watch` reloads the API at port 5124;
+Angular's existing proxy forwards API requests and live event streams. Both
+addresses use the same database and AI configuration. The evaluation dashboard
+stays on loopback port 5180. Publishing is not needed for this command.
+
+**Ctrl+C**, closing the terminal or any service exiting stops all services and
+ngrok. The host machine and launcher must stay running for the domain to work.
+The app becomes available after the initial builds complete.
+
+Open the HTTPS address and sign in. `/health` reports API process availability,
+not database or AI readiness. The PWA service worker is enabled only in published
+builds; the development server serves live changes.
 
 ## Verify
 
@@ -85,7 +117,7 @@ at the repository root. Outside the repository, relative paths use the deployed
 application's content root. Logs stay outside `wwwroot` and are ignored by Git.
 The workspace configures **Log Viewer** (`berublan.vscode-log-viewer`) to follow
 `logs/server-*.jsonl`, including rolled files; open **Family Learning API** in
-its Watches view. Local development mode deletes `logs/` when it starts, so each
+its Watches view. `dev.sh` deletes `logs/` when it starts, so each
 run begins with clean logs. The file sink runs in shared mode, so management
 commands and other local instances append whole entries to the same file;
 automated tests write logs under their own temporary storage.
@@ -171,47 +203,9 @@ in the same terminal. Supply `Ai__ApiKey` or `OPENROUTER_API_KEY` to enable
 generation; Production uses the [published AI profile](docs/ai.md#configuration)
 and environment variables, not development user secrets.
 
-### Public HTTPS address
-
-An account-assigned ngrok domain provides the web app's stable HTTPS address.
-ngrok manages its certificate and [supports SSE](https://ngrok.com/compare/cloudflare-tunnel)
-for live updates. UI, API and event streams share that origin.
-
-Follow ngrok's [setup instructions](https://ngrok.com/download/linux) and keep
-the account token outside the repository. [dev.sh](scripts/dev.sh) owns the
-app's assigned domain; `start:public` calls it with `--public`. The
-[free plan](https://ngrok.com/docs/pricing-limits/free-plan-limits) has usage
-limits and a browser warning; choose **Visit** to continue.
-
-After publishing, start the application and tunnel in one terminal:
-
-```bash
-npm --prefix frontend run start:public
-```
-
-The launcher defaults to this checkout's `backend/FamilyLearning.Api/data/`,
-keeping its accounts, learning data and Data Protection keys. It reads the AI
-key saved by `scripts/configure-ai.sh` through `dotnet user-secrets` and passes
-it only to the API process through its environment. Explicit
-`Storage__Directory`, `Ai__ApiKey` or `OPENROUTER_API_KEY` settings override these
-defaults. Prepare a different database using the [publish steps](#publish).
-
-This mode runs the published UI/API in Production on loopback port 5124, waits
-for it to respond, then starts ngrok. **Ctrl+C**, closing the terminal or either
-service exiting stops both. It does not run the development watchers or
-evaluation dashboard, rebuild the app, or apply migrations.
-
 The host processes `X-Forwarded-For` and `X-Forwarded-Proto` from one loopback
 proxy before HTTPS redirection, authentication and rate limiting. Preserve the
 original `Host` header and disable proxy buffering for `/api/library/changes`.
 For a proxy on another machine, explicitly configure its trusted address in
 `ForwardedHeadersOptions`, following
 [Microsoft's proxy guidance](https://learn.microsoft.com/en-us/aspnet/core/host-and-deploy/proxy-load-balancer?view=aspnetcore-8.0).
-
-Open the HTTPS address and sign in. Supporting browsers offer **Install app** or
-**Add to Home screen**. The PWA caches assets; learning data and generation need
-a connection. `/health` reports process availability, not database or AI readiness.
-
-The host machine and launcher must stay running for the app to be available.
-Stop the launcher before publishing an update, apply migrations, then restart
-it with the same storage and domain.
