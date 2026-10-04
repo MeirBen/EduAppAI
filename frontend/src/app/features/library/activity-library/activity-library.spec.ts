@@ -97,4 +97,94 @@ describe('Activity library', () => {
       0,
     ]);
   });
+
+  it('keeps successful lists usable when another list fails and retries only that section', async () => {
+    const fixture = await render();
+    const root = fixture.nativeElement as HTMLElement;
+    FakeEventSource.opened[0].send();
+    TestBed.tick();
+    http.expectOne('/api/activity-drafts').flush([draft]);
+    http.expectOne('/api/instances').flush([snapshot]);
+    http.expectOne('/api/templates').flush(null, { status: 503, statusText: 'Unavailable' });
+    await fixture.whenStable();
+    expect(root.querySelector('a[href="/activities/draft"]')).not.toBeNull();
+    expect(root.querySelector('a[href="/instances/ready"]')).not.toBeNull();
+    const templates = root.querySelector('[aria-labelledby="templates-title"]')!;
+    expect(templates.textContent).not.toContain('עוד אין תבניות');
+    templates.querySelector<HTMLButtonElement>('button')!.click();
+    TestBed.tick();
+    http.expectOne('/api/templates').flush([]);
+    http.expectNone('/api/activity-drafts');
+    http.expectNone('/api/instances');
+    await fixture.whenStable();
+    expect(templates.textContent).toContain('עוד אין תבניות');
+    http.verify();
+  });
+
+  it('applies a confirmed reset even when a list resource was in error', async () => {
+    const fixture = await render();
+    const root = fixture.nativeElement as HTMLElement;
+    FakeEventSource.opened[0].send();
+    TestBed.tick();
+    http.expectOne('/api/activity-drafts').flush([draft]);
+    http.expectOne('/api/instances').flush([snapshot]);
+    http.expectOne('/api/templates').flush(null, { status: 503, statusText: 'Unavailable' });
+    await fixture.whenStable();
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    root.querySelector<HTMLButtonElement>('[aria-labelledby="data-title"] button')!.click();
+    http
+      .expectOne((request) => request.method === 'DELETE' && request.url === '/api/templates')
+      .flush(null);
+    await fixture.whenStable();
+    expect(root.textContent).toContain('נתוני הלמידה נמחקו');
+    expect(root.querySelector('a[href="/activities/draft"]')).toBeNull();
+    expect(root.querySelector('a[href="/instances/ready"]')).toBeNull();
+    expect(root.querySelector('[role="alert"]')).toBeNull();
+    http.verify();
+  });
+
+  it('cancels a pre-deletion list read and reconciles a subsequent server hint', async () => {
+    const fixture = await render();
+    const root = fixture.nativeElement as HTMLElement;
+    FakeEventSource.opened[0].send();
+    TestBed.tick();
+    const stale = http.expectOne('/api/activity-drafts');
+    http.expectOne('/api/templates').flush([]);
+    http.expectOne('/api/instances').flush([snapshot]);
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    root.querySelector<HTMLButtonElement>('[data-delete-draft]')!.click();
+    http.expectOne((request) => request.method === 'DELETE').flush(null);
+    await fixture.whenStable();
+    expect(stale.cancelled).toBe(true);
+    expect(root.querySelector('a[href="/activities/draft"]')).toBeNull();
+    FakeEventSource.opened[0].send();
+    TestBed.tick();
+    http.expectOne('/api/activity-drafts').flush([]);
+    http.expectOne('/api/templates').flush([]);
+    http.expectOne('/api/instances').flush([snapshot]);
+    await fixture.whenStable();
+    expect(root.querySelector('a[href="/activities/draft"]')).toBeNull();
+    expect(root.querySelector('a[href="/instances/ready"]')).not.toBeNull();
+    http.verify();
+  });
+
+  it('shows a closed stream and retries both observation and list reads on request', async () => {
+    const fixture = await render();
+    const root = fixture.nativeElement as HTMLElement;
+    const [stream] = FakeEventSource.opened;
+    stream.readyState = FakeEventSource.CLOSED;
+    stream.onerror?.();
+    await fixture.whenStable();
+    const retry = root.querySelector<HTMLButtonElement>('#reconnect-library');
+    expect(retry).not.toBeNull();
+    expect(root.querySelector('a[href="/activities/draft"]')).not.toBeNull();
+    retry!.click();
+    TestBed.tick();
+    expect(FakeEventSource.opened).toHaveLength(2);
+    http.expectOne('/api/templates').flush([]);
+    http.expectOne('/api/instances').flush([snapshot]);
+    http.expectOne('/api/activity-drafts').flush([draft]);
+    await fixture.whenStable();
+    http.verify();
+  });
 });

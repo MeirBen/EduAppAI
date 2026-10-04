@@ -21,7 +21,7 @@ public sealed record GenerationStepArtifact(string Stage, TaskDocument Document,
 /// <summary>Minimal durable stage outcome, separate from expiring prompts and output.</summary>
 public sealed record GenerationStep(string Stage, string Outcome, AiCallUsage? Usage = null, GenerationMetadata? Metadata = null);
 
-/// <summary>Parent-only operation state. Completion does not assert that the activity is ready for release.</summary>
+/// <summary>Parent-only operation state. ExpectedRevision is its last owned draft revision; completion does not assert readiness for release.</summary>
 public sealed record GenerationOperationDetail(Guid Id, Guid DraftId, string Kind, string Status, string Stage,
     long OriginalRevision, long ExpectedRevision, string? Failure, bool DiagnosticsExpired, GenerationStep[] Steps, GenerationArtifacts? Artifacts)
 {

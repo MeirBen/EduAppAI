@@ -1,7 +1,6 @@
 import { HttpClient, httpResource } from '@angular/common/http';
-import { EMPTY, Observable, switchMap, takeUntil } from 'rxjs';
-import { DestroyRef, DOCUMENT, inject, Injectable } from '@angular/core';
-import { pageVisible } from '../page-visibility';
+import { Observable, takeUntil } from 'rxjs';
+import { DestroyRef, inject, Injectable } from '@angular/core';
 import { requestResult } from './request-result';
 import {
   TemplateSummary,
@@ -29,7 +28,6 @@ import {
 @Injectable({ providedIn: 'root' })
 export class LearningApi {
   private readonly http = inject(HttpClient);
-  private readonly document = inject(DOCUMENT);
 
   /** Reports server configuration without exposing credentials or contacting the provider. */
   aiStatus() {
@@ -177,24 +175,6 @@ export class LearningApi {
   /** Clears all family learning content, including items beyond list limits; keeps accounts and AI settings. */
   resetLibrary(lifetime: DestroyRef) {
     return requestResult(this.http.delete<void>('/api/templates'), lifetime);
-  }
-  /**
-   * Emits when the family's saved learning content may have changed, following the server's change
-   * stream while the page is visible. Every connection starts with a note, so changes made while
-   * disconnected or hidden are never missed. A refused stream, such as after sign-out, stays closed
-   * until the page is shown again.
-   */
-  libraryChanges() {
-    const stream = new Observable<void>((subscriber) => {
-      // The service worker caches assets only, so a long-lived stream bypasses it.
-      const source = new EventSource('/api/library/changes?ngsw-bypass');
-      source.onmessage = () => subscriber.next();
-      source.onerror = () => {
-        if (source.readyState === EventSource.CLOSED) subscriber.complete();
-      };
-      return () => source.close();
-    });
-    return pageVisible(this.document).pipe(switchMap((visible) => (visible ? stream : EMPTY)));
   }
   /** Permanently deletes one owned snapshot; independent drafts and templates remain. */
   deleteSnapshot(id: string, lifetime: DestroyRef) {

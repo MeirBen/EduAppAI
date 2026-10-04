@@ -86,8 +86,13 @@ async function isolate(page: Page) {
     if (path === '/api/activity-drafts/draft/operations/op')
       return route.fulfill({ json: operation });
     if (path === '/api/activity-drafts/draft/operations/op/cancel') {
-      operation = { ...operation!, status: 'cancelled' };
-      draft = { ...draft, activeOperationId: null };
+      const unchanged = draft.revision === operation!.expectedRevision;
+      draft = { ...draft, activeOperationId: null, revision: draft.revision + 1 };
+      operation = {
+        ...operation!,
+        status: 'cancelled',
+        expectedRevision: unchanged ? draft.revision : operation!.expectedRevision,
+      };
       return route.fulfill({ json: operation });
     }
     if (path === '/api/activity-drafts/draft/release') {
@@ -120,7 +125,8 @@ async function isolate(page: Page) {
       operation = {
         ...operation,
         status: 'completed',
-        steps: [{ stage: 'questions', outcome: 'applied', usage: null, metadata: null }],
+        expectedRevision: draft.revision + 1,
+        steps: [{ stage: 'questions', outcome: 'accepted', usage: null, metadata: null }],
       };
       draft = {
         ...draft,

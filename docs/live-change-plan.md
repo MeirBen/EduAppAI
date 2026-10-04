@@ -1,10 +1,11 @@
 # Live Change Implementation Plan
 
 > **For agentic workers:** Use `superpowers:executing-plans` to implement the
-> reviewed tasks. Checkboxes track implementation; none is implemented by this
-> review. The user handles Git.
+> reviewed tasks. Checkboxes track implementation and verification. The user
+> handles Git.
 
-**Status:** Proposed, 4 October 2026. Review covers the Angular library, draft
+**Status:** Implemented and verified, 4 October 2026.
+Scope covers the Angular library, draft
 editor, generation progress and immutable task snapshots, plus their server
 queries, writes, worker transitions and family change stream.
 
@@ -24,7 +25,7 @@ No new runtime dependency or migration.
 [architecture](architecture.md), [UI guidance](ui-guide.md) and
 [commenting guidance](commenting-guide.md).
 
-## Assessment
+## Original assessment
 
 The transport choice is appropriate. The main problem is overlapping ownership
 of reads and reconciliation in the editor. Fix this before building more live
@@ -66,7 +67,8 @@ boundaries instead of relying on timing or a numeric ordering of statuses.
 
 The existing baseline passed `scripts/verify.sh`. Both targeted review probes
 failed their intended behavior assertions; their temporary spec was removed.
-No production code was changed for this review and no paid AI calls were made.
+That review changed no production code. Implementation and verification below use
+only isolated providers; no paid AI calls are needed.
 
 ## Keep
 
@@ -193,24 +195,24 @@ and `GenerationRecoveryTests.cs`; reuse `GenerationHarness`.
 **Interfaces:** Keep `LibraryChanges.Publish(Guid familyId)` and the SSE wire
 format unchanged. No new event types, operation fields or database counter.
 
-- [ ] Add a test that holds the isolated provider after a successful claim:
+- [x] Add a test that holds the isolated provider after a successful claim:
       consume the start hint, run the worker, observe another hint, then assert
       GET returns `calling` before allowing provider completion. It must fail
       against the current missing publication.
-- [ ] Add retention coverage: advance the test clock, purge, observe a family
+- [x] Add retention coverage: advance the test clock, purge, observe a family
       hint and assert diagnostics expired while outcome/usage remain. Keep
       existing bounded-batch assertions.
-- [ ] Publish after the successful claim commit. For purge, project only IDs
+- [x] Publish after the successful claim commit. For purge, project only IDs
       and family IDs, retain the 32-row bound and publish distinct selected
       families after a successful update when rows changed. Do not materialize
       artifacts. Concurrent deletion may produce a harmless redundant hint;
       do not add transactions merely to make hints exact.
-- [ ] Expand publication coverage for successful save/start/cancel/release,
+- [x] Expand publication coverage for successful save/start/cancel/release,
       template publication/deletion, snapshot deletion and reset; rejected and
       foreign-family writes must not notify the caller's stream. Exercise
       checkpoint, recovery and late cancellation usage publication. Test the
       capacity-one channel directly for a burst; do not count exact SSE frames.
-- [ ] Run `dotnet test --filter 'FullyQualifiedName~LibraryChangeTests|FullyQualifiedName~GenerationRecoveryTests|FullyQualifiedName~GenerationRaceTests'`.
+- [x] Run `dotnet test --filter 'FullyQualifiedName~LibraryChangeTests|FullyQualifiedName~GenerationRecoveryTests|FullyQualifiedName~GenerationRaceTests'`.
       All targeted tests must pass.
 
 ### Task 2: Give the existing stream an explicit recoverable lifetime
@@ -231,17 +233,17 @@ singleton connection, reference counting or global connection registry.
 The workspace creates its instance and passes its `changes` observable into
 `draftElsewhere`; Task 3 replaces that consumer without opening another stream.
 
-- [ ] Add failing tests for `CLOSED` becoming unavailable, explicit reconnect
+- [x] Add failing tests for `CLOSED` becoming unavailable, explicit reconnect
       creating exactly one new source, `CONNECTING` retaining native retry,
       visibility catch-up and disposal closing the source. Extend the fake only
       with the native lifecycle events these tests need.
-- [ ] Move EventSource handling out of LearningApi into this owner, retaining
+- [x] Move EventSource handling out of LearningApi into this owner, retaining
       `/api/library/changes?ngsw-bypass`. Wire both consumers directly and remove
       the old method and transport-only imports; do not keep a forwarding layer.
-- [ ] Add a short Hebrew connection status and retry beside existing page
+- [x] Add a short Hebrew connection status and retry beside existing page
       refresh controls. Retrying must refresh visible state as well as reopen
       the stream; it must not cause navigation, generation or write replay.
-- [ ] Run `npm --prefix frontend test -- --watch=false`. The stream and existing
+- [x] Run `npm --prefix frontend test -- --watch=false`. The stream and existing
       library/lifecycle tests must pass, including no second connection or busy
       retry loop after a terminal error.
 
@@ -257,72 +259,118 @@ and focused `.spec.ts` coverage for request lifetime/order.
 callers. Remove `pollRefresh` and the separate polling constructor effect.
 
 **Interface:** `observeDraft` is a component-owned injection-context helper.
-Its inputs are the current draft/operation IDs, command-busy state, the page's
+Its inputs are the current draft/operation IDs, background eligibility,
+command-busy state, the page's
 Task 2 change observable, and callbacks for an observation or read error.
 An observation is
 `{ draft: ActivityDetail; operation?: GenerationOperation }`. Expose only
 `suspend(): void` to synchronously cancel obsolete background work and
-`read(): Promise<DraftObservation>` for explicit reload/reconciliation. Internal
+`read(acknowledged?: GenerationOperation): Promise<DraftObservation>` for explicit
+reload/reconciliation. The user approved reusing the cancellation response,
+avoiding a duplicate operation GET. Background eligibility is separate from
+identity so a released draft can still be explicitly reloaded. Internal
 SSE and timer triggers use that same query path. Keep request subscriptions and
 pending refresh state here, and existing editing/operation presentation signals
 in the workspace; do not add a copied domain store.
 
-- [ ] Add regression tests that hold a poll, acknowledge cancellation, then
+- [x] Add regression tests that hold a poll, acknowledge cancellation, then
       attempt late delivery; Cancel must stay absent and no AI start occurs.
       Add a same-revision external `activeOperationId` response; controls become
       busy, status is fetched and the existing form/Undo remain intact.
-- [ ] Implement one bounded read lifecycle using the Task 2 stream and existing
+- [x] Implement one bounded read lifecycle using the Task 2 stream and existing
       HttpClient APIs. Wire `suspend()` at the beginning of `runDraftRequest`,
       before awaiting any write. Commands retain ownership of writes; observer
       busy state pauses only background reads, not their explicit `read()`.
       Background callbacks cannot apply an interrupted request. Prefer native
       unsubscription over a new generic request/version framework.
-- [ ] Route background observations, explicit reload and cancellation results
+- [x] Route background observations, explicit reload and cancellation results
       through the workspace's reconciliation policy with an explicit distinction
       between applying an approved reload and offering external content. Update
       operation metadata independently of content revision; keep local-start
       recovery keys, edit fencing, Undo and focus in the workspace.
-- [ ] Add tests for `calling/materials` to `queued/questions`, terminal status
+- [x] Add tests for `calling/materials` to `queued/questions`, terminal status
       followed by a fresh checkpoint, same-revision failure/late usage, newer
       pending revision followed by an older candidate, local edits during reads,
       external release/deletion, and an operation 404 with an existing draft.
-- [ ] Test a burst during an in-flight read produces one trailing read; hidden,
+- [x] Test a burst during an in-flight read produces one trailing read; hidden,
       destroyed or changed-identity pages cancel old reads; a transient read
       failure remains recoverable. Preserve the existing lost-start-response
       test: observation must never invent or replay a new start key.
-- [ ] Run `npm --prefix frontend test -- --watch=false`; the observer and all
+- [x] Run `npm --prefix frontend test -- --watch=false`; the observer and all
       workspace cases must pass. Remove obsolete comments, helpers and imports;
       do not leave both old and new read paths active.
 
 ### Task 4: Contain library failures and verify the complete flow
 
 **Modify:** `frontend/src/app/features/library/activity-library/activity-library.ts`,
-its HTML/spec, `frontend/e2e/activities/activity-lifecycle.spec.ts`,
+its HTML/spec, `frontend/e2e/parent-workflow.spec.ts`,
+`frontend/e2e/activities/activity-lifecycle.spec.ts`,
 `docs/architecture.md` and relevant live-update comments.
 
 **Interfaces:** Retain the three existing `httpResource` instances, list APIs,
 confirmed local deletion updates and the Task 2 stream. No combined library DTO
 or shared draft/list cache.
 
-- [ ] Add a test where one background list GET fails and the other two succeed;
+- [x] Add a test where one background list GET fails and the other two succeed;
       successful sections and links must remain usable. Render each section
       from its own resource state; a failed request is not an empty list.
-- [ ] Preserve coalesced refresh and focus after deletion. Test a pending list
+- [x] Preserve coalesced refresh and focus after deletion. Test a pending list
       request during confirmed deletion plus a later server hint. Let Angular's
       resource update cancel its obsolete load; do not add a second tombstone or
       revision system. Correct comments that currently imply no later refetch.
-- [ ] Extend the isolated two-page workflow: external save/start/cancel/complete,
+- [x] Extend the isolated two-page workflow: external save/start/cancel/complete,
       edit protection, release/deletion, hidden-page catch-up and stream failure
       followed by retry. Assert convergence and preserved text, not sleep-based
       timing or exact notification counts. Use the local provider only.
-- [ ] Run `./scripts/verify.sh`, then `./scripts/publish.sh` to refresh the
+- [x] Run `./scripts/verify.sh`, then `./scripts/publish.sh` to refresh the
       browser test build, then `npm --prefix frontend run e2e`. Require all
       checks to pass. Record request counts during a held operation and a burst:
       one current read chain, one pending refresh, no hidden/background writes,
       no timer after a terminal operation and no leaked stream on navigation.
-- [ ] Review the final diff for orphaned helpers, duplicated request/state paths,
+- [x] Review the final diff for orphaned helpers, duplicated request/state paths,
       ownership leaks, misleading comments and unnecessary abstractions. Keep
       unrelated auth, AI prompts and child-flow implementation untouched.
+
+## Approved review correction
+
+The final review found that a local edit fence alone cannot identify which writer
+produced a newer draft. The user approved tightening the existing operation
+revision contract: `ExpectedRevision` advances after each accepted checkpoint,
+and after cancellation only when the draft still matches that operation. An
+external save never becomes an operation-owned revision. This changes no field,
+endpoint or schema and keeps start-key fingerprints unchanged.
+
+The workspace applies content automatically only when both the local edit fence
+and operation revision match. A checkpoint committed between the status and draft
+GETs stays offered until a later status confirms ownership. The same pending
+revision can then be accepted; external saves and cancellation after an external
+save keep the explicit reload boundary. Existing terminal rows with older revision
+metadata remain safe: their content is offered for explicit reload.
+
+Regression tests reproduced the unannounced final/cancellation revisions, external
+save race and a stale reload button after deletion before their fixes. Browser
+coverage also exposed a test-helper race; a second generation now waits for the
+new operation identity rather than matching the previous URL.
+
+## Verification and cleanup
+
+- `scripts/verify.sh`: passed; 478 backend, 179 Angular and 23 dashboard tests,
+  locked restores, builds, format checks, Markdown lint and TypeScript checks.
+- Local `scripts/publish.sh` and all 27 isolated Playwright workflows: passed,
+  including two-page generation/cancellation/release, edits, visibility catch-up,
+  stream retry, deletion and existing authentication/keyboard/mobile regressions.
+- A held draft read plus 20 hints produces exactly one trailing read; cancellation
+  reuses its acknowledgement, hiding cancels background HTTP, terminal status
+  stops the timer, and disposal closes the stream. These counts and lifetimes are
+  asserted in the stream/observer tests with controlled events and clocks.
+- Independent final review's external-save finding was reproduced and fixed with
+  server/UI regressions. The deletion-after-offer failure also passed after its
+  fix. Removed the old draft/polling helpers, transport method, dead reload branch
+  and redundant cancellation wiring; persistent loading regions follow UI guidance.
+
+Generic 502–504 error wording remains a separate, unapproved correction. The
+pre-existing Markdown lint dependency advisory remains outside this change at the
+user's request. No paid AI calls or Git mutations were made.
 
 ## Deferred choices
 
@@ -351,5 +399,5 @@ parallel list cache.
 
 Native reconnection and terminal connection failure have different behavior in
 the [EventSource standard](https://html.spec.whatwg.org/multipage/server-sent-events.html).
-The proposed connection state exposes that distinction without replacing the
+The connection state exposes that distinction without replacing the
 browser's SSE implementation.

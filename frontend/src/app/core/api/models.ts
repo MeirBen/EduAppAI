@@ -212,6 +212,7 @@ export interface GenerationOperation {
   status: 'queued' | 'calling' | 'completed' | 'failed' | 'conflict' | 'cancelled' | 'unknown';
   stage: string;
   originalRevision: number;
+  /** Last revision owned by this operation, including accepted output and unchanged cancellation. */
   expectedRevision: number;
   failure: string | null;
   diagnosticsExpired: boolean;

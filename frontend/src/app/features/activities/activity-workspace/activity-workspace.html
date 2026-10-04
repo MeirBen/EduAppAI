@@ -42,8 +42,16 @@
         <span role="status" [class.font-medium]="unsaved()" [class.text-ink]="unsaved()">{{
           saveState()
         }}</span>
-        @if (reloadPlacement() === 'elsewhere') {
-          <ng-container [ngTemplateOutlet]="reload" />
+        @if (updates.state() === 'unavailable') {
+          <span role="status">העדכונים בזמן אמת נותקו.</span>
+          <button
+            id="reconnect-draft"
+            type="button"
+            class="text-link"
+            (click)="updates.reconnect()"
+          >
+            חיבור מחדש
+          </button>
         }
         @if (hasPlan() || history.entries().length) {
           <button
@@ -160,10 +168,12 @@
     @if (!operationTarget()) {
       <ng-container [ngTemplateOutlet]="operationStatus" />
     }
-    @if (available(); as result) {
+    @if (elsewhere() !== 'deleted' && available(); as result) {
       <section class="panel grid gap-4" aria-labelledby="available-title">
         <div class="grid gap-1">
-          <h2 id="available-title">נוצרה תוצאה בזמן שהמשכתם לערוך</h2>
+          <h2 id="available-title">
+            {{ elsewhere() === 'changed' ? 'גרסה שמורה חדשה' : 'נוצרה תוצאה בזמן שהמשכתם לערוך' }}
+          </h2>
           <p>לא החלפנו את העבודה שלכם. אפשר לבדוק את התוצאה ולטעון אותה במקום השינויים שלכם.</p>
         </div>
         <details class="well">
@@ -216,7 +226,9 @@
             <p>הפעילות סומנה כמוכנה ונשמרה כעותק קבוע. שינויים נעשים בעותק חדש לעריכה.</p>
           </div>
           <div class="flex flex-wrap gap-3">
-            <a class="button" [routerLink]="['/instances', saved()!.releasedSnapshotId]"
+            <a
+              class="button"
+              [routerLink]="['/instances', (available() ?? saved())!.releasedSnapshotId]"
               >צפייה בפעילות המוכנה</a
             >
             <button
@@ -351,8 +363,8 @@
             </button>
           </div>
         }
-        @if (activityError()) {
-          <p role="alert" class="field-error">{{ activityError() }}</p>
+        @if (activityError() || readError()) {
+          <p role="alert" class="field-error">{{ activityError() || readError() }}</p>
         }
         @if (reloadPlacement() === 'error') {
           <ng-container [ngTemplateOutlet]="reload" />

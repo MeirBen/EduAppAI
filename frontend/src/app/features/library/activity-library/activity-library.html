@@ -8,28 +8,38 @@
       ><span class="ai-icon" aria-hidden="true"></span>פעילות חדשה</a
     >
   </header>
-  <app-loading-indicator [active]="loading()" label="טוענים את הספרייה…" variant="panel" />
-  @if (loadError()) {
+  @if (updates.state() === 'unavailable') {
     <div class="grid justify-items-start gap-1">
-      <p role="alert" class="field-error">{{ apiError(loadError()) }}</p>
-      <button class="text-link" (click)="reload()">ניסיון נוסף</button>
+      <p role="status" class="text-muted">העדכונים בזמן אמת נותקו. אפשר לנסות להתחבר שוב.</p>
+      <button id="reconnect-library" type="button" class="text-link" (click)="updates.reconnect()">
+        חיבור מחדש
+      </button>
     </div>
   }
   <p role="status">{{ notice() }}</p>
   @if (error()) {
     <p role="alert" class="field-error">{{ error() }}</p>
   }
-  @if (!loading() && !loadError()) {
-    <section class="panel grid gap-4" aria-labelledby="drafts-title">
-      <div class="grid gap-1">
-        <h2 id="drafts-title" class="flex items-center gap-3">
-          טיוטות לעריכה
-          @if (drafts.value()?.length) {
-            <span class="badge">{{ drafts.value()?.length }}</span>
-          }
-        </h2>
-        <p class="text-sm text-muted">פעילויות שעוד לא סומנו כמוכנות. אפשר לחזור ולערוך בכל זמן.</p>
+  <section class="panel grid gap-4" aria-labelledby="drafts-title">
+    <div class="grid gap-1">
+      <h2 id="drafts-title" class="flex items-center gap-3">
+        טיוטות לעריכה
+        @if (drafts.hasValue() && drafts.value().length) {
+          <span class="badge">{{ drafts.value().length }}</span>
+        }
+      </h2>
+      <p class="text-sm text-muted">פעילויות שעוד לא סומנו כמוכנות. אפשר לחזור ולערוך בכל זמן.</p>
+    </div>
+    <app-loading-indicator
+      [active]="drafts.isLoading() && !drafts.hasValue()"
+      label="טוענים את הטיוטות…"
+    />
+    @if (drafts.error()) {
+      <div class="grid justify-items-start gap-1">
+        <p role="alert" class="field-error">{{ apiError(drafts.error()) }}</p>
+        <button type="button" class="text-link" (click)="drafts.reload()">ניסיון נוסף</button>
       </div>
+    } @else if (drafts.hasValue()) {
       @for (draft of drafts.value(); track draft.id) {
         <article class="list-row">
           <span class="icon-tile size-10" aria-hidden="true">
@@ -62,17 +72,28 @@
           <a class="text-link" routerLink="/activities/new">התחלת פעילות חדשה</a>
         </div>
       }
-    </section>
-    <section class="panel grid gap-4" aria-labelledby="ready-title">
-      <div class="grid gap-1">
-        <h2 id="ready-title" class="flex items-center gap-3">
-          פעילויות מוכנות
-          @if (snapshots.value()?.length) {
-            <span class="badge">{{ snapshots.value()?.length }}</span>
-          }
-        </h2>
-        <p class="text-sm text-muted">עותקים קבועים שבדקתם. שינוי נעשה בעותק חדש לעריכה.</p>
+    }
+  </section>
+  <section class="panel grid gap-4" aria-labelledby="ready-title">
+    <div class="grid gap-1">
+      <h2 id="ready-title" class="flex items-center gap-3">
+        פעילויות מוכנות
+        @if (snapshots.hasValue() && snapshots.value().length) {
+          <span class="badge">{{ snapshots.value().length }}</span>
+        }
+      </h2>
+      <p class="text-sm text-muted">עותקים קבועים שבדקתם. שינוי נעשה בעותק חדש לעריכה.</p>
+    </div>
+    <app-loading-indicator
+      [active]="snapshots.isLoading() && !snapshots.hasValue()"
+      label="טוענים את הפעילויות המוכנות…"
+    />
+    @if (snapshots.error()) {
+      <div class="grid justify-items-start gap-1">
+        <p role="alert" class="field-error">{{ apiError(snapshots.error()) }}</p>
+        <button type="button" class="text-link" (click)="snapshots.reload()">ניסיון נוסף</button>
       </div>
+    } @else if (snapshots.hasValue()) {
       @for (snapshot of snapshots.value(); track snapshot.id) {
         <article class="list-row">
           <span class="icon-tile size-10" aria-hidden="true">
@@ -103,20 +124,31 @@
           <p>עוד אין פעילויות מוכנות. פעילות שבדקתם וסימנתם כמוכנה נשמרת כאן כעותק קבוע.</p>
         </div>
       }
-    </section>
-    <section class="panel grid gap-4" aria-labelledby="templates-title">
-      <div class="flex flex-wrap items-start justify-between gap-x-4 gap-y-1">
-        <div class="grid gap-1">
-          <h2 id="templates-title" class="flex items-center gap-3">
-            תבניות לשימוש חוזר
-            @if (templates.value()?.length) {
-              <span class="badge">{{ templates.value()?.length }}</span>
-            }
-          </h2>
-          <p class="text-sm text-muted">הגדרות שמורות ליצירה מהירה של פעילויות דומות.</p>
-        </div>
-        <a class="text-link" routerLink="/templates/new">תבנית חדשה</a>
+    }
+  </section>
+  <section class="panel grid gap-4" aria-labelledby="templates-title">
+    <div class="flex flex-wrap items-start justify-between gap-x-4 gap-y-1">
+      <div class="grid gap-1">
+        <h2 id="templates-title" class="flex items-center gap-3">
+          תבניות לשימוש חוזר
+          @if (templates.hasValue() && templates.value().length) {
+            <span class="badge">{{ templates.value().length }}</span>
+          }
+        </h2>
+        <p class="text-sm text-muted">הגדרות שמורות ליצירה מהירה של פעילויות דומות.</p>
       </div>
+      <a class="text-link" routerLink="/templates/new">תבנית חדשה</a>
+    </div>
+    <app-loading-indicator
+      [active]="templates.isLoading() && !templates.hasValue()"
+      label="טוענים את התבניות…"
+    />
+    @if (templates.error()) {
+      <div class="grid justify-items-start gap-1">
+        <p role="alert" class="field-error">{{ apiError(templates.error()) }}</p>
+        <button type="button" class="text-link" (click)="templates.reload()">ניסיון נוסף</button>
+      </div>
+    } @else if (templates.hasValue()) {
       @for (template of templates.value(); track template.id) {
         <article class="list-row">
           <span class="icon-tile size-10" aria-hidden="true">
@@ -154,8 +186,8 @@
           <p>עוד אין תבניות. שמרו הגדרות של פעילות כתבנית, כדי ליצור בקלות פעילויות דומות בהמשך.</p>
         </div>
       }
-    </section>
-  }
+    }
+  </section>
   <section
     class="grid justify-items-start gap-3 border-t border-line pt-6"
     aria-labelledby="data-title"

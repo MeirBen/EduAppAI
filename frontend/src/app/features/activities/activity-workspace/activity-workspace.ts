@@ -31,7 +31,6 @@ import {
   PlanTemplateDetail,
   StartGeneration,
 } from '../../../core/api/models';
-import { requestResult } from '../../../core/api/request-result';
 import { focusHolder } from '../../../shared/focus-holder';
 import { taskSettingsSchema } from '../../../shared/forms/task-settings';
 import { LoadingIndicator } from '../../../shared/loading-indicator/loading-indicator';
@@ -63,8 +62,8 @@ import { planControls, planFormSchema } from '../plan-editor/plan-form';
 import { controlInputValue, planValue, requestValue } from '../plan-editor/plan-projection';
 import { SourceReplacement } from '../source-replacement/source-replacement';
 import { TemplateChat } from '../template-chat/template-chat';
-import { draftElsewhere } from './draft-elsewhere';
-import { pollOperation } from './operation-polling';
+import { libraryChanges } from '../../../core/api/library-changes';
+import { DraftObservation, observeDraft } from './draft-observer';
 import { UndoHistory } from './undo-history';
 import {
   ConfirmedSources,
@@ -161,6 +160,7 @@ export class ActivityWorkspace {
   protected readonly notice = signal('');
   protected readonly templateNotice = signal('');
   protected readonly activityError = signal('');
+  protected readonly readError = signal('');
   protected readonly publication = signal<PlanTemplateDetail | undefined>(undefined);
   protected readonly saved = signal<ActivityDetail | undefined>(undefined);
   /** A newer server checkpoint held back because applying it would replace local edits. */
@@ -188,11 +188,12 @@ export class ActivityWorkspace {
   protected readonly startRecovery = signal<
     { draftId: string; request: StartGeneration } | undefined
   >(undefined);
-  /** The client revision the current operation's results may replace; later edits fence them. */
-  private operationClientRevision = 0;
-  private readonly pollRefresh = signal(0);
+  /** The edit fence for locally followed generation; external operations never replace the buffer. */
+  private operationClientRevision: number | undefined;
 
-  protected readonly released = computed(() => !!this.saved()?.releasedSnapshotId);
+  protected readonly released = computed(
+    () => !!(this.available() ?? this.saved())?.releasedSnapshotId,
+  );
   /** Edits wait for any running save and stop for good once the activity is released. */
   protected readonly locked = computed(() => this.saving() || this.released());
   protected readonly aiConfigured = computed(() => this.ai.value()?.configured ?? false);
@@ -200,11 +201,21 @@ export class ActivityWorkspace {
   protected readonly contentBusy = computed(
     () => this.saving() || this.operationActive() || !!this.startRecovery(),
   );
+  protected readonly updates = libraryChanges();
   /** The editable draft changed or was deleted elsewhere; nothing is applied unasked. */
-  protected readonly elsewhere = draftElsewhere(
-    () => (this.released() ? undefined : (this.available() ?? this.saved())),
-    () => this.contentBusy(),
-  );
+  protected readonly elsewhere = signal<'changed' | 'deleted' | undefined>(undefined);
+  private readonly observer = observeDraft({
+    draftId: () => this.saved()?.id,
+    operationId: () => this.operationId(),
+    enabled: () => !this.released() && this.elsewhere() !== 'deleted',
+    busy: () => this.saving() || !!this.startRecovery(),
+    changes: this.updates.changes,
+    changed: (observation) => this.receiveObservation(observation),
+    failed: (error) => {
+      if (error instanceof HttpErrorResponse && error.status === 404) this.elsewhere.set('deleted');
+      else this.readError.set(apiError(error));
+    },
+  });
   protected readonly canGenerate = computed(() => this.aiConfigured() && !this.contentBusy());
   /** The visible settings are the plan defaults, in a template and an activity alike; one set of fields owns them. */
   protected readonly projection = computed(() => {
@@ -279,12 +290,12 @@ export class ActivityWorkspace {
     if (this.saved() || this.activityId()) return 'עריכת פעילות';
     return this.templateId() ? 'פעילות חדשה מתבנית' : 'פעילות חדשה';
   });
-  /** One reload control: beside a newer server result, an error or a change saved elsewhere, or with the other actions. */
+  /** One reload control: beside a newer server result or error, otherwise with the other actions. */
   protected readonly reloadPlacement = computed(() => {
     if (!this.saved() || this.elsewhere() === 'deleted') return 'none';
     if (this.available()) return 'available';
-    if (this.activityError()) return 'error';
-    return this.elsewhere() ? 'elsewhere' : 'more';
+    if (this.activityError() || this.readError()) return 'error';
+    return 'more';
   });
   protected readonly measurements = computed(() =>
     measurementItems(this.saved()?.measurements ?? [], this.saved()?.plan),
@@ -363,7 +374,7 @@ export class ActivityWorkspace {
       if (loaded) {
         this.saved.set(loaded);
         this.operationId.set(loaded.activeOperationId ?? this.resumeOperation());
-        this.operationClientRevision = this.clientRevision;
+        this.operationClientRevision = this.operationId() ? this.clientRevision : undefined;
       }
       this.confirmed.set(fixedSources(plan));
       if (template) {
@@ -381,22 +392,6 @@ export class ActivityWorkspace {
       // Late configuration is not a save acknowledgement for anything typed while it loaded.
       this.baseline.update((raw) => withSchemaVersion(raw, version));
       this.history.amend((state) => ({ ...state, raw: withSchemaVersion(state.raw, version) }));
-    });
-    const savedId = computed(() => this.saved()?.id);
-    effect((cleanup) => {
-      this.pollRefresh();
-      const id = savedId(),
-        operationId = this.operationId();
-      if (!id || !operationId) return;
-      // One poll per draft and operation; a reload restarts it and the route disposes it.
-      const subscription = pollOperation(this.api, this.document, id, operationId).subscribe({
-        next: ({ operation, draft }) => {
-          this.operation.set(operation);
-          this.receiveCheckpoint(draft);
-        },
-        error: (error) => this.activityError.set(this.activityFailure(error)),
-      });
-      cleanup(() => subscription.unsubscribe());
     });
     this.lifetime.onDestroy(() => {
       this.request.set(undefined);
@@ -688,14 +683,12 @@ export class ActivityWorkspace {
     if (this.dirty() && !window.confirm('טעינת הגרסה השמורה תחליף את השינויים שלא נשמרו. להמשיך?'))
       return;
     await this.runDraftRequest(async () => {
-      const latest = await requestResult(this.api.readActivity(saved.id), this.lifetime);
+      const latest = await this.observer.read();
       this.markLocalChange();
       this.operationClientRevision = this.clientRevision;
       this.sourceReplacement.set({ id: '', text: '' });
-      this.acceptCheckpoint(latest);
+      this.receiveObservation(latest, true);
       this.history.clear();
-      this.operationId.set(latest.activeOperationId ?? this.operationId());
-      this.pollRefresh.update((value) => value + 1);
       this.activityError.set('');
     });
   }
@@ -717,15 +710,13 @@ export class ActivityWorkspace {
       const result = await this.api.cancelGeneration(id, operationId, this.lifetime);
       if (this.lifetime.destroyed) return;
       this.operation.set(result);
-      const saved = await requestResult(this.api.readActivity(id), this.lifetime);
-      if (!this.dirty()) this.acceptCheckpoint(saved);
-      else this.receiveCheckpoint(saved);
+      this.receiveObservation(await this.observer.read(result));
     });
   }
 
   /** Explicit copy of the frozen snapshot into a new draft; no AI call and the snapshot never changes. */
   protected async copyReleased() {
-    const id = this.saved()?.releasedSnapshotId;
+    const id = (this.available() ?? this.saved())?.releasedSnapshotId;
     if (!id || this.copying()) return;
     this.copying.set(true);
     this.activityError.set('');
@@ -825,6 +816,7 @@ export class ActivityWorkspace {
   /** Runs one draft request under the shared saving lock; a failure keeps local work and says what to check. */
   private async runDraftRequest(work: () => Promise<void>) {
     const restoreFocus = this.holdFocus();
+    this.observer.suspend();
     this.saving.set(true);
     try {
       await work();
@@ -885,12 +877,33 @@ export class ActivityWorkspace {
     this.baseline.set(structuredClone(this.raw()));
     this.history.checkpoint();
     this.available.set(undefined);
+    this.elsewhere.set(undefined);
   }
 
-  /** Applies a newer server checkpoint unless that would replace local edits made since the operation started. */
+  /** Metadata follows the server even without a content revision; only the workspace applies content. */
+  private receiveObservation({ draft, operation }: DraftObservation, apply = false) {
+    this.readError.set('');
+    const id = draft.activeOperationId ?? operation?.id;
+    if (id !== this.operationId()) {
+      this.operationClientRevision = undefined;
+      this.operationId.set(id);
+      this.operation.set(operation?.id === id ? operation : undefined);
+    } else if (operation) this.operation.set(operation);
+    if (apply) this.acceptCheckpoint(draft);
+    else this.receiveCheckpoint(draft);
+  }
+
+  /** Only an operation-owned checkpoint may replace its unchanged local buffer; ambiguous reads wait for confirmation. */
   private receiveCheckpoint(saved: ActivityDetail) {
-    if (saved.revision <= (this.saved()?.revision ?? 0)) return;
-    if (!this.dirty() && !this.saving() && this.clientRevision === this.operationClientRevision) {
+    if (
+      saved.revision <= (this.saved()?.revision ?? 0) ||
+      saved.revision < (this.available()?.revision ?? 0)
+    )
+      return;
+    const operation = this.operation();
+    const own =
+      this.operationClientRevision !== undefined && saved.revision === operation?.expectedRevision;
+    if (own && !this.dirty() && this.clientRevision === this.operationClientRevision) {
       const restoreFocus = this.holdFocus();
       this.history.push();
       this.clientRevision++;
@@ -899,8 +912,10 @@ export class ActivityWorkspace {
       // Content that replaces the panel holding focus, such as the create actions, takes it.
       restoreFocus('document-heading');
     } else {
-      this.available.set(saved);
-      this.notice.set('נוצרה תוצאה בזמן שהמשכתם לערוך. לא החלפנו את העבודה שלכם.');
+      if (saved.revision > (this.available()?.revision ?? 0)) this.available.set(saved);
+      if (own) this.elsewhere.set(undefined);
+      else if (this.operationClientRevision === undefined || !operation || !isRunning(operation))
+        this.elsewhere.set('changed');
     }
   }
 

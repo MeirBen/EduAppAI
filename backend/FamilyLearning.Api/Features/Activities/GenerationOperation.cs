@@ -38,6 +38,7 @@ public sealed class GenerationOperation
     public int EngineRevision { get; private set; } = EngineVersions.Revision;
     public int SchemaVersion { get; private set; } = EngineVersions.SchemaVersion;
     public long OriginalRevision { get; private set; }
+    /// <summary>Last revision owned by this operation, including accepted output and cancellation of unchanged content.</summary>
     public long ExpectedRevision { get; private set; }
     public string Kind { get; private set; } = "";
     public string Stage { get; private set; } = "";
@@ -71,8 +72,9 @@ public sealed class GenerationOperation
         Status = "queued";
     }
 
-    internal void Finish(string status, string? failure, DateTime now)
+    internal void Finish(string status, string? failure, DateTime now, long? revision = null)
     {
+        if (revision.HasValue) ExpectedRevision = revision.Value;
         Status = status;
         Failure = failure;
         FinishedAtUtc = now;

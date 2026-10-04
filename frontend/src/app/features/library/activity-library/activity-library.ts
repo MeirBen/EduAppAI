@@ -1,16 +1,15 @@
 import {
   ChangeDetectionStrategy,
   Component,
-  computed,
   DestroyRef,
   inject,
   signal,
   WritableResource,
 } from '@angular/core';
 import { DatePipe } from '@angular/common';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
 import { LearningApi } from '../../../core/api/learning-api';
+import { libraryChanges } from '../../../core/api/library-changes';
 import { Limits } from '../../../core/api/limits';
 import { apiError } from '../../../core/api/api-error';
 import { whenIdle } from '../../../core/when-idle';
@@ -32,35 +31,24 @@ export class ActivityLibrary {
   private readonly lifetime = inject(DestroyRef);
   private readonly holdFocus = focusHolder();
   protected readonly limits = inject(Limits).current;
+  protected readonly updates = libraryChanges();
   protected readonly templates = this.api.templates();
   protected readonly drafts = this.api.activities();
   protected readonly snapshots = this.api.snapshots();
-  private readonly lists: WritableResource<unknown>[] = [
-    this.templates,
-    this.drafts,
-    this.snapshots,
-  ];
-  // A reload keeps the shown lists in place; only a list without a value shows the loader.
-  protected readonly loading = computed(() =>
-    this.lists.some((list) => list.isLoading() && !list.hasValue()),
-  );
-  protected readonly loadError = computed(
-    () => this.templates.error() ?? this.drafts.error() ?? this.snapshots.error(),
-  );
   protected readonly error = signal('');
   protected readonly notice = signal('');
   protected readonly deleting = signal(false);
   protected readonly apiError = apiError;
   constructor() {
+    const lists = [this.templates, this.drafts, this.snapshots];
     // A running read may predate the change, so the reload waits for it to settle.
     const refresh = whenIdle(
-      () => this.lists.some((list) => list.isLoading()),
-      () => this.reload(),
+      () => lists.some((list) => list.isLoading()),
+      () => {
+        for (const list of lists) list.reload();
+      },
     );
-    this.api.libraryChanges().pipe(takeUntilDestroyed()).subscribe(refresh);
-  }
-  protected reload() {
-    for (const list of this.lists) list.reload();
+    this.updates.changes.subscribe(refresh);
   }
   protected async remove(kind: 'draft' | 'template' | 'snapshot' | 'all', id = '', name = '') {
     if (this.deleting()) return;
@@ -78,12 +66,14 @@ export class ActivityLibrary {
       else if (kind === 'template') await this.api.deleteTemplate(id, this.lifetime);
       else await this.api.resetLibrary(this.lifetime);
       if (this.lifetime.destroyed) return;
-      // Deletions are independent, so the confirmed one leaves its list without refetching all three.
-      const kept = <T extends { id: string }>(items: T[] | undefined) =>
-        kind === 'all' ? [] : (items ?? []).filter((item) => item.id !== id);
-      if (kind === 'draft' || kind === 'all') this.drafts.update(kept);
-      if (kind === 'snapshot' || kind === 'all') this.snapshots.update(kept);
-      if (kind === 'template' || kind === 'all') this.templates.update(kept);
+      // Apply the confirmed deletion now; a later server hint reconciles the lists.
+      const removeFrom = <T extends { id: string }>(list: WritableResource<T[] | undefined>) => {
+        if (kind === 'all') list.set([]);
+        else if (list.hasValue()) list.set(list.value().filter((item) => item.id !== id));
+      };
+      if (kind === 'draft' || kind === 'all') removeFrom(this.drafts);
+      if (kind === 'snapshot' || kind === 'all') removeFrom(this.snapshots);
+      if (kind === 'template' || kind === 'all') removeFrom(this.templates);
       this.notice.set(kind === 'all' ? 'נתוני הלמידה נמחקו.' : 'הפריט נמחק.');
     } catch (error) {
       if (!this.lifetime.destroyed) this.error.set(apiError(error));

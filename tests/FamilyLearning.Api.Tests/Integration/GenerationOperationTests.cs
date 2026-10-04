@@ -15,6 +15,29 @@ namespace FamilyLearning.Api.Tests.Integration;
 
 public sealed class GenerationOperationTests
 {
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Cancellation_revision_owns_only_unchanged_content(bool externalEdit)
+    {
+        await using var app = new GenerationHarness();
+        using var parent = await app.ParentAsync();
+        var draft = await Create(parent, Numeric(1));
+        var operation = await GenerationHarness.Start(parent, draft);
+        if (externalEdit)
+        {
+            var edit = Edit(draft);
+            edit["document"]!["title"] = "ממכשיר אחר";
+            await Save(parent, draft, edit);
+        }
+        using var response = await parent.PostAsync(GenerationHarness.OperationPath(operation) + "/cancel", null);
+        var cancelled = (await response.Content.ReadFromJsonAsync<JsonNode>())!;
+        Assert.Equal(externalEdit ? 1 : 2, cancelled["expectedRevision"]!.GetValue<long>());
+        var current = (await parent.GetFromJsonAsync<JsonNode>(Path(draft)))!;
+        Assert.Equal(externalEdit ? 3 : 2, current["revision"]!.GetValue<long>());
+        Assert.Equal(externalEdit ? "ממכשיר אחר" : draft["document"]!["title"]!.GetValue<string>(), current["document"]!["title"]!.GetValue<string>());
+    }
+
     [Fact]
     public async Task Oversized_provider_identifiers_remain_unknown_without_losing_known_usage_or_valid_content()
     {
@@ -264,6 +287,7 @@ public sealed class GenerationOperationTests
         Assert.Equal(2, completed["steps"]!.AsArray().Count);
         var saved = (await parent.GetFromJsonAsync<JsonNode>(Path(draft)))!;
         Assert.Equal(3, saved["revision"]!.GetValue<long>());
+        Assert.Equal(3, completed["expectedRevision"]!.GetValue<long>());
         Assert.Null(saved["activeOperationId"]);
         Assert.Empty(saved["diagnostics"]!.AsObject());
         Assert.False(await app.Worker.RunNextAsync(default));

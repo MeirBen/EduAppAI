@@ -105,6 +105,7 @@ public sealed partial class GenerationWorker(IServiceScopeFactory scopes, AiGene
         lock (transportLock) { callingId = operation.Id; transport = cancellation; }
         await db.SaveChangesAsync(ct);
         await transaction.CommitAsync(ct);
+        changes.Publish(operation.FamilyId);
         return (true, new(operation.Id, operation.DraftId, operation.Stage, artifacts));
 
         async Task<(bool, ClaimedCall?)> RejectAsync(string status, string failure)
@@ -181,7 +182,7 @@ public sealed partial class GenerationWorker(IServiceScopeFactory scopes, AiGene
                     // The accepted content and next stage are in this same commit; recovery never repeats the material call.
                     operation.QueueQuestions(draft.Revision);
                 }
-                else operation.Finish("completed", null, UtcNow);
+                else operation.Finish("completed", null, UtcNow, draft.Revision);
             }
             if (operation.Status != "queued") draft.ClearOperation(operation.Id, UtcNow);
         }
@@ -223,11 +224,16 @@ public sealed partial class GenerationWorker(IServiceScopeFactory scopes, AiGene
         var db = scope.ServiceProvider.GetRequiredService<LearningDbContext>();
         var cutoff = UtcNow - GenerationOperationOptions.ArtifactRetention;
         var expired = await db.GenerationOperations.Where(o => o.FinishedAtUtc <= cutoff && o.ArtifactsJson != null)
-            .OrderBy(o => o.FinishedAtUtc).Select(o => o.Id).Take(GenerationOperationOptions.PurgeBatchSize).ToListAsync(ct);
+            .OrderBy(o => o.FinishedAtUtc).Select(o => new { o.Id, o.FamilyId }).Take(GenerationOperationOptions.PurgeBatchSize).ToListAsync(ct);
+        var ids = expired.Select(o => o.Id).ToArray();
         // Avoid loading up to 64 MiB just to discard it; concurrent draft deletion is harmless.
-        var purged = await db.GenerationOperations.Where(o => expired.Contains(o.Id) && o.FinishedAtUtc <= cutoff)
+        var purged = await db.GenerationOperations.Where(o => ids.Contains(o.Id) && o.FinishedAtUtc <= cutoff)
             .ExecuteUpdateAsync(update => update.SetProperty(o => o.ArtifactsJson, (string?)null), ct);
-        if (purged > 0) LogArtifactsExpired(logger, purged);
+        if (purged > 0)
+        {
+            foreach (var familyId in expired.Select(o => o.FamilyId).Distinct()) changes.Publish(familyId);
+            LogArtifactsExpired(logger, purged);
+        }
     }
 
     private bool Compatible(GenerationOperation operation) => operation.EngineRevision == EngineVersions.Revision &&

@@ -39,9 +39,10 @@ public static class GenerationOperationEndpoints
             if (operation.Status is "queued" or "calling")
             {
                 var now = clock.GetUtcNow().UtcDateTime;
-                operation.Finish("cancelled", null, now);
+                var unchanged = draft.ActiveOperationId == operation.Id && draft.Revision == operation.ExpectedRevision;
                 operation.MarkInterruptedStep("cancelled");
                 draft.ClearOperation(operation.Id, now, cancelled: true);
+                operation.Finish("cancelled", null, now, unchanged ? draft.Revision : null);
                 await db.SaveChangesAsync(ct);
                 await transaction.CommitAsync(ct);
             }

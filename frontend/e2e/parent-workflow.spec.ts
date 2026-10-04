@@ -18,8 +18,14 @@ async function propose(page: Page, prompt: string) {
 }
 
 async function start(page: Page) {
+  const previous = new URL(page.url()).searchParams.get('operation');
   await page.locator('#generate-activity').click();
-  await expect(page).toHaveURL(/\/activities\/[a-f0-9-]+\?operation=/);
+  await expect(page).toHaveURL(
+    (url) =>
+      /^\/activities\/[a-f0-9-]+$/.test(url.pathname) &&
+      !!url.searchParams.get('operation') &&
+      url.searchParams.get('operation') !== previous,
+  );
   const url = new URL(page.url());
   return {
     draftPath: '/api' + url.pathname.replace('/activities/', '/activity-drafts/'),
@@ -367,10 +373,92 @@ test('library deletion confirms intent, preserves independent items, recovers fr
   });
   expect(saved.status()).toBe(200);
   await expect(page.getByText('הפעילות עודכנה במכשיר אחר')).toBeVisible();
-  await page.locator('header #reload-activity').click();
+  await page.locator('#reload-activity').click();
   await expect(page.locator('#document-title')).toHaveValue('מהטלפון');
   await expect(page.getByText('הפעילות עודכנה במכשיר אחר')).toBeHidden();
   await page.request.delete(`/api/activity-drafts/${draft.id}`, { headers });
   await expect(page.getByText('הפעילות נמחקה במכשיר אחר')).toBeVisible();
   await expect(page.locator('#reload-activity')).toHaveCount(0);
+});
+
+test('two pages follow generation, cancellation and release while preserving edits and recovering a closed stream', async ({
+  page,
+  context,
+}) => {
+  test.setTimeout(60_000);
+  await login(page, 'cleanup@example.test');
+  const headers = {
+    'X-XSRF-TOKEN': (await (await page.request.get('/api/auth/csrf')).json()).token,
+  };
+  const { schemaVersion } = await (await page.request.get('/api/ai/status')).json();
+  const plan = { ...numericPlan, schemaVersion, goal: 'תרגול חשבון עם המתנה' };
+  const created = await page.request.post('/api/activity-drafts', {
+    headers,
+    data: { plan, input: { settings: plan.defaults } },
+  });
+  expect(created.status()).toBe(201);
+  const draft = await created.json();
+  const path = `/api/activity-drafts/${draft.id}`;
+  const editorUrl = `/activities/${draft.id}`;
+  const actor = await context.newPage();
+  await actor.goto(editorUrl);
+  await page.route('**/api/library/changes?*', (route) => route.fulfill({ status: 503 }));
+  await page.goto(editorUrl);
+  await expect(page.locator('#reconnect-draft')).toBeVisible();
+  await page.locator('#document-title').fill('עריכה מקומית שנשמרת כאן');
+
+  const running = await start(actor);
+  expect((await (await actor.request.get(path)).json()).revision).toBe(draft.revision);
+  await page.unroute('**/api/library/changes?*');
+  await page.locator('#reconnect-draft').click();
+  await expect(page.locator('#generate-activity')).toHaveAttribute('aria-disabled', 'true');
+  await actor.locator('#cancel-generation').click();
+  await expect(page.getByText('היצירה בוטלה.', { exact: true })).toBeVisible();
+  expect((await operation(actor, running)).status).toBe('cancelled');
+  await expect(page.locator('#document-title')).toHaveValue('עריכה מקומית שנשמרת כאן');
+
+  const next = await start(actor);
+  await finish(actor, next);
+  await expect(page.locator('#cancel-generation')).toBeHidden();
+  await expect(page.locator('#available-title')).toBeVisible();
+  await expect(page.locator('#document-title')).toHaveValue('עריכה מקומית שנשמרת כאן');
+  await actor.locator('#release-activity').click();
+  await expect(actor.getByRole('link', { name: 'צפייה בפעילות המוכנה' })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'צפייה בפעילות המוכנה' })).toBeVisible();
+  await expect(page.locator('#document-title')).toBeDisabled();
+  await expect(page.locator('#document-title')).toHaveValue('עריכה מקומית שנשמרת כאן');
+
+  const another = await actor.request.post('/api/activity-drafts', {
+    headers,
+    data: { plan, input: { settings: plan.defaults } },
+  });
+  const current = await another.json();
+  page.once('dialog', (dialog) => dialog.accept());
+  await page.goto(`/activities/${current.id}`);
+  await page.locator('#document-title').fill('עריכה בזמן שהעמוד מוסתר');
+  // Drive the browser visibility event deterministically; the real EventSource disconnects.
+  await page.evaluate(() => {
+    Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'hidden' });
+    document.dispatchEvent(new Event('visibilitychange'));
+  });
+  const saved = await actor.request.put(`/api/activity-drafts/${current.id}`, {
+    headers,
+    data: {
+      expectedRevision: current.revision,
+      plan,
+      input: current.input,
+      document: { ...current.document, title: 'שינוי בזמן ההסתרה' },
+    },
+  });
+  expect(saved.status()).toBe(200);
+  await page.evaluate(() => {
+    Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'visible' });
+    document.dispatchEvent(new Event('visibilitychange'));
+  });
+  await expect(page.getByText('הפעילות עודכנה במכשיר אחר', { exact: true })).toBeVisible();
+  await expect(page.locator('#document-title')).toHaveValue('עריכה בזמן שהעמוד מוסתר');
+  await actor.request.delete(`/api/activity-drafts/${current.id}`, { headers });
+  await expect(page.getByText('הפעילות נמחקה במכשיר אחר', { exact: true })).toBeVisible();
+  await expect(page.locator('#reload-activity')).toHaveCount(0);
+  await actor.close();
 });

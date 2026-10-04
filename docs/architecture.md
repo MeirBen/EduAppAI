@@ -109,8 +109,9 @@ worker tests disable automatic polling to drive transitions deterministically.
 
 `Features/Library` streams server-sent change notes to the family that made a
 write, after its commit. Successful library route writes publish through one
-endpoint filter, and the worker publishes after each commit. A note carries no
-content, so clients reread what they show. Each stream holds at most one
+endpoint filter; worker claims, checkpoints, recovery and diagnostic expiry
+publish after their commits. A note carries no content, so clients reread what
+they show. Each stream holds at most one
 pending note, so changes coalesce, and its first note covers anything committed
 before it subscribed. A family may hold 16 streams. Each ends after five minutes
 or at shutdown, and reconnecting re-runs authentication. Like the queue,
@@ -132,7 +133,10 @@ candidate. Cancellation commits its terminal state before signaling transport.
 Draft deletion cascades operation evidence and keys.
 
 Each claim captures immutable stage input, and a successful checkpoint saves
-content, candidate, usage and the next stage together. Expected AI failures end
+content, candidate, usage and the next stage together. `ExpectedRevision` advances
+with each accepted checkpoint; cancellation advances it only when no other writer
+has changed the draft. This identifies the revisions owned by the operation without
+changing the original start-key fingerprint. Expected AI failures end
 only their operation. On restart, compatible queued stages resume, while
 uncheckpointed calling steps become unknown and are never replayed. Profile
 fingerprints exclude credentials, so key rotation keeps queued work valid.
@@ -230,16 +234,28 @@ AI-extracted fixed source needs local confirmation, and changing a material's
 source kind creates a new material identity. Template publication briefly locks
 editing, uses `expectedVersion` and never writes an activity. Polling reads the
 operation status before the draft checkpoint so a terminal result includes its
-final commit, and pauses while the page is hidden; a changed revision or dirty
-buffer turns the result into an explicit reload offer. Lost start responses keep
-their key and request for replay, and candidates pass a bounded editable-field
+final commit, and pauses while the page is hidden. Only a revision confirmed by
+the operation and its unchanged local edit fence is applied automatically; other
+content stays
+an explicit reload offer. A checkpoint between the two GETs waits for a later
+status read to confirm ownership. Lost start responses keep their key and request
+for replay, and candidates pass a bounded editable-field
 mapping before transfer.
 
-`LearningApi.libraryChanges` follows the change stream while the page is
-visible. The library reloads its lists in place once running reads settle.
-`draftElsewhere` reads the open draft once the workspace's own writes settle and
-reports a newer revision or a deletion. Nothing is applied unasked; reload stays
-explicit. Template editing relies on its publication conflict check.
+`core/api/library-changes` owns each page's native change stream, pauses it while
+hidden and exposes a refused connection for explicit retry. The library's three
+resources refresh once running reads settle; one failed list does not hide the
+others. Confirmed deletion updates only its list, while reset clears all three.
+
+`draft-observer` owns one read lifecycle for SSE hints, active-operation polling
+and explicit reloads. Hints during a read coalesce into one trailing read. Writes
+cancel older background reads synchronously; explicit reconciliation survives
+background suspension. Identity changes and page destruction cancel all reads.
+Operation metadata follows even when content revision is unchanged. External
+content is offered for explicit reload; locally followed generation retains its
+edit fence and Undo behavior. Terminal operations stop polling but remain
+readable on later hints for diagnostics and late usage. Template editing relies
+on its publication conflict check.
 
 The library separates drafts, templates and snapshots; a snapshot copy creates
 a new draft without AI. The PWA caches assets only. One Playwright suite tests

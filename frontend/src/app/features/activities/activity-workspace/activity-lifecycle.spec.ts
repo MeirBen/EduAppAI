@@ -43,6 +43,10 @@ describe('Activity lifecycle', () => {
   let harness: RouterTestingHarness;
   let http: HttpTestingController;
   const root = () => harness.routeNativeElement!;
+  function advance(milliseconds: number) {
+    vi.advanceTimersByTime(milliseconds);
+    TestBed.tick();
+  }
   async function settle() {
     await Promise.resolve();
     await harness.fixture.whenStable();
@@ -74,6 +78,8 @@ describe('Activity lifecycle', () => {
     await settle();
   }
   beforeEach(async () => {
+    vi.stubGlobal('matchMedia', () => ({ matches: true }));
+    Element.prototype.scrollIntoView = vi.fn();
     TestBed.configureTestingModule({
       providers: [
         provideLimits(),
@@ -195,10 +201,10 @@ describe('Activity lifecycle', () => {
       http.expectOne('/api/activity-drafts/draft/operations').flush(operation);
       await settle();
       await type('document-title', 'עריכה מקומית');
-      vi.advanceTimersByTime(2000);
+      advance(2000);
       http
         .expectOne('/api/activity-drafts/draft/operations/op')
-        .flush({ ...operation, status: 'completed' });
+        .flush({ ...operation, status: 'completed', expectedRevision: 2 });
       const complete = {
         ...savedActivity,
         revision: 2,
@@ -213,6 +219,9 @@ describe('Activity lifecycle', () => {
       // The offered result is this page's own, not a change made elsewhere.
       FakeEventSource.opened[0].send();
       await settle();
+      http
+        .expectOne('/api/activity-drafts/draft/operations/op')
+        .flush({ ...operation, status: 'completed', expectedRevision: 2 });
       http.expectOne('/api/activity-drafts/draft').flush(complete);
       await settle();
       expect(root().textContent).not.toContain('במכשיר אחר');
@@ -226,6 +235,9 @@ describe('Activity lifecycle', () => {
       );
       vi.spyOn(window, 'confirm').mockReturnValue(true);
       await click('reload-activity');
+      http
+        .expectOne('/api/activity-drafts/draft/operations/op')
+        .flush({ ...operation, status: 'completed', expectedRevision: 2 });
       http.expectOne('/api/activity-drafts/draft').flush(complete);
       await settle();
       expect((root().querySelector('#document-title') as HTMLInputElement).value).toBe('תוצאת שרת');
@@ -235,6 +247,67 @@ describe('Activity lifecycle', () => {
       vi.restoreAllMocks();
     }
   });
+  it.each(['completed', 'conflict', 'cancelled'])(
+    'waits for checkpoint ownership before applying content received between status reads (%s)',
+    async (outcome) => {
+      await open();
+      await click('generate-activity');
+      const operation = {
+        id: 'op',
+        draftId: 'draft',
+        kind: 'GenerateActivity',
+        status: 'calling',
+        stage: 'questions',
+        originalRevision: 1,
+        expectedRevision: 1,
+        failure: null,
+        diagnosticsExpired: false,
+        steps: [],
+        artifacts: null,
+      };
+      const newer = {
+        ...savedActivity,
+        revision: 2,
+        activeOperationId: 'op',
+        document: { ...savedActivity.document, title: 'תוכן חדש בשרת' },
+      };
+      http.expectOne('/api/activity-drafts/draft/operations').flush(operation);
+      await settle();
+      FakeEventSource.opened[0].send();
+      await settle();
+      http.expectOne('/api/activity-drafts/draft/operations/op').flush(operation);
+      http.expectOne('/api/activity-drafts/draft').flush(newer);
+      await settle();
+      expect(root().querySelector<HTMLInputElement>('#document-title')!.value).toBe('תרגול');
+      const terminal = {
+        ...operation,
+        status: outcome,
+        expectedRevision: outcome === 'completed' ? 2 : 1,
+      };
+      if (outcome === 'cancelled') {
+        await click('cancel-generation');
+        http.expectOne('/api/activity-drafts/draft/operations/op/cancel').flush(terminal);
+        (await vi.waitFor(() => http.expectOne('/api/activity-drafts/draft'))).flush({
+          ...newer,
+          revision: 3,
+          activeOperationId: null,
+        });
+      } else {
+        FakeEventSource.opened[0].send();
+        await settle();
+        http.expectOne('/api/activity-drafts/draft/operations/op').flush(terminal);
+        http.expectOne('/api/activity-drafts/draft').flush({ ...newer, activeOperationId: null });
+      }
+      await settle();
+      expect(root().querySelector<HTMLInputElement>('#document-title')!.value).toBe(
+        outcome === 'completed' ? 'תוכן חדש בשרת' : 'תרגול',
+      );
+      expect(!!root().querySelector('#available-title')).toBe(outcome !== 'completed');
+      if (outcome !== 'completed')
+        expect(root().textContent).toContain('הפעילות עודכנה במכשיר אחר');
+      http.expectNone((request) => request.method === 'POST');
+    },
+  );
   it('tells the parent about a revision saved elsewhere and loads it only on request', async () => {
     await open();
     await type('document-title', 'עריכה מקומית');
@@ -260,6 +333,10 @@ describe('Activity lifecycle', () => {
     await type('document-title', 'עריכה מקומית');
     FakeEventSource.opened[0].send();
     await settle();
+    http.expectOne('/api/activity-drafts/draft').flush({ ...savedActivity, revision: 2 });
+    await settle();
+    FakeEventSource.opened[0].send();
+    await settle();
     http
       .expectOne('/api/activity-drafts/draft')
       .flush({ title: 'לא נמצא' }, { status: 404, statusText: 'Not Found' });
@@ -267,6 +344,56 @@ describe('Activity lifecycle', () => {
     expect(root().textContent).toContain('הפעילות נמחקה במכשיר אחר');
     expect(root().querySelector('#reload-activity')).toBeNull();
     expect(root().querySelector<HTMLInputElement>('#document-title')!.value).toBe('עריכה מקומית');
+  });
+  it('offers external content without applying it to a clean buffer and keeps the newest offer', async () => {
+    await open();
+    const observe = async (revision: number, title: string) => {
+      FakeEventSource.opened[0].send();
+      await settle();
+      http.expectOne('/api/activity-drafts/draft').flush({
+        ...savedActivity,
+        revision,
+        document: { ...savedActivity.document, title },
+      });
+      await settle();
+    };
+    await observe(3, 'הגרסה החדשה');
+    await observe(2, 'תוצאה ישנה');
+    expect(root().querySelector<HTMLInputElement>('#document-title')!.value).toBe('תרגול');
+    expect(root().querySelector('[aria-labelledby="available-title"]')!.textContent).toContain(
+      'הגרסה החדשה',
+    );
+    expect(root().querySelector('[aria-labelledby="available-title"]')!.textContent).not.toContain(
+      'תוצאה ישנה',
+    );
+    expect(root().textContent).toContain('הפעילות עודכנה במכשיר אחר');
+  });
+
+  it('locks an externally released draft without losing edits and can explicitly load its saved content', async () => {
+    await open();
+    await type('document-title', 'עריכה מקומית');
+    const released = {
+      ...savedActivity,
+      revision: 2,
+      releasedSnapshotId: 'ready',
+      releasedSourceRevision: 1,
+    };
+    FakeEventSource.opened[0].send();
+    await settle();
+    http.expectOne('/api/activity-drafts/draft').flush(released);
+    await settle();
+    const field = root().querySelector<HTMLInputElement>('#document-title')!;
+    expect(field.value).toBe('עריכה מקומית');
+    expect(field.disabled).toBe(true);
+    expect(root().querySelector('a[href="/instances/ready"]')).not.toBeNull();
+    expect(FakeEventSource.opened[0].readyState).toBe(FakeEventSource.CLOSED);
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    await click('reload-activity');
+    http.expectOne('/api/activity-drafts/draft').flush(released);
+    await settle();
+    expect(root().querySelector<HTMLInputElement>('#document-title')!.value).toBe('תרגול');
+    expect(root().querySelector('[aria-labelledby="available-title"]')).toBeNull();
+    vi.restoreAllMocks();
   });
   it('never reports its own writes as changes made elsewhere', async () => {
     const ready = {
@@ -280,8 +407,8 @@ describe('Activity lifecycle', () => {
     const check = http.expectOne('/api/activity-drafts/draft');
     await click('release-activity');
     const release = await vi.waitFor(() => http.expectOne('/api/activity-drafts/draft/release'));
-    // The check reads the revision this release created, and the release's own note arrives meanwhile.
-    check.flush({ ...ready, revision: 2, releasedSnapshotId: 'ready' });
+    // Beginning the release cancels the older read; its own hint waits for the command.
+    expect(check.cancelled).toBe(true);
     FakeEventSource.opened[0].send();
     await settle();
     http.expectNone((r) => r.method === 'GET');
@@ -312,7 +439,7 @@ describe('Activity lifecycle', () => {
       status: 'completed',
       stage: 'questions',
       originalRevision: 1,
-      expectedRevision: 1,
+      expectedRevision: 2,
       failure: null,
       diagnosticsExpired: true,
       steps: [],
@@ -326,7 +453,7 @@ describe('Activity lifecycle', () => {
     vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] });
     try {
       await open(true, { ...savedActivity, activeOperationId: 'op' });
-      vi.advanceTimersByTime(2000);
+      advance(2000);
       http.expectOne('/api/activity-drafts/draft/operations/op').flush({
         id: 'op',
         draftId: 'draft',
@@ -359,10 +486,10 @@ describe('Activity lifecycle', () => {
     try {
       await open(true, { ...savedActivity, activeOperationId: 'op' });
       show('hidden');
-      vi.advanceTimersByTime(10_000);
+      advance(10_000);
       http.expectNone('/api/activity-drafts/draft/operations/op');
       show('visible');
-      vi.advanceTimersByTime(0);
+      advance(0);
       http.expectOne('/api/activity-drafts/draft/operations/op').flush({
         id: 'op',
         draftId: 'draft',
@@ -370,7 +497,7 @@ describe('Activity lifecycle', () => {
         status: 'completed',
         stage: 'questions',
         originalRevision: 1,
-        expectedRevision: 1,
+        expectedRevision: 2,
         failure: null,
         diagnosticsExpired: false,
         steps: [],
@@ -496,10 +623,10 @@ describe('Activity lifecycle', () => {
       };
       http.expectOne('/api/activity-drafts/draft/operations').flush(operation);
       await settle();
-      vi.advanceTimersByTime(2000);
+      advance(2000);
       http
         .expectOne('/api/activity-drafts/draft/operations/op')
-        .flush({ ...operation, status: 'completed' });
+        .flush({ ...operation, status: 'completed', expectedRevision: 2 });
       http.expectOne('/api/activity-drafts/draft').flush({
         ...savedActivity,
         revision: 2,
@@ -582,7 +709,7 @@ describe('Activity lifecycle', () => {
     await click('cancel-generation');
     http
       .expectOne('/api/activity-drafts/draft/operations/op/cancel')
-      .flush({ ...operation, status: 'cancelled' });
+      .flush({ ...operation, status: 'cancelled', expectedRevision: 2 });
     const read = await vi.waitFor(() => http.expectOne('/api/activity-drafts/draft'));
     read.flush({ ...savedActivity, revision: 2 });
     await settle();
@@ -591,6 +718,101 @@ describe('Activity lifecycle', () => {
     expect(next.request.body.expectedRevision).toBe(2);
     next.flush({ ...operation, id: 'next' });
     await settle();
+  });
+  it('cancels an older poll before acknowledging cancellation so it cannot restore running status', async () => {
+    vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] });
+    try {
+      await open(true, { ...savedActivity, activeOperationId: 'op' });
+      advance(2000);
+      http.expectOne('/api/activity-drafts/draft/operations/op').flush({
+        id: 'op',
+        draftId: 'draft',
+        kind: 'GenerateActivity',
+        status: 'calling',
+        stage: 'questions',
+        originalRevision: 1,
+        expectedRevision: 1,
+        failure: null,
+        diagnosticsExpired: false,
+        steps: [],
+        artifacts: null,
+      });
+      http
+        .expectOne('/api/activity-drafts/draft')
+        .flush({ ...savedActivity, activeOperationId: 'op' });
+      await settle();
+      advance(2000);
+      const oldPoll = http.expectOne('/api/activity-drafts/draft/operations/op');
+      await click('cancel-generation');
+      const cancellation = http.expectOne('/api/activity-drafts/draft/operations/op/cancel');
+      expect(oldPoll.cancelled).toBe(true);
+      cancellation.flush({
+        id: 'op',
+        draftId: 'draft',
+        kind: 'GenerateActivity',
+        status: 'cancelled',
+        stage: 'questions',
+        originalRevision: 1,
+        expectedRevision: 2,
+        failure: null,
+        diagnosticsExpired: false,
+        steps: [],
+        artifacts: null,
+      });
+      (await vi.waitFor(() => http.expectOne('/api/activity-drafts/draft'))).flush({
+        ...savedActivity,
+        revision: 2,
+      });
+      await settle();
+      expect(root().querySelector('#cancel-generation')).toBeNull();
+      advance(10_000);
+      http.expectNone((request) => request.method === 'POST');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('follows a same-revision operation started elsewhere without replacing local edits', async () => {
+    vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] });
+    try {
+      await open();
+      await type('document-title', 'עריכה מקומית');
+      FakeEventSource.opened[0].send();
+      await settle();
+      http
+        .expectOne('/api/activity-drafts/draft')
+        .flush({ ...savedActivity, activeOperationId: 'remote' });
+      await settle();
+      expect(root().querySelector('#generate-activity')?.getAttribute('aria-disabled')).toBe(
+        'true',
+      );
+      expect(root().querySelector<HTMLInputElement>('#document-title')!.value).toBe('עריכה מקומית');
+      advance(2000);
+      http.expectOne('/api/activity-drafts/draft/operations/remote').flush({
+        id: 'remote',
+        draftId: 'draft',
+        kind: 'GenerateActivity',
+        status: 'completed',
+        stage: 'questions',
+        originalRevision: 1,
+        expectedRevision: 2,
+        failure: null,
+        diagnosticsExpired: false,
+        steps: [],
+        artifacts: null,
+      });
+      http.expectOne('/api/activity-drafts/draft').flush({
+        ...savedActivity,
+        revision: 2,
+        document: { ...savedActivity.document, title: 'תוצאת המכשיר האחר' },
+      });
+      await settle();
+      expect(root().querySelector<HTMLInputElement>('#document-title')!.value).toBe('עריכה מקומית');
+      expect(root().textContent).toContain('הפעילות עודכנה במכשיר אחר');
+      http.expectNone((request) => request.method === 'POST');
+    } finally {
+      vi.useRealTimers();
+    }
   });
   it('reads a fresh draft after observing terminal status even if an earlier read preceded the checkpoint', async () => {
     vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] });
@@ -612,14 +834,14 @@ describe('Activity lifecycle', () => {
       };
       http.expectOne('/api/activity-drafts/draft/operations').flush(operation);
       await settle();
-      vi.advanceTimersByTime(2000);
+      advance(2000);
       const status = http.expectOne('/api/activity-drafts/draft/operations/op');
       // A draft read already in flight saw the database before the worker committed.
       for (const read of http.match(
         (r) => r.method === 'GET' && r.url === '/api/activity-drafts/draft',
       ))
         read.flush(savedActivity);
-      status.flush({ ...operation, status: 'completed' });
+      status.flush({ ...operation, status: 'completed', expectedRevision: 2 });
       await settle();
       for (const read of http.match(
         (r) => r.method === 'GET' && r.url === '/api/activity-drafts/draft',
