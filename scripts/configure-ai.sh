@@ -12,4 +12,4 @@ printf '%s' "$openrouter_key" |
   node -e 'let key = ""; process.stdin.on("data", chunk => key += chunk); process.stdin.on("end", () => process.stdout.write(JSON.stringify({ "Ai:ApiKey": key })));' |
   dotnet user-secrets set --project "$repo_dir/backend/FamilyLearning.Api"
 unset openrouter_key
-printf 'Saved outside the repository. Restart the development server to connect AI.\n'
+printf 'Saved outside the repository. Restart dev.sh to connect AI.\n'

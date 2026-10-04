@@ -183,12 +183,18 @@ app's assigned domain; `start:public` calls it with `--public`. The
 [free plan](https://ngrok.com/docs/pricing-limits/free-plan-limits) has usage
 limits and a browser warning; choose **Visit** to continue.
 
-After publishing and setting the storage and AI environment above, start both
-the application and tunnel in one terminal:
+After publishing, start the application and tunnel in one terminal:
 
 ```bash
 npm --prefix frontend run start:public
 ```
+
+The launcher defaults to this checkout's `backend/FamilyLearning.Api/data/`,
+keeping its accounts, learning data and Data Protection keys. It reads the AI
+key saved by `scripts/configure-ai.sh` through `dotnet user-secrets` and passes
+it only to the API process through its environment. Explicit
+`Storage__Directory`, `Ai__ApiKey` or `OPENROUTER_API_KEY` settings override these
+defaults. Prepare a different database using the [publish steps](#publish).
 
 This mode runs the published UI/API in Production on loopback port 5124, waits
 for it to respond, then starts ngrok. **Ctrl+C**, closing the terminal or either

@@ -12,7 +12,7 @@ if (( $# )); then
   public_domain="blimp-extending-elaborate.ngrok-free.dev"
 fi
 tools=(dotnet node npm)
-if [[ -n "$public_domain" ]]; then tools=(dotnet ngrok curl); fi
+if [[ -n "$public_domain" ]]; then tools=(dotnet node ngrok curl); fi
 for tool in "${tools[@]}"; do
   if ! command -v "$tool" >/dev/null 2>&1; then
     echo "Missing $tool. Install the prerequisites listed in README.md, then try again." >&2
@@ -29,6 +29,19 @@ if [[ -n "$public_domain" ]]; then
   if curl --silent --max-time 1 http://127.0.0.1:5124/health >/dev/null; then
     printf 'Port 5124 is already serving an app. Stop it before starting this launcher.\n' >&2
     exit 1
+  fi
+  public_ai_key="${Ai__ApiKey-${OPENROUTER_API_KEY-}}"
+  # The local launcher passes the saved key only to the API, using Production's environment configuration.
+  if [[ ! -v Ai__ApiKey && ! -v OPENROUTER_API_KEY ]]; then
+    public_ai_key="$(dotnet user-secrets list --project backend/FamilyLearning.Api --json | node -e '
+      const input = require("node:fs").readFileSync(0, "utf8");
+      try {
+        process.stdout.write(JSON.parse(input.replace(/^\/\/.*$/gm, ""))["Ai:ApiKey"] ?? "");
+      } catch {
+        console.error("Could not read the saved AI key. Run scripts/configure-ai.sh.");
+        process.exit(1);
+      }
+    ')"
   fi
 else
   if [[ ! -x frontend/node_modules/.bin/ng ]]; then npm --prefix frontend ci; fi
@@ -61,7 +74,9 @@ trap 'exit 130' INT
 trap 'exit 143' TERM
 
 if [[ -n "$public_domain" ]]; then
-  ASPNETCORE_ENVIRONMENT=Production DOTNET_ENVIRONMENT=Production ASPNETCORE_HTTPS_PORT=443 \
+  Storage__Directory="${Storage__Directory:-$repo_dir/backend/FamilyLearning.Api/data}" \
+    Ai__ApiKey="$public_ai_key" \
+    ASPNETCORE_ENVIRONMENT=Production DOTNET_ENVIRONMENT=Production ASPNETCORE_HTTPS_PORT=443 \
     dotnet artifacts/app/FamilyLearning.Api.dll \
     --contentRoot "$repo_dir/artifacts/app" --urls http://127.0.0.1:5124 \
     --AllowedHosts "$public_domain" </dev/null &
