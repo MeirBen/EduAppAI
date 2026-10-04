@@ -3,8 +3,6 @@
     font-size: 100%;
     /* Pages shorter than the window keep the scrollbar's space, so routes never shift sideways. */
     scrollbar-gutter: stable;
-    /* Masks supply only a glyph's shape; theme tokens paint it. Selects and disclosures share it. */
-    --icon-chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 18 18' fill='none' stroke='%23000' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4.5 6.75 9 11.25l4.5-4.5'/%3E%3C/svg%3E");
 
     /* Clears the pinned header when focus or fragment navigation scrolls content. */
     @variant pinned-header {

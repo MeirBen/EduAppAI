@@ -2,7 +2,9 @@
 <section class="mx-auto grid max-w-3xl gap-6 py-gutter" aria-labelledby="workspace-title">
   <header class="grid gap-4">
     <div class="grid gap-1">
-      <a routerLink="/templates" class="text-link back-link">המרחב שלנו</a>
+      <a routerLink="/templates" class="text-link"
+        ><span class="icon icon-back" aria-hidden="true"></span>המרחב שלנו</a
+      >
       <h1 id="workspace-title">{{ heading() }}</h1>
     </div>
     @if (!isTemplate && !loading() && !loadError()) {
@@ -15,9 +17,7 @@
           >
             <span class="step-marker" aria-hidden="true">
               @if (done) {
-                <svg class="line-icon size-3.5" viewBox="0 0 16 16">
-                  <path d="m3.5 8.5 3 3 6-7" />
-                </svg>
+                <span class="icon icon-check"></span>
               } @else {
                 {{ index + 1 }}
               }
@@ -61,7 +61,12 @@
               [attr.aria-expanded]="setupOpen()"
               (click)="setupOpen.set(!setupOpen())"
             >
-              {{ setupOpen() ? 'הסתרת ההגדרות' : 'שינוי' }}
+              <span
+                class="icon"
+                [class]="setupOpen() ? 'icon-close' : 'icon-edit'"
+                aria-hidden="true"
+              ></span
+              >{{ setupOpen() ? 'הסתרת ההגדרות' : 'שינוי' }}
             </button>
           }
         </div>
@@ -194,7 +199,7 @@
                 [disabledInteractive]="!canGenerate()"
                 (click)="activityAction('GenerateQuestions')"
               >
-                <span class="ai-icon" aria-hidden="true"></span>יצירת כל השאלות מחדש
+                <span class="icon icon-ai" aria-hidden="true"></span>יצירת כל השאלות מחדש
               </button>
               <button
                 id="generate-activity"
@@ -203,8 +208,8 @@
                 [disabledInteractive]="!canGenerate()"
                 (click)="activityAction('GenerateActivity')"
               >
-                <span class="ai-icon" aria-hidden="true"></span>יצירת הפעילות מחדש, כולל טקסט שאינו
-                עדכני
+                <span class="icon icon-ai" aria-hidden="true"></span>יצירת הפעילות מחדש, כולל טקסט
+                שאינו עדכני
               </button>
               <button
                 type="button"
@@ -213,7 +218,8 @@
                 [disabledInteractive]="saving()"
                 (click)="newActivity()"
               >
-                פעילות חדשה עם אותן הגדרות, בלי התוכן הנוכחי
+                <span class="icon icon-add" aria-hidden="true"></span>פעילות חדשה עם אותן הגדרות,
+                בלי התוכן הנוכחי
               </button>
               @if (reloadPlacement() === 'more') {
                 <ng-container [ngTemplateOutlet]="reload" />
@@ -266,14 +272,14 @@
                   id="create-from-template"
                   class="text-link"
                   [routerLink]="['/templates', current.id, 'create']"
-                  >פעילות מהתבנית</a
+                  ><span class="icon icon-add" aria-hidden="true"></span>פעילות מהתבנית</a
                 >
               }
             } @else if (released()) {
               <a
                 class="button"
                 [routerLink]="['/instances', (available() ?? saved())!.releasedSnapshotId]"
-                >צפייה בפעילות המוכנה</a
+                ><span class="icon icon-view" aria-hidden="true"></span>צפייה בפעילות המוכנה</a
               >
               <button
                 id="copy-released"
@@ -282,7 +288,7 @@
                 [disabledInteractive]="copying()"
                 (click)="copyReleased()"
               >
-                עריכה כטיוטה חדשה
+                <span class="icon icon-copy" aria-hidden="true"></span>עריכה כטיוטה חדשה
               </button>
             } @else {
               @if (startRecovery()) {
@@ -293,7 +299,7 @@
                   [disabledInteractive]="saving()"
                   (click)="recoverStart()"
                 >
-                  בדיקת בקשת היצירה
+                  <span class="icon icon-refresh" aria-hidden="true"></span>בדיקת בקשת היצירה
                 </button>
               }
               @if (hasContent()) {
@@ -304,7 +310,7 @@
                   [disabledInteractive]="contentBusy()"
                   (click)="activityAction('release')"
                 >
-                  סימון כמוכנה
+                  <span class="icon icon-check" aria-hidden="true"></span>סימון כמוכנה
                 </button>
               } @else {
                 <button
@@ -314,7 +320,7 @@
                   [disabledInteractive]="!canGenerate()"
                   (click)="activityAction('GenerateActivity')"
                 >
-                  <span class="ai-icon" aria-hidden="true"></span>יצירת הפעילות
+                  <span class="icon icon-ai" aria-hidden="true"></span>יצירת הפעילות
                 </button>
               }
               <button
@@ -340,17 +346,18 @@
                 class="text-link"
                 (click)="updates.reconnect()"
               >
-                חיבור מחדש
+                <span class="icon icon-refresh" aria-hidden="true"></span>חיבור מחדש
               </button>
             }
             <button
               id="plan-undo"
-              class="text-link"
+              class="icon-button icon-button-quiet"
               type="button"
               [disabledInteractive]="locked() || !history.entries().length"
               (click)="undo()"
             >
-              ביטול השינוי האחרון
+              <span class="icon icon-undo" aria-hidden="true"></span
+              ><span class="tooltip">ביטול השינוי האחרון</span>
             </button>
             <span role="status">{{ notice() }}</span>
           </div>
@@ -412,7 +419,8 @@
     [disabledInteractive]="saving() || !templateChanged()"
     (click)="saveTemplate()"
   >
-    {{ publication() ? 'עדכון התבנית' : 'שמירה כתבנית' }}
+    <span class="icon icon-template" aria-hidden="true"></span
+    >{{ publication() ? 'עדכון התבנית' : 'שמירה כתבנית' }}
   </button>
 </ng-template>
 
@@ -437,6 +445,6 @@
     [disabledInteractive]="saving()"
     (click)="reloadActivity()"
   >
-    טעינת הגרסה השמורה
+    <span class="icon icon-refresh" aria-hidden="true"></span>טעינת הגרסה השמורה
   </button>
 </ng-template>

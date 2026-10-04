@@ -133,23 +133,23 @@ describe('ActivityDocumentEditor structure focus', () => {
     return document.activeElement as HTMLElement;
   }
 
-  it("edits a question's options beside them, keeping the disclosure for the question itself", async () => {
+  it('keeps option and question actions beside what they change, and answer type and points in a disclosure', async () => {
     const fixture = TestBed.createComponent(Questions);
     await fixture.whenStable();
     const root: HTMLElement = fixture.nativeElement;
     const button = (text: string) =>
       Array.from(root.querySelectorAll('button')).find((b) => b.textContent?.trim() === text)!;
-    for (const text of ['הוספת אפשרות', 'הסרת אפשרות 1'])
+    for (const text of ['הוספת אפשרות', 'הסרת אפשרות 1', 'הזזת שאלה 1 למטה', 'הסרת שאלה 1'])
       expect(button(text).closest('details')).toBeNull();
-    expect(button('הסרת שאלה 1').closest('details')).not.toBeNull();
+    expect(root.querySelector('#question-0-points')!.closest('details')).not.toBeNull();
   });
 
   it('moves focus from a removed question to its neighbour, else to the add button', async () => {
     const fixture = TestBed.createComponent(Questions);
     await fixture.whenStable();
     const root: HTMLElement = fixture.nativeElement;
-    expect((await press(fixture, root, 'הסרת שאלה 2')).id).toBe('question-1-more');
-    expect((await press(fixture, root, 'הסרת שאלה 2')).id).toBe('question-0-more');
+    expect((await press(fixture, root, 'הסרת שאלה 2')).id).toBe('question-1-heading');
+    expect((await press(fixture, root, 'הסרת שאלה 2')).id).toBe('question-0-heading');
     expect((await press(fixture, root, 'הסרת שאלה 1')).id).toBe('add-question');
   });
 

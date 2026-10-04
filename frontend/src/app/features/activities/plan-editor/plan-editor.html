@@ -35,9 +35,22 @@
         class="well grid min-w-0 gap-4"
         [attr.aria-labelledby]="material.id + '-heading'"
       >
-        <h4 [id]="material.id + '-heading'">
-          <bdi>{{ material.label || 'טקסט חדש' }}</bdi>
-        </h4>
+        <div class="flex flex-wrap items-center justify-between gap-x-3">
+          <h4 [id]="material.id + '-heading'">
+            <bdi>{{ material.label || 'טקסט חדש' }}</bdi>
+          </h4>
+          <button
+            type="button"
+            class="icon-button icon-button-danger"
+            [disabledInteractive]="locked()"
+            (click)="removeMaterial(material.id)"
+          >
+            <span class="icon icon-remove" aria-hidden="true"></span
+            ><span class="tooltip"
+              >הסרת הטקסט <bdi>{{ material.label }}</bdi></span
+            >
+          </button>
+        </div>
         <div>
           <label [for]="material.id + '-label'">שם הטקסט</label
           ><input
@@ -62,14 +75,6 @@
         @if (material.source === 'generated') {
           <app-length-fields [fields]="m.length" [prefix]="material.id" />
         }
-        <button
-          type="button"
-          class="text-link text-link-danger"
-          [disabledInteractive]="locked()"
-          (click)="removeMaterial(material.id)"
-        >
-          הסרת הטקסט <bdi>{{ material.label }}</bdi>
-        </button>
       </div>
     }
     <button
@@ -79,7 +84,7 @@
       [disabledInteractive]="locked() || f.materials().value().length >= limits.maxMaterials"
       (click)="structureChanged.emit({ kind: 'add-material' })"
     >
-      הוספת טקסט
+      <span class="icon icon-add" aria-hidden="true"></span>הוספת טקסט
     </button>
     @if (generatedCount() > 1 || f.totalLength.mode().value()) {
       <app-length-fields

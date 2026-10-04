@@ -39,7 +39,8 @@
               [disabledInteractive]="locked() || operationActive()"
               (click)="adopted.emit({ materialIds: [id], questionIds: [] })"
             >
-              בדקתי, אפשר להשתמש בגרסה הזו<span class="sr-only"> — {{ label(id) }}</span>
+              <span class="icon icon-check" aria-hidden="true"></span>בדקתי, אפשר להשתמש בגרסה
+              הזו<span class="sr-only"> — {{ label(id) }}</span>
             </button>
           </div>
         }
@@ -82,7 +83,9 @@
           [disabledInteractive]="locked()"
           (click)="sourceReplaced.emit(id)"
         >
-          החלפת הטקסט<span class="sr-only"> {{ label(id) }}</span>
+          <span class="icon icon-edit" aria-hidden="true"></span>החלפת הטקסט<span class="sr-only">
+            {{ label(id) }}</span
+          >
         </button>
       }
     </section>
@@ -95,7 +98,8 @@
         [disabledInteractive]="locked()"
         (click)="structureChanged.emit({ kind: 'add-material', id: material.id })"
       >
-        כתיבת הטקסט ידנית: <bdi>{{ material.label }}</bdi>
+        <span class="icon icon-edit" aria-hidden="true"></span>כתיבת הטקסט ידנית:
+        <bdi>{{ material.label }}</bdi>
       </button>
     }
   }
@@ -106,7 +110,42 @@
         @let question = fields().questions[i];
         @let id = question.id().value();
         <li class="well grid gap-4" [attr.aria-labelledby]="'question-' + i + '-heading'">
-          <h3 [id]="'question-' + i + '-heading'">שאלה {{ i + 1 }}</h3>
+          <div class="flex flex-wrap items-center justify-between gap-x-3">
+            <h3 [id]="'question-' + i + '-heading'">שאלה {{ i + 1 }}</h3>
+            <div class="flex">
+              <button
+                type="button"
+                class="icon-button icon-button-quiet"
+                [id]="'question-' + i + '-move-up'"
+                [disabledInteractive]="locked() || i === 0"
+                (click)="edit({ kind: 'move-up', index: i }, 'question-' + (i - 1) + '-move-up')"
+              >
+                <span class="icon icon-up" aria-hidden="true"></span
+                ><span class="tooltip">הזזת שאלה {{ i + 1 }} למעלה</span>
+              </button>
+              <button
+                type="button"
+                class="icon-button icon-button-quiet"
+                [id]="'question-' + i + '-move-down'"
+                [disabledInteractive]="locked() || i === count - 1"
+                (click)="
+                  edit({ kind: 'move-down', index: i }, 'question-' + (i + 1) + '-move-down')
+                "
+              >
+                <span class="icon icon-down" aria-hidden="true"></span
+                ><span class="tooltip">הזזת שאלה {{ i + 1 }} למטה</span>
+              </button>
+              <button
+                type="button"
+                class="icon-button icon-button-danger"
+                [disabledInteractive]="locked()"
+                (click)="edit({ kind: 'remove-question', index: i }, questionSuccessor(i, count))"
+              >
+                <span class="icon icon-remove" aria-hidden="true"></span
+                ><span class="tooltip">הסרת שאלה {{ i + 1 }}</span>
+              </button>
+            </div>
+          </div>
           @if (id && staleQuestions().has(id)) {
             <div class="callout grid gap-4">
               <p>השאלה נכתבה לפני שהטקסט או ההגדרות השתנו. בדקו שהיא עדיין מתאימה.</p>
@@ -116,7 +155,8 @@
                 [disabledInteractive]="locked() || operationActive()"
                 (click)="adopted.emit({ materialIds: [], questionIds: [id] })"
               >
-                בדקתי, אפשר להשתמש בגרסה הזו<span class="sr-only"> — שאלה {{ i + 1 }}</span>
+                <span class="icon icon-check" aria-hidden="true"></span>בדקתי, אפשר להשתמש בגרסה
+                הזו<span class="sr-only"> — שאלה {{ i + 1 }}</span>
               </button>
             </div>
           }
@@ -142,7 +182,7 @@
                   </div>
                   <button
                     type="button"
-                    class="text-link text-link-danger"
+                    class="icon-button icon-button-danger"
                     [disabledInteractive]="locked()"
                     (click)="
                       edit(
@@ -151,7 +191,8 @@
                       )
                     "
                   >
-                    הסרת אפשרות {{ j + 1 }}
+                    <span class="icon icon-remove" aria-hidden="true"></span
+                    ><span class="tooltip">הסרת אפשרות {{ j + 1 }}</span>
                   </button>
                 </div>
               }
@@ -162,7 +203,7 @@
                 [disabledInteractive]="locked() || value.options.length >= limits.maxChoiceCount"
                 (click)="structureChanged.emit({ kind: 'add-option', index: i })"
               >
-                הוספת אפשרות
+                <span class="icon icon-add" aria-hidden="true"></span>הוספת אפשרות
               </button>
             </div>
             <div>
@@ -222,7 +263,7 @@
             }
             <details class="group">
               <summary [id]="'question-' + i + '-more'">
-                אפשרויות נוספות לשאלה {{ i + 1 }}
+                סוג התשובה והניקוד — שאלה {{ i + 1 }}
                 @if (question.points().invalid()) {
                   <span class="text-danger group-open:hidden">· יש לתקן את הניקוד</span>
                 }
@@ -250,40 +291,6 @@
                     [field]="question.points"
                   />
                 </div>
-                <div class="flex flex-wrap gap-x-4">
-                  <button
-                    type="button"
-                    class="text-link"
-                    [id]="'question-' + i + '-move-up'"
-                    [disabledInteractive]="locked() || i === 0"
-                    (click)="
-                      edit({ kind: 'move-up', index: i }, 'question-' + (i - 1) + '-move-up')
-                    "
-                  >
-                    הזזת שאלה {{ i + 1 }} למעלה
-                  </button>
-                  <button
-                    type="button"
-                    class="text-link"
-                    [id]="'question-' + i + '-move-down'"
-                    [disabledInteractive]="locked() || i === count - 1"
-                    (click)="
-                      edit({ kind: 'move-down', index: i }, 'question-' + (i + 1) + '-move-down')
-                    "
-                  >
-                    הזזת שאלה {{ i + 1 }} למטה
-                  </button>
-                  <button
-                    type="button"
-                    class="text-link text-link-danger"
-                    [disabledInteractive]="locked()"
-                    (click)="
-                      edit({ kind: 'remove-question', index: i }, questionSuccessor(i, count))
-                    "
-                  >
-                    הסרת שאלה {{ i + 1 }}
-                  </button>
-                </div>
               </div>
             </details>
           </div>
@@ -304,6 +311,6 @@
     [disabledInteractive]="locked() || count >= limits.maxQuestionCount"
     (click)="structureChanged.emit({ kind: 'add-question' })"
   >
-    הוספת שאלה ידנית
+    <span class="icon icon-add" aria-hidden="true"></span>הוספת שאלה
   </button>
 </section>

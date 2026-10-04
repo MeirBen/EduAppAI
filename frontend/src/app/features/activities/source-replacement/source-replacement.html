@@ -23,8 +23,10 @@
       id="accept-source-replacement"
       (click)="accepted.emit()"
     >
-      אישור הטקסט החדש
+      <span class="icon icon-check" aria-hidden="true"></span>אישור הטקסט החדש
     </button>
-    <button class="text-link" type="button" (click)="cancelled.emit()">ביטול</button>
+    <button class="text-link" type="button" (click)="cancelled.emit()">
+      <span class="icon icon-close" aria-hidden="true"></span>ביטול
+    </button>
   </div>
 </section>

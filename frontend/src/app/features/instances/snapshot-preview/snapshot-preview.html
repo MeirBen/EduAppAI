@@ -1,6 +1,8 @@
 <section class="mx-auto grid max-w-3xl gap-6 py-gutter" aria-labelledby="snapshot-heading">
   <header class="grid gap-1">
-    <a class="text-link back-link" routerLink="/templates">המרחב שלנו</a>
+    <a class="text-link" routerLink="/templates"
+      ><span class="icon icon-back" aria-hidden="true"></span>המרחב שלנו</a
+    >
     <h1 id="snapshot-heading">פעילות מוכנה — תצוגה להורים</h1>
   </header>
   <app-loading-indicator
@@ -11,7 +13,9 @@
   @if (snapshot.error()) {
     <div class="grid gap-1">
       <p role="alert" class="error">{{ apiError(snapshot.error()) }}</p>
-      <button type="button" class="text-link" (click)="snapshot.reload()">ניסיון נוסף</button>
+      <button type="button" class="text-link" (click)="snapshot.reload()">
+        <span class="icon icon-refresh" aria-hidden="true"></span>ניסיון נוסף
+      </button>
     </div>
   } @else if (snapshot.hasValue()) {
     <div class="grid gap-1">
@@ -39,7 +43,9 @@
       <app-loading-indicator [active]="copying()" label="יוצרים טיוטה חדשה…" />
       @if (copiedId()) {
         <div class="flex flex-wrap items-center gap-x-6 gap-y-2">
-          <a class="button" [routerLink]="['/activities', copiedId()]">פתיחת הטיוטה החדשה</a>
+          <a class="button" [routerLink]="['/activities', copiedId()]"
+            ><span class="icon icon-edit" aria-hidden="true"></span>פתיחת הטיוטה החדשה</a
+          >
           <p role="status" class="text-sm text-muted">
             נוצר עותק לעריכה. הפעילות המוכנה נשארה ללא שינוי.
           </p>
@@ -52,7 +58,7 @@
           [disabled]="copying()"
           (click)="copy()"
         >
-          עריכה כטיוטה חדשה
+          <span class="icon icon-copy" aria-hidden="true"></span>עריכה כטיוטה חדשה
         </button>
       }
     </section>

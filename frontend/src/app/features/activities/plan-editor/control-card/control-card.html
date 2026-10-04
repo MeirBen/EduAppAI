@@ -173,11 +173,12 @@
             </div>
             <button
               type="button"
-              class="text-link text-link-danger"
+              class="icon-button icon-button-danger"
               [disabledInteractive]="locked()"
               (click)="editOption(optionIndex)"
             >
-              הסרת אפשרות {{ optionIndex + 1 }}
+              <span class="icon icon-remove" aria-hidden="true"></span
+              ><span class="tooltip">הסרת אפשרות {{ optionIndex + 1 }}</span>
             </button>
           </div>
           <app-field-errors [id]="errorsId" [field]="value" />
@@ -192,7 +193,7 @@
         [disabledInteractive]="locked() || control.options.length >= limits.maxSelectOptions"
         (click)="editOption()"
       >
-        הוספת אפשרות
+        <span class="icon icon-add" aria-hidden="true"></span>הוספת אפשרות
       </button>
     }
     <button
@@ -201,7 +202,8 @@
       [disabledInteractive]="locked()"
       (click)="structureChanged.emit({ kind: 'remove-control', scope: scope(), id: control.id })"
     >
-      הסרת הבחירה <bdi>{{ control.label }}</bdi>
+      <span class="icon icon-remove" aria-hidden="true"></span>הסרת הבחירה
+      <bdi>{{ control.label }}</bdi>
     </button>
   </div>
 </details>

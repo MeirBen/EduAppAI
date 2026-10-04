@@ -9,7 +9,7 @@
     [disabledInteractive]="disabled()"
     (click)="open.set(!open())"
   >
-    <span class="ai-icon" aria-hidden="true"></span>שיפור בעזרת AI<span class="sr-only">
+    <span class="icon icon-ai" aria-hidden="true"></span>שיפור בעזרת AI<span class="sr-only">
       — {{ name() }}</span
     >
   </button>
@@ -48,9 +48,11 @@
         [id]="key() + '-improve-submit'"
         [disabledInteractive]="disabled()"
       >
-        <span class="ai-icon" aria-hidden="true"></span>{{ submitLabel() }}
+        <span class="icon icon-ai" aria-hidden="true"></span>{{ submitLabel() }}
       </button>
-      <button type="button" class="text-link" (click)="close()">ביטול</button>
+      <button type="button" class="text-link" (click)="close()">
+        <span class="icon icon-close" aria-hidden="true"></span>ביטול
+      </button>
     </div>
   </form>
 </div>

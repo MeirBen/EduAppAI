@@ -3,7 +3,7 @@
   @for (idea of ideas(); track idea) {
     <li>
       <button type="button" class="chip" [disabled]="disabled()" (click)="picked.emit(idea)">
-        <span class="ai-icon size-4 text-brand" aria-hidden="true"></span>{{ idea }}
+        <span class="icon icon-ai text-brand" aria-hidden="true"></span>{{ idea }}
       </button>
     </li>
   }

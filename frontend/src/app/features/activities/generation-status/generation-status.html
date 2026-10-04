@@ -21,9 +21,7 @@
           [attr.data-problem]="current.problem ? '' : null"
           aria-hidden="true"
         >
-          <svg class="line-icon" viewBox="0 0 24 24">
-            <path [attr.d]="current.problem ? 'M12 8v5m0 3.5v.01' : 'm5 12.5 4.5 4.5L19 7'" />
-          </svg>
+          <span class="icon" [class]="current.problem ? 'icon-alert' : 'icon-check'"></span>
         </span>
         <div class="grid min-w-0 gap-1">
           <p class="font-medium" [class.text-danger]="current.problem">{{ current.title }}</p>
@@ -43,7 +41,7 @@
         [disabledInteractive]="locked()"
         (click)="cancelled.emit()"
       >
-        ביטול
+        <span class="icon icon-close" aria-hidden="true"></span>ביטול
       </button>
       <p class="text-sm text-muted">בקשה שכבר נשלחה עשויה להסתיים ולהיות מחויבת גם אחרי ביטול.</p>
     </div>
@@ -57,7 +55,7 @@
         [disabledInteractive]="locked()"
         (click)="retried.emit(retry.kind)"
       >
-        {{ retry.label }}
+        <span class="icon icon-refresh" aria-hidden="true"></span>{{ retry.label }}
       </button>
       <p class="text-sm text-muted">ניסיון נוסף שולח בקשה חדשה לשירות ה־AI.</p>
     </div>
@@ -70,7 +68,7 @@
       [disabledInteractive]="locked()"
       (click)="checked.emit()"
     >
-      בדיקת הגרסה השמורה
+      <span class="icon icon-refresh" aria-hidden="true"></span>בדיקת הגרסה השמורה
     </button>
   }
   <details>

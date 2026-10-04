@@ -16,7 +16,7 @@ test('the color theme follows the device, remembers a choice and applies it befo
   await expect(option('לפי המכשיר')).toBeChecked();
   expect(await colorScheme(page)).toBe('dark');
 
-  await picker.getByTitle('בהיר').click();
+  await picker.locator('label', { hasText: 'בהיר' }).click();
   await expect(option('בהיר')).toBeChecked();
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
   expect(await colorScheme(page)).toBe('light');

@@ -24,10 +24,17 @@ parent labels keep their original language and values.
   state and current actions, with their errors and recovery. It pins to the
   window's bottom while the window is at least 40rem tall at the current text
   size, and scroll padding keeps focus clear of it.
-- Pages opened from the library lead back with a `back-link` above their
-  heading. A `list-row` with a `row-link` opens from anywhere on the row, which
-  shows the link's hover and focus; the row's other actions stay separate
-  controls.
+- Pages opened from the library lead back with a link above their heading. A
+  `list-row` with a `row-link` opens from anywhere on the row, which shows the
+  link's hover and focus; the row's other actions stay separate controls.
+- Icons come from the one set in `icons.css`, scale with their text and lead a
+  label only where they add meaning. Repeated actions with a familiar shape
+  (remove, move, undo, edit in a row, send and stop) are icon-only
+  `icon-button`s whose `tooltip` is their accessible name; where the same action
+  repeats per item, an `aria-label` adds the item and hides the tooltip from
+  assistive technology. Tooltips show on hover or keyboard focus and Escape
+  hides them; anchor positioning keeps them within the window. Actions with
+  lasting effects keep their visible label.
 - Keep hover/press feedback brief, exclude disabled controls and respect reduced
   motion. Use theme shadows and colors rather than page-specific copies.
 - Actions show a 2px offset focus ring. Fields tint their own edge instead, in
@@ -76,8 +83,8 @@ take no layout slot, so they never double a gap. Group card fields with
 `role="group"` and a heading inside the padding rather than a `.well` fieldset
 legend; each later headed group in a card is a `card-section`, whose rule marks
 where the previous one ends. Short related fields share a row: settings fill one
-two-column grid, numbers sit beside their siblings and a list's remove link sits
-beside its item. Optional content renders only when present.
+two-column grid, numbers sit beside their siblings and a list's remove action
+sits beside its item. Optional content renders only when present.
 
 ## Styles and theming
 
@@ -90,13 +97,15 @@ beside its item. Optional content renders only when present.
   choice.
 - `base.css` styles elements, including native form controls and focus.
 - `components.css` holds every shared visual treatment, grouped as actions
-  (buttons, links, `back-link`, `icon-button`, `chip`), surfaces (`panel`,
-  `well`, `card-section`, `action-bar`, `list-row` with its `row-link`,
-  `empty-state`), conversation (`bubble`, `composer`), marks (`badge`,
-  `icon-tile`, `line-icon`, `status-icon`, `ai-mark`, `ai-icon`), lists
-  (`steps`, `progress-steps`) and feedback (`error`, `field-error`,
-  `callout`). Use `error` for a failure that replaces a page's content and
-  `field-error` beside the field, card or action that failed.
+  (buttons, links, `icon-button` with its `tooltip`, `chip`), surfaces
+  (`panel`, `well`, `card-section`, `action-bar`, `list-row` with its
+  `row-link`, `empty-state`), conversation (`bubble`, `composer`), marks
+  (`badge`, `icon-tile`, `status-icon`, `ai-mark`), lists (`steps`,
+  `progress-steps`) and feedback (`error`, `field-error`, `callout`). Use
+  `error` for a failure that replaces a page's content and `field-error` beside
+  the field, card or action that failed.
+- `icons.css` holds the icon set: masks painted with the current text color,
+  drawn for right-to-left reading where they point.
 
 Primitives read only tokens; templates add layout utilities and token colors
 such as `text-muted`. A visual treatment used in more than one place becomes a
@@ -173,7 +182,7 @@ on Enter (Shift+Enter adds a line) and turns its send button into a stop button,
 keeping keyboard focus on whichever is present; a failed or cancelled request
 returns its text to the composer. `IdeaChips` offer ready wording for the first
 request, common changes and scoped improvements; an idea only fills its field,
-leaving focus on the idea, and never sends. Mark AI actions with `ai-icon`.
+leaving focus on the idea, and never sends. Mark AI actions with `icon-ai`.
 
 Use parent language, never internal terms: say "הגדרות" for the plan and "טקסט"
 for materials; source kinds read as "כתבו עבורי תוכן חדש", "יש לי טקסט משלי"
@@ -185,13 +194,13 @@ revision. Give each state one primary action: create the activity, then mark it
 ready; template editing makes publication primary. It sits in the action bar
 with saving the draft, the save state and Undo; the review card keeps the
 readiness summary. Uncommon actions live under **פעולות נוספות** or a quiet
-disclosure. Question cards keep prompt, options
-with their add and remove actions, and the parent-only answer visible; type,
-points, ordering and removal sit in a per-question disclosure. Every form list
-edits the same way: a remove link (**הסרת**) beside each item and one secondary
-add button after the list. Scoped AI improvement is a contextual action with an
-optional instruction; its progress, result and any error show in that card,
-while full generation reports above the content.
+disclosure. Question cards keep prompt, options and the parent-only answer
+visible, with icons to move or remove the question in their header; answer type
+and points sit in a per-question disclosure. Every form list edits the same way:
+a remove icon beside each item and one secondary add button after the list.
+Scoped AI improvement is a contextual action with an optional instruction; its
+progress, result and any error show in that card, while full generation reports
+above the content.
 
 Show source confirmation for AI-extracted text only while it is pending and
 preserve its exact content. Keep invalid keystrokes visible for correction. A

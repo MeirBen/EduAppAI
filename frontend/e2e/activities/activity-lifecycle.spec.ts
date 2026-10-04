@@ -222,7 +222,6 @@ test('removing a scoped generation target keeps progress and cancellation access
   await page.locator('#question-0-improve').click();
   await page.locator('#question-0-improve-submit').click();
   await expect(page.locator('#cancel-generation')).toBeVisible();
-  await page.getByText('אפשרויות נוספות לשאלה 1', { exact: true }).click();
   await page.getByRole('button', { name: 'הסרת שאלה 1', exact: true }).click();
   await expect(page.locator('#cancel-generation')).toBeVisible();
   await expect(page.locator('app-generation-status')).toHaveCount(1);
@@ -276,7 +275,7 @@ test('supports keyboard content editing with native labels at 360px and 200% tex
   await page.keyboard.press('Enter');
   await page.getByLabel('נוסח השאלה', { exact: true }).fill('מה פירוש Hello — שלום?');
   await expect(page.getByLabel('סוג התשובה', { exact: true })).toBeHidden();
-  await page.getByText('אפשרויות נוספות לשאלה 1').focus();
+  await page.getByText('סוג התשובה והניקוד — שאלה 1').focus();
   await page.keyboard.press('Enter');
   await page.getByLabel('סוג התשובה', { exact: true }).selectOption('single-choice');
   await page.getByRole('button', { name: 'הוספת אפשרות', exact: true }).click();
@@ -308,16 +307,12 @@ test('supports keyboard content editing with native labels at 360px and 200% tex
   // Moving a question keeps focus on its move button; removing one hands it to a neighbour.
   await page.locator('#add-question').focus();
   await page.keyboard.press('Enter');
-  await page.getByText('אפשרויות נוספות לשאלה 2').click();
-  // Opening content renders a frame later; focus waits until it is visible.
-  const moveUp = page.locator('#question-1-move-up');
-  await expect(moveUp).toBeVisible();
-  await moveUp.focus();
+  await page.locator('#question-1-move-up').focus();
   await page.keyboard.press('Enter');
   await expect(page.locator('#question-0-move-up')).toBeFocused();
   await page.getByRole('button', { name: 'הסרת שאלה 1', exact: true }).focus();
   await page.keyboard.press('Enter');
-  await expect(page.locator('#question-0-more')).toBeFocused();
+  await expect(page.locator('#question-0-heading')).toBeFocused();
 });
 
 test('unknown outcomes retain local work and do not automatically start another operation', async ({

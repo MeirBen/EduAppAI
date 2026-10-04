@@ -18,7 +18,7 @@ import { DisabledInteractive } from '../../../shared/disabled-interactive';
         [replaceUrl]="true"
         [disabledInteractive]="router.currentNavigation() !== null"
       >
-        ניסיון נוסף
+        <span class="icon icon-refresh" aria-hidden="true"></span>ניסיון נוסף
       </button>
     </section>
   `,

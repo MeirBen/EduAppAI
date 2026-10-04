@@ -6,15 +6,17 @@
     </div>
     <div class="flex flex-wrap gap-3">
       <a class="button" routerLink="/activities/new"
-        ><span class="ai-icon" aria-hidden="true"></span>פעילות חדשה</a
-      ><a class="button button-secondary" routerLink="/templates/new">תבנית חדשה</a>
+        ><span class="icon icon-ai" aria-hidden="true"></span>פעילות חדשה</a
+      ><a class="button button-secondary" routerLink="/templates/new"
+        ><span class="icon icon-template" aria-hidden="true"></span>תבנית חדשה</a
+      >
     </div>
   </header>
   @if (updates.state() === 'unavailable') {
     <div class="grid gap-1">
       <p role="status" class="text-muted">העדכונים בזמן אמת נותקו. אפשר לנסות להתחבר שוב.</p>
       <button id="reconnect-library" type="button" class="text-link" (click)="updates.reconnect()">
-        חיבור מחדש
+        <span class="icon icon-refresh" aria-hidden="true"></span>חיבור מחדש
       </button>
     </div>
   }
@@ -36,16 +38,16 @@
     @if (drafts.error()) {
       <div class="grid gap-1">
         <p role="alert" class="field-error">{{ apiError(drafts.error()) }}</p>
-        <button type="button" class="text-link" (click)="drafts.reload()">ניסיון נוסף</button>
+        <button type="button" class="text-link" (click)="drafts.reload()">
+          <span class="icon icon-refresh" aria-hidden="true"></span>ניסיון נוסף
+        </button>
       </div>
     } @else if (drafts.hasValue()) {
       @for (draft of drafts.value(); track draft.id) {
         <article class="list-row">
-          <span class="icon-tile size-10" aria-hidden="true">
-            <svg class="line-icon" viewBox="0 0 24 24">
-              <path d="M4 20h4L19 9l-4-4L4 16v4Zm9-13 4 4" />
-            </svg>
-          </span>
+          <span class="icon-tile size-10" aria-hidden="true"
+            ><span class="icon icon-edit"></span
+          ></span>
           <div class="grid min-w-0 grow basis-48">
             <a class="row-link" [routerLink]="['/activities', draft.id]"
               ><bdi>{{ draft.name }}</bdi></a
@@ -57,12 +59,13 @@
           <button
             data-delete-draft
             type="button"
-            class="text-link text-link-danger"
+            class="icon-button icon-button-danger"
             [attr.aria-label]="'מחיקה: ' + draft.name"
             [disabled]="deleting()"
             (click)="remove('draft', draft.id, draft.name)"
           >
-            מחיקה
+            <span class="icon icon-remove" aria-hidden="true"></span
+            ><span class="tooltip" aria-hidden="true">מחיקה</span>
           </button>
         </article>
         @if (failed(draft.id); as message) {
@@ -71,7 +74,9 @@
       } @empty {
         <div class="empty-state">
           <p>עוד אין טיוטות. כל פעילות שתתחילו נשמרת כאן עד שתסמנו אותה כמוכנה.</p>
-          <a class="text-link" routerLink="/activities/new">התחלת פעילות חדשה</a>
+          <a class="text-link" routerLink="/activities/new"
+            ><span class="icon icon-ai" aria-hidden="true"></span>התחלת פעילות חדשה</a
+          >
         </div>
       }
     }
@@ -93,16 +98,16 @@
     @if (snapshots.error()) {
       <div class="grid gap-1">
         <p role="alert" class="field-error">{{ apiError(snapshots.error()) }}</p>
-        <button type="button" class="text-link" (click)="snapshots.reload()">ניסיון נוסף</button>
+        <button type="button" class="text-link" (click)="snapshots.reload()">
+          <span class="icon icon-refresh" aria-hidden="true"></span>ניסיון נוסף
+        </button>
       </div>
     } @else if (snapshots.hasValue()) {
       @for (snapshot of snapshots.value(); track snapshot.id) {
         <article class="list-row">
-          <span class="icon-tile size-10" aria-hidden="true">
-            <svg class="line-icon" viewBox="0 0 24 24">
-              <path d="M20 6 9 17l-5-5" />
-            </svg>
-          </span>
+          <span class="icon-tile size-10" aria-hidden="true"
+            ><span class="icon icon-check"></span
+          ></span>
           <div class="grid min-w-0 grow basis-48">
             <a class="row-link" [routerLink]="['/instances', snapshot.id]"
               ><bdi>{{ snapshot.title }}</bdi></a
@@ -113,12 +118,13 @@
           </div>
           <button
             type="button"
-            class="text-link text-link-danger"
+            class="icon-button icon-button-danger"
             [attr.aria-label]="'מחיקה: ' + snapshot.title"
             [disabled]="deleting()"
             (click)="remove('snapshot', snapshot.id, snapshot.title)"
           >
-            מחיקה
+            <span class="icon icon-remove" aria-hidden="true"></span
+            ><span class="tooltip" aria-hidden="true">מחיקה</span>
           </button>
         </article>
         @if (failed(snapshot.id); as message) {
@@ -148,39 +154,45 @@
     @if (templates.error()) {
       <div class="grid gap-1">
         <p role="alert" class="field-error">{{ apiError(templates.error()) }}</p>
-        <button type="button" class="text-link" (click)="templates.reload()">ניסיון נוסף</button>
+        <button type="button" class="text-link" (click)="templates.reload()">
+          <span class="icon icon-refresh" aria-hidden="true"></span>ניסיון נוסף
+        </button>
       </div>
     } @else if (templates.hasValue()) {
       @for (template of templates.value(); track template.id) {
         <article class="list-row">
-          <span class="icon-tile size-10" aria-hidden="true">
-            <svg class="line-icon" viewBox="0 0 24 24">
-              <path d="m12 3 9 5-9 5-9-5 9-5Zm-9 9 9 5 9-5M3 16l9 5 9-5" />
-            </svg>
-          </span>
+          <span class="icon-tile size-10" aria-hidden="true"
+            ><span class="icon icon-template"></span
+          ></span>
           <h3 class="min-w-0 grow basis-48 text-base">
             <bdi>{{ template.name }}</bdi>
           </h3>
-          <div class="flex flex-wrap gap-x-4">
+          <div class="flex flex-wrap items-center gap-x-4">
             <a
               class="text-link"
               [routerLink]="['/templates', template.id, 'create']"
               [attr.aria-label]="'פעילות מהתבנית: ' + template.name"
-              >פעילות מהתבנית</a
-            ><a
-              class="text-link"
-              [routerLink]="['/templates', template.id, 'edit']"
-              [attr.aria-label]="'עריכת התבנית: ' + template.name"
-              >עריכת התבנית</a
-            ><button
-              type="button"
-              class="text-link text-link-danger"
-              [attr.aria-label]="'מחיקת התבנית: ' + template.name"
-              [disabled]="deleting()"
-              (click)="remove('template', template.id, template.name)"
+              ><span class="icon icon-add" aria-hidden="true"></span>פעילות מהתבנית</a
             >
-              מחיקת התבנית
-            </button>
+            <div class="flex">
+              <a
+                class="icon-button icon-button-quiet"
+                [attr.aria-label]="'עריכת התבנית: ' + template.name"
+                [routerLink]="['/templates', template.id, 'edit']"
+                ><span class="icon icon-edit" aria-hidden="true"></span
+                ><span class="tooltip" aria-hidden="true">עריכת התבנית</span></a
+              >
+              <button
+                type="button"
+                class="icon-button icon-button-danger"
+                [attr.aria-label]="'מחיקת התבנית: ' + template.name"
+                [disabled]="deleting()"
+                (click)="remove('template', template.id, template.name)"
+              >
+                <span class="icon icon-remove" aria-hidden="true"></span
+                ><span class="tooltip" aria-hidden="true">מחיקת התבנית</span>
+              </button>
+            </div>
           </div>
         </article>
         @if (failed(template.id); as message) {
@@ -207,7 +219,7 @@
       [disabled]="deleting()"
       (click)="remove('all')"
     >
-      איפוס נתוני הלמידה
+      <span class="icon icon-remove" aria-hidden="true"></span>איפוס נתוני הלמידה
     </button>
     @if (failed('all'); as message) {
       <p role="alert" class="field-error">{{ message }}</p>

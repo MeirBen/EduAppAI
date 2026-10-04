@@ -3,6 +3,7 @@ import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/rou
 import { Auth } from './core/auth/auth';
 import { parentSignOut } from './core/auth/login-guard';
 import { apiError } from './core/api/api-error';
+import { dismissibleTooltips } from './shared/dismissible-tooltips';
 import { LoadingIndicator } from './shared/loading-indicator/loading-indicator';
 import { ThemePicker } from './shared/theme-picker/theme-picker';
 
@@ -20,6 +21,10 @@ export class App {
   protected readonly router = inject(Router);
   protected readonly error = signal('');
   protected readonly signingOut = signal(false);
+
+  constructor() {
+    dismissibleTooltips();
+  }
 
   protected async logout() {
     if (this.signingOut()) return;

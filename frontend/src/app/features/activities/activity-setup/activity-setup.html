@@ -238,7 +238,7 @@
                 [disabledInteractive]="locked()"
                 (click)="sourceConfirmed.emit(material.id)"
               >
-                הטקסט הועתק נכון
+                <span class="icon icon-check" aria-hidden="true"></span>הטקסט הועתק נכון
               </button>
             }
           } @else if (material.source === 'per-task' && !reusable()) {

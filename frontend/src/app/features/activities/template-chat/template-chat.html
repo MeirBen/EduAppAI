@@ -110,24 +110,17 @@
             id="chat-cancel"
             type="button"
             class="icon-button icon-button-ink ms-auto"
-            aria-label="ביטול הבקשה"
             (click)="cancelled.emit()"
           >
-            <svg class="size-4" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
-              <rect x="3" y="3" width="10" height="10" rx="2" />
-            </svg>
+            <span class="icon icon-stop" aria-hidden="true"></span
+            ><span class="tooltip">ביטול הבקשה</span>
           </button>
         } @else {
-          <button
-            id="chat-send"
-            type="submit"
-            class="icon-button ms-auto"
-            [attr.aria-label]="clarification() ? 'שליחת התשובה' : start ? 'שליחה' : 'עדכון ההגדרות'"
-            [disabled]="!canSend()"
-          >
-            <svg class="line-icon" viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M12 19V5m-6 6 6-6 6 6" />
-            </svg>
+          <button id="chat-send" type="submit" class="icon-button ms-auto" [disabled]="!canSend()">
+            <span class="icon icon-up" aria-hidden="true"></span
+            ><span class="tooltip">{{
+              clarification() ? 'שליחת התשובה' : start ? 'שליחה' : 'עדכון ההגדרות'
+            }}</span>
           </button>
         }
       </div>

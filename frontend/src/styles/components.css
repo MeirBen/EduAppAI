@@ -25,26 +25,59 @@
   .text-link-danger {
     @apply text-muted actionable:hover:text-danger;
   }
-  /* Returns to the page this one was opened from; the arrow points back along the reading direction. */
-  .back-link {
-    @apply text-sm;
-
-    &::before {
-      content: '';
-      @apply size-4 shrink-0 bg-current ltr:-scale-x-100;
-      mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12h14m-6-6 6 6-6 6'/%3E%3C/svg%3E")
-        center / contain no-repeat;
-    }
-  }
   .nav-link {
-    @apply inline-flex min-h-11 items-center rounded-button px-4 py-2 font-medium text-brand transition-colors actionable:hover:bg-soft aria-[current=page]:bg-soft;
+    @apply inline-flex min-h-11 items-center gap-2 rounded-button px-4 py-2 font-medium text-brand transition-colors actionable:hover:bg-soft aria-[current=page]:bg-soft;
   }
-  /* A round icon-only action; it needs an aria-label. */
+  /* A round icon-only action, named by its `tooltip`. Quiet ones sit in rows and cards. */
   .icon-button {
-    @apply grid size-11 shrink-0 place-items-center rounded-full bg-brand text-on-brand shadow-button transition-[background-color,box-shadow] actionable:hover:bg-brand-hover actionable:hover:shadow-button-raised;
+    @apply relative grid size-11 shrink-0 place-items-center rounded-full bg-brand text-base text-on-brand shadow-button transition-[background-color,box-shadow,color] actionable:hover:bg-brand-hover actionable:hover:shadow-button-raised;
   }
   .icon-button-ink {
     @apply bg-ink text-surface actionable:hover:bg-ink;
+  }
+  .icon-button-quiet {
+    @apply bg-transparent text-brand shadow-none actionable:hover:bg-soft actionable:hover:shadow-none;
+  }
+  /* A quiet deletion; the confirmation or Undo guards the change itself. */
+  .icon-button-danger {
+    @apply bg-transparent text-muted shadow-none actionable:hover:bg-danger-soft actionable:hover:text-danger actionable:hover:shadow-none;
+  }
+  /*
+   * The label of an icon-only control: always its accessible name, and shown on hover or keyboard
+   * focus. It extends toward the reading start, so it never widens the page; Escape hides it until
+   * the pointer or focus moves on (see `dismissibleTooltips`).
+   */
+  .tooltip {
+    @apply pointer-events-none absolute inset-e-0 bottom-full z-30 mb-2 w-max max-w-64 rounded-small bg-ink px-2.5 py-1 text-sm font-normal text-surface opacity-0 shadow-raised transition-opacity;
+    text-wrap: balance;
+
+    :root:not([data-tooltips-hidden]) :is(:focus-visible, :has(> :focus-visible)) > & {
+      @apply opacity-100 delay-300;
+    }
+    @media (hover: hover) {
+      :root:not([data-tooltips-hidden]) :hover > & {
+        @apply opacity-100 delay-300;
+      }
+    }
+  }
+  /*
+   * Where anchor positioning works, a tooltip sits in the viewport beside its own control and flips
+   * to whichever side keeps it in view, so neither the window edge nor a disclosure clips it.
+   */
+  @supports (anchor-scope: --tooltip) {
+    :has(> .tooltip) {
+      anchor-name: --tooltip;
+      anchor-scope: --tooltip;
+    }
+    .tooltip {
+      @apply fixed inset-auto;
+      position-anchor: --tooltip;
+      position-area: block-start span-inline-start;
+      position-try-fallbacks:
+        flip-inline,
+        flip-block,
+        flip-block flip-inline;
+    }
   }
   /* A suggestion that only fills a field; it never submits on its own. */
   .chip {
@@ -134,12 +167,6 @@
   .icon-tile {
     @apply grid shrink-0 place-items-center rounded-inset bg-accent text-brand ring-1 ring-brand/15 ring-inset;
   }
-  /* Inline stroke icons inherit the text color. */
-  .line-icon {
-    @apply size-5 shrink-0 fill-none stroke-current stroke-2;
-    stroke-linecap: round;
-    stroke-linejoin: round;
-  }
   /* An outcome beside a status title; `data-problem` marks a failure. */
   .status-icon {
     @apply grid size-9 shrink-0 place-items-center rounded-full bg-soft text-brand;
@@ -148,22 +175,15 @@
       @apply bg-danger-soft text-danger;
     }
   }
-  /* The assistant's avatar and inline AI icon share the loader's sparkle, so AI surfaces read as one family. */
+  /* The assistant's avatar carries the AI icon, so AI surfaces read as one family. */
   .ai-mark {
     @apply grid size-9 shrink-0 place-items-center rounded-full bg-linear-to-bl from-brand to-focus text-on-brand shadow-button ltr:bg-linear-to-br;
 
     &::before {
       content: '';
       @apply size-1/2 bg-current;
+      mask: var(--icon-ai) no-repeat center / contain;
     }
-  }
-  .ai-icon {
-    @apply inline-block size-5 shrink-0 bg-current;
-  }
-  .ai-mark::before,
-  .ai-icon {
-    mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M10 3c1.2 5.2 2.8 6.8 8 8-5.2 1.2-6.8 2.8-8 8-1.2-5.2-2.8-6.8-8-8 5.2-1.2 6.8-2.8 8-8Z'/%3E%3Cpath d='M19 2c.4 1.7.9 2.2 2.6 2.6-1.7.4-2.2.9-2.6 2.6-.4-1.7-.9-2.2-2.6-2.6 1.7-.4 2.2-.9 2.6-2.6Z'/%3E%3C/svg%3E")
-      center / contain no-repeat;
   }
 
   /* Lists. Counters replace markers; pair with role="list" so WebKit keeps list semantics. */

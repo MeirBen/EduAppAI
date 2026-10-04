@@ -2,8 +2,7 @@
   <legend class="sr-only">מצב תצוגה</legend>
   @for (option of options; track option.value) {
     <label
-      class="m-0 grid size-9 cursor-pointer place-items-center rounded-full text-muted transition-colors not-has-checked:hover:text-ink has-checked:bg-brand has-checked:text-on-brand has-focus-visible:outline-2 has-focus-visible:outline-offset-2 has-focus-visible:outline-focus"
-      [title]="option.label"
+      class="relative m-0 grid size-9 cursor-pointer place-items-center rounded-full text-muted transition-colors not-has-checked:hover:text-ink has-checked:bg-brand has-checked:text-on-brand has-focus-visible:outline-2 has-focus-visible:outline-offset-2 has-focus-visible:outline-focus"
     >
       <input
         class="sr-only"
@@ -13,19 +12,8 @@
         [checked]="theme.preference() === option.value"
         (change)="theme.select(option.value)"
       />
-      <svg
-        class="size-5"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="1.6"
-        stroke-linecap="round"
-        stroke-linejoin="round"
-        aria-hidden="true"
-      >
-        <path [attr.d]="option.icon" />
-      </svg>
-      <span class="sr-only">{{ option.label }}</span>
+      <span class="icon" [class]="option.icon" aria-hidden="true"></span>
+      <span class="tooltip">{{ option.label }}</span>
     </label>
   }
 </fieldset>

@@ -92,10 +92,10 @@ export class ActivityDocumentEditor {
     this.structureChanged.emit(change);
     restore(successor);
   }
-  /** After removing question `index`, its neighbour's options, else adding a question. */
+  /** After removing question `index`, the heading of the question in its place, else adding one. */
   protected questionSuccessor(index: number, count: number) {
     const neighbour = index < count - 1 ? index : index - 1;
-    return neighbour < 0 ? 'add-question' : `question-${neighbour}-more`;
+    return neighbour < 0 ? 'add-question' : `question-${neighbour}-heading`;
   }
   protected missing(id: string) {
     return !this.fields()
