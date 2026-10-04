@@ -23,10 +23,16 @@ export type DocumentEdit =
   | { kind: 'remove-option'; index: number; option: number }
   | { kind: 'add-material'; id: string };
 /** Improvements that keep the activity's settings, so a picked idea cannot contradict the plan. */
-const materialIdeas = ['שפה פשוטה יותר', 'דוגמאות מוחשיות יותר', 'פתיחה מעניינת יותר'];
+const materialIdeas = [
+  'שפה פשוטה יותר',
+  'דוגמאות מוחשיות יותר',
+  'פתיחה מעניינת יותר',
+  'טקסט אחר באותו נושא',
+];
 const questionIdeas = [
   'ניסוח פשוט וברור יותר',
-  'שאלה שבודקת הבנה ולא זיכרון',
+  'שאלה קלה יותר',
+  'שאלה מאתגרת יותר',
   'שאלה אחרת באותו נושא',
 ];
 /** Presentation only: edits the owner's native fields and emits explicit scoped actions. */
