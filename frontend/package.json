@@ -5,6 +5,7 @@
     "ng": "ng",
     "prestart": "../scripts/dev-cert.sh",
     "start": "ng serve",
+    "start:public": "exec ../scripts/dev.sh --public",
     "build": "ng build",
     "test": "ng test",
     "format": "prettier --write \"src/**/*.{ts,html,css}\" \"e2e/**/*.{ts,mjs}\" \"*.{ts,json}\" public/manifest.webmanifest ../.prettierrc .postcssrc.json \"../*.json\" ../.markdownlint-cli2.jsonc \"../*.md\" \"../docs/**/*.md\" ../.github/workflows/verify.yml",

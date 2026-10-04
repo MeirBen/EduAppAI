@@ -23,10 +23,13 @@ Open <https://localhost:4200>. Parent passwords need 12–256 characters with
 upper and lowercase letters, a number and a symbol. Each provisioned parent gets
 a family; there is no default account or public registration.
 
-`dev.sh` installs missing client dependencies, runs the API and client reload
-watchers and starts the evaluation dashboard at <http://127.0.0.1:5180>, without
-AI calls. **Ctrl+C** stops all three; restart after configuration changes, and
-run `npm --prefix frontend ci` after dependency changes.
+With no arguments, `dev.sh` installs missing client dependencies, runs the API
+and client reload watchers and starts the evaluation dashboard at
+<http://127.0.0.1:5180>, without AI calls. **Ctrl+C** stops all three; restart
+after configuration changes, and run `npm --prefix frontend ci` after dependency
+changes. Use
+[`npm --prefix frontend run start:public`](#public-https-address) to run the
+published app and ngrok together.
 Angular proxies `/api` to `http://localhost:5124`; use `localhost` consistently
 for cookies. Development applies the initial migration to an empty database.
 
@@ -82,10 +85,10 @@ at the repository root. Outside the repository, relative paths use the deployed
 application's content root. Logs stay outside `wwwroot` and are ignored by Git.
 The workspace configures **Log Viewer** (`berublan.vscode-log-viewer`) to follow
 `logs/server-*.jsonl`, including rolled files; open **Family Learning API** in
-its Watches view. `scripts/dev.sh` deletes `logs/` when it starts, so each run
-begins with clean logs. The file sink runs in shared mode, so management commands
-and other local instances append whole entries to the same file; automated tests
-write logs under their own temporary storage.
+its Watches view. Local development mode deletes `logs/` when it starts, so each
+run begins with clean logs. The file sink runs in shared mode, so management
+commands and other local instances append whole entries to the same file;
+automated tests write logs under their own temporary storage.
 
 Configure levels, output, rolling and retention in
 [`backend/FamilyLearning.Api/appsettings.json`](backend/FamilyLearning.Api/appsettings.json)
@@ -175,26 +178,22 @@ ngrok manages its certificate and [supports SSE](https://ngrok.com/compare/cloud
 for live updates. UI, API and event streams share that origin.
 
 Follow ngrok's [setup instructions](https://ngrok.com/download/linux) and keep
-the account token outside the repository. Replace the example domain in both
-commands below with the exact domain assigned in its dashboard. The
+the account token outside the repository. [dev.sh](scripts/dev.sh) owns the
+app's assigned domain; `start:public` calls it with `--public`. The
 [free plan](https://ngrok.com/docs/pricing-limits/free-plan-limits) has usage
 limits and a browser warning; choose **Visit** to continue.
 
-Start the application:
+After publishing and setting the storage and AI environment above, start both
+the application and tunnel in one terminal:
 
 ```bash
-ASPNETCORE_ENVIRONMENT=Production ASPNETCORE_HTTPS_PORT=443 \
-  dotnet artifacts/app/FamilyLearning.Api.dll \
-  --contentRoot "$PWD/artifacts/app" --urls http://127.0.0.1:5124 \
-  --AllowedHosts your-assigned-name.ngrok-free.app
+npm --prefix frontend run start:public
 ```
 
-In a second terminal, connect its public address:
-
-```bash
-ngrok http http://127.0.0.1:5124 \
-  --url https://your-assigned-name.ngrok-free.app --inspect=false
-```
+This mode runs the published UI/API in Production on loopback port 5124, waits
+for it to respond, then starts ngrok. **Ctrl+C**, closing the terminal or either
+service exiting stops both. It does not run the development watchers or
+evaluation dashboard, rebuild the app, or apply migrations.
 
 The host processes `X-Forwarded-For` and `X-Forwarded-Proto` from one loopback
 proxy before HTTPS redirection, authentication and rate limiting. Preserve the
@@ -207,6 +206,6 @@ Open the HTTPS address and sign in. Supporting browsers offer **Install app** or
 **Add to Home screen**. The PWA caches assets; learning data and generation need
 a connection. `/health` reports process availability, not database or AI readiness.
 
-The host machine and tunnel must stay running for the app to be available;
-**Ctrl+C** stops each foreground process. Stop the API before publishing an
-update, apply migrations, then restart it with the same storage and domain.
+The host machine and launcher must stay running for the app to be available.
+Stop the launcher before publishing an update, apply migrations, then restart
+it with the same storage and domain.
