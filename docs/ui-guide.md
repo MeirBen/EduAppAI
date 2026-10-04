@@ -87,9 +87,9 @@ take no layout slot, so they never double a gap. Group card fields with
 legend; each later headed group in a card is a `card-section`, whose rule marks
 where the previous one ends. Short related fields share a row: settings fill one
 two-column grid, numbers sit beside their siblings and a list's remove action
-sits beside its item. Content with trailing actions takes `min-w-1/2 flex-1`,
-so the actions stay beside it and wrap only once it would fall below half the
-row. Optional content renders only when present.
+sits beside its item. Content beside a tile or trailing actions takes
+`min-w-1/2 flex-1`, so they stay beside it and wrap only once it would fall
+below half the row. Optional content renders only when present.
 
 ## Styles and theming
 
