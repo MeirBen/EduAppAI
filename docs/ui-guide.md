@@ -68,8 +68,8 @@ parent labels keep their original language and values.
   message appear once the parent leaves it, and on every field once they try
   to save or send. That attempt adds one line beside its action, where problems
   with the whole form also show; a closed disclosure names invalid content in
-  its summary. A mismatch caused by editing another field, such as an answer
-  that no longer matches its options, shows at once.
+  its summary. A problem the field did not just cause shows at once: an answer
+  that another field's edit left unmatched, or one the saved check found.
 
 ## Spacing
 
