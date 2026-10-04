@@ -228,11 +228,13 @@ and never imply that another paid attempt is automatic.
 
 Display server length measurements beside saved diagnostics. Distinguish
 advisory targets from strict range blockers, and technical readiness from
-the parent's educational review. Offer adoption only in a callout beside content
-that saved diagnostics mark as stale. Frozen previews expose answers in native
-disclosures and offer an explicit copy to a new draft. A read-only box whose
-text a parent may reuse, such as an AI response or a material text, carries a
-`CopyButton`; editable fields copy natively.
+the parent's educational review. A saved question diagnostic shows at its own
+field, like a validation error, until that field changes; the review names the
+questions to fix and lists only blockers without a field. Offer adoption only in
+a callout beside content that saved diagnostics mark as stale. Frozen previews
+expose answers in native disclosures and offer an explicit copy to a new draft.
+A read-only box whose text a parent may reuse, such as an AI response or a
+material text, carries a `CopyButton`; editable fields copy natively.
 
 ## Loading
 

@@ -1,5 +1,11 @@
 import { ActivityDetail } from '../../core/api/models';
-import { activitySummary, reviewIssues, staleContent } from './activity-presentation';
+import {
+  activitySummary,
+  flaggedQuestions,
+  savedQuestionIssues,
+  reviewIssues,
+  staleContent,
+} from './activity-presentation';
 import { numericPlan, readingPlan } from './learning-plan.fixture';
 import { inputForm, planForm } from './plan-editor/plan-form';
 
@@ -62,7 +68,7 @@ describe('Parent-facing activity presentation', () => {
     );
   });
 
-  it('translates release diagnostics into actionable parent copy without hiding unknown blockers', () => {
+  it('places question problems at their fields and keeps other blockers in the review', () => {
     const saved = draft({
       document: {
         title: 'פעילות',
@@ -77,11 +83,14 @@ describe('Parent-facing activity presentation', () => {
         'materials.capacity': ['אין מספיק מקום לטקסטים ולשאלות שהתבקשו.'],
       },
     });
-    expect(reviewIssues(saved)).toEqual([
-      'בשאלה 1 התשובה הנכונה כבר אינה תואמת לאחת האפשרויות. בחרו תשובה נכונה מחדש.',
-      'בשאלה 2 חסרה תשובה נכונה.',
-      'אין מספיק מקום לטקסטים ולשאלות שהתבקשו.',
-    ]);
+    expect(savedQuestionIssues(saved)).toEqual(
+      new Map([
+        ['q1', { answer: 'התשובה הנכונה כבר אינה תואמת לאחת האפשרויות. בחרו אותה מחדש.' }],
+        ['q2', { answer: 'חסרה תשובה נכונה.' }],
+      ]),
+    );
+    expect(reviewIssues(saved)).toEqual(['אין מספיק מקום לטקסטים ולשאלות שהתבקשו.']);
+    expect(flaggedQuestions([1, 3])).toEqual(['יש לתקן את המסומן בשאלות 1 ו-3.']);
   });
 
   it('maps stale diagnostics to saved identities and explains a changed source text', () => {

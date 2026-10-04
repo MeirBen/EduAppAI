@@ -86,22 +86,45 @@ export function staleContent(saved: ActivityDetail | undefined) {
   return { materials, questions };
 }
 
-function questionIssue(saved: ActivityDetail, index: number, field: string, message: string) {
-  const number = index + 1,
-    question = saved.document.questions[index];
-  switch (field) {
-    case 'prompt':
-      return `בשאלה ${number} חסר נוסח.`;
-    case 'format':
-      return `סוג התשובה בשאלה ${number} אינו מתאים להגדרות הפעילות.`;
-    case 'answer':
-      if (!question?.answer?.value.trim()) return `בשאלה ${number} חסרה תשובה נכונה.`;
-      if (question.interaction.type === 'single-choice')
-        return `בשאלה ${number} התשובה הנכונה כבר אינה תואמת לאחת האפשרויות. בחרו תשובה נכונה מחדש.`;
-      return `בשאלה ${number}: ${message}`;
-    default:
-      return `בשאלה ${number}: ${message}`;
+/** A saved question's release problems, keyed by the form field each one concerns. */
+export type QuestionIssues = Partial<Record<'prompt' | 'type' | 'options' | 'answer', string>>;
+
+const questionField = /^questions\[(\d+)\]\.(prompt|format|options|answer)$/;
+
+/** Question diagnostics in parent words by saved identity, so each shows at its own field. */
+export function savedQuestionIssues(saved: ActivityDetail | undefined) {
+  const issues = new Map<string, QuestionIssues>();
+  for (const [key, [message = '']] of Object.entries(saved?.diagnostics ?? {})) {
+    const match = questionField.exec(key);
+    const question = match && saved!.document.questions[Number(match[1])];
+    if (!match || !question?.id) continue;
+    const field = match[2] === 'format' ? 'type' : (match[2] as keyof QuestionIssues);
+    issues.set(question.id, {
+      ...issues.get(question.id),
+      [field]: questionIssue(question, field, message),
+    });
   }
+  return issues;
+}
+
+function questionIssue(
+  question: ActivityDetail['document']['questions'][number],
+  field: keyof QuestionIssues,
+  message: string,
+) {
+  if (field === 'prompt') return 'חסר נוסח לשאלה.';
+  if (field === 'type') return 'סוג התשובה אינו מתאים להגדרות הפעילות.';
+  if (field === 'answer' && !question.answer?.value.trim()) return 'חסרה תשובה נכונה.';
+  if (field === 'answer' && question.interaction.type === 'single-choice')
+    return 'התשובה הנכונה כבר אינה תואמת לאחת האפשרויות. בחרו אותה מחדש.';
+  return message;
+}
+
+/** Points the review at the questions whose fields show a release problem, numbered as shown. */
+export function flaggedQuestions(numbers: number[]): string[] {
+  if (!numbers.length) return [];
+  const list = new Intl.ListFormat('he', { type: 'conjunction' }).format(numbers.map(String));
+  return [`יש לתקן את המסומן ${numbers.length === 1 ? 'בשאלה' : 'בשאלות'} ${list}.`];
 }
 
 /** Acceptance records the material revisions a question was written against. */
@@ -124,8 +147,8 @@ function sourceChanged(saved: ActivityDetail, indexes: number[]) {
 
 /**
  * Parent wording for server-derived release diagnostics. Unknown keys keep the server's Hebrew
- * message, so no blocker is ever hidden. Length keys are omitted: measurements show them beside
- * the required and actual counts.
+ * message, so no blocker is ever hidden. Length keys and question fields are omitted: measurements
+ * show lengths beside their counts, and each question field shows its own problem.
  */
 export function reviewIssues(saved: ActivityDetail | undefined): string[] {
   if (!saved) return [];
@@ -135,9 +158,9 @@ export function reviewIssues(saved: ActivityDetail | undefined): string[] {
   for (const [key, [message = '']] of Object.entries(saved.diagnostics)) {
     const question = /^questions\[(\d+)\]\.(\w+)$/.exec(key);
     const material = /^materials\.([^.]+)(?:\.(\w+))?$/.exec(key);
-    if (key.startsWith('length.')) continue;
+    if (key.startsWith('length.') || questionField.test(key)) continue;
     if (question?.[2] === 'stale') staleQuestions.push(Number(question[1]));
-    else if (question) issues.push(questionIssue(saved, Number(question[1]), question[2], message));
+    else if (question) issues.push(`בשאלה ${Number(question[1]) + 1}: ${message}`);
     else if (material && material[1] !== 'capacity')
       issues.push(
         material[2] === 'stale'

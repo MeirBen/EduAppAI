@@ -111,6 +111,7 @@
       @for (value of fields().questions().value(); track value.key; let i = $index) {
         @let question = fields().questions[i];
         @let id = question.id().value();
+        @let issue = questionIssues().get(id);
         <li class="well grid gap-4" [attr.aria-labelledby]="'question-' + i + '-heading'">
           <div class="flex flex-wrap items-center justify-between gap-x-3">
             <h3 [id]="'question-' + i + '-heading'">שאלה {{ i + 1 }}</h3>
@@ -168,7 +169,14 @@
               [id]="'question-' + i + '-prompt'"
               dir="auto"
               [formField]="question.prompt"
+              [flagged]="!!issue?.prompt"
+              [attr.aria-describedby]="'question-' + i + '-prompt-errors'"
             ></textarea>
+            <app-field-errors
+              [id]="'question-' + i + '-prompt-errors'"
+              [field]="question.prompt"
+              [problem]="issue?.prompt"
+            />
           </div>
           @if (value.type === 'single-choice') {
             <div class="grid gap-4">
@@ -198,15 +206,23 @@
                   </button>
                 </div>
               }
-              <button
-                type="button"
-                class="button button-secondary"
-                [id]="'question-' + i + '-add-option'"
-                [disabledInteractive]="locked() || value.options.length >= limits.maxChoiceCount"
-                (click)="structureChanged.emit({ kind: 'add-option', index: i })"
-              >
-                <span class="icon icon-add" aria-hidden="true"></span>הוספת אפשרות
-              </button>
+              <div>
+                <button
+                  type="button"
+                  class="button button-secondary"
+                  [id]="'question-' + i + '-add-option'"
+                  [disabledInteractive]="locked() || value.options.length >= limits.maxChoiceCount"
+                  [attr.aria-describedby]="'question-' + i + '-options-errors'"
+                  (click)="structureChanged.emit({ kind: 'add-option', index: i })"
+                >
+                  <span class="icon icon-add" aria-hidden="true"></span>הוספת אפשרות
+                </button>
+                <app-field-errors
+                  [id]="'question-' + i + '-options-errors'"
+                  [field]="question.options"
+                  [problem]="issue?.options"
+                />
+              </div>
             </div>
             <div>
               <label [for]="'question-' + i + '-answer'"
@@ -216,8 +232,10 @@
               <select
                 [id]="'question-' + i + '-answer'"
                 [formField]="question.answer"
-                [attr.aria-describedby]="'question-' + i + '-answer-help'"
-                [mismatch]="!!value.answer && !matches(value)"
+                [attr.aria-describedby]="
+                  'question-' + i + '-answer-help question-' + i + '-answer-errors'
+                "
+                [flagged]="(!!value.answer && !matches(value)) || !!issue?.answer"
               >
                 <option value="">בחרו את התשובה הנכונה</option>
                 @if (value.answer && !matches(value)) {
@@ -236,6 +254,11 @@
               <p [id]="'question-' + i + '-answer-help'" class="mt-2 text-sm text-muted">
                 שינוי נוסח של אפשרות אינו משנה את התשובה הנכונה. אם צריך, בחרו אותה מחדש.
               </p>
+              <app-field-errors
+                [id]="'question-' + i + '-answer-errors'"
+                [field]="question.answer"
+                [problem]="issue?.answer"
+              />
             </div>
           } @else {
             <div>
@@ -246,6 +269,13 @@
                 [id]="'question-' + i + '-answer'"
                 [dir]="value.type === 'numeric-input' ? 'ltr' : 'auto'"
                 [formField]="question.answer"
+                [flagged]="!!issue?.answer"
+                [attr.aria-describedby]="'question-' + i + '-answer-errors'"
+              />
+              <app-field-errors
+                [id]="'question-' + i + '-answer-errors'"
+                [field]="question.answer"
+                [problem]="issue?.answer"
               />
             </div>
           }
@@ -266,18 +296,28 @@
             <details class="group">
               <summary [id]="'question-' + i + '-more'">
                 סוג התשובה והניקוד — שאלה {{ i + 1 }}
-                @if (question.points().invalid()) {
-                  <span class="text-danger group-open:hidden">· יש לתקן את הניקוד</span>
+                @if (question.points().invalid() || issue?.type) {
+                  <span class="text-danger group-open:hidden">· נדרש תיקון</span>
                 }
               </summary>
               <div class="grid gap-4">
                 <div>
                   <label [for]="'question-' + i + '-type'">סוג התשובה</label
-                  ><select [id]="'question-' + i + '-type'" [formField]="question.type">
+                  ><select
+                    [id]="'question-' + i + '-type'"
+                    [formField]="question.type"
+                    [flagged]="!!issue?.type"
+                    [attr.aria-describedby]="'question-' + i + '-type-errors'"
+                  >
                     <option value="numeric-input">מספר</option>
                     <option value="text-input">טקסט קצר</option>
                     <option value="single-choice">בחירה מתוך אפשרויות</option>
                   </select>
+                  <app-field-errors
+                    [id]="'question-' + i + '-type-errors'"
+                    [field]="question.type"
+                    [problem]="issue?.type"
+                  />
                 </div>
                 <div>
                   <label [for]="'question-' + i + '-points'">נקודות</label

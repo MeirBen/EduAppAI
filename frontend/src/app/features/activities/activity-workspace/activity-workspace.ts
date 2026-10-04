@@ -47,8 +47,11 @@ import { ActivityDocumentView } from '../activity-document-view/activity-documen
 import { measurementItems } from '../activity-document-view/measurements';
 import {
   activitySummary,
+  flaggedQuestions,
   planChangeLabel,
+  QuestionIssues,
   reviewIssues,
+  savedQuestionIssues,
   staleContent,
 } from '../activity-presentation';
 import { ActivityReview } from '../activity-review/activity-review';
@@ -322,7 +325,29 @@ export class ActivityWorkspace {
   protected readonly measurements = computed(() =>
     measurementItems(this.saved()?.measurements ?? [], this.saved()?.plan),
   );
-  protected readonly issues = computed(() => reviewIssues(this.saved()));
+  /** The saved check's question problems, each shown until its field differs from the saved value. */
+  protected readonly questionIssues = computed(() => {
+    const shown = new Map<string, QuestionIssues>();
+    for (const [id, issues] of savedQuestionIssues(this.saved())) {
+      const now = this.raw().document.questions.find((q) => q.id === id),
+        then = this.baseline().document.questions.find((q) => q.id === id);
+      if (!now || !then) continue;
+      const kept = Object.entries(issues).filter(([field]) => {
+        const key = field as keyof QuestionIssues;
+        return JSON.stringify(now[key]) === JSON.stringify(then[key]);
+      });
+      if (kept.length) shown.set(id, Object.fromEntries(kept));
+    }
+    return shown;
+  });
+  protected readonly issues = computed(() => [
+    ...reviewIssues(this.saved()),
+    ...flaggedQuestions(
+      this.raw().document.questions.flatMap((q, i) =>
+        this.questionIssues().has(q.id) ? [i + 1] : [],
+      ),
+    ),
+  ]);
   protected readonly stale = computed(() => staleContent(this.saved()));
   protected readonly operationActive = computed(
     () => !!this.operationId() && (!this.operation() || isRunning(this.operation()!)),

@@ -185,7 +185,8 @@ test('exact bilingual source bypasses material generation and missing answers bl
   await page.locator('#question-0-answer').fill('');
   await page.locator('#save-activity').click();
   await expect(page.getByText('נשמר', { exact: true })).toBeVisible();
-  await expect(page.getByText('בשאלה 1 חסרה תשובה נכונה.')).toBeVisible();
+  await expect(page.locator('#question-0-answer-errors')).toHaveText('חסרה תשובה נכונה.');
+  await expect(page.getByText('יש לתקן את המסומן בשאלה 1.')).toBeVisible();
   await page.locator('#release-activity').click();
   await expect(page.getByRole('alert')).toBeVisible();
   expect(await (await page.request.get('/api/instances')).json()).toEqual([]);

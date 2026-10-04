@@ -156,6 +156,7 @@
         [empty]="!hasContent()"
         [staleMaterials]="stale().materials"
         [staleQuestions]="stale().questions"
+        [questionIssues]="questionIssues()"
         [status]="operationStatus"
         [statusTarget]="operationTarget()"
         (edited)="edited($event)"

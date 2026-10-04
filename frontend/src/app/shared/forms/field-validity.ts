@@ -10,11 +10,11 @@ import { FormField } from '@angular/forms/signals';
   host: { '[attr.aria-invalid]': 'invalid() || null' },
 })
 export class FieldValidity {
-  /** A problem another field's edit caused, shown at once since this field was never touched. */
-  readonly mismatch = input(false);
+  /** A problem shown at once: another field's edit caused it, or the saved check found it. */
+  readonly flagged = input(false);
   private readonly field = inject(FormField);
   protected readonly invalid = computed(() => {
     const state = this.field.state();
-    return this.mismatch() || (state.touched() && state.invalid());
+    return this.flagged() || (state.touched() && state.invalid());
   });
 }

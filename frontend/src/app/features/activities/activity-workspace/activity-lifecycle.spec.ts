@@ -154,6 +154,27 @@ describe('Activity lifecycle', () => {
     http.expectNone((r) => r.method === 'PUT' || r.method === 'POST');
     expect((root().querySelector('#question-0-points') as HTMLInputElement).value).toBe('1.5');
   });
+  it('shows a saved question problem at its own field until that field changes', async () => {
+    await open(true, {
+      ...savedActivity,
+      document: {
+        ...savedActivity.document,
+        questions: [savedQuestion, { ...savedQuestion, id: 'q2', answer: null }],
+      },
+      diagnostics: { 'questions[1].answer': ['יש להזין תשובה באורך של 1 עד 200 תווים.'] },
+    });
+    const answer = root().querySelector('#question-1-answer')!;
+    const review = root().querySelector('app-activity-review')!;
+    expect(answer.getAttribute('aria-invalid')).toBe('true');
+    const messages = root().querySelectorAll('#question-1-answer-errors p');
+    expect([...messages].map((message) => message.textContent)).toEqual(['חסרה תשובה נכונה.']);
+    expect(root().querySelector('#question-0-answer')!.getAttribute('aria-invalid')).toBeNull();
+    expect(review.textContent).toContain('יש לתקן את המסומן בשאלה 2.');
+    await type('question-1-answer', '4');
+    expect(answer.getAttribute('aria-invalid')).toBeNull();
+    expect(root().querySelector('#question-1-answer-errors')!.textContent!.trim()).toBe('');
+    expect(review.textContent).not.toContain('יש לתקן את המסומן');
+  });
   it('saves incomplete manual content and undo as new revisions without acceptance metadata', async () => {
     await open();
     await type('document-title', 'תיקון');
