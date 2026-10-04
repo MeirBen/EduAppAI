@@ -44,12 +44,9 @@ fi
 mkcert -install
 ```
 
-`npm start` then issues a trusted certificate for `localhost` and this
-computer's network addresses. To use a phone on the same network, install
-`$(mkcert -CAROOT)/rootCA.pem` on it once as a CA certificate (Android:
-**Settings → Security → Encryption & credentials → Install a certificate → CA
-certificate**) and open `https://<network address>:4200`. Never share
-`rootCA-key.pem`.
+`npm start` issues a trusted development certificate. Never share
+`rootCA-key.pem`. For access from other devices, use the app's
+[public HTTPS address](#public-https-address).
 
 [mkcert]: https://github.com/FiloSottile/mkcert
 
@@ -154,28 +151,62 @@ active database file.
 ```
 
 `artifacts/app/` holds the API and client and needs the ASP.NET Core 8 runtime;
-publishing preserves `artifacts/app/data/`. For a local preview:
+publishing preserves `artifacts/app/data/`. Deploy with **Production**, HTTPS
+and one API process. Keep the database and keys in the same persistent directory
+across deployments, outside `wwwroot`. From the repository root, apply migrations
+before starting; Production does not migrate automatically:
 
 ```bash
-export Storage__Directory="$PWD/backend/FamilyLearning.Api/data"
-ASPNETCORE_ENVIRONMENT=Development dotnet artifacts/app/FamilyLearning.Api.dll \
-  --contentRoot "$PWD/artifacts/app" --urls http://localhost:5124
+export Storage__Directory="$HOME/.local/share/family-learning"
+dotnet artifacts/app/FamilyLearning.Api.dll --migrate
 ```
 
-Deploy with **Production**, HTTPS, one process and persistent storage for the
-database and keys, with restricted directory permissions. Production does not
-migrate automatically; apply migrations before starting:
+To use an existing database, set `Storage__Directory` to its directory instead;
+stop its other API process first. For a new database, provision a parent with
+`dotnet artifacts/app/FamilyLearning.Api.dll --create-parent you@example.com`
+in the same terminal. Supply `Ai__ApiKey` or `OPENROUTER_API_KEY` to enable
+generation; Production uses the [published AI profile](docs/ai.md#configuration)
+and environment variables, not development user secrets.
+
+### Public HTTPS address
+
+An account-assigned ngrok domain provides the web app's stable HTTPS address.
+ngrok manages its certificate and [supports SSE](https://ngrok.com/compare/cloudflare-tunnel)
+for live updates. UI, API and event streams share that origin.
+
+Follow ngrok's [setup instructions](https://ngrok.com/download/linux) and keep
+the account token outside the repository. Replace the example domain in both
+commands below with the exact domain assigned in its dashboard. The
+[free plan](https://ngrok.com/docs/pricing-limits/free-plan-limits) has usage
+limits and a browser warning; choose **Visit** to continue.
+
+Start the application:
 
 ```bash
-Storage__Directory=/absolute/persistent/data dotnet \
-  artifacts/app/FamilyLearning.Api.dll --migrate
+ASPNETCORE_ENVIRONMENT=Production ASPNETCORE_HTTPS_PORT=443 \
+  dotnet artifacts/app/FamilyLearning.Api.dll \
+  --contentRoot "$PWD/artifacts/app" --urls http://127.0.0.1:5124 \
+  --AllowedHosts your-assigned-name.ngrok-free.app
 ```
 
-Set `AllowedHosts` to the real hostnames. Behind a reverse proxy, configure its
-trusted networks and process forwarded headers before HTTPS redirection,
-authentication and rate limiting, following
+In a second terminal, connect its public address:
+
+```bash
+ngrok http http://127.0.0.1:5124 \
+  --url https://your-assigned-name.ngrok-free.app --inspect=false
+```
+
+The host processes `X-Forwarded-For` and `X-Forwarded-Proto` from one loopback
+proxy before HTTPS redirection, authentication and rate limiting. Preserve the
+original `Host` header and disable proxy buffering for `/api/library/changes`.
+For a proxy on another machine, explicitly configure its trusted address in
+`ForwardedHeadersOptions`, following
 [Microsoft's proxy guidance](https://learn.microsoft.com/en-us/aspnet/core/host-and-deploy/proxy-load-balancer?view=aspnetcore-8.0).
-Disable proxy response buffering for the `/api/library/changes` event stream.
-The PWA caches assets only, and `/health` reports process availability, not
-database or AI readiness. Account recovery and the child flow are
-[next steps](docs/product-specification.md#next-steps).
+
+Open the HTTPS address and sign in. Supporting browsers offer **Install app** or
+**Add to Home screen**. The PWA caches assets; learning data and generation need
+a connection. `/health` reports process availability, not database or AI readiness.
+
+The host machine and tunnel must stay running for the app to be available;
+**Ctrl+C** stops each foreground process. Stop the API before publishing an
+update, apply migrations, then restart it with the same storage and domain.

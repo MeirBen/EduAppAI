@@ -5,6 +5,7 @@ using System.Text.Json;
 using FamilyLearning.Api.Infrastructure.Auth;
 using FamilyLearning.Api.Infrastructure.Persistence;
 using FamilyLearning.Api.Tests.Fixtures;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.HttpsPolicy;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -88,7 +89,7 @@ public sealed class ProductionHostTests
             cookie => cookie.Name == "FamilyLearning.Auth");
         Assert.True(auth.Secure);
         Assert.True(auth.HttpOnly);
-        Assert.Equal(SameSiteMode.Strict, auth.SameSite);
+        Assert.Equal(Microsoft.Net.Http.Headers.SameSiteMode.Strict, auth.SameSite);
 
         using var session = await client.GetAsync("/api/auth/me");
         Assert.Equal(HttpStatusCode.OK, session.StatusCode);
@@ -100,6 +101,48 @@ public sealed class ProductionHostTests
         Assert.Equal(HttpStatusCode.NoContent, (await client.PostAsync("/api/auth/logout", null)).StatusCode);
         Assert.Equal(HttpStatusCode.Unauthorized, (await client.GetAsync("/api/auth/me")).StatusCode);
     }
+
+    [Theory]
+    [InlineData("127.0.0.1", true)]
+    [InlineData("::1", true)]
+    [InlineData("::ffff:127.0.0.1", true)]
+    [InlineData("203.0.113.9", false)]
+    public async Task Only_local_proxies_can_forward_https_and_client_address(string proxyAddress, bool trusted)
+    {
+        using var app = new ApiFactory(services =>
+            services.Configure<HttpsRedirectionOptions>(options => options.HttpsPort = 443), "Production");
+        await MigrateAsync(app.DataDirectory);
+        var context = await app.Server.SendAsync(http =>
+        {
+            http.Connection.RemoteIpAddress = IPAddress.Parse(proxyAddress);
+            http.Request.Scheme = "http";
+            http.Request.Host = new HostString("family.example.test");
+            http.Request.Path = "/api/auth/csrf";
+            // Appended proxy values must take precedence over client-supplied headers.
+            http.Request.Headers["X-Forwarded-Proto"] = "http, https";
+            http.Request.Headers["X-Forwarded-For"] = "192.0.2.123, 198.51.100.42";
+            http.Request.Headers["X-Forwarded-Host"] = "untrusted.example.test";
+        });
+
+        Assert.Equal(trusted ? StatusCodes.Status200OK : StatusCodes.Status307TemporaryRedirect, context.Response.StatusCode);
+        Assert.Equal(trusted ? "https" : "http", context.Request.Scheme);
+        Assert.Equal(IPAddress.Parse(trusted ? "198.51.100.42" : proxyAddress), context.Connection.RemoteIpAddress);
+        Assert.Equal("family.example.test", context.Request.Host.Value);
+        Assert.Equal(trusted, context.Response.Headers.ContainsKey(HeaderNames.StrictTransportSecurity));
+        var cookies = context.Response.GetTypedHeaders().SetCookie;
+        if (trusted)
+        {
+            Assert.Equal(2, cookies.Count);
+            Assert.All(cookies, cookie => Assert.True(cookie.Secure));
+            Assert.True(Assert.Single(cookies, cookie => cookie.Name == "FamilyLearning.Csrf").HttpOnly);
+        }
+        else
+        {
+            Assert.Empty(cookies);
+            Assert.Equal("https://family.example.test/api/auth/csrf", context.Response.Headers.Location);
+        }
+    }
+
     private static async Task MigrateAsync(string directory)
     {
         var start = new ProcessStartInfo("dotnet");

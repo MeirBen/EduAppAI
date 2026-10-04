@@ -6,6 +6,7 @@ using FamilyLearning.Api.Infrastructure.Persistence;
 using FamilyLearning.Api.Infrastructure.Web;
 using FamilyLearning.Api.TaskEngine.Ai;
 using Microsoft.AspNetCore.DataProtection;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.EntityFrameworkCore;
 using Serilog;
 
@@ -45,6 +46,11 @@ try
     builder.WebHost.ConfigureKestrel(options => options.Limits.MaxRequestBodySize = 256 * 1024);
     app = builder.Build();
     app.Logger.LogInformation("Starting API host with AI configured: {AiConfigured}", app.Services.GetRequiredService<AiGenerationService>().Configured);
+    // Local proxies terminate TLS; retain the framework's one-hop, loopback-only trust defaults.
+    app.UseForwardedHeaders(new ForwardedHeadersOptions
+    {
+        ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
+    });
     app.UseApplicationRequestLogging();
     if (app.Environment.IsDevelopment())
     {
