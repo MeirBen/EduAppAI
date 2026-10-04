@@ -55,6 +55,7 @@ All routes are under `/api`; writes enforce CSRF.
 | `DELETE instances/{id}`                   | One snapshot          |
 | `DELETE templates/{id}`                   | Template and versions |
 | `DELETE templates`                        | Family learning reset |
+| `GET library/changes`                     | Change notes (SSE)    |
 
 `EngineValidation` names every client-visible limit once; validators, their
 messages, prompts and `ContentLimits` (served by `GET limits`) all read those
@@ -103,6 +104,17 @@ The single `InitialCreate` migration owns the model. Development initializes an
 empty database; Production requires the explicit management command. Tests use
 disposable storage, the real `Program` composition and isolated providers;
 worker tests disable automatic polling to drive transitions deterministically.
+
+## Change notes
+
+`Features/Library` streams server-sent change notes to the family that made a
+write, after its commit. Successful library route writes publish through one
+endpoint filter, and the worker publishes after each commit. A note carries no
+content, so clients reread what they show. Each stream holds at most one
+pending note, so changes coalesce, and its first note covers anything committed
+before it subscribed. A family may hold 16 streams. Each ends after five minutes
+or at shutdown, and reconnecting re-runs authentication. Like the queue,
+delivery is process-local.
 
 ## Durable generation
 
@@ -218,6 +230,12 @@ final commit, and pauses while the page is hidden; a changed revision or dirty
 buffer turns the result into an explicit reload offer. Lost start responses keep
 their key and request for replay, and candidates pass a bounded editable-field
 mapping before transfer.
+
+`LearningApi.libraryChanges` follows the change stream while the page is
+visible. The library reloads its lists in place once running reads settle.
+`draftElsewhere` reads the open draft once the workspace's own writes settle and
+reports a newer revision or a deletion. Nothing is applied unasked; reload stays
+explicit. Template editing relies on its publication conflict check.
 
 The library separates drafts, templates and snapshots; a snapshot copy creates
 a new draft without AI. The PWA caches assets only. One Playwright suite tests

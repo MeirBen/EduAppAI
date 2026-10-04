@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json.Nodes;
 using FamilyLearning.Api.Features.Activities;
+using FamilyLearning.Api.Features.Library;
 using FamilyLearning.Api.Infrastructure.Persistence;
 using FamilyLearning.Api.TaskEngine.Ai;
 using Microsoft.EntityFrameworkCore;
@@ -72,6 +73,7 @@ public sealed class GenerationRecoveryTests
         using var restarted = new GenerationWorker(app.App.Services.GetRequiredService<IServiceScopeFactory>(),
             app.App.Services.GetRequiredService<AiGenerationService>(), app.Clock, Options.Create(new GenerationOperationOptions()),
             app.App.Services.GetRequiredService<IOptions<AiGenerationOptions>>(), app.Configuration,
+            app.App.Services.GetRequiredService<LibraryChanges>(),
             app.App.Services.GetRequiredService<Microsoft.Extensions.Logging.ILogger<GenerationWorker>>());
         await restarted.RecoverAsync(default);
         await restarted.RunNextAsync(default);

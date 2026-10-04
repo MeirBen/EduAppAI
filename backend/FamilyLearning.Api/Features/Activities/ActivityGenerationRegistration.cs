@@ -1,3 +1,4 @@
+using FamilyLearning.Api.Features.Library;
 using FamilyLearning.Api.TaskEngine.Ai;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
@@ -15,7 +16,7 @@ public static class ActivityGenerationRegistration
             .Validate(o => o.PollIntervalSeconds is >= 1 and <= 60, "GenerationOperations:PollIntervalSeconds must be between 1 and 60.").ValidateOnStart();
         services.AddSingleton(p => new GenerationWorker(p.GetRequiredService<IServiceScopeFactory>(), p.GetRequiredService<AiGenerationService>(),
             p.GetRequiredService<TimeProvider>(), p.GetRequiredService<IOptions<GenerationOperationOptions>>(), p.GetRequiredService<IOptions<AiGenerationOptions>>(), configuration,
-            p.GetRequiredService<ILogger<GenerationWorker>>()));
+            p.GetRequiredService<LibraryChanges>(), p.GetRequiredService<ILogger<GenerationWorker>>()));
         services.AddHostedService(p => p.GetRequiredService<GenerationWorker>());
     }
 }

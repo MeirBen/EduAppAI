@@ -185,14 +185,7 @@ public sealed class EvaluationCommandTests : IDisposable
     {
         Directory.CreateDirectory(directory);
         var report = EvaluationReportsTests.CreateReport();
-        report.Results.Add(new("reading", 1)
-        {
-            Plan = EvaluationFixtures.Plan(),
-            Input = LearningPlanFixture.Resolve(EvaluationFixtures.Plan()),
-            Materials = EvaluationReportsTests.Skipped(),
-            Authoring = EvaluationReportsTests.Step(),
-            Generation = EvaluationReportsTests.Step(role: "questions")
-        });
+        report.Results.Add(EvaluationReportsTests.ReadingResult());
         await EvaluationFiles.SaveAsync(report, directory);
         var path = Path.Combine(directory, "run.json");
         if (invalidReport)

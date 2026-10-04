@@ -34,6 +34,8 @@ async function isolate(page: Page) {
       return route.fulfill({ json: { email: 'parent@example.test', familyId: 'family' } });
     if (path === '/api/auth/csrf') return route.fulfill({ json: { token: 'isolated' } });
     if (path === '/api/limits') return route.fulfill({ json: limits });
+    // No other device exists here; 204 closes the change stream without a retry.
+    if (path === '/api/library/changes') return route.fulfill({ status: 204 });
     if (path === '/api/ai/status')
       return route.fulfill({ json: { configured: true, schemaVersion: 1 } });
     if (path === '/api/templates/example')

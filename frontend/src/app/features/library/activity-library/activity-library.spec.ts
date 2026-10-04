@@ -4,8 +4,14 @@ import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { ActivityLibrary } from './activity-library';
 import { provideLimits } from '../../../core/api/limits.fixture';
+import { FakeEventSource } from '../../../core/api/event-source.fixture';
+
+const draft = { id: 'draft', name: 'בעבודה', revision: 2, updatedAtUtc: '2026-10-01T00:00:00Z' };
+const snapshot = { id: 'ready', title: 'מוכנה', status: 'Ready', createdAtUtc: draft.updatedAtUtc };
+
 describe('Activity library', () => {
-  it('separates editable drafts and ready snapshots, and deletes only the explicitly selected draft', async () => {
+  let http: HttpTestingController;
+  beforeEach(() => {
     TestBed.configureTestingModule({
       providers: [
         provideHttpClient(),
@@ -14,24 +20,22 @@ describe('Activity library', () => {
         provideLimits(),
       ],
     });
-    const fixture = TestBed.createComponent(ActivityLibrary),
-      http = TestBed.inject(HttpTestingController);
+    http = TestBed.inject(HttpTestingController);
+  });
+  afterEach(() => vi.restoreAllMocks());
+
+  async function render() {
+    const fixture = TestBed.createComponent(ActivityLibrary);
     fixture.detectChanges();
     http.expectOne('/api/templates').flush([]);
-    http
-      .expectOne('/api/instances')
-      .flush([
-        { id: 'ready', title: 'מוכנה', status: 'Ready', createdAtUtc: '2026-10-01T00:00:00Z' },
-      ]);
-    http.expectOne('/api/activity-drafts').flush([
-      {
-        id: 'draft',
-        name: 'בעבודה',
-        revision: 2,
-        updatedAtUtc: '2026-10-01T00:00:00Z',
-      },
-    ]);
+    http.expectOne('/api/instances').flush([snapshot]);
+    http.expectOne('/api/activity-drafts').flush([draft]);
     await fixture.whenStable();
+    return fixture;
+  }
+
+  it('separates editable drafts and ready snapshots, and deletes only the explicitly selected draft', async () => {
+    const fixture = await render();
     const root = fixture.nativeElement as HTMLElement;
     expect(root.querySelector('a[href="/activities/draft"]')).not.toBeNull();
     expect(root.querySelector('a[href="/instances/ready"]')).not.toBeNull();
@@ -46,6 +50,51 @@ describe('Activity library', () => {
     expect(root.querySelector('a[href="/instances/ready"]')).not.toBeNull();
     // The confirmed deletion leaves its list without refetching the library.
     http.verify();
-    vi.restoreAllMocks();
+  });
+
+  it('reloads its lists after a change note, waiting for running reads and keeping them shown', async () => {
+    const fixture = await render();
+    const root = fixture.nativeElement as HTMLElement;
+    const [stream] = FakeEventSource.opened;
+    expect(stream.url).toBe('/api/library/changes?ngsw-bypass');
+    stream.send();
+    TestBed.tick();
+    const running = ['/api/templates', '/api/instances', '/api/activity-drafts'].map((path) =>
+      http.expectOne(path),
+    );
+    // This change may postdate the running reads, so the lists reload again once they settle.
+    stream.send();
+    TestBed.tick();
+    http.expectNone('/api/activity-drafts');
+    expect(root.querySelector('a[href="/activities/draft"]')).not.toBeNull();
+    running[0].flush([]);
+    running[1].flush([snapshot]);
+    running[2].flush([draft]);
+    await vi.waitFor(() => {
+      TestBed.tick();
+      http.expectOne('/api/activity-drafts').flush([{ ...draft, id: 'phone' }, draft]);
+    });
+    http.expectOne('/api/templates').flush([]);
+    http.expectOne('/api/instances').flush([snapshot]);
+    await fixture.whenStable();
+    expect(root.querySelector('a[href="/activities/phone"]')).not.toBeNull();
+  });
+
+  it('holds the change stream only while the page is visible', async () => {
+    const visibility = vi.spyOn(document, 'visibilityState', 'get');
+    const show = (state: DocumentVisibilityState) => {
+      visibility.mockReturnValue(state);
+      document.dispatchEvent(new Event('visibilitychange'));
+    };
+    await render();
+    show('hidden');
+    expect(FakeEventSource.opened.map((source) => source.readyState)).toEqual([
+      FakeEventSource.CLOSED,
+    ]);
+    show('visible');
+    expect(FakeEventSource.opened.map((source) => source.readyState)).toEqual([
+      FakeEventSource.CLOSED,
+      0,
+    ]);
   });
 });

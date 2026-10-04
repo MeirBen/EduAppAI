@@ -1,5 +1,6 @@
 using System.Security.Cryptography;
 using System.Text.Json;
+using FamilyLearning.Api.Features.Library;
 using FamilyLearning.Api.Infrastructure.Ai;
 using FamilyLearning.Api.Infrastructure.Persistence;
 using FamilyLearning.Api.TaskEngine;
@@ -14,7 +15,7 @@ namespace FamilyLearning.Api.Features.Activities;
 /// <summary>One process, one sequential content caller. SQLite checkpoints own recovery; no transaction crosses a provider call.</summary>
 public sealed partial class GenerationWorker(IServiceScopeFactory scopes, AiGenerationService ai, TimeProvider clock,
     IOptions<GenerationOperationOptions> options, IOptions<AiGenerationOptions> aiOptions, IConfiguration configuration,
-    ILogger<GenerationWorker> logger) : BackgroundService
+    LibraryChanges changes, ILogger<GenerationWorker> logger) : BackgroundService
 {
     private readonly object transportLock = new();
     private Guid? callingId;
@@ -112,6 +113,7 @@ public sealed partial class GenerationWorker(IServiceScopeFactory scopes, AiGene
             draft.ClearOperation(operation.Id, UtcNow);
             await db.SaveChangesAsync(ct);
             await transaction.CommitAsync(ct);
+            changes.Publish(operation.FamilyId);
             LogOperationRejected(logger, operation.Id, operation.DraftId, failure);
             return (true, null);
         }
@@ -185,6 +187,7 @@ public sealed partial class GenerationWorker(IServiceScopeFactory scopes, AiGene
         }
         await db.SaveChangesAsync(ct);
         await transaction.CommitAsync(ct);
+        changes.Publish(operation.FamilyId);
         LogStageCheckpointed(logger, operation.Status is "failed" or "conflict" ? LogLevel.Warning : LogLevel.Information,
             operation.Status, operation.Failure);
     }
@@ -208,6 +211,7 @@ public sealed partial class GenerationWorker(IServiceScopeFactory scopes, AiGene
         }
         await db.SaveChangesAsync(ct);
         await transaction.CommitAsync(ct);
+        foreach (var operation in operations) changes.Publish(operation.FamilyId);
         foreach (var operation in operations)
             if (operation.Status is "unknown" or "conflict")
                 LogOperationRecovered(logger, operation.Id, operation.DraftId, operation.Status, operation.Failure);

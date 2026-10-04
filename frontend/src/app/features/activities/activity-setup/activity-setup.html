@@ -143,18 +143,7 @@
                 }
               </div>
             }
-            @case ('boolean') {
-              <select
-                [id]="control.id + '-input'"
-                [formField]="choice.value"
-                [attr.aria-describedby]="control.id + '-input-help'"
-                [attr.aria-invalid]="choice.value().invalid()"
-              >
-                <option value="">{{ defaultLabel(control) }}</option>
-                <option value="true">כן</option>
-                <option value="false">לא</option>
-              </select>
-            }
+            @case ('boolean')
             @case ('select') {
               <select
                 [id]="control.id + '-input'"
@@ -163,8 +152,13 @@
                 [attr.aria-invalid]="choice.value().invalid()"
               >
                 <option value="">{{ defaultLabel(control) }}</option>
-                @for (option of control.options; track $index) {
-                  <option [value]="option.value">{{ option.value }}</option>
+                @if (control.type === 'boolean') {
+                  <option value="true">כן</option>
+                  <option value="false">לא</option>
+                } @else {
+                  @for (option of control.options; track $index) {
+                    <option [value]="option.value">{{ option.value }}</option>
+                  }
                 }
               </select>
             }

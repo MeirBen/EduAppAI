@@ -172,6 +172,7 @@ Set `AllowedHosts` to the real hostnames. Behind a reverse proxy, configure its
 trusted networks and process forwarded headers before HTTPS redirection,
 authentication and rate limiting, following
 [Microsoft's proxy guidance](https://learn.microsoft.com/en-us/aspnet/core/host-and-deploy/proxy-load-balancer?view=aspnetcore-8.0).
+Disable proxy response buffering for the `/api/library/changes` event stream.
 The PWA caches assets only, and `/health` reports process availability, not
 database or AI readiness. Account recovery and the child flow are
 [next steps](docs/product-specification.md#next-steps).

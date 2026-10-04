@@ -43,7 +43,9 @@ The library separates templates, drafts and snapshots, and deleting one keeps
 content copied from it. Deleting a draft removes its operation history. A
 confirmed family reset removes all owned learning records, including items
 beyond list limits, keeping accounts and AI configuration. The server enforces
-ownership on every read and write.
+ownership on every read and write. An open library follows changes saved on
+other devices, and an open draft says when another device saved or deleted it,
+loading a newer version only on request.
 
 ## Contracts
 

@@ -1,15 +1,6 @@
-import {
-  distinctUntilChanged,
-  EMPTY,
-  exhaustMap,
-  fromEvent,
-  map,
-  startWith,
-  switchMap,
-  takeWhile,
-  timer,
-} from 'rxjs';
+import { EMPTY, exhaustMap, map, switchMap, takeWhile, timer } from 'rxjs';
 import { LearningApi } from '../../../core/api/learning-api';
+import { pageVisible } from '../../../core/page-visibility';
 import { isRunning } from '../generation-status/operation-state';
 
 /**
@@ -24,10 +15,7 @@ export const pollOperation = (
   draftId: string,
   operationId: string,
 ) =>
-  fromEvent(document, 'visibilitychange').pipe(
-    startWith(null),
-    map(() => document.visibilityState === 'visible'),
-    distinctUntilChanged(),
+  pageVisible(document).pipe(
     switchMap((visible, index) => (visible ? timer(index ? 0 : 2000, 2000) : EMPTY)),
     exhaustMap(() =>
       api

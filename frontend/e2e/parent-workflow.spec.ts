@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { numericPlan } from '../src/app/features/activities/learning-plan.fixture';
 
 async function login(page: Page, email = 'browser@example.test') {
   await page.goto('/');
@@ -314,7 +315,7 @@ test('a lost start response replays the original key and preserves later local t
   await expect(page.locator('#document-title')).toHaveValue('עריכה אחרי אובדן תשובה');
 });
 
-test('library deletion confirms intent, preserves independent items and recovers from failure', async ({
+test('library deletion confirms intent, preserves independent items, recovers from failure and follows other devices', async ({
   page,
 }) => {
   await login(page, 'cleanup@example.test');
@@ -353,4 +354,37 @@ test('library deletion confirms intent, preserves independent items and recovers
   await expect(snapshots.locator('article')).toHaveCount(0);
   expect((await page.request.get(state.draftPath)).status()).toBe(404);
   expect((await page.request.get('/api/auth/me')).status()).toBe(200);
+
+  // Writes this page did not make reach it like another device's; one sign-in keeps the suite
+  // within the server's login rate limit.
+  const headers = {
+    'X-XSRF-TOKEN': (await (await page.request.get('/api/auth/csrf')).json()).token,
+  };
+  const { schemaVersion } = await (await page.request.get('/api/ai/status')).json();
+  const plan = { ...numericPlan, schemaVersion };
+  const created = await page.request.post('/api/activity-drafts', {
+    headers,
+    data: { plan, input: { settings: plan.defaults } },
+  });
+  const draft = await created.json();
+  const drafts = page.locator('section[aria-labelledby="drafts-title"]');
+  await drafts.getByRole('link', { name: plan.name }).click();
+  await expect(page.locator('#document-title')).toBeVisible();
+  const saved = await page.request.put(`/api/activity-drafts/${draft.id}`, {
+    headers,
+    data: {
+      expectedRevision: draft.revision,
+      plan,
+      input: draft.input,
+      document: { title: 'מהטלפון', instructions: null, materials: [], questions: [] },
+    },
+  });
+  expect(saved.status()).toBe(200);
+  await expect(page.getByText('הפעילות עודכנה במכשיר אחר')).toBeVisible();
+  await page.locator('header #reload-activity').click();
+  await expect(page.locator('#document-title')).toHaveValue('מהטלפון');
+  await expect(page.getByText('הפעילות עודכנה במכשיר אחר')).toBeHidden();
+  await page.request.delete(`/api/activity-drafts/${draft.id}`, { headers });
+  await expect(page.getByText('הפעילות נמחקה במכשיר אחר')).toBeVisible();
+  await expect(page.locator('#reload-activity')).toHaveCount(0);
 });

@@ -5,16 +5,22 @@ import {
   DestroyRef,
   inject,
   signal,
+  WritableResource,
 } from '@angular/core';
 import { DatePipe } from '@angular/common';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
 import { LearningApi } from '../../../core/api/learning-api';
 import { Limits } from '../../../core/api/limits';
 import { apiError } from '../../../core/api/api-error';
+import { whenIdle } from '../../../core/when-idle';
 import { focusHolder } from '../../../shared/focus-holder';
 import { LoadingIndicator } from '../../../shared/loading-indicator/loading-indicator';
 
-/** Content-first library; drafts, independent templates and immutable snapshots have distinct routes and deletion scopes. */
+/**
+ * Content-first library; drafts, independent templates and immutable snapshots have distinct routes
+ * and deletion scopes. Lists follow changes saved elsewhere, such as on another device.
+ */
 @Component({
   selector: 'app-activity-library',
   imports: [RouterLink, DatePipe, LoadingIndicator],
@@ -29,8 +35,14 @@ export class ActivityLibrary {
   protected readonly templates = this.api.templates();
   protected readonly drafts = this.api.activities();
   protected readonly snapshots = this.api.snapshots();
-  protected readonly loading = computed(
-    () => this.templates.isLoading() || this.drafts.isLoading() || this.snapshots.isLoading(),
+  private readonly lists: WritableResource<unknown>[] = [
+    this.templates,
+    this.drafts,
+    this.snapshots,
+  ];
+  // A reload keeps the shown lists in place; only a list without a value shows the loader.
+  protected readonly loading = computed(() =>
+    this.lists.some((list) => list.isLoading() && !list.hasValue()),
   );
   protected readonly loadError = computed(
     () => this.templates.error() ?? this.drafts.error() ?? this.snapshots.error(),
@@ -39,10 +51,16 @@ export class ActivityLibrary {
   protected readonly notice = signal('');
   protected readonly deleting = signal(false);
   protected readonly apiError = apiError;
+  constructor() {
+    // A running read may predate the change, so the reload waits for it to settle.
+    const refresh = whenIdle(
+      () => this.lists.some((list) => list.isLoading()),
+      () => this.reload(),
+    );
+    this.api.libraryChanges().pipe(takeUntilDestroyed()).subscribe(refresh);
+  }
   protected reload() {
-    this.templates.reload();
-    this.drafts.reload();
-    this.snapshots.reload();
+    for (const list of this.lists) list.reload();
   }
   protected async remove(kind: 'draft' | 'template' | 'snapshot' | 'all', id = '', name = '') {
     if (this.deleting()) return;

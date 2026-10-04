@@ -13,6 +13,7 @@ import { ActivityWorkspace } from './activity-workspace';
 import { numericPlan, suppliedPlan, sourceText } from '../learning-plan.fixture';
 import { ActivityDetail } from '../../../core/api/models';
 import { provideLimits } from '../../../core/api/limits.fixture';
+import { FakeEventSource } from '../../../core/api/event-source.fixture';
 
 const savedQuestion = {
   id: 'q',
@@ -197,6 +198,12 @@ describe('Activity lifecycle', () => {
         'עריכה מקומית',
       );
       expect(root().textContent).toContain('נוצרה תוצאה בזמן שהמשכתם לערוך');
+      // The offered result is this page's own, not a change made elsewhere.
+      FakeEventSource.opened[0].send();
+      await settle();
+      http.expectOne('/api/activity-drafts/draft').flush(complete);
+      await settle();
+      expect(root().textContent).not.toContain('במכשיר אחר');
       await click('save-activity');
       const save = http.expectOne('/api/activity-drafts/draft');
       expect(save.request.body.expectedRevision).toBe(1);
@@ -215,6 +222,64 @@ describe('Activity lifecycle', () => {
       vi.useRealTimers();
       vi.restoreAllMocks();
     }
+  });
+  it('tells the parent about a revision saved elsewhere and loads it only on request', async () => {
+    await open();
+    await type('document-title', 'עריכה מקומית');
+    FakeEventSource.opened[0].send();
+    await settle();
+    http.expectOne('/api/activity-drafts/draft').flush({ ...savedActivity, revision: 2 });
+    await settle();
+    expect(root().textContent).toContain('הפעילות עודכנה במכשיר אחר');
+    expect(root().querySelector<HTMLInputElement>('#document-title')!.value).toBe('עריכה מקומית');
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    await click('reload-activity');
+    const remote = { ...savedActivity.document, title: 'מהמכשיר האחר' };
+    http
+      .expectOne('/api/activity-drafts/draft')
+      .flush({ ...savedActivity, revision: 2, document: remote });
+    await settle();
+    expect(root().querySelector<HTMLInputElement>('#document-title')!.value).toBe('מהמכשיר האחר');
+    expect(root().textContent).not.toContain('הפעילות עודכנה במכשיר אחר');
+    vi.restoreAllMocks();
+  });
+  it('tells the parent when another device deletes this draft, keeping local work', async () => {
+    await open();
+    await type('document-title', 'עריכה מקומית');
+    FakeEventSource.opened[0].send();
+    await settle();
+    http
+      .expectOne('/api/activity-drafts/draft')
+      .flush({ title: 'לא נמצא' }, { status: 404, statusText: 'Not Found' });
+    await settle();
+    expect(root().textContent).toContain('הפעילות נמחקה במכשיר אחר');
+    expect(root().querySelector('#reload-activity')).toBeNull();
+    expect(root().querySelector<HTMLInputElement>('#document-title')!.value).toBe('עריכה מקומית');
+  });
+  it('never reports its own writes as changes made elsewhere', async () => {
+    const ready = {
+      ...savedActivity,
+      document: { ...savedActivity.document, questions: [savedQuestion] },
+      diagnostics: {},
+    };
+    await open(true, ready);
+    FakeEventSource.opened[0].send();
+    await settle();
+    const check = http.expectOne('/api/activity-drafts/draft');
+    await click('release-activity');
+    const release = await vi.waitFor(() => http.expectOne('/api/activity-drafts/draft/release'));
+    // The check reads the revision this release created, and the release's own note arrives meanwhile.
+    check.flush({ ...ready, revision: 2, releasedSnapshotId: 'ready' });
+    FakeEventSource.opened[0].send();
+    await settle();
+    http.expectNone((r) => r.method === 'GET');
+    expect(root().querySelector('header #reload-activity')).toBeNull();
+    release.flush({ id: 'ready' });
+    await vi.waitFor(() =>
+      expect(root().querySelector('a[href="/instances/ready"]')).not.toBeNull(),
+    );
+    http.expectNone((r) => r.method === 'GET');
+    expect(root().textContent).not.toContain('הפעילות עודכנה במכשיר אחר');
   });
   it('recovers a lost start response with the exact original operation key and revision', async () => {
     await open();
@@ -248,12 +313,7 @@ describe('Activity lifecycle', () => {
   it('resumes saved operation polling after reload without starting any new work', async () => {
     vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] });
     try {
-      await harness.navigateByUrl('/activities/draft', ActivityWorkspace);
-      http.expectOne('/api/ai/status').flush({ configured: true, schemaVersion: 1 });
-      http
-        .expectOne('/api/activity-drafts/draft')
-        .flush({ ...savedActivity, activeOperationId: 'op' });
-      await settle();
+      await open(true, { ...savedActivity, activeOperationId: 'op' });
       vi.advanceTimersByTime(2000);
       http.expectOne('/api/activity-drafts/draft/operations/op').flush({
         id: 'op',
@@ -285,12 +345,7 @@ describe('Activity lifecycle', () => {
       document.dispatchEvent(new Event('visibilitychange'));
     };
     try {
-      await harness.navigateByUrl('/activities/draft', ActivityWorkspace);
-      http.expectOne('/api/ai/status').flush({ configured: true, schemaVersion: 1 });
-      http
-        .expectOne('/api/activity-drafts/draft')
-        .flush({ ...savedActivity, activeOperationId: 'op' });
-      await settle();
+      await open(true, { ...savedActivity, activeOperationId: 'op' });
       show('hidden');
       vi.advanceTimersByTime(10_000);
       http.expectNone('/api/activity-drafts/draft/operations/op');

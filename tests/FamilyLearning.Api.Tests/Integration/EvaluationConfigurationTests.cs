@@ -61,14 +61,7 @@ public sealed class EvaluationConfigurationTests : IDisposable
 
         var id = EvaluationRunStore.NewId();
         var report = EvaluationReportsTests.CreateReport();
-        report.Results.Add(new("reading", 1)
-        {
-            Plan = EvaluationFixtures.Plan(),
-            Input = LearningPlanFixture.Resolve(EvaluationFixtures.Plan()),
-            Materials = EvaluationReportsTests.Skipped(),
-            Authoring = EvaluationReportsTests.Step(),
-            Generation = EvaluationReportsTests.Step(role: "questions")
-        });
+        report.Results.Add(EvaluationReportsTests.ReadingResult());
         Directory.CreateDirectory(Path.Combine(directory, id));
         await EvaluationFiles.SaveAsync(report, Path.Combine(directory, id));
         Assert.Single(await http.GetFromJsonAsync<JsonElement[]>("/api/runs") ?? []);

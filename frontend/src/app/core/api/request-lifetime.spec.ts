@@ -6,6 +6,7 @@ import { ActivityWorkspace } from '../../features/activities/activity-workspace/
 import { ActivityLibrary } from '../../features/library/activity-library/activity-library';
 import { SnapshotPreviewPage } from '../../features/instances/snapshot-preview/snapshot-preview';
 import { provideLimits } from '../../core/api/limits.fixture';
+import { FakeEventSource } from './event-source.fixture';
 
 describe('Page HTTP lifetime', () => {
   beforeEach(() =>
@@ -48,7 +49,7 @@ describe('Page HTTP lifetime', () => {
     expect(request.cancelled).toBe(true);
   });
 
-  it('cancels every library read when leaving the page', () => {
+  it('cancels every library read and closes its change stream when leaving the page', () => {
     const fixture = TestBed.createComponent(ActivityLibrary);
     TestBed.tick();
     const http = TestBed.inject(HttpTestingController);
@@ -57,6 +58,9 @@ describe('Page HTTP lifetime', () => {
     );
     fixture.destroy();
     for (const request of requests) expect(request.cancelled).toBe(true);
+    expect(FakeEventSource.opened.map((source) => source.readyState)).toEqual([
+      FakeEventSource.CLOSED,
+    ]);
   });
 
   it('cancels pending deletion without updating the destroyed view', async () => {

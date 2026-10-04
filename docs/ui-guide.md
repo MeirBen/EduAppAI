@@ -149,7 +149,9 @@ optional instruction.
 Show source confirmation for AI-extracted text only while it is pending and
 preserve its exact content. Keep invalid keystrokes visible for correction. A
 generation result cannot replace later local edits or Undo; offer the saved
-server result for inspection and explicit reload. Describe operations in plain
+server result for inspection and explicit reload. A save or deletion on another
+device reads in the save state, beside the reload control when there is a
+version to load. Describe operations in plain
 language, keep stages, outcomes, cost and raw output behind **פרטים טכניים**,
 and never imply that another paid attempt is automatic.
 

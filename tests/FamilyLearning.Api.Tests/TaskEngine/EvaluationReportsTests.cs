@@ -51,14 +51,7 @@ public sealed class EvaluationReportsTests : IDisposable
     {
         var baseline = CompletedJudgeReport();
         var candidate = change == "mode" ? CreateReport() : CompletedJudgeReport();
-        if (change == "mode") candidate.Results.Add(new("reading", 1)
-        {
-            Plan = EvaluationFixtures.Plan(),
-            Input = LearningPlanFixture.Resolve(EvaluationFixtures.Plan()),
-            Materials = Skipped(),
-            Authoring = Step(),
-            Generation = Step(role: "questions")
-        });
+        if (change == "mode") candidate.Results.Add(ReadingResult());
         if (change == "profile") candidate.Profile["Temperature"] = "0.5";
         if (change == "coverage") candidate.Results[0].Judge = null;
         var comparison = EvaluationComparison.Compare(baseline, candidate);
@@ -101,15 +94,11 @@ public sealed class EvaluationReportsTests : IDisposable
         baseline.Cases[0] = baseline.Cases[0] with { Refinements = ["קל יותר"] };
         candidate.Cases[0] = candidate.Cases[0] with { Refinements = ["קשה יותר"] };
         foreach (var report in new[] { baseline, candidate })
-            report.Results.Add(new("reading", 1)
-            {
-                Authoring = Step(),
-                Plan = EvaluationFixtures.Plan(),
-                Input = LearningPlanFixture.Resolve(EvaluationFixtures.Plan()),
-                Materials = Skipped(),
-                Generation = Step(role: "questions"),
-                Refinements = [Step(role: "refinement")]
-            });
+        {
+            var result = ReadingResult();
+            result.Refinements.Add(Step(role: "refinement"));
+            report.Results.Add(result);
+        }
         Assert.Contains("scenario-inputs", EvaluationComparison.Compare(baseline, candidate).Incompatibilities);
     }
 
@@ -180,25 +169,11 @@ public sealed class EvaluationReportsTests : IDisposable
     public async Task Artifacts_round_trip_and_comparison_recomputes_summary_after_human_review()
     {
         var baseline = CreateReport();
-        baseline.Results.Add(new("reading", 1)
-        {
-            Plan = EvaluationFixtures.Plan(),
-            Input = LearningPlanFixture.Resolve(EvaluationFixtures.Plan()),
-            Materials = Skipped(),
-            Authoring = Step(),
-            Generation = Step(role: "questions")
-        });
+        baseline.Results.Add(ReadingResult());
         baseline.Results[0].Checks["questionCount"] = false;
         baseline.Results[0].Review.Hebrew = 1;
         var candidate = CreateReport(model: "test/b");
-        candidate.Results.Add(new("reading", 1)
-        {
-            Plan = EvaluationFixtures.Plan(),
-            Input = LearningPlanFixture.Resolve(EvaluationFixtures.Plan()),
-            Materials = Skipped(),
-            Authoring = Step(),
-            Generation = Step(role: "questions")
-        });
+        candidate.Results.Add(ReadingResult());
         candidate.Results[0].Checks["questionCount"] = true;
         candidate.Results[0].EndToEndReady = true;
         candidate.Results[0].Review.Hebrew = 2;
@@ -248,14 +223,7 @@ public sealed class EvaluationReportsTests : IDisposable
     public async Task Changing_judge_instructions_is_visible_even_if_someone_forgets_to_bump_the_version()
     {
         var baseline = CreateReport(judge: true);
-        baseline.Results.Add(new("reading", 1)
-        {
-            Plan = EvaluationFixtures.Plan(),
-            Input = LearningPlanFixture.Resolve(EvaluationFixtures.Plan()),
-            Materials = Skipped(),
-            Authoring = Step(),
-            Generation = Step(role: "questions")
-        });
+        baseline.Results.Add(ReadingResult());
         var path = await SaveAsync("changed-prompt", baseline);
         var json = JsonNode.Parse(await File.ReadAllTextAsync(path))!;
         json["judgePrompt"] = "Changed judge instructions";
@@ -272,14 +240,7 @@ public sealed class EvaluationReportsTests : IDisposable
     public async Task Missing_required_measurement_state_is_not_silently_counted_as_zero_calls()
     {
         var report = CreateReport();
-        report.Results.Add(new("reading", 1)
-        {
-            Plan = EvaluationFixtures.Plan(),
-            Input = LearningPlanFixture.Resolve(EvaluationFixtures.Plan()),
-            Materials = Skipped(),
-            Authoring = Step(),
-            Generation = Step(role: "questions")
-        });
+        report.Results.Add(ReadingResult());
         var path = await SaveAsync("missing-state", report);
         var json = JsonNode.Parse(await File.ReadAllTextAsync(path))!;
         json["results"]![0]!["authoring"]!.AsObject().Remove("requestSent");
@@ -404,14 +365,7 @@ public sealed class EvaluationReportsTests : IDisposable
     public async Task Numeric_strings_are_not_silently_coerced_into_human_scores()
     {
         var report = CreateReport();
-        report.Results.Add(new("reading", 1)
-        {
-            Plan = EvaluationFixtures.Plan(),
-            Input = LearningPlanFixture.Resolve(EvaluationFixtures.Plan()),
-            Materials = Skipped(),
-            Authoring = Step(),
-            Generation = Step(role: "questions")
-        });
+        report.Results.Add(ReadingResult());
         var path = await SaveAsync("quoted-score", report);
         var json = JsonNode.Parse(await File.ReadAllTextAsync(path))!;
         json["results"]![0]!["review"]!["hebrew"] = "2";
@@ -428,16 +382,7 @@ public sealed class EvaluationReportsTests : IDisposable
         foreach (var report in new[] { before, after })
         {
             report.Calibration.Add(new(report.CalibrationSamples[0], Step()) { Issues = [] });
-            report.Results.Add(new("reading", 1)
-            {
-                Plan = EvaluationFixtures.Plan(),
-                Input = LearningPlanFixture.Resolve(EvaluationFixtures.Plan()),
-                Materials = Skipped(),
-                Authoring = Step(),
-                Generation = Step(role: "questions"),
-                Judge = Step(role: "review"),
-                Issues = []
-            });
+            report.Results.Add(ReadingResult(Step(role: "review")));
         }
         before.Results[0].Issues = [Issue()];
         before.Results[0].Review.Hebrew = 1;
@@ -473,14 +418,7 @@ public sealed class EvaluationReportsTests : IDisposable
     public async Task Unsupported_reports_and_invalid_human_scores_fail_explicitly(string field, string value)
     {
         var report = CreateReport();
-        report.Results.Add(new("reading", 1)
-        {
-            Plan = EvaluationFixtures.Plan(),
-            Input = LearningPlanFixture.Resolve(EvaluationFixtures.Plan()),
-            Materials = Skipped(),
-            Authoring = Step(),
-            Generation = Step(role: "questions")
-        });
+        report.Results.Add(ReadingResult());
         var path = await SaveAsync("invalid", report);
         var json = JsonNode.Parse(await File.ReadAllTextAsync(path))!;
         if (field == "formatVersion") json[field] = JsonNode.Parse(value);
@@ -501,16 +439,7 @@ public sealed class EvaluationReportsTests : IDisposable
     {
         var report = CreateReport(judge: true);
         report.Calibration.Add(new(report.CalibrationSamples[0], Step()) { Issues = [] });
-        report.Results.Add(new("reading", 1)
-        {
-            Plan = EvaluationFixtures.Plan(),
-            Input = LearningPlanFixture.Resolve(EvaluationFixtures.Plan()),
-            Materials = Skipped(),
-            Authoring = Step(),
-            Generation = Step(role: "questions"),
-            Judge = Step(role: "review"),
-            Issues = []
-        });
+        report.Results.Add(ReadingResult(Step(role: "review")));
         return report;
     }
 
@@ -526,6 +455,18 @@ public sealed class EvaluationReportsTests : IDisposable
             JudgePrompt = HebrewJudge.Instructions,
             CalibrationSamples = [new("clean", "בקשה", [new("text", "משפט תקין.")], [])]
         };
+
+    /// <summary>A completed reading trial; a <paramref name="judge"/> step adds a Hebrew review without issues.</summary>
+    internal static EvaluationResult ReadingResult(EvaluationStep? judge = null) => new("reading", 1)
+    {
+        Plan = EvaluationFixtures.Plan(),
+        Input = LearningPlanFixture.Resolve(EvaluationFixtures.Plan()),
+        Materials = Skipped(),
+        Authoring = Step(),
+        Generation = Step(role: "questions"),
+        Judge = judge,
+        Issues = judge is null ? null : []
+    };
 
     internal static EvaluationStep Skipped(string role = "materials", string reason = "no-generated-materials") => new() { Role = role, Outcome = "skipped", SkipReason = reason };
 

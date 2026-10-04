@@ -59,6 +59,7 @@ import { planControls, planFormSchema } from '../plan-editor/plan-form';
 import { controlInputValue, planValue, requestValue } from '../plan-editor/plan-projection';
 import { SourceReplacement } from '../source-replacement/source-replacement';
 import { TemplateChat } from '../template-chat/template-chat';
+import { draftElsewhere } from './draft-elsewhere';
 import { pollOperation } from './operation-polling';
 import { UndoHistory } from './undo-history';
 import {
@@ -190,6 +191,11 @@ export class ActivityWorkspace {
   protected readonly contentBusy = computed(
     () => this.saving() || this.operationActive() || !!this.startRecovery(),
   );
+  /** The editable draft changed or was deleted elsewhere; nothing is applied unasked. */
+  protected readonly elsewhere = draftElsewhere(
+    () => (this.released() ? undefined : (this.available() ?? this.saved())),
+    () => this.contentBusy(),
+  );
   protected readonly canGenerate = computed(() => this.aiConfigured() && !this.contentBusy());
   /** Outside template editing, the activity's own settings are its plan defaults; one set of fields owns them. */
   private readonly settingsAreDefaults = computed(() => this.context() !== 'template');
@@ -249,20 +255,24 @@ export class ActivityWorkspace {
   /** Setup collapses to its summary once content exists; the parent can reopen it at any time. */
   protected readonly setupOpen = linkedSignal(() => !this.hasContent());
   protected readonly summary = computed(() => activitySummary(this.raw().plan, this.raw().input));
-  protected readonly saveState = computed(() =>
-    this.saving() ? 'שומרים…' : this.dirty() ? 'לא נשמר' : this.saved() ? 'נשמר' : '',
-  );
+  protected readonly saveState = computed(() => {
+    if (this.saving()) return 'שומרים…';
+    if (this.elsewhere() === 'changed') return 'הפעילות עודכנה במכשיר אחר';
+    if (this.elsewhere() === 'deleted') return 'הפעילות נמחקה במכשיר אחר';
+    return this.dirty() ? 'לא נשמר' : this.saved() ? 'נשמר' : '';
+  });
   protected readonly heading = computed(() => {
     if (this.context() === 'template') return this.templateId() ? 'עריכת תבנית' : 'תבנית חדשה';
     if (this.released()) return 'פעילות מוכנה';
     if (this.saved() || this.activityId()) return 'עריכת פעילות';
     return this.templateId() ? 'פעילות חדשה מתבנית' : 'פעילות חדשה';
   });
-  /** One reload control: beside a newer server result, beside an error, or with the other actions. */
+  /** One reload control: beside a newer server result, an error or a change saved elsewhere, or with the other actions. */
   protected readonly reloadPlacement = computed(() => {
-    if (!this.saved()) return 'none';
+    if (!this.saved() || this.elsewhere() === 'deleted') return 'none';
     if (this.available()) return 'available';
-    return this.activityError() ? 'error' : 'more';
+    if (this.activityError()) return 'error';
+    return this.elsewhere() ? 'elsewhere' : 'more';
   });
   protected readonly measurements = computed(() =>
     measurementItems(this.saved()?.measurements ?? [], this.saved()?.plan),

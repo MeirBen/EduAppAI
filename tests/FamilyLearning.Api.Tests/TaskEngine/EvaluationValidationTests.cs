@@ -281,16 +281,7 @@ public sealed class EvaluationValidationTests : IDisposable
     {
         Directory.CreateDirectory(directory);
         var report = EvaluationReportsTests.CreateReport(judge: judge);
-        report.Results.Add(new("reading", 1)
-        {
-            Plan = EvaluationFixtures.Plan(),
-            Input = LearningPlanFixture.Resolve(EvaluationFixtures.Plan()),
-            Materials = EvaluationReportsTests.Skipped(),
-            Authoring = EvaluationReportsTests.Step(),
-            Generation = EvaluationReportsTests.Step(role: "questions"),
-            Judge = judge ? EvaluationReportsTests.Step() : null,
-            Issues = judge ? [] : null
-        });
+        report.Results.Add(EvaluationReportsTests.ReadingResult(judge ? EvaluationReportsTests.Step() : null));
         if (judge) report.Calibration.Add(new(report.CalibrationSamples[0], EvaluationReportsTests.Step()) { Issues = [] });
         await EvaluationFiles.SaveAsync(report, directory);
         return Path.Combine(directory, "run.json");
