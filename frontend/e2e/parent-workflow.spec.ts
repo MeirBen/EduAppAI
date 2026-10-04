@@ -174,7 +174,7 @@ test('exact bilingual source bypasses material generation and missing answers bl
   const source = '"שָׁלוֹם" — Hello!\nDon\'t change בעלי־חיים.\n';
   await expect(page.getByLabel('הטקסט שלכם')).toHaveValue(source);
   await page.locator('#generate-activity').click();
-  await expect(page.getByRole('alert')).toContainText('ואשרו את הטקסט שלכם');
+  await expect(page.getByRole('alert')).toContainText('אשרו שהטקסט שלכם הועתק נכון');
   await page.getByRole('button', { name: 'הטקסט הועתק נכון' }).click();
   const state = await start(page);
   const draft = await finish(page, state);

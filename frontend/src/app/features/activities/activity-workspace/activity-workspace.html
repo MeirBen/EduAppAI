@@ -92,7 +92,7 @@
         >
           <summary>
             {{ hasPlan() ? 'אפשרויות מתקדמות' : 'מילוי הפרטים ידנית' }}
-            @if (hasPlan() && fields.plan().invalid()) {
+            @if (advancedInvalid()) {
               <span class="text-danger group-open/advanced:hidden">· יש לתקן שדות</span>
             }
           </summary>
@@ -359,10 +359,6 @@
           <p class="text-sm text-muted">
             השמירה מפרסמת גרסה של התבנית בספרייה, ואינה יוצרת פעילות.
           </p>
-        } @else if (hasPlan() && !hasContent() && !canSubmitActivity()) {
-          <p class="text-sm text-muted">
-            כדי ליצור את הפעילות, השלימו את ההגדרות ואשרו את הטקסט שלכם.
-          </p>
         }
         <app-loading-indicator [active]="copying()" label="יוצרים טיוטה חדשה…" />
       </section>
@@ -422,10 +418,12 @@
 
 <ng-template #publishFeedback>
   <app-loading-indicator [active]="publishing()" label="שומרים את התבנית…" />
-  @if (error()) {
+  @if (error(); as problem) {
     <div class="flex flex-wrap items-center gap-x-4">
-      <p role="alert" class="field-error">{{ error() }}</p>
-      <a id="check-library" routerLink="/templates" class="text-link">בדיקת התבנית בספרייה</a>
+      <p role="alert" class="field-error">{{ problem.message }}</p>
+      @if (problem.checkLibrary) {
+        <a id="check-library" routerLink="/templates" class="text-link">בדיקת התבנית בספרייה</a>
+      }
     </div>
   }
   <p role="status">{{ templateNotice() }}</p>

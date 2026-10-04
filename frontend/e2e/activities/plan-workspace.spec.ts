@@ -80,7 +80,7 @@ test('clarifies, confirms exact source text and saves only the reusable plan', a
   await expect(page.getByText('בדקו שהטקסט הועתק נכון לפני שממשיכים.')).toBeVisible();
   await page.getByText('שמירה כתבנית לשימוש חוזר', { exact: true }).click();
   await page.getByRole('button', { name: 'שמירה כתבנית', exact: true }).click();
-  await expect(page.getByRole('alert')).toContainText('ואשרו את הטקסט שלכם');
+  await expect(page.getByRole('alert')).toContainText('אשרו שהטקסט שלכם הועתק נכון');
   expect(writes).toEqual([]);
   await page.getByRole('button', { name: 'הטקסט הועתק נכון' }).click();
   await expect(page.getByText('בדקו שהטקסט הועתק נכון לפני שממשיכים.')).toBeHidden();

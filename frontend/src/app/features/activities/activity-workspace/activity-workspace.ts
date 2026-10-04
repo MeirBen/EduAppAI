@@ -156,8 +156,13 @@ export class ActivityWorkspace {
   protected readonly saving = signal(false);
   protected readonly publishing = signal(false);
   protected readonly copying = signal(false);
-  /** Template publication failure; authoring failures use their own channel beside the request. */
-  protected readonly error = signal('');
+  /**
+   * Template publication failure; a failed request also offers the library to check what was saved.
+   * Authoring failures use their own channel beside the request.
+   */
+  protected readonly error = signal<{ message: string; checkLibrary: boolean } | undefined>(
+    undefined,
+  );
   protected readonly notice = signal('');
   protected readonly templateNotice = signal('');
   protected readonly activityError = signal('');
@@ -238,11 +243,14 @@ export class ActivityWorkspace {
       )
       .map((material) => material.id),
   );
-  /** Local source/input readiness; it does not assert that activity content has been saved or generated. */
-  protected readonly canSubmitActivity = computed(
-    () =>
-      !!this.projection().value && !!this.inputProjection().value && !this.pendingSources().length,
-  );
+  /** Why the buffer cannot be sent yet, in parent language; empty once it can. */
+  protected readonly blocker = computed(() => {
+    if (this.sourceReplacement().id) return 'אשרו את הטקסט החדש או בטלו את ההחלפה.';
+    if (this.pendingSources().length) return 'אשרו שהטקסט שלכם הועתק נכון.';
+    const valid =
+      this.projection().value && this.inputProjection().value && this.documentProjection().value;
+    return valid ? '' : 'תקנו את השדות המסומנים.';
+  });
   protected readonly thread = computed(() => [...this.answered(), ...this.conversation()]);
   protected readonly needsConsolidation = computed(
     () =>
@@ -271,6 +279,14 @@ export class ActivityWorkspace {
   protected readonly hasContent = computed(
     () => !!this.raw().document.materials.length || !!this.raw().document.questions.length,
   );
+  /** Problems the closed advanced options name; source texts sit with the settings instead. */
+  protected readonly advancedInvalid = computed(() => {
+    const plan = this.fields.plan;
+    const materials = plan.materials().value();
+    const texts = new Set<unknown>(materials.map((_, i) => plan.materials[i].text));
+    const problems = plan().errorSummary();
+    return this.hasPlan() && problems.some(({ fieldTree }) => !texts.has(fieldTree));
+  });
   /** The pinned save state and current actions, once there is anything to save, undo or open. */
   protected readonly actionBar = computed(
     () =>
@@ -547,11 +563,11 @@ export class ActivityWorkspace {
   protected async saveTemplate() {
     if (this.saving() || !this.templateChanged()) return;
     this.fields().markAsTouched();
-    this.error.set('');
+    this.error.set(undefined);
     this.templateNotice.set('');
     const plan = this.projection().value;
     if (!plan || this.pendingSources().length || this.sourceReplacement().id) {
-      this.error.set('השלימו את ההגדרות ואשרו את הטקסט שלכם לפני שמירה כתבנית.');
+      this.error.set({ message: this.blocker(), checkLibrary: false });
       return;
     }
     this.cancelAuthor();
@@ -576,11 +592,13 @@ export class ActivityWorkspace {
       }
     } catch (error) {
       if (!this.lifetime.destroyed)
-        this.error.set(
-          error instanceof HttpErrorResponse && error.status === 409
-            ? 'התבנית השתנתה בינתיים. השינויים שלכם נשארים כאן; בדקו את הגרסה בספרייה.'
-            : `${apiError(error)} לא ידוע אם התבנית נשמרה. בדקו בספרייה לפני ניסיון נוסף.`,
-        );
+        this.error.set({
+          message:
+            error instanceof HttpErrorResponse && error.status === 409
+              ? 'התבנית השתנתה בינתיים. השינויים שלכם נשארים כאן; בדקו את הגרסה בספרייה.'
+              : `${apiError(error)} לא ידוע אם התבנית נשמרה. בדקו בספרייה לפני ניסיון נוסף.`,
+          checkLibrary: true,
+        });
     } finally {
       if (!this.lifetime.destroyed) {
         this.saving.set(false);
@@ -739,7 +757,7 @@ export class ActivityWorkspace {
     const plan = this.projection().value,
       input = this.inputProjection().value;
     if (!plan || !input || this.pendingSources().length) {
-      this.activityError.set('השלימו את ההגדרות ואשרו את הטקסט שלכם.');
+      this.activityError.set(this.blocker());
       return;
     }
     if (
@@ -794,7 +812,7 @@ export class ActivityWorkspace {
     this.answered.set([]);
     this.changes.set([]);
     this.assumptions.set([]);
-    this.error.set('');
+    this.error.set(undefined);
     this.authorError.set('');
   }
 
@@ -835,14 +853,8 @@ export class ActivityWorkspace {
     const plan = this.projection().value,
       input = this.inputProjection().value,
       document = this.documentProjection().value;
-    if (
-      !plan ||
-      !input ||
-      !document ||
-      this.pendingSources().length ||
-      this.sourceReplacement().id
-    ) {
-      this.activityError.set('תקנו את השדות המסומנים ואשרו את הטקסט שלכם לפני שמירה.');
+    if (!plan || !input || !document || this.blocker()) {
+      this.activityError.set(this.blocker());
       return;
     }
     let saved = this.saved();

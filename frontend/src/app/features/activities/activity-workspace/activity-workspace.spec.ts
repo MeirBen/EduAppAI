@@ -102,10 +102,10 @@ describe('ActivityWorkspace plan ownership', () => {
     });
     const help = () => root().querySelector('#' + id + '-input-help')!.textContent;
     expect(field(id + '-input').getAttribute('aria-describedby')).toContain(id + '-input-help');
-    expect(help()).not.toContain('נדרש ערך');
+    expect(help()).not.toContain('זהו שדה חובה');
     expect(field(id + '-input').getAttribute('aria-invalid')).not.toBe('true');
     await click('save-activity');
-    expect(help()).toContain('נדרש ערך');
+    expect(help()).toContain('זהו שדה חובה');
     expect(field(id + '-input').getAttribute('aria-invalid')).toBe('true');
     await type(id + '-input', '1.5');
     expect(help()).toContain('מספר שלם');
@@ -223,7 +223,7 @@ describe('ActivityWorkspace plan ownership', () => {
     expect(root().textContent).toContain('תקנו את ההגדרות המסומנות');
     // The marked field explains itself instead of a list elsewhere.
     expect(field('plan-goal').getAttribute('aria-invalid')).toBe('true');
-    expect(root().querySelector('#plan-goal-errors')!.textContent).toContain('יש להזין טקסט');
+    expect(root().querySelector('#plan-goal-errors')!.textContent).toContain('זהו שדה חובה');
     expect(field('plan-name').getAttribute('aria-invalid')).toBeNull();
   });
 
@@ -356,6 +356,9 @@ describe('ActivityWorkspace plan ownership', () => {
     await settle();
     await click('save-template');
     http.expectNone('/api/templates');
+    // A blocked save says what to do; nothing was sent, so there is nothing to check in the library.
+    expect(root().textContent).toContain('אשרו שהטקסט שלכם הועתק נכון');
+    expect(root().querySelector('#check-library')).toBeNull();
     await click('confirm-source-11111111111111111111111111111111');
     await click('plan-undo');
     await click('save-template');
@@ -368,6 +371,12 @@ describe('ActivityWorkspace plan ownership', () => {
     save.flush({ id: 'saved', currentVersion: 1, versionId: 'v1', definition: save.request.body });
     await settle();
     http.expectNone('/api/activity-drafts');
+    // Closed advanced options name only their own problems; the source text sits with the settings.
+    const advanced = () => root().querySelector('#setup-body details > summary')!.textContent;
+    await type('source-11111111111111111111111111111111', '');
+    expect(advanced()).not.toContain('יש לתקן');
+    await type('plan-name', '');
+    expect(advanced()).toContain('יש לתקן');
   });
 
   it('accepts reloaded sources and locks publication until one success updates expectedVersion', async () => {

@@ -35,8 +35,9 @@ function checkText(
   path: Path,
   required = false,
 ) {
-  if ((required && !value.trim()) || value.length > limit)
-    issues.push({ path, message: `יש להזין ${required ? 'טקסט ' : ''}עד ${count(limit)} תווים.` });
+  if (required && !value.trim()) issues.push({ path, message: 'זהו שדה חובה.' });
+  else if (value.length > limit)
+    issues.push({ path, message: `אפשר להזין עד ${count(limit)} תווים.` });
 }
 function integer(
   value: string,
@@ -47,7 +48,7 @@ function integer(
 ): number | undefined {
   if (value === '' && !required) return undefined;
   if (!isIntegerInput(value) || Number(value) < minimum) {
-    issues.push({ path, message: 'יש להזין מספר שלם תקין.' });
+    issues.push({ path, message: 'יש להזין מספר שלם.' });
     return undefined;
   }
   return Number(value);
@@ -150,11 +151,15 @@ function controlValue(
         path: [...path, 'options'],
         message: `נדרשות 1–${limits.maxSelectOptions} אפשרויות שונות.`,
       });
-    form.options.forEach((option, index) => {
-      const at = [...path, 'options', index];
-      checkText(option.value, limits.selectOptionLength, issues, [...at, 'value'], true);
-      checkText(option.meaning, limits.selectOptionMeaningLength, issues, [...at, 'meaning']);
-    });
+    form.options.forEach((option, index) =>
+      checkText(
+        option.value,
+        limits.selectOptionLength,
+        issues,
+        [...path, 'options', index, 'value'],
+        true,
+      ),
+    );
   }
   if (form.hasDefault)
     result.default = scalarValue(result, form.defaultValue, issues, limits, [
@@ -204,7 +209,6 @@ export function planValue(
     errors.push({ path: [], message: 'ההגדרות עדיין נטענות מהשרת. נסו שוב בעוד רגע.' });
   checkText(form.name, limits.nameLength, errors, ['plan', 'name'], true);
   checkText(form.goal, limits.goalLength, errors, ['plan', 'goal'], true);
-  checkText(form.guidance, limits.guidanceLength, errors, ['plan', 'guidance']);
   const defaults = settingsValue(settings, errors, limits);
   const formats = formFormats(form.questions);
   if (!formats.length)
@@ -232,15 +236,9 @@ export function planValue(
       path: [...choiceCountPath, 'value'],
       message: `מספר האפשרויות חייב להיות בין ${minChoiceCount} ל־${maxChoiceCount}.`,
     });
-  checkText(form.questions.guidance, limits.scopedGuidanceLength, errors, [
-    'plan',
-    'questions',
-    'guidance',
-  ]);
   const materials = form.materials.map((material, index) => {
     const at = ['plan', 'materials', index];
     checkText(material.label, limits.nameLength, errors, [...at, 'label'], true);
-    checkText(material.guidance, limits.scopedGuidanceLength, errors, [...at, 'guidance']);
     if (material.source === 'fixed')
       checkText(material.text, limits.bodyLength, errors, [...at, 'text'], true);
     return {
@@ -336,37 +334,27 @@ export function requestValue(
       1,
     );
   }
+  // Inputs mirror the plan in order; the workspace reconciles them after every edit.
   const materialInputs: NonNullable<ActivityInput['materialInputs']> = {};
-  for (const material of plan.materials) {
-    const index = form.materials.findIndex((input) => input.id === material.id);
-    const fields = form.materials[index],
+  plan.materials.forEach((material, index) => {
+    const { sourceText, wordCount } = form.materials[index],
       at = ['input', 'materials', index];
     if (material.source === 'per-task') {
-      const sourceText = fields?.sourceText ?? '';
       checkText(sourceText, limits.bodyLength, errors, [...at, 'sourceText'], true);
       materialInputs[material.id] = { sourceText };
-    } else if (
-      material.source === 'generated' &&
-      material.length?.count?.adjustable &&
-      fields?.wordCount
-    ) {
-      const wordCount = integer(fields.wordCount, errors, [...at, 'wordCount'], true, 1);
-      if (wordCount !== undefined) materialInputs[material.id] = { wordCount };
+    } else if (material.source === 'generated' && material.length?.count?.adjustable && wordCount) {
+      const words = integer(wordCount, errors, [...at, 'wordCount'], true, 1);
+      if (words !== undefined) materialInputs[material.id] = { wordCount: words };
     }
-  }
+  });
   if (Object.keys(materialInputs).length) value.materialInputs = materialInputs;
   const controlValues: NonNullable<ActivityInput['controlValues']> = {};
-  for (const control of planControls(plan)) {
-    const index = form.controls.findIndex((input) => input.id === control.id);
-    const selected = controlInputValue(control, limits, form.controls[index], [
-      'input',
-      'controls',
-      index,
-      'value',
-    ]);
+  planControls(plan).forEach((control, index) => {
+    const path = ['input', 'controls', index, 'value'];
+    const selected = controlInputValue(control, limits, form.controls[index], path);
     errors.push(...selected.errors);
     if (selected.value !== undefined) controlValues[control.id] = selected.value;
-  }
+  });
   if (Object.keys(controlValues).length) value.controlValues = controlValues;
   return { value: errors.length ? undefined : value, errors };
 }
@@ -375,13 +363,13 @@ export function requestValue(
 function controlInputValue(
   control: PlanControl,
   limits: ContentLimits,
-  input: ControlInputForm | undefined,
+  input: ControlInputForm,
   path: Path,
 ): Projection<string | number | boolean> {
   const errors: FieldIssue[] = [];
-  const provided = input && (control.type === 'text' ? input.provided : input.value !== '');
+  const provided = control.type === 'text' ? input.provided : input.value !== '';
   const value = provided ? scalarValue(control, input.value, errors, limits, path) : undefined;
   if (!provided && control.required && control.default == null)
-    errors.push({ path, message: 'נדרש ערך.' });
+    errors.push({ path, message: 'זהו שדה חובה.' });
   return { value: errors.length ? undefined : value, errors };
 }

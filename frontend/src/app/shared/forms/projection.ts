@@ -17,7 +17,7 @@ export function validationErrors(root: ReadonlyFieldTree<unknown>, issues: reado
   return issues.map(({ path, message }): ValidationError.WithOptionalFieldTree => ({
     kind: 'projection',
     message,
-    // Field trees index like the model they mirror; a path it no longer has means the whole form.
-    fieldTree: path.reduce((tree: any, key) => tree?.[key], root),
+    // Field trees index like the model they mirror, and issue paths come from that model.
+    fieldTree: path.reduce((tree: any, key) => tree[key], root),
   }));
 }
