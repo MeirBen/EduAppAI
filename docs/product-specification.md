@@ -90,6 +90,9 @@ digit; body headings count, but titles, instructions, questions and answers do
 not.
 Transforming supplied text needs a separate generated material that preserves
 the original. A failed strict material stage blocks questions and release.
+Repeated generation of one plan varies: the model weighs several premises that
+meet every requirement and writes the one a number drawn by the application
+selects; improving a material keeps its premise.
 
 Questions are numeric, short-text or single-choice, each with an application
 ID, prompt, typed interaction, answer and integer points. Numeric answers use

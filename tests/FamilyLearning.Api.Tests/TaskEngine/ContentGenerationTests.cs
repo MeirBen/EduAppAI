@@ -152,6 +152,18 @@ public sealed class ContentGenerationTests
     }
 
     [Fact]
+    public async Task Material_generation_asks_for_one_of_the_numbered_premises()
+    {
+        var request = Resolve(Reading());
+        using var chat = new AiFixtures.ScriptedChat(Serialize(Materials()));
+        using var service = Service(chat);
+        await service.GenerateMaterialsAsync(TaskAssembly.PrepareMaterials(request, Empty)!, default);
+        using var input = JsonDocument.Parse(chat.Requests[0].Input.Split('\n')[^1]);
+        Assert.InRange(input.RootElement.GetProperty("variation").GetInt32(), 1, AiPrompts.Variations);
+        Assert.Equal(request.Goal, input.RootElement.GetProperty("goal").GetString());
+    }
+
+    [Fact]
     public async Task Question_failure_keeps_accepted_material_and_failure_never_claims_persistence()
     {
         var request = Resolve(Reading());

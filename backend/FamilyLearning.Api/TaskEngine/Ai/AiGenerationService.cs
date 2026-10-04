@@ -55,8 +55,11 @@ public sealed class AiGenerationService(IEnumerable<IChatClient> clients, ILogge
             ?? throw new TaskValidationException("materials", "אין חומרים חסרים או מיושנים ליצירה.");
         current = current with { Materials = prepared.Materials };
         var ids = input.Request.Materials.Where(m => m.Source == "generated").Select(m => m.Id).ToArray();
+        // The app owns the randomness: the model weighs several premises and writes the one drawn here.
+        var request = JsonSerializer.SerializeToNode(EffectiveInput(input.Request), Json)!.AsObject();
+        request["variation"] = Random.Shared.Next(1, AiPrompts.Variations + 1);
         var result = await RequestAsync<MaterialCandidateBatch>(AiPrompts.MaterialGeneration,
-            JsonSerializer.Serialize(EffectiveInput(input.Request), Json), AiSchemas.MaterialsFor(ids), AiPrompts.Version("materials"), ct, evidence: evidence);
+            request.ToJsonString(Json), AiSchemas.MaterialsFor(ids), AiPrompts.Version("materials"), ct, evidence: evidence);
         var accepted = TaskAssembly.AcceptMaterials(input.Request, current, result.Value, result.Metadata);
         if (accepted.Document is null) throw InvalidOutput("material-validation", result.Metadata.PromptVersion, accepted.Diagnostics);
         return result;
