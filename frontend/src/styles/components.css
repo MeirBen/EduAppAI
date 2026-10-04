@@ -27,7 +27,7 @@
   }
   /* On phones a nav link keeps only its icon; its label stays the accessible name. */
   .nav-link {
-    @apply inline-flex min-h-11 items-center gap-2 rounded-button px-4 py-2 font-medium text-brand transition-colors actionable:hover:bg-soft aria-[current=page]:bg-soft max-sm:px-3;
+    @apply inline-flex min-h-11 items-center gap-2 rounded-button px-4 py-2 font-medium text-brand transition-colors actionable:hover:bg-soft aria-[current=page]:bg-soft forced-colors:aria-[current=page]:border-2 max-sm:px-3;
 
     & > :not(.icon) {
       @apply max-sm:sr-only;
@@ -238,7 +238,7 @@
       @apply bg-brand text-on-brand ring-0;
     }
     [aria-current='step'] > & {
-      @apply bg-soft text-brand ring-2 ring-brand;
+      @apply bg-soft text-brand ring-2 ring-brand forced-colors:border-2;
     }
   }
 

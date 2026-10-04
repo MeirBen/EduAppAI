@@ -125,10 +125,12 @@ A theme redefines only `--color-*` tokens and, optionally, the corner roles
 (`--radius-small`, `control`, `button`, `inset`, `card`), so templates need no
 `dark:` utilities. Keep the contrast contract in `theme.css` for every theme
 and check each token on every surface, tint and translucent layer it meets.
-The header's theme picker follows the device by default. `Theme` stores an
-explicit choice in localStorage, since no server render needs a cookie. The
-inline script in `index.html` applies it before first paint, and CSS follows
-device changes live. The brand `theme-color` suits both themes.
+Forced colors drop backgrounds and rings, so a selected or current state that
+shows only through them adds a `forced-colors:` border. The header's theme
+picker follows the device by default. `Theme` stores an explicit choice in
+localStorage, since no server render needs a cookie. The inline script in
+`index.html` applies it before first paint, and CSS follows device changes
+live. The brand `theme-color` suits both themes.
 
 ## Direction and copy
 
