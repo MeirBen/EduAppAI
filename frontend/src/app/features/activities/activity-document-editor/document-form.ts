@@ -1,4 +1,4 @@
-import { applyEach, maxLength, schema, validate } from '@angular/forms/signals';
+import { applyEach, maxLength, schema } from '@angular/forms/signals';
 import { count } from '../../../core/api/limits';
 import {
   ActivityDocument,
@@ -7,7 +7,7 @@ import {
   QuestionFormat,
 } from '../../../core/api/models';
 import { isIntegerInput } from '../../../shared/forms/integer-input';
-import { Projection } from '../../../shared/forms/projection';
+import { FieldIssue, Projection } from '../../../shared/forms/projection';
 
 /** Editable-only values. Blank/invalid numeric keystrokes never become an accidental zero. */
 export interface DocumentForm {
@@ -25,7 +25,7 @@ export interface DocumentForm {
     points: string;
   }[];
 }
-/** Native field metadata and feedback; the server still validates every saved draft. */
+/** Native field metadata; `documentValue` reports each problem and the server validates saves. */
 export const documentSchema = (limits: ContentLimits) =>
   schema<DocumentForm>((path) => {
     maxLength(path.title, limits.titleLength);
@@ -38,9 +38,6 @@ export const documentSchema = (limits: ContentLimits) =>
       maxLength(question.prompt, limits.promptLength);
       maxLength(question.answer, limits.answerLength);
       applyEach(question.options, (option) => maxLength(option.value, limits.answerLength));
-      validate(question.points, ({ value }) =>
-        validPoints(value(), limits) ? [] : [{ kind: 'points', message: pointsError(limits) }],
-      );
     });
   });
 /** Editable fields of a saved or generated document; server-owned provenance stays out. */
@@ -62,44 +59,52 @@ export function documentForm(document?: EditableActivity | ActivityDocument): Do
       })) ?? [],
   };
 }
-const validPoints = (value: string, limits: ContentLimits) =>
-  isIntegerInput(value) && Number(value) >= 0 && Number(value) <= limits.maxPoints;
-const pointsError = (limits: ContentLimits) => `יש להזין מספר שלם בין 0 ל־${limits.maxPoints}.`;
 /** Lenient draft projection: structural bounds only; incomplete answers stay repairable server diagnostics. */
 export function documentValue(
   raw: DocumentForm,
   limits: ContentLimits,
 ): Projection<EditableActivity> {
-  const errors: string[] = [];
+  const errors: FieldIssue[] = [];
   let total = 0;
-  const check = (value: string, max: number) => {
+  const check = (value: string, max: number, path: FieldIssue['path']) => {
     total += value.length;
-    if (value.length > max) errors.push(`שדה תוכן ארוך מדי (עד ${count(max)} תווים).`);
+    if (value.length > max) errors.push({ path, message: `עד ${count(max)} תווים.` });
   };
-  check(raw.title, limits.titleLength);
-  check(raw.instructions, limits.instructionsLength);
-  for (const m of raw.materials) {
-    check(m.title, limits.titleLength);
-    check(m.body, limits.bodyLength);
-  }
-  for (const q of raw.questions) {
-    check(q.prompt, limits.promptLength);
-    check(q.answer, limits.answerLength);
-    if (!validPoints(q.points, limits)) errors.push(`נקודות: ${pointsError(limits)}`);
+  check(raw.title, limits.titleLength, ['document', 'title']);
+  check(raw.instructions, limits.instructionsLength, ['document', 'instructions']);
+  raw.materials.forEach((m, i) => {
+    check(m.title, limits.titleLength, ['document', 'materials', i, 'title']);
+    check(m.body, limits.bodyLength, ['document', 'materials', i, 'body']);
+  });
+  raw.questions.forEach((q, i) => {
+    const at = ['document', 'questions', i];
+    check(q.prompt, limits.promptLength, [...at, 'prompt']);
+    check(q.answer, limits.answerLength, [...at, 'answer']);
+    if (!isIntegerInput(q.points) || Number(q.points) < 0 || Number(q.points) > limits.maxPoints)
+      errors.push({
+        path: [...at, 'points'],
+        message: `יש להזין מספר שלם בין 0 ל־${limits.maxPoints}.`,
+      });
     if (q.type === 'single-choice') {
       if (q.options.length > limits.maxChoiceCount)
-        errors.push(`אפשר להזין עד ${limits.maxChoiceCount} אפשרויות.`);
-      for (const o of q.options) check(o.value, limits.answerLength);
+        errors.push({
+          path: [...at, 'options'],
+          message: `אפשר להזין עד ${limits.maxChoiceCount} אפשרויות.`,
+        });
+      q.options.forEach((o, j) =>
+        check(o.value, limits.answerLength, [...at, 'options', j, 'value']),
+      );
     }
-  }
+  });
   if (
     total > limits.contentLength ||
     raw.materials.length > limits.maxMaterials ||
     raw.questions.length > limits.maxQuestionCount
   )
-    errors.push(
-      `תוכן הפעילות חורג מהמגבלה: עד ${count(limits.contentLength)} תווים, ${limits.maxMaterials} טקסטים ו־${limits.maxQuestionCount} שאלות.`,
-    );
+    errors.push({
+      path: [],
+      message: `תוכן הפעילות חורג מהמגבלה: עד ${count(limits.contentLength)} תווים, ${limits.maxMaterials} טקסטים ו־${limits.maxQuestionCount} שאלות.`,
+    });
   return {
     errors,
     value: errors.length

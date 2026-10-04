@@ -8,6 +8,8 @@ import { LengthFields } from './length-fields/length-fields';
 import { FieldDirection } from '../../../shared/forms/field-direction';
 import { DisabledInteractive } from '../../../shared/disabled-interactive';
 import { focusHolder } from '../../../shared/focus-holder';
+import { FieldErrors } from '../../../shared/forms/field-errors';
+import { FieldValidity } from '../../../shared/forms/field-validity';
 
 /** Structural edits are applied by the workspace, which also owns history and source acceptance. */
 export type PlanStructureEdit =
@@ -22,7 +24,15 @@ export type PlanStructureEdit =
  * per-activity values live in ActivitySetup. No HTTP or copied draft.
  */
 @Component({
-  imports: [DisabledInteractive, FormField, FieldDirection, ChoiceDefinitions, LengthFields],
+  imports: [
+    FieldValidity,
+    FieldErrors,
+    DisabledInteractive,
+    FormField,
+    FieldDirection,
+    ChoiceDefinitions,
+    LengthFields,
+  ],
   selector: 'app-plan-editor',
   templateUrl: './plan-editor.html',
   changeDetection: ChangeDetectionStrategy.OnPush,

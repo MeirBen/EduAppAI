@@ -4,9 +4,12 @@
  * Containers own spacing: these primitives carry no outer margin.
  */
 @layer components {
-  /* Actions. `.button` is primary; add one variant for the other kinds. */
+  /*
+   * Actions. They size to their content, even in a grid; `w-full` stretches one. `.button` is
+   * primary; add one variant for the other kinds.
+   */
   .button {
-    @apply inline-flex min-h-12 items-center justify-center gap-2 rounded-button border border-transparent bg-brand px-gutter py-3 text-center font-medium text-on-brand no-underline shadow-button transition-[background-color,border-color,color,box-shadow,translate,scale] actionable:hover:bg-brand-hover actionable:hover:shadow-button-raised motion-safe:actionable:hover:-translate-y-0.5 motion-safe:actionable:active:translate-y-0 motion-safe:actionable:active:scale-98;
+    @apply inline-flex min-h-12 w-fit items-center justify-center gap-2 rounded-button border border-transparent bg-brand px-gutter py-3 text-center font-medium text-on-brand no-underline shadow-button transition-[background-color,border-color,color,box-shadow,translate,scale] actionable:hover:bg-brand-hover actionable:hover:shadow-button-raised motion-safe:actionable:hover:-translate-y-0.5 motion-safe:actionable:active:translate-y-0 motion-safe:actionable:active:scale-98;
     line-height: 1.5;
   }
   .button-secondary {
@@ -17,10 +20,21 @@
     @apply border-line bg-surface text-danger shadow-control actionable:hover:border-danger/40 actionable:hover:bg-danger-soft actionable:hover:shadow-panel;
   }
   .text-link {
-    @apply inline-flex min-h-11 items-center gap-2 rounded-small py-2 font-medium text-brand underline decoration-transparent decoration-2 transition-[color,text-decoration-color] actionable:hover:decoration-current;
+    @apply inline-flex min-h-11 w-fit items-center gap-2 rounded-small py-2 font-medium text-brand underline decoration-transparent decoration-2 transition-[color,text-decoration-color] actionable:hover:decoration-current;
   }
   .text-link-danger {
     @apply text-muted actionable:hover:text-danger;
+  }
+  /* Returns to the page this one was opened from; the arrow points back along the reading direction. */
+  .back-link {
+    @apply text-sm;
+
+    &::before {
+      content: '';
+      @apply size-4 shrink-0 bg-current ltr:-scale-x-100;
+      mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12h14m-6-6 6 6-6 6'/%3E%3C/svg%3E")
+        center / contain no-repeat;
+    }
   }
   .nav-link {
     @apply inline-flex min-h-11 items-center rounded-button px-4 py-2 font-medium text-brand transition-colors actionable:hover:bg-soft aria-[current=page]:bg-soft;
@@ -45,9 +59,46 @@
   .well {
     @apply rounded-inset border border-line bg-canvas p-gutter;
   }
+  /* A headed group after the first in a panel; the rule marks where the previous group ends. */
+  .card-section {
+    @apply grid gap-4 border-t border-line pt-6;
+  }
+  /*
+   * The page's save state and current actions, pinned at the window's bottom until the page reaches
+   * it. Media queries ignore text the page enlarges, so the offset decides: its percentage is the
+   * window's height, and below 40rem of current text it turns hugely negative and never sticks.
+   */
+  .action-bar {
+    @apply sticky z-10 grid gap-3 rounded-card border border-line bg-surface p-3 shadow-raised sm:p-4;
+    inset-block-end: min(max(--spacing(3), env(safe-area-inset-bottom)), (100% - 40rem) * 1000);
+
+    /* On phones its buttons share the bar's width. */
+    & .button {
+      @apply max-sm:grow;
+    }
+  }
   /* One item in a panel's list; its link and actions stay native controls. */
   .list-row {
-    @apply flex flex-wrap items-center gap-x-4 gap-y-2 rounded-inset border border-line bg-canvas p-4 transition-colors hover:border-brand/30;
+    @apply relative flex flex-wrap items-center gap-x-4 gap-y-2 rounded-inset border border-line bg-canvas p-4 transition-colors;
+
+    /* A row with a main link opens from anywhere on it; its other actions sit above that link. */
+    &:has(.row-link) {
+      @apply hover:border-brand/30;
+    }
+    &:has(.row-link:focus-visible) {
+      @apply outline-2 outline-offset-2 outline-focus;
+    }
+    & :is(a, button):not(.row-link) {
+      @apply relative;
+    }
+  }
+  .row-link {
+    @apply font-medium text-brand underline decoration-transparent decoration-2 transition-[text-decoration-color] focus-visible:outline-hidden in-[.list-row:hover]:decoration-current;
+
+    &::after {
+      content: '';
+      @apply absolute inset-0 rounded-inset;
+    }
   }
   /* An empty list says what will appear here and may offer the next step. */
   .empty-state {
@@ -82,14 +133,6 @@
   }
 
   /* Marks. */
-  .eyebrow {
-    @apply flex items-center gap-2 text-sm font-medium text-brand;
-
-    &::before {
-      content: '';
-      @apply h-0.5 w-5 shrink-0 rounded-full bg-brand/40;
-    }
-  }
   .badge {
     @apply inline-flex items-center gap-1.5 rounded-full bg-soft px-3 py-1 text-sm font-medium text-brand ring-1 ring-brand/15 ring-inset;
   }

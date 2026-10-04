@@ -1,7 +1,6 @@
 @let current = view();
 <section
-  class="grid gap-4"
-  [class]="inCard() ? 'border-t border-line pt-4' : 'panel'"
+  [class]="inCard() ? 'card-section' : 'panel grid gap-4'"
   [attr.aria-labelledby]="inCard() ? null : 'operation-heading'"
   [attr.aria-label]="inCard() ? current.title : null"
 >
@@ -40,7 +39,7 @@
       <button
         id="cancel-generation"
         type="button"
-        class="button button-secondary w-fit"
+        class="button button-secondary"
         [disabledInteractive]="locked()"
         (click)="cancelled.emit()"
       >
@@ -54,7 +53,7 @@
       <button
         id="retry-generation"
         type="button"
-        class="button w-fit"
+        class="button"
         [disabledInteractive]="locked()"
         (click)="retried.emit(retry.kind)"
       >
@@ -67,7 +66,7 @@
     <button
       id="check-saved"
       type="button"
-      class="button button-secondary w-fit"
+      class="button button-secondary"
       [disabledInteractive]="locked()"
       (click)="checked.emit()"
     >

@@ -287,6 +287,9 @@ test('supports keyboard content editing with native labels at 360px and 200% tex
   await expect(page.getByLabel('תשובה נכונה')).toHaveValue('שלום');
   await expect(page.getByLabel('תשובה נכונה')).toHaveAttribute('aria-invalid', 'true');
   await page.locator('#question-0-points').fill('1.5');
+  await expect(page.locator('#question-0-points-error')).toBeEmpty();
+  // A field's error shows once the parent leaves it.
+  await page.locator('#question-0-points').blur();
   await expect(page.locator('#question-0-points-error')).toContainText('מספר שלם');
   // The summary flags the problem only while the field that explains it is hidden.
   const more = page.locator('details:has(#question-0-points) > summary');

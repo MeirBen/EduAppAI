@@ -4,11 +4,13 @@ import { disabled, email, form, FormField, required, submit } from '@angular/for
 import { Auth } from '../../../core/auth/auth';
 import { apiError } from '../../../core/api/api-error';
 import { LoadingIndicator } from '../../../shared/loading-indicator/loading-indicator';
+import { FieldValidity } from '../../../shared/forms/field-validity';
+import { FieldErrors } from '../../../shared/forms/field-errors';
 
 /** Parent sign-in form with local feedback and navigation after cookie authentication. */
 @Component({
   selector: 'app-login',
-  imports: [LoadingIndicator, FormField],
+  imports: [FieldErrors, FieldValidity, LoadingIndicator, FormField],
   templateUrl: './login.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
@@ -19,9 +21,10 @@ export class Login {
   protected readonly model = signal({ email: '', password: '' });
   protected readonly fields = form(this.model, (path) => {
     disabled(path, ({ state }) => state.submitting());
-    required(path.email);
-    email(path.email);
-    required(path.password);
+    const invalidEmail = { message: 'יש להזין כתובת דוא״ל תקינה.' };
+    required(path.email, invalidEmail);
+    email(path.email, invalidEmail);
+    required(path.password, { message: 'יש להזין סיסמה.' });
   });
   protected readonly error = signal('');
 

@@ -922,8 +922,11 @@ describe('Activity lifecycle', () => {
       document: { ...savedActivity.document, questions: [savedQuestion] },
     });
     const body = root().querySelector<HTMLElement>('#setup-body')!;
-    const toggle = root().querySelector<HTMLButtonElement>('[aria-controls="setup-body"]')!;
+    const chat = root().querySelector<HTMLElement>('#change-panel')!;
+    const toggle = root().querySelector<HTMLButtonElement>('[aria-controls~="setup-body"]')!;
+    expect(toggle.getAttribute('aria-controls')).toContain('change-panel');
     expect(body.hidden).toBe(true);
+    expect(chat.hidden).toBe(true);
     expect(toggle.getAttribute('aria-expanded')).toBe('false');
     expect(root().querySelector('#plan-title')!.nextElementSibling?.textContent).toContain(
       '2 שאלות מספריות',
@@ -935,6 +938,7 @@ describe('Activity lifecycle', () => {
     toggle.click();
     await settle();
     expect(body.hidden).toBe(false);
+    expect(chat.hidden).toBe(false);
     expect(toggle.getAttribute('aria-expanded')).toBe('true');
     expect(root().querySelector('#plan-title')!.nextElementSibling).toBeNull();
   });

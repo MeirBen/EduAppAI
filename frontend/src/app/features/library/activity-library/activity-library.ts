@@ -35,7 +35,8 @@ export class ActivityLibrary {
   protected readonly templates = this.api.templates();
   protected readonly drafts = this.api.activities();
   protected readonly snapshots = this.api.snapshots();
-  protected readonly error = signal('');
+  /** The failed deletion, shown beside the item (or the reset) it was for. */
+  private readonly failure = signal<{ id: string; message: string } | undefined>(undefined);
   protected readonly notice = signal('');
   protected readonly deleting = signal(false);
   protected readonly apiError = apiError;
@@ -50,6 +51,10 @@ export class ActivityLibrary {
     );
     this.updates.changes.subscribe(refresh);
   }
+  protected failed(id: string) {
+    const failure = this.failure();
+    return failure?.id === id ? failure.message : '';
+  }
   protected async remove(kind: 'draft' | 'template' | 'snapshot' | 'all', id = '', name = '') {
     if (this.deleting()) return;
     const prompt =
@@ -59,7 +64,7 @@ export class ActivityLibrary {
     if (!window.confirm(prompt)) return;
     const restoreFocus = this.holdFocus();
     this.deleting.set(true);
-    this.error.set('');
+    this.failure.set(undefined);
     try {
       if (kind === 'draft') await this.api.deleteActivity(id, this.lifetime);
       else if (kind === 'snapshot') await this.api.deleteSnapshot(id, this.lifetime);
@@ -76,7 +81,8 @@ export class ActivityLibrary {
       if (kind === 'template' || kind === 'all') removeFrom(this.templates);
       this.notice.set(kind === 'all' ? 'נתוני הלמידה נמחקו.' : 'הפריט נמחק.');
     } catch (error) {
-      if (!this.lifetime.destroyed) this.error.set(apiError(error));
+      if (!this.lifetime.destroyed)
+        this.failure.set({ id: kind === 'all' ? 'all' : id, message: apiError(error) });
     } finally {
       if (!this.lifetime.destroyed) {
         this.deleting.set(false);

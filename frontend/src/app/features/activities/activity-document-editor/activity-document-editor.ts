@@ -15,6 +15,8 @@ import { DocumentForm } from './document-form';
 import { FieldDirection } from '../../../shared/forms/field-direction';
 import { DisabledInteractive } from '../../../shared/disabled-interactive';
 import { focusHolder } from '../../../shared/focus-holder';
+import { FieldErrors } from '../../../shared/forms/field-errors';
+import { FieldValidity } from '../../../shared/forms/field-validity';
 
 /** Structural edits remain in the route owner. New questions receive server IDs on save. */
 export type DocumentEdit =
@@ -38,7 +40,15 @@ const questionIdeas = [
 /** Presentation only: edits the owner's native fields and emits explicit scoped actions. */
 @Component({
   selector: 'app-activity-document-editor',
-  imports: [DisabledInteractive, FormField, FieldDirection, NgTemplateOutlet, ScopedRepair],
+  imports: [
+    FieldValidity,
+    FieldErrors,
+    DisabledInteractive,
+    FormField,
+    FieldDirection,
+    NgTemplateOutlet,
+    ScopedRepair,
+  ],
   templateUrl: './activity-document-editor.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { '(input)': 'onEdit($event)', '(change)': 'onEdit($event)' },

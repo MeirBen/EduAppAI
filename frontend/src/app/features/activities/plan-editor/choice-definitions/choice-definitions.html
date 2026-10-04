@@ -1,6 +1,6 @@
 @let f = fields();
 @let p = plan();
-<section class="grid gap-4 border-t border-line pt-6" aria-labelledby="choices-title">
+<section class="card-section" aria-labelledby="choices-title">
   <div class="grid gap-1">
     <h3 id="choices-title">מה אפשר לשנות בכל פעילות</h3>
     <p class="text-sm text-muted">
@@ -63,7 +63,11 @@
   @if (p.questions.selectableFormat) {
     <div>
       <label for="question-default-format">סוג ברירת המחדל</label
-      ><select id="question-default-format" [formField]="f.questions.defaultFormat">
+      ><select
+        id="question-default-format"
+        [formField]="f.questions.defaultFormat"
+        aria-describedby="question-default-format-errors"
+      >
         <option value="">בחרו סוג</option>
         @if (p.questions.numeric) {
           <option value="numeric-input">תשובה מספרית</option>
@@ -75,6 +79,7 @@
           <option value="single-choice">בחירה מתוך אפשרויות</option>
         }
       </select>
+      <app-field-errors id="question-default-format-errors" [field]="f.questions.defaultFormat" />
     </div>
   }
   @for (choice of choices(); track choice.id) {

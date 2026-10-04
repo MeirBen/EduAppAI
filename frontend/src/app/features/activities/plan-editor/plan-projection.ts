@@ -9,8 +9,12 @@ import {
 } from '../../../core/api/models';
 import { count } from '../../../core/api/limits';
 import { isIntegerInput } from '../../../shared/forms/integer-input';
-import { Projection } from '../../../shared/forms/projection';
-import { TaskSettingsDraft, taskSettingsValue } from '../../../shared/forms/task-settings';
+import { FieldIssue, Projection } from '../../../shared/forms/projection';
+import {
+  difficultyLabels,
+  TaskSettingsDraft,
+  taskSettingsValue,
+} from '../../../shared/forms/task-settings';
 import {
   ChoiceForm,
   ControlForm,
@@ -22,35 +26,37 @@ import {
   planControls,
 } from './plan-form';
 
+type Path = FieldIssue['path'];
+
 function checkText(
   value: string,
-  label: string,
   limit: number,
-  errors: string[],
+  issues: FieldIssue[],
+  path: Path,
   required = false,
 ) {
   if ((required && !value.trim()) || value.length > limit)
-    errors.push(`${label}: יש להזין ${required ? 'טקסט ' : ''}עד ${count(limit)} תווים.`);
+    issues.push({ path, message: `יש להזין ${required ? 'טקסט ' : ''}עד ${count(limit)} תווים.` });
 }
 function integer(
   value: string,
-  label: string,
-  errors: string[],
+  issues: FieldIssue[],
+  path: Path,
   required = false,
   minimum = -2147483648,
 ): number | undefined {
   if (value === '' && !required) return undefined;
   if (!isIntegerInput(value) || Number(value) < minimum) {
-    errors.push(`${label}: יש להזין מספר שלם תקין.`);
+    issues.push({ path, message: 'יש להזין מספר שלם תקין.' });
     return undefined;
   }
   return Number(value);
 }
-function bounds(min: string, max: string, label: string, errors: string[]) {
-  const lower = integer(min, label, errors),
-    upper = integer(max, label, errors);
+function bounds(min: string, max: string, issues: FieldIssue[], path: Path) {
+  const lower = integer(min, issues, [...path, 'min']),
+    upper = integer(max, issues, [...path, 'max']);
   if (lower !== undefined && upper !== undefined && lower > upper)
-    errors.push(`${label}: המינימום גדול מהמקסימום.`);
+    issues.push({ path: [...path, 'max'], message: 'המקסימום קטן מהמינימום.' });
   return {
     ...(lower === undefined ? {} : { min: lower }),
     ...(upper === undefined ? {} : { max: upper }),
@@ -59,46 +65,60 @@ function bounds(min: string, max: string, label: string, errors: string[]) {
 function inBounds(
   value: number,
   range: { min?: number | null; max?: number | null },
-  label: string,
-  errors: string[],
+  issues: FieldIssue[],
+  path: Path,
 ) {
   if ((range.min != null && value < range.min) || (range.max != null && value > range.max))
-    errors.push(`${label}: הערך מחוץ לטווח.`);
+    issues.push({ path, message: 'הערך מחוץ לטווח.' });
 }
 function choiceValue(
   form: ChoiceForm,
-  label: string,
-  errors: string[],
+  issues: FieldIssue[],
+  path: Path,
   minimum = 1,
 ): IntegerChoice {
   return {
-    value: integer(form.value, label, errors, true, minimum) ?? 0,
+    value: integer(form.value, issues, [...path, 'value'], true, minimum) ?? 0,
     adjustable: form.adjustable,
   };
 }
-function lengthValue(form: LengthForm, errors: string[]): LengthExpectation | null {
+function lengthValue(form: LengthForm, issues: FieldIssue[], path: Path): LengthExpectation | null {
   if (!form.mode) return null;
   if (form.mode === 'range') {
-    const lower = integer(form.lower, 'אורך מינימלי', errors, true, 1) ?? 0;
-    const upper = integer(form.upper, 'אורך מרבי', errors, true, 1) ?? 0;
-    if (lower >= upper) errors.push('אורך: המינימום חייב להיות קטן מהמקסימום.');
+    const lower = integer(form.lower, issues, [...path, 'lower'], true, 1) ?? 0;
+    const upper = integer(form.upper, issues, [...path, 'upper'], true, 1) ?? 0;
+    if (lower >= upper)
+      issues.push({ path: [...path, 'upper'], message: 'המקסימום חייב להיות גדול מהמינימום.' });
     return { mode: 'range', lower, upper };
   }
-  return { mode: 'target', count: choiceValue(form, 'מספר מילים', errors) };
+  return { mode: 'target', count: choiceValue(form, issues, path) };
 }
-const questionCountRange = (limits: ContentLimits) =>
-  `מספר השאלות חייב להיות בין 1 ל־${limits.maxQuestionCount}.`;
-function settingsValue(form: TaskSettingsDraft, errors: string[], limits: ContentLimits) {
-  checkText(form.topic, 'נושא', limits.settingTextLength, errors, true);
-  checkText(form.audience, 'למי מיועדת הפעילות', limits.settingTextLength, errors, true);
-  const questionCount = integer(form.questionCount, 'מספר שאלות', errors, true, 1);
-  if (questionCount !== undefined && questionCount > limits.maxQuestionCount)
-    errors.push(questionCountRange(limits));
+function settingsValue(form: TaskSettingsDraft, issues: FieldIssue[], limits: ContentLimits) {
+  const at = (key: keyof TaskSettingsDraft) => ['input', 'settings', key];
+  checkText(form.topic, limits.settingTextLength, issues, at('topic'), true);
+  checkText(form.audience, limits.settingTextLength, issues, at('audience'), true);
+  if (!Object.hasOwn(difficultyLabels, form.difficulty))
+    issues.push({ path: at('difficulty'), message: 'יש לבחור רמת קושי.' });
+  const questionCount = Number(form.questionCount);
+  if (
+    !isIntegerInput(form.questionCount) ||
+    questionCount < 1 ||
+    questionCount > limits.maxQuestionCount
+  )
+    issues.push({
+      path: at('questionCount'),
+      message: `יש להזין מספר שלם בין 1 ל־${limits.maxQuestionCount}.`,
+    });
   return taskSettingsValue(form);
 }
-function controlValue(form: ControlForm, errors: string[], limits: ContentLimits): PlanControl {
-  checkText(form.label, 'שם הבחירה', limits.nameLength, errors, true);
-  checkText(form.meaning, form.label || 'משמעות הבחירה', limits.meaningLength, errors, true);
+function controlValue(
+  form: ControlForm,
+  issues: FieldIssue[],
+  limits: ContentLimits,
+  path: Path,
+): PlanControl {
+  checkText(form.label, limits.nameLength, issues, [...path, 'label'], true);
+  checkText(form.meaning, limits.meaningLength, issues, [...path, 'meaning'], true);
   const result: PlanControl = {
     id: form.id,
     label: form.label,
@@ -107,12 +127,14 @@ function controlValue(form: ControlForm, errors: string[], limits: ContentLimits
     required: form.required,
   };
   if (form.type === 'integer' && form.unit) result.unit = form.unit;
-  if (form.type === 'integer')
-    Object.assign(result, bounds(form.min, form.max, form.label, errors));
+  if (form.type === 'integer') Object.assign(result, bounds(form.min, form.max, issues, path));
   if (form.type === 'text') {
-    result.maxLength = integer(form.maxLength, form.label, errors, false, 1);
+    result.maxLength = integer(form.maxLength, issues, [...path, 'maxLength'], false, 1);
     if ((result.maxLength ?? limits.textValueLength) > limits.textValueLength)
-      errors.push(`${form.label}: עד ${limits.textValueLength} תווים.`);
+      issues.push({
+        path: [...path, 'maxLength'],
+        message: `עד ${limits.textValueLength} תווים.`,
+      });
   }
   if (form.type === 'select') {
     result.options = form.options.map((option) => ({
@@ -124,95 +146,126 @@ function controlValue(form: ControlForm, errors: string[], limits: ContentLimits
       result.options.length > limits.maxSelectOptions ||
       new Set(result.options.map((o) => o.value)).size !== result.options.length
     )
-      errors.push(`${form.label}: נדרשות 1–${limits.maxSelectOptions} אפשרויות שונות.`);
-    for (const option of form.options) {
-      checkText(option.value, form.label, limits.selectOptionLength, errors, true);
-      checkText(option.meaning, form.label, limits.selectOptionMeaningLength, errors);
-    }
+      issues.push({
+        path: [...path, 'options'],
+        message: `נדרשות 1–${limits.maxSelectOptions} אפשרויות שונות.`,
+      });
+    form.options.forEach((option, index) => {
+      const at = [...path, 'options', index];
+      checkText(option.value, limits.selectOptionLength, issues, [...at, 'value'], true);
+      checkText(option.meaning, limits.selectOptionMeaningLength, issues, [...at, 'meaning']);
+    });
   }
-  if (form.hasDefault) result.default = scalarValue(result, form.defaultValue, errors, limits);
+  if (form.hasDefault)
+    result.default = scalarValue(result, form.defaultValue, issues, limits, [
+      ...path,
+      'defaultValue',
+    ]);
   return result;
 }
 function scalarValue(
   control: PlanControl,
   value: string,
-  errors: string[],
+  issues: FieldIssue[],
   limits: ContentLimits,
+  path: Path,
 ): string | number | boolean | undefined {
   switch (control.type) {
     case 'integer': {
-      const number = integer(value, control.label, errors, true);
-      if (number !== undefined) inBounds(number, control, control.label, errors);
+      const number = integer(value, issues, path, true);
+      if (number !== undefined) inBounds(number, control, issues, path);
       return number;
     }
     case 'boolean':
       if (value !== 'true' && value !== 'false')
-        errors.push(`${control.label}: יש לבחור כן או לא.`);
+        issues.push({ path, message: 'יש לבחור כן או לא.' });
       return value === 'true';
     case 'select':
       if (!control.options?.some((option) => option.value === value))
-        errors.push(`${control.label}: יש לבחור אפשרות מהרשימה.`);
+        issues.push({ path, message: 'יש לבחור אפשרות מהרשימה.' });
       return value;
     case 'text':
-      checkText(
-        value,
-        control.label,
-        control.maxLength ?? limits.textValueLength,
-        errors,
-        control.required,
-      );
+      checkText(value, control.maxLength ?? limits.textValueLength, issues, path, control.required);
       return value;
   }
 }
 
-/** UI shape feedback only. The shared server validator remains authoritative for full semantic/capacity checks. */
+/**
+ * UI shape feedback only, with each issue at its workspace field. The shared server validator
+ * remains authoritative for full semantic and capacity checks.
+ */
 export function planValue(
   form: PlanForm,
   settings: TaskSettingsDraft,
   limits: ContentLimits,
 ): Projection<LearningPlan> {
-  const errors: string[] = [];
-  if (!form.schemaVersion) errors.push('ההגדרות עדיין נטענות מהשרת. נסו שוב בעוד רגע.');
-  checkText(form.name, 'שם התבנית', limits.nameLength, errors, true);
-  checkText(form.goal, 'מטרת הפעילות', limits.goalLength, errors, true);
-  checkText(form.guidance, 'הנחיות משותפות', limits.guidanceLength, errors);
+  const errors: FieldIssue[] = [];
+  if (!form.schemaVersion)
+    errors.push({ path: [], message: 'ההגדרות עדיין נטענות מהשרת. נסו שוב בעוד רגע.' });
+  checkText(form.name, limits.nameLength, errors, ['plan', 'name'], true);
+  checkText(form.goal, limits.goalLength, errors, ['plan', 'goal'], true);
+  checkText(form.guidance, limits.guidanceLength, errors, ['plan', 'guidance']);
   const defaults = settingsValue(settings, errors, limits);
   const formats = formFormats(form.questions);
-  if (!formats.length) errors.push('יש לבחור לפחות סוג שאלה אחד.');
+  if (!formats.length)
+    errors.push({ path: ['plan', 'questions'], message: 'יש לבחור לפחות סוג שאלה אחד.' });
   if (
     form.questions.selectableFormat &&
     !formats.includes(form.questions.defaultFormat as QuestionFormat)
   )
-    errors.push('יש לבחור סוג שאלה כברירת מחדל.');
+    errors.push({
+      path: ['plan', 'questions', 'defaultFormat'],
+      message: 'יש לבחור סוג שאלה כברירת מחדל.',
+    });
   if (!form.questions.selectableFormat && defaults.questionCount < formats.length)
-    errors.push('נדרשת לפחות שאלה אחת מכל סוג שנבחר.');
+    errors.push({
+      path: ['input', 'settings', 'questionCount'],
+      message: 'נדרשת לפחות שאלה אחת מכל סוג שנבחר.',
+    });
   const { minChoiceCount, maxChoiceCount } = limits;
+  const choiceCountPath = ['plan', 'questions', 'choiceCount'];
   const choiceCount = form.questions.choice
-    ? choiceValue(form.questions.choiceCount, 'מספר אפשרויות', errors, minChoiceCount)
+    ? choiceValue(form.questions.choiceCount, errors, choiceCountPath, minChoiceCount)
     : null;
   if (choiceCount && choiceCount.value > maxChoiceCount)
-    errors.push(`מספר האפשרויות חייב להיות בין ${minChoiceCount} ל־${maxChoiceCount}.`);
-  checkText(form.questions.guidance, 'הנחיות לשאלות', limits.scopedGuidanceLength, errors);
-  const materials = form.materials.map((material) => {
-    checkText(material.label, 'שם הטקסט', limits.nameLength, errors, true);
-    checkText(material.guidance, 'הנחיות לטקסט', limits.scopedGuidanceLength, errors);
+    errors.push({
+      path: [...choiceCountPath, 'value'],
+      message: `מספר האפשרויות חייב להיות בין ${minChoiceCount} ל־${maxChoiceCount}.`,
+    });
+  checkText(form.questions.guidance, limits.scopedGuidanceLength, errors, [
+    'plan',
+    'questions',
+    'guidance',
+  ]);
+  const materials = form.materials.map((material, index) => {
+    const at = ['plan', 'materials', index];
+    checkText(material.label, limits.nameLength, errors, [...at, 'label'], true);
+    checkText(material.guidance, limits.scopedGuidanceLength, errors, [...at, 'guidance']);
     if (material.source === 'fixed')
-      checkText(material.text, material.label, limits.bodyLength, errors, true);
+      checkText(material.text, limits.bodyLength, errors, [...at, 'text'], true);
     return {
       id: material.id,
       label: material.label,
       source: material.source,
       guidance: material.guidance,
       text: material.source === 'fixed' ? material.text : null,
-      length: material.source === 'generated' ? lengthValue(material.length, errors) : null,
-      controls: material.controls.map((control) => controlValue(control, errors, limits)),
+      length:
+        material.source === 'generated'
+          ? lengthValue(material.length, errors, [...at, 'length'])
+          : null,
+      controls: material.controls.map((control, item) =>
+        controlValue(control, errors, limits, [...at, 'controls', item]),
+      ),
     };
   });
   const totalLength = materials.some((material) => material.source === 'generated')
-    ? lengthValue(form.totalLength, errors)
+    ? lengthValue(form.totalLength, errors, ['plan', 'totalLength'])
     : null;
   if (totalLength && materials.some((material) => material.length))
-    errors.push('בחרו אורך כולל או אורך לכל טקסט, לא את שניהם.');
+    errors.push({
+      path: ['plan', 'totalLength', 'mode'],
+      message: 'בחרו אורך כולל או אורך לכל טקסט, לא את שניהם.',
+    });
   const value: LearningPlan = {
     schemaVersion: form.schemaVersion,
     name: form.name,
@@ -221,7 +274,9 @@ export function planValue(
     defaults,
     materials,
     totalLength,
-    controls: form.controls.map((control) => controlValue(control, errors, limits)),
+    controls: form.controls.map((control, item) =>
+      controlValue(control, errors, limits, ['plan', 'controls', item]),
+    ),
     questions: {
       formats,
       selectableFormat: form.questions.selectableFormat,
@@ -230,25 +285,33 @@ export function planValue(
         : null,
       choiceCount,
       guidance: form.questions.guidance,
-      controls: form.questions.controls.map((control) => controlValue(control, errors, limits)),
+      controls: form.questions.controls.map((control, item) =>
+        controlValue(control, errors, limits, ['plan', 'questions', 'controls', item]),
+      ),
     },
   };
   if (materials.length > limits.maxMaterials || planControls(value).length > limits.maxControls)
-    errors.push(`אפשר להוסיף עד ${limits.maxMaterials} טקסטים ועד ${limits.maxControls} בחירות.`);
+    errors.push({
+      path: [],
+      message: `אפשר להוסיף עד ${limits.maxMaterials} טקסטים ועד ${limits.maxControls} בחירות.`,
+    });
   return { value: errors.length ? undefined : value, errors };
 }
 
-/** Omits inapplicable/unset overrides; never sends form-only nulls or confirmation metadata. */
+/**
+ * Omits inapplicable/unset overrides; never sends form-only nulls or confirmation metadata. The
+ * settings are checked with the plan whose defaults they are.
+ */
 export function requestValue(
   plan: LearningPlan,
   form: InputForm,
   limits: ContentLimits,
 ): Projection<ActivityInput> {
-  const errors: string[] = [];
-  const value: ActivityInput = { settings: settingsValue(form.settings, errors, limits) };
+  const errors: FieldIssue[] = [];
+  const value: ActivityInput = { settings: taskSettingsValue(form.settings) };
   if (plan.questions.selectableFormat && form.questionFormat) {
     if (!plan.questions.formats.includes(form.questionFormat))
-      errors.push('סוג השאלה אינו זמין בהגדרות.');
+      errors.push({ path: ['input', 'questionFormat'], message: 'סוג השאלה אינו זמין בהגדרות.' });
     value.questionFormat = form.questionFormat;
   }
   const formats = plan.questions.selectableFormat
@@ -259,40 +322,48 @@ export function requestValue(
     plan.questions.choiceCount?.adjustable &&
     form.choiceCount !== ''
   ) {
-    value.choiceCount = integer(
-      form.choiceCount,
-      'מספר אפשרויות',
-      errors,
-      true,
-      limits.minChoiceCount,
-    );
+    const path = ['input', 'choiceCount'];
+    value.choiceCount = integer(form.choiceCount, errors, path, true, limits.minChoiceCount);
     if (value.choiceCount !== undefined && value.choiceCount > limits.maxChoiceCount)
-      errors.push(`עד ${limits.maxChoiceCount} אפשרויות.`);
+      errors.push({ path, message: `עד ${limits.maxChoiceCount} אפשרויות.` });
   }
   if (plan.totalLength?.count?.adjustable && form.totalWordCount !== '') {
-    value.totalWordCount = integer(form.totalWordCount, 'מספר מילים כולל', errors, true, 1);
+    value.totalWordCount = integer(
+      form.totalWordCount,
+      errors,
+      ['input', 'totalWordCount'],
+      true,
+      1,
+    );
   }
   const materialInputs: NonNullable<ActivityInput['materialInputs']> = {};
   for (const material of plan.materials) {
-    const fields = form.materials.find((input) => input.id === material.id);
+    const index = form.materials.findIndex((input) => input.id === material.id);
+    const fields = form.materials[index],
+      at = ['input', 'materials', index];
     if (material.source === 'per-task') {
       const sourceText = fields?.sourceText ?? '';
-      checkText(sourceText, material.label, limits.bodyLength, errors, true);
+      checkText(sourceText, limits.bodyLength, errors, [...at, 'sourceText'], true);
       materialInputs[material.id] = { sourceText };
     } else if (
       material.source === 'generated' &&
       material.length?.count?.adjustable &&
       fields?.wordCount
     ) {
-      const wordCount = integer(fields.wordCount, material.label, errors, true, 1);
+      const wordCount = integer(fields.wordCount, errors, [...at, 'wordCount'], true, 1);
       if (wordCount !== undefined) materialInputs[material.id] = { wordCount };
     }
   }
   if (Object.keys(materialInputs).length) value.materialInputs = materialInputs;
   const controlValues: NonNullable<ActivityInput['controlValues']> = {};
   for (const control of planControls(plan)) {
-    const input = form.controls.find((input) => input.id === control.id);
-    const selected = controlInputValue(control, limits, input);
+    const index = form.controls.findIndex((input) => input.id === control.id);
+    const selected = controlInputValue(control, limits, form.controls[index], [
+      'input',
+      'controls',
+      index,
+      'value',
+    ]);
     errors.push(...selected.errors);
     if (selected.value !== undefined) controlValues[control.id] = selected.value;
   }
@@ -300,16 +371,17 @@ export function requestValue(
   return { value: errors.length ? undefined : value, errors };
 }
 
-/** Shared by native field feedback and the HTTP projection; omission remains distinct from false/zero/empty text. */
-export function controlInputValue(
+/** One requested choice; omission remains distinct from false/zero/empty text. */
+function controlInputValue(
   control: PlanControl,
   limits: ContentLimits,
-  input?: ControlInputForm,
+  input: ControlInputForm | undefined,
+  path: Path,
 ): Projection<string | number | boolean> {
-  const errors: string[] = [];
+  const errors: FieldIssue[] = [];
   const provided = input && (control.type === 'text' ? input.provided : input.value !== '');
-  const value = provided ? scalarValue(control, input.value, errors, limits) : undefined;
+  const value = provided ? scalarValue(control, input.value, errors, limits, path) : undefined;
   if (!provided && control.required && control.default == null)
-    errors.push(`${control.label}: נדרש ערך.`);
+    errors.push({ path, message: 'נדרש ערך.' });
   return { value: errors.length ? undefined : value, errors };
 }

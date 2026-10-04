@@ -7,6 +7,8 @@ import type { PlanStructureEdit } from '../plan-editor';
 import { FieldDirection } from '../../../../shared/forms/field-direction';
 import { DisabledInteractive } from '../../../../shared/disabled-interactive';
 import { focusHolder } from '../../../../shared/focus-holder';
+import { FieldErrors } from '../../../../shared/forms/field-errors';
+import { FieldValidity } from '../../../../shared/forms/field-validity';
 
 /** The part a choice changes, as its summary names it and its effect field asks about it. */
 const partCopy = {
@@ -26,7 +28,7 @@ const typeNames: Record<PlanControl['type'], string> = {
  * changes and its default. It edits the owner's field tree and never creates draft state.
  */
 @Component({
-  imports: [DisabledInteractive, FormField, FieldDirection],
+  imports: [FieldValidity, FieldErrors, DisabledInteractive, FormField, FieldDirection],
   selector: 'app-control-card',
   templateUrl: './control-card.html',
   changeDetection: ChangeDetectionStrategy.OnPush,

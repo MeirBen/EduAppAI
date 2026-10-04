@@ -44,13 +44,8 @@
           autocomplete="username"
           [formField]="fields.email"
           aria-describedby="email-error"
-          [attr.aria-invalid]="fields.email().touched() && fields.email().invalid()"
         />
-        <div id="email-error">
-          @if (fields.email().touched() && fields.email().invalid()) {
-            <p class="field-error mt-2">יש להזין כתובת דוא״ל תקינה.</p>
-          }
-        </div>
+        <app-field-errors id="email-error" [field]="fields.email" />
       </div>
       <div>
         <label for="password">סיסמה</label>
@@ -61,13 +56,8 @@
           autocomplete="current-password"
           [formField]="fields.password"
           aria-describedby="password-error"
-          [attr.aria-invalid]="fields.password().touched() && fields.password().invalid()"
         />
-        <div id="password-error">
-          @if (fields.password().touched() && fields.password().invalid()) {
-            <p class="field-error mt-2">יש להזין סיסמה.</p>
-          }
-        </div>
+        <app-field-errors id="password-error" [field]="fields.password" />
       </div>
       @if (error()) {
         <p class="error" role="alert">{{ error() }}</p>

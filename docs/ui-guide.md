@@ -17,9 +17,17 @@ parent labels keep their original language and values.
   bundled Heebo.
 - Use `panel` for raised surfaces and `button` for primary actions; add
   `button-secondary`, or the quiet `button-danger` for destructive actions
-  guarded by a confirmation. Keep one prominent action per card, with quieter
-  edit links and `text-link-danger` deletions. Native disclosures reveal
-  answers.
+  guarded by a confirmation. Actions size to their content. Keep one prominent
+  action per card, with quieter edit links and `text-link-danger` deletions.
+  Native disclosures reveal answers; their summary shares the select's chevron.
+- A page that edits or acts on one item ends with an `action-bar`: its save
+  state and current actions, with their errors and recovery. It pins to the
+  window's bottom while the window is at least 40rem tall at the current text
+  size, and scroll padding keeps focus clear of it.
+- Pages opened from the library lead back with a `back-link` above their
+  heading. A `list-row` with a `row-link` opens from anywhere on the row, which
+  shows the link's hover and focus; the row's other actions stay separate
+  controls.
 - Keep hover/press feedback brief, exclude disabled controls and respect reduced
   motion. Use theme shadows and colors rather than page-specific copies.
 - Actions show a 2px offset focus ring. Fields tint their own edge instead, in
@@ -27,6 +35,8 @@ parent labels keep their original language and values.
   ring. Selects, checkboxes and fields stay native; supporting browsers open a
   styled select listbox.
 - Use rem sizing, generous line height and wrapping for long user content.
+  Text areas grow with their text where the browser supports it, so the page
+  scrolls once; numeric fields size to a few digits.
   Use the viewport-capped `gutter` spacing for narrow containers so padding does
   not crowd enlarged text. Preserve browser zoom, iOS text scaling and the
   production bundle budgets.
@@ -37,9 +47,16 @@ parent labels keep their original language and values.
   and an action that removes, moves or replaces the focused control hands focus
   through `focusHolder` to the successor its owner names (the same control, a
   neighbour's disclosure or the list's add button), else to the nearest
-  surviving region heading. Results are announced, never focused or scrolled
-  to; only full generation brings its progress into view once, without motion
-  when reduced motion is preferred.
+  surviving region heading; content that replaces the request, such as the
+  first plan, takes it at its heading. Results are announced, never focused or
+  scrolled to; only full generation brings its progress into view once, without
+  motion when reduced motion is preferred.
+- Each problem shows on the field or group that can fix it: its edge and
+  message appear once the parent leaves it, and on every field once they try
+  to save or send. That attempt adds one line beside its action, where problems
+  with the whole form also show; a closed disclosure names invalid content in
+  its summary. A mismatch caused by editing another field, such as an answer
+  that no longer matches its options, shows at once.
 
 ## Spacing
 
@@ -55,7 +72,11 @@ lines carry `mt-2`; never place a label and its control as separate children of
 a gapped container. Open disclosures space their summary from the content, and
 empty live regions take no layout slot, so they never double a gap. Group card
 fields with `role="group"` and a heading inside the padding rather than a
-`.well` fieldset legend. Optional content renders only when present.
+`.well` fieldset legend; each later headed group in a card is a `card-section`,
+whose rule marks where the previous one ends. Short related fields share a row:
+settings fill one two-column grid, numbers sit beside their siblings and a
+list's remove link sits beside its item. Optional content renders only when
+present.
 
 ## Styles and theming
 
@@ -67,10 +88,13 @@ fields with `role="group"` and a heading inside the padding rather than a
   explicit dark choice or a dark device without an explicit light choice.
 - `base.css` styles elements, including native form controls and focus.
 - `components.css` holds every shared visual treatment, grouped as actions
-  (buttons, links, `icon-button`, `chip`), surfaces (`panel`, `well`,
-  `list-row`, `empty-state`), conversation (`bubble`, `composer`), marks
-  (`badge`, `icon-tile`, `line-icon`, `status-icon`, `ai-mark`, `ai-icon`),
-  lists (`steps`, `progress-steps`) and feedback (`error`, `callout`).
+  (buttons, links, `back-link`, `icon-button`, `chip`), surfaces (`panel`,
+  `well`, `card-section`, `action-bar`, `list-row` with its `row-link`,
+  `empty-state`), conversation (`bubble`, `composer`), marks (`badge`,
+  `icon-tile`, `line-icon`, `status-icon`, `ai-mark`, `ai-icon`), lists
+  (`steps`, `progress-steps`) and feedback (`error`, `field-error`,
+  `callout`). Use `error` for a failure that replaces a page's content and
+  `field-error` beside the field, card or action that failed.
 
 Primitives read only tokens; templates add layout utilities and token colors
 such as `text-muted`. A visual treatment used in more than one place becomes a
@@ -135,10 +159,10 @@ Options that have no effect in the current state stay hidden: the combined
 length needs several generated texts, one format per activity needs several
 formats, and a required flag is moot once a choice has a default. With several
 texts, each text's fields and choices name that text.
-Once a plan exists, the change conversation follows every setting, including
-the advanced options. Once content exists, settings collapse to a derived
-one-line summary, shown only while they are collapsed, and the content becomes
-the main surface.
+Once a plan exists, the change conversation is its own card after the settings
+and can change every setting, including the advanced options. Once content
+exists, settings and the conversation collapse to a derived one-line summary,
+shown only while they are collapsed, and the content becomes the main surface.
 
 Authoring is a conversation: the parent's turns sit at the end edge, the
 assistant's replies carry the `ai-mark` with the computed changes and
@@ -156,8 +180,10 @@ or a strict range, never modes. Keep template defaults, per-activity choices and
 editable content visibly distinct. Saving a template publishes only the plan;
 saving a draft retains editable work; marking ready freezes the reviewed
 revision. Give each state one primary action: create the activity, then mark it
-ready; template editing makes publication primary. Uncommon actions live under
-**פעולות נוספות** or a quiet disclosure. Question cards keep prompt, options
+ready; template editing makes publication primary. It sits in the action bar
+with saving the draft, the save state and Undo; the review card keeps the
+readiness summary. Uncommon actions live under **פעולות נוספות** or a quiet
+disclosure. Question cards keep prompt, options
 with their add and remove actions, and the parent-only answer visible; type,
 points, ordering and removal sit in a per-question disclosure. Every form list
 edits the same way: a remove link (**הסרת**) beside each item and one secondary

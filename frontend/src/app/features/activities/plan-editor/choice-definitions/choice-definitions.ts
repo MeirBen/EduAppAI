@@ -14,6 +14,8 @@ import type { PlanStructureEdit } from '../plan-editor';
 import { ControlCard } from '../control-card/control-card';
 import { focusHolder } from '../../../../shared/focus-holder';
 import { DisabledInteractive } from '../../../../shared/disabled-interactive';
+import { FieldErrors } from '../../../../shared/forms/field-errors';
+import { FieldValidity } from '../../../../shared/forms/field-validity';
 
 /**
  * Everything a parent may change per activity, in one place: the adjustable length, option-count
@@ -21,7 +23,7 @@ import { DisabledInteractive } from '../../../../shared/disabled-interactive';
  * picking the part a new choice joins is not an edit, so its events never reach change tracking.
  */
 @Component({
-  imports: [DisabledInteractive, FormField, ControlCard],
+  imports: [FieldValidity, FieldErrors, DisabledInteractive, FormField, ControlCard],
   selector: 'app-choice-definitions',
   templateUrl: './choice-definitions.html',
   changeDetection: ChangeDetectionStrategy.OnPush,

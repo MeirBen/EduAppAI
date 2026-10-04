@@ -3,10 +3,16 @@
     font-size: 100%;
     /* Pages shorter than the window keep the scrollbar's space, so routes never shift sideways. */
     scrollbar-gutter: stable;
+    /* Masks supply only a glyph's shape; theme tokens paint it. Selects and disclosures share it. */
+    --icon-chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 18 18' fill='none' stroke='%23000' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4.5 6.75 9 11.25l4.5-4.5'/%3E%3C/svg%3E");
 
     /* Clears the pinned header when focus or fragment navigation scrolls content. */
     @variant pinned-header {
       scroll-padding-block-start: 6rem;
+    }
+    /* Keeps focused fields clear of an action bar while it can pin; see `.action-bar`. */
+    &:has(.action-bar) {
+      scroll-padding-block-end: clamp(0rem, (100% - 40rem) * 1000, 9rem);
     }
   }
 
@@ -119,10 +125,17 @@
     unicode-bidi: plaintext;
   }
 
-  /* Block-level so the text baseline adds no descender space below the field. */
+  /*
+   * Block-level so the text baseline adds no descender space below the field. It grows with its
+   * text where supported, so the page scrolls once instead of each field; `rows` is the fallback.
+   */
   textarea {
-    @apply block;
+    @apply block min-h-18 field-sizing-content;
     resize: vertical;
+  }
+  /* Numbers are a few digits long; their fields say so instead of spanning the column. */
+  input[inputmode='numeric'] {
+    @apply max-w-28;
   }
   input::placeholder,
   textarea::placeholder {
@@ -144,12 +157,10 @@
     select {
       @apply cursor-pointer items-center gap-2;
     }
-    /* Masks supply only a glyph's shape; theme tokens paint it. */
     select::picker-icon {
       content: '';
       @apply size-4.5 bg-current text-muted motion-safe:transition-[rotate] motion-safe:duration-300;
-      mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 18 18' fill='none' stroke='%23000' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4.5 6.75 9 11.25l4.5-4.5'/%3E%3C/svg%3E")
-        center / contain no-repeat;
+      mask: var(--icon-chevron) center / contain no-repeat;
     }
     select:open::picker-icon {
       rotate: 180deg;
@@ -187,11 +198,36 @@
     }
   }
 
+  /*
+   * The select's chevron replaces the native marker: it points along the reading direction while
+   * closed and down once open, hanging beside the first line so wrapped labels stay aligned.
+   */
   summary {
-    @apply min-h-11 py-2 font-medium text-brand;
+    @apply relative min-h-11 py-2 ps-6 font-medium text-brand;
+    list-style: none;
+
+    &::-webkit-details-marker {
+      display: none;
+    }
+    &::before {
+      content: '';
+      @apply absolute inset-s-0 size-4 rotate-90 bg-current ltr:-rotate-90 motion-safe:transition-[rotate] motion-safe:duration-300;
+      inset-block-start: calc(0.5rem + (1lh - 1rem) / 2);
+      mask: var(--icon-chevron) center / contain no-repeat;
+    }
+    /* Forced colors drop backgrounds; the chevron must stay visible like the native marker. */
+    @media (forced-colors: active) {
+      &::before {
+        background-color: CanvasText;
+      }
+    }
   }
   details[open] > summary {
     @apply mb-2;
+
+    &::before {
+      rotate: none;
+    }
   }
 
   /*

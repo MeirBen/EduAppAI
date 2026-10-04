@@ -2,13 +2,19 @@ import { ChangeDetectionStrategy, Component, input } from '@angular/core';
 import { FieldTree, FormField } from '@angular/forms/signals';
 import { difficultyLabels, TaskSettingsDraft } from './task-settings';
 import { FieldDirection } from './field-direction';
+import { FieldErrors } from './field-errors';
+import { FieldValidity } from './field-validity';
 
-/** The same accessible controls edit template defaults and task choices. The parent owns the form. */
+/**
+ * The same accessible controls edit template defaults and task choices. The parent owns the form
+ * and its grid; each field is one of that grid's cells.
+ */
 @Component({
   selector: 'app-task-settings-fields',
-  imports: [FormField, FieldDirection],
+  imports: [FieldValidity, FieldErrors, FormField, FieldDirection],
   templateUrl: './task-settings-fields.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
+  host: { class: 'contents' },
 })
 export class TaskSettingsFields {
   readonly fields = input.required<FieldTree<TaskSettingsDraft>>();

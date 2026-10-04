@@ -1,7 +1,7 @@
 <section class="mx-auto grid max-w-3xl gap-6 py-gutter" aria-labelledby="snapshot-heading">
-  <header class="flex flex-wrap items-center justify-between gap-3">
+  <header class="grid justify-items-start gap-1">
+    <a class="text-link back-link" routerLink="/templates">המרחב שלנו</a>
     <h1 id="snapshot-heading">פעילות מוכנה — תצוגה להורים</h1>
-    <a class="text-link" routerLink="/templates">לספרייה</a>
   </header>
   <app-loading-indicator
     [active]="snapshot.isLoading()"
@@ -9,8 +9,8 @@
     variant="panel"
   />
   @if (snapshot.error()) {
-    <div class="grid justify-items-start gap-1">
-      <p role="alert" class="field-error">{{ apiError(snapshot.error()) }}</p>
+    <div class="grid gap-2">
+      <p role="alert" class="error">{{ apiError(snapshot.error()) }}</p>
       <button type="button" class="text-link" (click)="snapshot.reload()">ניסיון נוסף</button>
     </div>
   } @else if (snapshot.hasValue()) {
@@ -31,25 +31,30 @@
       }
     </div>
     <div class="panel"><app-activity-document-view [document]="snapshot.value().document" /></div>
-    @if (copiedId()) {
-      <div class="grid justify-items-start gap-4">
-        <p role="status">נוצר עותק לעריכה. הפעילות המוכנה נשארה ללא שינוי.</p>
-        <a class="button" [routerLink]="['/activities', copiedId()]">פתיחת הטיוטה החדשה</a>
-      </div>
-    } @else {
-      <button
-        id="copy-snapshot"
-        type="button"
-        class="button w-fit"
-        [disabled]="copying()"
-        (click)="copy()"
-      >
-        עריכה כטיוטה חדשה
-      </button>
-    }
-    <app-loading-indicator [active]="copying()" label="יוצרים טיוטה חדשה…" />
-    @if (error()) {
-      <p role="alert" class="field-error">{{ error() }}</p>
-    }
+    <section class="action-bar" aria-labelledby="snapshot-actions-title">
+      <h2 id="snapshot-actions-title" class="sr-only">פעולות</h2>
+      @if (error()) {
+        <p role="alert" class="field-error">{{ error() }}</p>
+      }
+      <app-loading-indicator [active]="copying()" label="יוצרים טיוטה חדשה…" />
+      @if (copiedId()) {
+        <div class="flex flex-wrap items-center gap-x-6 gap-y-2">
+          <a class="button" [routerLink]="['/activities', copiedId()]">פתיחת הטיוטה החדשה</a>
+          <p role="status" class="text-sm text-muted">
+            נוצר עותק לעריכה. הפעילות המוכנה נשארה ללא שינוי.
+          </p>
+        </div>
+      } @else {
+        <button
+          id="copy-snapshot"
+          type="button"
+          class="button"
+          [disabled]="copying()"
+          (click)="copy()"
+        >
+          עריכה כטיוטה חדשה
+        </button>
+      }
+    </section>
   }
 </section>

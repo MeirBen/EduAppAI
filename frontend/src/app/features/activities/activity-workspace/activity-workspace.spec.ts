@@ -94,18 +94,22 @@ describe('ActivityWorkspace plan ownership', () => {
   });
   afterEach(() => http.verify());
 
-  it('associates requested-choice errors with the native field while preserving invalid typing', async () => {
+  it('shows requested-choice errors on the native field once tried, keeping invalid typing', async () => {
     const id = 'a'.repeat(32);
     await open('/templates/example/create', {
       ...numericPlan,
       controls: [{ id, label: 'היסט', meaning: 'היסט התרגול', type: 'integer', required: true }],
     });
+    const help = () => root().querySelector('#' + id + '-input-help')!.textContent;
     expect(field(id + '-input').getAttribute('aria-describedby')).toContain(id + '-input-help');
-    expect(root().querySelector('#' + id + '-input-help')!.textContent).toContain('נדרש ערך');
-    await type(id + '-input', '1.5');
-    expect(root().querySelector('#' + id + '-input-help')!.textContent).toContain('מספר שלם');
-    expect(field(id + '-input').value).toBe('1.5');
+    expect(help()).not.toContain('נדרש ערך');
+    expect(field(id + '-input').getAttribute('aria-invalid')).not.toBe('true');
+    await click('save-activity');
+    expect(help()).toContain('נדרש ערך');
     expect(field(id + '-input').getAttribute('aria-invalid')).toBe('true');
+    await type(id + '-input', '1.5');
+    expect(help()).toContain('מספר שלם');
+    expect(field(id + '-input').value).toBe('1.5');
     http.expectNone('/api/ai/template-drafts');
   });
 
@@ -217,6 +221,10 @@ describe('ActivityWorkspace plan ownership', () => {
     http.expectNone('/api/ai/template-drafts');
     expect(field('plan-name').value).toBe('תכנית חלקית');
     expect(root().textContent).toContain('תקנו את ההגדרות המסומנות');
+    // The marked field explains itself instead of a list elsewhere.
+    expect(field('plan-goal').getAttribute('aria-invalid')).toBe('true');
+    expect(root().querySelector('#plan-goal-errors')!.textContent).toContain('יש להזין טקסט');
+    expect(field('plan-name').getAttribute('aria-invalid')).toBeNull();
   });
 
   it('does not mark early local typing saved when the status version arrives later', async () => {
@@ -250,7 +258,7 @@ describe('ActivityWorkspace plan ownership', () => {
     expect(field('plan-name').value).toBe('מספרים');
     expect(root().querySelector('#plan-title')!.textContent).toContain('הגדרות הפעילות');
     expect(chatFollowsSettings()).toBe(true);
-    expect(document.activeElement?.id).toBe('chat-message');
+    expect(document.activeElement?.id).toBe('plan-title');
     expect(root().textContent).toContain('הכנו הגדרות לפי הבקשה');
     expect(root().textContent).not.toContain('נוספו הגדרות');
     http.expectNone('/api/templates');

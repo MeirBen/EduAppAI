@@ -16,7 +16,7 @@ import {
   signal,
   viewChild,
 } from '@angular/core';
-import { apply, applyEach, disabled, form, maxLength, validate } from '@angular/forms/signals';
+import { apply, applyEach, disabled, form, maxLength, validateTree } from '@angular/forms/signals';
 import { Router, RouterLink } from '@angular/router';
 import { Subject } from 'rxjs';
 import { apiError } from '../../../core/api/api-error';
@@ -32,7 +32,7 @@ import {
   StartGeneration,
 } from '../../../core/api/models';
 import { focusHolder } from '../../../shared/focus-holder';
-import { taskSettingsSchema } from '../../../shared/forms/task-settings';
+import { validationErrors } from '../../../shared/forms/projection';
 import { LoadingIndicator } from '../../../shared/loading-indicator/loading-indicator';
 import {
   ActivityDocumentEditor,
@@ -58,8 +58,8 @@ import { GenerationStatus } from '../generation-status/generation-status';
 import { isRunning } from '../generation-status/operation-state';
 import { UnappliedResult } from '../generation-status/unapplied-result/unapplied-result';
 import { PlanEditor, PlanStructureEdit } from '../plan-editor/plan-editor';
-import { planControls, planFormSchema } from '../plan-editor/plan-form';
-import { controlInputValue, planValue, requestValue } from '../plan-editor/plan-projection';
+import { planFormSchema } from '../plan-editor/plan-form';
+import { planValue, requestValue } from '../plan-editor/plan-projection';
 import { SourceReplacement } from '../source-replacement/source-replacement';
 import { TemplateChat } from '../template-chat/template-chat';
 import { libraryChanges } from '../../../core/api/library-changes';
@@ -84,6 +84,7 @@ import {
   WorkspaceSnapshot,
 } from './workspace-form';
 import { DisabledInteractive } from '../../../shared/disabled-interactive';
+import { FieldErrors } from '../../../shared/forms/field-errors';
 
 /**
  * Route owner for one template or activity: the editable buffer, chat correlation, source
@@ -94,6 +95,7 @@ import { DisabledInteractive } from '../../../shared/disabled-interactive';
 @Component({
   selector: 'app-activity-workspace',
   imports: [
+    FieldErrors,
     DisabledInteractive,
     PlanEditor,
     TemplateChat,
@@ -154,7 +156,6 @@ export class ActivityWorkspace {
   protected readonly saving = signal(false);
   protected readonly publishing = signal(false);
   protected readonly copying = signal(false);
-  protected readonly attempted = signal(false);
   /** Template publication failure; authoring failures use their own channel beside the request. */
   protected readonly error = signal('');
   protected readonly notice = signal('');
@@ -270,6 +271,11 @@ export class ActivityWorkspace {
   protected readonly hasContent = computed(
     () => !!this.raw().document.materials.length || !!this.raw().document.questions.length,
   );
+  /** The pinned save state and current actions, once there is anything to save, undo or open. */
+  protected readonly actionBar = computed(
+    () =>
+      this.hasPlan() || !!this.saved() || !!this.publication() || !!this.history.entries().length,
+  );
   protected readonly steps = ['תיאור', 'הגדרות', 'בדיקה', 'מוכנה'];
   /** The step indicator's phase: describe, set up, review, ready. */
   protected readonly stage = computed(() =>
@@ -336,23 +342,16 @@ export class ActivityWorkspace {
     disabled(path, () => this.saving() || this.loading() || this.released());
     apply(path.document, documentSchema(this.limits));
     apply(path.plan, planFormSchema(this.limits));
-    apply(path.input.settings, taskSettingsSchema(this.limits));
     applyEach(path.input.materials, (material) =>
       maxLength(material.sourceText, this.limits.bodyLength),
     );
-    applyEach(path.input.controls, (control) =>
-      validate(control.value, ({ valueOf }) => {
-        const plan = this.projection().value;
-        const definition =
-          plan && planControls(plan).find((item) => item.id === valueOf(control.id));
-        return definition
-          ? controlInputValue(definition, this.limits, {
-              id: valueOf(control.id),
-              provided: valueOf(control.provided),
-              value: valueOf(control.value),
-            }).errors.map((message) => ({ kind: 'choice', message }))
-          : [];
-      }),
+    // The projections own every rule; each problem shows on the field that can fix it.
+    validateTree(path, ({ fieldTree }) =>
+      validationErrors(fieldTree, [
+        ...this.projection().errors,
+        ...this.inputProjection().errors,
+        ...this.documentProjection().errors,
+      ]),
     );
   });
   protected readonly chatFields = form(this.chat, (path) => {
@@ -466,7 +465,7 @@ export class ActivityWorkspace {
     if (!message.trim() || message.length > this.limits.messageLength) return;
     const baseDefinition = this.projection().value;
     if (!baseDefinition && this.hasPlan()) {
-      this.attempted.set(true);
+      this.fields().markAsTouched();
       this.authorError.set('תקנו את ההגדרות המסומנות לפני שליחת בקשה נוספת.');
       return;
     }
@@ -524,8 +523,8 @@ export class ActivityWorkspace {
         ]);
         if (reply.changes.length) {
           this.applyProposal(reply.proposal, !!baseDefinition);
-          // The first plan re-creates the chat below the settings; focus returns to its composer.
-          if (!baseDefinition) restoreFocus('chat-message');
+          // The first plan replaces the request with settings; reading starts at their heading.
+          if (!baseDefinition) restoreFocus('plan-title');
         }
       } else if (reply.clarification) {
         this.answered.set([]);
@@ -547,7 +546,7 @@ export class ActivityWorkspace {
 
   protected async saveTemplate() {
     if (this.saving() || !this.templateChanged()) return;
-    this.attempted.set(true);
+    this.fields().markAsTouched();
     this.error.set('');
     this.templateNotice.set('');
     const plan = this.projection().value;
@@ -638,6 +637,8 @@ export class ActivityWorkspace {
       return;
     if (action !== 'save' && action !== 'release' && action !== 'adopt' && !this.aiConfigured())
       return;
+    // Shows every field's state; fields take touched only while enabled, so before the lock.
+    this.fields().markAsTouched();
     await this.runDraftRequest(async () => {
       this.cancelAuthor();
       this.activityError.set('');
@@ -831,7 +832,6 @@ export class ActivityWorkspace {
   }
 
   private async flushDraft(): Promise<ActivityDetail | undefined> {
-    this.attempted.set(true);
     const plan = this.projection().value,
       input = this.inputProjection().value,
       document = this.documentProjection().value;
@@ -909,7 +909,7 @@ export class ActivityWorkspace {
       this.clientRevision++;
       this.operationClientRevision = this.clientRevision;
       this.acceptCheckpoint(saved);
-      // Content that replaces the panel holding focus, such as the create actions, takes it.
+      // Content that replaces the control holding focus, such as the create action, takes it.
       restoreFocus('document-heading');
     } else {
       if (saved.revision > (this.available()?.revision ?? 0)) this.available.set(saved);

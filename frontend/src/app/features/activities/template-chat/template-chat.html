@@ -1,10 +1,10 @@
 @let start = !refining();
 @let message = fields().message;
-<div class="grid gap-4" [class]="start ? '' : 'border-t border-line pt-6'">
+<div class="grid gap-4">
   @if (!start) {
-    <h3 class="flex items-center gap-3">
-      <span class="ai-mark size-8" aria-hidden="true"></span>רוצים לשנות משהו?
-    </h3>
+    <h2 id="change-title" class="flex items-center gap-3">
+      <span class="ai-mark" aria-hidden="true"></span>רוצים לשנות משהו?
+    </h2>
   }
   @if (start && !started()) {
     <p id="chat-help" class="text-muted">
@@ -173,7 +173,7 @@
       <button
         id="chat-consolidate"
         type="submit"
-        class="button w-fit"
+        class="button"
         [disabled]="!configured() || busy() || locked() || !fields().consolidated().value().trim()"
       >
         שליחת הבקשה המאוחדת

@@ -1,42 +1,34 @@
-<div class="grid gap-4 sm:grid-cols-2">
-  @for (control of controls; track control.key) {
-    @let field = fields()[control.key];
-    @let id = prefix() + '-' + control.key;
-    <div>
-      <label [for]="id">{{ control.label }}</label>
-      @if (control.key === 'difficulty') {
-        <select
-          [id]="id"
-          [formField]="fields().difficulty"
-          aria-required="true"
-          [attr.aria-invalid]="field().touched() && field().invalid()"
-          [attr.aria-describedby]="id + '-help'"
-        >
-          @for (option of difficultyOptions; track option[0]) {
-            <option [value]="option[0]">{{ option[1] }}</option>
-          }
-        </select>
-      } @else {
-        <input
-          [id]="id"
-          [formField]="fields()[control.key]"
-          aria-required="true"
-          [dir]="control.key === 'questionCount' ? 'ltr' : 'auto'"
-          [attr.inputmode]="control.key === 'questionCount' ? 'numeric' : 'text'"
-          [attr.aria-invalid]="field().touched() && field().invalid()"
-          [attr.aria-describedby]="id + '-help'"
-        />
+@for (control of controls; track control.key) {
+  @let field = fields()[control.key];
+  @let id = prefix() + '-' + control.key;
+  <div>
+    <label [for]="id">{{ control.label }}</label>
+    @if (control.key === 'difficulty') {
+      <select
+        [id]="id"
+        [formField]="fields().difficulty"
+        aria-required="true"
+        [attr.aria-describedby]="id + '-help'"
+      >
+        @for (option of difficultyOptions; track option[0]) {
+          <option [value]="option[0]">{{ option[1] }}</option>
+        }
+      </select>
+    } @else {
+      <input
+        [id]="id"
+        [formField]="fields()[control.key]"
+        aria-required="true"
+        [dir]="control.key === 'questionCount' ? 'ltr' : 'auto'"
+        [attr.inputmode]="control.key === 'questionCount' ? 'numeric' : 'text'"
+        [attr.aria-describedby]="id + '-help'"
+      />
+    }
+    <div [id]="id + '-help'">
+      @if ('hint' in control) {
+        <p class="mt-2 text-sm text-muted">{{ control.hint }}</p>
       }
-      <div [id]="id + '-help'">
-        @if ('hint' in control) {
-          <p class="mt-2 text-sm text-muted">{{ control.hint }}</p>
-        }
-        @if (field().touched()) {
-          @for (error of field().errors(); track error.kind) {
-            <p class="field-error mt-2">{{ error.message }}</p>
-          }
-        }
-      </div>
+      <app-field-errors [field]="field" />
     </div>
-  }
-</div>
+  </div>
+}

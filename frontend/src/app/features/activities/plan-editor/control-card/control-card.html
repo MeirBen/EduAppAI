@@ -15,9 +15,26 @@
     }
   </summary>
   <div class="grid min-w-0 gap-4">
-    <div>
-      <label [for]="control.id + '-label'">איך תיקרא הבחירה?</label
-      ><input [id]="control.id + '-label'" dir="auto" [formField]="c.label" />
+    <div class="grid gap-4 sm:grid-cols-2">
+      <div>
+        <label [for]="control.id + '-label'">איך תיקרא הבחירה?</label
+        ><input
+          [id]="control.id + '-label'"
+          dir="auto"
+          [formField]="c.label"
+          [attr.aria-describedby]="control.id + '-label-errors'"
+        />
+        <app-field-errors [id]="control.id + '-label-errors'" [field]="c.label" />
+      </div>
+      <div>
+        <label [for]="control.id + '-type'">איך בוחרים?</label
+        ><select [id]="control.id + '-type'" [formField]="c.type">
+          <option value="text">{{ typeNames.text }}</option>
+          <option value="integer">{{ typeNames.integer }}</option>
+          <option value="select">{{ typeNames.select }}</option>
+          <option value="boolean">{{ typeNames.boolean }}</option>
+        </select>
+      </div>
     </div>
     <div>
       <label [for]="control.id + '-meaning'">{{ copy().effect }}</label
@@ -25,22 +42,14 @@
         [id]="control.id + '-meaning'"
         dir="auto"
         [formField]="c.meaning"
-        [attr.aria-describedby]="control.id + '-meaning-help'"
+        [attr.aria-describedby]="control.id + '-meaning-help ' + control.id + '-meaning-errors'"
       ></textarea>
       <p [id]="control.id + '-meaning-help'" class="mt-2 text-sm text-muted">
         העוזר משתמש בהסבר הזה כשהוא כותב את הפעילות.
       </p>
+      <app-field-errors [id]="control.id + '-meaning-errors'" [field]="c.meaning" />
     </div>
-    <div>
-      <label [for]="control.id + '-type'">איך בוחרים?</label
-      ><select [id]="control.id + '-type'" [formField]="c.type">
-        <option value="text">{{ typeNames.text }}</option>
-        <option value="integer">{{ typeNames.integer }}</option>
-        <option value="select">{{ typeNames.select }}</option>
-        <option value="boolean">{{ typeNames.boolean }}</option>
-      </select>
-    </div>
-    <div class="grid gap-1">
+    <div class="flex flex-wrap gap-x-6">
       @if (!control.hasDefault) {
         <label
           ><input [id]="control.id + '-required'" type="checkbox" [formField]="c.required" />חובה
@@ -60,14 +69,22 @@
         <label [for]="control.id + '-default'">ברירת מחדל</label>
         @switch (control.type) {
           @case ('boolean') {
-            <select [id]="control.id + '-default'" [formField]="c.defaultValue">
+            <select
+              [id]="control.id + '-default'"
+              [formField]="c.defaultValue"
+              [attr.aria-describedby]="control.id + '-default-errors'"
+            >
               <option value="">בחרו</option>
               <option value="true">כן</option>
               <option value="false">לא</option>
             </select>
           }
           @case ('select') {
-            <select [id]="control.id + '-default'" [formField]="c.defaultValue">
+            <select
+              [id]="control.id + '-default'"
+              [formField]="c.defaultValue"
+              [attr.aria-describedby]="control.id + '-default-errors'"
+            >
               <option value="">ללא בחירה</option>
               @for (option of control.options; track $index) {
                 <option [value]="option.value">&#x2068;{{ option.value }}&#x2069;</option>
@@ -80,25 +97,41 @@
               [dir]="control.type === 'integer' ? 'ltr' : 'auto'"
               [attr.inputmode]="control.type === 'integer' ? 'numeric' : 'text'"
               [formField]="c.defaultValue"
+              [attr.aria-describedby]="control.id + '-default-errors'"
             />
           }
         }
+        <app-field-errors [id]="control.id + '-default-errors'" [field]="c.defaultValue" />
       </div>
     }
     @if (control.type === 'integer') {
-      <div class="grid gap-4 sm:grid-cols-2">
+      <div class="flex flex-wrap gap-4">
         <div>
           <label [for]="control.id + '-min'">מינימום (רשות)</label
-          ><input [id]="control.id + '-min'" dir="ltr" inputmode="numeric" [formField]="c.min" />
+          ><input
+            [id]="control.id + '-min'"
+            dir="ltr"
+            inputmode="numeric"
+            [formField]="c.min"
+            [attr.aria-describedby]="control.id + '-min-errors'"
+          />
+          <app-field-errors [id]="control.id + '-min-errors'" [field]="c.min" />
         </div>
         <div>
           <label [for]="control.id + '-max'">מקסימום (רשות)</label
-          ><input [id]="control.id + '-max'" dir="ltr" inputmode="numeric" [formField]="c.max" />
+          ><input
+            [id]="control.id + '-max'"
+            dir="ltr"
+            inputmode="numeric"
+            [formField]="c.max"
+            [attr.aria-describedby]="control.id + '-max-errors'"
+          />
+          <app-field-errors [id]="control.id + '-max-errors'" [field]="c.max" />
         </div>
-      </div>
-      <div>
-        <label [for]="control.id + '-unit'">יחידת מידה (רשות)</label
-        ><input [id]="control.id + '-unit'" dir="auto" [formField]="c.unit" />
+        <div class="min-w-0 grow basis-48">
+          <label [for]="control.id + '-unit'">יחידת מידה (רשות)</label
+          ><input [id]="control.id + '-unit'" dir="auto" [formField]="c.unit" />
+        </div>
       </div>
     }
     @if (control.type === 'text') {
@@ -109,21 +142,28 @@
           dir="ltr"
           inputmode="numeric"
           [formField]="c.maxLength"
+          [attr.aria-describedby]="control.id + '-max-length-errors'"
         />
+        <app-field-errors [id]="control.id + '-max-length-errors'" [field]="c.maxLength" />
       </div>
     }
     @if (control.type === 'select') {
       @for (option of control.options; track $index; let optionIndex = $index) {
-        <div class="grid gap-4 sm:grid-cols-2">
-          <div>
+        <div class="flex flex-wrap items-end gap-4">
+          <div class="min-w-0 grow basis-48">
             <label [for]="control.id + '-option-' + optionIndex">אפשרות {{ optionIndex + 1 }}</label
             ><input
               [id]="control.id + '-option-' + optionIndex"
               dir="auto"
               [formField]="c.options[optionIndex].value"
+              [attr.aria-describedby]="control.id + '-option-' + optionIndex + '-errors'"
+            />
+            <app-field-errors
+              [id]="control.id + '-option-' + optionIndex + '-errors'"
+              [field]="c.options[optionIndex].value"
             />
           </div>
-          <div>
+          <div class="min-w-0 grow basis-48">
             <label [for]="control.id + '-meaning-' + optionIndex">הסבר לאפשרות (רשות)</label
             ><input
               [id]="control.id + '-meaning-' + optionIndex"
@@ -133,7 +173,7 @@
           </div>
           <button
             type="button"
-            class="text-link w-fit"
+            class="text-link text-link-danger"
             [disabledInteractive]="locked()"
             (click)="editOption(optionIndex)"
           >
@@ -141,10 +181,12 @@
           </button>
         </div>
       }
+      <app-field-errors [id]="control.id + '-options-errors'" [field]="c.options" />
       <button
         type="button"
-        class="button button-secondary w-fit"
+        class="button button-secondary"
         [id]="control.id + '-add-option'"
+        [attr.aria-describedby]="control.id + '-options-errors'"
         [disabledInteractive]="locked() || control.options.length >= limits.maxSelectOptions"
         (click)="editOption()"
       >
@@ -153,7 +195,7 @@
     }
     <button
       type="button"
-      class="text-link text-link-danger w-fit"
+      class="text-link text-link-danger"
       [disabledInteractive]="locked()"
       (click)="structureChanged.emit({ kind: 'remove-control', scope: scope(), id: control.id })"
     >

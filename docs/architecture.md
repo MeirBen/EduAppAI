@@ -220,7 +220,8 @@ validates every request.
 `ActivityWorkspace` owns the template and activity URLs, one form buffer for
 plan and per-activity input, derived canonical projections, source confirmation
 and twenty coalesced Undo entries; its pure buffer transitions live in
-`workspace-form`, and plan projections in `plan-projection`. ActivitySetup,
+`workspace-form`, and plan projections in `plan-projection`. The projections own
+every form rule, and one `validateTree` attaches each issue to its field. ActivitySetup,
 PlanEditor, TemplateChat, SourceReplacement and the document editor edit the
 owner's Signal Forms and emit events; ActivityReview, GenerationStatus and
 UnappliedResult present state and emit explicit actions. None owns a copied

@@ -38,9 +38,10 @@ describe('Plan projection', () => {
     expect(planValue(form, settings, limits).value).toBeUndefined();
     expect(settings.questionCount).toBe('');
     settings.questionCount = '21';
-    expect(planValue(form, settings, limits).errors).toContain(
-      'מספר השאלות חייב להיות בין 1 ל־20.',
-    );
+    expect(planValue(form, settings, limits).errors).toContainEqual({
+      path: ['input', 'settings', 'questionCount'],
+      message: 'יש להזין מספר שלם בין 1 ל־20.',
+    });
     settings.questionCount = '20';
     expect(planValue(form, settings, limits).value?.defaults.questionCount).toBe(20);
   });

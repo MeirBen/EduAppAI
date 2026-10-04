@@ -13,6 +13,8 @@ import {
 } from '../plan-editor/plan-form';
 import { FieldDirection } from '../../../shared/forms/field-direction';
 import { DisabledInteractive } from '../../../shared/disabled-interactive';
+import { FieldErrors } from '../../../shared/forms/field-errors';
+import { FieldValidity } from '../../../shared/forms/field-validity';
 
 /** One generated-length row: an adjustable word count, or a fixed requirement read aloud. */
 interface LengthChoice {
@@ -32,7 +34,14 @@ interface LengthChoice {
  */
 @Component({
   selector: 'app-activity-setup',
-  imports: [DisabledInteractive, FormField, FieldDirection, TaskSettingsFields],
+  imports: [
+    FieldValidity,
+    FieldErrors,
+    DisabledInteractive,
+    FormField,
+    FieldDirection,
+    TaskSettingsFields,
+  ],
   templateUrl: './activity-setup.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { '(input)': 'changed($event)', '(change)': 'changed($event)' },
@@ -97,14 +106,6 @@ export class ActivitySetup {
       choices.push(this.lengthChoice('input-total', 'כל הטקסטים יחד', plan.totalLength, null));
     return choices.filter((choice): choice is LengthChoice => !!choice);
   });
-  /** Format, option-count and length rows; their group renders only when the plan offers one. */
-  protected readonly hasPlanChoices = computed(
-    () =>
-      this.plan()().value().questions.selectableFormat ||
-      this.formats().length > 1 ||
-      this.choiceCountApplies() ||
-      !!this.lengthChoices().length,
-  );
   /** Reads an integer choice's allowed range as parents say it. */
   protected bounds(control: Pick<ControlForm, 'min' | 'max'>) {
     return control.min && control.max
