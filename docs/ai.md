@@ -109,17 +109,17 @@ a human.
   moving up. The other topics had one error in 185 texts. A topic-specific rule
   would be a holdout exception, so parent review stays the safeguard.
 
-On 6 October a different-topic rewrite replayed the app's exact rewrite request,
-one call per case.
+On 6 October different-topic rewrites replayed the app's exact rewrite request.
 
 - **Rewrite scope (revision 30, kept):** asked for "a completely different
   topic: a journey to space", a responsibility story became a space travelogue
   with no responsibility left, and acceptance passed. One line now keeps the
-  instruction within the effective requirements; the same request then produced
-  a responsibility story set around a class space project. "Change the topic to
-  dinosaurs" had already blended this way. The "different text on the same
-  topic" suggestion changed the premise, so a rewrite now clears the stored
-  idea; it was not replayed after the new line.
+  instruction within the effective requirements. Afterwards, five
+  different-topic requests in four phrasings, including "unrelated to
+  responsibility", and one parent request in the app all kept the learning goal
+  and blended in only compatible parts. The "different text on the same topic"
+  suggestion changed the premise, so a rewrite now clears the stored idea; it
+  and "simpler language" still worked.
 
 ## Material variety
 
