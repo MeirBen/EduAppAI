@@ -217,9 +217,11 @@ ready; template editing makes publication primary. It sits in the action bar
 with saving the draft, the save state and Undo; the review card keeps the
 readiness summary. Uncommon actions live under **פעולות נוספות** or a quiet
 disclosure. Question cards keep prompt, options and the parent-only answer
-visible, with icons to move or remove the question in their header; answer type
-and points sit in a per-question disclosure. Every form list edits the same way:
-a remove icon beside each item and one secondary add button after the list.
+visible, with icons to move or remove the question in their header; from `sm`, a
+typed answer shares the prompt's row, while a choice answer follows its options.
+Answer type and points sit in a per-question disclosure. Every form list edits
+the same way: a remove icon beside each item and one secondary add button after
+the list.
 Scoped AI improvement is a contextual action with an optional instruction; its
 progress, result and any error show in that card, while full generation reports
 above the content.

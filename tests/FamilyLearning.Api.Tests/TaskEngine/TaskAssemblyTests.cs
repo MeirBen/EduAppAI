@@ -129,6 +129,17 @@ public sealed class TaskAssemblyTests
     }
 
     [Fact]
+    public void Unchanged_material_rewrite_keeps_its_revision_so_questions_stay_current()
+    {
+        var request = Resolve(Reading());
+        var document = TaskAssembly.AcceptMaterials(request, Empty, new([new(MaterialId, null, "שלום עולם")])).Document!;
+        document = TaskAssembly.AcceptQuestions(request, document, Questions(Question("text-input"), Question("text-input")));
+        var rewritten = TaskAssembly.ReplaceMaterial(new(request, document, MaterialId), new(MaterialId, null, "שלום עולם"));
+        Assert.Equal(document.Materials[0].Revision, rewritten.Materials[0].Revision);
+        Assert.Empty(TaskDocumentValidator.ValidateRelease(request, rewritten));
+    }
+
+    [Fact]
     public void Adoption_and_question_preflight_cannot_waive_strict_material_length()
     {
         var plan = Reading();

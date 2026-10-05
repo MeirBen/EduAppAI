@@ -31,8 +31,9 @@ The flow is prompt → editable plan → applicable material ideas and writing �
 questions → editable saved draft → parent review → immutable snapshot. Template
 publication is independent. Supplied sources are assembled verbatim by the app;
 question-only and supplied-source activities skip material generation. Scoped
-replacement preserves unrelated content, and replacing material makes
-dependent questions stale instead of regenerating them. A question replacement
+replacement preserves unrelated content, and changing material makes dependent
+questions stale instead of regenerating them; an unchanged rewrite, as for an
+unintelligible instruction, keeps them current. A question replacement
 reads the other questions and learner instructions as context, so it stays
 distinct from them and consistent with the instructions.
 

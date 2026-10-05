@@ -119,9 +119,11 @@ public static class TaskAssembly
         if (candidate is null || candidate.Id != target.Id || !HasText(candidate.Body, BodyLimit) || candidate.Title?.Length > TitleLength)
             throw TargetError("materials");
         var fingerprint = TaskRequestResolver.Fingerprint(input.Request);
+        // An unchanged rewrite keeps the material's revision, so its dependent questions stay current.
+        var rewritten = candidate.Title != target.Title || candidate.Body != target.Body;
         var document = input.Current with
         {
-            Materials = input.Current.Materials.Select(m => m.Id == target.Id
+            Materials = input.Current.Materials.Select(m => m.Id == target.Id && rewritten
                 ? new MaterialContent(m.Id, checked(m.Revision + 1), candidate.Title, candidate.Body,
                     new("generated", input.Request.EngineRevision, fingerprint, metadata), new(fingerprint, []))
                 : m with { Acceptance = CopyAcceptance(m.Acceptance) }).ToArray(),

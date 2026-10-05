@@ -181,20 +181,41 @@
               </button>
             </div>
           }
-          <div>
-            <label [for]="'question-' + i + '-prompt'">נוסח השאלה</label
-            ><textarea
-              [id]="'question-' + i + '-prompt'"
-              dir="auto"
-              [formField]="question.prompt"
-              [flagged]="!!issue?.prompt"
-              [attr.aria-describedby]="'question-' + i + '-prompt-errors'"
-            ></textarea>
-            <app-field-errors
-              [id]="'question-' + i + '-prompt-errors'"
-              [field]="question.prompt"
-              [problem]="issue?.prompt"
-            />
+          <div class="grid gap-4 sm:grid-cols-2">
+            <div class="sm:only:col-span-2">
+              <label [for]="'question-' + i + '-prompt'">נוסח השאלה</label
+              ><textarea
+                [id]="'question-' + i + '-prompt'"
+                dir="auto"
+                [formField]="question.prompt"
+                [flagged]="!!issue?.prompt"
+                [attr.aria-describedby]="'question-' + i + '-prompt-errors'"
+              ></textarea>
+              <app-field-errors
+                [id]="'question-' + i + '-prompt-errors'"
+                [field]="question.prompt"
+                [problem]="issue?.prompt"
+              />
+            </div>
+            @if (value.type !== 'single-choice') {
+              <div>
+                <label [for]="'question-' + i + '-answer'"
+                  >תשובה נכונה
+                  <span class="text-sm font-normal text-muted">(מוצגת רק לכם)</span></label
+                ><input
+                  [id]="'question-' + i + '-answer'"
+                  [dir]="value.type === 'numeric-input' ? 'ltr' : 'auto'"
+                  [formField]="question.answer"
+                  [flagged]="!!issue?.answer"
+                  [attr.aria-describedby]="'question-' + i + '-answer-errors'"
+                />
+                <app-field-errors
+                  [id]="'question-' + i + '-answer-errors'"
+                  [field]="question.answer"
+                  [problem]="issue?.answer"
+                />
+              </div>
+            }
           </div>
           @if (value.type === 'single-choice') {
             <div class="grid gap-4">
@@ -278,24 +299,6 @@
                 [problem]="issue?.answer"
               />
             </div>
-          } @else {
-            <div>
-              <label [for]="'question-' + i + '-answer'"
-                >תשובה נכונה
-                <span class="text-sm font-normal text-muted">(מוצגת רק לכם)</span></label
-              ><input
-                [id]="'question-' + i + '-answer'"
-                [dir]="value.type === 'numeric-input' ? 'ltr' : 'auto'"
-                [formField]="question.answer"
-                [flagged]="!!issue?.answer"
-                [attr.aria-describedby]="'question-' + i + '-answer-errors'"
-              />
-              <app-field-errors
-                [id]="'question-' + i + '-answer-errors'"
-                [field]="question.answer"
-                [problem]="issue?.answer"
-              />
-            </div>
           }
           <div class="grid gap-1">
             @if (id) {
@@ -313,7 +316,7 @@
             }
             <details class="group">
               <summary [id]="'question-' + i + '-more'">
-                סוג התשובה והניקוד — שאלה {{ i + 1 }}
+                סוג התשובה והניקוד<span class="sr-only"> — שאלה {{ i + 1 }}</span>
                 @if (question.points().invalid() || issue?.type) {
                   <span class="text-danger group-open:hidden">· נדרש תיקון</span>
                 }
