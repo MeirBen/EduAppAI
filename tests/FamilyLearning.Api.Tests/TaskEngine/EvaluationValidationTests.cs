@@ -108,11 +108,26 @@ public sealed class EvaluationValidationTests : IDisposable
         await Assert.ThrowsAsync<InvalidDataException>(() => EvaluationFiles.LoadFixtureAsync<CalibrationSample>(path));
     }
 
+    [Fact]
+    public async Task Calibration_fixture_requires_a_gating_control()
+    {
+        Directory.CreateDirectory(directory);
+        var path = Path.Combine(directory, "controls.json");
+        CalibrationSample[] samples = [new("control", "בקשת לימוד", [new("question", "מילה תקינה")], [], Advisory: true)];
+        await File.WriteAllTextAsync(path, JsonSerializer.Serialize(samples, new JsonSerializerOptions(JsonSerializerDefaults.Web)));
+
+        await Assert.ThrowsAsync<InvalidDataException>(() => EvaluationFiles.LoadFixtureAsync<CalibrationSample>(path));
+        await File.WriteAllTextAsync(path, JsonSerializer.Serialize(samples.Select(sample => sample with { Advisory = false }),
+            new JsonSerializerOptions(JsonSerializerDefaults.Web)));
+        Assert.Single((await EvaluationFiles.LoadFixtureAsync<CalibrationSample>(path)).Items);
+    }
+
     [Theory]
     [InlineData("calibrationSha256")]
     [InlineData("calibrationSamples")]
     [InlineData("judgePromptVersion")]
     [InlineData("judgePrompt")]
+    [InlineData("judgeProfile")]
     [InlineData("calibration")]
     public async Task Judge_report_requires_each_captured_calibration_member(string property)
     {

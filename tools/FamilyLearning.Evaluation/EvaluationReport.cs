@@ -49,6 +49,8 @@ public sealed class EvaluationReport(EvaluationCase[] cases, int repeat, string 
     public CalibrationSample[] CalibrationSamples { get; init; } = [];
     public string JudgePromptVersion { get; init; } = "";
     public string JudgePrompt { get; init; } = "";
+    /// <summary>The pinned judge's nonsecret profile; independent of the generation profile.</summary>
+    public Dictionary<string, string?> JudgeProfile { get; init; } = [];
     [JsonRequired] public bool JudgeEnabled { get; init; }
     public int MaxCalls { get; init; } = 100;
     /// <summary>Recorded pause before each call after the first, outside request timing.</summary>
@@ -62,10 +64,10 @@ public sealed class EvaluationReport(EvaluationCase[] cases, int repeat, string 
     public int AutomaticPasses => Results.Count(result => result.EndToEndReady);
     public int CallsWithReportedCost => Steps.Count(step => step.CostCredits.HasValue);
     public decimal? ReportedCostCredits => CallsWithReportedCost == 0 ? null : Steps.Sum(step => step.CostCredits ?? 0);
-    /// <summary>Null means disabled or unfinished, never a pass. Content findings do not affect calibration.</summary>
+    /// <summary>Null means disabled or unfinished, never a pass. Content findings and advisory controls do not affect it.</summary>
     public bool? JudgeCalibrationPassed => !JudgeEnabled || Calibration.Count != CalibrationSamples.Length ||
-        Calibration.Any(result => result.Call.FinishedAtUtc is null) ? null : Calibration.All(result => result.Passed);
-    public int CalibrationFailureCount => Calibration.Count(result => result.Call.FinishedAtUtc is not null && !result.Passed);
+        Calibration.Any(result => result.Call.FinishedAtUtc is null) ? null : Calibration.All(result => result.Sample.Advisory || result.Passed);
+    public int CalibrationFailureCount => Calibration.Count(result => !result.Sample.Advisory && result.Call.FinishedAtUtc is not null && !result.Passed);
     public int GeneratedHebrewIssueCount => GeneratedIssues.Count();
     public bool HasHebrewFindings => GeneratedHebrewIssueCount > 0;
     [JsonIgnore]
@@ -162,12 +164,13 @@ public sealed record EvaluationRetry(string Stage, string? CaseId, int? Repetiti
     double DelaySeconds, EvaluationStep Call);
 
 /// <summary>Fixed human-labelled controls measure known error detection and false alarms, not general judge accuracy.</summary>
+/// <remarks>An advisory control is reported in every run but does not gate calibration: it records a blind spot every judge tried shares.</remarks>
 public sealed record CalibrationSample(string Id, string Request, ReviewText[] Texts,
-    ExpectedHebrewIssue[] ExpectedIssues, bool AllowUnexpectedFindings = false)
+    ExpectedHebrewIssue[] ExpectedIssues, bool AllowUnexpectedFindings = false, bool Advisory = false)
 {
     // Record equality compares arrays by reference; reports need the captured fields and policy to match.
     internal bool HasSameContent(CalibrationSample? other) => other is not null &&
-        Id == other.Id && Request == other.Request && AllowUnexpectedFindings == other.AllowUnexpectedFindings &&
+        Id == other.Id && Request == other.Request && AllowUnexpectedFindings == other.AllowUnexpectedFindings && Advisory == other.Advisory &&
         other.Texts is not null && Texts.SequenceEqual(other.Texts) &&
         other.ExpectedIssues is not null && ExpectedIssues.SequenceEqual(other.ExpectedIssues);
 }

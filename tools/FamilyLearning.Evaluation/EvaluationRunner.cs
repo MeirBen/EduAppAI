@@ -19,10 +19,13 @@ public sealed record EvaluationProgress(string Stage, string? CaseId, int? Repet
 public static class EvaluationRunner
 {
     /// <summary>Runs sequentially with at most three 429 retries per stage, within the total call budget.</summary>
-    public static async Task RunAsync(IChatClient client, AiGenerationOptions options, EvaluationReport report,
+    /// <remarks>The judge shares the generator's limits and call budget but has its own client and pinned profile.</remarks>
+    public static async Task RunAsync(IChatClient client, IChatClient judge, AiGenerationOptions options, EvaluationReport report,
         string directory, CancellationToken ct, Action<EvaluationProgress>? progress = null, TimeProvider? timeProvider = null)
     {
-        var capture = new EvaluationCapture(client, report.MaxCalls);
+        var calls = new EvaluationCalls(report.MaxCalls);
+        var capture = new EvaluationCapture(client, calls);
+        var judgeCapture = new EvaluationCapture(judge, calls);
         using var engine = new AiGenerationService([capture], NullLogger<AiGenerationService>.Instance, Options.Create(options));
         string stage = "starting";
         string? caseId = null;
@@ -40,7 +43,7 @@ public static class EvaluationRunner
                     var calibration = new CalibrationResult(sample, new());
                     report.Calibration.Add(calibration);
                     var review = await AttemptAsync(step => calibration.Call = step, (evidence, token) => HebrewJudge.ReviewAsync(
-                        capture, sample.Request, sample.Texts, options.MaxOutputTokens, token, evidence));
+                        judgeCapture, sample.Request, sample.Texts, options.MaxOutputTokens, token, evidence));
                     calibration.Issues = review?.Issues;
                     await SaveAsync();
                 }
@@ -117,7 +120,7 @@ public static class EvaluationRunner
                     if (report.JudgeEnabled)
                     {
                         stage = "review";
-                        var review = await AttemptAsync(step => result.Judge = step, (evidence, token) => HebrewJudge.ReviewAsync(capture,
+                        var review = await AttemptAsync(step => result.Judge = step, (evidence, token) => HebrewJudge.ReviewAsync(judgeCapture,
                             scenario.Prompt + "\n" + string.Join('\n', scenario.Refinements),
                             HebrewJudge.CollectTexts(plan, result.Document), options.MaxOutputTokens, token, evidence));
                         result.Issues = review?.Issues;
@@ -256,7 +259,7 @@ public static class EvaluationRunner
         async Task<T?> AttemptOnceAsync<T>(EvaluationStep step, Func<AiCallEvidence, CancellationToken, Task<AiResult<T>>> operation) where T : class
         {
             step.StartedAtUtc = DateTime.UtcNow;
-            capture.Current = step;
+            calls.Current = step;
             PublishProgress();
             var started = Stopwatch.GetTimestamp();
             var evidence = new AiCallEvidence();

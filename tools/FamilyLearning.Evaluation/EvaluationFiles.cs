@@ -68,7 +68,8 @@ public static class EvaluationFiles
                 !retry.Call.RequestSent || retry.Call.FinishedAtUtc is null || retry.Call.StatusCode != 429 || retry.Call.ContractValid))
             throw new InvalidDataException($"Invalid or unsupported evaluation report; format version {EvaluationVersions.ReportFormat} is required.");
         if (report.JudgeEnabled && (string.IsNullOrWhiteSpace(report.CalibrationSha256) || report.CalibrationSamples.Length == 0 ||
-            string.IsNullOrWhiteSpace(report.JudgePromptVersion) || string.IsNullOrWhiteSpace(report.JudgePrompt)))
+            string.IsNullOrWhiteSpace(report.JudgePromptVersion) || string.IsNullOrWhiteSpace(report.JudgePrompt) ||
+            report.JudgeProfile is not { Count: > 0 }))
             throw new InvalidDataException("Judge-enabled reports require captured calibration and judge metadata.");
         ValidateCases(report.Cases);
         ValidateRunMetadata(report.Label, report.RunNotes);
@@ -259,7 +260,7 @@ public static class EvaluationFiles
             sample.ExpectedIssues.Any(expected => expected is null || string.IsNullOrWhiteSpace(expected.Quote) ||
                 !sample.Texts.Any(text => text.Path == expected.Path && text.Text.Contains(expected.Quote, StringComparison.Ordinal))) ||
             sample.ExpectedIssues.Distinct().Count() != sample.ExpectedIssues.Length) ||
-            samples.Select(sample => sample.Id).Distinct().Count() != samples.Length)
-            throw new InvalidDataException("Calibration requires unique fields and expectations quoted from those fields.");
+            samples.Select(sample => sample.Id).Distinct().Count() != samples.Length || samples.All(sample => sample.Advisory))
+            throw new InvalidDataException("Calibration requires a gating control, unique fields and expectations quoted from those fields.");
     }
 }

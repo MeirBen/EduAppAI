@@ -134,8 +134,8 @@ endpoint enforces the schema without showing it to the model, and
 `StrictQuestionCountLimit` to the largest exact question batch it accepts;
 larger batches still work, with the count enforced by validation. A fallback
 must support the same controls, and [fallback routing][fallback] covers
-provider errors, not poor content. The evaluation judge uses the same model, so
-a profile change also needs judge recalibration.
+provider errors, not poor content. The evaluation judge is pinned separately,
+so a generation profile change needs no judge recalibration.
 
 ### Strict schema contract
 
@@ -263,9 +263,11 @@ Google publishes no budget, so any new schema feature needs live acceptance.
   answer-key arithmetic and answer clarity need human review; one confirmation
   passage claimed orbit has no gravity. Tests, schema mode and a same-model
   judge cannot certify content.
-- **Evaluation judge:** it still appends its schema to its prompt in strict
-  mode. Its prompt is part of the calibration fingerprint, so changing it needs
-  a recalibration run.
+- **Judge blind spot:** Gemini 3.8 Flash, GPT-5.6 Terra and Claude Sonnet 5.5
+  each caught all three `להסיין` in `reported-ants-defects` but never the two
+  `נמלות` (the plural is `נמלים`). The owner made that control advisory: every
+  run reports its result, but it does not gate calibration. Judge findings can
+  miss non-standard plurals.
 
 ## Costs and retained evidence
 
@@ -346,14 +348,27 @@ derived; unknown costs are null with coverage counts
 ([usage accounting][usage]).
 
 Judge findings are advisory: each must quote a supplied field and never edits
-output or scores. Calibration [controls][judge-controls] measure detection of
-planted defects, not general accuracy ([same-model limits][judge]). Comparison
-reports candidate-minus-baseline deltas, never a winner, and requires matching
-suites, inputs, repeats and check versions; judge and human deltas need matching
-judge setups and scored pairs. Only the
-[current report format](../tools/FamilyLearning.Evaluation/EvaluationVersions.cs)
-is read. Run exits: 0 pass, 1 failures or findings, 2 invalid input, 130
-cancelled; compare exits: 0 compatible, 1 incompatible, 2 invalid input.
+output or scores. `HebrewJudge` pins the judge's model, reasoning effort and
+strict `json_schema` mode; it shares only the app's key, endpoint and limits,
+and reports record its profile separately, so generation profile changes stay
+comparable under the same judge. Its schema is fixed: input fields carry ids,
+and the evaluator resolves each returned id and verifies the quote. A
+per-request enum of field paths made Google reject every review of a task with
+materials (`INVALID_ARGUMENT`, 12/12 across three runs); the fixed contract
+accepted the same four inputs. On 5 October, two calibration passes chose the
+judge: Flash passed 6/8 controls with no false alarms, GPT-5.6 Terra 3/5 with
+none (three calls were refused for account credit) and Claude Sonnet 5.5 2/8
+with four. Flash stays pinned; changing it needs a new review version and
+recalibration. Evidence is in `artifacts/evaluations/judge-repair-2026-10-05/`
+($0.218 of a $1 cap). Calibration [controls][judge-controls] measure detection
+of planted defects, not general accuracy ([same-model limits][judge]). Advisory
+controls are reported without gating calibration, and at least one control must
+gate. Comparison reports candidate-minus-baseline deltas, never a winner, and
+requires matching suites, inputs, repeats and check versions; judge and human
+deltas need matching judge setups and scored pairs. Only the [current report
+format](../tools/FamilyLearning.Evaluation/EvaluationVersions.cs) is read. Run
+exits: 0 pass, 1 failures or findings, 2 invalid input, 130 cancelled; compare
+exits: 0 compatible, 1 incompatible, 2 invalid input.
 
 ## Verification and future changes
 

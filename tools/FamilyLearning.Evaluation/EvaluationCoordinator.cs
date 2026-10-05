@@ -1,6 +1,4 @@
-using FamilyLearning.Api.Infrastructure.Ai;
 using FamilyLearning.Api.TaskEngine.Ai;
-using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -15,10 +13,7 @@ public sealed class EvaluationCoordinator : IHostedService, IDisposable
 {
     private readonly object gate = new();
     private readonly EvaluationRunStore store;
-    private readonly ServiceProvider? aiProvider;
-    private readonly IChatClient? client;
-    private readonly AiGenerationOptions? options;
-    private readonly Dictionary<string, string?> profile = [];
+    private readonly EvaluationClients? clients;
     private CancellationTokenSource? cancellation;
     private Task run = Task.CompletedTask;
     private EvaluationActiveRun? active;
@@ -30,32 +25,16 @@ public sealed class EvaluationCoordinator : IHostedService, IDisposable
         Action<IServiceCollection>? configureAi = null)
     {
         this.store = store;
-        ServiceProvider? provider = null;
-        try
-        {
-            var services = new ServiceCollection().AddLogging();
-            services.AddTaskAi(configuration, environment);
-            configureAi?.Invoke(services);
-            provider = services.BuildServiceProvider();
-            // Resolve the same validators explicitly, without attaching ValidateOnStart to the dashboard host.
-            var validatedOptions = provider.GetRequiredService<IOptions<AiGenerationOptions>>().Value;
-            var configuredClient = provider.GetServices<IChatClient>().SingleOrDefault();
-            if (configuredClient is null) return;
-            profile = AiProfile.Capture(configuration, validatedOptions);
-            options = validatedOptions;
-            client = configuredClient;
-            aiProvider = provider;
-            provider = null;
-        }
+        // Resolve the app's validators explicitly, without attaching ValidateOnStart to the dashboard host.
+        try { clients = EvaluationClients.Create(configuration, environment, configureAi); }
         catch (Exception exception) when (exception is InvalidOperationException or OptionsValidationException or ArgumentException or FormatException)
         {
             // Do not retain configuration errors or raw values; they can contain credentials.
         }
-        finally { provider?.Dispose(); }
     }
 
-    public bool Configured => client is not null;
-    public Dictionary<string, string?> Profile => new(profile);
+    public bool Configured => clients is not null;
+    public Dictionary<string, string?> Profile => new(clients?.Profile ?? []);
     public EvaluationActiveRun? Active { get { lock (gate) return active; } }
 
     public async Task<string> StartRunAsync(EvaluationRunRequest request)
@@ -63,7 +42,7 @@ public sealed class EvaluationCoordinator : IHostedService, IDisposable
         if (!request.Confirmed) throw new ArgumentException("Confirm the billable run before starting.");
         var plan = await EvaluationPlan.LoadAsync(request);
         plan.ValidateBudget();
-        if (client is null) throw new AiGenerationException(503,
+        if (clients is null) throw new AiGenerationException(503,
             "AI configuration is missing or invalid. Fix it and restart the dashboard before starting a real evaluation.");
         lock (gate)
         {
@@ -71,7 +50,7 @@ public sealed class EvaluationCoordinator : IHostedService, IDisposable
             var id = EvaluationRunStore.NewId();
             var directory = store.DirectoryFor(id);
             Directory.CreateDirectory(directory);
-            var report = plan.CreateReport(Profile);
+            var report = plan.CreateReport(clients.Profile, clients.JudgeProfile);
             cancellation?.Dispose();
             cancellation = new();
             active = new(id, true, "running", null, null);
@@ -114,7 +93,7 @@ public sealed class EvaluationCoordinator : IHostedService, IDisposable
         string? error = null;
         try
         {
-            await EvaluationRunner.RunAsync(client!, options!, report, directory, ct, progress =>
+            await EvaluationRunner.RunAsync(clients!.Client, clients.Judge, clients.Options, report, directory, ct, progress =>
             {
                 lock (gate) active = new(id, true, report.Status, progress, null);
             });
@@ -129,6 +108,6 @@ public sealed class EvaluationCoordinator : IHostedService, IDisposable
     public void Dispose()
     {
         cancellation?.Dispose();
-        aiProvider?.Dispose();
+        clients?.Dispose();
     }
 }

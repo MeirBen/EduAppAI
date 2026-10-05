@@ -17,7 +17,7 @@ public sealed class EvaluationReportsTests : IDisposable
     {
         var baseline = CompletedJudgeReport();
         var candidate = CompletedJudgeReport();
-        if (change == "profile") candidate.Profile["Temperature"] = "0.5";
+        if (change == "profile") candidate.JudgeProfile["ReasoningEffort"] = "high";
         if (change == "model") candidate.Results[0].Judge!.Model = "other-model";
         if (change == "prompt") candidate.Results[0].Judge!.Metadata = new("OpenRouter", "test/actual", "different-review", DateTime.UtcNow);
         if (change == "calibration") candidate.CalibrationSamples[0] = candidate.CalibrationSamples[0] with { Request = "בקשה אחרת" };
@@ -43,6 +43,18 @@ public sealed class EvaluationReportsTests : IDisposable
         await Assert.ThrowsAsync<InvalidDataException>(() => EvaluationFiles.ReadReportAsync(path));
     }
 
+    [Fact]
+    public void Generation_profile_changes_stay_comparable_under_the_same_pinned_judge()
+    {
+        var baseline = CompletedJudgeReport();
+        var candidate = CompletedJudgeReport();
+        candidate.Profile["Model"] = "other/generator";
+        var comparison = EvaluationComparison.Compare(baseline, candidate);
+        Assert.True(comparison.HebrewFindingsComparable);
+        Assert.DoesNotContain("judge-profile", comparison.JudgeIncompatibilities);
+        Assert.Equal(new ProfileChange(baseline.Profile["Model"], "other/generator"), comparison.ProfileChanges["Model"]);
+    }
+
     [Theory]
     [InlineData("mode")]
     [InlineData("profile")]
@@ -52,7 +64,7 @@ public sealed class EvaluationReportsTests : IDisposable
         var baseline = CompletedJudgeReport();
         var candidate = change == "mode" ? CreateReport() : CompletedJudgeReport();
         if (change == "mode") candidate.Results.Add(ReadingResult());
-        if (change == "profile") candidate.Profile["Temperature"] = "0.5";
+        if (change == "profile") candidate.JudgeProfile["ReasoningEffort"] = "high";
         if (change == "coverage") candidate.Results[0].Judge = null;
         var comparison = EvaluationComparison.Compare(baseline, candidate);
         Assert.True(comparison.DirectlyComparable);
@@ -453,6 +465,7 @@ public sealed class EvaluationReportsTests : IDisposable
             JudgeEnabled = judge,
             JudgePromptVersion = HebrewJudge.Version,
             JudgePrompt = HebrewJudge.Instructions,
+            JudgeProfile = new() { ["Model"] = HebrewJudge.Model, ["ReasoningEffort"] = HebrewJudge.ReasoningEffort },
             CalibrationSamples = [new("clean", "בקשה", [new("text", "משפט תקין.")], [])]
         };
 

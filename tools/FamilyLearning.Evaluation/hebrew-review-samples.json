@@ -46,7 +46,8 @@
         "quote": "שהנמלות"
       }
     ],
-    "allowUnexpectedFindings": true
+    "allowUnexpectedFindings": true,
+    "advisory": true
   },
   {
     "id": "controlled-agreement",

@@ -151,8 +151,8 @@ scheduler or retry loop.
 
 `tools/FamilyLearning.Evaluation` is a developer executable referencing the
 engine and adapter, never published with the API or given its database or
-identity services. CLI and dashboard share the validated plan, runner, judge
-and JSON reports, and reuse the engine's assembly, resolution and `TextLength`
+identity services. CLI and dashboard share the validated plan, runner, pinned
+judge client and JSON reports, and reuse the engine's assembly, resolution and `TextLength`
 rules with independent fixture adherence checks. Reports record explicit skips,
 exact request and schema hashes, raw candidates and separate readiness outcomes;
 older formats are rejected. Evaluation may retry HTTP 429 three times within its

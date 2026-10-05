@@ -98,7 +98,7 @@ public sealed class EvaluationConfigurationTests : IDisposable
         await app.StopAsync();
         Assert.Equal(0, chat.DisposeCalls);
         await app.DisposeAsync();
-        Assert.Equal(1, chat.DisposeCalls);
+        Assert.Equal(2, chat.DisposeCalls); // The generator's and the judge's providers each own one client.
         Assert.Empty(chat.Requests);
     }
 

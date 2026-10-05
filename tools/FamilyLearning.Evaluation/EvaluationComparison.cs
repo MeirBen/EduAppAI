@@ -44,11 +44,10 @@ public sealed record EvaluationComparison(
                 judgeIncompatible.Add("calibration-inputs");
             if (baseline.JudgePromptVersion != candidate.JudgePromptVersion || baseline.JudgePrompt != candidate.JudgePrompt)
                 judgeIncompatible.Add("judge-prompt");
+            // The judge is pinned separately, so generation profile changes stay comparable under the same judge.
+            if (Changes(baseline.JudgeProfile, candidate.JudgeProfile).Count > 0) judgeIncompatible.Add("judge-profile");
         }
-        var profiles = baseline.Profile.Keys.Union(candidate.Profile.Keys).Order(StringComparer.Ordinal)
-            .Where(key => baseline.Profile.GetValueOrDefault(key) != candidate.Profile.GetValueOrDefault(key))
-            .ToDictionary(key => key, key => new ProfileChange(baseline.Profile.GetValueOrDefault(key), candidate.Profile.GetValueOrDefault(key)));
-        if (profiles.Count > 0) judgeIncompatible.Add("judge-profile");
+        var profiles = Changes(baseline.Profile, candidate.Profile);
         if (before.JudgeCalibrationPassed != true || after.JudgeCalibrationPassed != true) judgeIncompatible.Add("judge-calibration");
         if (before.GeneratedContentReviews.Succeeded == 0 || !ReviewKeys(baseline).SequenceEqual(ReviewKeys(candidate)))
             judgeIncompatible.Add("judge-coverage");
@@ -121,6 +120,11 @@ public sealed record EvaluationComparison(
 
     private static IEnumerable<(string, int)> ReviewKeys(EvaluationReport report) => report.Results
         .Where(result => result.Judge?.ContractValid == true).Select(result => (result.CaseId, result.Repetition)).Order();
+
+    private static Dictionary<string, ProfileChange> Changes(Dictionary<string, string?> before, Dictionary<string, string?> after) =>
+        before.Keys.Union(after.Keys).Order(StringComparer.Ordinal)
+            .Where(key => before.GetValueOrDefault(key) != after.GetValueOrDefault(key))
+            .ToDictionary(key => key, key => new ProfileChange(before.GetValueOrDefault(key), after.GetValueOrDefault(key)));
 
     private static bool Same<T>(T before, T after) => JsonNode.DeepEquals(JsonSerializer.SerializeToNode(before), JsonSerializer.SerializeToNode(after));
 

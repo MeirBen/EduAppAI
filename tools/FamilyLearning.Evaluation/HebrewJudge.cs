@@ -13,9 +13,14 @@ public sealed record HebrewReview(HebrewIssue[] Issues);
 /// <summary>Advisory, stateless proofreading. It neither rewrites content nor decides educational correctness.</summary>
 public static class HebrewJudge
 {
-    /// <summary>Review contract version; advance when instructions or output constraints change.</summary>
+    /// <summary>Review contract version; advance when instructions, output constraints or the pinned profile change.</summary>
     public static readonly string Version = $"hebrew-review-v{EvaluationVersions.HebrewReview}";
-    private const string Prompt = """
+
+    /// <summary>The judge is part of the instrument, not the generation profile: a change needs a new version and recalibration.</summary>
+    public const string Model = "google/gemini-3.8-flash";
+    public const string ReasoningEffort = "medium";
+
+    public const string Instructions = """
         ## Review scope
         Review every supplied plan and document field for concrete Hebrew language defects.
         Check spelling, invented words, inflections, gender/number agreement, syntax, punctuation,
@@ -31,7 +36,7 @@ public static class HebrewJudge
         and punctuation exercises are not.
 
         ## Evidence and correction
-        For each defect, copy the supplied path exactly and quote the shortest complete span that shows it.
+        For each defect, set text to the field's id and quote the shortest complete span from that field that shows it.
         Include attached word prefixes and preserve exact characters and newlines after JSON decoding.
         Suggest a minimal replacement for that span, preserving meaning. Write suggestions and brief explanations in Hebrew.
         Choose one kind from the schema. Report each identical quote once per field, even if it repeats there.
@@ -40,43 +45,42 @@ public static class HebrewJudge
         Avoid speculative word origins and unrelated rewrites.
 
         ## Output
-        Return only the schema's JSON object, with at most 20 issues; use an empty issues array when none are found.
-        No Markdown fences, scores or commentary.
+        Return at most 20 issues; use an empty issues array when none are found. No scores or commentary.
         """;
+
+    // Fixed so every review sends the same contract. Fields are referenced by id and verified here:
+    // a per-request enum of field paths made Gemini reject some reviews with INVALID_ARGUMENT.
     private static readonly JsonElement Schema = JsonSerializer.Deserialize<JsonElement>("""
         {"type":"object","additionalProperties":false,"required":["issues"],"properties":{"issues":{
           "type":"array","maxItems":20,"items":{"type":"object","additionalProperties":false,
-          "required":["path","quote","suggestion","reason","kind"],"properties":{
-            "kind":{"type":"string","enum":["spelling","invented-word","agreement","grammar-syntax","language-mixing","non-idiomatic"]},
-            "path":{"type":"string","minLength":1,"maxLength":200,"description":"Copy one supplied texts.path exactly, without added punctuation. The request schema restricts this to the supplied paths."},
+          "required":["text","quote","suggestion","reason","kind"],"properties":{
+            "text":{"type":"integer","minimum":0,"description":"The id of the supplied field that contains the quote."},
             "quote":{"type":"string","minLength":1,"maxLength":500},
             "suggestion":{"type":"string","minLength":1,"maxLength":500},
-            "reason":{"type":"string","minLength":1,"maxLength":500}}}}}}
+            "reason":{"type":"string","minLength":1,"maxLength":500},
+            "kind":{"type":"string","enum":["spelling","invented-word","agreement","grammar-syntax","language-mixing","non-idiomatic"]}}}}}}
         """);
-    /// <summary>Stable review contract; each captured request adds its source paths to the schema.</summary>
-    public static string Instructions => FormatInstructions(Schema);
     private static readonly JsonSerializerOptions StrictJson = new(JsonSerializerDefaults.Web)
     {
         UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow,
         MaxDepth = 8
     };
 
-    /// <summary>Uses the configured adapter with a fresh conversation. The caller supplies a bounded cancellation token.</summary>
+    /// <summary>Uses the pinned judge client with a fresh conversation. The caller supplies a bounded cancellation token.</summary>
     public static async Task<AiResult<HebrewReview>> ReviewAsync(IChatClient client, string request,
         ReviewText[] texts, int maxOutputTokens, CancellationToken ct, AiCallEvidence? evidence = null)
     {
         if (texts.Length == 0) throw new ArgumentException("Review requires source text.", nameof(texts));
-        // Build a request-local enum; never mutate the shared schema between concurrent reviews.
-        var schemaNode = JsonSerializer.SerializeToNode(Schema)!;
-        schemaNode["properties"]!["issues"]!["items"]!["properties"]!["path"]!["enum"] =
-            JsonSerializer.SerializeToNode(texts.Select(text => text.Path).Distinct());
-        var schema = JsonSerializer.SerializeToElement(schemaNode);
         var response = await client.GetResponseAsync([
-            new ChatMessage(ChatRole.System, FormatInstructions(schema)),
-            new ChatMessage(ChatRole.User, JsonSerializer.Serialize(new { request, texts }, EvaluationFiles.Json))
+            new ChatMessage(ChatRole.System, Instructions),
+            new ChatMessage(ChatRole.User, JsonSerializer.Serialize(new
+            {
+                request,
+                texts = texts.Select((text, id) => new { id, text.Path, text.Text })
+            }, EvaluationFiles.Json))
         ], new ChatOptions
         {
-            ResponseFormat = ChatResponseFormat.ForJsonSchema(schema, Version.Replace('-', '_')),
+            ResponseFormat = ChatResponseFormat.ForJsonSchema(Schema, Version.Replace('-', '_')),
             MaxOutputTokens = maxOutputTokens,
             AdditionalProperties = new() { ["strict"] = true }
         }, ct);
@@ -85,11 +89,14 @@ public static class HebrewJudge
         if (response.FinishReason == ChatFinishReason.Length) throw AiGenerationException.OutputLimit();
         if (response.FinishReason != ChatFinishReason.Stop || response.Text.Length is 0 or > 32000)
             throw AiGenerationException.InvalidOutput();
-        var review = JsonSerializer.Deserialize<HebrewReview>(response.Text, StrictJson);
-        if (review is null || !ValidateIssues(review.Issues) ||
-            review.Issues.Any(issue => !texts.Any(text => text.Path == issue.Path && text.Text.Contains(issue.Quote, StringComparison.Ordinal))))
-            throw AiGenerationException.InvalidOutput();
-        return new(review, metadata);
+        var issues = JsonSerializer.Deserialize<Review>(response.Text, StrictJson)?.Issues?
+            .Select(issue => issue is not null && issue.Text >= 0 && issue.Text < texts.Length &&
+                texts[issue.Text].Text.Contains(issue.Quote ?? "", StringComparison.Ordinal)
+                    ? new HebrewIssue(texts[issue.Text].Path, issue.Quote!, issue.Suggestion, issue.Reason, issue.Kind)
+                    : null)
+            .ToArray();
+        if (issues is null || issues.Any(issue => issue is null) || !ValidateIssues(issues!)) throw AiGenerationException.InvalidOutput();
+        return new(new(issues!), metadata);
     }
 
     /// <summary>Validates live or saved finding shape and bounds; live reviews additionally verify source quotations.</summary>
@@ -160,8 +167,11 @@ public static class HebrewJudge
 
     private static bool Bounded(string? value, int max) => !string.IsNullOrWhiteSpace(value) && value.Length <= max;
 
-    private static string FormatInstructions(JsonElement schema) => $"{Prompt}\nOutput JSON schema:\n{schema}";
-
     private static bool IsKnownKind(string? kind) => kind is "spelling" or "invented-word" or "agreement" or
         "grammar-syntax" or "language-mixing" or "non-idiomatic";
+
+    /// <summary>Model output before field ids are resolved to report paths.</summary>
+    private sealed record Review(Finding?[]? Issues);
+    // An omitted id would otherwise bind to 0 and attribute the finding to the first field.
+    private sealed record Finding([property: JsonRequired] int Text, string? Quote, string Suggestion, string Reason, string Kind);
 }

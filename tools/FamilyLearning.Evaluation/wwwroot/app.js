@@ -248,13 +248,15 @@ function calibration(summary) {
 }
 
 function calibrationOutcome(item) {
-  if (!item.call?.contractValid || !Array.isArray(item.issues))
-    return item.call?.responseReceived
-      ? 'Invalid judge response; detection counts unavailable'
-      : 'Review unavailable; detection counts unavailable';
-  return item.passed
-    ? 'Passed'
-    : `Missed ${item.missingExpectedIssueCount} expected; ${item.unexpectedFindingCount} unexpected findings`;
+  const outcome =
+    !item.call?.contractValid || !Array.isArray(item.issues)
+      ? item.call?.responseReceived
+        ? 'Invalid judge response; detection counts unavailable'
+        : 'Review unavailable; detection counts unavailable'
+      : item.passed
+        ? 'Passed'
+        : `Missed ${item.missingExpectedIssueCount} expected; ${item.unexpectedFindingCount} unexpected findings`;
+  return item.sample?.advisory ? `${outcome} · advisory, does not gate calibration` : outcome;
 }
 
 /** Resolve evidence from the exact judge input, without interpreting model paths as object access. */

@@ -235,7 +235,7 @@ public sealed class StructuredEvaluationTests : IDisposable
     {
         Directory.CreateDirectory(directory);
         var report = new EvaluationReport([scenario], 1, "isolated", []) { MaxCalls = 10 };
-        await EvaluationRunner.RunAsync(chat, new(), report, directory, CancellationToken.None);
+        await EvaluationRunner.RunAsync(chat, chat, new(), report, directory, CancellationToken.None);
         return await EvaluationFiles.ReadReportAsync(Path.Combine(directory, "run.json"));
     }
 

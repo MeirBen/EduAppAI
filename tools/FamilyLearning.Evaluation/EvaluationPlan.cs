@@ -33,17 +33,19 @@ public sealed record EvaluationPlan(EvaluationRunRequest Request, EvaluationCase
         if (PlannedCalls > Request.MaxCalls) throw new ArgumentException("Planned calls exceed the call limit.");
     }
 
-    public EvaluationReport CreateReport(Dictionary<string, string?> profile) => new(Cases, Request.Repeat, SuiteSha256, profile)
-    {
-        JudgeEnabled = Request.Judge,
-        MaxCalls = Request.MaxCalls,
-        CallDelaySeconds = Request.CallDelaySeconds,
-        Label = Request.Label,
-        RunNotes = Request.RunNotes,
-        CalibrationSha256 = CalibrationSha256,
-        CalibrationSamples = Controls,
-        JudgePromptVersion = Request.Judge ? HebrewJudge.Version : "",
-        JudgePrompt = Request.Judge ? HebrewJudge.Instructions : ""
-    };
+    public EvaluationReport CreateReport(Dictionary<string, string?> profile, Dictionary<string, string?> judgeProfile) =>
+        new(Cases, Request.Repeat, SuiteSha256, profile)
+        {
+            JudgeEnabled = Request.Judge,
+            MaxCalls = Request.MaxCalls,
+            CallDelaySeconds = Request.CallDelaySeconds,
+            Label = Request.Label,
+            RunNotes = Request.RunNotes,
+            CalibrationSha256 = CalibrationSha256,
+            CalibrationSamples = Controls,
+            JudgePromptVersion = Request.Judge ? HebrewJudge.Version : "",
+            JudgePrompt = Request.Judge ? HebrewJudge.Instructions : "",
+            JudgeProfile = Request.Judge ? judgeProfile : []
+        };
 
 }

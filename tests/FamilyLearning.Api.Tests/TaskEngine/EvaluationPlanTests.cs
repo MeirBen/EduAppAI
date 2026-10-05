@@ -20,11 +20,12 @@ public sealed class EvaluationPlanTests : IDisposable
         Assert.Equal(4, plan.PlannedCalls);
         Assert.Empty(plan.Controls);
         Assert.Empty(plan.CalibrationSha256);
-        var report = plan.CreateReport([]);
+        var report = plan.CreateReport([], new() { ["Model"] = "judge" });
         Assert.Equal("baseline", report.Label);
         Assert.Equal("notes", report.RunNotes);
         Assert.Equal(5, report.CallDelaySeconds);
         Assert.Empty(report.JudgePrompt);
+        Assert.Empty(report.JudgeProfile);
         await Assert.ThrowsAsync<JsonException>(() => EvaluationPlan.LoadAsync(request with { Judge = true }, directory));
     }
 

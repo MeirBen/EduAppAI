@@ -9,53 +9,61 @@ using ChatMessage = Microsoft.Extensions.AI.ChatMessage;
 namespace FamilyLearning.Evaluation;
 
 /// <summary>Sequential evaluation-only observer; the caller owns and disposes the inner provider client.</summary>
-internal sealed class EvaluationCapture(IChatClient innerClient, int maxCalls) : DelegatingChatClient(innerClient)
+/// <remarks>The generator and judge captures share <paramref name="calls"/>, so one budget and current step cover both.</remarks>
+internal sealed class EvaluationCapture(IChatClient innerClient, EvaluationCalls calls) : DelegatingChatClient(innerClient)
 {
-    private int calls;
-    internal EvaluationStep Current { get; set; } = new();
 
     public override async Task<ChatResponse> GetResponseAsync(IEnumerable<ChatMessage> messages,
         ChatOptions? options = null, CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        if (calls >= maxCalls) throw new EvaluationCallLimitException();
+        if (calls.Count >= calls.Max) throw new EvaluationCallLimitException();
+        var current = calls.Current;
         var request = messages.ToArray();
-        Current.Request = request.Select(message => new EvaluationMessage(message.Role.Value, message.Text)).ToArray();
+        current.Request = request.Select(message => new EvaluationMessage(message.Role.Value, message.Text)).ToArray();
         if (request.LastOrDefault()?.Text is { } input)
         {
-            try { Current.EffectiveInput = JsonSerializer.Deserialize<JsonElement>(input); }
-            catch (JsonException) { Current.EffectiveInput = JsonSerializer.SerializeToElement(input); }
+            try { current.EffectiveInput = JsonSerializer.Deserialize<JsonElement>(input); }
+            catch (JsonException) { current.EffectiveInput = JsonSerializer.SerializeToElement(input); }
         }
-        Current.SchemaName = (options?.ResponseFormat as ChatResponseFormatJson)?.SchemaName;
-        Current.Schema = (options?.ResponseFormat as ChatResponseFormatJson)?.Schema?.Clone();
-        Current.RequestSha256 = Convert.ToHexString(SHA256.HashData(JsonSerializer.SerializeToUtf8Bytes(Current.Request)));
-        Current.SchemaSha256 = Current.Schema is { } schema ? Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(schema.GetRawText()))) : null;
-        calls++;
-        Current.RequestSent = true;
+        current.SchemaName = (options?.ResponseFormat as ChatResponseFormatJson)?.SchemaName;
+        current.Schema = (options?.ResponseFormat as ChatResponseFormatJson)?.Schema?.Clone();
+        current.RequestSha256 = Convert.ToHexString(SHA256.HashData(JsonSerializer.SerializeToUtf8Bytes(current.Request)));
+        current.SchemaSha256 = current.Schema is { } schema ? Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(schema.GetRawText()))) : null;
+        calls.Count++;
+        current.RequestSent = true;
         ChatResponse response;
         try { response = await base.GetResponseAsync(request, options, cancellationToken); }
         catch (ClientResultException exception) when (exception.Status == 429)
         {
             if (exception.GetRawResponse()?.Headers.TryGetValue("Retry-After", out var value) == true &&
                 RetryConditionHeaderValue.TryParse(value, out var retryAfter))
-                Current.RetryAfterSeconds = Math.Max(0,
+                current.RetryAfterSeconds = Math.Max(0,
                     (retryAfter.Delta ?? retryAfter.Date!.Value - DateTimeOffset.UtcNow).TotalSeconds);
             throw;
         }
-        Current.ResponseReceived = true;
-        Current.Output = response.Text;
-        try { Current.Candidate = JsonSerializer.Deserialize<JsonElement>(response.Text); }
-        catch (JsonException) { Current.Candidate = null; }
-        Current.Model = response.ModelId;
-        Current.ResponseId = response.ResponseId;
-        Current.FinishReason = response.FinishReason?.Value;
-        Current.InputTokens = response.Usage?.InputTokenCount;
-        Current.OutputTokens = response.Usage?.OutputTokenCount;
-        Current.ReasoningTokens = response.Usage?.ReasoningTokenCount;
+        current.ResponseReceived = true;
+        current.Output = response.Text;
+        try { current.Candidate = JsonSerializer.Deserialize<JsonElement>(response.Text); }
+        catch (JsonException) { current.Candidate = null; }
+        current.Model = response.ModelId;
+        current.ResponseId = response.ResponseId;
+        current.FinishReason = response.FinishReason?.Value;
+        current.InputTokens = response.Usage?.InputTokenCount;
+        current.OutputTokens = response.Usage?.OutputTokenCount;
+        current.ReasoningTokens = response.Usage?.ReasoningTokenCount;
         if (response.AdditionalProperties?.TryGetValue("costCredits", out var cost) == true && cost is decimal costCredits)
-            Current.CostCredits = costCredits;
+            current.CostCredits = costCredits;
         return response;
     }
+}
+
+/// <summary>Calls made so far against the run's limit, and the step the next call records into.</summary>
+internal sealed class EvaluationCalls(int max)
+{
+    internal int Max { get; } = max;
+    internal int Count { get; set; }
+    internal EvaluationStep Current { get; set; } = new();
 }
 
 internal sealed class EvaluationCallLimitException : Exception;

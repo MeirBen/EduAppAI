@@ -75,6 +75,22 @@ public sealed class CalibrationTests
         Assert.False(result.Passed);
     }
 
+    [Fact]
+    public void Advisory_control_miss_is_reported_without_failing_calibration()
+    {
+        var gating = Sample with { Id = "gating" };
+        var advisory = Sample with { Id = "advisory", Advisory = true };
+        var report = new EvaluationReport([], 1, "suite", []) { JudgeEnabled = true, CalibrationSamples = [gating, advisory] };
+        report.Calibration.Add(new(gating, new() { ContractValid = true, FinishedAtUtc = DateTime.UtcNow }) { Issues = [Issue("question", "להסיין")] });
+        report.Calibration.Add(new(advisory, new() { ContractValid = true, FinishedAtUtc = DateTime.UtcNow }) { Issues = [] });
+
+        Assert.Equal(1, report.Calibration[1].MissingExpectedIssueCount);
+        Assert.True(report.JudgeCalibrationPassed);
+        Assert.Equal(0, report.CalibrationFailureCount);
+        report.Calibration[0].Issues = [];
+        Assert.False(report.JudgeCalibrationPassed);
+    }
+
     [Theory]
     [InlineData(false)]
     [InlineData(true)]

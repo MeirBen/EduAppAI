@@ -1,8 +1,5 @@
 using System.Text.Json;
-using FamilyLearning.Api.Infrastructure.Ai;
 using FamilyLearning.Api.TaskEngine.Ai;
-using Microsoft.Extensions.AI;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -47,22 +44,18 @@ public static class EvaluationCommand
                 ContentRootPath = AppContext.BaseDirectory
             });
             builder.Logging.ClearProviders();
-            builder.Services.AddTaskAi(builder.Configuration, builder.Environment);
-            using var host = builder.Build();
-            var client = host.Services.GetService<IChatClient>() ??
+            using var clients = EvaluationClients.Create(builder.Configuration, builder.Environment) ??
                 throw new ArgumentException("Configure the app's OpenRouter API key before using --live.");
-            var aiOptions = host.Services.GetRequiredService<IOptions<AiGenerationOptions>>().Value;
-            var profile = AiProfile.Capture(builder.Configuration, aiOptions);
-            var report = plan.CreateReport(profile);
+            var report = plan.CreateReport(clients.Profile, clients.JudgeProfile);
             var directory = Path.GetFullPath(Path.Combine(options.Output, EvaluationRunStore.NewId()));
             Directory.CreateDirectory(directory);
-            Console.WriteLine($"Model: {report.Profile["Model"]}; report: {Path.Combine(directory, "run.json")}");
+            Console.WriteLine($"Model: {report.Profile["Model"]}{(report.JudgeEnabled ? $"; judge: {HebrewJudge.Model}" : "")}; report: {Path.Combine(directory, "run.json")}");
             using var cancellation = new CancellationTokenSource();
             ConsoleCancelEventHandler cancel = (_, eventArgs) => { eventArgs.Cancel = true; cancellation.Cancel(); };
             Console.CancelKeyPress += cancel;
             try
             {
-                await EvaluationRunner.RunAsync(client, aiOptions, report, directory, cancellation.Token,
+                await EvaluationRunner.RunAsync(clients.Client, clients.Judge, clients.Options, report, directory, cancellation.Token,
                     progress => Console.WriteLine($"{progress.Stage}: {progress.CaseId} [{progress.Repetition}] — {progress.CompletedCalls}/{progress.PlannedCalls} calls"));
             }
             finally { Console.CancelKeyPress -= cancel; }

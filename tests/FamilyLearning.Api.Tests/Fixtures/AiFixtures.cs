@@ -23,12 +23,16 @@ internal static class AiFixtures
         public UsageDetails? Usage { get; set; }
         public string ModelId { get; set; } = "test-free-model";
         public string? ResponseId { get; set; }
+        /// <summary>Builds a response from the request text once scripted responses run out.</summary>
+        public Func<string, string>? Respond { get; init; }
         public async Task<ChatResponse> GetResponseAsync(IEnumerable<ChatMessage> messages, ChatOptions? options = null, CancellationToken cancellationToken = default)
         {
-            Requests.Add((string.Join("\n", messages.Select(m => m.Text)), options));
+            var input = string.Join("\n", messages.Select(m => m.Text));
+            Requests.Add((input, options));
             if (FailureStatus is { } status) throw new HttpRequestException("provider secret", null, status);
             if (BeforeResponse is not null) await BeforeResponse(cancellationToken);
-            return new ChatResponse(new ChatMessage(ChatRole.Assistant, responses.Dequeue()))
+            var text = responses.Count == 0 && Respond is not null ? Respond(input) : responses.Dequeue();
+            return new ChatResponse(new ChatMessage(ChatRole.Assistant, text))
             { ModelId = ModelId, ResponseId = ResponseId, FinishReason = FinishReason, Usage = Usage };
         }
         public IAsyncEnumerable<ChatResponseUpdate> GetStreamingResponseAsync(IEnumerable<ChatMessage> messages, ChatOptions? options = null, CancellationToken cancellationToken = default) => throw new NotSupportedException();
