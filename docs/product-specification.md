@@ -6,7 +6,7 @@ educational records.
 
 ```text
 Parent prompt → editable learning plan + activity choices
-→ applicable material generation → questions → editable draft
+→ applicable material ideas and writing → questions → editable draft
 → parent review → immutable ready snapshot
 
 Save template: independently publish the reusable plan at any point
@@ -91,12 +91,15 @@ digit; body headings count, but titles, instructions, questions and answers do
 not.
 Transforming supplied text needs a separate generated material that preserves
 the original. A failed strict material stage blocks questions and release.
-Repeated generation of one plan varies: the model first lists several
-less-typical premises of different kinds that meet every requirement, then
-writes the one a number drawn by the application selects; improving a material
-keeps its premise. Hebrew is written without niqqud, except full niqqud for
-beginning readers up to second grade or on request; a plan records
-niqqud only when the parent asks for it. Prose is split into paragraphs of a
+New material first gets five ideas with distinct causal or explanatory structures.
+The server selects the lowest model-estimated overlap with bounded recent family
+content, drawing among ties, and checkpoints that choice before writing.
+Questions also receive bounded previous prompts to vary evidence targets where
+the learning requirements permit. Topic, source fidelity and prescribed practice
+take priority over novelty; variety is not guaranteed. Improving an existing
+material keeps its premise. Hebrew is written without niqqud, except full niqqud
+for beginning readers up to second grade or on request; a plan records niqqud
+only when the parent asks for it. Prose is split into paragraphs of a
 few sentences; poems and dialogue keep their lines.
 
 Questions are numeric, short-text or single-choice, each with an application

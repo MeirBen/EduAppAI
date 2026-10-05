@@ -44,7 +44,7 @@ describe('Editable document boundary', () => {
     expect(documentValue(raw, limits).value?.questions[0]).toMatchObject({ id: null, points: 0 });
   });
   it('bounds aggregate content and strips snapshot metadata at the editable boundary', () => {
-    const raw = documentForm({
+    const snapshot = {
       title: 'x',
       instructions: '',
       materials: [
@@ -55,6 +55,7 @@ describe('Editable document boundary', () => {
           revision: 4,
           origin: { kind: 'generated' },
           acceptance: null,
+          idea: { premise: 'גילוי', structure: 'מסע' },
         },
         {
           id: 'b',
@@ -66,7 +67,9 @@ describe('Editable document boundary', () => {
         },
       ],
       questions: [],
-    });
+    };
+    const raw = documentForm(snapshot);
+    expect(raw.materials[0]).toEqual({ id: 'a', title: '', body: 'א'.repeat(4000) });
     expect(documentValue(raw, limits).value).toBeUndefined();
     raw.materials[1].body = 'Hello\nשלום!';
     expect(documentValue(raw, limits).value?.materials[1]).toEqual({

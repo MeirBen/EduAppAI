@@ -1,26 +1,6 @@
 {
   "type": "object",
   "properties": {
-    "premises": {
-      "type": "array",
-      "items": {
-        "type": "object",
-        "properties": {
-          "premise": {
-            "type": "string",
-            "maxLength": 200
-          },
-          "probability": {
-            "type": "number"
-          }
-        },
-        "required": [
-          "premise",
-          "probability"
-        ],
-        "additionalProperties": false
-      }
-    },
     "materials": {
       "type": "array",
       "items": {
@@ -53,7 +33,6 @@
     }
   },
   "required": [
-    "premises",
     "materials"
   ],
   "additionalProperties": false

@@ -292,6 +292,7 @@ const validTask = {
   ],
 };
 const completedReport = {
+  formatVersion: 9,
   automaticChecksVersion: 6,
   callDelaySeconds: 0,
   status: 'completed',
@@ -348,6 +349,12 @@ test('reports render the assembled checkpoint and distinguish a rejected repair 
     endToEndReady: false,
     generationPassed: true,
     replacementPassed: false,
+    materialIdeas: {
+      role: 'material-ideas',
+      outcome: 'skipped',
+      skipReason: 'no-generated-materials',
+    },
+    selectedMaterialIdea: null,
     materials: { outcome: 'skipped', skipReason: 'no-generated-materials' },
     refinements: [{ outcome: 'clarification', finishedAtUtc: '2026-10-01T10:00:00Z' }],
     replacements: [
@@ -373,7 +380,11 @@ test('reports render the assembled checkpoint and distinguish a rejected repair 
     assert.match(displayed.querySelector('.task').textContent, /מקור מדויק/);
     assert.doesNotMatch(displayed.querySelector('.task').textContent, /rejected candidate/);
     assert.match(displayed.textContent, /not ready/);
-    assert.match(displayed.textContent, /Skipped · no-generated-materials/);
+    assert.match(displayed.textContent, /Material ideas/);
+    assert.equal(
+      (displayed.textContent.match(/Skipped · no-generated-materials/g) ?? []).length,
+      2,
+    );
     const brief = ui.reportBrief('run-1', report, runSummary);
     assert.match(brief, /Refinement 1/);
     assert.match(brief, /Replacement 1/);

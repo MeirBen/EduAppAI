@@ -125,7 +125,7 @@ public sealed class OpenRouterConfigurationTests
         var resolved = TaskEngine.LearningPlanFixture.Resolve(TaskEngine.LearningPlanFixture.Supplied() with
         { Defaults = TaskEngine.LearningPlanFixture.Numeric(1).Defaults });
         var document = Api.TaskEngine.TaskAssembly.CreateDocument(resolved);
-        var questions = await provider.GetRequiredService<AiGenerationService>().GenerateQuestionsAsync(new(resolved, document.Materials), deadline.Token);
+        var questions = await provider.GetRequiredService<AiGenerationService>().GenerateQuestionsAsync(new(resolved, document.Materials), [], deadline.Token);
         Assert.Equal("2", Assert.Single(questions.Value.Questions).Answer!.Value);
         AssertResponseSchema(request, responseFormat ?? "json_object", "questions", questionCount: 1);
         Assert.Equal(maxOutputTokens ?? 8192, request.GetProperty("max_completion_tokens").GetInt32());

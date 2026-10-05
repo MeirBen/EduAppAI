@@ -42,7 +42,7 @@ internal static class ActivityDraftChanges
                 var changed = prior is null || prior.Title != item.Title || prior.Body != item.Body;
                 materials.Add(new(item.Id, prior is null ? 1 : changed ? checked(prior.Revision + 1) : prior.Revision,
                     item.Title, item.Body, prior?.Origin ?? new("manual"),
-                    changed ? new(fingerprint, []) : prior!.Acceptance));
+                    changed ? new(fingerprint, []) : prior!.Acceptance, prior?.Idea));
             }
         }
         var sources = materials.Select(m => new MaterialRevision(m.Id, m.Revision)).ToArray();

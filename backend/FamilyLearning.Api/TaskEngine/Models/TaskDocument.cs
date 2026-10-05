@@ -12,8 +12,9 @@ public sealed record TaskDocument(
     [property: JsonRequired] DocumentQuestion[] Questions);
 
 /// <summary>Accepted material with an app-owned revision; supplied bodies must match the resolved source exactly.</summary>
+/// <remarks>Like <see cref="Origin"/>, <see cref="Idea"/> is provenance: it stays through edits until the material is regenerated.</remarks>
 public sealed record MaterialContent(string Id, long Revision, string? Title, string Body, ContentOrigin Origin,
-    ContentAcceptance? Acceptance);
+    ContentAcceptance? Acceptance, MaterialIdea? Idea = null);
 
 /// <summary>A parent-editable question whose answer may be incomplete until release. IDs and evidence are app-owned.</summary>
 public sealed record DocumentQuestion(string Id, string Prompt, QuestionInteraction Interaction, QuestionAnswer? Answer,

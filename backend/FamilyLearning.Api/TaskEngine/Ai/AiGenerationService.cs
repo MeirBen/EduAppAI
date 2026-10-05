@@ -47,31 +47,42 @@ public sealed class AiGenerationService(IEnumerable<IChatClient> clients, ILogge
         catch (TaskValidationException exception) { throw InvalidOutput("plan-validation", AiPrompts.Version(stage), exception.Errors); }
     }
 
-    /// <summary>One generated-material batch call. Strict rejection returns diagnostics and never applies partial material.</summary>
-    public async Task<AiResult<MaterialCandidateBatch>> GenerateMaterialsAsync(MaterialGenerationInput input, CancellationToken ct, AiCallEvidence? evidence = null)
+    /// <summary>Proposes <see cref="MaterialIdeas.CandidateCount"/> ideas scored against <paramref name="history"/>; the caller selects one.</summary>
+    public async Task<AiResult<MaterialIdeaCandidateBatch>> GenerateMaterialIdeasAsync(MaterialGenerationInput input, MaterialIdea[] history,
+        CancellationToken ct, AiCallEvidence? evidence = null)
     {
-        var current = new TaskDocument("", null, input.Materials, []);
-        var prepared = TaskAssembly.PrepareMaterials(input.Request, current)
-            ?? throw new TaskValidationException("materials", "אין חומרים חסרים או מיושנים ליצירה.");
-        current = current with { Materials = prepared.Materials };
+        RequireMaterials(input);
+        var result = await RequestAsync<MaterialIdeaCandidateBatch>(AiPrompts.MaterialIdeaGeneration,
+            JsonSerializer.Serialize(new { request = EffectiveInput(input.Request), history }, Json),
+            AiSchemas.Ideas, AiPrompts.Version("material-ideas"), ct, evidence: evidence);
+        try { MaterialIdeas.Validate(result.Value); }
+        catch (TaskValidationException exception) { throw InvalidOutput("idea-validation", result.Metadata.PromptVersion, exception.Errors); }
+        return result;
+    }
+
+    /// <summary>Writes the generated-material batch from the selected <paramref name="idea"/>. Strict rejection never applies partial material.</summary>
+    public async Task<AiResult<MaterialCandidateBatch>> GenerateMaterialsAsync(MaterialGenerationInput input, MaterialIdea idea,
+        CancellationToken ct, AiCallEvidence? evidence = null)
+    {
+        var current = new TaskDocument("", null, RequireMaterials(input).Materials, []);
         var ids = input.Request.Materials.Where(m => m.Source == "generated").Select(m => m.Id).ToArray();
-        // The app owns the randomness: the model lists several premises and writes the one drawn here.
-        var request = JsonSerializer.SerializeToNode(EffectiveInput(input.Request), Json)!.AsObject();
-        request["variation"] = Random.Shared.Next(1, AiPrompts.Variations + 1);
         var result = await RequestAsync<MaterialCandidateBatch>(AiPrompts.MaterialGeneration,
-            request.ToJsonString(Json), AiSchemas.MaterialsFor(ids), AiPrompts.Version("materials"), ct, evidence: evidence);
-        var accepted = TaskAssembly.AcceptMaterials(input.Request, current, result.Value, result.Metadata);
+            JsonSerializer.Serialize(new { request = EffectiveInput(input.Request), idea }, Json),
+            AiSchemas.MaterialsFor(ids), AiPrompts.Version("materials"), ct, evidence: evidence);
+        var accepted = TaskAssembly.AcceptMaterials(input.Request, current, result.Value, result.Metadata, idea);
         if (accepted.Document is null) throw InvalidOutput("material-validation", result.Metadata.PromptVersion, accepted.Diagnostics);
         return result;
     }
 
-    /// <summary>One full question call against current strict-valid material. Source revisions come from the application.</summary>
-    public async Task<AiResult<QuestionCandidateBatch>> GenerateQuestionsAsync(QuestionGenerationInput input, CancellationToken ct, AiCallEvidence? evidence = null)
+    /// <summary>One full question call against current strict-valid material, varied from <paramref name="history"/> prompts.
+    /// Source revisions come from the application.</summary>
+    public async Task<AiResult<QuestionCandidateBatch>> GenerateQuestionsAsync(QuestionGenerationInput input, string[] history,
+        CancellationToken ct, AiCallEvidence? evidence = null)
     {
         var current = new TaskDocument("", null, input.Materials, []);
         var prepared = TaskAssembly.PrepareQuestions(input.Request, current);
         var result = await RequestAsync<QuestionCandidateBatch>(AiPrompts.QuestionGeneration,
-            JsonSerializer.Serialize(new { request = EffectiveInput(input.Request), materials = SourceContext(prepared.Materials) }, Json),
+            JsonSerializer.Serialize(new { request = EffectiveInput(input.Request), materials = SourceContext(prepared.Materials), history }, Json),
             AiSchemas.QuestionsFor(input.Request, exactQuestionCountLimit), AiPrompts.Version("questions"), ct, evidence: evidence);
         var errors = TaskDocumentValidator.ValidateQuestionBatch(input.Request, current with { Materials = prepared.Materials }, result.Value);
         if (errors.Count > 0) throw InvalidOutput("question-validation", result.Metadata.PromptVersion, errors);
@@ -125,6 +136,10 @@ public sealed class AiGenerationService(IEnumerable<IChatClient> clients, ILogge
         request.Controls,
         request.TotalLength
     };
+
+    private static MaterialGenerationInput RequireMaterials(MaterialGenerationInput input) =>
+        TaskAssembly.PrepareMaterials(input.Request, new("", null, input.Materials, []))
+        ?? throw new TaskValidationException("materials", "אין חומרים חסרים או מיושנים ליצירה.");
 
     private static object SourceContext(IEnumerable<MaterialContent> materials) =>
         materials.Select(m => new { m.Id, m.Revision, m.Title, m.Body }).ToArray();

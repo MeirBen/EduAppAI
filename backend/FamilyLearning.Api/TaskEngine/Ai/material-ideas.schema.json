@@ -1,0 +1,45 @@
+{
+  "type": "object",
+  "properties": {
+    "ideas": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "idea": {
+            "type": "object",
+            "properties": {
+              "premise": {
+                "type": "string",
+                "minLength": 1
+              },
+              "structure": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "required": [
+              "premise",
+              "structure"
+            ],
+            "additionalProperties": false
+          },
+          "recentOverlap": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 100
+          }
+        },
+        "required": [
+          "idea",
+          "recentOverlap"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": [
+    "ideas"
+  ],
+  "additionalProperties": false
+}

@@ -9,6 +9,7 @@ namespace FamilyLearning.Api.TaskEngine.Ai;
 internal static class AiSchemas
 {
     public static readonly JsonElement Template = LoadTemplate();
+    public static readonly JsonElement Ideas = LoadIdeas();
     private static readonly JsonElement Materials = Read("materials.schema.json");
     private static readonly JsonElement Questions = Read("questions.schema.json");
 
@@ -20,8 +21,18 @@ internal static class AiSchemas
         materials["maxItems"] = ids.Length;
         if (ids.Length > 0) materials["items"]!["properties"]!["id"]!["enum"] = JsonSerializer.SerializeToNode(ids);
         if (replacement) return JsonSerializer.SerializeToElement(materials["items"]);
-        schema["properties"]!["premises"]!["minItems"] = AiPrompts.Variations;
-        schema["properties"]!["premises"]!["maxItems"] = AiPrompts.Variations;
+        return JsonSerializer.SerializeToElement(schema);
+    }
+
+    private static JsonElement LoadIdeas()
+    {
+        var schema = JsonSerializer.SerializeToNode(Read("material-ideas.schema.json"))!;
+        var ideas = schema["properties"]!["ideas"]!;
+        ideas["minItems"] = MaterialIdeas.CandidateCount;
+        ideas["maxItems"] = MaterialIdeas.CandidateCount;
+        var idea = ideas["items"]!["properties"]!["idea"]!["properties"]!;
+        idea["premise"]!["maxLength"] = MaterialIdeas.TextLimit;
+        idea["structure"]!["maxLength"] = MaterialIdeas.TextLimit;
         return JsonSerializer.SerializeToElement(schema);
     }
 

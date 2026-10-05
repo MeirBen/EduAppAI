@@ -68,17 +68,36 @@ false, zero and explicit empty text survive. IDs and provenance belong to the
 application.
 
 `AiGenerationService` uses `IChatClient` without identity or database access.
-Authoring, materials, questions and scoped replacements are separate
-schema-constrained calls with no tools, automatic repair or retry. Supplied
-sources bypass material AI and are copied exactly by `TaskAssembly`; accepted
-materials survive a question failure, and a question replacement is atomic
-over prompt, options and answer. `AiSchemas` builds request-owned schemas with
-exact counts and allowed IDs, applying engine constants in code so they cannot
-drift from the validators; prompts state limits from the same `EngineValidation`
-constants. The OpenRouter adapter owns transport and configuration and sends
-the schema through the SDK's native response format; responses must finish
-normally and pass size, shape, numeric and domain validation. See
-[AI configuration](ai.md#configuration).
+Authoring, material ideas, material writing, questions and scoped replacements
+are separate schema-constrained calls with no tools, automatic repair or retry.
+Supplied sources bypass material AI and are copied exactly by `TaskAssembly`;
+accepted materials survive a question failure, and a question replacement is
+atomic over prompt, options and answer. `AiSchemas` builds request-owned schemas
+with exact counts and allowed IDs, applying engine constants in code so they
+cannot drift from the validators; prompts state limits from the same
+`EngineValidation` constants. The OpenRouter adapter owns transport and
+configuration and sends the schema through the SDK's native response format;
+responses must finish normally and pass size, shape, numeric and domain
+validation. See [AI configuration](ai.md#configuration).
+
+Generated material starts with five bounded premise/structure ideas.
+`MaterialIdeas` validates them and selects the lowest model-estimated overlap
+with recent family ideas. Ties, the norm without relevant history, are broken by
+an application-owned draw: the operation ID in the worker, so an operation
+always selects the same idea while operations vary. Model estimates do not
+guarantee novelty or quality. Only the selected idea enters the writer. It stays
+with the material as provenance through edits and improvements until the
+material is regenerated. Supplied sources and question-only operations skip
+ideas.
+
+`GenerationHistoryReader` captures recent family content for every operation
+after admission's idempotency checks: the current document, then at most 12
+unreleased drafts and 12 snapshots, yielding up to eight distinct ideas and 12
+question prompts clipped to 300 characters. Answers and identities are excluded.
+The AI assesses relevance across similar topics, rather than relying on exact
+subject labels. The history is frozen in operation artifacts; idea generation
+receives only the ideas and question generation only the prompts. Concurrent
+operations can share history; novelty is best effort, not uniqueness.
 
 `TextLength` measures material bodies only. Unmet strict ranges block
 acceptance and release; targets are advisory, and supplied sources are
@@ -132,16 +151,18 @@ generation; any revision change fences the result into an unapplied diagnostic
 candidate. Cancellation commits its terminal state before signaling transport.
 Draft deletion cascades operation evidence and keys.
 
-Each claim captures immutable stage input, and a successful checkpoint saves
-content, candidate, usage and the next stage together. `ExpectedRevision` advances
-with each accepted checkpoint; cancellation advances it only when no other writer
-has changed the draft. This identifies the revisions owned by the operation without
-changing the original start-key fingerprint. Expected AI failures end
-only their operation. On restart, compatible queued stages resume, while
-uncheckpointed calling steps become unknown and are never replayed. Profile
-fingerprints exclude credentials, so key rotation keeps queued work valid.
+Each claim captures immutable stage input. The idea stage checkpoints the
+selected idea and queues writing without advancing the draft's content revision.
+A content checkpoint saves content, candidate, usage and the next stage
+together. `ExpectedRevision` advances with each accepted checkpoint;
+cancellation advances it only when no other writer has changed the draft. This
+identifies the revisions owned by the operation without changing the original
+start-key fingerprint. Expected AI failures end only their operation. On
+restart, compatible queued stages resume, while uncheckpointed calling steps
+become unknown and are never replayed. Profile fingerprints exclude credentials,
+so key rotation keeps queued work valid.
 
-Operation artifacts are bounded to 2 MiB and two steps. After seven terminal
+Operation artifacts are bounded to 2 MiB and three steps. After seven terminal
 days, startup and hourly cleanup expire up to 32 bulky artifacts per pass,
 keeping keys, fingerprints, outcomes and known usage until draft deletion.
 `GenerationOperationOptions` holds these policies; there is no distributed

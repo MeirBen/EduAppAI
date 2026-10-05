@@ -27,7 +27,7 @@ public sealed class ContentGenerationWireTests
         var service = services.GetRequiredService<AiGenerationService>();
         await service.AuthorAsync(new("רעיון"), default);
         var request = Resolve(Supplied());
-        await service.GenerateQuestionsAsync(TaskAssembly.PrepareQuestions(request, TaskAssembly.CreateDocument(request)), default);
+        await service.GenerateQuestionsAsync(TaskAssembly.PrepareQuestions(request, TaskAssembly.CreateDocument(request)), [], default);
         var schemas = local.Bodies.Select(bytes =>
         {
             using var body = JsonDocument.Parse(bytes);
@@ -76,7 +76,7 @@ public sealed class ContentGenerationWireTests
         using var services = local.Services(mode, new() { ["Ai:StrictQuestionCountLimit"] = limit });
         var request = Resolve(Numeric(3));
         await services.GetRequiredService<AiGenerationService>().GenerateQuestionsAsync(
-            TaskAssembly.PrepareQuestions(request, TaskAssembly.CreateDocument(request)), default);
+            TaskAssembly.PrepareQuestions(request, TaskAssembly.CreateDocument(request)), [], default);
         using var body = JsonDocument.Parse(Assert.Single(local.Bodies));
         var root = body.RootElement;
         using var schema = JsonDocument.Parse(mode == "json_schema"
@@ -152,8 +152,8 @@ public sealed class ContentGenerationWireTests
         var service = services.GetRequiredService<AiGenerationService>();
         var first = Resolve(Supplied());
         var second = Resolve(Mixed(true));
-        var calls = await Task.WhenAll(service.GenerateQuestionsAsync(TaskAssembly.PrepareQuestions(first, TaskAssembly.CreateDocument(first)), default),
-            service.GenerateQuestionsAsync(TaskAssembly.PrepareQuestions(second, TaskAssembly.CreateDocument(second)), default));
+        var calls = await Task.WhenAll(service.GenerateQuestionsAsync(TaskAssembly.PrepareQuestions(first, TaskAssembly.CreateDocument(first)), [], default),
+            service.GenerateQuestionsAsync(TaskAssembly.PrepareQuestions(second, TaskAssembly.CreateDocument(second)), [], default));
         Assert.Equal([2, 3], calls.Select(c => c.Value.Questions.Length));
         foreach (var bytes in local.Bodies)
         {

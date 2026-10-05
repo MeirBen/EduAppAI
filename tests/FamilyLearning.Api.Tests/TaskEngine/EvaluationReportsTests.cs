@@ -85,7 +85,7 @@ public sealed class EvaluationReportsTests : IDisposable
             Results = [new(scenario.Id, 1)
             {
                 Authoring = Skipped("authoring", "fixed-plan"), Plan = plan,
-            Materials = Skipped(), Generation = Step(role: "questions"),
+            MaterialIdeas = Skipped("material-ideas"), Materials = Skipped(), Generation = Step(role: "questions"),
                 Input = LearningPlanFixture.Resolve(LearningPlanFixture.Supplied() with
                 { Materials = [plan.Materials[0] with { Text = source }] }) with { EngineRevision = revision }
             }]
@@ -123,6 +123,7 @@ public sealed class EvaluationReportsTests : IDisposable
         {
             Plan = EvaluationFixtures.Plan(),
             Input = LearningPlanFixture.Resolve(EvaluationFixtures.Plan()),
+            MaterialIdeas = Skipped("material-ideas"),
             Materials = Skipped(),
             Authoring = Step(20, 8, 2, 0.2m, 200),
             Generation = Step(30, 12, null, null, 300, "questions"),
@@ -317,11 +318,13 @@ public sealed class EvaluationReportsTests : IDisposable
             {
                 Plan = EvaluationFixtures.Plan(),
                 Input = LearningPlanFixture.Resolve(EvaluationFixtures.Plan()),
+                MaterialIdeas = Skipped("material-ideas"),
                 Materials = Skipped(),
                 Authoring = Step(),
                 Generation = Skipped("questions", "earlier-stage")
             };
             result.Input = null;
+            result.MaterialIdeas = Skipped("material-ideas", "earlier-stage");
             result.Materials = Skipped("materials", "earlier-stage");
             if (invalidDefaults) result.Checks["inputResolution"] = false;
             else
@@ -474,6 +477,7 @@ public sealed class EvaluationReportsTests : IDisposable
     {
         Plan = EvaluationFixtures.Plan(),
         Input = LearningPlanFixture.Resolve(EvaluationFixtures.Plan()),
+        MaterialIdeas = Skipped("material-ideas"),
         Materials = Skipped(),
         Authoring = Step(),
         Generation = Step(role: "questions"),

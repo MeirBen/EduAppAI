@@ -47,6 +47,7 @@ public sealed class EvaluationRunStoreTests : IDisposable
         report.Results.Add(new("reading", 1)
         {
             Authoring = new() { Outcome = "failed", Failure = "provider-error", RequestSent = true, FinishedAtUtc = DateTime.UtcNow },
+            MaterialIdeas = EvaluationReportsTests.Skipped("material-ideas", "earlier-stage"),
             Materials = EvaluationReportsTests.Skipped("materials", "earlier-stage"),
             Generation = EvaluationReportsTests.Skipped("questions", "earlier-stage")
         });
@@ -71,6 +72,7 @@ public sealed class EvaluationRunStoreTests : IDisposable
             {
                 Plan = EvaluationFixtures.Plan(),
                 Input = LearningPlanFixture.Resolve(EvaluationFixtures.Plan()),
+                MaterialIdeas = EvaluationReportsTests.Skipped("material-ideas"),
                 Materials = EvaluationReportsTests.Skipped(),
                 Authoring = EvaluationReportsTests.Step(),
                 Generation = EvaluationReportsTests.Step(role: "questions")

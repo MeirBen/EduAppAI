@@ -1,7 +1,7 @@
 # AI guide
 
 The maintained reference for AI configuration, evaluation and tuning, as of
-2 October 2026. Product contracts live in the
+6 October 2026. Product contracts live in the
 [product specification](product-specification.md); implementation boundaries
 live in [architecture](architecture.md).
 
@@ -27,7 +27,7 @@ keys or educational content are good.
 
 ## Design and cutover decision
 
-The flow is prompt → editable plan → applicable material generation →
+The flow is prompt → editable plan → applicable material ideas and writing →
 questions → editable saved draft → parent review → immutable snapshot. Template
 publication is independent. Supplied sources are assembled verbatim by the app;
 question-only and supplied-source activities skip material generation. Scoped
@@ -49,12 +49,12 @@ Development database setup is in the [README](../README.md#data).
 On 4 October each change replayed the app's exact provider request, varying
 only the lines under test; counts are small samples, not reliability rates.
 
-- **Variety:** the material stage lists five less-typical premises of different
-  kinds before writing the one an app-drawn number selects. Over 30 stories per
-  arm, the chance that two share a premise kind fell from 0.34 to 0.22 (p =
-  0.015; two thirds classified blind); informational texts stayed varied. Naming
-  characters in premises was rejected: it spread names but narrowed premise
-  kinds.
+- **Variety (earlier single-call experiment):** the material stage listed five
+  less-typical premises of different kinds before writing the one an app-drawn
+  number selected. Over 30 stories per arm, the chance that two share a premise
+  kind fell from 0.34 to 0.22 (p = 0.015; two thirds classified blind);
+  informational texts stayed varied. Naming characters in premises was
+  rejected: it spread names but narrowed premise kinds.
 - **Question replacement:** with the other questions and learner instructions
   as context, "another question" stopped duplicating existing ones (4/8 before,
   0/8 after).
@@ -108,6 +108,39 @@ a human.
   deep rooms said to stay dry in 12 of 15 texts; flooding studies show colonies
   moving up. The other topics had one error in 185 texts. A topic-specific rule
   would be a holdout exception, so parent review stays the safeguard.
+
+## Material variety
+
+Revision 29 chooses an idea before writing. One call proposes five
+premise/structure ideas and estimates each one's overlap (0–100) with up to
+eight recent family ideas. The application selects the lowest estimate, an
+application-owned draw (the operation ID) breaks ties, and the worker
+checkpoints the idea before the writer expands it. The question call receives
+up to 12 recent question prompts. Generated material costs one extra call.
+
+On 6 October this design was compared with revision 26, which listed five
+premises and wrote an app-drawn one in a single call, on third-grade realistic
+cooperation and responsibility stories. Revisions 27–29 share the mechanism;
+they differ in tie-breaking and wording. The assistant labelled premise kinds,
+causal arcs and question targets blind to the arm, and story embeddings agreed.
+Counts are small samples, not reliability rates.
+
+- **With family history:** no story repeated an earlier premise kind in its
+  family (0 of 24, against 25–31% for revision 26; p ≈ 0.02 per topic). The
+  responsibility arc "tempted to play, keeps the duty" fell from a 0.80
+  pairwise rate to 0.05–0.25.
+- **Without relevant history:** the model scored every idea 0 (51 of 51 calls)
+  and listed the most typical first. Always taking it raised the chance that
+  two stories share a premise kind from 0.09/0.16 to 0.26/0.54, so ties are
+  drawn; with the draw it was 0.04 or lower over 24 stories.
+- **Questions:** regenerating questions for one story six times, prior prompts
+  cut the targets two sets share from 2.07/2.67 to 0.53/0.87 of four. Later
+  regenerations traded depth for coverage: 8 of 48 questions asked simple
+  recall such as time or place (none without history), and one set dropped the
+  requested inference question.
+- **Cost:** $0.0119 to $0.0153 per generated story; median latency 23 to 34 s.
+
+Hebrew quality and educational correctness still require representative review.
 
 ## Configuration
 

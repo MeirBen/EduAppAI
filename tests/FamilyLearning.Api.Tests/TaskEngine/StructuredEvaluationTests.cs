@@ -27,6 +27,7 @@ public sealed class StructuredEvaluationTests : IDisposable
         Assert.True(Assert.Single(report.Results).Generation!.ContractValid);
         var saved = JsonSerializer.SerializeToElement(report, JsonOptions).GetProperty("results")[0];
         Assert.Equal("skipped", saved.GetProperty("authoring").GetProperty("outcome").GetString());
+        Assert.Equal("skipped", saved.GetProperty("materialIdeas").GetProperty("outcome").GetString());
         Assert.Equal("skipped", saved.GetProperty("materials").GetProperty("outcome").GetString());
         Assert.Equal(Source, saved.GetProperty("document").GetProperty("materials")[0].GetProperty("body").GetString());
     }
@@ -59,7 +60,7 @@ public sealed class StructuredEvaluationTests : IDisposable
     {
         var length = mode == "range" ? new LengthExpectation(mode, Lower: 100, Upper: 150) : new(mode, new(100, false));
         var plan = Reading() with { Materials = [Reading().Materials[0] with { Length = length }] };
-        using var chat = new AiFixtures.ScriptedChat(JsonSerializer.Serialize(new
+        using var chat = new AiFixtures.ScriptedChat(EvaluationFixtures.MaterialIdeas(), JsonSerializer.Serialize(new
         {
             materials = new[]
         { new { id = MaterialId, title = "כותרת", body = string.Join(' ', Enumerable.Repeat("מילה", 99)) } }
@@ -111,10 +112,11 @@ public sealed class StructuredEvaluationTests : IDisposable
     {
         var plan = Reading() with { Materials = [Reading().Materials[0] with { Length = new("range", Lower: 100, Upper: 150) }] };
         var scenario = Fixed(plan) with { Interaction = "text-input", MinPassageWords = 100, MaxPassageWords = 150 };
-        using var chat = new AiFixtures.ScriptedChat(JsonSerializer.Serialize(new { materials = new[] { new { id = MaterialId, title = "כותרת", body = "שלום עולם" } } }));
+        using var chat = new AiFixtures.ScriptedChat(EvaluationFixtures.MaterialIdeas(), JsonSerializer.Serialize(new { materials = new[] { new { id = MaterialId, title = "כותרת", body = "שלום עולם" } } }));
         var report = await Run(chat, scenario);
         var result = Assert.Single(report.Results);
-        Assert.Single(chat.Requests);
+        Assert.Equal(2, chat.Requests.Count);
+        Assert.True(result.MaterialIdeas!.Applied);
         Assert.False(result.Materials!.Applied);
         Assert.NotNull(result.Materials.Candidate);
         Assert.Equal("OpenRouter", result.Materials.Provider);
@@ -182,7 +184,8 @@ public sealed class StructuredEvaluationTests : IDisposable
         using var chat = new EvaluationFixtures.Chat((index, input) => index switch
         {
             0 => Proposal(plan),
-            1 => JsonSerializer.Serialize(new { materials = new[] { new { id = input.GetProperty("materials")[0].GetProperty("id").GetString(), title = "כותרת", body = string.Join(' ', Enumerable.Repeat("מילה", 120)) } } }),
+            1 => EvaluationFixtures.MaterialIdeas(),
+            2 => JsonSerializer.Serialize(new { materials = new[] { new { id = input.GetProperty("request").GetProperty("materials")[0].GetProperty("id").GetString(), title = "כותרת", body = string.Join(' ', Enumerable.Repeat("מילה", 120)) } } }),
             _ => Questions("text-input")
         });
         var report = await Run(chat, scenario);
@@ -205,7 +208,7 @@ public sealed class StructuredEvaluationTests : IDisposable
         var plan = Reading() with { Materials = [Reading().Materials[0] with { Length = null }] };
         var body = prefix + string.Join(' ', Enumerable.Repeat("מִלָּה", words));
         var material = JsonSerializer.Serialize(new { materials = new[] { new { id = MaterialId, title = "כותרת", body } } });
-        using var chat = new AiFixtures.ScriptedChat(material, Questions("text-input"));
+        using var chat = new AiFixtures.ScriptedChat(EvaluationFixtures.MaterialIdeas(), material, Questions("text-input"));
         var report = await Run(chat, Fixed(plan) with { MinPassageWords = 100, MaxPassageWords = 150 });
         var result = Assert.Single(report.Results);
         Assert.True(result.Generation!.ContractValid);

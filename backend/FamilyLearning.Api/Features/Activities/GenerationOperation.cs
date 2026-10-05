@@ -13,7 +13,7 @@ public sealed class GenerationOperation
     private GenerationOperation() { }
 
     internal GenerationOperation(ActivityDraft draft, StartGenerationRequest request, ResolvedTaskRequest input,
-        TaskDocument document, string stage, string profileFingerprint, DateTime now)
+        TaskDocument document, GenerationHistory history, string stage, string profileFingerprint, DateTime now)
     {
         FamilyId = draft.FamilyId;
         DraftId = draft.Id;
@@ -24,7 +24,7 @@ public sealed class GenerationOperation
         OriginalRevision = ExpectedRevision = draft.Revision;
         Kind = request.Kind;
         Stage = stage;
-        ArtifactsJson = StoredJson.Write(new GenerationArtifacts(input, document, request.TargetId, request.Instruction, []));
+        ArtifactsJson = StoredJson.Write(new GenerationArtifacts(input, document, request.TargetId, request.Instruction, [], history, null));
         CreatedAtUtc = now;
     }
 
@@ -65,10 +65,10 @@ public sealed class GenerationOperation
     }
 
     internal void Claim() => Status = "calling";
-    internal void QueueQuestions(long revision)
+    internal void QueueStage(string stage, long revision)
     {
         ExpectedRevision = revision;
-        Stage = "questions";
+        Stage = stage;
         Status = "queued";
     }
 

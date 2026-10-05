@@ -17,12 +17,17 @@ public sealed record QuestionReplacementInput(ResolvedTaskRequest Request, TaskD
 /// <summary>Untrusted generated-only material output; IDs must exactly match the selected generated requirements.</summary>
 public sealed record MaterialCandidate([property: JsonRequired] string Id, string? Title, [property: JsonRequired] string Body);
 
-/// <summary>One premise the material stage lists before writing the app-numbered one; evidence, never content.</summary>
-public sealed record MaterialPremise(string Premise, double Probability);
+/// <summary>The premise and causal or explanatory structure a generated batch is written from; private, never learner content.</summary>
+public sealed record MaterialIdea([property: JsonRequired] string Premise, [property: JsonRequired] string Structure);
+
+/// <summary>An untrusted proposed idea and the model's estimate, from 0 to 100, of its overlap with recent family ideas.</summary>
+public sealed record MaterialIdeaCandidate([property: JsonRequired] MaterialIdea Idea, [property: JsonRequired] int RecentOverlap);
+
+/// <summary>Untrusted alternatives; the application validates them and selects one before writing.</summary>
+public sealed record MaterialIdeaCandidateBatch([property: JsonRequired] MaterialIdeaCandidate[] Ideas);
 
 /// <summary>An indivisible batch of generated materials, without supplied-source echoes.</summary>
-/// <remarks>Premises are optional so acceptance never depends on them.</remarks>
-public sealed record MaterialCandidateBatch([property: JsonRequired] MaterialCandidate[] Materials, MaterialPremise[]? Premises = null);
+public sealed record MaterialCandidateBatch([property: JsonRequired] MaterialCandidate[] Materials);
 
 /// <summary>A complete untrusted question with no model-owned identity, revision or provenance.</summary>
 public sealed record QuestionCandidate([property: JsonRequired] string Prompt,

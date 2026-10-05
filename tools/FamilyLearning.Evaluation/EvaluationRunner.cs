@@ -59,6 +59,7 @@ public static class EvaluationRunner
                     {
                         Plan = scenario.InitialPlan,
                         Authoring = Skipped("authoring", scenario.InitialPlan is null ? "earlier-stage" : "fixed-plan"),
+                        MaterialIdeas = Skipped("material-ideas", "earlier-stage"),
                         Materials = Skipped("materials", "earlier-stage"),
                         Generation = Skipped("questions", "earlier-stage"),
                         Judge = Skipped("review", report.JudgeEnabled ? "earlier-stage" : "disabled")
@@ -82,11 +83,22 @@ public static class EvaluationRunner
                     result.Document = TaskAssembly.CreateDocument(input);
                     if (TaskAssembly.PrepareMaterials(input, result.Document) is { } materials)
                     {
+                        stage = "material-ideas";
+                        // Each case is a family without history; the repetition is the draw, so repeats cycle through tied ideas.
+                        var selected = await AttemptAsync(step => result.MaterialIdeas = step, async (evidence, token) =>
+                        {
+                            var candidates = await engine.GenerateMaterialIdeasAsync(materials, [], token, evidence);
+                            return new AiResult<MaterialIdea>(MaterialIdeas.Select(candidates.Value, result.Repetition), candidates.Metadata);
+                        }, input, materials.Materials);
+                        if (selected is null) { await SaveAsync(); continue; }
+                        result.SelectedMaterialIdea = selected;
+                        result.MaterialIdeas!.Applied = true;
+                        await SaveAsync();
                         stage = "materials";
                         var generated = await AttemptAsync(step => result.Materials = step,
-                            (evidence, token) => engine.GenerateMaterialsAsync(materials, token, evidence), input, materials.Materials);
+                            (evidence, token) => engine.GenerateMaterialsAsync(materials, selected, token, evidence), input, materials.Materials);
                         if (generated is null) { await SaveAsync(); continue; }
-                        var accepted = TaskAssembly.AcceptMaterials(input, result.Document, generated, result.Materials!.Metadata);
+                        var accepted = TaskAssembly.AcceptMaterials(input, result.Document, generated, result.Materials!.Metadata, selected);
                         if (accepted.Document is null)
                         {
                             Reject(result.Materials, accepted.Diagnostics);
@@ -97,11 +109,15 @@ public static class EvaluationRunner
                         result.Materials.Applied = true;
                         await SaveAsync();
                     }
-                    else result.Materials = Skipped("materials", "no-generated-materials");
+                    else
+                    {
+                        result.MaterialIdeas = Skipped("material-ideas", "no-generated-materials");
+                        result.Materials = Skipped("materials", "no-generated-materials");
+                    }
                     stage = "questions";
                     var questions = TaskAssembly.PrepareQuestions(input, result.Document);
                     var content = await AttemptAsync(step => result.Generation = step,
-                        (evidence, token) => engine.GenerateQuestionsAsync(questions, token, evidence), input, questions.Materials);
+                        (evidence, token) => engine.GenerateQuestionsAsync(questions, [], token, evidence), input, questions.Materials);
                     if (content is null) { await SaveAsync(); continue; }
                     result.Document = TaskAssembly.AcceptQuestions(input, result.Document, content, result.Generation!.Metadata);
                     result.Generation.Applied = true;

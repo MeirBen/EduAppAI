@@ -53,6 +53,15 @@ internal sealed class GenerationHarness(params string[] responses) : IAsyncDispo
 
     internal static string OperationPath(JsonNode operation) => $"/api/activity-drafts/{operation["draftId"]!.GetValue<Guid>()}/operations/{operation["id"]!.GetValue<Guid>()}";
     internal static string Questions(string type = "numeric-input") => $$"""{"title":"תרגול","instructions":"ענו","questions":[{"prompt":"כמה הם 1 ועוד 1?","interaction":{"type":"{{type}}","options":null},"answer":{"value":"2"},"points":1}]}""";
+    internal const string Ideas = """
+        {"ideas":[
+            {"idea":{"premise":"ילדה מוצאת מכתב בגינה","structure":"גילוי, חיפוש וסיום"},"recentOverlap":0},
+            {"idea":{"premise":"חברים מכינים ארוחה","structure":"תכנון וביצוע משותף"},"recentOverlap":50},
+            {"idea":{"premise":"משפחה מטיילת ביער","structure":"תיאור מסלול ותחנות"},"recentOverlap":50},
+            {"idea":{"premise":"שכן מטפל בציפור","structure":"בעיה, טיפול והחלמה"},"recentOverlap":50},
+            {"idea":{"premise":"תלמידה בונה דגם","structure":"ניסוי, תיקון ותוצאה"},"recentOverlap":50}
+        ]}
+        """;
     internal const string Materials = """{"materials":[{"id":"11111111111111111111111111111111","title":null,"body":"שלום עולם"}]}""";
     public ValueTask DisposeAsync() => app?.DisposeAsync() ?? ValueTask.CompletedTask;
 

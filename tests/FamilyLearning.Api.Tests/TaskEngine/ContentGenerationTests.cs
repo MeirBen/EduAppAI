@@ -91,22 +91,24 @@ public sealed class ContentGenerationTests
     }
 
     [Theory]
-    [InlineData("generated", 2)]
+    [InlineData("generated", 3)]
     [InlineData("fixed", 1)]
     [InlineData("none", 1)]
     public async Task Stage_selection_uses_only_necessary_calls_and_exact_sources(string source, int expectedCalls)
     {
         var request = Resolve(source == "generated" ? Reading() : source == "fixed" ? Supplied() : Numeric());
         using var chat = new AiFixtures.ScriptedChat(source == "generated"
-            ? [Serialize(Materials()), Serialize(Questions("text-input"))] : [Serialize(Questions())]);
+            ? [Serialize(MaterialIdeaTests.Ideas()), Serialize(Materials()), Serialize(Questions("text-input"))] : [Serialize(Questions())]);
         using var service = Service(chat);
         var document = TaskAssembly.CreateDocument(request);
         if (TaskAssembly.PrepareMaterials(request, document) is { } materials)
         {
-            var result = await service.GenerateMaterialsAsync(materials, default);
-            document = TaskAssembly.AcceptMaterials(request, document, result.Value, result.Metadata).Document!;
+            var ideas = await service.GenerateMaterialIdeasAsync(materials, [], default);
+            var selected = MaterialIdeas.Select(ideas.Value, 0);
+            var result = await service.GenerateMaterialsAsync(materials, selected, default);
+            document = TaskAssembly.AcceptMaterials(request, document, result.Value, result.Metadata, selected).Document!;
         }
-        var questions = await service.GenerateQuestionsAsync(TaskAssembly.PrepareQuestions(request, document), default);
+        var questions = await service.GenerateQuestionsAsync(TaskAssembly.PrepareQuestions(request, document), [], default);
         document = TaskAssembly.AcceptQuestions(request, document, questions.Value, questions.Metadata);
         Assert.Equal(expectedCalls, chat.Requests.Count);
         Assert.Empty(TaskDocumentValidator.ValidateRelease(request, document));
@@ -129,7 +131,8 @@ public sealed class ContentGenerationTests
         using var chat = new AiFixtures.ScriptedChat(Serialize(Materials()));
         using var service = Service(chat);
         var document = TaskAssembly.CreateDocument(request);
-        var error = await Assert.ThrowsAsync<AiGenerationException>(() => service.GenerateMaterialsAsync(TaskAssembly.PrepareMaterials(request, document)!, default));
+        var error = await Assert.ThrowsAsync<AiGenerationException>(() => service.GenerateMaterialsAsync(
+            TaskAssembly.PrepareMaterials(request, document)!, new("רעיון", "מבנה"), default));
         Assert.NotEmpty(error.ValidationErrors!);
         Assert.Single(chat.Requests);
         Assert.Empty(document.Materials);
@@ -152,22 +155,19 @@ public sealed class ContentGenerationTests
     }
 
     [Fact]
-    public async Task Material_generation_lists_premises_before_writing_the_numbered_one()
+    public async Task Idea_schema_bounds_alternatives_before_writing()
     {
         var request = Resolve(Reading());
-        var premises = Enumerable.Range(1, AiPrompts.Variations).Select(i => new MaterialPremise($"רעיון {i}", 0.05)).ToArray();
-        using var chat = new AiFixtures.ScriptedChat(Serialize(Materials() with { Premises = premises }));
+        using var chat = new AiFixtures.ScriptedChat(Serialize(MaterialIdeaTests.Ideas()));
         using var service = Service(chat);
-        var result = await service.GenerateMaterialsAsync(TaskAssembly.PrepareMaterials(request, Empty)!, default);
-        Assert.Equal(premises, result.Value.Premises);
+        var result = await service.GenerateMaterialIdeasAsync(TaskAssembly.PrepareMaterials(request, Empty)!, [], default);
+        Assert.Equal(5, result.Value.Ideas.Length);
         using var input = JsonDocument.Parse(chat.Requests[0].Input.Split('\n')[^1]);
-        Assert.InRange(input.RootElement.GetProperty("variation").GetInt32(), 1, AiPrompts.Variations);
-        Assert.Equal(request.Goal, input.RootElement.GetProperty("goal").GetString());
-        // Output follows schema key order, so the listed premises condition the materials written after them.
-        var schema = Assert.IsType<ChatResponseFormatJson>(chat.Requests[0].Options!.ResponseFormat).Schema!.Value.GetProperty("properties");
-        Assert.Equal(["premises", "materials"], schema.EnumerateObject().Select(property => property.Name));
-        Assert.Equal(AiPrompts.Variations, schema.GetProperty("premises").GetProperty("minItems").GetInt32());
-        Assert.Equal(AiPrompts.Variations, schema.GetProperty("premises").GetProperty("maxItems").GetInt32());
+        Assert.Equal(request.Goal, input.RootElement.GetProperty("request").GetProperty("goal").GetString());
+        var schema = Assert.IsType<ChatResponseFormatJson>(chat.Requests[0].Options!.ResponseFormat).Schema!.Value
+            .GetProperty("properties").GetProperty("ideas");
+        Assert.Equal(5, schema.GetProperty("minItems").GetInt32());
+        Assert.Equal(5, schema.GetProperty("maxItems").GetInt32());
     }
 
     [Fact]
@@ -176,9 +176,9 @@ public sealed class ContentGenerationTests
         var request = Resolve(Reading());
         using var chat = new AiFixtures.ScriptedChat(Serialize(Materials()), "{}");
         using var service = Service(chat);
-        var result = await service.GenerateMaterialsAsync(TaskAssembly.PrepareMaterials(request, Empty)!, default);
+        var result = await service.GenerateMaterialsAsync(TaskAssembly.PrepareMaterials(request, Empty)!, new("רעיון", "מבנה"), default);
         var document = TaskAssembly.AcceptMaterials(request, Empty, result.Value, result.Metadata).Document!;
-        var error = await Assert.ThrowsAsync<AiGenerationException>(() => service.GenerateQuestionsAsync(TaskAssembly.PrepareQuestions(request, document), default));
+        var error = await Assert.ThrowsAsync<AiGenerationException>(() => service.GenerateQuestionsAsync(TaskAssembly.PrepareQuestions(request, document), [], default));
         Assert.DoesNotContain("לא נשמר", error.Message);
         Assert.Equal("שלום עולם", Assert.Single(document.Materials).Body);
         Assert.Equal(2, chat.Requests.Count);

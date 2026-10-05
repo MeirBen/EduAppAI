@@ -23,7 +23,7 @@ public sealed class AiCapacityTests
         var request = LearningPlanFixture.Resolve(LearningPlanFixture.Numeric());
         using var cancellation = new CancellationTokenSource();
         var author = service.AuthorAsync(new TemplateAuthoringInput("רעיון"), cancellation.Token);
-        var content = service.GenerateQuestionsAsync(TaskAssembly.PrepareQuestions(request, TaskAssembly.CreateDocument(request)), cancellation.Token);
+        var content = service.GenerateQuestionsAsync(TaskAssembly.PrepareQuestions(request, TaskAssembly.CreateDocument(request)), [], cancellation.Token);
         var error = await Assert.ThrowsAsync<AiGenerationException>(() => service.AuthorAsync(new TemplateAuthoringInput("עוד"), default));
         Assert.Equal(503, error.StatusCode);
         cancellation.Cancel();

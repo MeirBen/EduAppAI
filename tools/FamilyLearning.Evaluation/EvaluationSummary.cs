@@ -33,6 +33,7 @@ public sealed record EvaluationSummary
     public int AttemptedCalls { get; init; }
     public required StageCounts Authoring { get; init; }
     public required StageCounts Refinements { get; init; }
+    public required StageCounts MaterialIdeas { get; init; }
     public required StageCounts Materials { get; init; }
     public required StageCounts Replacements { get; init; }
     public required StageCounts Generation { get; init; }
@@ -83,6 +84,8 @@ public sealed record EvaluationSummary
             AttemptedCalls = calls.Length,
             Authoring = StageCounts.From(report.Results.Select(result => result.Authoring), report.Cases.Count(item => item.InitialPlan is null) * report.Repeat),
             Refinements = StageCounts.From(report.Results.SelectMany(result => result.Refinements), report.Cases.Sum(item => item.Refinements.Length) * report.Repeat),
+            MaterialIdeas = StageCounts.From(report.Results.Select(result => result.MaterialIdeas), report.Cases.Count(item =>
+                item.InitialPlan?.Materials.Any(material => material.Source == "generated") ?? item.ExpectedGeneratedMaterials > 0) * report.Repeat),
             Materials = StageCounts.From(report.Results.Select(result => result.Materials), report.Cases.Count(item =>
                 item.InitialPlan?.Materials.Any(material => material.Source == "generated") ?? item.ExpectedGeneratedMaterials > 0) * report.Repeat),
             Replacements = StageCounts.From(report.Results.SelectMany(result => result.Replacements), report.Cases.Sum(item => item.Replacements.Length) * report.Repeat),

@@ -13,6 +13,7 @@ const unknownOperation: GenerationOperation = {
   failure: 'interrupted',
   diagnosticsExpired: false,
   steps: [
+    { stage: 'material-ideas', outcome: 'accepted', usage: null, metadata: null },
     { stage: 'materials', outcome: 'accepted', usage: { costCredits: 0.25 }, metadata: null },
     { stage: 'questions', outcome: 'unknown', usage: null, metadata: null },
   ],
@@ -70,6 +71,7 @@ describe('GenerationStatus', () => {
       status: 'failed',
       failure: 'invalid-output',
       steps: [
+        { stage: 'material-ideas', outcome: 'accepted', usage: null, metadata: null },
         { stage: 'materials', outcome: 'accepted', usage: null, metadata: null },
         { stage: 'questions', outcome: 'failed', usage: null, metadata: null },
       ],

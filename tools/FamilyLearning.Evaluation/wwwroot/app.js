@@ -51,6 +51,7 @@ function stages(evaluation) {
   return [
     ['Plan interpretation', evaluation.authoring],
     ...(evaluation.refinements ?? []).map((step, index) => [`Refinement ${index + 1}`, step]),
+    ['Material ideas', evaluation.materialIdeas],
     ['Materials', evaluation.materials],
     ['Questions', evaluation.generation],
     ...(evaluation.replacements ?? []).map((step, index) => [
@@ -525,7 +526,7 @@ export function reportBrief(id, report, summary) {
   const lines = [
     `# Evaluation report: ${report.label || id}`,
     '',
-    'A saved run from the Family Learning Hebrew AI evaluation harness. Each result starts with a parent request and bounded refinements, or a fixed plan. Applicable material, question and scoped replacement stages use the shared engine; optional Hebrew review remains advisory.',
+    'A saved run from the Family Learning Hebrew AI evaluation harness. Each result starts with a parent request and bounded refinements, or a fixed plan. Applicable material idea, material, question and scoped replacement stages use the shared engine; optional Hebrew review remains advisory.',
     '',
     'Reading rules:',
     '- "completed" means the workflow finished, not that checks passed.',
@@ -608,7 +609,12 @@ export function reportBrief(id, report, summary) {
       fence('text', prompt ?? 'Not recorded'),
       '',
       '#### Case expectations and task input',
-      json({ ...expectations, plan: evaluation.plan, input: evaluation.input }),
+      json({
+        ...expectations,
+        plan: evaluation.plan,
+        input: evaluation.input,
+        selectedMaterialIdea: evaluation.selectedMaterialIdea,
+      }),
       '#### Assembled document and length measurements',
       json({ document: evaluation.document, measurements: evaluation.measurements }),
       '',
@@ -1351,6 +1357,8 @@ export function createDashboard(document, fetchRequest = globalThis.fetch.bind(g
       const stageGrid = node('div', null, 'stage-grid');
       stageGrid.append(...steps.map(([name, step]) => renderStep(name, step)));
       card.append(block('Stages', stageGrid));
+      if (evaluation.selectedMaterialIdea)
+        card.append(raw('Selected material idea', evaluation.selectedMaterialIdea));
       card.append(
         block(
           'Workflow outcomes',

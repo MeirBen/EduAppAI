@@ -126,12 +126,17 @@ public sealed partial class GenerationWorker(IServiceScopeFactory scopes, AiGene
         var current = call.Artifacts.Current;
         switch (call.Stage)
         {
+            case "material-ideas":
+                var ideas = await ai.GenerateMaterialIdeasAsync(TaskAssembly.PrepareMaterials(input, current)!, call.Artifacts.History.Ideas, ct, evidence);
+                // The operation ID is the draw: an operation always selects the same idea, while operations vary.
+                return new(current, Candidate(ideas.Value), MaterialIdeas.Select(ideas.Value, call.Id.GetHashCode()));
             case "materials":
-                var materials = await ai.GenerateMaterialsAsync(TaskAssembly.PrepareMaterials(input, current)!, ct, evidence);
-                var accepted = TaskAssembly.AcceptMaterials(input, current, materials.Value, materials.Metadata);
+                var idea = call.Artifacts.SelectedIdea ?? throw new InvalidOperationException("Materials are written only after an idea checkpoint.");
+                var materials = await ai.GenerateMaterialsAsync(TaskAssembly.PrepareMaterials(input, current)!, idea, ct, evidence);
+                var accepted = TaskAssembly.AcceptMaterials(input, current, materials.Value, materials.Metadata, idea);
                 return new(accepted.Document ?? throw new TaskValidationException(accepted.Diagnostics), Candidate(materials.Value));
             case "questions":
-                var questions = await ai.GenerateQuestionsAsync(TaskAssembly.PrepareQuestions(input, current), ct, evidence);
+                var questions = await ai.GenerateQuestionsAsync(TaskAssembly.PrepareQuestions(input, current), call.Artifacts.History.Questions, ct, evidence);
                 return new(TaskAssembly.AcceptQuestions(input, current, questions.Value, questions.Metadata), Candidate(questions.Value));
             case "replace-material":
                 var materialInput = new MaterialReplacementInput(input, current, call.Artifacts.TargetId!, call.Artifacts.Instruction);
@@ -166,7 +171,11 @@ public sealed partial class GenerationWorker(IServiceScopeFactory scopes, AiGene
             artifacts.Steps[^1] = artifacts.Steps[^1] with { Call = evidence, Candidate = generated?.Candidate, Diagnostics = failure?.ValidationErrors };
             var steps = operation.Steps;
             steps[^1] = summary with { Outcome = outcome };
-            var acceptedArtifacts = outcome == "accepted" ? artifacts with { Current = generated!.Document } : artifacts;
+            var acceptedArtifacts = outcome == "accepted" ? artifacts with
+            {
+                Current = generated!.Document,
+                SelectedIdea = generated.SelectedIdea ?? artifacts.SelectedIdea
+            } : artifacts;
             if (!operation.StoreArtifacts(acceptedArtifacts, steps))
             {
                 operation.RecordResult(summary with { Outcome = "failed" });
@@ -176,12 +185,9 @@ public sealed partial class GenerationWorker(IServiceScopeFactory scopes, AiGene
             else if (failure is not null || generated is null) operation.Finish("failed", failure?.Category ?? "cancelled-call", UtcNow);
             else
             {
-                draft.Save(draft.Name, draft.PlanJson, draft.InputJson, StoredJson.Write(generated.Document));
-                if (call.Stage == "materials" && operation.Kind == "GenerateActivity")
-                {
-                    // The accepted content and next stage are in this same commit; recovery never repeats the material call.
-                    operation.QueueQuestions(draft.Revision);
-                }
+                // Idea selection changes no draft content. Content and the next stage commit together, so recovery never repeats a call.
+                if (call.Stage != "material-ideas") draft.Save(draft.Name, draft.PlanJson, draft.InputJson, StoredJson.Write(generated.Document));
+                if (NextStage(call.Stage) is { } next) operation.QueueStage(next, draft.Revision);
                 else operation.Finish("completed", null, UtcNow, draft.Revision);
             }
             if (operation.Status != "queued") draft.ClearOperation(operation.Id, UtcNow);
@@ -259,6 +265,14 @@ public sealed partial class GenerationWorker(IServiceScopeFactory scopes, AiGene
     [LoggerMessage(1005, LogLevel.Debug, "Expired generation artifacts for {OperationCount} operations")]
     private static partial void LogArtifactsExpired(ILogger logger, int operationCount);
 
+    /// <summary>The generated-activity pipeline; every other stage is final.</summary>
+    private static string? NextStage(string stage) => stage switch
+    {
+        "material-ideas" => "materials",
+        "materials" => "questions",
+        _ => null
+    };
+
     private sealed record ClaimedCall(Guid Id, Guid DraftId, string Stage, GenerationArtifacts Artifacts);
-    private sealed record Generated(TaskDocument Document, JsonElement Candidate);
+    private sealed record Generated(TaskDocument Document, JsonElement Candidate, MaterialIdea? SelectedIdea = null);
 }

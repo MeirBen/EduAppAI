@@ -33,8 +33,9 @@ public static class TaskAssembly
     }
 
     /// <summary>Applies only a complete valid generated batch, restoring supplied originals and plan order.</summary>
+    /// <remarks>Each generated material records the <paramref name="idea"/> it was written from.</remarks>
     public static MaterialAcceptance AcceptMaterials(ResolvedTaskRequest request, TaskDocument current, MaterialCandidateBatch candidate,
-        GenerationMetadata? metadata = null)
+        GenerationMetadata? metadata = null, MaterialIdea? idea = null)
     {
         var errors = new Dictionary<string, string[]>();
         var fingerprint = TaskRequestResolver.Fingerprint(request);
@@ -64,7 +65,7 @@ public static class TaskAssembly
             var item = items.FirstOrDefault(m => m.Id == requirement.Id);
             var previous = existingMaterials.FirstOrDefault(m => m.Id == requirement.Id);
             materials.Add(item is null ? previous! : new(item.Id, checked((previous?.Revision ?? 0) + 1), item.Title, item.Body,
-                new("generated", request.EngineRevision, fingerprint, metadata), new(fingerprint, [])));
+                new("generated", request.EngineRevision, fingerprint, metadata), new(fingerprint, []), idea));
         }
         var document = current with { Materials = materials.ToArray(), Questions = CopyQuestions(current.Questions) };
         var materialCheck = TaskDocumentValidator.ValidateMaterials(request, document);
@@ -112,6 +113,7 @@ public static class TaskAssembly
     }
 
     /// <summary>Replaces one complete generated material, preserving unrelated content and invalidating dependencies by revision.</summary>
+    /// <remarks>An improvement keeps the material's premise, so its idea is kept.</remarks>
     public static TaskDocument ReplaceMaterial(MaterialReplacementInput input, MaterialCandidate candidate, GenerationMetadata? metadata = null)
     {
         var target = MaterialTarget(input);
@@ -122,7 +124,7 @@ public static class TaskAssembly
         {
             Materials = input.Current.Materials.Select(m => m.Id == target.Id
                 ? new MaterialContent(m.Id, checked(m.Revision + 1), candidate.Title, candidate.Body,
-                    new("generated", input.Request.EngineRevision, fingerprint, metadata), new(fingerprint, []))
+                    new("generated", input.Request.EngineRevision, fingerprint, metadata), new(fingerprint, []), m.Idea)
                 : m with { Acceptance = CopyAcceptance(m.Acceptance) }).ToArray(),
             Questions = CopyQuestions(input.Current.Questions)
         };

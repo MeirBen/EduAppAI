@@ -11,8 +11,13 @@ public sealed record StartGenerationRequest([property: JsonRequired] Guid Operat
     [property: JsonRequired] string Kind, string? TargetId = null, string? Instruction = null);
 
 /// <summary>Pinned requirements and stage inputs. These private parent diagnostics expire after terminal retention.</summary>
+/// <remarks><see cref="SelectedIdea"/> is set by the material-ideas checkpoint and read by material writing.</remarks>
 public sealed record GenerationArtifacts(ResolvedTaskRequest Input, TaskDocument Current, string? TargetId, string? Instruction,
-    GenerationStepArtifact[] Steps);
+    GenerationStepArtifact[] Steps, GenerationHistory History, MaterialIdea? SelectedIdea);
+
+/// <summary>Recent family ideas and question prompts captured once at admission, without identities or answer keys.</summary>
+/// <remarks>Idea generation receives only <see cref="Ideas"/> and question generation only <see cref="Questions"/>.</remarks>
+public sealed record GenerationHistory(MaterialIdea[] Ideas, string[] Questions);
 
 /// <summary>Exact document/revisions captured with the durable claim, before a provider can run.</summary>
 public sealed record GenerationStepArtifact(string Stage, TaskDocument Document, AiCallEvidence? Call = null,

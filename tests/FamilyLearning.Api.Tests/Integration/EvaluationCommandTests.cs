@@ -21,11 +21,11 @@ public sealed class EvaluationCommandTests : IDisposable
     [Theory]
     [InlineData(false, 4, 0, 0, false)]
     [InlineData(true, 1, 2, 0, false)]
-    [InlineData(true, 3, 0, 3, false)]
-    [InlineData(true, 3, 0, 3, true)]
+    [InlineData(true, 4, 0, 4, false)]
+    [InlineData(true, 4, 0, 4, true)]
     [InlineData(true, 2, 2, 0, false, "malformed-endpoint")]
-    [InlineData(true, 4, 0, 4, false, null, true, "0")]
-    [InlineData(true, 4, 0, 4, true, null, true, "Thu, 01 Jan 1970 00:00:00 GMT")]
+    [InlineData(true, 5, 0, 5, false, null, true, "0")]
+    [InlineData(true, 5, 0, 5, true, null, true, "Thu, 01 Jan 1970 00:00:00 GMT")]
     [InlineData(true, 5, 1, 1, false, null, true, "301")]
     public async Task Cli_and_dashboard_use_the_real_adapter_without_database_access(
         bool live, int budget, int expectedExitCode, int expectedCalls, bool dashboard, string? endpoint = null,
@@ -65,11 +65,13 @@ public sealed class EvaluationCommandTests : IDisposable
                 };
                 output = JsonNode.Parse(StructuredEvaluationTests.Proposal(plan))!;
             }
+            else if (schema.Contains("material_ideas", StringComparison.Ordinal))
+                output = JsonNode.Parse(EvaluationFixtures.MaterialIdeas())!;
             else if (schema.Contains("materials", StringComparison.Ordinal))
             {
                 var messages = request.RootElement.GetProperty("messages");
                 using var input = JsonDocument.Parse(messages[messages.GetArrayLength() - 1].GetProperty("content").GetString()!);
-                var id = input.RootElement.GetProperty("materials")[0].GetProperty("id").GetString();
+                var id = input.RootElement.GetProperty("request").GetProperty("materials")[0].GetProperty("id").GetString();
                 output = JsonSerializer.SerializeToNode(new { materials = new[] { new { id, title = "קריאה", body = string.Join(' ', Enumerable.Repeat("מילה", 100)) } } })!;
             }
             else
@@ -169,8 +171,8 @@ public sealed class EvaluationCommandTests : IDisposable
             Assert.Equal(0, retry.GetProperty("call").GetProperty("retryAfterSeconds").GetDouble());
             Assert.Equal(0, retry.GetProperty("delaySeconds").GetDouble());
         }
-        Assert.Equal(0.003m, report.RootElement.GetProperty("reportedCostCredits").GetDecimal());
-        Assert.Equal(3, report.RootElement.GetProperty("callsWithReportedCost").GetInt32());
+        Assert.Equal(0.004m, report.RootElement.GetProperty("reportedCostCredits").GetDecimal());
+        Assert.Equal(4, report.RootElement.GetProperty("callsWithReportedCost").GetInt32());
         Assert.Equal(1, report.RootElement.GetProperty("automaticPasses").GetInt32());
         var authoring = report.RootElement.GetProperty("results")[0].GetProperty("authoring");
         Assert.Equal(10, authoring.GetProperty("reasoningTokens").GetInt32());

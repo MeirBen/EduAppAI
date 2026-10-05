@@ -78,7 +78,8 @@ public static class GenerationOperationEndpoints
         var document = draft.Document;
         var stage = SelectStage(body, request, document);
         if (!limiter.TryAcquire(familyId)) return Results.StatusCode(429);
-        var operation = new GenerationOperation(draft, body, request, document, stage, worker.ProfileFingerprint, clock.GetUtcNow().UtcDateTime);
+        var history = await GenerationHistoryReader.ReadAsync(db, familyId, draft.Id, document, ct);
+        var operation = new GenerationOperation(draft, body, request, document, history, stage, worker.ProfileFingerprint, clock.GetUtcNow().UtcDateTime);
         draft.StartOperation(operation.Id);
         db.GenerationOperations.Add(operation);
         await db.SaveChangesAsync(ct);
@@ -90,7 +91,7 @@ public static class GenerationOperationEndpoints
     {
         switch (body.Kind)
         {
-            case "GenerateActivity" when TaskAssembly.PrepareMaterials(input, document) is not null: return "materials";
+            case "GenerateActivity" when TaskAssembly.PrepareMaterials(input, document) is not null: return "material-ideas";
             case "GenerateActivity":
             case "GenerateQuestions": TaskAssembly.PrepareQuestions(input, document); return "questions";
             case "ReplaceMaterial": TaskAssembly.MaterialTarget(new(input, document, body.TargetId!, body.Instruction)); return "replace-material";

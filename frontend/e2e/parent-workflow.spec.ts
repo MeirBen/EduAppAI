@@ -123,7 +123,20 @@ test('prompt to editable activity, independent template, scoped repair and froze
   await expect(page.locator('#cancel-generation')).toBeVisible();
   await page.reload();
   await expect(page.locator('#cancel-generation')).toBeVisible();
+  await expect.poll(async () => (await operation(page, state)).stage).toBe('materials');
+  const planned = await operation(page, state);
+  expect(planned.steps.map((step: { stage: string }) => step.stage)).toEqual([
+    'material-ideas',
+    'materials',
+  ]);
+  expect(planned.expectedRevision).toBe(planned.originalRevision);
+  expect((await (await page.request.get(state.draftPath)).json()).revision).toBe(
+    planned.originalRevision,
+  );
   let draft = await finish(page, state);
+  expect((await operation(page, state)).steps.map((step: { stage: string }) => step.stage)).toEqual(
+    ['material-ideas', 'materials', 'questions'],
+  );
   await expect(page.locator('#question-0-prompt')).toHaveValue('על מה לומדים בקטע? 1');
   expect((await (await page.request.get('/api/templates')).json()).length).toBe(templatesBefore);
   expect(draft.templateVersionId).toBeNull();
@@ -208,7 +221,7 @@ test('strict material rejection stops questions, while a question failure retain
   expect(draft.document.materials).toEqual([]);
   expect(draft.document.questions).toEqual([]);
   expect((await operation(page, state)).steps.map((step: { stage: string }) => step.stage)).toEqual(
-    ['materials'],
+    ['material-ideas', 'materials'],
   );
   await propose(page, 'תרגול קריאה עם כשל בשאלות');
   state = await start(page);
@@ -220,8 +233,20 @@ test('strict material rejection stops questions, while a question failure retain
   await page.reload();
   await expect(page.locator('#material-0-body')).toHaveValue(/מאובנים/);
   expect((await operation(page, state)).steps.map((step: { stage: string }) => step.stage)).toEqual(
-    ['materials', 'questions'],
+    ['material-ideas', 'materials', 'questions'],
   );
+  const acceptedMaterials = draft.document.materials;
+  await page.getByRole('button', { name: 'יצירת השאלות שוב' }).click();
+  await expect(page).not.toHaveURL(new RegExp('operation=' + state.operationId));
+  const retried = {
+    draftPath: state.draftPath,
+    operationId: new URL(page.url()).searchParams.get('operation')!,
+  };
+  draft = await finish(page, retried, 'failed');
+  expect(draft.document.materials).toEqual(acceptedMaterials);
+  expect(
+    (await operation(page, retried)).steps.map((step: { stage: string }) => step.stage),
+  ).toEqual(['questions']);
 });
 
 test('question-only generation preserves typing and Undo across late output and stale save', async ({

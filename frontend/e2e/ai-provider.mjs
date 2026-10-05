@@ -31,7 +31,7 @@ export async function startAiProvider() {
       const schema = input.response_format.json_schema.schema;
       assert.equal(schema.additionalProperties, false);
       const stage = input.response_format.json_schema.name.match(
-        /^content_first_(author|materials|questions|replace_material|replace_question)_v[1-9]\d*$/,
+        /^content_first_(author|material_ideas|materials|questions|replace_material|replace_question)_v[1-9]\d*$/,
       )?.[1];
       assert.ok(stage, 'Only supported content-first stages may reach the provider');
       const user = JSON.parse(input.messages[1].content);
@@ -59,25 +59,46 @@ export async function startAiProvider() {
               },
               assumptions: [],
             }
-          : stage === 'materials'
+          : stage === 'material_ideas'
             ? {
-                materials: effective.materials
-                  .filter((/** @type {{source: string}} */ m) => m.source === 'generated')
-                  .map(material),
+                ideas: Array.from({ length: 5 }, (_, index) => ({
+                  idea: {
+                    premise: 'גילוי מאובנים במסע ' + (index + 1),
+                    structure: 'פתיחה בגילוי, הסבר ושאלה למסע ' + (index + 1),
+                  },
+                  recentOverlap: 0,
+                })),
               }
-            : stage === 'replace_material'
-              ? material(user.target)
-              : stage === 'replace_question'
-                ? question(effective, 0, true)
-                : {
-                    title: 'לומדים על ' + effective.settings.topic,
-                    instructions: 'קראו ובדקו את תשובותיכם.',
-                    questions: Array.from(
-                      { length: effective.settings.questionCount },
-                      (_, index) => question(effective, index),
-                    ),
-                  };
+            : stage === 'materials'
+              ? {
+                  materials: effective.materials
+                    .filter((/** @type {{source: string}} */ m) => m.source === 'generated')
+                    .map(material),
+                }
+              : stage === 'replace_material'
+                ? material(user.target)
+                : stage === 'replace_question'
+                  ? question(effective, 0, true)
+                  : {
+                      title: 'לומדים על ' + effective.settings.topic,
+                      instructions: 'קראו ובדקו את תשובותיכם.',
+                      questions: Array.from(
+                        { length: effective.settings.questionCount },
+                        (_, index) => question(effective, index),
+                      ),
+                    };
+      if (stage === 'material_ideas') {
+        assert.equal(schema.properties.ideas.minItems, 5);
+        assert.equal(schema.properties.ideas.maxItems, 5);
+        assert.ok(Array.isArray(user.history));
+      }
+      if (stage === 'materials') {
+        assert.ok(user.request);
+        assert.equal(typeof user.idea.premise, 'string');
+        assert.equal(typeof user.idea.structure, 'string');
+      }
       if (stage === 'questions') {
+        assert.ok(Array.isArray(user.history));
         assert.equal(schema.properties.questions.minItems, effective.settings.questionCount);
         assert.equal(schema.properties.questions.maxItems, effective.settings.questionCount);
         assert.deepEqual(

@@ -17,6 +17,15 @@ internal static class EvaluationFixtures
     internal static JsonNode Content(int count = 2) => JsonSerializer.SerializeToNode(new QuestionCandidateBatch("דינוזאורים", "קראו וענו",
         Enumerable.Range(0, count).Select(_ => new QuestionCandidate("מה הנושא?", new("text-input"), new("דינוזאורים"), 1)).ToArray()), Json)!;
 
+    internal static string MaterialIdeas() => JsonSerializer.Serialize(new
+    {
+        ideas = Enumerable.Range(0, 5).Select(index => new
+        {
+            idea = new { premise = $"רעיון {index}", structure = $"מבנה {index}" },
+            recentOverlap = index == 2 ? 0 : 50
+        })
+    }, Json);
+
     internal sealed class Chat(Func<int, JsonElement, string> respond) : IChatClient
     {
         public int Calls { get; private set; }

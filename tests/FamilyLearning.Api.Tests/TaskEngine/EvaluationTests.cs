@@ -42,6 +42,60 @@ public sealed class EvaluationTests : IDisposable
     }
 
     [Fact]
+    public async Task Generated_materials_keep_idea_evidence_and_the_selected_idea_separate_from_writing()
+    {
+        var plan = LearningPlanFixture.Reading() with
+        {
+            Materials = [LearningPlanFixture.Reading().Materials[0] with { Length = null }]
+        };
+        var material = JsonSerializer.Serialize(new
+        {
+            materials = new[] { new { id = LearningPlanFixture.MaterialId, title = "קריאה", body = "שלום עולם" } }
+        });
+        using var chat = new AiFixtures.ScriptedChat(EvaluationFixtures.MaterialIdeas(), material,
+            StructuredEvaluationTests.Questions("text-input"))
+        { Usage = new() { InputTokenCount = 12 } };
+        var report = await RunAsync(chat, StructuredEvaluationTests.Fixed(plan));
+        var result = Assert.Single(report.Results);
+        var saved = JsonSerializer.SerializeToElement(result, new JsonSerializerOptions(JsonSerializerDefaults.Web));
+        var ideas = saved.GetProperty("materialIdeas");
+
+        Assert.Equal(3, report.PlannedCalls);
+        Assert.Equal(3, report.AttemptedCalls);
+        Assert.Equal("material-ideas", ideas.GetProperty("role").GetString());
+        Assert.True(ideas.GetProperty("applied").GetBoolean());
+        Assert.Equal("content_first_material_ideas_v29", ideas.GetProperty("schemaName").GetString());
+        Assert.Equal("רעיון 2", saved.GetProperty("selectedMaterialIdea").GetProperty("premise").GetString());
+        Assert.Equal("רעיון 2", result.Materials!.EffectiveInput!.Value.GetProperty("idea").GetProperty("premise").GetString());
+        Assert.Equal("רעיון 2", saved.GetProperty("document").GetProperty("materials")[0].GetProperty("idea").GetProperty("premise").GetString());
+        Assert.Equal(new[] { "material-ideas", "materials", "questions" }, report.Steps.Where(step => step.RequestSent).Select(step => step.Role));
+        var summary = EvaluationSummary.Create(report);
+        Assert.Equal(new StageCounts(1, 1, 0, 0), summary.MaterialIdeas);
+        Assert.Equal(3, summary.InputTokens.KnownCalls);
+        Assert.True(result.EndToEndReady);
+        await EvaluationFiles.ReadReportAsync(Path.Combine(directory, "run.json"));
+    }
+
+    [Fact]
+    public async Task Invalid_ideas_stop_before_writing_and_preserve_failure_evidence()
+    {
+        using var chat = new AiFixtures.ScriptedChat("""{"ideas":[]}""");
+        var report = await RunAsync(chat, StructuredEvaluationTests.Fixed(LearningPlanFixture.Reading()));
+        var result = Assert.Single(report.Results);
+        var saved = JsonSerializer.SerializeToElement(result, new JsonSerializerOptions(JsonSerializerDefaults.Web));
+
+        Assert.Single(chat.Requests);
+        Assert.Equal("failed", saved.GetProperty("materialIdeas").GetProperty("outcome").GetString());
+        Assert.Null(saved.GetProperty("selectedMaterialIdea").GetString());
+        Assert.Equal("earlier-stage", result.Materials!.SkipReason);
+        Assert.Equal("earlier-stage", result.Generation!.SkipReason);
+        Assert.Empty(result.Document!.Materials);
+        Assert.Equal(new StageCounts(1, 0, 1, 0), EvaluationSummary.Create(report).MaterialIdeas);
+        Assert.False(result.EndToEndReady);
+        await EvaluationFiles.ReadReportAsync(Path.Combine(directory, "run.json"));
+    }
+
+    [Fact]
     public async Task Invalid_authoring_is_recorded_and_does_not_trigger_generation()
     {
         using var chat = new AiFixtures.ScriptedChat("{broken");
@@ -339,10 +393,10 @@ public sealed class EvaluationTests : IDisposable
         var options = EvaluationOptions.Parse(["--case", "reading-grade3", "--repeat", "3", "--max-calls", "4"]);
         Assert.False(options.Live);
         var basic = await EvaluationPlan.LoadAsync(new([options.Case], options.Repeat, options.Judge, options.MaxCalls));
-        Assert.Equal(9, basic.PlannedCalls);
+        Assert.Equal(12, basic.PlannedCalls);
         Assert.Throws<ArgumentException>(basic.ValidateBudget);
-        var judged = await EvaluationPlan.LoadAsync(new(["reading-grade3"], 1, true, 8));
-        Assert.Equal(8, judged.PlannedCalls);
+        var judged = await EvaluationPlan.LoadAsync(new(["reading-grade3"], 1, true, 9));
+        Assert.Equal(9, judged.PlannedCalls);
         judged.ValidateBudget();
         var selection = EvaluationOptions.Parse(["--case", "reading-grade3,number-gender", "--judge"]);
         var both = await EvaluationPlan.LoadAsync(new(selection.CaseIds, 1, selection.Judge, 100));

@@ -72,7 +72,7 @@ public sealed class EvaluationConfigurationTests : IDisposable
         var comparison = await http.GetFromJsonAsync<JsonElement>($"/api/compare?baseline={id}&candidate={id}");
         Assert.True(comparison.GetProperty("directlyComparable").GetBoolean());
 
-        var response = await http.PostAsJsonAsync("/api/runs", new EvaluationRunRequest(["reading-grade3"], 1, false, 3, Confirmed: true));
+        var response = await http.PostAsJsonAsync("/api/runs", new EvaluationRunRequest(["reading-grade3"], 1, false, 4, Confirmed: true));
         Assert.Equal(HttpStatusCode.ServiceUnavailable, response.StatusCode);
         var problem = await response.Content.ReadFromJsonAsync<JsonElement>();
         Assert.Equal("AI configuration is missing or invalid. Fix it and restart the dashboard before starting a real evaluation.",

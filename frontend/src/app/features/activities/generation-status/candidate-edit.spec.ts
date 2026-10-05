@@ -1,6 +1,6 @@
 import { candidateEdit } from './candidate-edit';
 import { documentForm } from '../activity-document-editor/document-form';
-import { numericPlan } from '../learning-plan.fixture';
+import { numericPlan, readingPlan } from '../learning-plan.fixture';
 import { limits } from '../../../core/api/limits.fixture';
 describe('Diagnostic candidate editing', () => {
   const current = documentForm({
@@ -42,6 +42,29 @@ describe('Diagnostic candidate editing', () => {
     expect(
       candidateEdit('replace-question', candidate, 'q', current, numericPlan, limits),
     ).toBeUndefined();
+  });
+  it('keeps material idea evidence out of the editor and strips ideas from material candidates', () => {
+    const idea = { premise: 'גילוי', structure: 'מסע' };
+    expect(
+      candidateEdit(
+        'material-ideas',
+        { ideas: [{ idea, recentOverlap: 0 }] },
+        null,
+        current,
+        readingPlan,
+        limits,
+      ),
+    ).toBeUndefined();
+    const id = readingPlan.materials[0].id;
+    const result = candidateEdit(
+      'materials',
+      { materials: [{ id, title: 'טקסט', body: 'תוכן', idea }] },
+      null,
+      current,
+      readingPlan,
+      limits,
+    );
+    expect(result?.materials).toEqual([{ id, title: 'טקסט', body: 'תוכן' }]);
   });
   it('cannot replace a supplied source or an unrelated target', () => {
     expect(

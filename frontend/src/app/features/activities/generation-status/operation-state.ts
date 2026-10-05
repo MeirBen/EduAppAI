@@ -2,6 +2,7 @@ import { GenerationOperation } from '../../../core/api/models';
 
 /** Semantic names for operation stages, shared by status evidence and result inspection. */
 export const stageNames: Record<string, string> = {
+  'material-ideas': 'רעיונות לטקסט',
   materials: 'טקסט שנוצר',
   questions: 'שאלות שנוצרו',
   'replace-material': 'טקסט חלופי',
