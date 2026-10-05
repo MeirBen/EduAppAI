@@ -116,10 +116,13 @@ On 6 October different-topic rewrites replayed the app's exact rewrite request.
   with no responsibility left, and acceptance passed. One line now keeps the
   instruction within the effective requirements. Afterwards, five
   different-topic requests in four phrasings, including "unrelated to
-  responsibility", and one parent request in the app all kept the learning goal
-  and blended in only compatible parts. The "different text on the same topic"
-  suggestion changed the premise, so a rewrite now clears the stored idea; it
-  and "simpler language" still worked.
+  responsibility", one request for a shopping list and one parent request in the
+  app all kept the learning goal and blended in only compatible parts; two
+  unintelligible instructions returned the text unchanged. The "different text
+  on the same topic" suggestion changed the premise, so a rewrite now clears the
+  stored idea; it and "simpler language" still worked. A clarification reply,
+  like the plan chat's, was not added: no tested instruction produced harmful
+  content.
 
 ## Material variety
 
