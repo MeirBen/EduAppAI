@@ -109,9 +109,21 @@ a human.
   moving up. The other topics had one error in 185 texts. A topic-specific rule
   would be a holdout exception, so parent review stays the safeguard.
 
+On 6 October a different-topic rewrite replayed the app's exact rewrite request,
+one call per case.
+
+- **Rewrite scope (revision 30, kept):** asked for "a completely different
+  topic: a journey to space", a responsibility story became a space travelogue
+  with no responsibility left, and acceptance passed. One line now keeps the
+  instruction within the effective requirements; the same request then produced
+  a responsibility story set around a class space project. "Change the topic to
+  dinosaurs" had already blended this way. The "different text on the same
+  topic" suggestion changed the premise, so a rewrite now clears the stored
+  idea; it was not replayed after the new line.
+
 ## Material variety
 
-Revision 29 chooses an idea before writing. One call proposes five
+Since revision 29, an idea is chosen before writing. One call proposes five
 premise/structure ideas and estimates each one's overlap (0–100) with up to
 eight recent family ideas. The application selects the lowest estimate, an
 application-owned draw (the operation ID) breaks ties, and the worker

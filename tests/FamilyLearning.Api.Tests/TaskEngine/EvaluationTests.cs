@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using FamilyLearning.Api.TaskEngine;
 using FamilyLearning.Api.TaskEngine.Ai;
 using FamilyLearning.Api.Tests.Fixtures;
 using FamilyLearning.Evaluation;
@@ -64,7 +65,7 @@ public sealed class EvaluationTests : IDisposable
         Assert.Equal(3, report.AttemptedCalls);
         Assert.Equal("material-ideas", ideas.GetProperty("role").GetString());
         Assert.True(ideas.GetProperty("applied").GetBoolean());
-        Assert.Equal("content_first_material_ideas_v29", ideas.GetProperty("schemaName").GetString());
+        Assert.Equal($"content_first_material_ideas_v{EngineVersions.Revision}", ideas.GetProperty("schemaName").GetString());
         Assert.Equal("רעיון 2", saved.GetProperty("selectedMaterialIdea").GetProperty("premise").GetString());
         Assert.Equal("רעיון 2", result.Materials!.EffectiveInput!.Value.GetProperty("idea").GetProperty("premise").GetString());
         Assert.Equal("רעיון 2", saved.GetProperty("document").GetProperty("materials")[0].GetProperty("idea").GetProperty("premise").GetString());

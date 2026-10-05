@@ -129,18 +129,18 @@
   </form>
   @if (configured()) {
     @if (start && !started()) {
-      <app-idea-chips
+      <app-suggestion-chips
         key="chat-start"
         label="רעיונות להתחלה"
-        [ideas]="starterIdeas"
+        [suggestions]="starterSuggestions"
         [disabled]="busy() || locked()"
         (picked)="suggest($event)"
       />
     } @else if (!start && !clarification()) {
-      <app-idea-chips
+      <app-suggestion-chips
         key="chat-change"
         label="רעיונות לשינוי"
-        [ideas]="changeIdeas"
+        [suggestions]="changeSuggestions"
         [disabled]="busy() || locked()"
         (picked)="suggest($event)"
       />

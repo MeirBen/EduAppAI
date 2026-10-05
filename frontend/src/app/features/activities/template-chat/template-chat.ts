@@ -14,10 +14,10 @@ import { FieldTree, FormField } from '@angular/forms/signals';
 import { AuthoringTurn } from '../../../core/api/models';
 import { LoadingIndicator } from '../../../shared/loading-indicator/loading-indicator';
 import { FieldDirection } from '../../../shared/forms/field-direction';
-import { IdeaChips } from '../../../shared/idea-chips/idea-chips';
+import { SuggestionChips } from '../../../shared/suggestion-chips/suggestion-chips';
 
-/** Ideas only fill the composer; every request still goes through the parent's send. */
-const starterIdeas = [
+/** Suggestions only fill the composer; every request still goes through the parent's send. */
+const starterSuggestions = [
   'קטע מידע על החלל לכיתה ג׳, כ־250 מילים, עם 5 שאלות בחירה מתוך אפשרויות',
   'סיפור קצר עם מספרים לכיתה ג׳ ו־4 שאלות מילוליות בחשבון על הסיפור',
   '10 תרגילי חיבור וחיסור עד 100 לכיתה ב׳',
@@ -25,14 +25,19 @@ const starterIdeas = [
   '8 שאלות אוצר מילים באנגלית על בעלי חיים, לכיתה ד׳',
 ];
 /** Changes that suit any plan, so none can contradict its settings. */
-const changeIdeas = ['שאלות קלות יותר', 'שאלות מאתגרות יותר', 'עוד שתי שאלות', 'שפה פשוטה יותר'];
+const changeSuggestions = [
+  'שאלות קלות יותר',
+  'שאלות מאתגרות יותר',
+  'עוד שתי שאלות',
+  'שפה פשוטה יותר',
+];
 
 /**
  * The authoring conversation: the visible thread, the request in flight and the composer. The
  * route owns message text, unresolved context and all requests; this component only emits.
  */
 @Component({
-  imports: [FormField, FieldDirection, IdeaChips, LoadingIndicator],
+  imports: [FormField, FieldDirection, SuggestionChips, LoadingIndicator],
   selector: 'app-template-chat',
   templateUrl: './template-chat.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -58,8 +63,8 @@ export class TemplateChat {
   readonly sent = output<void>();
   readonly consolidated = output<void>();
   readonly cancelled = output<void>();
-  protected readonly starterIdeas = starterIdeas;
-  protected readonly changeIdeas = changeIdeas;
+  protected readonly starterSuggestions = starterSuggestions;
+  protected readonly changeSuggestions = changeSuggestions;
   private readonly document = inject(DOCUMENT);
   private readonly composer = viewChild.required<ElementRef<HTMLTextAreaElement>>('composer');
   private readonly stop = viewChild<ElementRef<HTMLButtonElement>>('stop');

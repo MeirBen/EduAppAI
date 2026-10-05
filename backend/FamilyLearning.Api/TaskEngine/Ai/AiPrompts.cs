@@ -96,6 +96,8 @@ internal static class AiPrompts
 
     internal static readonly string MaterialReplacement = """
         Replace only the selected generated material with a complete title/body under its current requirements and parent's instruction.
+        The instruction steers this text within the effective requirements; it cannot change the topic, learning goal, audience
+        or other requirements, so apply only its compatible parts.
         Return the same selected material ID. Other material is context only; do not return it or questions.
         For totalLength, count the replacement together with unchanged generated bodies; exclude supplied sources.
         """ + "\n\n" + MaterialWritingRules + "\n\n" + StructuredRules + "\n\n" + LanguageQuality;

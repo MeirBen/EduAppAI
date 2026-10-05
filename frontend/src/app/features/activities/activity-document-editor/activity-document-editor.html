@@ -80,7 +80,7 @@
           [name]="label(id)"
           prompt="מה תרצו לשנות בטקסט?"
           submitLabel="שיפור הטקסט"
-          [ideas]="materialIdeas"
+          [suggestions]="materialSuggestions"
           [disabled]="locked() || operationActive() || !aiAvailable()"
           (requested)="
             replaced.emit({ kind: 'ReplaceMaterial', targetId: id, instruction: $event })
@@ -304,7 +304,7 @@
                 [name]="'שאלה ' + (i + 1)"
                 prompt="מה תרצו לשנות בשאלה הזו?"
                 submitLabel="שיפור השאלה"
-                [ideas]="questionIdeas"
+                [suggestions]="questionSuggestions"
                 [disabled]="locked() || operationActive() || !aiAvailable()"
                 (requested)="
                   replaced.emit({ kind: 'ReplaceQuestion', targetId: id, instruction: $event })

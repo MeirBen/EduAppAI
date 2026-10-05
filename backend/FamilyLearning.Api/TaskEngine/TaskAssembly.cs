@@ -113,7 +113,6 @@ public static class TaskAssembly
     }
 
     /// <summary>Replaces one complete generated material, preserving unrelated content and invalidating dependencies by revision.</summary>
-    /// <remarks>An improvement keeps the material's premise, so its idea is kept.</remarks>
     public static TaskDocument ReplaceMaterial(MaterialReplacementInput input, MaterialCandidate candidate, GenerationMetadata? metadata = null)
     {
         var target = MaterialTarget(input);
@@ -124,7 +123,7 @@ public static class TaskAssembly
         {
             Materials = input.Current.Materials.Select(m => m.Id == target.Id
                 ? new MaterialContent(m.Id, checked(m.Revision + 1), candidate.Title, candidate.Body,
-                    new("generated", input.Request.EngineRevision, fingerprint, metadata), new(fingerprint, []), m.Idea)
+                    new("generated", input.Request.EngineRevision, fingerprint, metadata), new(fingerprint, []))
                 : m with { Acceptance = CopyAcceptance(m.Acceptance) }).ToArray(),
             Questions = CopyQuestions(input.Current.Questions)
         };

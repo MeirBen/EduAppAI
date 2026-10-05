@@ -32,11 +32,11 @@
         אפשר להשאיר ריק. רק החלק הזה יוחלף, ושאר הפעילות לא תשתנה.
       </p>
     </div>
-    @if (ideas().length) {
-      <app-idea-chips
+    @if (suggestions().length) {
+      <app-suggestion-chips
         [key]="key() + '-improve'"
         label="רעיונות לשיפור"
-        [ideas]="ideas()"
+        [suggestions]="suggestions()"
         [disabled]="disabled()"
         (picked)="pick($event)"
       />

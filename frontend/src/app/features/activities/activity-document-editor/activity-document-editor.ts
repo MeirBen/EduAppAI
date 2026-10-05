@@ -26,13 +26,13 @@ export type DocumentEdit =
   | { kind: 'remove-option'; index: number; option: number }
   | { kind: 'add-material'; id: string };
 /** Improvements that keep the activity's settings, so a picked idea cannot contradict the plan. */
-const materialIdeas = [
+const materialSuggestions = [
   'שפה פשוטה יותר',
   'דוגמאות מוחשיות יותר',
   'פתיחה מעניינת יותר',
   'טקסט אחר באותו נושא',
 ];
-const questionIdeas = [
+const questionSuggestions = [
   'ניסוח פשוט וברור יותר',
   'שאלה קלה יותר',
   'שאלה מאתגרת יותר',
@@ -57,8 +57,8 @@ const questionIdeas = [
 export class ActivityDocumentEditor {
   protected readonly limits = inject(Limits).current;
   private readonly holdFocus = focusHolder();
-  protected readonly materialIdeas = materialIdeas;
-  protected readonly questionIdeas = questionIdeas;
+  protected readonly materialSuggestions = materialSuggestions;
+  protected readonly questionSuggestions = questionSuggestions;
   readonly fields = input.required<FieldTree<DocumentForm>>();
   readonly materials = input.required<Pick<PlanMaterial, 'id' | 'source' | 'label'>[]>();
   readonly locked = input(false);

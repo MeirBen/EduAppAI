@@ -201,9 +201,10 @@ assistant's replies carry the `ai-mark` with the computed changes and
 assumptions, and a typing bubble shows while a request runs. The composer sends
 on Enter (Shift+Enter adds a line) and turns its send button into a stop button,
 keeping keyboard focus on whichever is present; a failed or cancelled request
-returns its text to the composer. `IdeaChips` offer ready wording for the first
-request, common changes and scoped improvements; an idea only fills its field,
-leaving focus on the idea, and never sends. Mark AI actions with `icon-ai`.
+returns its text to the composer. `SuggestionChips` offer ready wording for the
+first request, common changes and scoped improvements; a suggestion only fills
+its field, leaving focus on the suggestion, and never sends. Mark AI actions
+with `icon-ai`.
 
 Use parent language, never internal terms: say "הגדרות" for the plan and "טקסט"
 for materials; source kinds read as "כתבו עבורי תוכן חדש", "יש לי טקסט משלי"

@@ -235,7 +235,7 @@ public sealed class ContentGenerationTests
                 Supplied().Materials[0] with { Id = OtherId }]
         };
         var request = Resolve(plan);
-        var document = TaskAssembly.AcceptMaterials(request, TaskAssembly.CreateDocument(request), Materials()).Document!;
+        var document = TaskAssembly.AcceptMaterials(request, TaskAssembly.CreateDocument(request), Materials(), idea: new("רעיון", "מבנה")).Document!;
         document = TaskAssembly.AcceptQuestions(request, document, Questions("text-input"));
         document.Questions[1] = document.Questions[1] with { Prompt = "unrelated-private-question", Answer = null };
         var original = Serialize(document);
@@ -249,6 +249,7 @@ public sealed class ContentGenerationTests
             Assert.Equal(body, changed.Materials[0].Body);
             Assert.Equal(document.Materials[0].Revision + 1, changed.Materials[0].Revision);
             Assert.Equal(result.Metadata, changed.Materials[0].Origin.Generation);
+            Assert.Null(changed.Materials[0].Idea);
             Assert.Equal(Serialize(document.Materials[1]), Serialize(changed.Materials[1]));
             Assert.Equal(Serialize(document.Questions), Serialize(changed.Questions));
             Assert.Equal(document.Title, changed.Title);

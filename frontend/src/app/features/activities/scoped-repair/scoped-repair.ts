@@ -11,7 +11,7 @@ import {
 import { form, FormField, maxLength } from '@angular/forms/signals';
 import { Limits } from '../../../core/api/limits';
 import { FieldDirection } from '../../../shared/forms/field-direction';
-import { IdeaChips } from '../../../shared/idea-chips/idea-chips';
+import { SuggestionChips } from '../../../shared/suggestion-chips/suggestion-chips';
 import { DisabledInteractive } from '../../../shared/disabled-interactive';
 
 /**
@@ -20,7 +20,7 @@ import { DisabledInteractive } from '../../../shared/disabled-interactive';
  */
 @Component({
   selector: 'app-scoped-repair',
-  imports: [DisabledInteractive, FormField, FieldDirection, IdeaChips],
+  imports: [DisabledInteractive, FormField, FieldDirection, SuggestionChips],
   templateUrl: './scoped-repair.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
   // The instruction is not activity content, so its edits must not reach the editor's change tracking.
@@ -33,7 +33,7 @@ export class ScopedRepair {
   readonly name = input.required<string>();
   readonly prompt = input('מה תרצו לשנות?');
   readonly submitLabel = input('שיפור');
-  readonly ideas = input<readonly string[]>([]);
+  readonly suggestions = input<readonly string[]>([]);
   readonly disabled = input(false);
   /** Sent as the operation's optional instruction; blank means a plain replacement. */
   readonly requested = output<string>();
@@ -44,8 +44,8 @@ export class ScopedRepair {
     maxLength(path.instruction, this.limits.messageLength),
   );
   private readonly trigger = viewChild.required<ElementRef<HTMLButtonElement>>('trigger');
-  protected pick(idea: string) {
-    this.draft.set({ instruction: idea });
+  protected pick(suggestion: string) {
+    this.draft.set({ instruction: suggestion });
   }
   protected submit() {
     if (this.disabled()) return;

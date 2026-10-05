@@ -85,10 +85,10 @@ Generated material starts with five bounded premise/structure ideas.
 with recent family ideas. Ties, the norm without relevant history, are broken by
 an application-owned draw: the operation ID in the worker, so an operation
 always selects the same idea while operations vary. Model estimates do not
-guarantee novelty or quality. Only the selected idea enters the writer. It stays
-with the material as provenance through edits and improvements until the
-material is regenerated. Supplied sources and question-only operations skip
-ideas.
+guarantee novelty or quality. Only the selected idea enters the writer. The idea
+is provenance, like the material's origin: manual edits keep it, and an AI
+rewrite, which is written from an instruction rather than an idea, clears it.
+Supplied sources and question-only operations skip ideas.
 
 `GenerationHistoryReader` captures recent family content for every operation
 after admission's idempotency checks: the current document, then at most 12

@@ -96,11 +96,13 @@ The server selects the lowest model-estimated overlap with bounded recent family
 content, drawing among ties, and checkpoints that choice before writing.
 Questions also receive bounded previous prompts to vary evidence targets where
 the learning requirements permit. Topic, source fidelity and prescribed practice
-take priority over novelty; variety is not guaranteed. Improving an existing
-material keeps its premise. Hebrew is written without niqqud, except full niqqud
-for beginning readers up to second grade or on request; a plan records niqqud
-only when the parent asks for it. Prose is split into paragraphs of a
-few sentences; poems and dialogue keep their lines.
+take priority over novelty; variety is not guaranteed. Improving one text
+follows the parent's instruction within the activity's requirements; a different
+topic or other choice is changed in the activity choices and regenerated. Hebrew
+is written without niqqud, except full niqqud for beginning readers up to second
+grade or on request; a plan records niqqud only when the parent asks for it.
+Prose is split into paragraphs of a few sentences; poems and dialogue keep their
+lines.
 
 Questions are numeric, short-text or single-choice, each with an application
 ID, prompt, typed interaction, answer and integer points. Numeric answers use
