@@ -26,7 +26,7 @@ public static class EvaluationCommand
                 return comparison.DirectlyComparable ? 0 : 1;
             }
             var options = EvaluationOptions.Parse(args);
-            var plan = await EvaluationPlan.LoadAsync(new([options.Case], options.Repeat, options.Judge, options.MaxCalls,
+            var plan = await EvaluationPlan.LoadAsync(new(options.CaseIds, options.Repeat, options.Judge, options.MaxCalls,
                 options.Label, options.RunNotes, CallDelaySeconds: options.CallDelaySeconds));
             Console.WriteLine($"{plan.Cases.Length} cases × {options.Repeat} repeats; {plan.PlannedCalls} base API calls (total budget: {options.MaxCalls}).");
             Console.WriteLine($"Pause between calls: {options.CallDelaySeconds} seconds; " + "up to three retries per stage for HTTP 429 within the total budget.");
@@ -73,7 +73,7 @@ public static class EvaluationCommand
             Console.Error.WriteLine(args.Length > 0 && args[0] == "--compare"
                 ? $"Cannot compare reports. Check file paths, format version {EvaluationVersions.ReportFormat} and human scores (0, 1, 2 or null)."
                 : "Evaluation could not start or save its report. Check arguments, AI configuration and output permissions.");
-            Console.Error.WriteLine("Usage: evaluate-ai.sh [--live] [--case ID|all] [--repeat 1..5] [--max-calls 1..100] [--call-delay-seconds 0..60] [--judge] [--output DIR]");
+            Console.Error.WriteLine("Usage: evaluate-ai.sh [--live] [--case ID[,ID...]|all] [--repeat 1..5] [--max-calls 1..100] [--call-delay-seconds 0..60] [--judge] [--output DIR]");
             Console.Error.WriteLine("Dashboard: evaluate-ai.sh --ui [--port PORT] [--output DIR]");
             Console.Error.WriteLine($"Offline comparison: evaluate-ai.sh --compare BASELINE/run.json CANDIDATE/run.json (format version {EvaluationVersions.ReportFormat})");
             return 2;
@@ -98,6 +98,9 @@ public static class EvaluationCommand
 public sealed record EvaluationOptions(bool Live, string Case, int Repeat, int MaxCalls, bool Judge, string Output,
     string? Label = null, string? RunNotes = null, int CallDelaySeconds = 5)
 {
+    /// <summary>A comma-separated selection shares one run, so calibration is paid once; the plan rejects empty or unknown IDs.</summary>
+    public string[] CaseIds => Case.Split(',');
+
     public static EvaluationOptions Parse(string[] args)
     {
         var options = new EvaluationOptions(false, "reading-grade3", 1, 4, false, "artifacts/evaluations");

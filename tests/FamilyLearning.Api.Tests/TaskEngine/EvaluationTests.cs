@@ -344,6 +344,12 @@ public sealed class EvaluationTests : IDisposable
         var judged = await EvaluationPlan.LoadAsync(new(["reading-grade3"], 1, true, 8));
         Assert.Equal(8, judged.PlannedCalls);
         judged.ValidateBudget();
+        var selection = EvaluationOptions.Parse(["--case", "reading-grade3,number-gender", "--judge"]);
+        var both = await EvaluationPlan.LoadAsync(new(selection.CaseIds, 1, selection.Judge, 100));
+        Assert.Equal(["reading-grade3", "number-gender"], both.Cases.Select(item => item.Id));
+        Assert.Equal(judged.PlannedCalls + both.Cases[1].PlannedCalls + 1, both.PlannedCalls); // One more case and review, one calibration.
+        await Assert.ThrowsAsync<ArgumentException>(() => EvaluationPlan.LoadAsync(new(
+            EvaluationOptions.Parse(["--case", "reading-grade3,"]).CaseIds, 1, false, 100)));
     }
 
     [Fact]

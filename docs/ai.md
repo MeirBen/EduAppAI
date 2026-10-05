@@ -19,8 +19,8 @@ keys or educational content are good.
   model; see [resolved failures](#resolved-strict-mode-failures).
 - Six acceptance cases covering every stage passed in three rounds (42 calls,
   no retry or repair). That sample is not a reliability rate, and it predates
-  the 4 October prompt revisions (through 25), which targeted live replays
-  checked instead; see [prompt decisions](#prompt-decisions).
+  the 4–5 October prompt revisions (through 26), which targeted live replays
+  and A/B runs checked instead; see [prompt decisions](#prompt-decisions).
 - Keep parent review, strict validation and explicit recovery. No automatic
   output repair, weakened tests, model-specific branch or production retry.
 - Representative content needs human review before further quality tuning.
@@ -77,6 +77,30 @@ only the lines under test; counts are small samples, not reliability rates.
   questions" showed none over 48 questions per arm (4% restated operands
   either way, no leaks). Duplicate rules were removed so each stage receives
   every rule once.
+
+On 5 October each change ran in parallel against a frozen baseline build through
+the repaired harness; question types were scored blind by the assistant, not by
+a human.
+
+- **Inference (revision 26, kept):** one line makes inference, cause and
+  conclusion questions connect or interpret information instead of restating the
+  material. Explicit inference requests produced genuine inference questions
+  23/24 times with it and 16/24 without (six trials per arm, p = 0.023; the
+  replication alone was 11/12 against 9/12). Cause-and-effect, main-idea and
+  plain reading questions did not change.
+- **Low reasoning (rejected):** on Gemini 3.8 Flash it removed reasoning
+  entirely and roughly halved generation cost and latency (median material call
+  22 s to 8 s). Across 14 judged trials it produced 9 Hebrew findings against 1,
+  including a wrong plural in a question and all its options, a missing
+  preposition, a construct-form error and an invented word, and one length
+  failure. Medium stays.
+- **Paragraph array (rejected):** returning material bodies as `paragraphs`
+  removed every line break inside poem stanzas (0 against 12) and gave stories
+  fewer paragraphs (2–3 against 5); the string body with the paragraph rule kept
+  both.
+- **Hebrew style section (rejected):** thirteen grammar lines from a writing
+  skill added 7–9% to every prompt with no measured gain, and no failure it
+  targeted had been observed.
 
 ## Configuration
 
@@ -300,8 +324,10 @@ phase with exact requests, responses, validation, reviews and a closed
 `gemini-strict-contract-2026-10-02/` (upstream captures and the OpenRouter
 `support-reproduction.md`), `gemini-strict-root-cause-2026-10-02/` (factorial
 probes and acceptance rounds), the `gemini-*-limits-2026-10-03/` clarification
-checks and the `length-contract-2026-10-03/` harness runs. Retired design
-documents are in `documentation-history-2026-10-01.zip`.
+checks and the `length-contract-2026-10-03/` harness runs. On 5 October,
+`reasoning-effort-2026-10-05/` ($0.704) and `inference-line-2026-10-05/`
+($0.996, including the replication and blind scores) ran under a $2 cap.
+Retired design documents are in `documentation-history-2026-10-01.zip`.
 
 ## Using the evaluation harness
 
@@ -311,6 +337,7 @@ live evaluation.
 
 ```bash
 ./scripts/evaluate-ai.sh --case all
+./scripts/evaluate-ai.sh --case reading-grade3,number-gender
 ./scripts/evaluate-ai.sh --ui
 ./scripts/evaluate-ai.sh --compare baseline/run.json candidate/run.json
 
