@@ -101,6 +101,13 @@ a human.
 - **Hebrew style section (rejected):** thirteen grammar lines from a writing
   skill added 7–9% to every prompt with no measured gain, and no failure it
   targeted had been observed.
+- **Factual line (rejected):** "state only well-established facts" over 200
+  blind-scored informational texts on 14 topics changed nothing: clear factual
+  errors in 6/106 texts without it and 7/94 with it (p = 0.78). Twelve of the
+  thirteen came from one topic, ants in the rain, where the model moves brood to
+  deep rooms said to stay dry in 12 of 15 texts; flooding studies show colonies
+  moving up. The other topics had one error in 185 texts. A topic-specific rule
+  would be a holdout exception, so parent review stays the safeguard.
 
 ## Configuration
 
@@ -286,7 +293,8 @@ Google publishes no budget, so any new schema feature needs live acceptance.
 - **Content:** inference coverage, natural Hebrew/niqqud, factual precision,
   answer-key arithmetic and answer clarity need human review; one confirmation
   passage claimed orbit has no gravity. Tests, schema mode and a same-model
-  judge cannot certify content.
+  judge cannot certify content. Gemini 3.8 Flash repeatedly writes that ants
+  carry their brood deeper during rain; no generic prompt line changed it.
 - **Judge blind spot:** Gemini 3.8 Flash, GPT-5.6 Terra and Claude Sonnet 5.5
   each caught all three `להסיין` in `reported-ants-defects` but never the two
   `נמלות` (the plural is `נמלים`). The owner made that control advisory: every
@@ -326,7 +334,9 @@ phase with exact requests, responses, validation, reviews and a closed
 probes and acceptance rounds), the `gemini-*-limits-2026-10-03/` clarification
 checks and the `length-contract-2026-10-03/` harness runs. On 5 October,
 `reasoning-effort-2026-10-05/` ($0.704) and `inference-line-2026-10-05/`
-($0.996, including the replication and blind scores) ran under a $2 cap.
+($0.996, including the replication and blind scores) ran under a $2 cap;
+`factual-line-2026-10-05/` ($2.745, 200 texts with blind scores) ran under a
+separate $3 cap.
 Retired design documents are in `documentation-history-2026-10-01.zip`.
 
 ## Using the evaluation harness
