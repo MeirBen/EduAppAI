@@ -513,7 +513,10 @@ answer limit from `ChildSessionIdentity`.
       score; completed zero-point work shows no percentage.
       Verify 410 withdrawal locks the player, 401 requests activation, and
       409/503 preserve local input with session-specific recovery feedback, never
-      the current `apiError` parent-login/template/AI copy.
+      the current `apiError` parent-login/template/AI copy. Content tests keep a
+      two-paragraph material's blank line and a poem's line breaks, number the
+      questions, show choices as native options and keep a calculation prompt in
+      order.
 - [ ] Run the new Angular specs with `npm --prefix frontend test -- --watch=false`
       and targeted `--include` paths; confirm behavioral failures.
 - [ ] Implement shell separation with existing native routing. Preserve parent
@@ -528,7 +531,9 @@ answer limit from `ChildSessionIdentity`.
       or token refresh loses its response, check `/me` and refresh CSRF when a
       grant cookie arrived; otherwise request a new code without replaying it.
 - [ ] Implement the paged inbox and explicit session start. Use learner DTOs
-      only, rendering text through interpolation. The player keeps its own answer
+      only, rendering text through interpolation by the
+      [generated-text contract](ui-guide.md#direction-and-copy), which the
+      generator relies on. The player keeps its own answer
       buffer, the last acknowledged revision and derived dirty state. Reuse small
       safe visual helpers, never `ActivityDocumentView` or other key-bearing views.
 - [ ] Implement explicit save and final submit without background retries. On

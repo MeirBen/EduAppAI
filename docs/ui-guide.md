@@ -159,9 +159,15 @@ server's `Limits`; never hard-code them in templates or forms.
 
 Write concise Hebrew for labels, validation, loading and errors, and never expose
 raw framework or provider errors. Render generated text through interpolation,
-never HTML, and never rewrite saved content for presentation. Control labels and
-options come from the reviewed template; the shared settings use
-application-owned labels, and only difficulty has fixed options.
+never HTML, and never rewrite saved content for presentation. Generated text is
+bare by contract, so presentation supplies its structure: keep line breaks with
+`whitespace-pre-wrap` (blank lines between paragraphs, single breaks for poem
+lines and dialogue turns), number questions in an ordered list and show choices
+as separate items or native options.
+[`AiPrompts`](../backend/FamilyLearning.Api/TaskEngine/Ai/AiPrompts.cs) promises
+this to the model, so change both together. Control labels and options come from
+the reviewed template; the shared settings use application-owned labels, and
+only difficulty has fixed options.
 
 ## Workspace actions
 

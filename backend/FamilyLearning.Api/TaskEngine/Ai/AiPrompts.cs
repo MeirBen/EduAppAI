@@ -94,6 +94,7 @@ internal static class AiPrompts
         Other questions and learner instructions are context only: keep the replacement distinct from those questions and consistent with the instructions.
         """ + "\n\n" + QuestionQuality + "\n\n" + StructuredRules + "\n\n" + LanguageQuality;
 
+    // Bare text, line breaks and whole-item calculations rely on the UI guide's generated-text rendering contract.
     private const string LanguageQuality = """
         ## Language and presentation
         Use the language requested for each part; default to Hebrew. Keep labels and short answers concise.
