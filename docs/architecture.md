@@ -68,37 +68,34 @@ question requirements; `TaskRequest` supplies per-activity choices.
 false, zero and explicit empty text survive. IDs and provenance belong to the
 application.
 
-`AiGenerationService` uses `IChatClient` without identity or database access.
-Authoring, material ideas, material writing, questions and scoped replacements
-are separate schema-constrained calls with no tools, automatic repair or retry.
-Supplied sources bypass material AI and are copied exactly by `TaskAssembly`;
-accepted materials survive a question failure, and a question replacement is
-atomic over prompt, options and answer. `AiSchemas` builds request-owned schemas
-with exact counts and allowed IDs, applying engine constants in code so they
-cannot drift from the validators; prompts state limits from the same
-`EngineValidation` constants. The OpenRouter adapter owns transport and
-configuration and sends the schema through the SDK's native response format;
-responses must finish normally and pass size, shape, numeric and domain
-validation. See [AI configuration](ai.md#configuration).
+`AiGenerationService` uses `IChatClient` without identity/database access.
+Authoring, ideas, material writing, questions and scoped replacements use
+separate schema-constrained calls, without tools, automatic repair or retry.
+`TaskAssembly` copies supplied sources exactly; accepted materials survive a
+question failure. Question replacement is atomic over prompt, options and key.
+`AiSchemas` builds request-owned schemas with exact counts, allowed IDs and the
+same `EngineValidation` constants used by prompts and validators. The OpenRouter
+adapter owns transport/configuration and sends the native SDK response format.
+Responses must finish normally and pass size, shape, numeric and domain checks;
+see [AI configuration](ai.md#configuration).
 
-Generated material starts with five bounded premise/structure ideas.
-`MaterialIdeas` validates them and selects the lowest model-estimated overlap
-with recent family ideas. Ties, the norm without relevant history, are broken by
-an application-owned draw: the operation ID in the worker, so an operation
-always selects the same idea while operations vary. Model estimates do not
-guarantee novelty or quality. Only the selected idea enters the writer. The idea
-is provenance, like the material's origin: manual edits keep it, and an AI
-rewrite, which is written from an instruction rather than an idea, clears it.
-Supplied sources and question-only operations skip ideas.
+`AiPrompts` composes stage/shared rules; `MathPromptGuidance` owns authoring-time
+math interpretation. Schema descriptions own source roles and answer-format
+capabilities. All subjects use the same stages and authoritative validators.
 
-`GenerationHistoryReader` captures recent family content for every operation
-after admission's idempotency checks: the current document, then at most 12
-unreleased drafts and 12 snapshots, yielding up to eight distinct ideas and 12
-question prompts clipped to 300 characters. Answers and identities are excluded.
-The AI assesses relevance across similar topics, rather than relying on exact
-subject labels. The history is frozen in operation artifacts; idea generation
-receives only the ideas and question generation only the prompts. Concurrent
-operations can share history; novelty is best effort, not uniqueness.
+`MaterialIdeas` validates five bounded ideas and selects the lowest estimated
+overlap with recent family ideas. An application-owned draw breaks ties: the
+worker's operation ID keeps selection stable within an operation. Only the
+selected idea reaches the writer; manual edits retain it as provenance, AI
+rewrites clear it. Supplied sources and question-only operations skip ideas.
+
+After admission's idempotency checks, `GenerationHistoryReader` captures the
+current document, then at most 12 unreleased drafts and 12 snapshots, yielding
+up to eight distinct ideas and 12 prompts clipped to 300 characters. It excludes
+answers/identities. The AI assesses topic relevance; no exact subject labels
+are required. Frozen operation artifacts send ideas only to idea generation and
+prompts only to question generation. Concurrent operations may share history;
+model estimates guarantee neither uniqueness nor quality.
 
 `TextLength` measures material bodies only. Unmet strict ranges block
 acceptance and release; targets are advisory, and supplied sources are
@@ -122,8 +119,8 @@ under a concurrency token and unique index.
 
 Additive migrations extend `InitialCreate`; existing content is preserved.
 Development applies migrations; Production requires the explicit management
-command. Tests use
-disposable storage, the real `Program` composition and isolated providers;
+command. Tests use disposable storage, real `Program` composition and isolated
+providers;
 worker tests disable automatic polling to drive transitions deterministically.
 
 ## Change notes
@@ -192,66 +189,52 @@ paid-run boundary. Usage and report contracts are in the
 
 ## Child device access
 
-`Features/Children` owns family profiles, one replaceable hashed activation slot
-per child, and fixed 30-day device grants. Native cookie policies isolate the
-Identity parent scheme from `Child`; session entry rejects active opposite-mode
-cookies before changing CSRF tokens. Activation needs an anonymous browser and
-a fresh identity-bound CSRF token afterward. No child endpoint uses AI.
+`Features/Children` owns profiles, one replaceable hashed activation slot per
+child and fixed device grants. Named Identity/`Child` cookie policies isolate
+access; session entry rejects active opposite-mode cookies before changing CSRF
+tokens. Activation needs an anonymous browser and a fresh identity-bound token
+afterward. See the [access contract](product-specification.md#profiles-and-device-access)
+for grant terms and revocation behavior. No child endpoint uses AI.
 
-`ChildAccess.FindAsync` reads current profile/grant state without EF tracking.
-Writes acquire a short SQLite transaction before checking current access or
-state, so committed disable/revocation wins over an earlier authentication.
-Disabling invalidates pending codes and all grants; re-enabling restores neither.
-Parent profile/device lists use SQL projection and bounded deterministic paging.
-Optional grade, age and age/profile update dates stay in parent DTOs. Omitted
-profile `details` preserve stored metadata for older clients. A serialized,
-revision-checked delete removes only profiles without assignments; inactive
-device-record removal checks current ownership and revocation/expiry. Neither
-operation erases learning history.
-Family reset removes all owned sessions, assignments, child access and profiles
-in its transaction before deleting their referenced content.
+`ChildAccess.FindAsync` queries current profile/grant state without EF tracking.
+Writes sample UTC and recheck access/state after acquiring a short SQLite
+transaction, so committed access loss wins over earlier authentication. Lists
+use SQL projection and bounded deterministic paging. Profile `details` omission
+preserves older-client metadata; details stay parent-only. Profile deletion
+checks revision/history, device-record deletion checks inactivity, and reset
+removes owned dependents before referenced content, all within transactions.
 
-`Features/Assignments` owns one assignment per child/snapshot pair. Short write
-transactions serialize creation, withdrawal and snapshot removal. Composite
-foreign keys enforce family ownership and retain assigned snapshots. Replays
-return the existing assignment before checking new-assignment eligibility.
-Parent list projections read names and titles in SQL before paging; child reads
-project explicit learner contracts without answer keys or generation metadata.
-Read endpoints never start work. Session existence supplies `HasStarted` in SQL
-without loading answer buffers into lists.
+`Features/Assignments` owns one assignment per child/snapshot pair. Transactions
+serialize creation, withdrawal and snapshot removal; composite foreign keys
+enforce family ownership and retention. Replay precedes new-create eligibility.
+Lists project names/titles and session existence (`HasStarted`) in SQL without
+loading answer buffers. Child reads use explicit learner contracts; read-only
+endpoints never start work.
 
-`TaskSession` uses its assignment ID as a restrictive primary/foreign key and
-has its own concurrency revision. Child session APIs explicitly start, read,
-save and submit complete answer buffers. Start/save leave assignment status and
-revision unchanged; submission advances both revisions atomically. Every write
-samples UTC and rechecks access after acquiring the transaction. Read-only
-resume and idempotent start never reset submitted work.
+`TaskSession` uses the assignment ID as a restrictive primary/foreign key and
+has its own concurrency revision. Start/save leave assignment status/revision
+unchanged; submission advances both atomically. Resume/start never resets
+submitted work. `SessionValidation` bounds raw input before recognizing replay;
+blank/missing means unanswered, other text stays exact. `SessionScoring` compares
+validated numeric digits without decimal rounding and stores frozen awards with
+policy version 1, independent of generation revisions. Nonblank short text,
+including zero-point work, awaits parent review. Child sessions expose saved
+answers, status, timestamps and a completed final total, never keys or per-item
+awards. Identical submissions preserve stored results/revisions/timestamps.
 
-`SessionValidation` bounds raw answers before recognizing a submission replay;
-missing/blank values mean unanswered, and other text is preserved exactly.
-`SessionScoring` compares validated numeric strings using their exact digits,
-avoiding decimal rounding. Submission stores frozen awards and scoring policy
-version 1 independently of generation revisions. Every answered short-text
-question awaits parent review, including zero-point questions. Child session
-responses expose saved answers, status, timestamps and a final total only when
-complete, never keys or per-question awards. Identical submissions return their
-stored result without changing revisions or timestamps.
+Parent `/result` and `/review` read frozen content/evaluation. Review requires
+exact pending IDs, bounded integer awards and the session revision. One
+transaction completes assignment/session and records reviewer/time while
+preserving automatic awards, answers, submission time and scoring policy.
+Validate raw input before replay; compare the original parent-graded rows,
+ignoring order, even with an old positive revision. Completed grades cannot
+change; automatically completed work cannot acquire review metadata. Parent
+report DTOs never serve children. Archives/disabled profiles retain reports.
 
-Parent assignment `/result` and `/review` endpoints read the frozen document and
-session evaluation. Review requires exactly the pending question IDs with bounded
-integer awards and the session revision. A short transaction completes both the
-assignment and session, recording the reviewer and UTC review time. Automatic
-awards, answers, submission time and scoring policy stay unchanged. Raw validation
-precedes replay; replay compares all original parent-graded rows, ignores their
-order and returns the saved report even with an old positive revision. Different
-grades cannot overwrite a completed result, and automatically completed work
-cannot gain parent review metadata. These parent report contracts never serve
-child routes. Archived content and disabled profiles retain their reports.
-
-Snapshot archive time is mutable metadata; content JSON stays frozen. Ordinary
-library lists hide archived rows, while owned parent previews, assignment reads
-and generation history retain them. Removal keeps its 204 contract, and the UI
-explains both outcomes because a concurrent assignment can require archiving.
+Snapshot archive time is mutable metadata; content JSON is frozen. Library
+lists hide archived rows; parent previews, assignment reads and generation
+history retain them. Removal keeps its 204 contract; UI copy covers deletion
+and archiving because concurrent assignment can change the outcome.
 
 ## Access and failures
 
@@ -309,42 +292,31 @@ The request token loads once per sign-in and the server's
 and copy read the limits through `Limits`. The server still authorizes and
 validates every request.
 
-Parent child-management and assignment pages own bounded list resources and
-their local edit buffers. A paged child selector preserves its selection while
-browsing profiles; assignment filtering includes disabled profiles for retained
-history. Profile refreshes never replace unsaved edits. Activation codes exist
-only in the owning page's memory and are cleared on selection or destruction.
-Frozen previews create assignments and distinguish a new assignment from replay.
+Parent management pages own bounded list resources and local buffers. The paged
+child selector retains selection; assignment filters include disabled profiles.
+Refreshes preserve unsaved edits. Activation codes live only in page memory and
+clear on selection/destruction. Frozen previews distinguish new assignments
+from replay. Result pages read frozen answers/evaluation without starting work;
+pending grades start blank, use frozen integer bounds and finalize together.
+Failed writes preserve grades and block resubmission until an explicit saved
+read; loading completed grades requires confirmation. Route/browser-close guards
+protect edits. Conflict copy belongs to its feature, not template/AI errors.
 
-The parent result page reads frozen answers and evaluation without starting a
-session. Pending grades begin blank, use each frozen question's integer bounds
-and finalize together at the session revision. An unsuccessful write preserves
-the local buffer and blocks resubmission until an explicit saved-result read.
-Reading a completed result offers replacement of local grades after confirmation;
-it never applies them implicitly. Completed reports are read-only. Route and
-browser-close guards protect unsaved profile and grade edits. Feature-owned
-conflict copy distinguishes profile, assignment and review state from template
-publication; these requests never use AI.
+`ChildAuth` supplies learner identity and answer-length limit. Cancellable guards
+route 401 to activation and availability errors to retry. Activation sends a code
+once, clears it and refreshes identity-bound CSRF before navigation; ambiguous
+failures offer a session check. Disconnect follows accepted unsaved-work guards
+and revokes the grant.
 
-`ChildAuth` reads the learner identity and its answer-length limit. Guard reads
-are
-cancellable; 401 opens activation, while availability errors open a child retry
-page. Activation sends a code once, clears it from the form and obtains an
-identity-bound CSRF token before navigation. Ambiguous activation failures offer
-a session check, never a code replay. Disconnect runs after unsaved-work guards
-accept navigation and revokes the current grant.
-
-`ChildApi` uses learner-only contracts. The paged inbox is read-only; entering
-`ChildPlayer` explicitly starts/resumes the session. The page owns raw answers,
-the acknowledged revision and derived dirty state. Native Signal Forms retain
-incomplete numeric text on save, validate grammar on submission and use the
-child identity's length limit. Writes never retry. An uncertain result or conflict
-blocks another write until an explicit session read; a newer checkpoint requires
-explicit acceptance before replacing local answers. A confirmed terminal receipt
-locks editing immediately, even while the local buffer remains visible. Withdrawal
-and lost access lock writes with child-specific feedback. Unsaved route/close
-warnings and lifetime cancellation protect local work; no answer cache is
-persisted.
+`ChildApi` uses learner-only contracts. The inbox is read-only; `ChildPlayer`
+explicitly starts/resumes and owns raw answers, acknowledged revision and dirty
+state. Signal Forms retain unfinished numeric input on save and validate grammar
+on submit using the child limit. No writes retry. Uncertain/conflicting writes
+require a session read before another write; loading newer answers is explicit.
+A terminal receipt locks editing even if local text stays visible. Withdrawal
+and lost access also lock writes with child-specific feedback. Navigation/close
+warnings and lifetime cancellation protect work; answers are never persisted
+in a browser cache.
 
 `ActivityWorkspace` owns the template and activity URLs, one form buffer for
 plan and per-activity input, derived canonical projections, source confirmation

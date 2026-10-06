@@ -26,7 +26,6 @@ internal static class AiPrompts
         Keep operative assumptions in the proposed requirements as well as the short assumptions list.
         Record niqqud and other language presentation in the plan only when the parent explicitly asks for it.
         Use the base plan and unresolved conversation. Preserve retained material/control IDs, including renamed or moved controls.
-        A request built on a text the learner works with needs at least one material; leave materials empty only when every question stands alone.
         New materials and controls must have null IDs. Never rewrite a retained fixed source or change its source kind.
         Put requested topic, audience, difficulty and question count in defaults; medium is the unspecified difficulty default.
         Add custom controls only for explicitly requested per-task choices; fixed requirements stay in their owning guidance.
@@ -41,7 +40,7 @@ internal static class AiPrompts
         Set choiceCount ({MinChoiceCount}–{MaxChoiceCount} options per question) exactly when formats include single-choice; otherwise null.
         Exact per-format quotas are unsupported: clarify and offer a flexible mixture or uniform format; never discard quotas silently.
         Keep optional irrelevant settings null and requested defaults and values unchanged.
-        """ + "\n\n" + StructuredRules + "\n\n" + LanguageQuality;
+        """ + "\n\n" + MathPromptGuidance.Planning + "\n\n" + StructuredRules + "\n\n" + LanguageQuality;
 
     private const string MaterialWritingRules = """
         Do not append the activity's questions, answer choices, answer key or learner instructions to a material body.
@@ -80,7 +79,7 @@ internal static class AiPrompts
         Create objectively checkable questions covering distinct aspects of the learning goal; preserve deliberate repeated practice.
         Each source-based answer must follow from the accepted material, not merely share a word with it.
         When requirements ask for inference, causes or conclusions, make those questions connect or interpret information; never answer them with a statement the material makes outright.
-        Put answers only in answer.value, never learner directions or prompts. Numeric answers are invariant decimal strings without units.
+        Put answers only in answer.value, never learner directions or prompts. For numeric-input, answers are invariant decimal strings without units.
         For single-choice, use exactly one correct option, copy it exactly into answer.value and give plausible, clearly incorrect distractors.
         Keep options distinct and parallel; avoid answer clues. Vary correct positions unless order is meaningful or prescribed.
         Check the answer key against the completed content. Never return reasoning, source dependency claims or application metadata.

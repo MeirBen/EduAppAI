@@ -120,6 +120,19 @@ characters plus six unresolved turns or 12,000 characters; a full context needs
 explicit consolidation, never silent truncation. The app computes the actual
 plan changes.
 
+For math, explicit operand/result ranges, operations, fractions, remainders and
+precision take precedence over inferred teaching choices. Grade and difficulty
+guide problem selection without inventing mandatory single-digit limits. An
+unqualified elementary "up to N" is proposed as a bound on given numbers and
+results, with that interpretation disclosed as an editable assumption.
+Incompatible requirements need clarification. Reading passages and mathematical
+scenarios requested as separate context or shared across questions are materials;
+short independent word problems may keep their givens in the question prompt.
+This distinction follows the source's role, not the subject. Questions identify
+the quantity and unit sought and use an answer format that can express it.
+Numeric input holds one finite decimal, not a fraction expression or a
+quotient/remainder pair.
+
 Generated content records its accepted effective input, and questions depend on
 every material sent with them. Editing a source or requirement makes dependent
 content stale until it is edited or explicitly adopted; adoption never rewrites
@@ -143,55 +156,46 @@ Server limits:
 
 ## Boundaries
 
-AI proposes content inside application-owned schemas; the engine validates,
-resolves and assembles it, and features authorize, persist and manage
-concurrency. The parent remains responsible for language, correctness and
-suitability. Parent DTOs contain answer keys and must never serve a child
-client. Screens are Hebrew/RTL with native accessible controls and render
-content as text, with no child-delivery, assignment, scoring or report
-placeholders. The [cutover decision](ai.md#design-and-cutover-decision) traded
-measured reliability, cost and latency for editing and recovery; it does not
-establish better Hebrew. Implementation is in [architecture](architecture.md),
-setup in the [README](../README.md) and presentation in the
-[UI guide](ui-guide.md).
+AI proposes schema-constrained content; the engine validates, resolves and
+assembles it; features own authorization, persistence and concurrency. Parents
+review language, correctness and suitability. Parent answer-bearing DTOs never
+serve children. Hebrew/RTL screens render plain text with native accessible
+controls and real workflows, not placeholders.
+
+See [architecture](architecture.md) for implementation, [README](../README.md)
+for setup, [UI guide](ui-guide.md) for presentation and the
+[AI guide](ai.md#design-and-cutover-decision) for quality evidence and trade-offs.
 
 ## Next steps
 
-The parent and child workflows include profile/device management, assignment,
-activation, a resumable activity player and parent review. All seven tasks in the
-[implementation plan](child-flow-plan.md) passed software acceptance. The next
-step is a family sanity test with separate parent and child browsers. Optional
-profile grade/age and elapsed time displays are also implemented.
+The parent/child milestone and approved enhancements passed software acceptance;
+see the [acceptance record](child-flow-plan.md). Next, run the family sanity test
+with separate browsers and review representative generated content for
+correctness, Hebrew, suitability and answer quality before giving it to children.
+Use concrete findings to guide further AI tuning.
 
-Before giving activities to children, review representative saved evaluation
-outputs for correctness, Hebrew, suitability and answer quality. Use concrete
-findings to guide further AI tuning.
 Before inviting other families, add account recovery and tested backup/restore.
 Shared-parent onboarding, dashboards, broad library pagination, update notices,
-offline synchronization and native packaging remain later work.
+offline synchronization and native packaging remain deferred.
 
-Deferred maintenance from the live-update work:
+Deferred maintenance:
 
-- Correct shared 502–504 feedback to use general server messages unless the
-  response identifies an AI-specific problem.
-- Review the `braces` advisory (GHSA-vfj7-8cjw-p6xm) in the Markdown lint tool's
-  development dependencies before choosing a dependency change.
+- Use general server feedback for shared 502–504 errors unless the response
+  identifies an AI-specific problem.
+- Review `braces` advisory GHSA-vfj7-8cjw-p6xm in Markdown lint development
+  dependencies before choosing a dependency change.
 
 ## Child flow
 
-**Implemented and verified, 6 October 2026:** child access,
-assignment, resumable work/submission, parent grading/reports and both route
-shells are available. Acceptance evidence is recorded in the
-[implementation plan](child-flow-plan.md). This milestone completes
-one loop: the parent creates a child profile, assigns a reviewed activity,
-activates a separate child device and sees the submitted answers and results.
-It extends the current application and immutable snapshots. Creating a profile,
-assigning, opening, answering, grading and reporting make no AI calls.
+**Implemented and verified, 6 October 2026:** profiles/device access, assignment,
+resumable work, parent grading and both route shells; see the
+[acceptance record](child-flow-plan.md). Assignments use immutable reviewed
+snapshots; child-management and learning operations make no AI calls.
 
-The first release uses a separate browser/device for the child. Shared-browser
-parent/child switching, self-registration, repeated attempts on an assignment,
-AI grading, hints, answer-key delivery and gamification are outside this
-milestone. All existing question types remain available.
+Children use a separate browser/device. Shared-browser switching,
+self-registration, repeated assignment attempts, AI grading, hints, answer-key
+delivery and gamification are outside this milestone. All existing question
+types remain available.
 
 ### Profiles and device access
 
@@ -243,33 +247,24 @@ milestone. All existing question types remain available.
 
 ### Optional grade and age
 
-Parents may optionally record **כיתה**
-(school grade) and **גיל** (age in completed years) on a child's profile.
+Parents may record **כיתה** (school grade) and **גיל** (completed years).
 
-- Leave both unset by default and allow either to be cleared independently.
-  Grade and age do not imply each other or the child's learning ability.
-  Grade is trimmed free text of up to 100 characters, accommodating kindergarten,
-  school years and children outside the usual school structure. Age is an integer
-  from 0 to 120. The API publishes these validation bounds to the parent UI.
-- Store the date the age was confirmed and show when it was last updated;
-  do not silently increment an age without knowing the birthday. An exact
-  date of birth is not needed for this purpose. A new or changed age records the
-  server UTC time. There is no separate confirmation control. Unrelated
-  edits preserve the date, and clearing age clears it. These details are parent-only.
-- Create/update accepts an optional `details` object with required nullable
-  `grade` and `age` fields. Omitting the object on update
-  preserves existing details for older clients; all edits use the profile revision.
-- A future explicit parent action may use these values to prefill the audience
-  of a new activity. Show the proposed audience for review and adjustment.
-  The generic AI flow may use it for vocabulary, reading level, instruction
-  complexity and difficulty; it is context, not a guarantee of suitability.
-- Send only the selected educational context to the AI provider, without the
-  child's name or profile identifiers. Save the resolved audience in the draft
-  and its immutable snapshot. Later profile edits never rewrite saved content,
-  assignments, submitted answers or grades, and never start generation.
-- Profile editing, child access and all assignment/review workflows continue
-  to work without these fields. No automatic tuning, AI grading or additional
-  AI calls are introduced by recording them.
+- Both default to unset and can be cleared independently. Neither implies the
+  other or learning ability. Grade is trimmed free text up to 100 characters;
+  age is an integer from 0 to 120. The API publishes these bounds.
+- Record server UTC when age is entered or changed; unrelated edits preserve
+  that date, clearing age clears it. Do not increment age automatically or
+  require a birthday or separate confirmation control. Details are parent-only.
+- Create/update accepts optional `details` with required nullable `grade` and
+  `age`. Omission on update preserves stored details for older clients. All
+  edits use the profile revision; all workflows work without these fields.
+- Future audience prefilling requires an explicit parent action and review.
+  Send only selected educational context, never names or profile IDs. Save the
+  resolved audience in the draft/snapshot. Grade and age may inform vocabulary,
+  reading level, instruction complexity and difficulty, not certify suitability.
+- Profile changes never rewrite saved content, assignments, answers or grades,
+  or trigger generation. Recording details adds no AI calls, grading or automatic
+  tuning.
 
 ### Profile and device cleanup
 
@@ -283,8 +278,8 @@ Parents may optionally record **כיתה**
 - Active devices offer access revocation. Revoked or expired device entries can
   then be removed from the list. The server rechecks ownership and inactivity;
   removal never deletes assignments, answers or results.
-- Library removal already deletes unassigned activities and archives assigned
-  activities. No duplicate cleanup screen or automatic deletion is introduced.
+- Library cleanup follows [retention rules](#retention-and-reset); no duplicate
+  cleanup screen or automatic deletion is introduced.
 
 ### Assignments and learner-facing content
 
@@ -361,26 +356,19 @@ Parents may optionally record **כיתה**
 
 ### Elapsed activity time
 
-Parents see how long it took from the child's first opening of the activity
-player to the saved submission. The assignment detail and result use the saved
-server UTC `StartedAtUtc` and `SubmittedAtUtc` timestamps; there is no browser
-stopwatch or stored duration counter.
+Derive elapsed time from server UTC `StartedAtUtc` and `SubmittedAtUtc` in
+assignment details/results; no browser stopwatch or stored duration counter.
 
-- The first explicit opening/start of the child player creates the session and
-  starts this interval. Parent previews and read-only API requests do not start
-  it. Reopening, refreshing or resuming never resets the original start.
-- Submission freezes the interval. Retries, later visits and parent grading do
-  not extend it. Show the elapsed duration beside the submitted result, with
-  the start and submission times available for context.
-- Label it **זמן מהפתיחה עד ההגשה (כולל הפסקות)**. It includes time away from
-  the activity, closed tabs and offline gaps; it is not measured active study
-  time. Use readable minutes/hours, or **פחות מדקה** for a shorter interval.
-- Before submission, show the start time and an **טרם הוגשה** state, without
-  presenting a completed duration. Missing or inconsistent timestamps show
-  that duration is unavailable, never a guessed value.
-- Do not use elapsed time to change grades or infer ability. Active engagement
-  measurement, pause tracking, countdowns and time limits remain separate future
-  decisions and are outside this enhancement.
+- The first explicit player start begins the interval. Previews/read-only
+  requests do not start it; reopening, refreshing and resuming do not reset it.
+- Submission freezes the interval; retries, later visits and parent grading
+  never extend it. Include start/submission times for context.
+- Label the duration as including breaks, closed tabs and offline gaps, not
+  active study. Before submission show the start time and an unsubmitted state;
+  missing or inconsistent timestamps show unavailable duration, never a guess.
+  Exact copy and display units live in the [UI guide](ui-guide.md#parent-learning-management).
+- Never use elapsed time to change grades or infer ability. Active engagement,
+  pause tracking, countdowns and time limits need separate future decisions.
 
 ### Scoring and parent review
 
@@ -445,32 +433,29 @@ For stored results and parent review:
   Delete all of them in one transaction, including records beyond list limits;
   keep the family, parent accounts and AI configuration. After reset, old child
   cookies and activation codes cannot access or recreate deleted work. Update
-  reset before exposing any child records, and extend it in each schema task.
+  reset whenever a schema change adds family-owned learning records.
 
 ### Acceptance
 
-The milestone is ready for a family pilot when the parent can assign reviewed
-work, activate a separate device, the child can save/resume/submit, and the
-parent can review short text and see stable results after a server restart.
-Verify these with the real application and disposable data:
+Use the real application with disposable data to verify the complete
+assign → activate → save/resume → submit → parent review loop after restart.
+The [acceptance record](child-flow-plan.md#task-7-full-flow-acceptance-and-documentation-cutover)
+maps these requirements to regression suites:
 
-- Family/sibling isolation; parent/child cookie separation; mixed-cookie
-  activation/sign-in rejection; missing and wrong-identity CSRF; anonymous
-  endpoint allowlist.
-- Expired, replayed and concurrently redeemed activation; grant expiry,
-  browser restart, revocation and disable/re-enable; cancellation and lost
-  activation response.
-- Complete child-response field allowlists, including nested content, errors,
-  working sessions, pending review and completed history; no AI calls.
-- Save conflicts, two tabs/devices, start races, reordered submission replay,
-  missing/null/blank answers, exact numeric comparison at precision boundaries,
-  and a lost submission acknowledgement.
-- Submission versus withdrawal/revocation/reset; assignment versus deletion;
-  concurrent parent grading; no partial writes or changed historical scores.
-- Pagination past 100 records; archived-content access through assignments;
-  restart persistence; reset clears every owned child record and no other family.
-- Keyboard and screen-reader labels, focus after errors, RTL/mixed-language
-  content, narrow screens and enlarged text; existing parent workflows pass.
+- Family/sibling and parent/child scheme isolation, mixed-cookie rejection,
+  anonymous endpoint allowlists and missing/wrong-identity CSRF.
+- Activation expiry/replay/concurrent redemption, persistent grant expiry,
+  revocation, disable/re-enable, cancellation and lost-response recovery.
+- Exact nested child-response allowlists on success/error and working/pending/
+  completed states; zero child-flow AI calls.
+- Start/save conflicts across tabs/devices, malformed/blank answers, numeric
+  precision boundaries, reordered submission replay and lost acknowledgements.
+- Submission/withdrawal/revocation/reset and assignment/deletion races,
+  concurrent grading, atomic writes and immutable historical scores.
+- Paging beyond 100, archive access, restart persistence and complete reset
+  without affecting another family; existing parent workflows remain valid.
+- Keyboard/screen-reader labels, error focus, RTL/mixed-language content,
+  narrow screens and enlarged text per the [UI checks](ui-guide.md#check).
 
 [template]: ../backend/FamilyLearning.Api/TaskEngine/Models/LearningPlan.cs
 [content]: ../backend/FamilyLearning.Api/TaskEngine/Models/TaskDocument.cs

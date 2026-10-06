@@ -7,177 +7,93 @@ live in [architecture](architecture.md).
 
 ## Current status
 
-**Strict schema mode works and is the active profile. Educational quality is
-not established**, and superiority to the old one-shot approach has not been
-shown. Passing tests and schema checks does not mean generated Hebrew, answer
-keys or educational content are good.
-
-- Gemini 3.8 Flash in strict `json_schema` mode, medium reasoning,
-  provider-default sampling. The schema is sent once, natively; application
-  validation is unchanged.
-- Strict mode's former instability came from the schema contract, not the
-  model; see [resolved failures](#resolved-strict-mode-failures).
-- Six acceptance cases covering every stage passed in three rounds (42 calls,
-  no retry or repair). That sample is not a reliability rate, and it predates
-  the 4–5 October prompt revisions (through 26), which targeted live replays
-  and A/B runs checked instead; see [prompt decisions](#prompt-decisions).
-- Keep parent review, strict validation and explicit recovery. No automatic
-  output repair, weakened tests, model-specific branch or production retry.
-- Representative content needs human review before further quality tuning.
+Gemini 3.8 Flash uses native strict `json_schema`, medium reasoning and
+provider-default sampling. **Structural acceptance does not establish educational
+quality or superiority to the old one-shot flow.** Keep parent review, server
+validation and explicit recovery; no automatic repair, production retry or
+model-specific code path. Six acceptance cases passed three historical rounds
+(42 calls, no retry/repair), before later prompt changes. Do not treat that
+sample as a current reliability rate.
 
 ## Design and cutover decision
 
-The flow is prompt → editable plan → applicable material ideas and writing →
-questions → editable saved draft → parent review → immutable snapshot. Template
-publication is independent. Supplied sources are assembled verbatim by the app;
-question-only and supplied-source activities skip material generation. Scoped
-replacement preserves unrelated content, and changing material makes dependent
-questions stale instead of regenerating them; an unchanged rewrite, as for an
-unintelligible instruction, keeps them current. A question replacement
-reads the other questions and learner instructions as context, so it stays
-distinct from them and consistent with the instructions.
+The owner chose prompt → editable plan → material ideas/writing → questions →
+reviewed immutable snapshot for editing, source preservation and checkpoint
+recovery. Supplied sources and question-only activities skip material generation.
+See [architecture](architecture.md#ai-and-persistence) for stage ownership,
+replacement, staleness and persistence.
 
-On 1 October the owner chose this split flow for source preservation, editing
-and checkpoint recovery, although the comparative threshold was **not met**: a
-value decision, not evidence of better Hebrew. Across three fixed cases with
-three repetitions, one-shot passed 9/9 structural trials and split 7/9; split
-cost about 3× and took 3.4× median provider latency. The one-shot
-implementation and its schemas were removed without compatibility readers.
-Development database setup is in the [README](../README.md#data).
+The 1 October comparison did **not** meet its quality threshold: one-shot passed
+9/9 structural trials and split 7/9, with split costing about 3× and taking
+3.4× median provider latency. The one-shot implementation was removed; do not
+restore a parallel legacy path or describe the cutover as a measured quality win.
 
 ## Prompt decisions
 
-On 4 October each change replayed the app's exact provider request, varying
-only the lines under test; counts are small samples, not reliability rates.
+These decisions summarize 4–6 October experiments. Samples are small and
+assistant-reviewed (some blind), not educator validation or reliability rates.
+Keep the rationale below; exact requests, scores and costs belong in
+[retained evidence](#costs-and-retained-evidence).
 
-- **Variety (earlier single-call experiment):** the material stage listed five
-  less-typical premises of different kinds before writing the one an app-drawn
-  number selected. Over 30 stories per arm, the chance that two share a premise
-  kind fell from 0.34 to 0.22 (p = 0.015; two thirds classified blind);
-  informational texts stayed varied. Naming characters in premises was
-  rejected: it spread names but narrowed premise kinds.
-- **Question replacement:** with the other questions and learner instructions
-  as context, "another question" stopped duplicating existing ones (4/8 before,
-  0/8 after).
-- **Calculations:** drills embedded expressions in Hebrew sentences, which
-  render reversed (16/25); the expression rule made them whole items (0/25),
-  kept requested word problems (20/20) and left reading questions unchanged.
-  Applied to texts too, it caused no regression; texts showed no symbol
-  expressions with or without it.
-- **Niqqud:** the plan chat added unrequested niqqud for third grade in 3/4
-  plans; with a stated default, 0/4. Third-grade texts had no points, and
-  first-grade texts kept full niqqud (6/6) once the rule led with that case.
-  A third-grade story still came back vocalized once in about 33 runs, so the
-  rule now says "up to second grade" instead of "usually first and second
-  grade" (third grade 0/4, first grade 2/2 full afterwards).
-- **Paragraphs:** without guidance, 62% of 60–149-word texts came back as one
-  block. A paragraph rule split 120-word stories into 3–4 paragraphs (0/3
-  before, 3/3 after), left long texts paragraphed and kept poem lines.
-- **Dropped:** a "shared directions belong in the instructions" line had no
-  effect on drills, and "find the facts in the text; no clues across
-  questions" showed none over 48 questions per arm (4% restated operands
-  either way, no leaks). Duplicate rules were removed so each stage receives
-  every rule once.
+Retained:
 
-On 5 October each change ran in parallel against a frozen baseline build through
-the repaired harness; question types were scored blind by the assistant, not by
-a human.
+- **Question replacement:** sibling questions and instructions provide context;
+  duplicate replacements fell from 4/8 to 0/8.
+- **Expressions:** whole-item calculations avoid reversed Hebrew sentence
+  rendering (16/25 before, 0/25 after); requested word problems were retained.
+- **Language presentation:** authoring records niqqud only when requested;
+  writing uses full niqqud for beginning readers through grade 2 unless
+  overridden. Paragraph guidance preserves prose paragraphs and poem lines.
+- **Inference (revision 26):** require interpretation rather than literal recall
+  when requested; genuine inference increased from 16/24 to 23/24, but coverage
+  is still imperfect.
+- **Rewrite scope (revision 30):** rewrites stay within effective requirements.
+  Topic-changing instructions previously dropped the learning goal; tested
+  variants then kept it. An AI rewrite clears the stored premise idea.
+- **Math contracts (revision 31):** authoring guidance and schema descriptions
+  clarify range assumptions, source roles and answer formats; the precise
+  rules live in the [specification](product-specification.md#contracts).
+  Paired trials had 23/23 correct arithmetic keys in each arm, preserved explicit
+  two-digit bounds and disclosed the final short-request range assumption.
+  Reading controls retained source/niqqud behavior; no arithmetic-quality gain
+  was demonstrated. Fraction/remainder instructions were not separately tested.
 
-- **Inference (revision 26, kept):** one line makes inference, cause and
-  conclusion questions connect or interpret information instead of restating the
-  material. Explicit inference requests produced genuine inference questions
-  23/24 times with it and 16/24 without (six trials per arm, p = 0.023; the
-  replication alone was 11/12 against 9/12). Cause-and-effect, main-idea and
-  plain reading questions did not change.
-- **Low reasoning (rejected):** on Gemini 3.8 Flash it removed reasoning
-  entirely and roughly halved generation cost and latency (median material call
-  22 s to 8 s). Across 14 judged trials it produced 9 Hebrew findings against 1,
-  including a wrong plural in a question and all its options, a missing
-  preposition, a construct-form error and an invented word, and one length
-  failure. Medium stays.
-- **Paragraph array (rejected):** returning material bodies as `paragraphs`
-  removed every line break inside poem stanzas (0 against 12) and gave stories
-  fewer paragraphs (2–3 against 5); the string body with the paragraph rule kept
-  both.
-- **Hebrew style section (rejected):** thirteen grammar lines from a writing
-  skill added 7–9% to every prompt with no measured gain, and no failure it
-  targeted had been observed.
-- **Factual line (rejected):** "state only well-established facts" over 200
-  blind-scored informational texts on 14 topics changed nothing: clear factual
-  errors in 6/106 texts without it and 7/94 with it (p = 0.78). Twelve of the
-  thirteen came from one topic, ants in the rain, where the model moves brood to
-  deep rooms said to stay dry in 12 of 15 texts; flooding studies show colonies
-  moving up. The other topics had one error in 185 texts. A topic-specific rule
-  would be a holdout exception, so parent review stays the safeguard.
+Rejected or unproven; revisit only with new evidence:
 
-On 6 October different-topic rewrites replayed the app's exact rewrite request.
-
-- **Rewrite scope (revision 30, kept):** asked for "a completely different
-  topic: a journey to space", a responsibility story became a space travelogue
-  with no responsibility left, and acceptance passed. One line now keeps the
-  instruction within the effective requirements. Afterwards, five
-  different-topic requests in four phrasings, including "unrelated to
-  responsibility", one request for a shopping list and one parent request in the
-  app all kept the learning goal and blended in only compatible parts; two
-  unintelligible instructions returned the text unchanged. The "different text
-  on the same topic" suggestion changed the premise, so a rewrite now clears the
-  stored idea; it and "simpler language" still worked. A clarification reply,
-  like the plan chat's, was not added: no tested instruction produced harmful
-  content.
-- **Question wording (rejected):** questions for third-grade stories often used
-  formal words absent from the text, such as מעיד, אופיו and ביסודיות: 1.33 per
-  four-question set, in 18 of 24 sets. Two generic lines asking for everyday
-  words no harder than the material, with inference made hard by the thinking
-  rather than the vocabulary, gave 1.12 (p = 0.32) and 1.03 (p = 0.20) over 24
-  and 30 blind-labelled sets, and their per-story effects reversed between
-  samples. Parent review and the "ניסוח פשוט וברור יותר" suggestion remain the
-  safeguard.
-- **Difficulty and wording:** third-grade informational space texts used 6.1
-  formal or literary words at medium difficulty against 4.4 at easy (p ≈ 0.05,
-  ten texts each, equal length), while question wording did not differ (2.4
-  each). Defining difficulty as thinking demand rather than wording left medium
-  texts unchanged (6.1 over eight texts, partly blind), so it was not adopted.
-  Easy is the lever for simpler language; the plan chat defaults to medium when
-  the parent states no difficulty.
-- **Difficulty and thinking demand (rejected):** with the material fixed (one
-  space text, one story), questions needing inference already rose with
-  difficulty: 30% at easy, 33% at medium and 58% at hard (p = 0.03, 17
-  blind-labelled sets). A line mapping easy to mostly stated information and
-  hard to mostly inference gave 30%, 40% and 67%; its extra 8 points of rise
-  (p = 0.34, 16 sets) missed the preset 30-point bar.
+- **Less reasoning:** lower cost/latency came with more Hebrew errors; one
+  Gemini comparison found 9 findings versus 1. Disabled reasoning also failed
+  quality checks. Medium remains the active setting.
+- **Prompt expansion:** extra Hebrew grammar, everyday wording, factual checks,
+  math checklists and answer-check instructions were flat or harmful. A generic
+  factual line left errors in 6/106 versus 7/94 texts. Worked question examples,
+  definitions and shared-direction reminders also showed no dependable gain.
+- **Difficulty mapping:** prescribed inference quotas and separating difficulty
+  from wording missed adoption thresholds. Hard alone does not specify operand
+  sizes. Two digit-limit prompt variants failed to reliably change the grade-3
+  tendency and were removed; explicit factor/divisor ranges worked. The
+  [Israeli curriculum][grade3] supports one-digit factors for distributivity
+  and whole tens/hundreds, not a universal single-digit cap.
+- **Material representation:** a paragraph array removed poem stanza breaks and
+  reduced prose paragraphing. Keep string bodies. Naming characters in premise
+  ideas narrowed variety; always selecting the first tied idea favored the most
+  typical premise. Neither was retained.
+- **Earlier provider trials:** model comparisons, provider exclusions and
+  shorter material prompts produced no stable quality winner. DeepSeek strict
+  authoring remains unverified after contract-description fixes.
 
 ## Material variety
 
-Since revision 29, an idea is chosen before writing. One call proposes five
-premise/structure ideas and estimates each one's overlap (0–100) with up to
-eight recent family ideas. The application selects the lowest estimate, an
-application-owned draw (the operation ID) breaks ties, and the worker
-checkpoints the idea before the writer expands it. The question call receives
-up to 12 recent question prompts. Generated material costs one extra call.
+The [generation architecture](architecture.md#ai-and-persistence) owns the
+five-idea stage, bounded family history and application-drawn tie-breaking.
+Generated material adds one call; supplied sources and question-only work do not.
 
-On 6 October this design was compared with revision 26, which listed five
-premises and wrote an app-drawn one in a single call, on third-grade realistic
-cooperation and responsibility stories. Revisions 27–29 share the mechanism;
-they differ in tie-breaking and wording. The assistant labelled premise kinds,
-causal arcs and question targets blind to the arm, and story embeddings agreed.
-Counts are small samples, not reliability rates.
-
-- **With family history:** no story repeated an earlier premise kind in its
-  family (0 of 24, against 25–31% for revision 26; p ≈ 0.02 per topic). The
-  responsibility arc "tempted to play, keeps the duty" fell from a 0.80
-  pairwise rate to 0.05–0.25.
-- **Without relevant history:** the model scored every idea 0 (51 of 51 calls)
-  and listed the most typical first. Always taking it raised the chance that
-  two stories share a premise kind from 0.09/0.16 to 0.26/0.54, so ties are
-  drawn; with the draw it was 0.04 or lower over 24 stories.
-- **Questions:** regenerating questions for one story six times, prior prompts
-  cut the targets two sets share from 2.07/2.67 to 0.53/0.87 of four. Later
-  regenerations traded depth for coverage: 8 of 48 questions asked simple
-  recall such as time or place (none without history), and one set dropped the
-  requested inference question.
-- **Cost:** $0.0119 to $0.0153 per generated story; median latency 23 to 34 s.
-
-Hebrew quality and educational correctness still require representative review.
+Revision 29 trials on two grade-3 story topics found no repeated family premise
+in 24 stories, versus 25–31% with revision 26. Without relevant history, all
+51 idea calls tied at zero, which is why the app draws ties. Question history
+reduced repeated targets, but 8/48 later questions fell back to literal recall
+and one set missed requested inference. Cost rose from $0.0119 to $0.0153 per
+story, median latency from 23 to 34 seconds. Variety is best effort, not a
+uniqueness or educational-quality guarantee.
 
 ## Configuration
 
@@ -276,138 +192,55 @@ drew a focused clarification instead of a rejected plan.
 
 Limit provenance: `StrictQuestionCountLimit` is endpoint-specific and measured
 (20 for Gemini at six choices), because Google publishes no budget; re-measure
-it for a new model or a higher choice cap. Question count, choices, controls,
+it for a new model or a higher choice cap. New schema features also need live
+acceptance within an explicitly authorized budget. Question count, choices, controls,
 options, materials, content size and field lengths are owner-set product
 limits in the [product specification](product-specification.md). The 16,384
 output tokens (validated up to 32,768) stay below the endpoint maximum of
 65,536.
 
-## Evaluation results
-
-These are small exploratory samples with assistant reviews; human scores remain
-unfilled. “Usable” means automatic checks pass and review finds no substantive
-correction. Do not pool phases into a success rate. Columns show baseline /
-candidate; a dash means no comparable usable count.
-
-| Trial                  | Strict passes   | Usable      | Decision  |
-| ---------------------- | --------------- | ----------- | --------- |
-| DeepSeek material      | 2/5 → 5/5       | —           | Keep      |
-| Authoring descriptions | 0/6 → 3/6 → 6/6 | —           | Keep      |
-| Reasoning disabled     | Candidate 3/3   | —           | Reject    |
-| Split / one-shot       | 9/9 / 9/9       | —           | No winner |
-| DeepSeek / Gemini      | 5/6 / 6/6       | 2/6 / 2/6   | No winner |
-| Question definitions   | 10/10 / 8/10    | 4/10 / 5/10 | Reject    |
-| DekaLLM exclusion      | 3/4 workflows   | —           | Limited   |
-| Gemini medium / low    | 7/9 / 6/9       | 4/9 / 6/9   | Confirm   |
-| Effort confirmation    | 1/2 / 1/2       | 1/2 / 0/2   | Medium    |
-| Question example       | 6/6 / 6/6       | 4/6 / 2/6   | Reject    |
-| Material replacement   | 6/6 / 6/6       | 5/6 / 5/6   | Keep tie  |
-| Gemini strict schema   | 18/18           | —           | Adopt     |
-| Length contract        | 2/2             | —           | Adopt     |
-
-- **Material and authoring wording:** body-only counting/no-filler rules and
-  clearer `defaultFormat`/`source` descriptions raised adherence; a shorter
-  material alternative introduced story inconsistencies.
-- **Reasoning disabled:** about 70% cheaper and 61% faster on DeepSeek, but
-  produced a speaker contradiction and corrupted Hebrew.
-- **Split / one-shot and model choice:** no stable cost or latency winner, and
-  Gemini was the owner's choice, not a measured quality win.
-- **Question prompts:** purpose definitions and a worked example regressed
-  reviewed quality or missed requested inference coverage.
-- **DekaLLM exclusion:** the supplied-source timeout persisted; the setting
-  remains available but unused.
-- **Gemini effort:** low cost about a third of medium but duplicated a sibling
-  question; both returned empty plans, later traced to the enum defect. Medium
-  stays; neither was consistently good.
-- **Strict schema:** the six acceptance cases ran in three rounds of 14 calls
-  at $0.13–0.15 per round. Material replacement and judge review were not
-  exercised, and content was not reviewed.
-- **Length contract:** exact word counts and per-activity bounds were removed
-  (engine revision 11). "Exactly 120 words" became an approximate 120-word
-  target with a stated assumption (124 words generated), and a strict 100–150
-  range still held (117 words). One run each; content was not reviewed.
-
-Samples reuse few distinct material contexts, and Gemini's implicit cache can
-bill repeated requests for far fewer input tokens, so treat every count as
-directional.
-
-## Resolved strict-mode failures
-
-Strict mode returned empty proposals, an empty clarification despite
-`minLength: 1` (`gen-1790943339-87Hr7EqfWwN5XsjGx3wo`) and HTTP 400 once the
-plan survived conversion. JSON-object mode served until strict acceptance
-passed.
-
-- **Erased plan:** OpenRouter converted the plan holding `"enum": [1]` into an
-  empty closed object (`gen-1790948761-8cTFOE1kL7ekmZkA1cOc`), so `{}` was the
-  only valid plan.
-- **Opaque HTTP 400:** Google rejected the intact schema
-  (`gen-1790948826-ywSQZpwH5ZuAOU7i3gxi`). One-feature probes all failed because
-  the dominant cost remained; a factorial screen isolated the control and
-  option array bounds. Exact question arrays fail between 20 and 30 items while
-  100 plain strings pass: expansion complexity, not a fixed bound.
-- **Widened nulls:** a null-only branch accepted strings upstream.
-- **Empty strings:** Gemini ignores `minLength`; the validator rejects them.
-
-Google publishes no budget, so any new schema feature needs live acceptance.
-
 ## Unresolved failures
 
-- **DeepSeek:** the failing strict request on `deepseek/deepseek-v4.1-flash`
-  returned schema-valid replies, but one plan left `choiceCount` null and all
-  three invented adjustable word counts. The prompt and descriptions now cover
-  both; it has not been retested.
-- **Availability:** Google 429/504 and AI Studio 503 responses occurred at zero
-  cost. They are upstream serving errors; later successes show intermittent
-  availability, not stability.
-- **Content:** inference coverage, natural Hebrew/niqqud, factual precision,
-  answer-key arithmetic and answer clarity need human review; one confirmation
-  passage claimed orbit has no gravity. Tests, schema mode and a same-model
-  judge cannot certify content. Gemini 3.8 Flash repeatedly writes that ants
-  carry their brood deeper during rain; no generic prompt line changed it.
-- **Judge blind spot:** Gemini 3.8 Flash, GPT-5.6 Terra and Claude Sonnet 5.5
-  each caught all three `להסיין` in `reported-ants-defects` but never the two
-  `נמלות` (the plural is `נמלים`). The owner made that control advisory: every
-  run reports its result, but it does not gate calibration. Judge findings can
-  miss non-standard plurals.
+- **Content:** incomplete inference coverage, unnatural Hebrew/niqqud, factual
+  errors and wrong answer keys remain possible. Observed errors include claims
+  that orbit has no gravity and that ants move brood deeper during rain.
+- **Shared math sources:** one structurally valid trial confused a book price
+  with a booklet price and supplied the wrong key. Baseline and final outputs
+  added quantities despite source-only requirements. A stronger answer-check
+  line was flat (8/8 keys correct per arm, extra quantities still present) and
+  removed. Parent review remains necessary.
+- **DeepSeek:** the last strict authoring trial left `choiceCount` null once
+  and invented adjustable counts in all three plans; fixes were not retested.
+- **Availability:** Google 429/504 and AI Studio 503 responses were intermittent
+  serving failures, not evidence that a schema or quality change was needed.
+- **Judge blind spot:** all three tested judges missed `נמלות` (correct:
+  `נמלים`) in `reported-ants-defects`. This control is advisory, not a calibration
+  gate. A same-model judge and passing schema checks cannot certify content.
 
 ## Costs and retained evidence
 
-Amounts are USD. Reserves are conservative allowances for unknown costs,
-**not confirmed charges**.
+Evidence is local and ignored under `artifacts/evaluations/`: exact requests,
+responses, versions, validation, reviews and per-experiment `budget.json` files.
+Preserve failures and never edit old reports to match new code. These records
+may be absent in a fresh checkout; the decisions above remain the maintained
+summary. Costs below are USD; reserves are allowances, not confirmed charges.
+Historical caps do not authorize new paid runs.
 
-| Phase                 | Calls |    Known cost |      Reserve |
-| --------------------- | ----: | ------------: | -----------: |
-| First tuning          |   128 |  $0.312352616 | $0.081100800 |
-| Quality/routing       |    43 |  $0.064295840 | $0.243302400 |
-| Gemini                |    53 |  $0.354201000 | $0.315187200 |
-| Authoring contract    |    23 |  $0.098323500 | $0.464459700 |
-| Owner's new report    |     1 |  $0.004589250 | $0.000000000 |
-| DeepSeek verification |     4 | $0.0066341346 | $0.000000000 |
-| Gemini strict schema  |    11 | $0.0117457500 | $0.326841750 |
-| Strict root cause     |    96 | $0.5185207500 | $0.199239750 |
-| Control limits        |     3 | $0.0293505000 | $0.000000000 |
-| Plan limits           |     2 | $0.0192232500 | $0.000000000 |
-| Length contract       |     6 | $0.0473685000 | $0.000000000 |
-| Total                 |   370 | $1.4666050906 | $1.630131600 |
+- Early tuning: 370 calls, $1.4666050906 known plus $1.630131600 reserved
+  ($3.0967366906 combined). Reserves included 28 HTTP 400 rejections later shown
+  as zero cost. An earlier one-shot comparison was separate: 19 calls,
+  $0.062444323. Schema evidence: `gemini-strict-contract-2026-10-02/`,
+  `gemini-strict-root-cause-2026-10-02/`, `gemini-*-limits-2026-10-03/` and
+  `length-contract-2026-10-03/`.
+- `reasoning-effort-2026-10-05/` ($0.704) and
+  `inference-line-2026-10-05/` ($0.996) shared a $2 cap.
+  `factual-line-2026-10-05/` used $2.745 under a separate $3 cap.
+- `judge-repair-2026-10-05/`: $0.218 of $1; calibration and fixed-schema evidence.
+- `math-2026-10-06/`: 73 calls, $0.660264 of $1, no unknown costs; frozen
+  comparisons, reading controls, rejected digit-limit variants, semantic failures
+  and `review.md` / `verification.json`.
 
-Total charged/reserved: **$3.0967366906**, every phase under an
-owner-authorized cap. The reserve includes 28 HTTP 400 rejections that key usage
-later showed at $0. The earlier one-shot comparison was separate (19 calls,
-$0.062444323).
-
-Evidence lives under the ignored `artifacts/evaluations/`, one directory per
-phase with exact requests, responses, validation, reviews and a closed
-`budget.json`. Never edit it to match new code. Key directories:
-`gemini-strict-contract-2026-10-02/` (upstream captures and the OpenRouter
-`support-reproduction.md`), `gemini-strict-root-cause-2026-10-02/` (factorial
-probes and acceptance rounds), the `gemini-*-limits-2026-10-03/` clarification
-checks and the `length-contract-2026-10-03/` harness runs. On 5 October,
-`reasoning-effort-2026-10-05/` ($0.704) and `inference-line-2026-10-05/`
-($0.996, including the replication and blind scores) ran under a $2 cap;
-`factual-line-2026-10-05/` ($2.745, 200 texts with blind scores) ran under a
-separate $3 cap.
-Retired design documents are in `documentation-history-2026-10-01.zip`.
+Retired design documents: `documentation-history-2026-10-01.zip`.
 
 ## Using the evaluation harness
 
@@ -455,22 +288,18 @@ derived; unknown costs are null with coverage counts
 ([usage accounting][usage]).
 
 Judge findings are advisory: each must quote a supplied field and never edits
-output or scores. `HebrewJudge` pins the judge's model, reasoning effort and
-strict `json_schema` mode; it shares only the app's key, endpoint and limits,
-and reports record its profile separately, so generation profile changes stay
-comparable under the same judge. Its schema is fixed: input fields carry ids,
-and the evaluator resolves each returned id and verifies the quote. A
-per-request enum of field paths made Google reject every review of a task with
-materials (`INVALID_ARGUMENT`, 12/12 across three runs); the fixed contract
-accepted the same four inputs. On 5 October, two calibration passes chose the
-judge: Flash passed 6/8 controls with no false alarms, GPT-5.6 Terra 3/5 with
-none (three calls were refused for account credit) and Claude Sonnet 5.5 2/8
-with four. Flash stays pinned; changing it needs a new review version and
-recalibration. Evidence is in `artifacts/evaluations/judge-repair-2026-10-05/`
-($0.218 of a $1 cap). Calibration [controls][judge-controls] measure detection
-of planted defects, not general accuracy ([same-model limits][judge]). Advisory
-controls are reported without gating calibration, and at least one control must
-gate. Comparison reports candidate-minus-baseline deltas, never a winner, and
+output or scores. `HebrewJudge` pins its model, reasoning and strict schema
+separately from generation; changing it needs a new judge version and
+recalibration. Input fields carry IDs whose returned quotes are verified. Keep
+that fixed contract: per-request field-path enums caused Google to reject all
+12 tested reviews containing materials.
+
+Calibration [controls][judge-controls] measure planted-defect detection, not
+general accuracy ([same-model limits][judge]). Advisory controls do not gate
+calibration; at least one control must gate. Flash passed 6/8 controls with no
+false alarms in the retained calibration.
+
+Comparison reports candidate-minus-baseline deltas, never a winner, and
 requires matching suites, inputs, repeats and check versions; judge and human
 deltas need matching judge setups and scored pairs. Only the [current report
 format](../tools/FamilyLearning.Evaluation/EvaluationVersions.cs) is read. Run
@@ -500,3 +329,4 @@ this guide in place; keep experimental evidence in artifacts.
 [usage]: https://openrouter.ai/docs/cookbook/administration/usage-accounting
 [judge]: https://arxiv.org/abs/2306.05685
 [judge-controls]: ../tools/FamilyLearning.Evaluation/hebrew-review-samples.json
+[grade3]: https://meyda.education.gov.il/files/Mazkirut_Pedagogit/math/primary-school/math2023/Newprogramgrade3.pdf

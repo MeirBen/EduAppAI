@@ -73,26 +73,27 @@ parent labels keep their original language and values.
 
 ## Spacing
 
-Containers own spacing with `gap`; shared primitives carry no outer margin.
-`main` owns the page's side gutter, so page sections add only vertical padding.
-List pages span its width, so their edges meet the header's; activity documents,
-whether edited or frozen, sit in the `max-w-3xl` reading column. Use one scale
-everywhere: `gap-1` between a heading and its description, a status line and its
-list or action, and stacked text links, `gap-2` between a control and what it
-reveals, `gap-3` between buttons in an action row, `gap-4` between fields and
-blocks in any stack, including a row of fields and its action, and `gap-6`
-between page sections and headed groups. A field is one block: its label sits
-`mb-2` above the control and hints, help or error lines carry `mt-2` below it;
-never place a label and its control as separate children of a gapped container.
-Open disclosures space their summary from the content, and empty live regions
-take no layout slot, so they never double a gap. Group card fields with
-`role="group"` and a heading inside the padding rather than a `.well` fieldset
-legend; each later headed group in a card is a `card-section`, whose rule marks
-where the previous one ends. Short related fields share a row: settings fill one
-two-column grid, numbers sit beside their siblings and a list's remove action
-sits beside its item. Content beside a tile or trailing actions takes
-`min-w-1/2 flex-1`, so they stay beside it and wrap only once it would fall
-below half the row. Optional content renders only when present.
+Containers own `gap`; shared primitives have no outer margin. `main` owns the
+side gutter, so sections add only vertical padding. Lists span the header width;
+editable/frozen activity documents use `max-w-3xl`.
+
+| Token   | Use                                                     |
+| ------- | ------------------------------------------------------- |
+| `gap-1` | Heading/description, status/content, stacked text links |
+| `gap-2` | Control and revealed content                            |
+| `gap-3` | Buttons in an action row                                |
+| `gap-4` | Fields and blocks, including field/action rows          |
+| `gap-6` | Page sections and headed groups                         |
+| `mb-2`  | Label above its control                                 |
+| `mt-2`  | Hint/help/error below its control                       |
+
+Keep each label/control in one field block, not separate gapped children.
+Disclosures own summary/content spacing; empty live regions occupy no slot.
+Use `role="group"` with an inset heading for grouped card fields, not a `.well`
+fieldset legend; later headed groups use `card-section`. Related fields share
+rows: two-column settings, sibling numbers and list-item remove controls.
+Content beside a tile/actions uses `min-w-1/2 flex-1`, wrapping below half-width.
+Render optional content only when present.
 
 ## Styles and theming
 
@@ -120,12 +121,10 @@ below half the row. Optional content renders only when present.
 Primitives read only tokens; templates add layout utilities and token colors
 such as `text-muted`. Color tints have one role each: `/15` for brand
 hairlines and focus halos, `/25` for the error edge and `/30` for hover edges.
-A visual treatment used in
-more than one place becomes a primitive, and primitives take state from
-attributes (`aria-current`, `data-done`, `data-problem`) rather than
-alternative class lists. A component's own stylesheet uses theme variables
-only. Give `steps` and
-`progress-steps` lists `role="list"` so WebKit keeps list semantics.
+Repeated treatments become primitives, with state from `aria-current`,
+`data-done` or `data-problem` rather than alternative class lists. Component
+stylesheets use theme variables only. Give `steps` and `progress-steps`
+`role="list"` to preserve WebKit list semantics.
 
 A theme redefines only `--color-*` tokens and, optionally, the corner roles
 (`--radius-small`, `control`, `button`, `inset`, `card`), so templates need no
@@ -172,137 +171,105 @@ only difficulty has fixed options.
 
 ## Parent learning management
 
-Family navigation sits below the main header so its existing compact controls
-remain usable on phones. Profile and assignment lists use the shared list rows,
-native controls and bounded previous/next paging. Profile edits and device
-access are separate labelled sections; disabling and revoking name their effects
-before confirmation. Activation codes remain selectable text with their expiry,
-never a URL or persistent browser value.
+Family navigation sits below the main header. Profile/assignment lists use shared
+rows, native controls and bounded previous/next paging. Separate profile edits
+from device access; confirmations explain disable/revoke effects. Activation
+codes stay selectable with expiry, never in URLs or persistent browser storage.
 
-Optional grade uses free text; age uses isolated LTR integer entry with the server
-limit. Either field can be cleared independently; there is no age-confirmation
-checkbox. Group these optional fields and keep secondary profile/device dates
-under native “פרטי זמנים” disclosures. Age dates change only with age changes.
-Offer deletion for profiles without assignments, and list removal for inactive
-devices. Profiles with history use disabling; active devices use revocation.
+Group optional grade (free text) and age (LTR integer, server bounds); each can
+be cleared, with no age-confirmation checkbox. Keep secondary dates under native
+“פרטי זמנים” disclosures. Follow the [cleanup contract](product-specification.md#profile-and-device-cleanup):
+unused profiles offer deletion, profiles with history disabling, active devices
+revocation and inactive devices removal.
 
-The frozen preview owns child selection and assignment, and links to the
-existing assignment when the pair was already assigned. Parent review displays
-the frozen content, exact submitted text and parent-only answer disclosures.
-Pending grades start empty; automatic awards and completed grades are read-only.
-Show the automatic subtotal as pending, and show a final percentage only with a
-positive possible total. Keep saved-result recovery beside the finalization
-action without replacing local grades. Reuse shared theme primitives and
-logical layout utilities; these pages need no separate stylesheets.
+Frozen previews own child selection/assignment and link to an existing pair on
+replay. Review shows frozen content, exact submitted text and parent-only answer
+disclosures. Pending grades start empty; automatic/completed awards stay
+read-only. Distinguish pending subtotal from final score; percentages require
+positive possible points. Recovery stays beside finalization and never silently
+replaces local grades. Parent and child learning pages share primitives and
+logical utilities without separate stylesheets.
 
-Assignment details group creation, opening, last-save, submission and review times
-under the same quiet disclosure. Label the visible derived
-duration “זמן מהפתיחה עד ההגשה (כולל הפסקות)”; show minutes/hours or “פחות מדקה”.
-Unsubmitted work shows “טרם הוגשה” without a completed duration. Missing or reversed
-timestamps show unavailable duration. Parent grading never extends the interval.
+Group creation, opening, last-save, submission and review dates in “פרטי זמנים”.
+Label elapsed time “זמן מהפתיחה עד ההגשה (כולל הפסקות)”, using minutes/hours or
+“פחות מדקה”. Unsubmitted work shows “טרם הוגשה”; missing/reversed timestamps show
+unavailable duration. See [timing semantics](product-specification.md#elapsed-activity-time).
 
 ## Child learning
 
-The child area uses the same `PageShell`, theme tokens and controls as the parent
-area, with its own home and device-disconnect navigation. It has no parent links
-or same-browser mode switch. Parent activation instructions offer a copyable
-address for the separate child browser; codes never enter that address.
-Activation explains persistent access and offers a session check after an
-uncertain result instead of repeating a code. Closing and reopening the browser
-retains access until the original expiry. Disconnect, revocation or expiry
-requires activation again; an availability failure offers retry instead.
+Use `PageShell`, shared theme/controls and child-only home/disconnect navigation;
+no parent links or same-browser mode switch. Parent activation instructions give
+a copyable address for a separate browser, without the code. Explain persistent
+access and fresh activation after disconnect/revocation/expiry. An uncertain
+activation offers a session check; availability failures offer retry.
 
-The inbox separates available and submitted work with native selection and bounded
-paging. The player keeps materials above a numbered question list in the reading
-column. Numeric answers use LTR text inputs with a decimal keyboard so invalid
-keystrokes remain repairable; text answers keep whitespace and native choices
-use isolated option labels. The action bar reports unsaved/saved progress and
-owns explicit save, submit and saved-work recovery. Invalid submission focuses
-the first problem; missing answers require confirmation. Reading a checkpoint
-never silently replaces local text. Confirmed submission locks editing and shows
-a receipt; pending review has no final score, and a zero possible total has no
-percentage. No child page has its own stylesheet.
+Separate available/submitted inbox views with native selection and bounded
+paging. Keep materials above numbered questions in the reading column. Numeric
+answers use LTR text inputs with a decimal keyboard, retaining invalid edits;
+text preserves whitespace and native options isolate their labels. The action
+bar owns save, submit, saved-work recovery and dirty/saved status. Invalid submit
+focuses the first problem; missing answers need confirmation. Checkpoint reads
+never overwrite local text implicitly. A submission receipt locks editing;
+pending review has no final score, and zero possible points has no percentage.
 
 ## Workspace actions
 
-The workspace owns one editable buffer and derives its presentation from it:
-describe, then adjust settings, then review content. Phases are never stored or
-routed. Before a plan exists, the request dominates; a quiet disclosure offers
-manual entry. The visible settings (topic, audience, difficulty and question
-count) are the plan's defaults in a template and an activity alike, and the
-source text stays beside them. An activity also shows only the applicable
-length, format, option count and requested choices; a template has no activity
-of its own, so it creates none and links to creating one once a version exists.
-Activities show a derived four-step indicator (describe, settings, review,
-ready); only the current step keeps its label on narrow screens. The plan
-definition and guidance sit under **אפשרויות מתקדמות**, open by default only for
-template editing. A plan authored here, a template or a new activity's own
-plan, ends with **מה אפשר לשנות בכל פעילות**: the applicable length,
-option-count and one-format toggles, and every choice definition as a compact
-card that names the part it changes and is added with one button. An activity
-created from a template only sets the values its template allows.
-Options that have no effect in the current state stay hidden: the combined
-length needs several generated texts, one format per activity needs several
-formats, and a required flag is moot once a choice has a default. With several
-texts, each text's fields and choices name that text.
-Once a plan exists, the change conversation is its own card after the settings
-and can change every setting, including the advanced options. Once content
-exists, settings and the conversation collapse to a derived one-line summary,
-shown only while they are collapsed, and the content becomes the main surface.
+Derive presentation from the workspace's single buffer; do not store or route
+phases. Before a plan, emphasize the request with manual entry in a disclosure.
+Shared settings (topic, audience, difficulty, count) are plan defaults in both
+templates and activities, with source text beside them. Show only applicable
+activity length, format, option count and requested choices. Templates define
+plans and link to activity creation after publication.
 
-Authoring is a conversation: the parent's turns sit at the end edge, the
-assistant's replies carry the `ai-mark` with the computed changes and
-assumptions, and a typing bubble shows while a request runs. The composer sends
-on Enter (Shift+Enter adds a line) and turns its send button into a stop button,
-keeping keyboard focus on whichever is present; a failed or cancelled request
-returns its text to the composer. `SuggestionChips` offer ready wording for the
-first request, common changes and scoped improvements; a suggestion only fills
-its field, leaving focus on the suggestion, and never sends. Mark AI actions
-with `icon-ai`.
+Activities show four derived steps: describe, settings, review, ready. Only the
+current step keeps its label on narrow screens. Put plan definitions/guidance
+under **אפשרויות מתקדמות**, initially open only for template editing. End plan
+authoring with **מה אפשר לשנות בכל פעילות**: applicable length, option-count and
+one-format toggles, plus scoped choice cards and one add button. Template-based
+activities only set permitted values. Hide ineffective options: combined length
+needs several generated texts; format selection needs several formats; required
+is moot with a default. Name each text in its fields and choices.
 
-Use parent language, never internal terms: say "הגדרות" for the plan and "טקסט"
-for materials; source kinds read as "כתבו עבורי תוכן חדש", "יש לי טקסט משלי"
-and, for templates, "אבחר טקסט חדש בכל פעם"; length reads as approximate words
-or a strict range, never modes. Keep template defaults, per-activity choices and
-editable content visibly distinct. Saving a template publishes only the plan;
-saving a draft retains editable work; marking ready freezes the reviewed
-revision. Give each state one primary action: create the activity, then mark it
-ready; template editing makes publication primary. It sits in the action bar
-with saving the draft, the save state and Undo; the review card keeps the
-readiness summary. Uncommon actions live under **פעולות נוספות** or a quiet
-disclosure. Question cards keep prompt, options and the parent-only answer
-visible, with icons to move or remove the question in their header; from `sm`, a
-typed answer shares the prompt's row, while a choice answer follows its options.
-Answer type and points sit in a per-question disclosure. Every form list edits
-the same way: a remove icon beside each item and one secondary add button after
-the list.
-Scoped AI improvement is a contextual action with an optional instruction; its
-progress, result and any error show in that card, while full generation reports
-above the content.
+After a plan exists, its change conversation follows settings and can edit all
+settings. Once content exists, collapse settings/chat to a derived one-line
+summary visible only while collapsed; content becomes the main surface.
 
-Show source confirmation for AI-extracted text only while it is pending and
-preserve its exact content. Keep invalid keystrokes visible for correction. A
-generation result cannot replace later local edits or Undo; offer the saved
-server result for inspection and explicit reload. A save or deletion on another
-device reads in the save state, beside the reload control when there is a
-version to load. A failed request offers that reload beside its message and,
-unless the server definitely rejected it, says it may have applied; a local
-blocker, such as content that still blocks Mark Ready, sends nothing and offers
-no reload. Describe operations in plain language, keep stages, outcomes, cost
-and raw output behind **פרטים טכניים**, and never imply that another paid
-attempt is automatic.
+Parent turns sit at the end edge; AI replies show `ai-mark`, computed changes
+and assumptions, with a typing bubble while pending. Enter sends; Shift+Enter
+adds a line. Send becomes Stop while retaining focus; failure/cancellation
+restores the request text. `SuggestionChips` only fill fields, keeping focus on
+the chip; they never send. Mark AI actions with `icon-ai`.
 
-Display server length measurements beside saved diagnostics. Distinguish
-advisory targets from strict range blockers, and technical readiness from
-the parent's educational review. Once content is ready to review, present and no
-generation writing it, a saved diagnostic of one field, such as the title, a text
-or a question's answer, shows at that field like a validation error until the
-field changes; the review names where to fix and lists only blockers without a
-field, and never calls content ready while a generation runs. Offer adoption
-only in a callout beside content that saved diagnostics mark as stale. Frozen
-previews expose answers in native disclosures and offer an explicit copy to a
-new draft. A read-only box whose text a parent may reuse, such as an AI response
-or a material text, carries a `CopyButton`; editable fields copy natively.
+Use parent terminology: "הגדרות" for plan, "טקסט" for material, source kinds
+"כתבו עבורי תוכן חדש", "יש לי טקסט משלי" and (templates) "אבחר טקסט חדש בכל פעם".
+Describe lengths as approximate words or strict ranges. Distinguish template
+publication, draft saving and marking a reviewed revision ready. The primary
+action progresses from create activity to mark ready; template editing uses
+publish. The action bar holds it, save, save state and Undo; the review card
+holds readiness. Put uncommon actions under **פעולות נוספות** or a disclosure.
+
+Question cards show prompt, options and parent-only answer, with move/remove
+icons in the header. From `sm`, typed answers share the prompt row; choice
+answers follow options. Type/points live in a disclosure. Lists consistently
+use an item remove icon and one secondary add button below. Scoped AI actions
+keep optional instructions, progress, results and errors in their card; full
+generation reports above content.
+
+Confirm AI-extracted source text only while pending, preserving exact content.
+Keep invalid edits repairable. When later edits/Undo fence off generation results,
+offer the saved result for explicit inspection/reload. External saves/deletions
+appear in save status with reload when available. Failed writes offer reload;
+they may have applied unless rejection is definite. Local blockers send nothing
+and offer no reload. Keep stages, outcomes, cost and raw output under
+**פרטים טכניים**; never imply automatic paid retries.
+
+Show server length measurements with diagnostics, distinguishing advisory targets,
+strict blockers and parent educational review. Once content is present and ready
+for review, with no generation writing it, show saved field diagnostics at the
+field until edited. The review names where to fix and lists only non-field
+blockers; it never shows ready during generation. Offer adoption only beside
+saved-stale content. Frozen previews disclose answers and offer copy-to-draft.
+Reusable read-only text gets `CopyButton`; editable fields copy natively.
 
 ## Loading
 

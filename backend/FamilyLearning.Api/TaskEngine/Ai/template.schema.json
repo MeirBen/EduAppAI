@@ -115,7 +115,7 @@
           "additionalProperties": false
         },
         "materials": {
-          "description": "Every text the learner reads, hears or answers questions about, such as a passage, story, article, poem or dialogue.",
+          "description": "Reading passages and other source content presented before questions, including shared mathematical scenarios or data. Keep requested sources separate even for one question. Short self-contained problems may keep their givens in the question prompt; they need no material.",
           "type": "array",
           "items": {
             "$ref": "#/$defs/material"
@@ -229,6 +229,7 @@
       "type": "object",
       "properties": {
         "formats": {
+          "description": "numeric-input accepts one finite decimal number without units. Fraction expressions, quotient/remainder pairs and other written answers require text-input or single-choice.",
           "type": "array",
           "items": {
             "type": "string",

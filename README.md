@@ -8,6 +8,41 @@ never change existing activities. See the
 [product specification](docs/product-specification.md) for scope and
 [architecture](docs/architecture.md) for implementation.
 
+## Parent and child quick start
+
+First complete [local setup](#start) or use a [published app](#publish).
+Parent and child use separate browsers/devices. For a child on another device,
+use the app's [public HTTPS address](#public-https-address), not `localhost`.
+
+### Parent
+
+1. Sign in with the parent account created during setup.
+2. Open `/children` and add a child profile; grade and age are optional.
+3. Create an activity at `/activities/new`. Generate and review the material,
+   questions and answer keys, then save and mark it ready. From the ready
+   activity's preview, select the child and assign it.
+4. At `/children`, select that child, name the device and create an activation
+   code. Give the child the displayed activation address and code; the code
+   works once and expires after ten minutes.
+5. After submission, open `/assignments` to see the work and elapsed time.
+   Grade any pending short-text answers and finalize the review to show the
+   final total.
+
+### Child
+
+1. Open the activation address (`/child/activate`) in the separate browser and
+   enter the code. No child email or password is needed.
+2. Open an assigned activity from `/child` and answer the questions. Use
+   **שמירת התשובות** before leaving; reopening resumes the last saved answers.
+3. Choose **הגשת העבודה** when finished. Submission locks the answers and shows
+   a receipt; the final total appears once any parent review is complete.
+
+Access lasts up to 30 days from activation. Disconnect, expiry, revocation or
+cleared cookies require a new code. Parents manage access at `/children`;
+disabling a profile revokes all its devices and pending codes, and re-enabling
+requires fresh activation. See the [child-flow contracts](docs/product-specification.md#child-flow)
+for scoring, profile details and history-preserving cleanup.
+
 ## Start
 
 Use the **.NET 8 SDK** (selected by `global.json`) and a Node version allowed by
@@ -152,40 +187,11 @@ queued events. These are operational logs, not an audit ledger.
 
 ## Data
 
-The library removes individual drafts, templates or snapshots independently;
-deleting a template keeps its activities. Removing a snapshot archives it when
-assigned to a child, preserving existing work; unassigned snapshots are deleted.
-**איפוס נתוני הלמידה** (reset learning
-data) clears the family's templates, drafts, operations, snapshots, child
-profiles, device access, assignments, answers and grades after confirmation,
-keeping parent accounts and AI configuration. Child profile, separate-device
-activation, assignment, resumable answer and parent grading/report APIs are
-available. Submission automatically scores choices/numbers and freezes short text
-for parent review. Parents finalize all pending grades once; reports retain the
-original answers and awards. Parents manage profiles and devices at `/children`,
-assign a frozen activity from its preview, and filter or review work at
-`/assignments`. On a separate child browser/device, open `/child/activate` and
-enter the one-time code. `/child` lists available and submitted work; opening an
-activity starts or resumes its saved session. Children explicitly save progress
-and submit, then see a receipt and the final total after review. Lost responses
-offer a saved-work check without silently replacing local answers. Disconnecting
-revokes this device's access. Activation codes last ten minutes and work once;
-the activated browser keeps access for up to 30 days without extending it on
-use. At `/children`, revoke an individual device or disable the profile to revoke
-all devices and pending codes. Re-enabling a profile requires fresh activation.
-Clearing browser cookies also requires a new code.
-
-Every nonblank short-text answer needs a parent's grade, including an exact
-answer-key match or a zero-point question. Pending work has no final score.
-Completed answers and grades cannot be edited, and each assignment permits one
-attempt. Withdrawing available work blocks child access while retaining its
-history; archived assigned content remains available through its assignment.
-Use a new reviewed snapshot for a deliberate repeat. Profiles support optional
-grade and age. Results show elapsed time from first opening to submission,
-including breaks. Secondary timestamps sit under “פרטי זמנים”. Unused profiles
-and revoked/expired device entries can be removed; profiles with assignment
-history can be disabled. Library removal deletes unassigned activities and
-archives assigned activities while preserving their work.
+Library removal deletes unassigned snapshots and archives assigned ones.
+**איפוס נתוני הלמידה** clears all family learning records and child access after
+confirmation, keeping parent accounts and AI configuration. See
+[retention and reset](docs/product-specification.md#retention-and-reset) for the
+full deletion contract.
 
 Development stores SQLite and Data Protection keys in the ignored
 `backend/FamilyLearning.Api/data/`. Set `Storage__Directory` to an absolute path
