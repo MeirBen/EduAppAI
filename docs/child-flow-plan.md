@@ -4,9 +4,9 @@
 > reviewed task at a time. Use subagent-driven development only if the user
 > selects it. Checkboxes track implementation, not completion of this document.
 
-**Status:** Proposed for review, 3 October 2026. No implementation task has
-started. The spec and plan have been checked against the current repository;
-implementation and acceptance evidence remain pending.
+**Status:** Proposed for review, 3 October 2026; rechecked against the
+repository on 6 October, after the material-ideas changes. No implementation
+task has started; implementation and acceptance evidence remain pending.
 
 **Goal:** A parent assigns reviewed work to an activated child device, the child
 saves and submits answers, and the parent sees stable results and grades short
@@ -133,8 +133,9 @@ CancellationToken) -> Task<ChildIdentity?>`: validate the stored profile and
   children's and parent-only information.
 - `LearnerDocument`, `LearnerMaterial`, `LearnerQuestion`, `LearnerInteraction`:
   explicitly declared allowlisted projections from the spec.
-  `LearnerQuestion` carries ID, prompt,
-  interaction and possible points; no answer, origin or acceptance property.
+  `LearnerMaterial` carries ID, title and body; no origin, acceptance or idea.
+  `LearnerQuestion` carries ID, prompt, interaction and possible points; no
+  answer, origin or acceptance property.
 - `SessionAnswer(string QuestionId, string Value)`;
   `SaveAnswersRequest(long ExpectedRevision, SessionAnswer[] Answers)` and
   `SubmitAnswersRequest(long ExpectedRevision, SessionAnswer[] Answers)`.
@@ -298,7 +299,9 @@ contracts, `LearnerDocument` and read endpoints used by Tasks 3, 5 and 6.
 - [ ] Make snapshot deletion archive referenced snapshots and hard-delete only
       unassigned ones. Hide archived snapshots from the ordinary library, keep
       owned parent previews and assignment reads working, and expose metadata for
-      accurate archive/delete copy. Update existing UI/API comments in this task.
+      accurate archive/delete copy. `GenerationHistoryReader` keeps reading
+      archived snapshots: the child did that work, so it still steers variety.
+      Update existing UI/API comments in this task.
       Keep the existing DELETE success contract; confirmation must explain both
       outcomes if a concurrent assignment changes deletion into archiving, and
       success copy must not claim permanent deletion from stale list metadata.
