@@ -132,6 +132,13 @@ On 6 October different-topic rewrites replayed the app's exact rewrite request.
   and 30 blind-labelled sets, and their per-story effects reversed between
   samples. Parent review and the "ניסוח פשוט וברור יותר" suggestion remain the
   safeguard.
+- **Difficulty and wording:** third-grade informational space texts used 6.1
+  formal or literary words at medium difficulty against 4.4 at easy (p ≈ 0.05,
+  ten texts each, equal length), while question wording did not differ (2.4
+  each). Defining difficulty as thinking demand rather than wording left medium
+  texts unchanged (6.1 over eight texts, partly blind), so it was not adopted.
+  Easy is the lever for simpler language; the plan chat defaults to medium when
+  the parent states no difficulty.
 
 ## Material variety
 
