@@ -156,10 +156,12 @@ deleting a template keeps its activities. Removing a snapshot archives it when
 assigned to a child, preserving existing work; unassigned snapshots are deleted.
 **איפוס נתוני הלמידה** (reset learning
 data) clears the family's templates, drafts, operations, snapshots, child
-profiles, device access and assignments after confirmation, keeping parent
-accounts and AI configuration. Child profile, separate-device activation and
-assignment APIs are available; child screens and answer submission are still
-planned.
+profiles, device access, assignments, answers and grades after confirmation,
+keeping parent accounts and AI configuration. Child profile, separate-device
+activation, assignment, resumable answer and parent grading/report APIs are
+available. Submission automatically scores choices/numbers and freezes short text
+for parent review. Parents finalize all pending grades once; reports retain the
+original answers and awards. Child/management screens are still planned.
 
 Development stores SQLite and Data Protection keys in the ignored
 `backend/FamilyLearning.Api/data/`. Set `Storage__Directory` to an absolute path

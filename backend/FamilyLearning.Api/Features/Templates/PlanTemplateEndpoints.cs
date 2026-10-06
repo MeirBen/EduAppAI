@@ -66,6 +66,7 @@ public static class PlanTemplateEndpoints
         if (id.HasValue && !await templates.AnyAsync(ct)) return Results.NotFound();
         if (!id.HasValue)
         {
+            await db.TaskSessions.Where(s => s.Assignment.FamilyId == familyId).ExecuteDeleteAsync(ct);
             await db.Assignments.Where(a => a.FamilyId == familyId).ExecuteDeleteAsync(ct);
             var children = db.Children.Where(c => c.FamilyId == familyId).Select(c => c.Id);
             await db.ChildDeviceGrants.Where(g => children.Contains(g.ChildId)).ExecuteDeleteAsync(ct);

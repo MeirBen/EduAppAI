@@ -9,6 +9,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using static FamilyLearning.Api.Tests.Integration.AssignmentTests;
 using static FamilyLearning.Api.Tests.Integration.ChildHarness;
+using static FamilyLearning.Api.Tests.Integration.ChildSessionTests;
 
 namespace FamilyLearning.Api.Tests.Integration;
 
@@ -111,6 +112,8 @@ public sealed class AssignmentRetentionTests
         var foreign = await Create(stranger);
         using var child = await h.Activate(parent, profile);
         var foreignAssignment = await Assign(stranger, foreign, await Snapshot(stranger));
+        using var foreignClient = await h.Activate(stranger, foreign);
+        var foreignSession = await Start(foreignClient, SessionPath(foreignAssignment));
         var snapshotId = await Snapshot(parent);
         var ids = new List<Guid> { snapshotId };
         using (var scope = h.App.Services.CreateScope())
@@ -127,7 +130,7 @@ public sealed class AssignmentRetentionTests
             }
             await db.SaveChangesAsync();
         }
-        foreach (var id in ids) await Assign(parent, profile, id);
+        foreach (var id in ids) await Start(child, SessionPath(await Assign(parent, profile, id)));
         foreach (var client in new[] { parent, child })
         {
             var path = client == parent ? "/api/assignments" : "/api/child/assignments";
@@ -146,7 +149,11 @@ public sealed class AssignmentRetentionTests
         Assert.Equal(HttpStatusCode.OK, (await child.GetAsync("/api/child/auth/me")).StatusCode);
         Assert.Single((await parent.GetFromJsonAsync<JsonNode>("/api/assignments?pageSize=100&page=2"))!["items"]!.AsArray());
         using (var scope = h.App.Services.CreateScope())
-            await scope.ServiceProvider.GetRequiredService<LearningDbContext>().Database.ExecuteSqlRawAsync("DROP TRIGGER prevent_snapshot_reset;");
+        {
+            var db = scope.ServiceProvider.GetRequiredService<LearningDbContext>();
+            Assert.Equal(102, await db.TaskSessions.CountAsync());
+            await db.Database.ExecuteSqlRawAsync("DROP TRIGGER prevent_snapshot_reset;");
+        }
         Assert.Equal(HttpStatusCode.NoContent, (await parent.DeleteAsync("/api/templates")).StatusCode);
         Assert.Empty((await parent.GetFromJsonAsync<JsonNode>("/api/assignments"))!["items"]!.AsArray());
         Assert.Equal(HttpStatusCode.Unauthorized, (await child.GetAsync("/api/child/auth/me")).StatusCode);
@@ -155,5 +162,7 @@ public sealed class AssignmentRetentionTests
         var remaining = verification.ServiceProvider.GetRequiredService<LearningDbContext>();
         Assert.Single(await remaining.TaskSnapshots.ToArrayAsync());
         Assert.Single(await remaining.Children.ToArrayAsync());
+        Assert.Single(await remaining.TaskSessions.ToArrayAsync());
+        Assert.True(JsonNode.DeepEquals(foreignSession, await foreignClient.GetFromJsonAsync<JsonNode>(SessionPath(foreignAssignment))));
     }
 }

@@ -63,6 +63,7 @@ public static class ApiConfiguration
         var child = root.MapGroup("/child").RequireAuthorization("Child");
         child.MapChildAuthEndpoints();
         child.MapChildAssignmentEndpoints();
+        child.MapChildSessionEndpoints();
         api.MapGet("/limits", () => ContentLimits.Current);
         api.MapPlanAuthoringEndpoints();
         api.MapLibraryChangeEndpoints();

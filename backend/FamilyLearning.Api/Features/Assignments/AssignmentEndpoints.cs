@@ -24,6 +24,7 @@ public static class AssignmentEndpoints
             return snapshot is null ? Results.NotFound() : Results.Ok(new AssignmentDetail(summary, SnapshotPreview.From(snapshot)));
         });
         assignments.MapPost("/{id:guid}/withdraw", WithdrawAsync);
+        assignments.MapParentReviewEndpoints();
     }
 
     private static async Task<IResult> CreateAsync(CreateAssignmentRequest request, ClaimsPrincipal user, LearningDbContext db,

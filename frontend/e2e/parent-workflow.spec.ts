@@ -1,6 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 import { numericPlan } from '../src/app/features/activities/learning-plan.fixture';
 import { textSize } from './text-size';
+import { verifyParentReview } from './parent-review';
 
 async function login(page: Page, email = 'browser@example.test') {
   await page.goto('/');
@@ -394,6 +395,27 @@ test('library deletion confirms intent, preserves independent items, recovers fr
     ).status(),
   ).toBe(204);
   expect((await childRequest.get(`${childBase}/api/instances/${snapshot.id}`)).status()).toBe(401);
+  const childHeaders = {
+    'X-XSRF-TOKEN': (await (await childRequest.get(`${childBase}/api/child/auth/csrf`)).json())
+      .token,
+  };
+  const sessionPath = `${childBase}/api/child/assignments/${assignment.id}/session`;
+  expect((await childRequest.get(sessionPath)).status()).toBe(404);
+  expect((await childRequest.post(sessionPath, { headers: childHeaders })).status()).toBe(201);
+  const answers = original.document.questions.map(
+    (question: { id: string; answer: { value: string } }) => ({
+      questionId: question.id,
+      value: question.answer.value,
+    }),
+  );
+  const save = await childRequest.put(sessionPath, {
+    headers: childHeaders,
+    data: { expectedRevision: 1, answers },
+  });
+  expect(save.status()).toBe(200);
+  const savedSession = await save.json();
+  expect(savedSession.answers).toEqual(answers);
+  expect(await (await childRequest.get(sessionPath)).json()).toEqual(savedSession);
   await expect(snapshots.getByText('הוקצתה לילד', { exact: false })).toBeVisible();
   page.once('dialog', async (dialog) => {
     expect(dialog.message()).toContain('ארכיון');
@@ -415,9 +437,39 @@ test('library deletion confirms intent, preserves independent items, recovers fr
     'points',
     'prompt',
   ]);
+  const submit = await childRequest.post(`${sessionPath}/submit`, {
+    headers: childHeaders,
+    data: { expectedRevision: savedSession.revision, answers },
+  });
+  expect(submit.status()).toBe(200);
+  const completed = await submit.json();
+  expect(completed.status).toBe('completed');
+  expect(completed.finalTotal).toBe(completed.possibleTotal);
+  expect(Object.keys(completed).sort()).toEqual([
+    'answers',
+    'assignmentId',
+    'finalTotal',
+    'possibleTotal',
+    'reviewedAtUtc',
+    'revision',
+    'savedAtUtc',
+    'startedAtUtc',
+    'status',
+    'submittedAtUtc',
+  ]);
+  for (const answer of completed.answers)
+    expect(Object.keys(answer).sort()).toEqual(['questionId', 'value']);
+  const replay = await childRequest.post(`${sessionPath}/submit`, {
+    headers: childHeaders,
+    data: { expectedRevision: savedSession.revision, answers: [...answers].reverse() },
+  });
+  expect(replay.status()).toBe(200);
+  expect(await replay.json()).toEqual(completed);
   await page.goto(`/instances/${snapshot.id}`);
   await expect(page.getByText('הפעילות בארכיון.', { exact: false })).toBeVisible();
   await narrow(page, 'archived-snapshot');
+  await test.step('parent grading preserves frozen answers and keeps child reports private', () =>
+    verifyParentReview(page, childRequest, profile.id));
   await page.goto('/templates');
 
   await page.route('**/api/templates', async (route) => {
@@ -430,6 +482,7 @@ test('library deletion confirms intent, preserves independent items, recovers fr
   await expect(page.getByRole('alert')).toBeVisible();
   await expect(snapshots.locator('article')).toHaveCount(0);
   expect((await childRequest.get(`${childBase}/api/child/auth/me`)).status()).toBe(200);
+  expect(await (await childRequest.get(sessionPath)).json()).toEqual(completed);
   await page.unroute('**/api/templates');
   page.once('dialog', (dialog) => dialog.accept());
   await page.getByRole('button', { name: 'איפוס נתוני הלמידה' }).click();
@@ -438,6 +491,7 @@ test('library deletion confirms intent, preserves independent items, recovers fr
   expect((await page.request.get(state.draftPath)).status()).toBe(404);
   expect((await page.request.get('/api/auth/me')).status()).toBe(200);
   expect((await childRequest.get(`${childBase}/api/child/auth/me`)).status()).toBe(401);
+  expect((await childRequest.get(sessionPath)).status()).toBe(401);
   expect((await page.request.get(`/api/instances/${snapshot.id}`)).status()).toBe(404);
   await childContext.close();
 

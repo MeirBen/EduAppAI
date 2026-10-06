@@ -16,6 +16,21 @@ public sealed class Assignment(Guid familyId, Guid childId, Guid snapshotId, Dat
     public DateTime? WithdrawnAtUtc { get; private set; }
     public Child Child { get; private set; } = null!;
     public TaskSnapshot Snapshot { get; private set; } = null!;
+    public TaskSession? Session { get; private set; }
+
+    /// <summary>Advances available work after its session evaluation has been frozen in the same transaction.</summary>
+    public void Submit(bool needsReview)
+    {
+        Status = needsReview ? "awaiting-review" : "completed";
+        Revision++;
+    }
+
+    /// <summary>Completes pending work after all parent grades are saved in the same revision-checked transaction.</summary>
+    public void CompleteReview()
+    {
+        Status = "completed";
+        Revision++;
+    }
 
     /// <summary>Withdraws available work. The endpoint checks status/revision inside its write transaction.</summary>
     public void Withdraw(DateTime utcNow)

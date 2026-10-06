@@ -13,7 +13,7 @@ public sealed record AssignmentSummary(Guid Id, Guid ChildId, string ChildName, 
     string Status, long Revision, DateTime CreatedAtUtc, bool HasStarted)
 {
     internal static readonly Expression<Func<Assignment, AssignmentSummary>> Projection = a =>
-        new(a.Id, a.ChildId, a.Child.Name, a.SnapshotId, a.Snapshot.Title, a.Status, a.Revision, a.CreatedAtUtc, false);
+        new(a.Id, a.ChildId, a.Child.Name, a.SnapshotId, a.Snapshot.Title, a.Status, a.Revision, a.CreatedAtUtc, a.Session != null);
 }
 /// <summary>Parent-only assignment detail. Snapshot contains answer keys and must never serve a child route.</summary>
 public sealed record AssignmentDetail(AssignmentSummary Assignment, SnapshotPreview Snapshot);

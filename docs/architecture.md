@@ -203,8 +203,8 @@ Writes acquire a short SQLite transaction before checking current access or
 state, so committed disable/revocation wins over an earlier authentication.
 Disabling invalidates pending codes and all grants; re-enabling restores neither.
 Parent profile/device lists use SQL projection and bounded deterministic paging.
-Family reset removes all owned assignments, child access and profiles in its
-transaction before deleting their referenced content.
+Family reset removes all owned sessions, assignments, child access and profiles
+in its transaction before deleting their referenced content.
 
 `Features/Assignments` owns one assignment per child/snapshot pair. Short write
 transactions serialize creation, withdrawal and snapshot removal. Composite
@@ -212,7 +212,36 @@ foreign keys enforce family ownership and retain assigned snapshots. Replays
 return the existing assignment before checking new-assignment eligibility.
 Parent list projections read names and titles in SQL before paging; child reads
 project explicit learner contracts without answer keys or generation metadata.
-Read endpoints never start work. Work sessions and grading remain future tasks.
+Read endpoints never start work. Session existence supplies `HasStarted` in SQL
+without loading answer buffers into lists.
+
+`TaskSession` uses its assignment ID as a restrictive primary/foreign key and
+has its own concurrency revision. Child session APIs explicitly start, read,
+save and submit complete answer buffers. Start/save leave assignment status and
+revision unchanged; submission advances both revisions atomically. Every write
+samples UTC and rechecks access after acquiring the transaction. Read-only
+resume and idempotent start never reset submitted work.
+
+`SessionValidation` bounds raw answers before recognizing a submission replay;
+missing/blank values mean unanswered, and other text is preserved exactly.
+`SessionScoring` compares validated numeric strings using their exact digits,
+avoiding decimal rounding. Submission stores frozen awards and scoring policy
+version 1 independently of generation revisions. Every answered short-text
+question awaits parent review, including zero-point questions. Child session
+responses expose saved answers, status, timestamps and a final total only when
+complete, never keys or per-question awards. Identical submissions return their
+stored result without changing revisions or timestamps.
+
+Parent assignment `/result` and `/review` endpoints read the frozen document and
+session evaluation. Review requires exactly the pending question IDs with bounded
+integer awards and the session revision. A short transaction completes both the
+assignment and session, recording the reviewer and UTC review time. Automatic
+awards, answers, submission time and scoring policy stay unchanged. Raw validation
+precedes replay; replay compares all original parent-graded rows, ignores their
+order and returns the saved report even with an old positive revision. Different
+grades cannot overwrite a completed result, and automatically completed work
+cannot gain parent review metadata. These parent report contracts never serve
+child routes. Archived content and disabled profiles retain their reports.
 
 Snapshot archive time is mutable metadata; content JSON stays frozen. Ordinary
 library lists hide archived rows, while owned parent previews, assignment reads

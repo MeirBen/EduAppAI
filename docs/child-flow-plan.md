@@ -4,18 +4,22 @@
 > reviewed task at a time. Use subagent-driven development only if the user
 > selects it. Checkboxes track implementation, not completion of this document.
 
-**Status:** Tasks 1–2 implemented and verified on 6 October 2026. The user
-explicitly authorized both tasks together. Tasks 3–7 have not started; the full
-child workflow remains incomplete.
+**Status:** Tasks 1–4 implemented and verified on 6 October 2026. The user
+explicitly authorized Tasks 1–2 together, then Tasks 3 and 4 individually.
+Tasks 5–7 have not started; the full child workflow remains incomplete.
 
-**Verification:** `./scripts/verify.sh` passed with 539 backend tests, 189 Angular
+**Verification:** `./scripts/verify.sh` passed with 592 backend tests, 189 Angular
 tests and 23 dashboard tests, plus formatting, Markdown, type checks and builds.
 `./scripts/publish.sh` and the isolated browser suite passed (27 tests), including
-assigned-snapshot archiving, child access after removal, family reset and the
-archived preview at 360px/200% text. An independent review found no critical or
-important issues; its small reset/identity-read race was reproduced and fixed.
-Verification used disposable databases and isolated providers, with no paid AI
-calls or Git mutations.
+child save/resume, submission, parent grading/replay, retained archived content,
+family reset and the archived preview at 360px/200% text. Task 4's independent
+review found no actionable issues. Tests cover bounded grades, competing parents,
+unchanged automatic awards, zero-point review, transaction rollback, saved-outcome
+recovery, child response allowlists, disabled/archived retention and host restart.
+Task 4 adds no schema change; EF reports no pending model changes. Verification
+used disposable databases and isolated providers, with no paid AI calls or Git
+mutations. Grading checks reuse the retention workflow's signed-in contexts to
+stay within the production login limit.
 
 **Goal:** A parent assigns reviewed work to an activated child device, the child
 saves and submits answers, and the parent sees stable results and grades short
@@ -344,27 +348,27 @@ answers, timestamps and final total only when complete), and the scoring APIs
 listed above. `Assignment.Status` is the lifecycle authority; do not add a
 second independently mutable session status.
 
-- [ ] Add failing scoring assertions: choice match/full points; valid wrong
+- [x] Add failing scoring assertions: choice match/full points; valid wrong
       choice/zero; `+02.00` equals key `2`; negative decimals; zero; reject commas,
       exponent and decimal overflow at submission; preserve Hebrew/niqqud text with
       unset points; blank text/zero; answered zero-point text/still pending review.
       Include signed zero, long equal fractions with extra trailing zeros, and
       unequal fractions that `decimal.TryParse` rounds to the same value, including
       a nonzero fraction rounded to zero. Test both answer and key positions.
-- [ ] Add endpoint tests for empty/missing/null/duplicate/unknown answers,
+- [x] Add endpoint tests for empty/missing/null/duplicate/unknown answers,
       oversized strings/collections, save of unfinished numeric text, two starts
       producing one session, stale writes and independent sibling sessions.
-- [ ] Run the new `SessionScoringTests` and `ChildSessionTests` using
+- [x] Run the new `SessionScoringTests` and `ChildSessionTests` using
       `dotnet test tests/FamilyLearning.Api.Tests --filter` with the class name;
       confirm the required behavior fails before implementing it.
-- [ ] Add `TaskSession` keyed by its assignment ID (also a foreign key), with
+- [x] Add `TaskSession` keyed by its assignment ID (also a foreign key), with
       concurrency revision, `AnswersJson`, nullable `EvaluationJson`, scoring
       policy version, UTC start/save/submit/review timestamps and nullable
       `ReviewedByParentId`. Answers remain editable only before submission.
       The bounded result stores nullable parent awards; already computed
       automatic awards cannot change. Generate and inspect
       migration `AddTaskSessions`. Reset deletes sessions before assignments.
-- [ ] Implement `SessionValidation.Validate` and the numeric/choice scoring
+- [x] Implement `SessionValidation.Validate` and the numeric/choice scoring
       paths. Reuse `QuestionRules.ValidNumericAnswer` for existing grammar/range
       validation. For equality, normalize the validated strings' leading sign,
       leading integer zeros, trailing fractional zeros and signed zero; compare
@@ -373,16 +377,16 @@ second independently mutable session status.
       Keep this bounded comparison local to scoring; no numeric library or engine
       change is needed. Never trim or normalize a nonblank saved short-text answer.
       Method comments must state whether validated input is required.
-- [ ] Implement `POST /api/child/assignments/{id}/session` (idempotent start),
+- [x] Implement `POST /api/child/assignments/{id}/session` (idempotent start),
       `GET` and `PUT` at that session path, and
       `POST /api/child/assignments/{id}/session/submit`. Start reads existing terminal
       work without resetting it. Saving validates ownership, active assignment,
       access and expected revision before updating the complete answer buffer.
-- [ ] Submit the complete final buffer in one short transaction. Recheck child,
+- [x] Submit the complete final buffer in one short transaction. Recheck child,
       grant, assignment state and revision in that transaction; validate, freeze
       answers, evaluate once and persist the policy version and final/pending state.
       No HTTP/AI work occurs while a database transaction is held.
-- [ ] Recognize an identical submitted answer set before rejecting its old
+- [x] Recognize an identical submitted answer set before rejecting its old
       revision. Ignore collection ordering and blank-versus-omitted differences,
       but compare other strings exactly. Return the stored outcome; a changed set
       conflicts. The client never supplies totals or grades.
@@ -390,13 +394,13 @@ second independently mutable session status.
       replay cannot bypass validation. Use `string.IsNullOrWhiteSpace` for the
       unanswered rule without trimming other strings. Test malformed replays and
       oversized whitespace, as well as empty, omitted and reordered answers.
-- [ ] Add synchronized races for submit/submit, submit/withdraw, save/revoke,
+- [x] Add synchronized races for submit/submit, submit/withdraw, save/revoke,
       submit/disable and submit/reset. Assert the winning state, no partial results,
       no recreated deleted rows and no answer changes after submission. Test the
       gap between cookie validation and the transaction's access recheck, with
       access entities already read by that request. Also expire a grant while
       waiting to start its write, and assert access uses the later clock value.
-- [ ] Verify focused tests and `./scripts/verify.sh`. Reopen the same disposable
+- [x] Verify focused tests and `./scripts/verify.sh`. Reopen the same disposable
       database in a fresh host and prove answers, automatic awards, pending state
       and revisions survive. Assert completion/session JSON allowlists and
       zero AI calls for every operation. Stop for user review.
@@ -420,27 +424,27 @@ The result includes frozen keys, submitted answers, each award/method, policy
 version, pending count, automatic subtotal, nullable final total and reviewer
 metadata; none of this parent DTO is reused by the child API.
 
-- [ ] Add failing tests: foreign family cannot read/grade, unsent work cannot be
+- [x] Add failing tests: foreign family cannot read/grade, unsent work cannot be
       graded, all pending IDs are required once, automatic grades cannot be edited,
       fractional/negative/excess awards are invalid, and partial credit is accepted.
       Automatically completed work rejects a review with 409 and unchanged metadata.
-- [ ] Run `dotnet test tests/FamilyLearning.Api.Tests --filter ParentReviewTests`
+- [x] Run `dotnet test tests/FamilyLearning.Api.Tests --filter ParentReviewTests`
       and confirm the new behaviors fail before implementation.
-- [ ] Implement `CompleteReview` from the frozen evaluation alone. Preserve
+- [x] Implement `CompleteReview` from the frozen evaluation alone. Preserve
       automatic awards and possible points, fill only pending parent rows and
       calculate the final total; never rerun generation or scoring against a live
       template. Store reviewer parent ID and review UTC time.
-- [ ] Finalize grades and assignment completion atomically with the session
+- [x] Finalize grades and assignment completion atomically with the session
       revision. Replaying the same grade set returns the stored report;
       changing completed grades conflicts. Test two parents finalizing concurrently.
       On replay, compare against stored parent-graded rows, not the now-empty
       pending set; validate raw bounds, nulls and duplicate IDs before comparing.
       An identical reordered grade set with an old revision keeps the original
       reviewer, timestamps and revisions. Add direct tests for these cases.
-- [ ] Test zero total points produces no percentage, pending work has no final
+- [x] Test zero total points produces no percentage, pending work has no final
       total, archived snapshots remain readable, disabled children retain results,
       and a fresh host returns the identical stored awards after a restart.
-- [ ] Verify focused tests and `./scripts/verify.sh`; inspect serialized child
+- [x] Verify focused tests and `./scripts/verify.sh`; inspect serialized child
       completion/history again to ensure the new parent fields cannot appear.
       Stop for user review.
 
@@ -610,7 +614,7 @@ child-flow spec and this plan. Keep evaluation history and costs intact.
 Review the spec and this plan together, especially parent grading of every
 answered short-text question, separate-device access, explicit save, one attempt
 per assignment, fixed grant expiry and the expanded destructive reset scope.
-The user may adjust the remaining product choices before Task 3. Do not start
+The user may adjust the remaining product choices before Task 5. Do not start
 additional tasks merely because their checklists exist.
 
 [decimal-parsing]: https://learn.microsoft.com/dotnet/api/system.decimal.tryparse

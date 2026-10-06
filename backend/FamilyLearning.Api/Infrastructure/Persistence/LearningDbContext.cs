@@ -17,6 +17,7 @@ public sealed class LearningDbContext(DbContextOptions<LearningDbContext> option
     : IdentityUserContext<ParentUser>(options)
 {
     public DbSet<Assignment> Assignments => Set<Assignment>();
+    public DbSet<TaskSession> TaskSessions => Set<TaskSession>();
     public DbSet<Child> Children => Set<Child>();
     public DbSet<ChildActivation> ChildActivations => Set<ChildActivation>();
     public DbSet<ChildDeviceGrant> ChildDeviceGrants => Set<ChildDeviceGrant>();
@@ -116,6 +117,17 @@ public sealed class LearningDbContext(DbContextOptions<LearningDbContext> option
                 .HasPrincipalKey(c => new { c.FamilyId, c.Id }).OnDelete(DeleteBehavior.Restrict);
             entity.HasOne(a => a.Snapshot).WithMany().HasForeignKey(a => new { a.FamilyId, a.SnapshotId })
                 .HasPrincipalKey(s => new { s.FamilyId, s.Id }).OnDelete(DeleteBehavior.Restrict);
+        });
+        model.Entity<TaskSession>(entity =>
+        {
+            entity.HasKey(s => s.AssignmentId);
+            entity.Property(s => s.Revision).IsConcurrencyToken();
+            entity.Property(s => s.StartedAtUtc).HasConversion(utcTimestamp);
+            entity.Property(s => s.SavedAtUtc).HasConversion(utcTimestamp);
+            entity.Property(s => s.SubmittedAtUtc).HasConversion(utcTimestamp);
+            entity.Property(s => s.ReviewedAtUtc).HasConversion(utcTimestamp);
+            entity.HasOne(s => s.Assignment).WithOne(a => a.Session).HasForeignKey<TaskSession>(s => s.AssignmentId)
+                .OnDelete(DeleteBehavior.Restrict);
         });
         model.Entity<GenerationOperation>(entity =>
         {
