@@ -1,0 +1,240 @@
+<section class="grid gap-6 py-gutter" aria-labelledby="children-heading">
+  <header class="grid gap-1">
+    <h1 id="children-heading">הילדים והמכשירים</h1>
+    <p class="text-muted">ניהול הפרופילים והגישה לפעילויות של המשפחה.</p>
+  </header>
+  <section class="grid gap-4" aria-labelledby="profiles-heading">
+    <div class="flex flex-wrap items-center justify-between gap-3">
+      <h2 id="profiles-heading">פרופילי הילדים</h2>
+      <button
+        id="refresh-children"
+        class="text-link"
+        [disabledInteractive]="busy() || children.isLoading()"
+        (click)="children.reload()"
+      >
+        רענון הרשימה
+      </button>
+    </div>
+    <app-loading-indicator [active]="children.isLoading()" label="טוענים פרופילים…" />
+    @if (children.error()) {
+      <p class="error" role="alert">{{ failure(children.error()) }}</p>
+    }
+    @if (children.hasValue()) {
+      @for (child of children.value().items; track child.id) {
+        <article class="list-row" [attr.aria-labelledby]="'child-' + child.id">
+          <div class="grid min-w-1/2 flex-1 gap-1">
+            <h3 [id]="'child-' + child.id">
+              <bdi>{{ child.name }}</bdi>
+            </h3>
+            <p class="text-muted">{{ child.enabled ? 'פרופיל פעיל' : 'פרופיל מושבת' }}</p>
+          </div>
+          <button
+            data-edit-child
+            class="button button-secondary"
+            [disabledInteractive]="busy()"
+            [attr.aria-label]="'ניהול הפרופיל: ' + child.name"
+            (click)="select(child)"
+          >
+            ניהול
+          </button>
+        </article>
+      } @empty {
+        <p class="empty-state">עוד אין פרופילים. הוסיפו ילד או ילדה כדי להקצות פעילויות.</p>
+      }
+      <nav class="flex flex-wrap items-center gap-3" aria-label="עמודי פרופילים">
+        <button
+          class="button button-secondary"
+          [disabledInteractive]="busy() || children.isLoading() || page() === 1"
+          (click)="page.set(page() - 1)"
+        >
+          הקודם
+        </button>
+        <span>עמוד {{ page() }}</span
+        ><button
+          id="children-next"
+          class="button button-secondary"
+          [disabledInteractive]="busy() || children.isLoading() || !children.value().hasMore"
+          (click)="page.set(page() + 1)"
+        >
+          הבא
+        </button>
+      </nav>
+    }
+  </section>
+  <section class="panel grid gap-4" aria-labelledby="profile-heading">
+    <div class="flex flex-wrap items-center justify-between gap-3">
+      <h2 id="profile-heading">{{ selected() ? 'עריכת פרופיל' : 'פרופיל חדש' }}</h2>
+      @if (selected()) {
+        <button id="new-child" class="text-link" [disabledInteractive]="busy()" (click)="select()">
+          הוספת ילד או ילדה
+        </button>
+      }
+    </div>
+    <form id="profile-form" class="grid gap-4" (submit)="save($event)">
+      <div>
+        <label class="mb-2 block" for="child-name">שם הילד או הילדה</label
+        ><input
+          id="child-name"
+          dir="auto"
+          autocomplete="off"
+          [formField]="fields.name"
+          aria-describedby="child-name-help child-name-errors"
+        />
+        <p id="child-name-help" class="mt-2 text-sm text-muted">{{ nameHint }}</p>
+        <app-field-errors id="child-name-errors" [field]="fields.name" />
+      </div>
+      @if (selected()) {
+        <label class="flex items-center gap-2"
+          ><input id="child-enabled" type="checkbox" [formField]="fields.enabled" />פרופיל
+          פעיל</label
+        >
+      }
+      <div class="grid gap-3">
+        @if (error()) {
+          <p role="alert" class="field-error">{{ error() }}</p>
+        }
+        @if (fields().touched() && fields().invalid()) {
+          <p class="field-error">יש לתקן את שם הפרופיל לפני השמירה.</p>
+        }
+        <button class="button" [disabledInteractive]="busy()">
+          {{ selected() ? 'שמירת הפרופיל' : 'יצירת פרופיל' }}
+        </button>
+      </div>
+    </form>
+  </section>
+  @if (selected(); as child) {
+    <section class="panel grid gap-4" aria-labelledby="access-heading">
+      <h2 id="access-heading">
+        גישה למכשירים — <bdi>{{ child.name }}</bdi>
+      </h2>
+      @if (child.enabled) {
+        <form id="activation-form" class="grid gap-4" (submit)="issue($event)">
+          <div>
+            <label class="mb-2 block" for="device-label">שם המכשיר</label
+            ><input
+              id="device-label"
+              dir="auto"
+              autocomplete="off"
+              [formField]="deviceFields.label"
+              aria-describedby="device-label-help device-label-errors"
+            />
+            <p id="device-label-help" class="mt-2 text-sm text-muted">
+              למשל: הטאבלט בבית. {{ nameHint }}
+            </p>
+            <app-field-errors id="device-label-errors" [field]="deviceFields.label" />
+          </div>
+          <p class="note">
+            <span class="icon icon-info" aria-hidden="true"></span>
+            הקוד מוצג כאן פעם אחת בלבד. קוד חדש מבטל קוד קודם שטרם נוצל. יש להשתמש בדפדפן נפרד
+            מכניסת ההורים.
+          </p>
+          @if (deviceFields().touched() && deviceFields().invalid()) {
+            <p class="field-error">יש לתקן את שם המכשיר לפני יצירת קוד.</p>
+          }
+          <button class="button button-secondary justify-self-start" [disabledInteractive]="busy()">
+            יצירת קוד הפעלה
+          </button>
+        </form>
+      } @else {
+        <p class="note">
+          <span class="icon icon-info" aria-hidden="true"></span>
+          הפרופיל מושבת. כדי לחבר מכשיר, הפעילו את הפרופיל ושמרו אותו לפני יצירת קוד חדש.
+        </p>
+      }
+      @if (activation(); as code) {
+        <div class="well grid gap-2" role="status">
+          <p>קוד הפעלה חד־פעמי:</p>
+          <p
+            class="select-all break-all font-semibold"
+            dir="ltr"
+            data-activation-code
+            [textContent]="code.code"
+          ></p>
+          <p>
+            בתוקף עד <bdi>{{ code.expiresAtUtc | date }}</bdi
+            >. הקוד ייעלם ביציאה מהעמוד.
+          </p>
+          <button class="text-link justify-self-start" (click)="activation.set(undefined)">
+            הסתרת הקוד
+          </button>
+        </div>
+      }
+      @if (accessError()) {
+        <p class="field-error" role="alert">{{ accessError() }}</p>
+      }
+      <section class="card-section" aria-labelledby="devices-heading">
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <h3 id="devices-heading">מכשירים</h3>
+          <button
+            class="text-link"
+            [disabledInteractive]="busy() || devices.isLoading()"
+            (click)="devices.reload()"
+          >
+            רענון המכשירים
+          </button>
+        </div>
+        <app-loading-indicator [active]="devices.isLoading()" label="טוענים מכשירים…" />
+        @if (devices.error()) {
+          <p class="field-error" role="alert">{{ failure(devices.error()) }}</p>
+        }
+        @if (devices.hasValue()) {
+          @for (device of devices.value().items; track device.id) {
+            <article
+              class="flex flex-wrap items-center gap-4"
+              [attr.aria-labelledby]="'device-' + device.id"
+            >
+              <div class="grid min-w-1/2 flex-1 gap-1">
+                <h4 [id]="'device-' + device.id">
+                  <bdi>{{ device.deviceLabel }}</bdi>
+                </h4>
+                <p class="text-sm text-muted">
+                  חובר ב־<bdi>{{ device.createdAtUtc | date }}</bdi>
+                </p>
+                <p class="text-sm text-muted">
+                  {{ device.revokedAtUtc ? 'הגישה בוטלה ב־' : 'תוקף הגישה עד '
+                  }}<bdi>{{ device.revokedAtUtc ?? device.expiresAtUtc | date }}</bdi>
+                </p>
+              </div>
+              @if (!device.revokedAtUtc) {
+                <button
+                  data-revoke
+                  class="button button-danger"
+                  [disabledInteractive]="busy()"
+                  [attr.aria-label]="'ביטול הגישה: ' + device.deviceLabel"
+                  (click)="revoke(device)"
+                >
+                  ביטול גישה
+                </button>
+              }
+            </article>
+          } @empty {
+            <p class="text-muted">אין מכשירים בעמוד זה.</p>
+          }
+          <nav class="flex flex-wrap items-center gap-3" aria-label="עמודי מכשירים">
+            <button
+              class="button button-secondary"
+              [disabledInteractive]="busy() || devices.isLoading() || devicePage() === 1"
+              (click)="devicePage.set(devicePage() - 1)"
+            >
+              הקודם</button
+            ><span>עמוד {{ devicePage() }}</span
+            ><button
+              id="devices-next"
+              class="button button-secondary"
+              [disabledInteractive]="busy() || devices.isLoading() || !devices.value().hasMore"
+              (click)="devicePage.set(devicePage() + 1)"
+            >
+              הבא
+            </button>
+          </nav>
+        }
+      </section>
+    </section>
+  }
+  <app-loading-indicator [active]="busy()" label="שומרים שינויים…" />
+  @if (notice()) {
+    <p role="status" class="note">
+      <span class="icon icon-info" aria-hidden="true"></span>{{ notice() }}
+    </p>
+  }
+</section>

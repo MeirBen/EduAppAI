@@ -41,6 +41,8 @@ async function isolate(page: Page) {
       signedIn = false;
       return route.fulfill({ status: 204 });
     }
+    if (path === '/api/children' && method === 'GET')
+      return route.fulfill({ json: { items: [], page: 1, pageSize: 25, hasMore: false } });
     if (path === '/api/limits') return route.fulfill({ json: limits });
     // No other device exists here; 204 closes the change stream without a retry.
     if (path === '/api/library/changes') return route.fulfill({ status: 204 });

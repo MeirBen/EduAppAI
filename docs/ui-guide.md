@@ -169,6 +169,24 @@ this to the model, so change both together. Control labels and options come from
 the reviewed template; the shared settings use application-owned labels, and
 only difficulty has fixed options.
 
+## Parent learning management
+
+Family navigation sits below the main header so its existing compact controls
+remain usable on phones. Profile and assignment lists use the shared list rows,
+native controls and bounded previous/next paging. Profile edits and device
+access are separate labelled sections; disabling and revoking name their effects
+before confirmation. Activation codes remain selectable text with their expiry,
+never a URL or persistent browser value.
+
+The frozen preview owns child selection and assignment, and links to the
+existing assignment when the pair was already assigned. Parent review displays
+the frozen content, exact submitted text and parent-only answer disclosures.
+Pending grades start empty; automatic awards and completed grades are read-only.
+Show the automatic subtotal as pending, and show a final percentage only with a
+positive possible total. Keep saved-result recovery beside the finalization
+action without replacing local grades. Reuse shared theme primitives and
+logical layout utilities; these pages need no separate stylesheets.
+
 ## Workspace actions
 
 The workspace owns one editable buffer and derives its presentation from it:

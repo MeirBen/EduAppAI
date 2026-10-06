@@ -1,0 +1,227 @@
+<section class="mx-auto grid max-w-3xl gap-6 py-gutter" aria-labelledby="result-heading">
+  <header class="grid gap-1">
+    <a class="text-link" routerLink="/assignments"
+      ><span class="icon icon-back" aria-hidden="true"></span>פעילויות לילדים</a
+    >
+    <h1 id="result-heading">{{ result() ? 'הגשה ובדיקה להורים' : 'פרטי הפעילות' }}</h1>
+  </header>
+  <app-loading-indicator
+    [active]="detail.isLoading() || initialResult.isLoading()"
+    label="טוענים את הפעילות…"
+    variant="panel"
+  />
+  @if (detail.error() || initialResult.error()) {
+    <div class="grid gap-2">
+      <p class="error" role="alert">{{ failure(detail.error() || initialResult.error()) }}</p>
+      <button
+        class="text-link justify-self-start"
+        (click)="detail.error() ? detail.reload() : initialResult.reload()"
+      >
+        ניסיון נוסף
+      </button>
+    </div>
+  }
+  @if (detail.hasValue()) {
+    @let assignment = result()?.assignment ?? detail.value().assignment;
+    <div class="grid gap-1">
+      <h2 dir="auto">{{ assignment.title }}</h2>
+      <p>
+        <bdi>{{ assignment.childName }}</bdi> · {{ statuses[assignment.status] }}
+      </p>
+      @if (detail.value().snapshot.archivedAtUtc) {
+        <p class="note">
+          <span class="icon icon-info" aria-hidden="true"></span>הפעילות בארכיון. התוכן הקבוע
+          והעבודה נשמרים.
+        </p>
+      }
+      <a class="text-link justify-self-start" [routerLink]="['/instances', assignment.snapshotId]"
+        >פתיחת הפעילות המוכנה</a
+      >
+    </div>
+    @if (result(); as report) {
+      <div class="grid gap-1">
+        <p class="text-muted">
+          הוגשה ב־<bdi>{{ report.submittedAtUtc | date }}</bdi>
+        </p>
+        @if (report.reviewedAtUtc) {
+          <p class="text-muted">
+            נבדקה ב־<bdi>{{ report.reviewedAtUtc | date }}</bdi>
+          </p>
+        }
+        @if (report.evaluation.finalTotal !== null) {
+          <p class="font-semibold">
+            ציון סופי: {{ report.evaluation.finalTotal }} מתוך {{ report.evaluation.possibleTotal }}
+            @if (report.evaluation.possibleTotal > 0) {
+              <span>
+                ({{
+                  (report.evaluation.finalTotal / report.evaluation.possibleTotal) * 100
+                    | number: '1.0-1'
+                }}%)</span
+              >
+            }
+          </p>
+        } @else {
+          <p class="note">
+            <span class="icon icon-info" aria-hidden="true"></span> סכום אוטומטי:
+            {{ report.evaluation.automaticSubtotal }} מתוך
+            {{ report.evaluation.possibleTotal }} נקודות אפשריות.
+            {{ report.evaluation.pendingCount }} תשובות ממתינות לבדיקה. עדיין אין ציון סופי.
+          </p>
+        }
+      </div>
+      @if (report.document.instructions) {
+        <p class="whitespace-pre-wrap" dir="auto">{{ report.document.instructions }}</p>
+      }
+      @for (material of report.document.materials; track material.id) {
+        <section class="panel grid gap-4">
+          @if (material.title) {
+            <h3 dir="auto">{{ material.title }}</h3>
+          }
+          <p class="whitespace-pre-wrap" dir="auto">{{ material.body }}</p>
+        </section>
+      }
+      <form id="review-form" class="grid gap-6" (submit)="finalize($event)">
+        <ol class="grid list-decimal gap-4 ps-6">
+          @for (row of rows(); track row.question.id) {
+            <li class="panel" [attr.aria-labelledby]="'question-' + row.question.id">
+              <div class="grid gap-4">
+                <h3 [id]="'question-' + row.question.id" class="whitespace-pre-wrap">
+                  <bdi>{{ row.question.prompt }}</bdi>
+                </h3>
+                @if (row.question.interaction.options?.length) {
+                  <ul class="grid list-disc gap-1 ps-6">
+                    @for (option of row.question.interaction.options; track $index) {
+                      <li>
+                        <bdi>{{ option }}</bdi>
+                      </li>
+                    }
+                  </ul>
+                }
+                @if (row.question.answer; as key) {
+                  <details>
+                    <summary>תשובה להורים — שאלה {{ $index + 1 }}</summary>
+                    <p class="mt-2 whitespace-pre-wrap">
+                      <bdi>{{ key.value }}</bdi>
+                    </p>
+                  </details>
+                }
+                <div class="grid gap-1">
+                  <h4>התשובה שהוגשה</h4>
+                  @if (row.answer !== undefined) {
+                    <p
+                      class="whitespace-pre-wrap"
+                      dir="auto"
+                      [attr.data-child-answer]="row.question.id"
+                      [textContent]="row.answer"
+                    ></p>
+                  } @else {
+                    <p class="text-muted">לא נענתה</p>
+                  }
+                </div>
+                @if (row.gradeIndex !== undefined) {
+                  <div>
+                    <label class="mb-2 block" [for]="'grade-' + row.question.id"
+                      >נקודות לשאלה {{ $index + 1 }} — בין 0 ל־{{ row.award.possiblePoints }}</label
+                    ><input
+                      [id]="'grade-' + row.question.id"
+                      type="text"
+                      inputmode="numeric"
+                      dir="ltr"
+                      class="w-24"
+                      autocomplete="off"
+                      [formField]="fields[row.gradeIndex].points"
+                      [attr.aria-describedby]="'grade-errors-' + row.question.id"
+                    /><app-field-errors
+                      [id]="'grade-errors-' + row.question.id"
+                      [field]="fields[row.gradeIndex].points"
+                    />
+                  </div>
+                } @else {
+                  <p>
+                    ניקוד {{ row.award.gradingMethod === 'automatic' ? 'אוטומטי' : 'בבדיקת הורה' }}:
+                    {{ row.award.awardedPoints }} מתוך {{ row.award.possiblePoints }}
+                  </p>
+                }
+              </div>
+            </li>
+          }
+        </ol>
+        <section class="action-bar" aria-labelledby="review-actions-heading">
+          <h2 id="review-actions-heading" class="sr-only">שמירת הבדיקה</h2>
+          @if (error()) {
+            <p class="field-error" role="alert">{{ error() }}</p>
+          }
+          @if (notice()) {
+            <p class="note" role="status">
+              <span class="icon icon-info" aria-hidden="true"></span>{{ notice() }}
+            </p>
+          }
+          <app-loading-indicator [active]="busy() || reading()" label="מעדכנים את הבדיקה…" />
+          @if (report.evaluation.pendingCount) {
+            @if (fields().touched() && fields().invalid()) {
+              <p class="field-error">יש להזין ניקוד תקין לכל התשובות שממתינות לבדיקה.</p>
+            }
+            <div class="flex flex-wrap gap-3">
+              <button class="button" [disabledInteractive]="busy() || reading() || recovery()">
+                שמירת ציונים וסיום הבדיקה</button
+              ><button
+                id="read-saved-result"
+                type="button"
+                class="button button-secondary"
+                [disabledInteractive]="busy() || reading()"
+                (click)="readSaved()"
+              >
+                קריאת התוצאה השמורה
+              </button>
+            </div>
+          }
+          @if (savedResult(); as saved) {
+            <section class="well grid gap-2" aria-labelledby="saved-result-heading">
+              <h3 id="saved-result-heading">התוצאה השמורה</h3>
+              <p>
+                {{ statuses[saved.assignment.status] }} ·
+                {{
+                  saved.evaluation.finalTotal === null
+                    ? 'אין ציון סופי'
+                    : 'ציון סופי: ' +
+                      saved.evaluation.finalTotal +
+                      ' מתוך ' +
+                      saved.evaluation.possibleTotal
+                }}
+              </p>
+              <p>הציונים המקומיים נשמרו למעלה. הצגת התוצאה השמורה תחליף אותם.</p>
+              <button
+                id="use-saved-result"
+                type="button"
+                class="text-link justify-self-start"
+                [disabledInteractive]="busy() || reading()"
+                (click)="useSaved()"
+              >
+                הצגת התוצאה השמורה
+              </button>
+            </section>
+          }
+        </section>
+      </form>
+    } @else if (assignment.status === 'assigned' || assignment.status === 'withdrawn') {
+      <p class="note">
+        <span class="icon icon-info" aria-hidden="true"></span>
+        {{
+          assignment.status === 'withdrawn'
+            ? 'ההקצאה בוטלה. אין הגשה לבדיקה.'
+            : 'העבודה עדיין לא הוגשה. לאחר ההגשה התשובות יופיעו כאן לבדיקה.'
+        }}
+      </p>
+      <div class="panel">
+        <app-activity-document-view [document]="detail.value().snapshot.document" />
+      </div>
+      <button
+        class="text-link justify-self-start"
+        [disabledInteractive]="detail.isLoading()"
+        (click)="detail.reload()"
+      >
+        בדיקת מצב ההגשה
+      </button>
+    }
+  }
+</section>

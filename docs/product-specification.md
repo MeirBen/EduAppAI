@@ -157,10 +157,11 @@ setup in the [README](../README.md) and presentation in the
 
 ## Next steps
 
-The implemented app ends at the parent preview. The next milestone is the
-child flow specified below; its [implementation plan](child-flow-plan.md)
-keeps the work in reviewed, independently verified tasks. Neither this section
-nor the plan means the child features have shipped.
+The parent workflow includes profile/device management, assignment and review
+screens. The remaining milestone is the child's activation, inbox and activity
+player specified below; its [implementation plan](child-flow-plan.md) keeps the
+work in reviewed, independently verified tasks. Planned child screens and later
+enhancements are not yet available.
 
 Alongside that work, review representative saved evaluation outputs for
 correctness, Hebrew, suitability and answer quality before handing the
@@ -179,8 +180,9 @@ Deferred maintenance from the live-update work:
 ## Child flow — next milestone
 
 **Partially implemented, 6 October 2026:** child access, assignment, resumable
-work/submission and parent grading/report APIs (Tasks 1–4) are available;
-child/management screens remain planned. This milestone completes
+work/submission and parent grading/report APIs (Tasks 1–4), plus parent
+management, assignment and review screens (Task 5), are available. Child
+activation and player screens remain planned. This milestone completes
 one loop: the parent creates a child profile, assigns a reviewed activity,
 activates a separate child device and sees the submitted answers and results.
 It extends the current application and immutable snapshots. Creating a profile,
@@ -238,6 +240,31 @@ milestone. All existing question types remain available.
   outage is not an expired session:
   display retry feedback without falsely reporting successful activation,
   saving or submission.
+
+### Optional grade and age — later enhancement
+
+After the current child-flow tasks, parents may optionally record **כיתה**
+(school grade) and **גיל** (age in completed years) on a child's profile.
+These fields are not part of Task 5 or the current API contract.
+
+- Leave both unset by default and allow either to be cleared independently.
+  Grade and age do not imply each other or the child's learning ability.
+  Grade should accommodate kindergarten, school years and children outside
+  the usual school structure. Define bounded server validation before implementation.
+- Store the date the age was confirmed and show when it was last updated;
+  do not silently increment an age without knowing the birthday. An exact
+  date of birth is not needed for this purpose.
+- A future explicit parent action may use these values to prefill the audience
+  of a new activity. Show the proposed audience for review and adjustment.
+  The generic AI flow may use it for vocabulary, reading level, instruction
+  complexity and difficulty; it is context, not a guarantee of suitability.
+- Send only the selected educational context to the AI provider, without the
+  child's name or profile identifiers. Save the resolved audience in the draft
+  and its immutable snapshot. Later profile edits never rewrite saved content,
+  assignments, submitted answers or grades, and never start generation.
+- Profile editing, child access and all assignment/review workflows continue
+  to work without these fields. No automatic tuning, AI grading or additional
+  AI calls are introduced by recording them.
 
 ### Assignments and learner-facing content
 
@@ -311,6 +338,30 @@ milestone. All existing question types remain available.
   grades are needed, otherwise `awaiting-review`. Neither state accepts answer
   edits, withdrawal or another attempt. Start/resume calls return this saved
   state and never reset it.
+
+### Elapsed activity time — later enhancement
+
+Parents should be able to see how long it took from the child's first opening
+of the activity player to the saved submission. This is a later display
+enhancement, separate from the current child-flow tasks, using the existing
+server UTC `StartedAtUtc` and `SubmittedAtUtc` timestamps rather than a browser
+stopwatch or new duration counter.
+
+- The first explicit opening/start of the child player creates the session and
+  starts this interval. Parent previews and read-only API requests do not start
+  it. Reopening, refreshing or resuming never resets the original start.
+- Submission freezes the interval. Retries, later visits and parent grading do
+  not extend it. Show the elapsed duration beside the submitted result, with
+  the start and submission times available for context.
+- Label it **זמן מהפתיחה עד ההגשה (כולל הפסקות)**. It includes time away from
+  the activity, closed tabs and offline gaps; it is not measured active study
+  time. Use readable minutes/hours, or **פחות מדקה** for a shorter interval.
+- Before submission, show the start time and an **טרם הוגשה** state, without
+  presenting a completed duration. Missing or inconsistent timestamps show
+  that duration is unavailable, never a guessed value.
+- Do not use elapsed time to change grades or infer ability. Active engagement
+  measurement, pause tracking, countdowns and time limits remain separate future
+  decisions and are outside this enhancement.
 
 ### Scoring and parent review
 

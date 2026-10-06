@@ -2,6 +2,8 @@ import { Routes } from '@angular/router';
 import { parentGuard } from './core/auth/parent-guard';
 import { loginGuard, signOutGuard } from './core/auth/login-guard';
 import { activityWorkspaceRoutes } from './features/activities/activity.routes';
+import type { ChildrenPage } from './features/children/children-page';
+import type { AssignmentResult } from './features/assignments/assignment-result';
 
 /** Lazy parent routes; server authorization remains authoritative. */
 export const routes: Routes = [
@@ -27,6 +29,26 @@ export const routes: Routes = [
     canMatch: [parentGuard],
     children: [
       ...activityWorkspaceRoutes,
+      {
+        path: 'children',
+        title: 'הילדים והמכשירים · לומדים ביחד',
+        loadComponent: () =>
+          import('./features/children/children-page').then((m) => m.ChildrenPage),
+        canDeactivate: [(component: ChildrenPage) => component.canLeave()],
+      },
+      {
+        path: 'assignments',
+        title: 'פעילויות לילדים · לומדים ביחד',
+        loadComponent: () =>
+          import('./features/assignments/assignment-list').then((m) => m.AssignmentList),
+      },
+      {
+        path: 'assignments/:assignmentId',
+        title: 'הגשה ובדיקה להורים · לומדים ביחד',
+        loadComponent: () =>
+          import('./features/assignments/assignment-result').then((m) => m.AssignmentResult),
+        canDeactivate: [(component: AssignmentResult) => component.canLeave()],
+      },
       {
         path: 'instances/:instanceId',
         title: 'פעילות מוכנה · לומדים ביחד',

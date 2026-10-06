@@ -4,22 +4,24 @@
 > reviewed task at a time. Use subagent-driven development only if the user
 > selects it. Checkboxes track implementation, not completion of this document.
 
-**Status:** Tasks 1–4 implemented and verified on 6 October 2026. The user
-explicitly authorized Tasks 1–2 together, then Tasks 3 and 4 individually.
-Tasks 5–7 have not started; the full child workflow remains incomplete.
+**Status:** Tasks 1–5 implemented and verified on 6 October 2026. Tasks 6–7
+have not started; the child activation, inbox and player screens remain incomplete.
 
-**Verification:** `./scripts/verify.sh` passed with 592 backend tests, 189 Angular
+**Verification:** `./scripts/verify.sh` passed with 592 backend tests, 211 Angular
 tests and 23 dashboard tests, plus formatting, Markdown, type checks and builds.
-`./scripts/publish.sh` and the isolated browser suite passed (27 tests), including
-child save/resume, submission, parent grading/replay, retained archived content,
-family reset and the archived preview at 360px/200% text. Task 4's independent
-review found no actionable issues. Tests cover bounded grades, competing parents,
-unchanged automatic awards, zero-point review, transaction rollback, saved-outcome
-recovery, child response allowlists, disabled/archived retention and host restart.
-Task 4 adds no schema change; EF reports no pending model changes. Verification
-used disposable databases and isolated providers, with no paid AI calls or Git
-mutations. Grading checks reuse the retention workflow's signed-in contexts to
-stay within the production login limit.
+`./scripts/publish.sh` and the isolated browser suite passed (28 tests), including
+parent profile/device management, snapshot assignment/replay, withdrawal,
+archiving, submitted-answer review, recovery after a committed grading response
+is lost, revocation, disable and family reset. Component tests cover paging,
+validation, conflicts, cancellation, exact text and delayed-refresh keyboard
+focus. Browser checks cover 360px/200% text and light/dark themes. Independent
+review findings were fixed and confirmed; no unresolved findings remain.
+Verification used disposable databases and isolated providers, with no paid AI
+calls or Git mutations. The parent-management browser workflow has a separate
+disposable host so production login limits remain unchanged.
+
+Optional school grade/age and elapsed activity duration are documented follow-ups
+in the specification, outside these implementation tasks.
 
 **Goal:** A parent assigns reviewed work to an activated child device, the child
 saves and submits answers, and the parent sees stable results and grades short
@@ -455,8 +457,11 @@ snapshot, withdraw available work, inspect submissions and finalize grades.
 
 **Files:** Create `features/children/children-page.ts` and `.html`,
 `features/assignments/assignment-list.ts` and `.html`, `assignment-result.ts`
-and `.html` under `frontend/src/app`, with companion specs. Add
-`core/api/parent-children-api.ts`, `assignment-api.ts` and `assignment-models.ts`.
+and `.html` under `frontend/src/app`, with companion specs. Share the paged
+profile selector in `features/children/child-selector.ts` and `.html`. Add
+`core/api/parent-children-api.ts`, `assignment-api.ts`, `assignment-models.ts`
+and `parent-task-error.ts`; keep status labels in
+`features/assignments/assignment-presentation.ts`.
 Modify existing `app.routes.ts`, `app.html`, snapshot preview, library copy and
 relevant tests. Add `frontend/e2e/parent-assignments.spec.ts` and extend the
 isolated provider/server fixtures only as required.
@@ -466,37 +471,37 @@ and existing `requestResult`/`httpResource` conventions. Routes are `/children`,
 `/assignments` and `/assignments/:assignmentId`, under the parent guard. The
 snapshot preview owns selection of the child for its assign action.
 
-- [ ] Add failing component tests for profile validation/conflicts, one-time
+- [x] Add failing component tests for profile validation/conflicts, one-time
       activation display, revocation/disable confirmation and pagination. Verify
       activation codes are cleared when leaving the page and never persisted.
-- [ ] Add grading tests proving keys appear only in parent views, pending rows
+- [x] Add grading tests proving keys appear only in parent views, pending rows
       stay unset until entered, integer bounds apply, automatic awards are read-only
       and duplicate submits are blocked. Conflicts/lost responses keep local grades
       and offer reading the saved result; no automatic mutation retry.
-- [ ] Run `npm --prefix frontend test -- --watch=false` with `--include` paths
+- [x] Run `npm --prefix frontend test -- --watch=false` with `--include` paths
       for the new specs and confirm behavioral failures before implementation.
-- [ ] Implement the typed API clients and profile/device UI. Read name limits
+- [x] Implement the typed API clients and profile/device UI. Read name limits
       from existing server `ContentLimits` and point bounds from frozen questions;
       do not make the browser an independent source of limits. Preserve lifetime
       cancellation, safe failure copy, immutable buffers and busy/error states.
       Map profile/assignment/review conflicts in their owning UI; the current
       generic `apiError` 409 copy refers to template publication and is unsuitable.
-- [ ] Add assignment creation to the existing frozen preview, with a child
+- [x] Add assignment creation to the existing frozen preview, with a child
       selector and an existing-assignment link on replay. Add lists by child/status
       with pagination, withdrawal only while assigned, and archived-item messaging.
       Refresh affected resources after acknowledged writes without dropping edits.
-- [ ] Implement result/review forms against frozen data. Finalize all pending
+- [x] Implement result/review forms against frozen data. Finalize all pending
       grades together after an explicit action. Show pending subtotal distinctly
       from final points and handle zero possible points. Warn before leaving with
       unsaved grades; do not permit editing completed grades or child answers.
-- [ ] Update family-reset confirmation to name all child learning/access data.
+- [x] Update family-reset confirmation to name all child learning/access data.
       Use native labels, focus restoration and the existing theme; avoid new generic
       table, form, state-management or modal frameworks.
-- [ ] Verify `./scripts/verify.sh`, then `./scripts/publish.sh` and
+- [x] Verify `./scripts/verify.sh`, then `./scripts/publish.sh` and
       `npm --prefix frontend run e2e`. Browser tests manage a real disposable child,
       assign, revoke, archive and reset; grade submissions prepared through the
       real child API, not production seed data. Test 360px/200% text and keyboard.
-- [ ] Review parent behavior and code boundaries; stop for user review.
+- [x] Review parent behavior and code boundaries; stop for user review.
 
 ## Task 6: Child activation, inbox and resumable activity player
 
@@ -614,7 +619,7 @@ child-flow spec and this plan. Keep evaluation history and costs intact.
 Review the spec and this plan together, especially parent grading of every
 answered short-text question, separate-device access, explicit save, one attempt
 per assignment, fixed grant expiry and the expanded destructive reset scope.
-The user may adjust the remaining product choices before Task 5. Do not start
+The user may adjust the remaining product choices before Task 6. Do not start
 additional tasks merely because their checklists exist.
 
 [decimal-parsing]: https://learn.microsoft.com/dotnet/api/system.decimal.tryparse

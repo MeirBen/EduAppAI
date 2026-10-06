@@ -39,14 +39,41 @@ async function preview(
       })),
     },
   });
+  if (!archivedAtUtc)
+    (await vi.waitFor(() => http.expectOne('/api/children?page=1'))).flush({
+      items: [{ id: 'child', name: 'נועה', enabled: true }],
+      page: 1,
+      pageSize: 25,
+      hasMore: false,
+    });
   await fixture.whenStable();
-  return { root: fixture.nativeElement as HTMLElement, http };
+  return { fixture, root: fixture.nativeElement as HTMLElement, http };
 }
 
 describe('Immutable parent preview', () => {
+  it('assigns the frozen snapshot once and links to an existing assignment on replay', async () => {
+    const { root, http, fixture } = await preview([]);
+    const selector = root.querySelector('select')!;
+    selector.value = 'child';
+    selector.dispatchEvent(new Event('change'));
+    await fixture.whenStable();
+    const button = root.querySelector<HTMLButtonElement>('#assign-snapshot')!;
+    button.click();
+    const request = http.expectOne('/api/assignments');
+    expect(request.request.body).toEqual({ childId: 'child', snapshotId: 'ready' });
+    button.click();
+    http.expectNone('/api/assignments');
+    request.flush({ id: 'existing', status: 'completed', childName: 'נועה' });
+    await fixture.whenStable();
+    expect(root.textContent).toContain('כבר הוקצתה');
+    expect(root.querySelector('a[href="/assignments/existing"]')).not.toBeNull();
+    http.verify();
+  });
+
   it('explains archived content while retaining the parent preview and copy action', async () => {
     const { root, http } = await preview([], '2026-10-06T00:00:00Z');
     expect(root.textContent).toContain('הפעילות בארכיון');
+    expect(root.querySelector('#assign-snapshot')).toBeNull();
     expect(root.querySelector('#copy-snapshot')).not.toBeNull();
     http.verify();
   });

@@ -1,0 +1,53 @@
+<div class="grid gap-2">
+  <label
+    ><span class="mb-2 block">{{ label() }}</span
+    ><select
+      [value]="value()"
+      [disabled]="disabled() || children.isLoading()"
+      (change)="choose($event)"
+    >
+      <option value="">{{ emptyLabel() }}</option>
+      @for (child of options(); track child.id) {
+        <option [value]="child.id" [disabled]="!allowDisabled() && !child.enabled">
+          &#x2068;{{ child.name }}&#x2069;{{ child.enabled ? '' : ' (מושבת)' }}
+        </option>
+      }
+    </select></label
+  >
+  <app-loading-indicator [active]="children.isLoading()" label="טוענים פרופילים…" />
+  @if (children.error()) {
+    <p class="field-error" role="alert">{{ failure(children.error()) }}</p>
+    <button
+      class="text-link justify-self-start"
+      [disabledInteractive]="disabled() || children.isLoading()"
+      (click)="children.reload()"
+    >
+      רענון הפרופילים
+    </button>
+  }
+  @if (children.hasValue()) {
+    @if (!children.value().items.length) {
+      <p class="text-sm text-muted">אין פרופילים בעמוד זה.</p>
+    }
+    @if (page() > 1 || children.value().hasMore) {
+      <nav class="flex flex-wrap items-center gap-3" aria-label="עמודי בחירת פרופיל">
+        <button
+          type="button"
+          class="text-link"
+          [disabledInteractive]="disabled() || children.isLoading() || page() === 1"
+          (click)="page.set(page() - 1)"
+        >
+          פרופילים קודמים</button
+        ><span>עמוד {{ page() }}</span
+        ><button
+          type="button"
+          class="text-link"
+          [disabledInteractive]="disabled() || children.isLoading() || !children.value().hasMore"
+          (click)="page.set(page() + 1)"
+        >
+          פרופילים נוספים
+        </button>
+      </nav>
+    }
+  }
+</div>

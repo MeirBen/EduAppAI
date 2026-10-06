@@ -161,7 +161,9 @@ keeping parent accounts and AI configuration. Child profile, separate-device
 activation, assignment, resumable answer and parent grading/report APIs are
 available. Submission automatically scores choices/numbers and freezes short text
 for parent review. Parents finalize all pending grades once; reports retain the
-original answers and awards. Child/management screens are still planned.
+original answers and awards. Parents manage profiles and devices at `/children`,
+assign a frozen activity from its preview, and filter or review work at
+`/assignments`. The child activation and activity-player screens remain planned.
 
 Development stores SQLite and Data Protection keys in the ignored
 `backend/FamilyLearning.Api/data/`. Set `Storage__Directory` to an absolute path

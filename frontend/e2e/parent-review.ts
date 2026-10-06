@@ -1,16 +1,12 @@
 import { expect, type APIRequestContext, type Page } from '@playwright/test';
 import { sourceText, suppliedPlan } from '../src/app/features/activities/learning-plan.fixture';
 
-/** Exercises parent grading using the workflow's existing independently authenticated contexts. */
-export async function verifyParentReview(page: Page, child: APIRequestContext, childId: string) {
-  const parent = page.request;
-  const childBase = new URL(page.url()).origin;
-  const headers = {
-    'X-XSRF-TOKEN': (await (await parent.get('/api/auth/csrf')).json()).token,
-  };
-  const childHeaders = {
-    'X-XSRF-TOKEN': (await (await child.get(childBase + '/api/child/auth/csrf')).json()).token,
-  };
+/** Publishes isolated mixed-interaction content through real parent APIs without AI calls. */
+export async function createReviewSnapshot(
+  parent: APIRequestContext,
+  headers: Record<string, string>,
+  title = 'בדיקת תשובות',
+) {
   const { schemaVersion } = await (await parent.get('/api/ai/status')).json();
   const plan = {
     ...suppliedPlan,
@@ -31,7 +27,7 @@ export async function verifyParentReview(page: Page, child: APIRequestContext, c
       plan,
       input: draft.input,
       document: {
-        title: 'בדיקת תשובות',
+        title,
         instructions: 'ענו על השאלות',
         materials: [{ id: plan.materials[0].id, title: null, body: sourceText }],
         questions: [
@@ -60,6 +56,20 @@ export async function verifyParentReview(page: Page, child: APIRequestContext, c
   });
   expect(released.status()).toBe(201);
   const snapshot = await released.json();
+  return snapshot;
+}
+
+/** Exercises parent grading using the workflow's existing independently authenticated contexts. */
+export async function verifyParentReview(page: Page, child: APIRequestContext, childId: string) {
+  const parent = page.request;
+  const childBase = new URL(page.url()).origin;
+  const headers = {
+    'X-XSRF-TOKEN': (await (await parent.get('/api/auth/csrf')).json()).token,
+  };
+  const childHeaders = {
+    'X-XSRF-TOKEN': (await (await child.get(childBase + '/api/child/auth/csrf')).json()).token,
+  };
+  const snapshot = await createReviewSnapshot(parent, headers);
   const assignment = await (
     await parent.post('/api/assignments', {
       headers,

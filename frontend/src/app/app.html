@@ -52,6 +52,24 @@
   tabindex="-1"
   class="mx-auto w-full max-w-6xl flex-1 px-gutter py-6 sm:px-8"
 >
+  @if (auth.signedIn()) {
+    <nav class="mb-6 flex flex-wrap gap-x-6 gap-y-3" aria-label="ניהול המשפחה">
+      <a
+        class="text-link aria-[current=page]:font-semibold"
+        routerLink="/children"
+        routerLinkActive
+        ariaCurrentWhenActive="page"
+        ><span class="icon icon-users" aria-hidden="true"></span><span>הילדים</span></a
+      >
+      <a
+        class="text-link aria-[current=page]:font-semibold"
+        routerLink="/assignments"
+        routerLinkActive
+        ariaCurrentWhenActive="page"
+        ><span class="icon icon-book" aria-hidden="true"></span><span>פעילויות לילדים</span></a
+      >
+    </nav>
+  }
   @if (error()) {
     <p class="error mb-6" role="alert">{{ error() }}</p>
   }

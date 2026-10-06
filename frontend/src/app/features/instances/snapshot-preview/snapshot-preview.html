@@ -28,7 +28,10 @@
         <span class="icon icon-lock" aria-hidden="true"></span>עותק קבוע. עריכה יוצרת טיוטה חדשה.
       </p>
       @if (snapshot.value().archivedAtUtc) {
-        <p class="note">הפעילות בארכיון. עבודה שכבר הוקצתה נשמרת, אך אי אפשר להקצות אותה שוב.</p>
+        <p class="note">
+          <span class="icon icon-info" aria-hidden="true"></span>הפעילות בארכיון. עבודה שכבר הוקצתה
+          נשמרת, אך אי אפשר להקצות אותה שוב.
+        </p>
       }
       @if (measurements().length) {
         <app-measurement-list [items]="measurements()" />
@@ -37,6 +40,43 @@
     <div class="panel"><app-activity-document-view [document]="snapshot.value().document" /></div>
     <section class="action-bar" aria-labelledby="snapshot-actions-title">
       <h2 id="snapshot-actions-title" class="sr-only">פעולות</h2>
+      @if (!snapshot.value().archivedAtUtc) {
+        <div class="grid gap-4">
+          <app-child-selector
+            [(value)]="childId"
+            [disabled]="assigning()"
+            label="הקצאה לילד או לילדה"
+          />
+          <div class="flex flex-wrap items-center gap-3">
+            <button
+              id="assign-snapshot"
+              class="button"
+              [disabledInteractive]="assigning() || !childId()"
+              (click)="assign()"
+            >
+              הקצאת הפעילות
+            </button>
+            <a class="text-link" routerLink="/children">ניהול הילדים והמכשירים</a>
+          </div>
+          <app-loading-indicator [active]="assigning()" label="מקצים את הפעילות…" />
+          @if (assignmentError()) {
+            <p class="field-error" role="alert">{{ assignmentError() }}</p>
+            <a class="text-link" routerLink="/assignments">בדיקת הפעילויות לילדים</a>
+          }
+          @if (assigned(); as result) {
+            <p class="note" role="status">
+              <span class="icon icon-check" aria-hidden="true"></span
+              >{{ result.replay ? 'הפעילות כבר הוקצתה' : 'הפעילות הוקצתה' }} ל־<bdi>{{
+                result.assignment.childName
+              }}</bdi
+              >.
+              <a class="text-link" [routerLink]="['/assignments', result.assignment.id]"
+                >פתיחת ההקצאה{{ result.replay ? ' הקיימת' : '' }}</a
+              >
+            </p>
+          }
+        </div>
+      }
       @if (error()) {
         <p role="alert" class="field-error">{{ error() }}</p>
       }
@@ -55,7 +95,7 @@
         <button
           id="copy-snapshot"
           type="button"
-          class="button"
+          class="button button-secondary"
           [disabled]="copying()"
           (click)="copy()"
         >

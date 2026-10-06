@@ -282,7 +282,8 @@ redirect, HSTS, secure cookies and CSRF; deployment is in the
 
 ## Client state
 
-`LearningApi` owns URLs and contracts. Reads create `httpResource` in the
+`LearningApi`, `ParentChildrenApi` and `AssignmentApi` own parent URLs and
+contracts. Reads create `httpResource` in the
 caller's injection context and cancel on route change or destruction; check
 `hasValue()` before reading and render errors independently. Writes go through
 `requestResult`, bound to the caller's lifetime, without retries; cancellation
@@ -297,6 +298,23 @@ The request token loads once per sign-in and the server's
 `ContentLimits` once per tab, both before a private page renders; forms, caps
 and copy read the limits through `Limits`. The server still authorizes and
 validates every request.
+
+Parent child-management and assignment pages own bounded list resources and
+their local edit buffers. A paged child selector preserves its selection while
+browsing profiles; assignment filtering includes disabled profiles for retained
+history. Profile refreshes never replace unsaved edits. Activation codes exist
+only in the owning page's memory and are cleared on selection or destruction.
+Frozen previews create assignments and distinguish a new assignment from replay.
+
+The parent result page reads frozen answers and evaluation without starting a
+session. Pending grades begin blank, use each frozen question's integer bounds
+and finalize together at the session revision. An unsuccessful write preserves
+the local buffer and blocks resubmission until an explicit saved-result read.
+Reading a completed result offers replacement of local grades after confirmation;
+it never applies them implicitly. Completed reports are read-only. Route and
+browser-close guards protect unsaved profile and grade edits. Feature-owned
+conflict copy distinguishes profile, assignment and review state from template
+publication; these requests never use AI.
 
 `ActivityWorkspace` owns the template and activity URLs, one form buffer for
 plan and per-activity input, derived canonical projections, source confirmation

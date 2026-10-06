@@ -1,0 +1,102 @@
+<section class="grid gap-6 py-gutter" aria-labelledby="assignments-heading">
+  <header class="grid gap-1">
+    <h1 id="assignments-heading">פעילויות לילדים</h1>
+    <p class="text-muted">
+      עבודה זמינה, הגשות וציונים. להקצאה חדשה, פתחו פעילות מוכנה
+      <a class="text-link" routerLink="/templates">במרחב שלנו</a>.
+    </p>
+  </header>
+  <div class="grid gap-4 sm:grid-cols-2">
+    <app-child-selector
+      [(value)]="childId"
+      [allowDisabled]="true"
+      [disabled]="busy()"
+      emptyLabel="כל הילדים"
+    />
+    <label
+      ><span class="mb-2 block">מצב הפעילות</span
+      ><select [value]="status()" [disabled]="busy()" (change)="filterStatus($event)">
+        <option value="">כל המצבים</option>
+        @for (option of statusOptions; track option[0]) {
+          <option [value]="option[0]">{{ option[1] }}</option>
+        }
+      </select></label
+    >
+  </div>
+  <div class="grid gap-2">
+    <button
+      id="refresh-assignments"
+      class="text-link justify-self-start"
+      [disabledInteractive]="busy() || assignments.isLoading()"
+      (click)="assignments.reload()"
+    >
+      רענון הפעילויות
+    </button>
+    @if (error() || assignments.error()) {
+      <p class="error" role="alert">{{ error() || failure(assignments.error()) }}</p>
+    }
+    @if (notice()) {
+      <p class="note" role="status">
+        <span class="icon icon-info" aria-hidden="true"></span>{{ notice() }}
+      </p>
+    }
+  </div>
+  <app-loading-indicator
+    [active]="busy() || assignments.isLoading()"
+    label="מעדכנים את רשימת הפעילויות…"
+  />
+  @if (assignments.hasValue()) {
+    <div class="grid gap-4">
+      @for (assignment of assignments.value().items; track assignment.id) {
+        <article class="list-row" [attr.aria-labelledby]="'assignment-' + assignment.id">
+          <div class="grid min-w-1/2 flex-1 gap-1">
+            <h2 [id]="'assignment-' + assignment.id">
+              <a class="row-link" [routerLink]="['/assignments', assignment.id]"
+                ><bdi>{{ assignment.title }}</bdi> — <bdi>{{ assignment.childName }}</bdi></a
+              >
+            </h2>
+            <p>
+              {{ statuses[assignment.status]
+              }}{{
+                assignment.status === 'assigned' && assignment.hasStarted ? ' · העבודה התחילה' : ''
+              }}
+            </p>
+            <p class="text-sm text-muted">
+              הוקצתה ב־<bdi>{{ assignment.createdAtUtc | date }}</bdi>
+            </p>
+          </div>
+          @if (assignment.status === 'assigned') {
+            <button
+              class="button button-danger"
+              data-withdraw
+              [disabledInteractive]="busy() || assignments.isLoading()"
+              [attr.aria-label]="'ביטול ההקצאה: ' + assignment.title + ' — ' + assignment.childName"
+              (click)="withdraw(assignment)"
+            >
+              ביטול ההקצאה
+            </button>
+          }
+        </article>
+      } @empty {
+        <p class="empty-state">אין פעילויות בעמוד זה עבור הבחירה הנוכחית.</p>
+      }
+    </div>
+    <nav class="flex flex-wrap items-center gap-3" aria-label="עמודי פעילויות">
+      <button
+        class="button button-secondary"
+        [disabledInteractive]="busy() || assignments.isLoading() || page() === 1"
+        (click)="page.set(page() - 1)"
+      >
+        הקודם</button
+      ><span>עמוד {{ page() }}</span
+      ><button
+        id="assignments-next"
+        class="button button-secondary"
+        [disabledInteractive]="busy() || assignments.isLoading() || !assignments.value().hasMore"
+        (click)="page.set(page() + 1)"
+      >
+        הבא
+      </button>
+    </nav>
+  }
+</section>
