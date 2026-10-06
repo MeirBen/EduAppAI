@@ -84,9 +84,10 @@ public sealed class AiGenerationService(IEnumerable<IChatClient> clients, ILogge
         var result = await RequestAsync<QuestionCandidateBatch>(AiPrompts.QuestionGeneration,
             JsonSerializer.Serialize(new { request = EffectiveInput(input.Request), materials = SourceContext(prepared.Materials), history }, Json),
             AiSchemas.QuestionsFor(input.Request, exactQuestionCountLimit), AiPrompts.Version("questions"), ct, evidence: evidence);
-        var errors = TaskDocumentValidator.ValidateQuestionBatch(input.Request, current with { Materials = prepared.Materials }, result.Value);
+        var batch = result.Value.Trimmed();
+        var errors = TaskDocumentValidator.ValidateQuestionBatch(input.Request, current with { Materials = prepared.Materials }, batch);
         if (errors.Count > 0) throw InvalidOutput("question-validation", result.Metadata.PromptVersion, errors);
-        return result;
+        return result with { Value = batch };
     }
 
     /// <summary>One complete generated-material replacement; source authority and target safety are enforced before/after the call.</summary>
@@ -120,9 +121,10 @@ public sealed class AiGenerationService(IEnumerable<IChatClient> clients, ILogge
                 materials = SourceContext(input.Current.Materials),
                 input.Instruction
             }, Json), AiSchemas.QuestionsFor(input.Request, exactQuestionCountLimit, replacement: true), AiPrompts.Version("replace-question"), ct, evidence: evidence);
-        try { TaskAssembly.ReplaceQuestion(input, result.Value, result.Metadata); }
+        var candidate = result.Value.Trimmed();
+        try { TaskAssembly.ReplaceQuestion(input, candidate, result.Metadata); }
         catch (TaskValidationException exception) { throw InvalidOutput("question-validation", result.Metadata.PromptVersion, exception.Errors); }
-        return result;
+        return result with { Value = candidate };
     }
 
     // Version/provenance fields are evidence for the caller, never competing generation requirements.

@@ -234,6 +234,44 @@ public sealed class StructuredEvaluationTests : IDisposable
         if (actual == 1) Assert.False(result.Input!.Controls[0].Value.GetBoolean());
     }
 
+    [Theory]
+    [InlineData("750", "336", true)]
+    [InlineData("750", "335", false)]
+    public async Task Calculation_prompts_are_recalculated_exactly_against_their_keys(string first, string second, bool passed)
+    {
+        var batch = JsonSerializer.Serialize(new QuestionCandidateBatch("תרגול", null,
+            [new("125 × 6 =", new("numeric-input"), new(first), 1), new("48 × 7 =", new("numeric-input"), new(second), 1)]), JsonOptions);
+        using var chat = new AiFixtures.ScriptedChat(batch);
+        var result = Assert.Single((await Run(chat, Fixed(Numeric()))).Results);
+        Assert.Equal(passed, result.Checks["calculationKeys"]);
+        Assert.Equal(passed, result.EndToEndReady);
+    }
+
+    [Fact]
+    public async Task Word_problems_are_outside_the_calculation_check()
+    {
+        using var chat = new AiFixtures.ScriptedChat(Questions());
+        var result = Assert.Single((await Run(chat, Fixed(Numeric()))).Results);
+        Assert.False(result.Checks.ContainsKey("calculationKeys"));
+        Assert.True(result.Checks["signDirection"]);
+    }
+
+    [Theory]
+    [InlineData("קטן מ־ (<)", false)]
+    [InlineData("<", true)]
+    [InlineData("3/7 < 5/7", true)]
+    [InlineData("קטן מ־", true)]
+    public async Task Comparison_signs_beside_Hebrew_words_fail_sign_direction(string option, bool passed)
+    {
+        var plan = Mixed() with { Questions = Mixed().Questions with { Formats = ["single-choice"], ChoiceCount = new(3, false) } };
+        var batch = JsonSerializer.Serialize(new QuestionCandidateBatch("השוואה", "בחרו", Enumerable.Range(0, 3).Select(_ =>
+            new QuestionCandidate("3/7 ___ 5/7", new("single-choice", [option, "גדול מ־", "שווה ל־"]), new(option), 1)).ToArray()), JsonOptions);
+        using var chat = new AiFixtures.ScriptedChat(batch);
+        var result = Assert.Single((await Run(chat, Fixed(plan))).Results);
+        Assert.Equal(passed, result.Checks["signDirection"]);
+        Assert.Equal(passed, result.EndToEndReady);
+    }
+
     private async Task<EvaluationReport> Run(IChatClient chat, EvaluationCase scenario)
     {
         Directory.CreateDirectory(directory);

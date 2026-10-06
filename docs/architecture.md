@@ -77,7 +77,8 @@ question failure. Question replacement is atomic over prompt, options and key.
 same `EngineValidation` constants used by prompts and validators. The OpenRouter
 adapter owns transport/configuration and sends the native SDK response format.
 Responses must finish normally and pass size, shape, numeric and domain checks;
-see [AI configuration](ai.md#configuration).
+question text fields are trimmed first, the only normalization applied; see
+[AI configuration](ai.md#configuration).
 
 `AiPrompts` composes stage/shared rules; `MathPromptGuidance` owns authoring-time
 math interpretation. Schema descriptions own source roles and answer-format
@@ -173,8 +174,10 @@ scheduler or retry loop.
 engine and adapter, never published with the API or given its database or
 identity services. CLI and dashboard share the validated plan, runner, pinned
 judge client and JSON reports, and reuse the engine's assembly, resolution and `TextLength`
-rules with independent fixture adherence checks. Reports record explicit skips,
-exact request and schema hashes, raw candidates and separate readiness outcomes;
+rules with independent fixture adherence checks, including exact recalculation
+of bare calculation prompts and a reversed-sign display check. Reports record
+explicit skips, exact request and schema hashes, raw candidates and separate
+readiness outcomes;
 older formats are rejected. Evaluation may retry HTTP 429 three times within its
 call budget; production never inherits these retries.
 

@@ -33,11 +33,19 @@ public sealed record MaterialCandidateBatch([property: JsonRequired] MaterialCan
 public sealed record QuestionCandidate([property: JsonRequired] string Prompt,
     [property: JsonRequired] QuestionInteraction Interaction,
     [property: JsonRequired] QuestionAnswer? Answer,
-    [property: JsonRequired] int Points);
+    [property: JsonRequired] int Points)
+{
+    /// <summary>Removes surrounding whitespace the model emits around short values (observed as "= "); content is otherwise untouched.</summary>
+    public QuestionCandidate Trimmed() => new(Prompt?.Trim()!, Interaction is null ? null! : Interaction with { Options = Interaction.Options?.Select(option => option?.Trim()!).ToArray() },
+        Answer is null ? null : Answer with { Value = Answer.Value?.Trim()! }, Points);
+}
 
 /// <summary>The question stage owns task title/instructions and the complete ordered question batch.</summary>
 public sealed record QuestionCandidateBatch([property: JsonRequired] string Title, string? Instructions,
-    [property: JsonRequired] QuestionCandidate[] Questions);
+    [property: JsonRequired] QuestionCandidate[] Questions)
+{
+    public QuestionCandidateBatch Trimmed() => new(Title?.Trim()!, Instructions?.Trim(), Questions?.Select(question => question?.Trimmed()!).ToArray()!);
+}
 
 /// <summary>A whole accepted document, or an unapplied candidate and diagnostics. No partial material application is returned.</summary>
 public sealed record MaterialAcceptance(TaskDocument? Document, MaterialCandidateBatch Candidate, Dictionary<string, string[]> Diagnostics);

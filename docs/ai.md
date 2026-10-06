@@ -57,6 +57,17 @@ Retained:
   two-digit bounds and disclosed the final short-request range assumption.
   Reading controls retained source/niqqud behavior; no arithmetic-quality gain
   was demonstrated. Fraction/remainder instructions were not separately tested.
+- **Comparison signs (revision 32):** comparison drills wrote every option and
+  instruction as Hebrew words plus a sign (`קטן מ־ (<)`), which real Chromium
+  displays as `(>)` through bidi mirroring, in 4/4 such baseline drills; the
+  other 2 baseline drills planned sign-only options and were rejected because
+  the model emits a bare `=` as `"= "` or `"=\""`. One `LanguageQuality`
+  sentence names the relation in words outside whole-item expressions:
+  4/4 candidate fraction comparisons had no reversed field, all 32 keys were
+  correct. Question text is now trimmed before validation, which accepts the
+  `"= "` form when a parent explicitly asks for sign options (3 of 4 observed
+  rejections); the `="` form still fails. Probe keys: 51/52 correct across
+  remainders, fractions, decimals, order of operations and word problems.
 
 Rejected or unproven; revisit only with new evidence:
 
@@ -73,6 +84,9 @@ Rejected or unproven; revisit only with new evidence:
   tendency and were removed; explicit factor/divisor ranges worked. The
   [Israeli curriculum][grade3] supports one-digit factors for distributivity
   and whole tens/hundreds, not a universal single-digit cap.
+- **Rounded numeric keys:** one hard money problem keyed `25.17` for a value of
+  25.1666…; five further fixed-plan batches had 30/30 exact keys (1 inexact in
+  36), below the registered threshold, so no exactness sentence was added.
 - **Material representation:** a paragraph array removed poem stanza breaks and
   reduced prose paragraphing. Keep string bodies. Naming characters in premise
   ideas narrowed variety; always selecting the first tied idea favored the most
@@ -209,6 +223,14 @@ output tokens (validated up to 32,768) stay below the endpoint maximum of
   added quantities despite source-only requirements. A stronger answer-check
   line was flat (8/8 keys correct per arm, extra quantities still present) and
   removed. Parent review remains necessary.
+- **Hand-graded exact answers:** fraction and remainder drills choose
+  `text-input` (8/8 fraction questions; 3 of 8 remainder questions), so a parent
+  grades `5/12` by hand. Numeric input holds one decimal by contract; widening
+  it or adding a typed exact-answer format is a product decision, not a prompt
+  fix. The planner is not told which formats grade automatically.
+- **Zero-reasoning calls:** Gemini's dynamic thinking reported 0 reasoning
+  tokens in 9 of 109 medium-effort question calls, all 6 on one money plan;
+  keys stayed correct except the rounded one above.
 - **DeepSeek:** the last strict authoring trial left `choiceCount` null once
   and invented adjustable counts in all three plans; fixes were not retested.
 - **Availability:** Google 429/504 and AI Studio 503 responses were intermittent
@@ -239,6 +261,10 @@ Historical caps do not authorize new paid runs.
 - `math-2026-10-06/`: 73 calls, $0.660264 of $1, no unknown costs; frozen
   comparisons, reading controls, rejected digit-limit variants, semantic failures
   and `review.md` / `verification.json`.
+
+- `math-formats-2026-10-06/`: answer-format probe, comparison-sign and
+  rounded-key hypotheses, browser evidence (`bidi.png`) and final controls;
+  cost in its `budget.json`, within a separate $1 cap.
 
 Retired design documents: `documentation-history-2026-10-01.zip`.
 
@@ -277,9 +303,13 @@ from `--label` / `--notes`.
 `initialPlan`, optional input, up to three refinements and scoped replacements.
 `expectedGeneratedMaterials`, `settingsOverride`, `additionalControlCount`,
 `expectedLength` and `minPassageWords` / `maxPassageWords` are independent
-checks; `reviewFocus` guides human review. Keep case IDs and expectations
-stable, add cases only for real coverage gaps and never relax a check to raise
-pass rates.
+checks; `reviewFocus` guides human review. Two content checks need no fixture:
+`calculationKeys` recalculates every bare calculation prompt exactly (rational
+arithmetic, so `1/4 + 1/6 =` must key `5/12` or `0.41666…` never) and compares
+it with the key, and `signDirection` fails any learner-visible text that puts
+`<` or `>` beside Hebrew letters, where bidi mirroring reverses the sign. Keep
+case IDs and expectations stable, add cases only for real coverage gaps and
+never relax a check to raise pass rates.
 
 Reports go to `artifacts/evaluations/<run>/` or `--output`. `run.json` is the
 authoritative checkpoint with exact requests, schemas, versions, content,

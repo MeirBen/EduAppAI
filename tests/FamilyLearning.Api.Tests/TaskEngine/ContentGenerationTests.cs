@@ -171,6 +171,26 @@ public sealed class ContentGenerationTests
     }
 
     [Fact]
+    public async Task Surrounding_whitespace_in_question_text_is_trimmed_before_validation_and_acceptance()
+    {
+        // Observed live: sign-only comparison options arrive as "= " (and keys as "= ") while "<" and ">" are clean.
+        var plan = Mixed() with { Questions = Mixed().Questions with { Formats = ["single-choice"], ChoiceCount = new(3, false) } };
+        var request = Resolve(plan);
+        var padded = new QuestionCandidateBatch(" השוואה", "בחרו את הסימן \n", Enumerable.Range(0, 3).Select(index =>
+            new QuestionCandidate($"{300 + index} ___ {300 + index}\n", new("single-choice", ["<", ">", "= "]), new("= "), 1)).ToArray());
+        using var chat = new AiFixtures.ScriptedChat(Serialize(padded));
+        using var service = Service(chat);
+        var questions = await service.GenerateQuestionsAsync(TaskAssembly.PrepareQuestions(request, Empty), [], default);
+        var document = TaskAssembly.AcceptQuestions(request, Empty, questions.Value, questions.Metadata);
+        Assert.Empty(TaskDocumentValidator.ValidateRelease(request, document));
+        Assert.Equal("השוואה", document.Title);
+        Assert.Equal("בחרו את הסימן", document.Instructions);
+        Assert.All(document.Questions, q => Assert.Equal(["<", ">", "="], q.Interaction.Options!));
+        Assert.All(document.Questions, q => Assert.Equal("=", q.Answer!.Value));
+        Assert.Equal("300 ___ 300", document.Questions[0].Prompt);
+    }
+
+    [Fact]
     public async Task Question_failure_keeps_accepted_material_and_failure_never_claims_persistence()
     {
         var request = Resolve(Reading());

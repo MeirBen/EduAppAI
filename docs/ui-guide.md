@@ -163,7 +163,9 @@ never HTML, and never rewrite saved content for presentation. Generated text is
 bare by contract, so presentation supplies its structure: keep line breaks with
 `whitespace-pre-wrap` (blank lines between paragraphs, single breaks for poem
 lines and dialogue turns), number questions in an ordered list and show choices
-as separate items or native options.
+as separate items or native options. `bdi`/`dir="auto"` display a whole-item
+calculation or comparison in order, but bidi mirroring reverses `<` and `>`
+beside Hebrew words, so the content contract keeps signs out of Hebrew text.
 [`AiPrompts`](../backend/FamilyLearning.Api/TaskEngine/Ai/AiPrompts.cs) promises
 this to the model, so change both together. Control labels and options come from
 the reviewed template; the shared settings use application-owned labels, and

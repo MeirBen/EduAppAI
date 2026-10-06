@@ -4,6 +4,6 @@ namespace FamilyLearning.Evaluation;
 public static class EvaluationVersions
 {
     public const int ReportFormat = 9;
-    public const int AutomaticChecks = 9;
+    public const int AutomaticChecks = 10;
     public const int HebrewReview = 10;
 }

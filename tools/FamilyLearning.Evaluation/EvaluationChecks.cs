@@ -1,4 +1,5 @@
 using FamilyLearning.Api.TaskEngine;
+using FamilyLearning.Api.TaskEngine.Models;
 
 namespace FamilyLearning.Evaluation;
 
@@ -38,9 +39,40 @@ internal static class EvaluationChecks
                 (!scenario.MaxPassageWords.HasValue || result.PassageWordCount <= scenario.MaxPassageWords);
         }
         result.Measurements = TextLength.Measure(result.Input!, document);
+        // Bidi mirroring reverses < and > beside Hebrew words (ui-guide rendering contract); whole-item expressions display in order.
+        checks["signDirection"] = LearnerTexts(document).All(text => text.AsSpan().IndexOfAny('<', '>') < 0 || !text.Any(IsHebrewLetter));
+        var calculations = 0;
+        var mismatches = 0;
+        foreach (var question in document.Questions)
+        {
+            if (!ExactArithmetic.TryEvaluate(question.Prompt, out var expected)) continue;
+            calculations++;
+            // A key in another form, such as a quotient with a remainder, is outside this check; validators own key shape.
+            if (ExactArithmetic.TryEvaluate(question.Answer?.Value, out var key) && key != expected) mismatches++;
+        }
+        if (calculations > 0) checks["calculationKeys"] = mismatches == 0;
         var positions = document.Questions.Where(question => question.Interaction.Type == "single-choice")
             .Select(question => Array.IndexOf(question.Interaction.Options!, question.Answer!.Value) + 1).ToArray();
         if (positions.Length >= 3 && positions[0] > 0 && positions.All(position => position == positions[0]))
             result.RepeatedAnswerPosition = positions[0];
     }
+
+    private static IEnumerable<string> LearnerTexts(TaskDocument document)
+    {
+        yield return document.Title;
+        if (document.Instructions is { } instructions) yield return instructions;
+        foreach (var material in document.Materials)
+        {
+            if (material.Title is { } title) yield return title;
+            yield return material.Body;
+        }
+        foreach (var question in document.Questions)
+        {
+            yield return question.Prompt;
+            foreach (var option in question.Interaction.Options ?? []) yield return option;
+            if (question.Answer is { } answer) yield return answer.Value;
+        }
+    }
+
+    private static bool IsHebrewLetter(char character) => character is >= '\u05D0' and <= '\u05EA';
 }

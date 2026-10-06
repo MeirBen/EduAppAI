@@ -125,6 +125,8 @@ internal static class AiPrompts
         decorative letters, numbers, bullets or separators such as a leading ": ". Refer to choices by their text.
         Write an expression of numbers joined by symbols, such as a calculation, as a whole question prompt, option or answer;
         inside sentences, write the operation in words, so the app shows it in order. Plain numbers in sentences are fine.
+        Comparison signs follow the same rule: beside Hebrew words < and > display reversed, so name the relation in words there
+        and show a sign only inside such a whole-item expression.
         Preserve symbols, letters and numbers that are answers or essential learning content.
         Proofread every generated text field for spelling, agreement and natural phrasing before returning it.
         """;
