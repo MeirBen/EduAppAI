@@ -262,9 +262,9 @@ Historical caps do not authorize new paid runs.
   comparisons, reading controls, rejected digit-limit variants, semantic failures
   and `review.md` / `verification.json`.
 
-- `math-formats-2026-10-06/`: answer-format probe, comparison-sign and
-  rounded-key hypotheses, browser evidence (`bidi.png`) and final controls;
-  cost in its `budget.json`, within a separate $1 cap.
+- `math-formats-2026-10-06/`: 70 calls, $0.64560975 of $1, no unknown costs;
+  answer-format probe, comparison-sign and rounded-key hypotheses, browser
+  evidence (`bidi.png`), final controls and a four-case reading regression.
 
 Retired design documents: `documentation-history-2026-10-01.zip`.
 
