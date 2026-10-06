@@ -27,6 +27,9 @@
       <p class="note">
         <span class="icon icon-lock" aria-hidden="true"></span>עותק קבוע. עריכה יוצרת טיוטה חדשה.
       </p>
+      @if (snapshot.value().archivedAtUtc) {
+        <p class="note">הפעילות בארכיון. עבודה שכבר הוקצתה נשמרת, אך אי אפשר להקצות אותה שוב.</p>
+      }
       @if (measurements().length) {
         <app-measurement-list [items]="measurements()" />
       }

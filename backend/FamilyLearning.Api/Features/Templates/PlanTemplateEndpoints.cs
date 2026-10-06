@@ -66,6 +66,11 @@ public static class PlanTemplateEndpoints
         if (id.HasValue && !await templates.AnyAsync(ct)) return Results.NotFound();
         if (!id.HasValue)
         {
+            await db.Assignments.Where(a => a.FamilyId == familyId).ExecuteDeleteAsync(ct);
+            var children = db.Children.Where(c => c.FamilyId == familyId).Select(c => c.Id);
+            await db.ChildDeviceGrants.Where(g => children.Contains(g.ChildId)).ExecuteDeleteAsync(ct);
+            await db.ChildActivations.Where(a => children.Contains(a.ChildId)).ExecuteDeleteAsync(ct);
+            await db.Children.Where(c => c.FamilyId == familyId).ExecuteDeleteAsync(ct);
             await db.ActivityDrafts.Where(d => d.FamilyId == familyId).ExecuteDeleteAsync(ct);
             await db.TaskSnapshots.Where(s => s.FamilyId == familyId).ExecuteDeleteAsync(ct);
         }

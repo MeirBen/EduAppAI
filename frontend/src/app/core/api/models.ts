@@ -246,6 +246,7 @@ export interface SnapshotPreview {
   input: ActivityInput;
   document: ActivityDocument;
   reviewedAtUtc: string;
+  archivedAtUtc: string | null;
   measurements: LengthMeasurement[];
 }
 export interface SnapshotSummary {
@@ -253,6 +254,7 @@ export interface SnapshotSummary {
   title: string;
   status: 'Ready';
   createdAtUtc: string;
+  hasAssignments: boolean;
 }
 
 /** Template list projection; fetch PlanTemplateDetail when the definition is needed. */

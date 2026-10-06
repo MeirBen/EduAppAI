@@ -117,16 +117,21 @@
             <span class="text-sm text-muted"
               >סומנה כמוכנה ב־<bdi>{{ snapshot.createdAtUtc | date }}</bdi></span
             >
+            @if (snapshot.hasAssignments) {
+              <span class="text-sm text-muted"
+                >הוקצתה לילד — הסרה מהספרייה תשמור את העבודה בארכיון.</span
+              >
+            }
           </div>
           <button
             type="button"
             class="icon-button icon-button-danger"
-            [attr.aria-label]="'מחיקה: ' + snapshot.title"
+            [attr.aria-label]="'הסרת הפעילות: ' + snapshot.title"
             [disabled]="deleting()"
             (click)="remove('snapshot', snapshot.id, snapshot.title)"
           >
             <span class="icon icon-remove" aria-hidden="true"></span
-            ><span class="tooltip" aria-hidden="true">מחיקה</span>
+            ><span class="tooltip" aria-hidden="true">הסרה מהספרייה</span>
           </button>
         </article>
         @if (failed(snapshot.id); as message) {
@@ -220,8 +225,8 @@
           שנוצרו ממנה.
         </li>
         <li class="note">
-          <span class="icon icon-alert" aria-hidden="true"></span>איפוס מוחק את כל התבניות, הטיוטות
-          והפעילויות המוכנות, ושומר את החשבון.
+          <span class="icon icon-alert" aria-hidden="true"></span>איפוס מוחק את הילדים, הגישה
+          מהמכשירים, ההקצאות וכל התוכן הלימודי. חשבונות ההורים והגדרות ה־AI נשמרים.
         </li>
       </ul>
     </div>

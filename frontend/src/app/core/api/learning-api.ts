@@ -172,11 +172,11 @@ export class LearningApi {
   deleteTemplate(id: string, lifetime: DestroyRef) {
     return requestResult(this.http.delete<void>(`/api/templates/${id}`), lifetime);
   }
-  /** Clears all family learning content, including items beyond list limits; keeps accounts and AI settings. */
+  /** Clears all family content, children, device access and assigned work beyond list limits; keeps accounts and AI settings. */
   resetLibrary(lifetime: DestroyRef) {
     return requestResult(this.http.delete<void>('/api/templates'), lifetime);
   }
-  /** Permanently deletes one owned snapshot; independent drafts and templates remain. */
+  /** Removes a snapshot from the library: archives assigned content, deletes unassigned content; other items remain. */
   deleteSnapshot(id: string, lifetime: DestroyRef) {
     return requestResult(this.http.delete<void>(`/api/instances/${id}`), lifetime);
   }

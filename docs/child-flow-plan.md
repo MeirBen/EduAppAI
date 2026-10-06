@@ -4,9 +4,18 @@
 > reviewed task at a time. Use subagent-driven development only if the user
 > selects it. Checkboxes track implementation, not completion of this document.
 
-**Status:** Proposed for review, 3 October 2026; rechecked against the
-repository on 6 October, after the material-ideas changes. No implementation
-task has started; implementation and acceptance evidence remain pending.
+**Status:** Tasks 1–2 implemented and verified on 6 October 2026. The user
+explicitly authorized both tasks together. Tasks 3–7 have not started; the full
+child workflow remains incomplete.
+
+**Verification:** `./scripts/verify.sh` passed with 539 backend tests, 189 Angular
+tests and 23 dashboard tests, plus formatting, Markdown, type checks and builds.
+`./scripts/publish.sh` and the isolated browser suite passed (27 tests), including
+assigned-snapshot archiving, child access after removal, family reset and the
+archived preview at 360px/200% text. An independent review found no critical or
+important issues; its small reset/identity-read race was reproduced and fixed.
+Verification used disposable databases and isolated providers, with no paid AI
+calls or Git mutations.
 
 **Goal:** A parent assigns reviewed work to an activated child device, the child
 saves and submits answers, and the parent sees stable results and grades short
@@ -181,10 +190,10 @@ confirmation and `core/api/learning-api.ts` comments in the frontend. Add
 **Interfaces:** Produces `ChildIdentity`, `ChildAccess.FindAsync`,
 `ChildSummary`, `ChildSessionIdentity` and `PageResponse<T>`.
 
-- [ ] Add failing host tests proving child cookies cannot read parent content,
+- [x] Add failing host tests proving child cookies cannot read parent content,
       parent cookies cannot read child content, and mixed authenticated cookies
       cannot activate or sign in. Assert no parent data appears in failure bodies.
-- [ ] Add tests for two families, invalid names, stale profile revisions,
+- [x] Add tests for two families, invalid names, stale profile revisions,
       disable/re-enable, missing/wrong-identity CSRF, expiry using an injected
       `TimeProvider`, two concurrent redemptions with exactly one grant, and the
       specified rate limits. A test harness may derive a controllable TimeProvider;
@@ -192,10 +201,10 @@ confirmation and `core/api/learning-api.ts` comments in the frontend. Add
       Include issue-versus-disable, redeem-versus-disable and code replacement:
       a committed disable leaves no usable code/grant, and only the latest issued
       code can be redeemed. Verify persistent cookie expiry and no sliding renewal.
-- [ ] Run `dotnet test tests/FamilyLearning.Api.Tests --filter ChildAccessTests`.
+- [x] Run `dotnet test tests/FamilyLearning.Api.Tests --filter ChildAccessTests`.
       Confirm the new behavior fails before implementation; compile errors for new
       test contracts must be resolved before accepting a behavioral red test.
-- [ ] Add child/profile revision and enabled state, one activation slot per
+- [x] Add child/profile revision and enabled state, one activation slot per
       child (hash, device label, expiry/consumption), and device grants with fixed
       expiry/revocation. Family/child ownership is relational; enforce unique code
       hashes and foreign keys. Reuse `EngineValidation.NameLength` for child/device
@@ -203,7 +212,7 @@ confirmation and `core/api/learning-api.ts` comments in the frontend. Add
       Apply the existing UTC timestamp conversion to all new timestamp properties.
       Generate migration `AddChildAccess` with the normal EF tooling; inspect it
       and the updated model snapshot.
-- [ ] Register a named `Child` cookie scheme and explicit `Parent`/`Child`
+- [x] Register a named `Child` cookie scheme and explicit `Parent`/`Child`
       policies. Keep the parent's Identity scheme, cookie behavior and existing
       routes. Use native cookie validation plus `ChildAccess.FindAsync`;
       set `IsPersistent = true`, `ExpiresUtc` to the stored grant expiry and
@@ -211,18 +220,18 @@ confirmation and `core/api/learning-api.ts` comments in the frontend. Add
       `FamilyLearning.Child` with path `/` so opposite-mode checks can see it;
       policy selection, not cookie path, isolates access. Register
       `TimeProvider.System` once.
-- [ ] Refactor only the common API composition needed to map sibling parent
+- [x] Refactor only the common API composition needed to map sibling parent
       and `/api/child` groups. Both inherit strict JSON, ProblemDetails, no-store
       and `CsrfFilter`; the child group must not inherit `Parent` authorization.
       Preserve the unknown-API 404 and shared exception handling without copying
       them into each feature. Update the exact anonymous endpoint allowlist.
-- [ ] Implement parent `GET/POST /api/children`,
+- [x] Implement parent `GET/POST /api/children`,
       `PUT /api/children/{id}` (`name`, `enabled`, `expectedRevision`),
       `POST /api/children/{id}/activation` (`deviceLabel`),
       `GET /api/children/{id}/devices` and
       `DELETE /api/children/{id}/devices/{grantId}`. Return activation code/expiry
       once. Use native cryptography and rate limiting with the spec's values.
-- [ ] Implement `/api/child/auth/csrf`, `POST /activate`, `GET /me` and
+- [x] Implement `/api/child/auth/csrf`, `POST /activate`, `GET /me` and
       `POST /logout`. Only child CSRF issuance and activation join the existing
       anonymous allowlist. Select the intended scheme before CSRF issuance or
       validation; keep the current Angular XSRF cookie/header mechanism. Refresh
@@ -232,7 +241,7 @@ confirmation and `core/api/learning-api.ts` comments in the frontend. Add
       Give these conflicts a distinct ProblemDetails type and add a narrow mapping
       in `frontend/src/app/core/api/api-error.ts` with tests; the existing generic
       409 template-conflict message is not suitable for a device-session conflict.
-- [ ] Perform activation, disable and revocation atomically. Repeated revoke
+- [x] Perform activation, disable and revocation atomically. Repeated revoke
       is harmless for an owned grant; foreign IDs remain 404. Do not expose a
       credential in list responses or automatically retry a consumed activation.
       Use the existing short, non-deferred SQLite write transaction pattern;
@@ -240,18 +249,18 @@ confirmation and `core/api/learning-api.ts` comments in the frontend. Add
       current database values even if cookie validation used the same DbContext.
       Later assignment/session mutations follow this same ordering; do not add a
       process lock or a generic transaction/retry framework.
-- [ ] Extend the existing family reset transaction to remove grants, activation
+- [x] Extend the existing family reset transaction to remove grants, activation
       slots and child profiles. Update its confirmation and contract comments now,
       not after later tasks. Add reset-past-100 and cross-family tests. Update
       migration tests to verify the migration set instead of asserting one exists.
-- [ ] Verify `ChildAccessTests`, `ApiBoundaryTests`, `ParentAccountTests`,
+- [x] Verify `ChildAccessTests`, `ApiBoundaryTests`, `ParentAccountTests`,
       `LibraryDeletionTests` and `MigrationTests`, then `./scripts/verify.sh`.
       Expected: all pass, current model matches migrations, restart preserves
       accounts/content, and the AI test provider records zero child-flow calls.
       Run `./scripts/publish.sh` and `npm --prefix frontend run e2e` to verify the
       changed parent auth/reset paths against the published application.
-- [ ] Review access checks, secret handling and deletion ordering; stop for
-      user review. Do not start assignments yet.
+- [x] Review access checks, secret handling and deletion ordering. Task 2 was
+      explicitly authorized together with Task 1.
 
 ## Task 2: Reviewed assignments, safe projections and retention
 
@@ -271,32 +280,32 @@ extend `LibraryDeletionTests.cs` and corresponding library/browser tests.
 **Interfaces:** Consumes Task 1 access and pagination. Produces assignment
 contracts, `LearnerDocument` and read endpoints used by Tasks 3, 5 and 6.
 
-- [ ] Add failing tests for two siblings and two families, unreviewed/unknown
+- [x] Add failing tests for two siblings and two families, unreviewed/unknown
       snapshots, disabled children, archived snapshots and concurrent duplicate
       assignment creation. A child/snapshot pair produces one row; replay returns
       the existing row without reopening withdrawn or completed work.
-- [ ] Add exact property allowlist assertions for every nested learner object,
+- [x] Add exact property allowlist assertions for every nested learner object,
       not just a search for the word `answer`. Include hostile-looking source text
       to prove content is preserved as data. Assert no generation calls.
-- [ ] Run `dotnet test tests/FamilyLearning.Api.Tests --filter AssignmentTests`
+- [x] Run `dotnet test tests/FamilyLearning.Api.Tests --filter AssignmentTests`
       and confirm expected failures.
-- [ ] Add `Assignment` with family/child/snapshot IDs, status, revision and UTC
+- [x] Add `Assignment` with family/child/snapshot IDs, status, revision and UTC
       timestamps. Add a unique child/snapshot index and restrictive child/snapshot
       foreign keys. Add `ArchivedAtUtc` metadata to snapshots without changing
       their content JSON. Generate and inspect migration `AddAssignments`.
-- [ ] Implement `POST /api/assignments`, paged `GET /api/assignments` with
+- [x] Implement `POST /api/assignments`, paged `GET /api/assignments` with
       optional child/status filters, `GET /api/assignments/{id}` and
       `POST /api/assignments/{id}/withdraw` with `expectedRevision`. Read owned
       existing pairs before new-create eligibility checks; returning existing
       history does not create work for a disabled child or archived snapshot.
-- [ ] Implement paged `GET /api/child/assignments` by available/submitted state
+- [x] Implement paged `GET /api/child/assignments` by available/submitted state
       and `GET /api/child/assignments/{id}`. Select the child from `ChildIdentity`,
       never request data. Withdrawn work returns 410 only after ownership is known;
       foreign/missing IDs return 404. Submitted rows become usable in Task 3.
-- [ ] Project learner content explicitly. Do not cast, inherit, spread or
+- [x] Project learner content explicitly. Do not cast, inherit, spread or
       serialize a parent `TaskDocument`/`SnapshotPreview`, including on errors.
       Parent assignment details may reference the existing owned snapshot preview.
-- [ ] Make snapshot deletion archive referenced snapshots and hard-delete only
+- [x] Make snapshot deletion archive referenced snapshots and hard-delete only
       unassigned ones. Hide archived snapshots from the ordinary library, keep
       owned parent previews and assignment reads working, and expose metadata for
       accurate archive/delete copy. `GenerationHistoryReader` keeps reading
@@ -305,15 +314,15 @@ contracts, `LearnerDocument` and read endpoints used by Tasks 3, 5 and 6.
       Keep the existing DELETE success contract; confirmation must explain both
       outcomes if a concurrent assignment changes deletion into archiving, and
       success copy must not claim permanent deletion from stale list metadata.
-- [ ] Extend family reset to remove assignments before their referenced
+- [x] Extend family reset to remove assignments before their referenced
       snapshots/children. Test delete-versus-assign,
       withdraw-versus-duplicate-create,
       reset rollback, rows beyond 100 and unaffected families, using separate
       DbContexts and deterministic synchronization rather than sleeps.
-- [ ] Verify assignment/retention/library/migration tests,
+- [x] Verify assignment/retention/library/migration tests,
       `./scripts/verify.sh`, then `./scripts/publish.sh` and
       `npm --prefix frontend run e2e` for the changed library behavior.
-- [ ] Review snapshot immutability, paged ownership queries and archive copy;
+- [x] Review snapshot immutability, paged ownership queries and archive copy;
       stop for user review.
 
 ## Task 3: Resumable answers and atomic automatic scoring
@@ -596,12 +605,12 @@ child-flow spec and this plan. Keep evaluation history and costs intact.
       certify generated educational content. Mark this milestone implemented only
       after its real acceptance passes, and stop for the user's family sanity test.
 
-## Review before implementation
+## Review before remaining implementation
 
 Review the spec and this plan together, especially parent grading of every
 answered short-text question, separate-device access, explicit save, one attempt
 per assignment, fixed grant expiry and the expanded destructive reset scope.
-The user may adjust these product choices before Task 1. Do not start code from
-this document merely because its checklists exist.
+The user may adjust the remaining product choices before Task 3. Do not start
+additional tasks merely because their checklists exist.
 
 [decimal-parsing]: https://learn.microsoft.com/dotnet/api/system.decimal.tryparse

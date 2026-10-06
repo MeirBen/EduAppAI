@@ -336,6 +336,7 @@ test('a lost start response replays the original key and preserves later local t
 
 test('library deletion confirms intent, preserves independent items, recovers from failure and follows other devices', async ({
   page,
+  browser,
 }) => {
   await login(page, 'cleanup@example.test');
   await propose(page, 'תרגול חשבון ללא קטע');
@@ -357,6 +358,68 @@ test('library deletion confirms intent, preserves independent items, recovers fr
   await expect(templates.locator('article')).toHaveCount(0);
   await expect(snapshots.locator('article')).toHaveCount(1);
   expect((await page.request.get(state.draftPath)).status()).toBe(200);
+  const parentHeaders = {
+    'X-XSRF-TOKEN': (await (await page.request.get('/api/auth/csrf')).json()).token,
+  };
+  const profileResponse = await page.request.post('/api/children', {
+    headers: parentHeaders,
+    data: { name: 'ילד לבדיקה' },
+  });
+  expect(profileResponse.status()).toBe(201);
+  const profile = await profileResponse.json();
+  const [snapshot] = await (await page.request.get('/api/instances')).json();
+  const original = await (await page.request.get(`/api/instances/${snapshot.id}`)).json();
+  const assigned = await page.request.post('/api/assignments', {
+    headers: parentHeaders,
+    data: { childId: profile.id, snapshotId: snapshot.id },
+  });
+  expect(assigned.status()).toBe(201);
+  const assignment = await assigned.json();
+  const activation = await (
+    await page.request.post(`/api/children/${profile.id}/activation`, {
+      headers: parentHeaders,
+      data: { deviceLabel: 'דפדפן נפרד' },
+    })
+  ).json();
+  const childContext = await browser.newContext();
+  const childRequest = childContext.request;
+  const childBase = new URL(page.url()).origin;
+  const childCsrf = await (await childRequest.get(`${childBase}/api/child/auth/csrf`)).json();
+  expect(
+    (
+      await childRequest.post(`${childBase}/api/child/auth/activate`, {
+        headers: { 'X-XSRF-TOKEN': childCsrf.token },
+        data: { code: activation.code },
+      })
+    ).status(),
+  ).toBe(204);
+  expect((await childRequest.get(`${childBase}/api/instances/${snapshot.id}`)).status()).toBe(401);
+  await expect(snapshots.getByText('הוקצתה לילד', { exact: false })).toBeVisible();
+  page.once('dialog', async (dialog) => {
+    expect(dialog.message()).toContain('ארכיון');
+    expect(dialog.message()).toContain('לצמיתות');
+    await dialog.accept();
+  });
+  await snapshots.getByRole('button', { name: /^הסרת הפעילות: / }).click();
+  await expect(page.getByText('הפעילות הוסרה מהספרייה.', { exact: true })).toBeVisible();
+  await expect(snapshots.locator('article')).toHaveCount(0);
+  const archived = await (await page.request.get(`/api/instances/${snapshot.id}`)).json();
+  expect(archived.document).toEqual(original.document);
+  expect(archived.archivedAtUtc).not.toBeNull();
+  const learner = await (
+    await childRequest.get(`${childBase}/api/child/assignments/${assignment.id}`)
+  ).json();
+  expect(Object.keys(learner.document.questions[0]).sort()).toEqual([
+    'id',
+    'interaction',
+    'points',
+    'prompt',
+  ]);
+  await page.goto(`/instances/${snapshot.id}`);
+  await expect(page.getByText('הפעילות בארכיון.', { exact: false })).toBeVisible();
+  await narrow(page, 'archived-snapshot');
+  await page.goto('/templates');
+
   await page.route('**/api/templates', async (route) => {
     if (route.request().method() === 'DELETE')
       await route.fulfill({ status: 500, json: { title: 'המחיקה נכשלה' } });
@@ -365,7 +428,8 @@ test('library deletion confirms intent, preserves independent items, recovers fr
   page.once('dialog', (dialog) => dialog.accept());
   await page.getByRole('button', { name: 'איפוס נתוני הלמידה' }).click();
   await expect(page.getByRole('alert')).toBeVisible();
-  await expect(snapshots.locator('article')).toHaveCount(1);
+  await expect(snapshots.locator('article')).toHaveCount(0);
+  expect((await childRequest.get(`${childBase}/api/child/auth/me`)).status()).toBe(200);
   await page.unroute('**/api/templates');
   page.once('dialog', (dialog) => dialog.accept());
   await page.getByRole('button', { name: 'איפוס נתוני הלמידה' }).click();
@@ -373,6 +437,9 @@ test('library deletion confirms intent, preserves independent items, recovers fr
   await expect(snapshots.locator('article')).toHaveCount(0);
   expect((await page.request.get(state.draftPath)).status()).toBe(404);
   expect((await page.request.get('/api/auth/me')).status()).toBe(200);
+  expect((await childRequest.get(`${childBase}/api/child/auth/me`)).status()).toBe(401);
+  expect((await page.request.get(`/api/instances/${snapshot.id}`)).status()).toBe(404);
+  await childContext.close();
 
   // Writes this page did not make reach it like another device's; one sign-in keeps the suite
   // within the server's login rate limit.

@@ -51,7 +51,7 @@ public sealed class ProductionHostTests
         using var client = app.CreateClient();
         using var scope = app.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<LearningDbContext>();
-        Assert.Single(await db.Database.GetAppliedMigrationsAsync());
+        Assert.Equal(db.Database.GetMigrations(), await db.Database.GetAppliedMigrationsAsync());
         Assert.Empty(await db.Database.GetPendingMigrationsAsync());
     }
 
@@ -95,6 +95,21 @@ public sealed class ProductionHostTests
         Assert.Equal(HttpStatusCode.OK, session.StatusCode);
         Assert.True(session.Headers.CacheControl?.NoCache);
         Assert.True(session.Headers.CacheControl?.NoStore);
+        await ApiFactory.RefreshCsrfAsync(client);
+        var profile = await ChildHarness.Create(client);
+        var activation = await ChildHarness.Issue(client, profile);
+        using var child = app.CreateClient(new() { BaseAddress = client.BaseAddress!, AllowAutoRedirect = false });
+        await ChildHarness.Csrf(child);
+        using var activated = await child.PostAsJsonAsync("/api/child/auth/activate", new { code = activation["code"]!.GetValue<string>() });
+        Assert.Equal(HttpStatusCode.NoContent, activated.StatusCode);
+        var childCookie = Assert.Single(SetCookieHeaderValue.ParseList(activated.Headers.GetValues(HeaderNames.SetCookie).ToArray()),
+            cookie => cookie.Name == "FamilyLearning.Child");
+        Assert.True(childCookie.Secure);
+        Assert.True(childCookie.HttpOnly);
+        Assert.Equal(Microsoft.Net.Http.Headers.SameSiteMode.Strict, childCookie.SameSite);
+        Assert.NotNull(childCookie.Expires);
+        Assert.Equal("/", childCookie.Path);
+
         client.DefaultRequestHeaders.Remove("X-XSRF-TOKEN");
         Assert.Equal(HttpStatusCode.BadRequest, (await client.PostAsync("/api/auth/logout", null)).StatusCode);
         await ApiFactory.RefreshCsrfAsync(client);

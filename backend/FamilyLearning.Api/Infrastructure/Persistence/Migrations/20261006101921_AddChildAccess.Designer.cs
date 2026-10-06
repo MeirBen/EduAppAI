@@ -3,6 +3,7 @@ using System;
 using FamilyLearning.Api.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -10,9 +11,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace FamilyLearning.Api.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(LearningDbContext))]
-    partial class LearningDbContextModelSnapshot : ModelSnapshot
+    [Migration("20261006101921_AddChildAccess")]
+    partial class AddChildAccess
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "8.0.31");
@@ -167,56 +170,6 @@ namespace FamilyLearning.Api.Infrastructure.Persistence.Migrations
                     b.ToTable("GenerationOperations");
                 });
 
-            modelBuilder.Entity("FamilyLearning.Api.Features.Assignments.Assignment", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("TEXT");
-
-                    b.Property<Guid>("ChildId")
-                        .HasColumnType("TEXT");
-
-                    b.Property<DateTime>("CreatedAtUtc")
-                        .HasColumnType("TEXT");
-
-                    b.Property<Guid>("FamilyId")
-                        .HasColumnType("TEXT");
-
-                    b.Property<long>("Revision")
-                        .IsConcurrencyToken()
-                        .HasColumnType("INTEGER");
-
-                    b.Property<Guid>("SnapshotId")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("TEXT");
-
-                    b.Property<DateTime?>("WithdrawnAtUtc")
-                        .HasColumnType("TEXT");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ChildId", "SnapshotId")
-                        .IsUnique();
-
-                    b.HasIndex("FamilyId", "ChildId");
-
-                    b.HasIndex("FamilyId", "SnapshotId");
-
-                    b.HasIndex("ChildId", "CreatedAtUtc", "Id");
-
-                    b.HasIndex("FamilyId", "CreatedAtUtc", "Id");
-
-                    b.HasIndex("ChildId", "Status", "CreatedAtUtc", "Id");
-
-                    b.HasIndex("FamilyId", "Status", "CreatedAtUtc", "Id");
-
-                    b.ToTable("Assignments");
-                });
-
             modelBuilder.Entity("FamilyLearning.Api.Features.Children.Child", b =>
                 {
                     b.Property<Guid>("Id")
@@ -311,9 +264,6 @@ namespace FamilyLearning.Api.Infrastructure.Persistence.Migrations
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("TEXT");
-
-                    b.Property<DateTime?>("ArchivedAtUtc")
                         .HasColumnType("TEXT");
 
                     b.Property<string>("CreatedByParentId")
@@ -604,27 +554,6 @@ namespace FamilyLearning.Api.Infrastructure.Persistence.Migrations
                         .HasForeignKey("DraftId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
-                });
-
-            modelBuilder.Entity("FamilyLearning.Api.Features.Assignments.Assignment", b =>
-                {
-                    b.HasOne("FamilyLearning.Api.Features.Children.Child", "Child")
-                        .WithMany()
-                        .HasForeignKey("FamilyId", "ChildId")
-                        .HasPrincipalKey("FamilyId", "Id")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("FamilyLearning.Api.Features.Instances.TaskSnapshot", "Snapshot")
-                        .WithMany()
-                        .HasForeignKey("FamilyId", "SnapshotId")
-                        .HasPrincipalKey("FamilyId", "Id")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("Child");
-
-                    b.Navigation("Snapshot");
                 });
 
             modelBuilder.Entity("FamilyLearning.Api.Features.Children.Child", b =>

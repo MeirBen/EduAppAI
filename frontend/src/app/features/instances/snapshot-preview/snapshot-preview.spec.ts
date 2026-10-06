@@ -6,7 +6,10 @@ import { SnapshotPreviewPage } from './snapshot-preview';
 import { numericPlan } from '../../activities/learning-plan.fixture';
 import { EditableQuestion } from '../../../core/api/models';
 
-async function preview(questions: Pick<EditableQuestion, 'prompt' | 'interaction' | 'answer'>[]) {
+async function preview(
+  questions: Pick<EditableQuestion, 'prompt' | 'interaction' | 'answer'>[],
+  archivedAtUtc: string | null = null,
+) {
   TestBed.configureTestingModule({
     providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([])],
   });
@@ -22,6 +25,7 @@ async function preview(questions: Pick<EditableQuestion, 'prompt' | 'interaction
     input: { settings: numericPlan.defaults },
     reviewedAtUtc: '2026-10-01T00:00:00Z',
     measurements: [],
+    archivedAtUtc,
     document: {
       title: 'מוכנה',
       instructions: null,
@@ -40,6 +44,13 @@ async function preview(questions: Pick<EditableQuestion, 'prompt' | 'interaction
 }
 
 describe('Immutable parent preview', () => {
+  it('explains archived content while retaining the parent preview and copy action', async () => {
+    const { root, http } = await preview([], '2026-10-06T00:00:00Z');
+    expect(root.textContent).toContain('הפעילות בארכיון');
+    expect(root.querySelector('#copy-snapshot')).not.toBeNull();
+    http.verify();
+  });
+
   it('renders answer text without HTML and copies only after explicit new-draft action', async () => {
     const { root, http } = await preview([
       {

@@ -13,11 +13,13 @@ export function apiError(error: unknown): string {
     return 'הכניסה לא הצליחה או פגה. יש לבדוק את הדוא״ל והסיסמה ולנסות שוב.';
   if (error.status === 403) return 'אין הרשאה לביצוע הפעולה הזו.';
   if (error.status === 404) return 'הפריט המבוקש לא נמצא.';
-  if (error.status === 409) return 'התבנית השתנתה. יש לרענן את העמוד לפני שמירת גרסה נוספת.';
-  if (error.status === 429) return 'הגעתם למגבלת הבקשות. יש לנסות שוב מאוחר יותר.';
   const body: unknown = error.error;
   const problem = body && typeof body === 'object' ? body : {};
   const type = 'type' in problem ? problem.type : null;
+  if (error.status === 409 && type === 'urn:family-learning:device-session-conflict')
+    return 'כבר קיימת כניסה פעילה בדפדפן. יש להתנתק ממנה או להשתמש בדפדפן נפרד.';
+  if (error.status === 409) return 'התבנית השתנתה. יש לרענן את העמוד לפני שמירת גרסה נוספת.';
+  if (error.status === 429) return 'הגעתם למגבלת הבקשות. יש לנסות שוב מאוחר יותר.';
   const aiValidation = error.status === 502 && type === 'urn:family-learning:ai-validation';
   if (
     (error.status < 500 || aiValidation) &&

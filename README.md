@@ -31,7 +31,7 @@ changes. Use
 [`npm --prefix frontend run start:public`](#public-https-address) to run the
 same development app through ngrok as well.
 Angular proxies `/api` to `http://localhost:5124`; use `localhost` consistently
-for cookies. Development applies the initial migration to an empty database.
+for cookies. Development applies the checked-in migrations.
 
 The client uses HTTPS, since browsers allow the APIs the app needs only on
 `localhost` or HTTPS. Trust a development certificate authority once per
@@ -151,10 +151,15 @@ queued events. These are operational logs, not an audit ledger.
 
 ## Data
 
-The library deletes individual drafts, templates or snapshots independently;
-deleting a template keeps its activities. **איפוס נתוני הלמידה** (reset learning
-data) clears the family's templates, drafts, operations and snapshots after
-confirmation, keeping the login and AI configuration.
+The library removes individual drafts, templates or snapshots independently;
+deleting a template keeps its activities. Removing a snapshot archives it when
+assigned to a child, preserving existing work; unassigned snapshots are deleted.
+**איפוס נתוני הלמידה** (reset learning
+data) clears the family's templates, drafts, operations, snapshots, child
+profiles, device access and assignments after confirmation, keeping parent
+accounts and AI configuration. Child profile, separate-device activation and
+assignment APIs are available; child screens and answer submission are still
+planned.
 
 Development stores SQLite and Data Protection keys in the ignored
 `backend/FamilyLearning.Api/data/`. Set `Storage__Directory` to an absolute path

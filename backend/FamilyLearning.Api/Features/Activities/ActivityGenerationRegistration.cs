@@ -10,7 +10,6 @@ public static class ActivityGenerationRegistration
 {
     public static void AddActivityGeneration(this IServiceCollection services, IConfiguration configuration)
     {
-        services.TryAddSingleton(TimeProvider.System);
         services.TryAddSingleton<AiGenerationService>();
         services.AddOptions<GenerationOperationOptions>().Bind(configuration.GetSection("GenerationOperations"))
             .Validate(o => o.PollIntervalSeconds is >= 1 and <= 60, "GenerationOperations:PollIntervalSeconds must be between 1 and 60.").ValidateOnStart();

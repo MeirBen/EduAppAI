@@ -59,8 +59,10 @@ export class ActivityLibrary {
     if (this.deleting()) return;
     const prompt =
       kind === 'all'
-        ? 'למחוק את כל נתוני הלמידה של המשפחה? אי אפשר לבטל את הפעולה. החשבון יישאר.'
-        : `למחוק את "${name}"? שאר הפריטים יישארו.`;
+        ? 'למחוק את כל נתוני הלמידה של המשפחה, כולל פרופילי הילדים, הגישה מהמכשירים, ההקצאות, התשובות, הציונים, התבניות, הטיוטות והפעילויות? אי אפשר לבטל את הפעולה. חשבונות ההורים והגדרות ה־AI יישארו.'
+        : kind === 'snapshot'
+          ? `להסיר את "${name}" מהספרייה? פעילות שהוקצתה לילד תועבר לארכיון והעבודה תישמר. פעילות שלא הוקצתה תימחק לצמיתות. שאר הפריטים יישארו.`
+          : `למחוק את "${name}"? שאר הפריטים יישארו.`;
     if (!window.confirm(prompt)) return;
     const restoreFocus = this.holdFocus();
     this.deleting.set(true);
@@ -79,7 +81,13 @@ export class ActivityLibrary {
       if (kind === 'draft' || kind === 'all') removeFrom(this.drafts);
       if (kind === 'snapshot' || kind === 'all') removeFrom(this.snapshots);
       if (kind === 'template' || kind === 'all') removeFrom(this.templates);
-      this.notice.set(kind === 'all' ? 'נתוני הלמידה נמחקו.' : 'הפריט נמחק.');
+      this.notice.set(
+        kind === 'all'
+          ? 'נתוני הלמידה נמחקו.'
+          : kind === 'snapshot'
+            ? 'הפעילות הוסרה מהספרייה.'
+            : 'הפריט נמחק.',
+      );
     } catch (error) {
       if (!this.lifetime.destroyed)
         this.failure.set({ id: kind === 'all' ? 'all' : id, message: apiError(error) });

@@ -1,3 +1,4 @@
+using FamilyLearning.Api.Infrastructure.Auth;
 using Microsoft.AspNetCore.Antiforgery;
 
 namespace FamilyLearning.Api.Infrastructure.Web;
@@ -8,6 +9,9 @@ public sealed class CsrfFilter(IAntiforgery antiforgery) : IEndpointFilter
     /// <summary>Passes safe methods through and returns HTTP 400 when a write lacks a valid token.</summary>
     public async ValueTask<object?> InvokeAsync(EndpointFilterInvocationContext context, EndpointFilterDelegate next)
     {
+        if (context.HttpContext.GetEndpoint()?.Metadata.GetMetadata<DeviceSessionEntry>() is { } entry &&
+            await ChildAuthentication.SelectEntryAsync(context.HttpContext, entry) is { } conflict)
+            return conflict;
         var method = context.HttpContext.Request.Method;
         if (HttpMethods.IsGet(method) || HttpMethods.IsHead(method) || HttpMethods.IsOptions(method))
             return await next(context);

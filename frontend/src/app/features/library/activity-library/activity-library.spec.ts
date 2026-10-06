@@ -7,7 +7,13 @@ import { provideLimits } from '../../../core/api/limits.fixture';
 import { FakeEventSource } from '../../../core/api/event-source.fixture';
 
 const draft = { id: 'draft', name: 'בעבודה', revision: 2, updatedAtUtc: '2026-10-01T00:00:00Z' };
-const snapshot = { id: 'ready', title: 'מוכנה', status: 'Ready', createdAtUtc: draft.updatedAtUtc };
+const snapshot = {
+  id: 'ready',
+  title: 'מוכנה',
+  status: 'Ready',
+  hasAssignments: false,
+  createdAtUtc: draft.updatedAtUtc,
+};
 
 describe('Activity library', () => {
   let http: HttpTestingController;
@@ -33,6 +39,23 @@ describe('Activity library', () => {
     await fixture.whenStable();
     return fixture;
   }
+
+  it('describes both snapshot removal outcomes and acknowledges removal without claiming permanent deletion', async () => {
+    const fixture = await render();
+    const root = fixture.nativeElement as HTMLElement;
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(true);
+    root
+      .querySelector<HTMLButtonElement>('section[aria-labelledby="ready-title"] article button')!
+      .click();
+    expect(confirm.mock.calls[0][0]).toContain('ארכיון');
+    expect(confirm.mock.calls[0][0]).toContain('לצמיתות');
+    http.expectOne((r) => r.url === '/api/instances/ready' && r.method === 'DELETE').flush(null);
+    await fixture.whenStable();
+    expect(root.textContent).toContain('הפעילות הוסרה מהספרייה');
+    expect(root.textContent).not.toContain('הפריט נמחק');
+    expect(root.querySelector('a[href="/instances/ready"]')).toBeNull();
+    http.verify();
+  });
 
   it('separates editable drafts and ready snapshots, and deletes only the explicitly selected draft', async () => {
     const fixture = await render();

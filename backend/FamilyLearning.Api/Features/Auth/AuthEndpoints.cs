@@ -11,20 +11,9 @@ public static class AuthEndpoints
     public static void MapAuthEndpoints(this RouteGroupBuilder api)
     {
         var auth = api.MapGroup("/auth");
-        auth.MapGet("/csrf", (HttpContext context, IAntiforgery antiforgery, IWebHostEnvironment environment) =>
-        {
-            var token = antiforgery.GetAndStoreTokens(context).RequestToken!;
-            // Angular reads this request token; the separate authentication cookie stays HttpOnly.
-            context.Response.Cookies.Append("XSRF-TOKEN", token, new CookieOptions
-            {
-                HttpOnly = false,
-                Secure = !environment.IsDevelopment(),
-                SameSite = SameSiteMode.Strict,
-                Path = "/"
-            });
-            return Results.Ok(new { token });
-        }).AllowAnonymous();
-        auth.MapPost("/login", LoginAsync).AllowAnonymous().RequireRateLimiting("login");
+        auth.MapGet("/csrf", Csrf).AllowAnonymous().WithMetadata(new DeviceSessionEntry(IdentityConstants.ApplicationScheme));
+        auth.MapPost("/login", LoginAsync).AllowAnonymous().RequireRateLimiting("login")
+            .WithMetadata(new DeviceSessionEntry(IdentityConstants.ApplicationScheme));
         auth.MapPost("/logout", async (SignInManager<ParentUser> signIn) =>
         {
             await signIn.SignOutAsync();
@@ -35,6 +24,20 @@ public static class AuthEndpoints
             email = context.User.Identity!.Name,
             familyId = context.User.FamilyId()
         }));
+    }
+
+    internal static IResult Csrf(HttpContext context, IAntiforgery antiforgery, IWebHostEnvironment environment)
+    {
+        var token = antiforgery.GetAndStoreTokens(context).RequestToken!;
+        // Angular reads this request token; the separate authentication cookies stay HttpOnly.
+        context.Response.Cookies.Append("XSRF-TOKEN", token, new CookieOptions
+        {
+            HttpOnly = false,
+            Secure = !environment.IsDevelopment(),
+            SameSite = SameSiteMode.Strict,
+            Path = "/"
+        });
+        return Results.Ok(new { token });
     }
 
     private static async Task<IResult> LoginAsync(LoginRequest request, SignInManager<ParentUser> signIn)

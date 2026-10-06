@@ -2,6 +2,16 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { apiError } from './api-error';
 
 describe('Hebrew API feedback', () => {
+  it('explains device-session conflicts without presenting a template conflict or server text', () => {
+    const error = { type: 'urn:family-learning:device-session-conflict', title: 'private detail' };
+    const message = apiError(new HttpErrorResponse({ status: 409, error }));
+    expect(message).toContain('דפדפן');
+    expect(message).toContain('להתנתק');
+    expect(message).not.toContain('התבנית');
+    expect(message).not.toContain('private detail');
+    expect(apiError(new HttpErrorResponse({ status: 409, error: {} }))).toContain('התבנית');
+  });
+
   it('shows AI validation failures only for the application-owned problem type', () => {
     const error = {
       type: 'urn:family-learning:ai-validation',

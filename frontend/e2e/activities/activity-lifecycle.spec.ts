@@ -99,6 +99,7 @@ async function isolate(page: Page) {
     if (path === '/api/activity-drafts/draft/release') {
       expect(request.postDataJSON()).toEqual({ expectedRevision: draft.revision });
       snapshot = {
+        archivedAtUtc: null,
         id: 'ready',
         sourceDraftId: draft.id,
         sourceDraftRevision: draft.revision,

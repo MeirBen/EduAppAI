@@ -1,12 +1,14 @@
 namespace FamilyLearning.Api.Features.Instances;
 
 /// <summary>Self-contained immutable parent-reviewed activity, independent of live drafts, templates and operation evidence.</summary>
-/// <remarks>Provenance IDs deliberately have no live foreign keys. Only family ownership is relational.</remarks>
+/// <remarks>Provenance IDs deliberately have no live foreign keys. Assignments retain this row through restrictive ownership foreign keys.</remarks>
 public sealed class TaskSnapshot(Guid familyId, Guid sourceDraftId, long sourceDraftRevision, string title,
     string planJson, string inputJson, string resolvedInputJson, string documentJson, string measurementsJson,
     int engineRevision, Guid? templateVersionId, Guid? sourceSnapshotId, string createdByParentId,
     DateTime draftCreatedAtUtc, string reviewedByParentId, DateTime reviewedAtUtc)
 {
+    public DateTime? ArchivedAtUtc { get; private set; }
+
     public Guid Id { get; private set; } = Guid.NewGuid();
     public Guid FamilyId { get; private set; } = familyId;
     public Guid SourceDraftId { get; private set; } = sourceDraftId;

@@ -17,8 +17,9 @@ previews and `shared` reusable presentation and form helpers. Development
 proxies `/api`; the published host serves both.
 
 Feature endpoints join `ApiConfiguration.MapApplicationApi` to inherit strict
-JSON, ProblemDetails, parent authorization and CSRF; only sign-in and token
-issuance are anonymous. Kestrel bounds bodies to 256 KiB to allow escaped Hebrew
+JSON, ProblemDetails and CSRF. Sibling parent and child groups select explicit
+cookie schemes; only sign-in, child activation and token issuance are anonymous.
+Kestrel bounds bodies to 256 KiB to allow escaped Hebrew
 JSON; validators enforce the smaller field and aggregate limits.
 
 Keep state and mutations in their owning feature, share rules through the
@@ -39,23 +40,23 @@ revisions are separate concurrency counters.
 
 All routes are under `/api`; writes enforce CSRF.
 
-| Request                                   | Result                |
-| ----------------------------------------- | --------------------- |
-| `GET limits`                              | Server content limits |
-| `POST ai/template-drafts`                 | Unsaved proposal      |
-| `POST templates`                          | Template version 1    |
-| `POST templates/{id}/versions`            | Publish a version     |
-| `POST activity-drafts`                    | New editable draft    |
-| `PUT activity-drafts/{id}`                | Save a revision       |
-| `POST activity-drafts/{id}/operations`    | Idempotent start      |
-| `POST activity-drafts/{id}/adopt-content` | Accept stale content  |
-| `POST activity-drafts/{id}/release`       | Review and freeze     |
-| `GET instances/{id}`                      | Frozen parent preview |
-| `DELETE activity-drafts/{id}`             | Draft and operations  |
-| `DELETE instances/{id}`                   | One snapshot          |
-| `DELETE templates/{id}`                   | Template and versions |
-| `DELETE templates`                        | Family learning reset |
-| `GET library/changes`                     | Change notes (SSE)    |
+| Request                                   | Result                     |
+| ----------------------------------------- | -------------------------- |
+| `GET limits`                              | Server content limits      |
+| `POST ai/template-drafts`                 | Unsaved proposal           |
+| `POST templates`                          | Template version 1         |
+| `POST templates/{id}/versions`            | Publish a version          |
+| `POST activity-drafts`                    | New editable draft         |
+| `PUT activity-drafts/{id}`                | Save a revision            |
+| `POST activity-drafts/{id}/operations`    | Idempotent start           |
+| `POST activity-drafts/{id}/adopt-content` | Accept stale content       |
+| `POST activity-drafts/{id}/release`       | Review and freeze          |
+| `GET instances/{id}`                      | Frozen parent preview      |
+| `DELETE activity-drafts/{id}`             | Draft and operations       |
+| `DELETE instances/{id}`                   | Archive or delete snapshot |
+| `DELETE templates/{id}`                   | Template and versions      |
+| `DELETE templates`                        | Family learning reset      |
+| `GET library/changes`                     | Change notes (SSE)         |
 
 `EngineValidation` names every client-visible limit once; validators, their
 messages, prompts and `ContentLimits` (served by `GET limits`) all read those
@@ -119,8 +120,9 @@ erase snapshots, and family reset deletes learning records atomically while
 keeping accounts. Publication saves a version and its current pointer atomically
 under a concurrency token and unique index.
 
-The single `InitialCreate` migration owns the model. Development initializes an
-empty database; Production requires the explicit management command. Tests use
+Additive migrations extend `InitialCreate`; existing content is preserved.
+Development applies migrations; Production requires the explicit management
+command. Tests use
 disposable storage, the real `Program` composition and isolated providers;
 worker tests disable automatic polling to drive transitions deterministically.
 
@@ -187,6 +189,35 @@ validated run IDs under its root, rejects links and serializes review edits.
 Host and Origin checks, antiforgery, CSP and plain-text rendering protect the
 paid-run boundary. Usage and report contracts are in the
 [AI guide](ai.md#using-the-evaluation-harness).
+
+## Child device access
+
+`Features/Children` owns family profiles, one replaceable hashed activation slot
+per child, and fixed 30-day device grants. Native cookie policies isolate the
+Identity parent scheme from `Child`; session entry rejects active opposite-mode
+cookies before changing CSRF tokens. Activation needs an anonymous browser and
+a fresh identity-bound CSRF token afterward. No child endpoint uses AI.
+
+`ChildAccess.FindAsync` reads current profile/grant state without EF tracking.
+Writes acquire a short SQLite transaction before checking current access or
+state, so committed disable/revocation wins over an earlier authentication.
+Disabling invalidates pending codes and all grants; re-enabling restores neither.
+Parent profile/device lists use SQL projection and bounded deterministic paging.
+Family reset removes all owned assignments, child access and profiles in its
+transaction before deleting their referenced content.
+
+`Features/Assignments` owns one assignment per child/snapshot pair. Short write
+transactions serialize creation, withdrawal and snapshot removal. Composite
+foreign keys enforce family ownership and retain assigned snapshots. Replays
+return the existing assignment before checking new-assignment eligibility.
+Parent list projections read names and titles in SQL before paging; child reads
+project explicit learner contracts without answer keys or generation metadata.
+Read endpoints never start work. Work sessions and grading remain future tasks.
+
+Snapshot archive time is mutable metadata; content JSON stays frozen. Ordinary
+library lists hide archived rows, while owned parent previews, assignment reads
+and generation history retain them. Removal keeps its 204 contract, and the UI
+explains both outcomes because a concurrent assignment can require archiving.
 
 ## Access and failures
 

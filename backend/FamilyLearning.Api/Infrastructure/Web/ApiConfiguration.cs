@@ -1,18 +1,22 @@
+using System.Security.Claims;
 using System.Text.Json.Serialization;
 using System.Threading.RateLimiting;
 using FamilyLearning.Api.Features.Activities;
 using FamilyLearning.Api.Features.Ai;
+using FamilyLearning.Api.Features.Assignments;
 using FamilyLearning.Api.Features.Auth;
+using FamilyLearning.Api.Features.Children;
 using FamilyLearning.Api.Features.Instances;
 using FamilyLearning.Api.Features.Library;
 using FamilyLearning.Api.Features.Templates;
+using FamilyLearning.Api.Infrastructure.Auth;
 using FamilyLearning.Api.TaskEngine.Ai;
 using FamilyLearning.Api.TaskEngine.Validation;
 using Serilog;
 
 namespace FamilyLearning.Api.Infrastructure.Web;
 
-/// <summary>Shared API contracts and policies; feature endpoints inherit parent authorization and CSRF protection.</summary>
+/// <summary>Shared API contracts and policies; feature endpoints inherit explicit authorization and CSRF protection.</summary>
 public static class ApiConfiguration
 {
     /// <summary>Registers strict JSON, safe problem responses and per-process request limits.</summary>
@@ -31,6 +35,17 @@ public static class ApiConfiguration
         services.AddSingleton<LibraryChanges>();
         services.AddRateLimiter(options =>
         {
+            options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(context =>
+                context.GetEndpoint()?.Metadata.GetMetadata<DeviceSessionEntry>() is { RequireAnonymous: true }
+                    ? RateLimitPartition.GetFixedWindowLimiter("child-redemption", _ => new FixedWindowRateLimiterOptions
+                    { PermitLimit = 120, Window = TimeSpan.FromMinutes(1), QueueLimit = 0 })
+                    : RateLimitPartition.GetNoLimiter("other"));
+            options.AddPolicy("child-redemption", context => RateLimitPartition.GetFixedWindowLimiter(
+                context.Connection.RemoteIpAddress?.ToString() ?? "unknown", _ => new FixedWindowRateLimiterOptions
+                { PermitLimit = 10, Window = TimeSpan.FromMinutes(1), QueueLimit = 0 }));
+            options.AddPolicy("child-issuance", context => RateLimitPartition.GetFixedWindowLimiter(
+                context.User.FindFirstValue(ClaimTypes.NameIdentifier)!, _ => new FixedWindowRateLimiterOptions
+                { PermitLimit = 10, Window = TimeSpan.FromMinutes(1), QueueLimit = 0 }));
             options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
             options.AddPolicy("login", context => RateLimitPartition.GetFixedWindowLimiter(
                 context.Connection.RemoteIpAddress?.ToString() ?? "unknown", _ => new FixedWindowRateLimiterOptions
@@ -38,10 +53,16 @@ public static class ApiConfiguration
         });
     }
 
-    /// <summary>Maps parent APIs; only sign-in and token issuance explicitly allow anonymous access.</summary>
+    /// <summary>Maps sibling parent and child APIs with a shared failure/CSRF boundary.</summary>
     public static void MapApplicationApi(this WebApplication app)
     {
-        var api = ParentApi(app);
+        var root = ApplicationApi(app);
+        var api = root.MapGroup("").RequireAuthorization("Parent");
+        api.MapAuthEndpoints();
+        api.MapChildEndpoints();
+        var child = root.MapGroup("/child").RequireAuthorization("Child");
+        child.MapChildAuthEndpoints();
+        child.MapChildAssignmentEndpoints();
         api.MapGet("/limits", () => ContentLimits.Current);
         api.MapPlanAuthoringEndpoints();
         api.MapLibraryChangeEndpoints();
@@ -51,11 +72,12 @@ public static class ApiConfiguration
         library.MapGenerationOperationEndpoints();
         library.MapPlanTemplateEndpoints();
         library.MapSnapshotEndpoints();
+        library.MapAssignmentEndpoints();
     }
 
-    private static RouteGroupBuilder ParentApi(WebApplication app)
+    private static RouteGroupBuilder ApplicationApi(WebApplication app)
     {
-        var api = app.MapGroup("/api").RequireAuthorization("Parent").AddEndpointFilter<CsrfFilter>();
+        var api = app.MapGroup("/api").AddEndpointFilter<CsrfFilter>();
         api.AddEndpointFilter(async (context, next) =>
         {
             // Match antiforgery's cache policy so token issuance does not need to override it.
@@ -72,7 +94,6 @@ public static class ApiConfiguration
                 return Results.ValidationProblem(exception.Errors.ToDictionary(pair => pair.Key, pair => pair.Value));
             }
         });
-        api.MapAuthEndpoints();
         // An unknown API route must remain a 404 instead of returning Angular's HTML fallback.
         app.Map("/api/{**path}", () => Results.NotFound());
         return api;

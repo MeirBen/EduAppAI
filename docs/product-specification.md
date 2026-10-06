@@ -178,7 +178,9 @@ Deferred maintenance from the live-update work:
 
 ## Child flow — next milestone
 
-**Design for review, 3 October 2026; not implemented.** This milestone completes
+**Partially implemented, 6 October 2026:** child access and assignment APIs
+(Tasks 1–2) are available; work sessions, grading and child/management screens
+remain planned. This milestone completes
 one loop: the parent creates a child profile, assigns a reviewed activity,
 activates a separate child device and sees the submitted answers and results.
 It extends the current application and immutable snapshots. Creating a profile,

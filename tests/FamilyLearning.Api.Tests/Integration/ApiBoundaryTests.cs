@@ -7,7 +7,7 @@ namespace FamilyLearning.Api.Tests.Integration;
 public sealed class ApiBoundaryTests
 {
     [Fact]
-    public void Only_sign_in_and_csrf_are_anonymous_api_entry_points()
+    public void Only_sign_in_activation_and_csrf_are_anonymous_api_entry_points()
     {
         using var app = new ApiFactory();
         using var client = app.CreateClient();
@@ -19,9 +19,9 @@ public sealed class ApiBoundaryTests
         foreach (var endpoint in endpoints)
         {
             var anonymous = endpoint.Metadata.GetMetadata<IAllowAnonymous>() is not null;
-            Assert.Equal(endpoint.RoutePattern.RawText is "/api/auth/login" or "/api/auth/csrf", anonymous);
+            Assert.Equal(endpoint.RoutePattern.RawText is "/api/auth/login" or "/api/auth/csrf" or "/api/child/auth/csrf" or "/api/child/auth/activate", anonymous);
             if (!anonymous)
-                Assert.Contains(endpoint.Metadata.GetOrderedMetadata<IAuthorizeData>(), data => data.Policy == "Parent");
+                Assert.Contains(endpoint.Metadata.GetOrderedMetadata<IAuthorizeData>(), data => data.Policy == (endpoint.RoutePattern.RawText!.StartsWith("/api/child/", StringComparison.Ordinal) ? "Child" : "Parent"));
         }
     }
 }
