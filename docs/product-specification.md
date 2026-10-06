@@ -65,7 +65,9 @@ loading a newer version only on request.
 
 Shared settings are topic and audience (required, up to 200 characters),
 difficulty (`easy`, `medium` or `hard`, relative to the audience) and a question
-count from 1 to 20. Per-activity settings override template defaults; inside an
+count from 1 to 20. When a parent's request names no difficulty, authoring
+defaults to `easy` through third grade and `medium` above, disclosed as an
+assumption. Per-activity settings override template defaults; inside an
 activity they are its plan defaults, which a saved template keeps. Feasibility
 and total content limits also bound the count. A value the parent may change
 per activity is bounded only by these application limits.

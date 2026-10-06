@@ -27,7 +27,8 @@ internal static class AiPrompts
         Record niqqud and other language presentation in the plan only when the parent explicitly asks for it.
         Use the base plan and unresolved conversation. Preserve retained material/control IDs, including renamed or moved controls.
         New materials and controls must have null IDs. Never rewrite a retained fixed source or change its source kind.
-        Put requested topic, audience, difficulty and question count in defaults; medium is the unspecified difficulty default.
+        Put requested topic, audience, difficulty and question count in defaults; when none is requested, difficulty defaults to easy
+        through third grade and medium above.
         Add custom controls only for explicitly requested per-task choices; fixed requirements stay in their owning guidance.
         Use at most {MaxControls} custom controls in the whole plan and 1–{MaxSelectOptions} distinct options per select; clarify a request that needs more.
         Do not invent custom controls for passage topic, genre, tone or length. Use material scope for material choices and question scope for question choices.

@@ -57,6 +57,13 @@ Retained:
   two-digit bounds and disclosed the final short-request range assumption.
   Reading controls retained source/niqqud behavior; no arithmetic-quality gain
   was demonstrated. Fraction/remainder instructions were not separately tested.
+- **Difficulty default (revision 33):** a request that names no difficulty
+  now defaults to easy through third grade and medium above (was medium for
+  all). Basis: medium third-grade texts used 6.1 formal words against 4.4 at
+  easy (p ≈ 0.05, 6 October). Candidate runs: grade 1 and four grade-3 plans
+  defaulted to easy, grade 4 and 7 stayed medium, the default was disclosed in
+  6 of 7 assumption lists, and a grade-3 "up to 1000" drill kept its range
+  (results to 800) with 20/20 correct keys. One ants pair read plainer at easy.
 - **Comparison signs (revision 32):** comparison drills wrote every option and
   instruction as Hebrew words plus a sign (`קטן מ־ (<)`), which real Chromium
   displays as `(>)` through bidi mirroring, in 4/4 such baseline drills; the
@@ -265,6 +272,8 @@ Historical caps do not authorize new paid runs.
 - `math-formats-2026-10-06/`: 70 calls, $0.64560975 of $1, no unknown costs;
   answer-format probe, comparison-sign and rounded-key hypotheses, browser
   evidence (`bidi.png`), final controls and a four-case reading regression.
+- `difficulty-default-2026-10-07/`: difficulty-default candidate and a broad
+  revision-33 regression; cost in its `budget.json`, within a separate $1 cap.
 
 Retired design documents: `documentation-history-2026-10-01.zip`.
 
