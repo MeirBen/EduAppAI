@@ -139,6 +139,12 @@ On 6 October different-topic rewrites replayed the app's exact rewrite request.
   texts unchanged (6.1 over eight texts, partly blind), so it was not adopted.
   Easy is the lever for simpler language; the plan chat defaults to medium when
   the parent states no difficulty.
+- **Difficulty and thinking demand (rejected):** with the material fixed (one
+  space text, one story), questions needing inference already rose with
+  difficulty: 30% at easy, 33% at medium and 58% at hard (p = 0.03, 17
+  blind-labelled sets). A line mapping easy to mostly stated information and
+  hard to mostly inference gave 30%, 40% and 67%; its extra 8 points of rise
+  (p = 0.34, 16 sets) missed the preset 30-point bar.
 
 ## Material variety
 
