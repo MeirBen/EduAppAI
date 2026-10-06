@@ -163,7 +163,12 @@ available. Submission automatically scores choices/numbers and freezes short tex
 for parent review. Parents finalize all pending grades once; reports retain the
 original answers and awards. Parents manage profiles and devices at `/children`,
 assign a frozen activity from its preview, and filter or review work at
-`/assignments`. The child activation and activity-player screens remain planned.
+`/assignments`. On a separate child browser/device, open `/child/activate` and
+enter the one-time code. `/child` lists available and submitted work; opening an
+activity starts or resumes its saved session. Children explicitly save progress
+and submit, then see a receipt and the final total after review. Lost responses
+offer a saved-work check without silently replacing local answers. Disconnecting
+revokes this device's access.
 
 Development stores SQLite and Data Protection keys in the ignored
 `backend/FamilyLearning.Api/data/`. Set `Storage__Directory` to an absolute path

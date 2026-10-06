@@ -10,7 +10,11 @@ export default defineConfig({
   projects: [
     {
       name: 'workflows',
-      testIgnore: ['**/auth-navigation.spec.ts', '**/parent-assignments.spec.ts'],
+      testIgnore: [
+        '**/auth-navigation.spec.ts',
+        '**/parent-assignments.spec.ts',
+        '**/child-workflow.spec.ts',
+      ],
     },
     {
       name: 'auth',
@@ -19,13 +23,13 @@ export default defineConfig({
     },
     {
       name: 'parent-assignments',
-      testMatch: '**/parent-assignments.spec.ts',
+      testMatch: ['**/parent-assignments.spec.ts', '**/child-workflow.spec.ts'],
       use: { baseURL: 'http://localhost:5201' },
     },
   ],
   // Real sign-in tests get their own disposable host and login rate-limit budget.
   webServer: [5199, 5200, 5201].map((port) => ({
-    command: `node e2e/start-server.mjs ${port}`,
+    command: `node e2e/start-server.mjs ${port}${port === 5201 ? ' 5203' : ''}`,
     url: `http://localhost:${port}/health`,
     reuseExistingServer: false,
     timeout: 60_000,

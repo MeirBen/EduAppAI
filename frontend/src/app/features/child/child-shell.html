@@ -1,0 +1,23 @@
+<app-page-shell homeUrl="/child" [compactBrand]="!!auth.identity()" [busy]="signingOut()">
+  <div shell-navigation>
+    @if (auth.identity()) {
+      <nav class="flex flex-wrap items-center gap-2" aria-label="ניווט הפעילויות שלי">
+        <a
+          class="nav-link"
+          routerLink="/child"
+          routerLinkActive
+          [routerLinkActiveOptions]="{ exact: true }"
+          ariaCurrentWhenActive="page"
+          ><span class="icon icon-home" aria-hidden="true"></span><span>הפעילויות שלי</span></a
+        >
+        <button class="nav-link text-muted" [disabledInteractive]="signingOut()" (click)="logout()">
+          <span class="icon icon-sign-out" aria-hidden="true"></span><span>ניתוק המכשיר</span>
+        </button>
+      </nav>
+    }
+  </div>
+  @if (error()) {
+    <p class="error mb-6" role="alert">{{ error() }}</p>
+  }
+  <router-outlet />
+</app-page-shell>

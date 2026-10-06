@@ -4,21 +4,23 @@
 > reviewed task at a time. Use subagent-driven development only if the user
 > selects it. Checkboxes track implementation, not completion of this document.
 
-**Status:** Tasks 1–5 implemented and verified on 6 October 2026. Tasks 6–7
-have not started; the child activation, inbox and player screens remain incomplete.
+**Status:** Tasks 1–6 implemented and verified on 6 October 2026. Task 7
+(full-flow acceptance and documentation cutover) has not started.
 
-**Verification:** `./scripts/verify.sh` passed with 592 backend tests, 211 Angular
+**Verification:** `./scripts/verify.sh` passed with 592 backend tests, 246 Angular
 tests and 23 dashboard tests, plus formatting, Markdown, type checks and builds.
-`./scripts/publish.sh` and the isolated browser suite passed (28 tests), including
-parent profile/device management, snapshot assignment/replay, withdrawal,
-archiving, submitted-answer review, recovery after a committed grading response
-is lost, revocation, disable and family reset. Component tests cover paging,
-validation, conflicts, cancellation, exact text and delayed-refresh keyboard
-focus. Browser checks cover 360px/200% text and light/dark themes. Independent
-review findings were fixed and confirmed; no unresolved findings remain.
-Verification used disposable databases and isolated providers, with no paid AI
-calls or Git mutations. The parent-management browser workflow has a separate
-disposable host so production login limits remain unchanged.
+`./scripts/publish.sh` and the isolated browser suite passed (29 tests), including
+parent management, assignment and grading plus child activation, all three answer
+types, save/reload, recovery after a committed submission response is lost,
+parent grading, refreshed child results and device disconnect. Component tests
+cover activation/token recovery, paging, exact text, validation focus, missing
+answers, conflicts, terminal/zero-point results, withdrawal/expiry and request
+cancellation on navigation. Child requests and response allowlists were inspected;
+no parent APIs, answer keys or AI calls enter the child workflow. Browser checks
+cover 360px/200% text, keyboard behavior and light/dark themes. Independent review
+found two access-lock issues; regression tests reproduced both and pass after the
+fixes. No unresolved findings remain. Verification used disposable databases and
+isolated providers, with no paid AI calls or Git mutations.
 
 Optional school grade/age and elapsed activity duration are documented follow-ups
 in the specification, outside these implementation tasks.
@@ -523,11 +525,11 @@ keep their paths and parent shell; child pages never inject `LearningApi`,
 parent `Auth` or the parent-only `Limits` loader. Child bootstrap obtains its
 answer limit from `ChildSessionIdentity`.
 
-- [ ] Add failing routing/component tests: an activated child refreshes into
+- [x] Add failing routing/component tests: an activated child refreshes into
       the child area without a parent guard/limits request; child navigation never
       shows parent controls; 401 asks for activation, a temporary server error
       offers retry, and neither error is persisted in a URL.
-- [ ] Add player tests for all three interactions, incomplete numeric edits,
+- [x] Add player tests for all three interactions, incomplete numeric edits,
       explicit save and unsaved warning, validation focus, stale revision, lost
       save/submit responses, terminal sessions, missing-answer confirmation and
       cancellation on navigation. Pending review shows receipt without a final
@@ -538,38 +540,38 @@ answer limit from `ChildSessionIdentity`.
       two-paragraph material's blank line and a poem's line breaks, number the
       questions, show choices as native options and keep a calculation prompt in
       order.
-- [ ] Run the new Angular specs with `npm --prefix frontend test -- --watch=false`
+- [x] Run the new Angular specs with `npm --prefix frontend test -- --watch=false`
       and targeted `--include` paths; confirm behavioral failures.
-- [ ] Implement shell separation with existing native routing. Preserve parent
+- [x] Implement shell separation with existing native routing. Preserve parent
       login URLs, theme controls, skip link, responsive header/footer and navigation
       loading indicators. Child home links stay in `/child`; do not expose a
       same-browser mode switch or duplicate the parent workspace into a child view.
-- [ ] Implement activation and child session checks using the native XSRF flow.
+- [x] Implement activation and child session checks using the native XSRF flow.
       Explain persistent device access before activation, clear codes after
       use/destruction and refresh the identity-bound token after activation.
       Disconnect revokes the grant and clears the cookie. Superseded guard reads
       are cancellable; distinguish invalid access from availability. If activation
       or token refresh loses its response, check `/me` and refresh CSRF when a
       grant cookie arrived; otherwise request a new code without replaying it.
-- [ ] Implement the paged inbox and explicit session start. Use learner DTOs
+- [x] Implement the paged inbox and explicit session start. Use learner DTOs
       only, rendering text through interpolation by the
       [generated-text contract](ui-guide.md#direction-and-copy), which the
       generator relies on. The player keeps its own answer
       buffer, the last acknowledged revision and derived dirty state. Reuse small
       safe visual helpers, never `ActivityDocumentView` or other key-bearing views.
-- [ ] Implement explicit save and final submit without background retries. On
+- [x] Implement explicit save and final submit without background retries. On
       timeout, offer a read of the persisted session. Preserve local edits until
       the child explicitly loads saved work; a confirmed terminal state locks edits
       and shows its saved outcome. Warn on route exit and browser unload when dirty.
-- [ ] Keep native choice controls and labeled text/numeric inputs. Match the
+- [x] Keep native choice controls and labeled text/numeric inputs. Match the
       server's numeric grammar and retain invalid keystrokes for correction; use
       logical RTL spacing and LTR numeric entry. No localStorage/IndexedDB answer
       cache or service-worker API caching is introduced.
-- [ ] Verify `./scripts/verify.sh`, `./scripts/publish.sh` and
+- [x] Verify `./scripts/verify.sh`, `./scripts/publish.sh` and
       `npm --prefix frontend run e2e`. Use independent browser contexts for parent
       and child. Exercise activation, all answer types, save/reload, submit, parent
       grading and the child's refreshed completed state at 360px/200% text.
-- [ ] Inspect actual child response bodies, accessibility labels and focus,
+- [x] Inspect actual child response bodies, accessibility labels and focus,
       discarded requests and no-AI counters; stop for user review.
 
 ## Task 7: Full-flow acceptance and documentation cutover
@@ -619,7 +621,7 @@ child-flow spec and this plan. Keep evaluation history and costs intact.
 Review the spec and this plan together, especially parent grading of every
 answered short-text question, separate-device access, explicit save, one attempt
 per assignment, fixed grant expiry and the expanded destructive reset scope.
-The user may adjust the remaining product choices before Task 6. Do not start
+The user may adjust the remaining product choices before Task 7. Do not start
 additional tasks merely because their checklists exist.
 
 [decimal-parsing]: https://learn.microsoft.com/dotnet/api/system.decimal.tryparse

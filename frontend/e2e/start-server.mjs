@@ -6,7 +6,7 @@ import { startAiProvider } from './ai-provider.mjs';
 
 const root = resolve(import.meta.dirname, '../..');
 const dataDirectory = mkdtempSync(resolve(tmpdir(), 'family-learning-e2e-'));
-const provider = await startAiProvider();
+const provider = await startAiProvider(Number(process.argv[3] ?? 0));
 const environment = {
   ...process.env,
   DOTNET_HOSTBUILDER__RELOADCONFIGONCHANGE: 'false',

@@ -1,0 +1,44 @@
+<app-page-shell homeUrl="/" [compactBrand]="auth.signedIn()" [busy]="signingOut()">
+  <div shell-navigation>
+    @if (auth.signedIn()) {
+      <nav class="flex flex-wrap items-center gap-2" aria-label="ניווט ראשי">
+        <a
+          class="nav-link"
+          routerLink="/templates"
+          routerLinkActive
+          [routerLinkActiveOptions]="{ exact: true }"
+          ariaCurrentWhenActive="page"
+          ><span class="icon icon-home" aria-hidden="true"></span><span>המרחב שלנו</span></a
+        >
+        <button class="nav-link text-muted" (click)="logout()" [disabled]="signingOut()">
+          <span class="icon icon-sign-out" aria-hidden="true"></span
+          ><span>{{ signingOut() ? 'מתנתקים…' : 'יציאה' }}</span>
+        </button>
+      </nav>
+    } @else {
+      <span class="hidden text-sm text-muted sm:block">קצת תרגול. הרבה סקרנות.</span>
+    }
+  </div>
+  @if (auth.signedIn()) {
+    <nav class="mb-6 flex flex-wrap gap-x-6 gap-y-3" aria-label="ניהול המשפחה">
+      <a
+        class="text-link aria-[current=page]:font-semibold"
+        routerLink="/children"
+        routerLinkActive
+        ariaCurrentWhenActive="page"
+        ><span class="icon icon-users" aria-hidden="true"></span><span>הילדים</span></a
+      >
+      <a
+        class="text-link aria-[current=page]:font-semibold"
+        routerLink="/assignments"
+        routerLinkActive
+        ariaCurrentWhenActive="page"
+        ><span class="icon icon-book" aria-hidden="true"></span><span>פעילויות לילדים</span></a
+      >
+    </nav>
+  }
+  @if (error()) {
+    <p class="error mb-6" role="alert">{{ error() }}</p>
+  }
+  <router-outlet />
+</app-page-shell>

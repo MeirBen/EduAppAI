@@ -157,11 +157,11 @@ setup in the [README](../README.md) and presentation in the
 
 ## Next steps
 
-The parent workflow includes profile/device management, assignment and review
-screens. The remaining milestone is the child's activation, inbox and activity
-player specified below; its [implementation plan](child-flow-plan.md) keeps the
-work in reviewed, independently verified tasks. Planned child screens and later
-enhancements are not yet available.
+The parent and child workflows include profile/device management, assignment,
+activation, a resumable activity player and parent review. The remaining
+milestone work is full-flow acceptance in Task 7 of the
+[implementation plan](child-flow-plan.md). Optional profile details and elapsed
+time displays below remain later enhancements.
 
 Alongside that work, review representative saved evaluation outputs for
 correctness, Hebrew, suitability and answer quality before handing the
@@ -181,8 +181,9 @@ Deferred maintenance from the live-update work:
 
 **Partially implemented, 6 October 2026:** child access, assignment, resumable
 work/submission and parent grading/report APIs (Tasks 1–4), plus parent
-management, assignment and review screens (Task 5), are available. Child
-activation and player screens remain planned. This milestone completes
+management, assignment and review screens (Task 5), and child activation, inbox
+and resumable player screens (Task 6), are available. Full milestone acceptance
+and documentation cutover remain in Task 7. This milestone completes
 one loop: the parent creates a child profile, assigns a reviewed activity,
 activates a separate child device and sees the submitted answers and results.
 It extends the current application and immutable snapshots. Creating a profile,

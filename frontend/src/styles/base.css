@@ -84,7 +84,7 @@
     outline: none;
   }
 
-  router-outlet + * {
+  main router-outlet + * {
     @apply block motion-safe:animate-enter;
   }
 

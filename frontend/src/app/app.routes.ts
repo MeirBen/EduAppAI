@@ -6,7 +6,7 @@ import type { ChildrenPage } from './features/children/children-page';
 import type { AssignmentResult } from './features/assignments/assignment-result';
 
 /** Lazy parent routes; server authorization remains authoritative. */
-export const routes: Routes = [
+export const parentRoutes: Routes = [
   {
     path: 'login',
     canMatch: [loginGuard],
@@ -69,4 +69,17 @@ export const routes: Routes = [
     ],
   },
   { path: '**', redirectTo: 'activities/new' },
+];
+
+/** Child routes match before the parent shell and never run parent guards. */
+export const routes: Routes = [
+  {
+    path: 'child',
+    loadChildren: () => import('./features/child/child.routes').then((m) => m.childRoutes),
+  },
+  {
+    path: '',
+    loadComponent: () => import('./features/auth/parent-shell').then((m) => m.ParentShell),
+    children: parentRoutes,
+  },
 ];

@@ -4,7 +4,7 @@ import { Component } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter, Router } from '@angular/router';
 import { RouterTestingHarness } from '@angular/router/testing';
-import { routes } from '../../app.routes';
+import { parentRoutes } from '../../app.routes';
 import { Auth } from './auth';
 
 @Component({ template: '' })
@@ -19,7 +19,7 @@ describe('Login navigation', () => {
         provideHttpClient(),
         provideHttpClientTesting(),
         provideRouter([
-          ...routes.filter(
+          ...parentRoutes.filter(
             (route) => route.path === 'login' || route.path === 'access-unavailable',
           ),
           {

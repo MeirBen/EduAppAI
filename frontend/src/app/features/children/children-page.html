@@ -143,6 +143,11 @@
       }
       @if (activation(); as code) {
         <div class="well grid gap-2" role="status">
+          <p>במכשיר או בדפדפן נפרד של הילד, פתחו את כתובת ההפעלה והזינו את הקוד:</p>
+          <div class="flex flex-wrap items-center gap-3">
+            <bdi class="min-w-0 break-all">{{ activationUrl }}</bdi>
+            <app-copy-button [text]="activationUrl" label="העתקת כתובת ההפעלה" />
+          </div>
           <p>קוד הפעלה חד־פעמי:</p>
           <p
             class="select-all break-all font-semibold"

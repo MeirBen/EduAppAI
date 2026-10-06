@@ -282,6 +282,11 @@ redirect, HSTS, secure cookies and CSRF; deployment is in the
 
 ## Client state
 
+`App` contains only the root outlet. Parent and child route trees have separate
+shells and authentication guards; `PageShell` shares the responsive frame, theme,
+skip link and navigation loader without owning either identity. Parent URLs remain
+unchanged. Child navigation never loads parent identity, limits or content APIs.
+
 `LearningApi`, `ParentChildrenApi` and `AssignmentApi` own parent URLs and
 contracts. Reads create `httpResource` in the
 caller's injection context and cancel on route change or destruction; check
@@ -315,6 +320,26 @@ it never applies them implicitly. Completed reports are read-only. Route and
 browser-close guards protect unsaved profile and grade edits. Feature-owned
 conflict copy distinguishes profile, assignment and review state from template
 publication; these requests never use AI.
+
+`ChildAuth` reads the learner identity and its answer-length limit. Guard reads
+are
+cancellable; 401 opens activation, while availability errors open a child retry
+page. Activation sends a code once, clears it from the form and obtains an
+identity-bound CSRF token before navigation. Ambiguous activation failures offer
+a session check, never a code replay. Disconnect runs after unsaved-work guards
+accept navigation and revokes the current grant.
+
+`ChildApi` uses learner-only contracts. The paged inbox is read-only; entering
+`ChildPlayer` explicitly starts/resumes the session. The page owns raw answers,
+the acknowledged revision and derived dirty state. Native Signal Forms retain
+incomplete numeric text on save, validate grammar on submission and use the
+child identity's length limit. Writes never retry. An uncertain result or conflict
+blocks another write until an explicit session read; a newer checkpoint requires
+explicit acceptance before replacing local answers. A confirmed terminal receipt
+locks editing immediately, even while the local buffer remains visible. Withdrawal
+and lost access lock writes with child-specific feedback. Unsaved route/close
+warnings and lifetime cancellation protect local work; no answer cache is
+persisted.
 
 `ActivityWorkspace` owns the template and activity URLs, one form buffer for
 plan and per-activity input, derived canonical projections, source confirmation

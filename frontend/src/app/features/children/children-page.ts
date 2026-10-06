@@ -4,6 +4,7 @@ import {
   Component,
   computed,
   DestroyRef,
+  DOCUMENT,
   inject,
   signal,
 } from '@angular/core';
@@ -18,6 +19,7 @@ import { FieldValidity } from '../../shared/forms/field-validity';
 import { DisabledInteractive } from '../../shared/disabled-interactive';
 import { focusHolder } from '../../shared/focus-holder';
 import { LoadingIndicator } from '../../shared/loading-indicator/loading-indicator';
+import { CopyButton } from '../../shared/copy-button/copy-button';
 import { parentTaskError } from '../../core/api/parent-task-error';
 
 /** One local profile buffer; list refreshes never replace edits or retain activation secrets. */
@@ -31,12 +33,15 @@ import { parentTaskError } from '../../core/api/parent-task-error';
     FieldValidity,
     DisabledInteractive,
     LoadingIndicator,
+    CopyButton,
   ],
   templateUrl: './children-page.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { '(window:beforeunload)': 'beforeUnload($event)' },
 })
 export class ChildrenPage {
+  protected readonly activationUrl = new URL('/child/activate', inject(DOCUMENT).location.href)
+    .href;
   private readonly api = inject(ParentChildrenApi);
   private readonly lifetime = inject(DestroyRef);
   private readonly holdFocus = focusHolder();

@@ -3,13 +3,21 @@ import { once } from 'node:events';
 import assert from 'node:assert/strict';
 
 /** Test-only OpenRouter transport: scenarios exercise the real resolver, worker and validators. */
-export async function startAiProvider() {
+export async function startAiProvider(port = 0) {
+  let calls = 0;
   let sequence = 0;
   const server = createServer(async (request, response) => {
+    if (request.url === '/__stats' && request.method === 'GET') {
+      response
+        .writeHead(200, { 'content-type': 'application/json' })
+        .end(JSON.stringify({ calls }));
+      return;
+    }
     if (request.url !== '/chat/completions' || request.method !== 'POST') {
       response.writeHead(404).end();
       return;
     }
+    calls++;
     let body = '';
     for await (const chunk of request) body += chunk;
     try {
@@ -136,7 +144,7 @@ export async function startAiProvider() {
       console.error(error);
     }
   });
-  await once(server.listen(0, '127.0.0.1'), 'listening');
+  await once(server.listen(port, '127.0.0.1'), 'listening');
   const address = server.address();
   assert.ok(address && typeof address !== 'string');
   return { endpoint: 'http://127.0.0.1:' + address.port, close: () => server.close() };

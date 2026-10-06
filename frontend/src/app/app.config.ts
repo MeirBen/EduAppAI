@@ -19,7 +19,7 @@ import { PageReuseStrategy } from './core/page-reuse-strategy';
 
 registerLocaleData(hebrew);
 
-/** Shared native providers for the parent application. */
+/** Shared native providers for both authentication areas. */
 export const appConfig: ApplicationConfig = {
   providers: [
     { provide: LOCALE_ID, useValue: 'he-IL' },
@@ -28,7 +28,7 @@ export const appConfig: ApplicationConfig = {
     provideBrowserGlobalErrorListeners(),
     // Default XSRF names match AuthConfiguration and the readable token issued by AuthEndpoints.
     provideHttpClient(),
-    // New pages open at the top; Back restores the position the parent left.
+    // New pages open at the top; Back restores the position the reader left.
     provideRouter(
       routes,
       withComponentInputBinding(),

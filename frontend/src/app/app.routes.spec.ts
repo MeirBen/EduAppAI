@@ -2,7 +2,6 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { TestBed } from '@angular/core/testing';
 import { RouterTestingHarness } from '@angular/router/testing';
 import { appConfig } from './app.config';
-import { ActivityWorkspace } from './features/activities/activity-workspace/activity-workspace';
 import { numericPlan } from './features/activities/learning-plan.fixture';
 import { provideLimits } from './core/api/limits.fixture';
 
@@ -18,7 +17,7 @@ describe('Workspace routes', () => {
 
   /** Navigates as a signed-in parent while AI is unconfigured. */
   async function open(harness: RouterTestingHarness, url: string) {
-    const navigation = harness.navigateByUrl(url, ActivityWorkspace);
+    const navigation = harness.navigateByUrl(url);
     (await vi.waitFor(() => http.expectOne('/api/auth/me'))).flush({
       email: 'parent@example.test',
       familyId: 'family',

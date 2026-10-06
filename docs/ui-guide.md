@@ -155,7 +155,8 @@ in Hebrew with a month name and local time through the app-wide `DatePipe`
 default, while stored timestamps remain UTC.
 
 Read every size limit, count cap and the numbers in their messages from the
-server's `Limits`; never hard-code them in templates or forms.
+server's `Limits`; child answer controls use `ChildSessionIdentity.answerLength`
+instead, without calling parent APIs. Never hard-code content limits in forms.
 
 Write concise Hebrew for labels, validation, loading and errors, and never expose
 raw framework or provider errors. Render generated text through interpolation,
@@ -186,6 +187,26 @@ Show the automatic subtotal as pending, and show a final percentage only with a
 positive possible total. Keep saved-result recovery beside the finalization
 action without replacing local grades. Reuse shared theme primitives and
 logical layout utilities; these pages need no separate stylesheets.
+
+## Child learning
+
+The child area uses the same `PageShell`, theme tokens and controls as the parent
+area, with its own home and device-disconnect navigation. It has no parent links
+or same-browser mode switch. Parent activation instructions offer a copyable
+address for the separate child browser; codes never enter that address.
+Activation explains persistent access and offers a session check after an
+uncertain result instead of repeating a code.
+
+The inbox separates available and submitted work with native selection and bounded
+paging. The player keeps materials above a numbered question list in the reading
+column. Numeric answers use LTR text inputs with a decimal keyboard so invalid
+keystrokes remain repairable; text answers keep whitespace and native choices
+use isolated option labels. The action bar reports unsaved/saved progress and
+owns explicit save, submit and saved-work recovery. Invalid submission focuses
+the first problem; missing answers require confirmation. Reading a checkpoint
+never silently replaces local text. Confirmed submission locks editing and shows
+a receipt; pending review has no final score, and a zero possible total has no
+percentage. No child page has its own stylesheet.
 
 ## Workspace actions
 
