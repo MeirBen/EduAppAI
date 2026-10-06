@@ -203,6 +203,11 @@ Writes acquire a short SQLite transaction before checking current access or
 state, so committed disable/revocation wins over an earlier authentication.
 Disabling invalidates pending codes and all grants; re-enabling restores neither.
 Parent profile/device lists use SQL projection and bounded deterministic paging.
+Optional grade, age and age/profile update dates stay in parent DTOs. Omitted
+profile `details` preserve stored metadata for older clients. A serialized,
+revision-checked delete removes only profiles without assignments; inactive
+device-record removal checks current ownership and revocation/expiry. Neither
+operation erases learning history.
 Family reset removes all owned sessions, assignments, child access and profiles
 in its transaction before deleting their referenced content.
 

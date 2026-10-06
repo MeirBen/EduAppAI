@@ -27,6 +27,19 @@
               <bdi>{{ child.name }}</bdi>
             </h3>
             <p class="text-muted">{{ child.enabled ? 'פרופיל פעיל' : 'פרופיל מושבת' }}</p>
+            @if (child.grade || child.age !== null) {
+              <p class="text-muted">
+                @if (child.grade) {
+                  <bdi>{{ child.grade }}</bdi>
+                }
+                @if (child.grade && child.age !== null) {
+                  ·
+                }
+                @if (child.age !== null) {
+                  גיל {{ child.age }}
+                }
+              </p>
+            }
           </div>
           <button
             data-edit-child
@@ -70,6 +83,26 @@
         </button>
       }
     </div>
+    @if (selected(); as child) {
+      <details id="profile-dates" class="text-sm text-muted">
+        <summary [attr.aria-label]="'פרטי זמנים של הפרופיל: ' + child.name">פרטי זמנים</summary>
+        <div class="mt-2 grid gap-1">
+          <p>
+            נוצר ב־<bdi>{{ child.createdAtUtc | date }}</bdi>
+          </p>
+          @if (child.updatedAtUtc) {
+            <p>
+              עודכן ב־<bdi>{{ child.updatedAtUtc | date }}</bdi>
+            </p>
+          }
+          @if (child.ageConfirmedAtUtc) {
+            <p>
+              הגיל עודכן ב־<bdi>{{ child.ageConfirmedAtUtc | date }}</bdi>
+            </p>
+          }
+        </div>
+      </details>
+    }
     <form id="profile-form" class="grid gap-4" (submit)="save($event)">
       <div>
         <label class="mb-2 block" for="child-name">שם הילד או הילדה</label
@@ -83,6 +116,37 @@
         <p id="child-name-help" class="mt-2 text-sm text-muted">{{ nameHint }}</p>
         <app-field-errors id="child-name-errors" [field]="fields.name" />
       </div>
+      <fieldset class="grid gap-4">
+        <legend class="mb-3 font-semibold">פרטים נוספים</legend>
+        <div>
+          <label class="mb-2 block" for="child-grade">כיתה (רשות)</label>
+          <input
+            id="child-grade"
+            dir="auto"
+            autocomplete="off"
+            [formField]="fields.grade"
+            aria-describedby="child-grade-help child-grade-errors"
+          />
+          <p id="child-grade-help" class="mt-2 text-sm text-muted">
+            למשל: גן חובה, כיתה ד׳ או חינוך ביתי.
+          </p>
+          <app-field-errors id="child-grade-errors" [field]="fields.grade" />
+        </div>
+        <div>
+          <label class="mb-2 block" for="child-age">גיל (רשות)</label>
+          <input
+            id="child-age"
+            type="text"
+            inputmode="numeric"
+            dir="ltr"
+            autocomplete="off"
+            [formField]="fields.age"
+            aria-describedby="child-age-help child-age-errors"
+          />
+          <p id="child-age-help" class="mt-2 text-sm text-muted">בשנים שלמות.</p>
+          <app-field-errors id="child-age-errors" [field]="fields.age" />
+        </div>
+      </fieldset>
       @if (selected()) {
         <label class="flex items-center gap-2"
           ><input id="child-enabled" type="checkbox" [formField]="fields.enabled" />פרופיל
@@ -94,13 +158,29 @@
           <p role="alert" class="field-error">{{ error() }}</p>
         }
         @if (fields().touched() && fields().invalid()) {
-          <p class="field-error">יש לתקן את שם הפרופיל לפני השמירה.</p>
+          <p class="field-error">יש לתקן את פרטי הפרופיל לפני השמירה.</p>
         }
         <button class="button" [disabledInteractive]="busy()">
           {{ selected() ? 'שמירת הפרופיל' : 'יצירת פרופיל' }}
         </button>
       </div>
     </form>
+    @if (selected(); as child) {
+      @if (child.hasAssignments) {
+        <p class="text-sm text-muted">
+          לפרופיל יש פעילויות שמורות. אפשר להשבית אותו ולשמור על ההיסטוריה.
+        </p>
+      } @else {
+        <button
+          id="delete-child"
+          class="text-link justify-self-start"
+          [disabledInteractive]="busy()"
+          (click)="deleteProfile()"
+        >
+          מחיקת הפרופיל
+        </button>
+      }
+    }
   </section>
   @if (selected(); as child) {
     <section class="panel grid gap-4" aria-labelledby="access-heading">
@@ -193,20 +273,52 @@
                   <bdi>{{ device.deviceLabel }}</bdi>
                 </h4>
                 <p class="text-sm text-muted">
-                  חובר ב־<bdi>{{ device.createdAtUtc | date }}</bdi>
+                  {{
+                    device.revokedAtUtc
+                      ? 'הגישה בוטלה'
+                      : device.canRemove
+                        ? 'תוקף הגישה פג'
+                        : 'גישה פעילה'
+                  }}
                 </p>
-                <p class="text-sm text-muted">
-                  {{ device.revokedAtUtc ? 'הגישה בוטלה ב־' : 'תוקף הגישה עד '
-                  }}<bdi>{{ device.revokedAtUtc ?? device.expiresAtUtc | date }}</bdi>
-                </p>
+                <details class="text-sm text-muted">
+                  <summary [attr.aria-label]="'פרטי זמנים של המכשיר: ' + device.deviceLabel">
+                    פרטי זמנים
+                  </summary>
+                  <div class="mt-2 grid gap-1">
+                    <p>
+                      חובר ב־<bdi>{{ device.createdAtUtc | date }}</bdi>
+                    </p>
+                    @if (device.revokedAtUtc) {
+                      <p>
+                        הגישה בוטלה ב־<bdi>{{ device.revokedAtUtc | date }}</bdi>
+                      </p>
+                    }
+                    <p>
+                      {{
+                        device.canRemove && !device.revokedAtUtc ? 'התוקף פג ב־' : 'תוקף הגישה עד '
+                      }}<bdi>{{ device.expiresAtUtc | date }}</bdi>
+                    </p>
+                  </div>
+                </details>
               </div>
-              @if (!device.revokedAtUtc) {
+              @if (device.canRemove) {
+                <button
+                  data-remove-device
+                  class="text-link"
+                  [disabledInteractive]="busy()"
+                  [attr.aria-label]="'הסרת המכשיר מהרשימה: ' + device.deviceLabel"
+                  (click)="changeDeviceAccess(device)"
+                >
+                  הסרה מהרשימה
+                </button>
+              } @else {
                 <button
                   data-revoke
                   class="button button-danger"
                   [disabledInteractive]="busy()"
                   [attr.aria-label]="'ביטול הגישה: ' + device.deviceLabel"
-                  (click)="revoke(device)"
+                  (click)="changeDeviceAccess(device)"
                 >
                   ביטול גישה
                 </button>

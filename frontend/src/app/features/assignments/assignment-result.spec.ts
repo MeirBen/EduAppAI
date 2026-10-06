@@ -118,6 +118,53 @@ describe('Parent frozen result and grading', () => {
     expect(root.textContent).toContain('סכום אוטומטי');
     expect(root.textContent).not.toContain('ציון סופי:');
   });
+  it.each([
+    ['2026-10-01T00:59:30Z', 'פחות מדקה'],
+    ['2026-10-01T00:53:00Z', '7 דקות'],
+    ['2026-09-30T23:53:00Z', 'שעה ו־7 דקות'],
+    ['2026-09-29T23:00:00Z', '26 שעות'],
+    [null, 'משך הזמן אינו זמין'],
+    ['invalid', 'משך הזמן אינו זמין'],
+    ['2026-10-01T02:00:00Z', 'משך הזמן אינו זמין'],
+  ])(
+    'shows elapsed time for start %s independently of review time',
+    async (startedAtUtc, expected) => {
+      const { root } = await open({ ...completed(), startedAtUtc });
+      expect(root.textContent).toContain('זמן מהפתיחה עד ההגשה (כולל הפסקות)');
+      expect(root.querySelector('[data-elapsed-time]')?.textContent?.trim()).toBe(expected);
+    },
+  );
+  it.each([null, report.startedAtUtc])(
+    'shows unsubmitted start %s without a completed duration or creating work',
+    async (startedAtUtc) => {
+      const fixture = TestBed.createComponent(AssignmentResult),
+        http = TestBed.inject(HttpTestingController);
+      fixture.componentRef.setInput('assignmentId', 'assigned');
+      fixture.detectChanges();
+      http.expectOne('/api/assignments/assigned').flush({
+        assignment: { ...assignment, status: 'assigned', hasStarted: startedAtUtc !== null },
+        snapshot: { archivedAtUtc: null, document: report.document },
+        startedAtUtc,
+        submittedAtUtc: null,
+      });
+      await fixture.whenStable();
+      const root = fixture.nativeElement as HTMLElement;
+      expect(root.textContent).toContain(startedAtUtc ? 'נפתחה ב־' : 'טרם נפתחה');
+      expect(root.textContent).toContain('טרם הוגשה');
+      expect(root.querySelector('[data-elapsed-time]')).toBeNull();
+      http.expectNone((r) => r.method !== 'GET' || r.url.endsWith('/result'));
+    },
+  );
+  it.each([null, 'invalid'])(
+    'shows unavailable duration for a submitted result with missing or invalid end %s',
+    async (submittedAtUtc) => {
+      const { root } = await open({ ...completed(), submittedAtUtc });
+      expect(root.querySelector('[data-elapsed-time]')?.textContent?.trim()).toBe(
+        'משך הזמן אינו זמין',
+      );
+      expect(root.textContent).not.toContain('טרם הוגשה');
+    },
+  );
   it.each(['', '-1', '4', '1.5', '1e0'])(
     'rejects invalid grade %s without mutating',
     async (value) => {

@@ -106,9 +106,10 @@ npm run e2e
 
 These tests use disposable data and a local AI provider to exercise the
 published app's full activity lifecycle, recovery, conflicts, keyboard/RTL
-behavior and 360px/200% text. Read the [comment rules](docs/commenting-guide.md)
-and [UI guide](docs/ui-guide.md) before editing; open `FamilyLearning.sln` for
-backend work.
+behavior and 360px/200% text. The [child-flow acceptance checklist](docs/child-flow-plan.md#task-7-full-flow-acceptance-and-documentation-cutover)
+records isolation, persistence, concurrency and migration coverage. Read the
+[comment rules](docs/commenting-guide.md) and [UI guide](docs/ui-guide.md) before
+editing; open `FamilyLearning.sln` for backend work.
 
 ## Server logs
 
@@ -168,7 +169,23 @@ enter the one-time code. `/child` lists available and submitted work; opening an
 activity starts or resumes its saved session. Children explicitly save progress
 and submit, then see a receipt and the final total after review. Lost responses
 offer a saved-work check without silently replacing local answers. Disconnecting
-revokes this device's access.
+revokes this device's access. Activation codes last ten minutes and work once;
+the activated browser keeps access for up to 30 days without extending it on
+use. At `/children`, revoke an individual device or disable the profile to revoke
+all devices and pending codes. Re-enabling a profile requires fresh activation.
+Clearing browser cookies also requires a new code.
+
+Every nonblank short-text answer needs a parent's grade, including an exact
+answer-key match or a zero-point question. Pending work has no final score.
+Completed answers and grades cannot be edited, and each assignment permits one
+attempt. Withdrawing available work blocks child access while retaining its
+history; archived assigned content remains available through its assignment.
+Use a new reviewed snapshot for a deliberate repeat. Profiles support optional
+grade and age. Results show elapsed time from first opening to submission,
+including breaks. Secondary timestamps sit under “פרטי זמנים”. Unused profiles
+and revoked/expired device entries can be removed; profiles with assignment
+history can be disabled. Library removal deletes unassigned activities and
+archives assigned activities while preserving their work.
 
 Development stores SQLite and Data Protection keys in the ignored
 `backend/FamilyLearning.Api/data/`. Set `Storage__Directory` to an absolute path

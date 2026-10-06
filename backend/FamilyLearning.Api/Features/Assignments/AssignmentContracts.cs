@@ -16,7 +16,8 @@ public sealed record AssignmentSummary(Guid Id, Guid ChildId, string ChildName, 
         new(a.Id, a.ChildId, a.Child.Name, a.SnapshotId, a.Snapshot.Title, a.Status, a.Revision, a.CreatedAtUtc, a.Session != null);
 }
 /// <summary>Parent-only assignment detail. Snapshot contains answer keys and must never serve a child route.</summary>
-public sealed record AssignmentDetail(AssignmentSummary Assignment, SnapshotPreview Snapshot);
+public sealed record AssignmentDetail(AssignmentSummary Assignment, SnapshotPreview Snapshot,
+    DateTime? StartedAtUtc, DateTime? SavedAtUtc, DateTime? SubmittedAtUtc);
 public sealed record LearnerAssignmentSummary(Guid Id, string Title, string Status, long Revision, DateTime CreatedAtUtc, bool HasStarted);
 public sealed record LearnerAssignment(Guid Id, string Status, long Revision, DateTime CreatedAtUtc, LearnerDocument Document);
 

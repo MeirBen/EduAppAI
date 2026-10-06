@@ -54,6 +54,48 @@ public sealed class ChildSessionTests
     }
 
     [Fact]
+    public async Task Parent_timing_uses_first_start_and_submission_including_breaks_but_excluding_review()
+    {
+        await using var h = new ChildHarness();
+        using var parent = await h.App.ParentAsync();
+        using var foreign = await h.App.ParentAsync();
+        var profile = await Create(parent);
+        using var child = await h.Activate(parent, profile);
+        var content = await MixedSnapshot(parent);
+        var assignment = await Assign(parent, profile, content.Id);
+        var detailPath = $"/api/assignments/{assignment["id"]}";
+        var path = SessionPath(assignment);
+        var detail = (await parent.GetFromJsonAsync<JsonNode>(detailPath))!;
+        Assert.True(detail.AsObject().ContainsKey("startedAtUtc"));
+        Assert.Null(detail["startedAtUtc"]);
+        Assert.Null(detail["submittedAtUtc"]);
+        Assert.Equal(HttpStatusCode.NotFound, (await child.GetAsync(path)).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await foreign.GetAsync(detailPath)).StatusCode);
+        var started = h.Clock.Now.UtcDateTime;
+        await Start(child, path);
+        h.Clock.Now = h.Clock.Now.AddMinutes(65);
+        await Start(child, path);
+        Assert.Equal(HttpStatusCode.OK, (await child.PutAsJsonAsync(path, new SaveAnswersRequest(1, content.Answers()))).StatusCode);
+        detail = (await parent.GetFromJsonAsync<JsonNode>(detailPath))!;
+        Assert.Equal(started, detail["startedAtUtc"]!.GetValue<DateTime>());
+        Assert.Equal(h.Clock.Now.UtcDateTime, detail["savedAtUtc"]!.GetValue<DateTime>());
+        Assert.Null(detail["submittedAtUtc"]);
+        h.Clock.Now = h.Clock.Now.AddMinutes(2);
+        var submitted = h.Clock.Now.UtcDateTime;
+        Assert.Equal(HttpStatusCode.OK, (await child.PostAsJsonAsync(path + "/submit", new SubmitAnswersRequest(2, content.Answers()))).StatusCode);
+        h.Clock.Now = h.Clock.Now.AddDays(1);
+        Assert.Equal(HttpStatusCode.OK, (await parent.PostAsJsonAsync(ParentReviewTests.ReviewPath(assignment),
+            new FinalizeReviewRequest(3, [new(content.TextId, 2)]))).StatusCode);
+        detail = (await parent.GetFromJsonAsync<JsonNode>(detailPath))!;
+        var result = (await parent.GetFromJsonAsync<JsonNode>(ParentReviewTests.ResultPath(assignment)))!;
+        foreach (var response in new[] { detail, result })
+        {
+            Assert.Equal(started, response["startedAtUtc"]!.GetValue<DateTime>());
+            Assert.Equal(submitted, response["submittedAtUtc"]!.GetValue<DateTime>());
+        }
+    }
+
+    [Fact]
     public async Task Starts_are_idempotent_reads_do_not_create_work_and_saves_only_advance_session_revision()
     {
         await using var h = new ChildHarness();

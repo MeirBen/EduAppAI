@@ -11,6 +11,11 @@ const child = {
   enabled: true,
   revision: 1,
   createdAtUtc: '2026-10-01T00:00:00Z',
+  updatedAtUtc: null,
+  grade: null,
+  age: null,
+  ageConfirmedAtUtc: null,
+  hasAssignments: false,
 };
 const page = (items: unknown[], hasMore = false, number = 1) => ({
   items,
@@ -34,11 +39,11 @@ describe('Parent child management', () => {
     TestBed.inject(HttpTestingController).verify();
     vi.restoreAllMocks();
   });
-  async function open() {
+  async function open(profile: object = child) {
     const fixture = TestBed.createComponent(ChildrenPage);
     const http = TestBed.inject(HttpTestingController);
     fixture.detectChanges();
-    http.expectOne('/api/children?page=1').flush(page([child], true));
+    http.expectOne('/api/children?page=1').flush(page([profile], true));
     await fixture.whenStable();
     const root = fixture.nativeElement as HTMLElement;
     const type = (id: string, value: string) => {
@@ -67,7 +72,10 @@ describe('Parent child management', () => {
     submit();
     TestBed.tick();
     const create = http.expectOne('/api/children');
-    expect(create.request.body).toEqual({ name: 'יעל' });
+    expect(create.request.body).toEqual({
+      name: 'יעל',
+      details: { grade: null, age: null },
+    });
     submit();
     http.expectNone((r) => r.method === 'POST');
     create.flush({ ...child, name: 'יעל' });
@@ -83,7 +91,12 @@ describe('Parent child management', () => {
     submit();
     TestBed.tick();
     const update = http.expectOne('/api/children/child');
-    expect(update.request.body).toEqual({ name: 'שם מקומי', enabled: true, expectedRevision: 1 });
+    expect(update.request.body).toEqual({
+      name: 'שם מקומי',
+      enabled: true,
+      expectedRevision: 1,
+      details: { grade: null, age: null },
+    });
     update.flush({}, { status: 409, statusText: 'Conflict' });
     await fixture.whenStable();
     await vi.waitFor(() => expect(root.textContent).toContain('הפרופיל השתנה'));
@@ -95,6 +108,143 @@ describe('Parent child management', () => {
       .flush(page([{ ...child, name: 'שם בשרת', revision: 2 }]));
     await fixture.whenStable();
     expect(root.querySelector<HTMLInputElement>('#child-name')!.value).toBe('שם מקומי');
+  });
+  it.each(['-1', '121', '9.5', '1e1', 'abc'])(
+    'preserves and rejects invalid optional age %s',
+    async (value) => {
+      const { fixture, http, root, type, submit } = await open();
+      type('child-name', 'ילד');
+      type('child-age', value);
+      submit();
+      await fixture.whenStable();
+      expect(root.querySelector<HTMLInputElement>('#child-age')!.value).toBe(value);
+      expect(root.querySelector<HTMLInputElement>('#child-age')!.dir).toBe('ltr');
+      http.expectNone((r) => r.method === 'POST');
+    },
+  );
+  it('clears optional details independently, protects unsaved edits and keeps them after conflicts', async () => {
+    const { fixture, http, root, type, submit, edit } = await open({
+      ...child,
+      grade: 'כיתה ד׳',
+      age: 9,
+      ageConfirmedAtUtc: child.createdAtUtc,
+    });
+    await edit();
+    expect(root.querySelector<HTMLInputElement>('#child-grade')!.value).toBe('כיתה ד׳');
+    expect(root.querySelector<HTMLInputElement>('#child-grade')!.maxLength).toBe(limits.nameLength);
+    expect(root.textContent).toContain('הגיל עודכן');
+    expect(fixture.componentInstance.canLeave()).toBe(true);
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
+    expect(root.querySelector('#confirm-age')).toBeNull();
+    type('child-grade', '  ');
+    expect(fixture.componentInstance.canLeave()).toBe(false);
+    submit();
+    TestBed.tick();
+    const update = http.expectOne('/api/children/child');
+    expect(update.request.body.details).toEqual({ grade: null, age: 9 });
+    update.flush({}, { status: 409, statusText: 'Conflict' });
+    await fixture.whenStable();
+    await vi.waitFor(() => expect(root.textContent).toContain('הפרופיל השתנה'));
+    expect(root.querySelector<HTMLInputElement>('#child-age')!.value).toBe('9');
+    expect(root.querySelector<HTMLInputElement>('#child-grade')!.value).toBe('  ');
+    type('child-grade', 'גן חובה');
+    type('child-age', '');
+    submit();
+    TestBed.tick();
+    const cleared = http.expectOne('/api/children/child');
+    expect(cleared.request.body.details).toEqual({
+      grade: 'גן חובה',
+      age: null,
+    });
+    cleared.flush({ ...child, grade: 'גן חובה', revision: 2 });
+    (await vi.waitFor(() => http.expectOne('/api/children?page=1'))).flush(
+      page([{ ...child, grade: 'גן חובה', revision: 2 }]),
+    );
+    http.expectOne('/api/children/child/devices?page=1').flush(page([]));
+    await fixture.whenStable();
+    expect(root.textContent).not.toContain('הגיל עודכן');
+    expect(fixture.componentInstance.canLeave()).toBe(true);
+    expect(confirm).toHaveBeenCalledTimes(1);
+  });
+  it('confirms deleting an unused profile and clears its editor after success', async () => {
+    const { fixture, http, root, edit } = await open();
+    await edit();
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
+    root.querySelector<HTMLButtonElement>('#delete-child')!.click();
+    http.expectNone((r) => r.method === 'DELETE');
+    confirm.mockReturnValue(true);
+    root.querySelector<HTMLButtonElement>('#delete-child')!.click();
+    http.expectOne('/api/children/child?expectedRevision=1').flush(null);
+    (await vi.waitFor(() => http.expectOne('/api/children?page=1'))).flush(page([]));
+    await fixture.whenStable();
+    expect(root.querySelector('#delete-child')).toBeNull();
+    expect(root.querySelector<HTMLInputElement>('#child-name')!.value).toBe('');
+    expect(root.textContent).toContain('הפרופיל נמחק');
+    expect(fixture.componentInstance.canLeave()).toBe(true);
+  });
+  it('offers disabling instead of deletion for profiles with assignments', async () => {
+    const { root, edit } = await open({ ...child, hasAssignments: true });
+    await edit();
+    expect(root.querySelector('#delete-child')).toBeNull();
+    expect(root.querySelector('#child-enabled')).not.toBeNull();
+    expect(root.textContent).toContain('לפרופיל יש פעילויות שמורות');
+  });
+  it('keeps profile dates in a quiet disclosure and shows only known update times', async () => {
+    const { root, edit } = await open({ ...child, updatedAtUtc: '2026-10-02T10:30:00Z' });
+    await edit();
+    const metadata = root.querySelector<HTMLDetailsElement>('#profile-dates')!;
+    expect(metadata.open).toBe(false);
+    expect(metadata.textContent).toContain('נוצר ב־');
+    expect(metadata.textContent).toContain('עודכן ב־');
+  });
+  it('removes an inactive device record after confirmation and restores focus to the device section', async () => {
+    const { fixture, http, root, edit } = await open();
+    await edit();
+    Array.from(root.querySelectorAll('button'))
+      .find((button) => button.textContent?.trim() === 'רענון המכשירים')!
+      .click();
+    TestBed.tick();
+    http.expectOne('/api/children/child/devices?page=1').flush(
+      page([
+        {
+          id: 'old-device',
+          deviceLabel: 'טאבלט ישן',
+          createdAtUtc: child.createdAtUtc,
+          expiresAtUtc: child.createdAtUtc,
+          revokedAtUtc: null,
+          canRemove: true,
+        },
+      ]),
+    );
+    await fixture.whenStable();
+    expect(root.querySelector('[data-revoke]')).toBeNull();
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
+    const remove = root.querySelector<HTMLButtonElement>('[data-remove-device]')!;
+    remove.focus();
+    remove.click();
+    http.expectNone((r) => r.method === 'DELETE');
+    confirm.mockReturnValue(true);
+    remove.click();
+    http.expectOne('/api/children/child/devices/old-device/record').flush(null);
+    (await vi.waitFor(() => http.expectOne('/api/children/child/devices?page=1'))).flush(page([]));
+    await fixture.whenStable();
+    await vi.waitFor(() =>
+      expect(document.activeElement).toBe(root.querySelector('#devices-heading')),
+    );
+    expect(root.textContent).toContain('המכשיר הוסר מהרשימה');
+  });
+  it('keeps local edits when a deletion loses a race with another parent', async () => {
+    const { fixture, http, root, type, edit } = await open();
+    await edit();
+    type('child-grade', 'כיתה ה׳');
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    root.querySelector<HTMLButtonElement>('#delete-child')!.click();
+    http
+      .expectOne('/api/children/child?expectedRevision=1')
+      .flush({}, { status: 409, statusText: 'Conflict' });
+    await fixture.whenStable();
+    await vi.waitFor(() => expect(root.textContent).toContain('רעננו את הרשימה'));
+    expect(root.querySelector<HTMLInputElement>('#child-grade')!.value).toBe('כיתה ה׳');
   });
   it('displays a transient activation code, clears it on selection and cancels outstanding issuance', async () => {
     const { fixture, http, root, type, edit } = await open();
@@ -152,7 +302,7 @@ describe('Parent child management', () => {
     fixture.detectChanges();
     await Promise.resolve();
     fixture.detectChanges();
-    refresh.flush(page([{ ...device, revokedAtUtc: '2026-10-06T12:00:00Z' }]));
+    refresh.flush(page([{ ...device, revokedAtUtc: '2026-10-06T12:00:00Z', canRemove: true }]));
     await fixture.whenStable();
     await vi.waitFor(() =>
       expect(document.activeElement).toBe(root.querySelector('#device-grant')),

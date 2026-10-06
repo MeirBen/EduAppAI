@@ -24,5 +24,6 @@
   "messageLength": 4000,
   "maxContextTurns": 6,
   "contextLength": 12000,
-  "listLimit": 100
+  "listLimit": 100,
+  "maxChildAge": 120
 }

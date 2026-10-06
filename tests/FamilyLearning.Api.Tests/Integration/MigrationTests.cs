@@ -17,6 +17,52 @@ namespace FamilyLearning.Api.Tests.Integration;
 public sealed class MigrationTests
 {
     [Fact]
+    public async Task Upgrade_from_profile_details_adds_update_timestamp_without_rewriting_profiles()
+    {
+        await using var h = new ChildHarness();
+        using var parent = await h.App.ParentAsync();
+        using var created = await parent.PostAsJsonAsync("/api/children", new { name = "ילד", details = new { grade = "גן חובה", age = 5 } });
+        Assert.Equal(HttpStatusCode.Created, created.StatusCode);
+        var profile = (await created.Content.ReadFromJsonAsync<JsonNode>())!;
+        using var scope = h.App.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<LearningDbContext>();
+        var earlier = db.Database.GetMigrations().Single(m => m.EndsWith("_AddChildProfileDetails", StringComparison.Ordinal));
+        await db.GetService<IMigrator>().MigrateAsync(earlier);
+        var columns = await db.Database.SqlQueryRaw<string>("SELECT name AS Value FROM pragma_table_info('Children')").ToArrayAsync();
+        Assert.Contains("AgeConfirmedAtUtc", columns);
+        Assert.DoesNotContain("UpdatedAtUtc", columns);
+        await db.Database.MigrateAsync();
+        await db.Database.MigrateAsync();
+        Assert.True(JsonNode.DeepEquals(profile, (await parent.GetFromJsonAsync<JsonNode>("/api/children"))!["items"]![0]));
+    }
+
+    [Fact]
+    public async Task Adding_profile_details_preserves_existing_saved_work_and_content()
+    {
+        await using var h = new ChildHarness();
+        using var parent = await h.App.ParentAsync();
+        var profile = await ChildHarness.Create(parent);
+        using var child = await h.Activate(parent, profile);
+        var content = await MixedSnapshot(parent);
+        var path = SessionPath(await AssignmentTests.Assign(parent, profile, content.Id));
+        await Start(child, path);
+        using var save = await child.PutAsJsonAsync(path, new SaveAnswersRequest(1, content.Answers()));
+        Assert.Equal(HttpStatusCode.OK, save.StatusCode);
+        var saved = await save.Content.ReadFromJsonAsync<JsonNode>();
+        var snapshot = await parent.GetFromJsonAsync<JsonNode>($"/api/instances/{content.Id}");
+        profile = (await parent.GetFromJsonAsync<JsonNode>("/api/children"))!["items"]![0]!;
+        using var scope = h.App.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<LearningDbContext>();
+        var previous = db.Database.GetMigrations().Single(m => m.EndsWith("_AddTaskSessions", StringComparison.Ordinal));
+        await db.GetService<IMigrator>().MigrateAsync(previous);
+        await db.Database.MigrateAsync();
+        await db.Database.MigrateAsync();
+        Assert.True(JsonNode.DeepEquals(saved, await child.GetFromJsonAsync<JsonNode>(path)));
+        Assert.True(JsonNode.DeepEquals(snapshot, await parent.GetFromJsonAsync<JsonNode>($"/api/instances/{content.Id}")));
+        Assert.True(JsonNode.DeepEquals(profile, (await parent.GetFromJsonAsync<JsonNode>("/api/children"))!["items"]![0]));
+    }
+
+    [Fact]
     public async Task Adding_sessions_preserves_existing_assignments_content_and_grants()
     {
         await using var h = new ChildHarness();
@@ -34,6 +80,11 @@ public sealed class MigrationTests
         await db.Database.MigrateAsync();
         Assert.Equal(document, (await db.TaskSnapshots.AsNoTracking().SingleAsync()).DocumentJson);
         Assert.Single(await db.ChildDeviceGrants.ToListAsync());
+        var migratedChild = await db.Children.AsNoTracking().SingleAsync();
+        Assert.Null(migratedChild.Grade);
+        Assert.Null(migratedChild.Age);
+        Assert.Null(migratedChild.AgeConfirmedAtUtc);
+        Assert.Null(migratedChild.UpdatedAtUtc);
         Assert.Single(await db.Assignments.ToListAsync());
         Assert.Empty(await db.TaskSessions.ToListAsync());
         Assert.Equal(HttpStatusCode.NotFound, (await child.GetAsync(SessionPath(assignment))).StatusCode);
@@ -48,12 +99,17 @@ public sealed class MigrationTests
         var responses = new Dictionary<string, JsonNode>();
         (Guid Id, string Answers, string? Evaluation, int? Policy, long Revision)[] persisted;
         string childCookie;
+        JsonNode childProfile;
         try
         {
             await using (var first = new ApiFactory(s => s.AddSingleton<IChatClient>(chat), storageDirectory: directory))
             {
                 using var parent = await first.ParentAsync();
                 var profile = await ChildHarness.Create(parent);
+                using var profileUpdate = await parent.PutAsJsonAsync(ChildHarness.Path(profile),
+                    new { name = "ילד", enabled = true, expectedRevision = 1, details = new { grade = "כיתה ד׳", age = 9 } });
+                Assert.Equal(HttpStatusCode.OK, profileUpdate.StatusCode);
+                childProfile = (await profileUpdate.Content.ReadFromJsonAsync<JsonNode>())!;
                 var code = await ChildHarness.Issue(parent, profile);
                 using var child = first.CreateClient();
                 await ChildHarness.Csrf(child);
@@ -89,6 +145,13 @@ public sealed class MigrationTests
                 Assert.True(JsonNode.DeepEquals(response, await resumed.GetFromJsonAsync<JsonNode>(path)));
             using var verification = restarted.Services.CreateScope();
             var stored = await verification.ServiceProvider.GetRequiredService<LearningDbContext>().TaskSessions.AsNoTracking().OrderBy(s => s.AssignmentId).ToArrayAsync();
+            var restoredProfile = await verification.ServiceProvider.GetRequiredService<LearningDbContext>().Children.AsNoTracking().SingleAsync();
+            Assert.Equal(childProfile["grade"]!.GetValue<string>(), restoredProfile.Grade);
+            Assert.Equal(childProfile["age"]!.GetValue<int>(), restoredProfile.Age);
+            Assert.Equal(childProfile["ageConfirmedAtUtc"]!.GetValue<DateTime>(), restoredProfile.AgeConfirmedAtUtc);
+            Assert.Equal(DateTimeKind.Utc, restoredProfile.AgeConfirmedAtUtc!.Value.Kind);
+            Assert.Equal(childProfile["updatedAtUtc"]!.GetValue<DateTime>(), restoredProfile.UpdatedAtUtc);
+            Assert.Equal(DateTimeKind.Utc, restoredProfile.UpdatedAtUtc!.Value.Kind);
             Assert.Equal(persisted, stored.Select(s => (s.AssignmentId, s.AnswersJson, s.EvaluationJson, s.ScoringPolicyVersion, s.Revision)).ToArray());
             Assert.Empty(chat.Requests);
         }
@@ -113,17 +176,27 @@ public sealed class MigrationTests
         }
         using var scope = app.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<LearningDbContext>();
-        var document = (await db.TaskSnapshots.AsNoTracking().SingleAsync()).DocumentJson;
+        var before = await db.TaskSnapshots.AsNoTracking().SingleAsync();
         var earlier = db.Database.GetMigrations().Single(m => m.EndsWith(withChildAccess ? "_AddChildAccess" : "_InitialCreate", StringComparison.Ordinal));
         // Only this disposable test database is downgraded to construct the previously shipped schema.
         await db.GetService<IMigrator>().MigrateAsync(earlier);
-        Assert.Equal(document, await db.Database.SqlQueryRaw<string>("SELECT DocumentJson AS Value FROM TaskSnapshots").SingleAsync());
-        await db.Database.MigrateAsync();
-        await db.Database.MigrateAsync();
-        Assert.Equal(document, (await db.TaskSnapshots.AsNoTracking().SingleAsync()).DocumentJson);
-        Assert.Single(await db.Users.ToListAsync());
-        Assert.Equal(withChildAccess ? 1 : 0, await db.ChildDeviceGrants.CountAsync());
-        Assert.Equal(db.Database.GetMigrations(), await db.Database.GetAppliedMigrationsAsync());
+        Assert.Equal(before.DocumentJson, await db.Database.SqlQueryRaw<string>("SELECT DocumentJson AS Value FROM TaskSnapshots").SingleAsync());
+        // Upgrade a consistent disposable copy, including committed WAL data, never a user's database.
+        var copyPath = Path.Combine(app.DataDirectory, "upgrade-copy.db");
+        await db.Database.ExecuteSqlInterpolatedAsync($"VACUUM INTO {copyPath}");
+        await using var upgraded = new LearningDbContext(new DbContextOptionsBuilder<LearningDbContext>()
+            .UseSqlite($"Data Source={copyPath};Pooling=False").Options);
+        Assert.Equal(earlier, (await upgraded.Database.GetAppliedMigrationsAsync()).Last());
+        await upgraded.Database.MigrateAsync();
+        await upgraded.Database.MigrateAsync();
+        var after = await upgraded.TaskSnapshots.AsNoTracking().SingleAsync();
+        Assert.Equal((before.PlanJson, before.InputJson, before.ResolvedInputJson, before.DocumentJson, before.MeasurementsJson),
+            (after.PlanJson, after.InputJson, after.ResolvedInputJson, after.DocumentJson, after.MeasurementsJson));
+        Assert.Single(await upgraded.Users.ToListAsync());
+        Assert.Single(await upgraded.ActivityDrafts.ToListAsync());
+        Assert.Equal(withChildAccess ? 1 : 0, await upgraded.ChildDeviceGrants.CountAsync());
+        Assert.Equal(upgraded.Database.GetMigrations(), await upgraded.Database.GetAppliedMigrationsAsync());
+        Assert.Equal(earlier, (await db.Database.GetAppliedMigrationsAsync()).Last());
     }
 
     [Fact]

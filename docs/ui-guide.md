@@ -179,6 +179,13 @@ access are separate labelled sections; disabling and revoking name their effects
 before confirmation. Activation codes remain selectable text with their expiry,
 never a URL or persistent browser value.
 
+Optional grade uses free text; age uses isolated LTR integer entry with the server
+limit. Either field can be cleared independently; there is no age-confirmation
+checkbox. Group these optional fields and keep secondary profile/device dates
+under native “פרטי זמנים” disclosures. Age dates change only with age changes.
+Offer deletion for profiles without assignments, and list removal for inactive
+devices. Profiles with history use disabling; active devices use revocation.
+
 The frozen preview owns child selection and assignment, and links to the
 existing assignment when the pair was already assigned. Parent review displays
 the frozen content, exact submitted text and parent-only answer disclosures.
@@ -188,6 +195,12 @@ positive possible total. Keep saved-result recovery beside the finalization
 action without replacing local grades. Reuse shared theme primitives and
 logical layout utilities; these pages need no separate stylesheets.
 
+Assignment details group creation, opening, last-save, submission and review times
+under the same quiet disclosure. Label the visible derived
+duration “זמן מהפתיחה עד ההגשה (כולל הפסקות)”; show minutes/hours or “פחות מדקה”.
+Unsubmitted work shows “טרם הוגשה” without a completed duration. Missing or reversed
+timestamps show unavailable duration. Parent grading never extends the interval.
+
 ## Child learning
 
 The child area uses the same `PageShell`, theme tokens and controls as the parent
@@ -195,7 +208,9 @@ area, with its own home and device-disconnect navigation. It has no parent links
 or same-browser mode switch. Parent activation instructions offer a copyable
 address for the separate child browser; codes never enter that address.
 Activation explains persistent access and offers a session check after an
-uncertain result instead of repeating a code.
+uncertain result instead of repeating a code. Closing and reopening the browser
+retains access until the original expiry. Disconnect, revocation or expiry
+requires activation again; an availability failure offers retry instead.
 
 The inbox separates available and submitted work with native selection and bounded
 paging. The player keeps materials above a numbered question list in the reading
@@ -319,4 +334,5 @@ Follow the [verification commands](../README.md#verify). Check keyboard
 navigation and 360px screenshots at 200% text, including long mixed-language
 content, and review screen-reader behavior when changing an interaction. Enlarge
 text through the browser's text size, as the browser tests do: media queries
-ignore text that page styles enlarge.
+ignore text that page styles enlarge. Use Playwright's managed output paths for
+screenshots and failure traces; keep captures out of source control.

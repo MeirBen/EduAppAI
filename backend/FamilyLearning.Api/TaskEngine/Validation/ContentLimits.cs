@@ -7,7 +7,7 @@ public sealed record ContentLimits(
     int MaxPoints, int NameLength, int GoalLength, int GuidanceLength, int ScopedGuidanceLength, int MeaningLength,
     int TextValueLength, int SelectOptionLength, int SelectOptionMeaningLength, int SettingTextLength, int TitleLength,
     int InstructionsLength, int BodyLength, int PromptLength, int AnswerLength, int ContentLength, int MessageLength,
-    int MaxContextTurns, int ContextLength, int ListLimit)
+    int MaxContextTurns, int ContextLength, int ListLimit, int MaxChildAge)
 {
     public static ContentLimits Current { get; } = new(
         EngineValidation.MaxQuestionCount, EngineValidation.MinChoiceCount, EngineValidation.MaxChoiceCount,
@@ -17,5 +17,5 @@ public sealed record ContentLimits(
         EngineValidation.SelectOptionMeaningLength, EngineValidation.SettingTextLength, EngineValidation.TitleLength,
         EngineValidation.InstructionsLength, EngineValidation.BodyLimit, EngineValidation.PromptLength, EngineValidation.AnswerLength,
         EngineValidation.ContentLimit, EngineValidation.MessageLength, EngineValidation.MaxContextTurns, EngineValidation.ContextLength,
-        EngineValidation.ListLimit);
+        EngineValidation.ListLimit, EngineValidation.MaxChildAge);
 }

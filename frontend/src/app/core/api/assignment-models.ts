@@ -13,6 +13,15 @@ export interface ChildSummary {
   enabled: boolean;
   revision: number;
   createdAtUtc: string;
+  grade: string | null;
+  age: number | null;
+  ageConfirmedAtUtc: string | null;
+  updatedAtUtc: string | null;
+  hasAssignments: boolean;
+}
+export interface ChildProfileDetails {
+  grade: string | null;
+  age: number | null;
 }
 export interface ChildDevice {
   id: string;
@@ -20,6 +29,7 @@ export interface ChildDevice {
   createdAtUtc: string;
   expiresAtUtc: string;
   revokedAtUtc: string | null;
+  canRemove: boolean;
 }
 /** Transient one-time secret. Never put this in storage, a URL or logging. */
 export interface ChildActivation {
@@ -42,6 +52,9 @@ export interface AssignmentSummary {
 export interface AssignmentDetail {
   assignment: AssignmentSummary;
   snapshot: SnapshotPreview;
+  startedAtUtc: string | null;
+  savedAtUtc: string | null;
+  submittedAtUtc: string | null;
 }
 export interface ParentGrade {
   questionId: string;

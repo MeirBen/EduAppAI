@@ -1,4 +1,5 @@
 import { DatePipe } from '@angular/common';
+import { isIntegerInput } from '../../shared/forms/integer-input';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -53,7 +54,7 @@ export class ChildrenPage {
   protected readonly devices = this.api.devices(() => this.selected()?.id, this.devicePage);
   protected readonly busy = signal(false);
   private pendingDeviceFocus?: () => void;
-  // The revoked row stays visible during reload; wait for its button to disappear before restoring.
+  // Device rows change or disappear on reload; restore focus only after the refreshed list renders.
   private readonly restoreAfterDevices = whenIdle(
     () => this.busy() || this.devices.isLoading(),
     () => {
@@ -65,10 +66,23 @@ export class ChildrenPage {
   protected readonly accessError = signal('');
   protected readonly notice = signal('');
   protected readonly activation = signal<ChildActivation | undefined>(undefined);
-  protected readonly model = signal({ name: '', enabled: true });
+  protected readonly model = signal({
+    name: '',
+    enabled: true,
+    grade: '',
+    age: '',
+  });
   protected readonly fields = form(this.model, (path) => {
     disabled(path, () => this.busy());
     maxLength(path.name, this.limits.nameLength);
+    maxLength(path.grade, this.limits.nameLength);
+    validate(path.age, ({ value }) => {
+      const age = value();
+      return age === '' ||
+        (isIntegerInput(age) && Number(age) >= 0 && Number(age) <= this.limits.maxChildAge)
+        ? undefined
+        : { kind: 'age', message: this.ageHint };
+    });
     validate(path.name, ({ value }) =>
       value().trim() ? undefined : { kind: 'required', message: 'יש להזין שם.' },
     );
@@ -82,6 +96,7 @@ export class ChildrenPage {
     );
   });
   protected readonly nameHint = `עד ${count(this.limits.nameLength)} תווים.`;
+  protected readonly ageHint = `גיל בשנים שלמות, בין 0 ל־${count(this.limits.maxChildAge)}.`;
   protected readonly failure = (error: unknown) =>
     parentTaskError(
       error,
@@ -90,7 +105,9 @@ export class ChildrenPage {
   private readonly dirty = computed(
     () =>
       this.model().name !== (this.selected()?.name ?? '') ||
-      this.model().enabled !== (this.selected()?.enabled ?? true),
+      this.model().enabled !== (this.selected()?.enabled ?? true) ||
+      this.model().grade !== (this.selected()?.grade ?? '') ||
+      this.model().age !== (this.selected()?.age?.toString() ?? ''),
   );
 
   constructor() {
@@ -114,7 +131,12 @@ export class ChildrenPage {
   }
   private acceptProfile(child?: ChildSummary) {
     this.selected.set(child);
-    this.fields().reset({ name: child?.name ?? '', enabled: child?.enabled ?? true });
+    this.fields().reset({
+      name: child?.name ?? '',
+      enabled: child?.enabled ?? true,
+      grade: child?.grade ?? '',
+      age: child?.age?.toString() ?? '',
+    });
     this.deviceFields().reset({ label: '' });
     this.activation.set(undefined);
     this.devicePage.set(1);
@@ -125,7 +147,7 @@ export class ChildrenPage {
     this.error.set('');
     await submit(this.fields, async () => {
       const child = this.selected(),
-        { name, enabled } = this.model();
+        { name, enabled, grade, age } = this.model();
       if (
         child?.enabled &&
         !enabled &&
@@ -137,9 +159,16 @@ export class ChildrenPage {
       const restore = this.holdFocus();
       this.busy.set(true);
       try {
+        const profile = {
+          name: name.trim(),
+          details: {
+            grade: grade.trim() || null,
+            age: age === '' ? null : Number(age),
+          },
+        };
         const saved = child
-          ? await this.api.update(child, name.trim(), enabled, this.lifetime)
-          : await this.api.create(name.trim(), this.lifetime);
+          ? await this.api.update(child, { ...profile, enabled }, this.lifetime)
+          : await this.api.create(profile, this.lifetime);
         if (this.lifetime.destroyed) return;
         this.acceptProfile(saved);
         this.children.reload();
@@ -157,6 +186,43 @@ export class ChildrenPage {
         }
       }
     });
+  }
+  protected async deleteProfile() {
+    const child = this.selected();
+    if (
+      this.busy() ||
+      !child ||
+      child.hasAssignments ||
+      !window.confirm(
+        `למחוק את הפרופיל "${child.name}"? הגישה מהמכשירים וקודי ההפעלה שלו יוסרו. אי אפשר לבטל את המחיקה.`,
+      )
+    )
+      return;
+    const restore = this.holdFocus();
+    this.busy.set(true);
+    this.error.set('');
+    try {
+      await this.api.delete(child, this.lifetime);
+      if (this.lifetime.destroyed) return;
+      this.acceptProfile();
+      if (this.page() > 1 && this.children.value()?.items.length === 1)
+        this.page.update((page) => page - 1);
+      else this.children.reload();
+      this.notice.set('הפרופיל נמחק.');
+    } catch (error) {
+      if (!this.lifetime.destroyed)
+        this.error.set(
+          parentTaskError(
+            error,
+            'הפרופיל השתנה או שנוספו לו פעילויות. רעננו את הרשימה. פרופיל עם היסטוריה אפשר להשבית.',
+          ) + ' בדקו ברשימה לפני ניסיון נוסף.',
+        );
+    } finally {
+      if (!this.lifetime.destroyed) {
+        this.busy.set(false);
+        restore();
+      }
+    }
   }
   protected async issue(event: Event) {
     event.preventDefault();
@@ -177,13 +243,15 @@ export class ChildrenPage {
       }
     });
   }
-  protected async revoke(device: ChildDevice) {
+  protected async changeDeviceAccess(device: ChildDevice) {
     const child = this.selected();
     if (
       this.busy() ||
       !child ||
       !window.confirm(
-        `לבטל את הגישה מהמכשיר "${device.deviceLabel}"? העבודה תישמר. חיבור מחדש ידרוש קוד חדש.`,
+        device.canRemove
+          ? `להסיר את "${device.deviceLabel}" מרשימת המכשירים? הפעילויות והתוצאות יישמרו.`
+          : `לבטל את הגישה מהמכשיר "${device.deviceLabel}"? העבודה תישמר. חיבור מחדש ידרוש קוד חדש.`,
       )
     )
       return;
@@ -191,10 +259,13 @@ export class ChildrenPage {
     this.busy.set(true);
     this.accessError.set('');
     try {
-      await this.api.revoke(child.id, device.id, this.lifetime);
+      if (device.canRemove) await this.api.removeDevice(child.id, device.id, this.lifetime);
+      else await this.api.revoke(child.id, device.id, this.lifetime);
       if (this.lifetime.destroyed) return;
-      this.devices.reload();
-      this.notice.set('הגישה מהמכשיר בוטלה.');
+      if (device.canRemove && this.devicePage() > 1 && this.devices.value()?.items.length === 1)
+        this.devicePage.update((page) => page - 1);
+      else this.devices.reload();
+      this.notice.set(device.canRemove ? 'המכשיר הוסר מהרשימה.' : 'הגישה מהמכשיר בוטלה.');
     } catch (error) {
       if (!this.lifetime.destroyed)
         this.accessError.set(

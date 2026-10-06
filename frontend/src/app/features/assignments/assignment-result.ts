@@ -54,6 +54,33 @@ export class AssignmentResult {
   });
   protected readonly result = signal<ParentAssignmentResult | undefined>(undefined);
   protected readonly savedResult = signal<ParentAssignmentResult | undefined>(undefined);
+  protected readonly timing = computed(() => {
+    const source = this.result() ?? (this.detail.hasValue() ? this.detail.value() : undefined);
+    if (!source) return undefined;
+    const start = Date.parse(source.startedAtUtc ?? ''),
+      end = Date.parse(source.submittedAtUtc ?? ''),
+      saved = Date.parse(source.savedAtUtc ?? '');
+    let elapsed = 'משך הזמן אינו זמין';
+    if (Number.isFinite(start) && Number.isFinite(end) && end >= start) {
+      const minutes = Math.floor((end - start) / 60_000),
+        hours = Math.floor(minutes / 60),
+        remainder = minutes % 60;
+      if (minutes === 0) elapsed = 'פחות מדקה';
+      else if (hours === 0) elapsed = minutes === 1 ? 'דקה' : `${minutes} דקות`;
+      else {
+        elapsed = hours === 1 ? 'שעה' : `${hours} שעות`;
+        if (remainder > 0) elapsed += remainder === 1 ? ' ודקה' : ` ו־${remainder} דקות`;
+      }
+    }
+    return {
+      startedAt: Number.isFinite(start) ? start : null,
+      submittedAt: Number.isFinite(end) ? end : null,
+      savedAt: Number.isFinite(saved) ? saved : null,
+      submitted:
+        source.assignment.status === 'awaiting-review' || source.assignment.status === 'completed',
+      elapsed,
+    };
+  });
   protected readonly grades = signal<
     { questionId: string; possiblePoints: number; points: string }[]
   >([]);

@@ -17,6 +17,7 @@ internal static class EngineValidation
     internal const int MaxSelectOptions = 20;
     internal const int MaxMaterials = 4;
     internal const int MaxPoints = 100;
+    internal const int MaxChildAge = 120;
     // Field lengths; ContentLimits publishes them so the client mirrors exactly what these validators enforce.
     internal const int NameLength = 100;
     internal const int GoalLength = 500;

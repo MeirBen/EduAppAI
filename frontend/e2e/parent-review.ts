@@ -1,4 +1,5 @@
 import { expect, type APIRequestContext, type Page } from '@playwright/test';
+import { expectChildResponse } from './child-responses';
 import { sourceText, suppliedPlan } from '../src/app/features/activities/learning-plan.fixture';
 
 /** Publishes isolated mixed-interaction content through real parent APIs without AI calls. */
@@ -124,25 +125,13 @@ export async function verifyParentReview(page: Page, child: APIRequestContext, c
   expect(replay.status()).toBe(200);
   expect(await replay.json()).toEqual(result);
   expect(await (await parent.get(resultPath)).json()).toEqual(result);
-  const childResult = await (await child.get(sessionPath)).json();
+  const childResponse = await child.get(sessionPath);
+  await expectChildResponse(childResponse);
+  const childResult = await childResponse.json();
   expect(childResult).toMatchObject({
     status: 'completed',
     finalTotal: 7,
     possibleTotal: 8,
     answers,
   });
-  expect(Object.keys(childResult).sort()).toEqual([
-    'answers',
-    'assignmentId',
-    'finalTotal',
-    'possibleTotal',
-    'reviewedAtUtc',
-    'revision',
-    'savedAtUtc',
-    'startedAtUtc',
-    'status',
-    'submittedAtUtc',
-  ]);
-  for (const answer of childResult.answers)
-    expect(Object.keys(answer).sort()).toEqual(['questionId', 'value']);
 }

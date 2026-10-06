@@ -293,4 +293,5 @@ export interface ContentLimits {
   maxContextTurns: number;
   contextLength: number;
   listLimit: number;
+  maxChildAge: number;
 }

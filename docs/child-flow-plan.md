@@ -4,26 +4,23 @@
 > reviewed task at a time. Use subagent-driven development only if the user
 > selects it. Checkboxes track implementation, not completion of this document.
 
-**Status:** Tasks 1–6 implemented and verified on 6 October 2026. Task 7
-(full-flow acceptance and documentation cutover) has not started.
+**Status:** Tasks 1–7 and the approved follow-up enhancements are implemented and
+verified on 6 October 2026. The milestone is ready for the user's family sanity
+test and independent educational review.
 
-**Verification:** `./scripts/verify.sh` passed with 592 backend tests, 246 Angular
+**Verification:** `./scripts/verify.sh` passed with 606 backend tests, 268 Angular
 tests and 23 dashboard tests, plus formatting, Markdown, type checks and builds.
-`./scripts/publish.sh` and the isolated browser suite passed (29 tests), including
-parent management, assignment and grading plus child activation, all three answer
-types, save/reload, recovery after a committed submission response is lost,
-parent grading, refreshed child results and device disconnect. Component tests
-cover activation/token recovery, paging, exact text, validation focus, missing
-answers, conflicts, terminal/zero-point results, withdrawal/expiry and request
-cancellation on navigation. Child requests and response allowlists were inspected;
-no parent APIs, answer keys or AI calls enter the child workflow. Browser checks
-cover 360px/200% text, keyboard behavior and light/dark themes. Independent review
-found two access-lock issues; regression tests reproduced both and pass after the
-fixes. No unresolved findings remain. Verification used disposable databases and
-isolated providers, with no paid AI calls or Git mutations.
+`./scripts/publish.sh` and all 29 isolated browser tests passed; the EF CLI reports
+no pending model changes. The completed checklists below record the coverage,
+including exact learner response allowlists and zero AI calls in child workflows.
+Independent review found no unresolved issues. Verification used disposable
+databases and isolated providers, with no paid AI calls or Git mutations.
 
-Optional school grade/age and elapsed activity duration are documented follow-ups
-in the specification, outside these implementation tasks.
+The follow-ups add optional school grade/age, elapsed activity duration, compact
+timestamp disclosures, unused-profile deletion and inactive-device removal. Their
+contracts and history-preservation rules are in the specification. Age has no
+separate confirmation control. Both additive profile migrations are verified,
+including upgrades from the intermediate grade/age schema.
 
 **Goal:** A parent assigns reviewed work to an activated child device, the child
 saves and submits answers, and the parent sees stable results and grades short
@@ -39,7 +36,7 @@ DbContext directly, short transactions and explicit child-only projections.
 EF Core SQLite, Angular 22 standalone components and Signal Forms, xUnit and
 Playwright. No new runtime package is planned.
 
-**Spec:** [Product specification — child flow](product-specification.md#child-flow--next-milestone).
+**Spec:** [Product specification — child flow](product-specification.md#child-flow).
 Read the spec, [architecture](architecture.md), [UI guide](ui-guide.md) and
 [comment rules](commenting-guide.md) before implementation. Product behavior
 belongs in the spec; this plan maps it to changes and verification.
@@ -587,41 +584,42 @@ phase.
 `README.md`, `docs/architecture.md`, `docs/ui-guide.md`, the status of the
 child-flow spec and this plan. Keep evaluation history and costs intact.
 
-- [ ] Add a full two-family/two-sibling browser/API scenario with separate
+- [x] Add a full two-family/two-sibling browser/API scenario with separate
       contexts: activate, assign mixed work, save/reload, lose the submit response,
       check the saved pending result, grade, reload and read the unchanged final
       result. Assert zero AI calls and exact child response allowlists throughout.
-- [ ] Prove cross-scheme API denial, CSRF identity separation, production cookie
+- [x] Prove cross-scheme API denial, CSRF identity separation, production cookie
       flags and host restart persistence in the real middleware composition.
       Reopen the child browser with its persistent cookie and verify access lasts
       only until the original grant expiry, without another activation.
       Include a device revoked while a save is paused after authentication.
-- [ ] Run the race/retention suite for reset, withdrawal, archive, duplicate
+- [x] Run the race/retention suite for reset, withdrawal, archive, duplicate
       submission and final grading. Verify new pages can reach entries past 100,
       reset affects all owned rows, and another family's content/session survives.
-- [ ] Test upgrading a disposable copy of the pre-child migration schema with
+- [x] Test upgrading a disposable copy of the pre-child migration schema with
       existing parent content, fresh install and repeated migration. Compare stored
       snapshot JSON before/after. No real user database is deleted or migrated by
       verification, and management commands still work without AI configuration.
-- [ ] Update docs in place: activation/disconnect/revocation instructions,
+- [x] Update docs in place: activation/disconnect/revocation instructions,
       parent-review scoring, archive/reset semantics, shell boundaries and actual
       test commands. Remove superseded current-state statements and temporary
       helpers; do not scatter status/history into additional design files.
-- [ ] Run `./scripts/verify.sh`, `./scripts/publish.sh` and
+- [x] Run `./scripts/verify.sh`, `./scripts/publish.sh` and
       `npm --prefix frontend run e2e`. Expected: all pass with isolated providers,
       no pending EF model changes and all existing parent workflows retained.
       Use Playwright-managed screenshot/trace output paths.
-- [ ] Record checks and remaining product limits in the handoff. Keep the
+- [x] Record checks and remaining product limits in the handoff. Keep the
       independent human content-quality review explicit; software tests do not
       certify generated educational content. Mark this milestone implemented only
       after its real acceptance passes, and stop for the user's family sanity test.
 
-## Review before remaining implementation
+## Family sanity test
 
-Review the spec and this plan together, especially parent grading of every
-answered short-text question, separate-device access, explicit save, one attempt
-per assignment, fixed grant expiry and the expanded destructive reset scope.
-The user may adjust the remaining product choices before Task 7. Do not start
-additional tasks merely because their checklists exist.
+After acceptance, use a parent browser and a separate child browser/device to
+assign reviewed content, activate, save/reopen, submit and grade it. Check that
+the Hebrew instructions, answer controls and results make sense to the family.
+Independently review representative generated educational content for accuracy,
+age suitability and answer quality; software checks cannot certify those.
+Do not start additional work without the user's direction.
 
 [decimal-parsing]: https://learn.microsoft.com/dotnet/api/system.decimal.tryparse

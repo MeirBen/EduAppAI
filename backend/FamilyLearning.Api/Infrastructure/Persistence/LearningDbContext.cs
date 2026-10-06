@@ -40,8 +40,11 @@ public sealed class LearningDbContext(DbContextOptions<LearningDbContext> option
         model.Entity<Child>(entity =>
         {
             entity.Property(c => c.Name).HasMaxLength(EngineValidation.NameLength);
+            entity.Property(c => c.Grade).HasMaxLength(EngineValidation.NameLength);
+            entity.Property(c => c.AgeConfirmedAtUtc).HasConversion(utcTimestamp);
             entity.Property(c => c.Revision).IsConcurrencyToken();
             entity.Property(c => c.CreatedAtUtc).HasConversion(utcTimestamp);
+            entity.Property(c => c.UpdatedAtUtc).HasConversion(utcTimestamp);
             entity.HasIndex(c => new { c.FamilyId, c.CreatedAtUtc, c.Id });
             entity.HasOne<Family>().WithMany().HasForeignKey(c => c.FamilyId).OnDelete(DeleteBehavior.Restrict);
         });

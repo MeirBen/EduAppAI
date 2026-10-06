@@ -38,16 +38,49 @@
         >פתיחת הפעילות המוכנה</a
       >
     </div>
+    @if (timing(); as times) {
+      <div class="grid gap-2">
+        @if (times.submitted) {
+          <p>
+            זמן מהפתיחה עד ההגשה (כולל הפסקות): <span data-elapsed-time>{{ times.elapsed }}</span>
+          </p>
+        } @else {
+          <p class="text-muted">טרם הוגשה</p>
+        }
+        <details class="text-sm text-muted">
+          <summary>פרטי זמנים</summary>
+          <div class="mt-2 grid gap-1">
+            <p>
+              הוקצתה ב־<bdi>{{ assignment.createdAtUtc | date }}</bdi>
+            </p>
+            <p>
+              @if (times.startedAt !== null) {
+                נפתחה ב־<bdi>{{ times.startedAt | date }}</bdi>
+              } @else {
+                {{ assignment.hasStarted ? 'מועד הפתיחה אינו זמין' : 'טרם נפתחה' }}
+              }
+            </p>
+            @if (times.savedAt !== null) {
+              <p>
+                התקדמות נשמרה ב־<bdi>{{ times.savedAt | date }}</bdi>
+              </p>
+            }
+            @if (times.submittedAt !== null) {
+              <p>
+                הוגשה ב־<bdi>{{ times.submittedAt | date }}</bdi>
+              </p>
+            }
+            @if (result()?.reviewedAtUtc; as reviewedAt) {
+              <p>
+                נבדקה ב־<bdi>{{ reviewedAt | date }}</bdi>
+              </p>
+            }
+          </div>
+        </details>
+      </div>
+    }
     @if (result(); as report) {
       <div class="grid gap-1">
-        <p class="text-muted">
-          הוגשה ב־<bdi>{{ report.submittedAtUtc | date }}</bdi>
-        </p>
-        @if (report.reviewedAtUtc) {
-          <p class="text-muted">
-            נבדקה ב־<bdi>{{ report.reviewedAtUtc | date }}</bdi>
-          </p>
-        }
         @if (report.evaluation.finalTotal !== null) {
           <p class="font-semibold">
             ציון סופי: {{ report.evaluation.finalTotal }} מתוך {{ report.evaluation.possibleTotal }}

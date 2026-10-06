@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using FamilyLearning.Api.Infrastructure.Auth;
 using FamilyLearning.Api.Infrastructure.Persistence;
 using FamilyLearning.Api.Tests.Fixtures;
@@ -15,6 +16,68 @@ namespace FamilyLearning.Api.Tests.Integration;
 
 public sealed class ProductionHostTests
 {
+    [Fact]
+    public async Task Persistent_child_cookie_survives_production_restart_but_never_extends_its_original_expiry()
+    {
+        var directory = Path.Combine(Path.GetTempPath(), "family-learning-child-restart", Guid.NewGuid().ToString());
+        var clock = new GenerationHarness.TestClock { Now = DateTimeOffset.FromUnixTimeSeconds(DateTimeOffset.UtcNow.ToUnixTimeSeconds()) };
+        var expires = clock.Now.AddDays(30);
+        string cookie;
+        JsonNode identity;
+        try
+        {
+            await MigrateAsync(directory);
+            await using (var first = new ApiFactory(s => s.AddSingleton<TimeProvider>(clock), "Production", directory))
+            {
+                using var parent = first.CreateClient(new() { BaseAddress = new Uri("https://family.example.test"), AllowAutoRedirect = false });
+                using (var scope = first.Services.CreateScope())
+                    Assert.True((await scope.ServiceProvider.GetRequiredService<ParentAccount>()
+                        .CreateAsync("restart@example.test", "TestOnly!Parent12345")).Succeeded);
+                await ApiFactory.RefreshCsrfAsync(parent);
+                Assert.Equal(HttpStatusCode.NoContent, (await parent.PostAsJsonAsync("/api/auth/login",
+                    new { email = "restart@example.test", password = "TestOnly!Parent12345" })).StatusCode);
+                await ApiFactory.RefreshCsrfAsync(parent);
+                var code = await ChildHarness.Issue(parent, await ChildHarness.Create(parent));
+                using var child = first.CreateClient(new() { BaseAddress = parent.BaseAddress!, AllowAutoRedirect = false });
+                await ChildHarness.Csrf(child);
+                using var activated = await child.PostAsJsonAsync("/api/child/auth/activate", new { code = code["code"]!.GetValue<string>() });
+                Assert.Equal(HttpStatusCode.NoContent, activated.StatusCode);
+                var persistent = Assert.Single(SetCookieHeaderValue.ParseList(activated.Headers.GetValues(HeaderNames.SetCookie).ToArray()),
+                    c => c.Name == "FamilyLearning.Child");
+                Assert.Equal(expires, persistent.Expires);
+                Assert.True(persistent.Secure);
+                Assert.True(persistent.HttpOnly);
+                Assert.Equal(Microsoft.Net.Http.Headers.SameSiteMode.Strict, persistent.SameSite);
+                cookie = $"{persistent.Name}={persistent.Value}";
+                identity = (await child.GetFromJsonAsync<JsonNode>("/api/child/auth/me"))!;
+                Assert.Equal(expires.UtcDateTime, identity["expiresAtUtc"]!.GetValue<DateTime>());
+            }
+
+            clock.Now = expires.AddDays(-14);
+            await using var restarted = new ApiFactory(s => s.AddSingleton<TimeProvider>(clock), "Production", directory);
+            // A fresh client presents only the browser's original persistent cookie, with the same database and keys.
+            using var reopened = restarted.CreateClient(new() { BaseAddress = new Uri("https://family.example.test"), AllowAutoRedirect = false });
+            reopened.DefaultRequestHeaders.Add(HeaderNames.Cookie, cookie);
+            foreach (var now in new[] { clock.Now, expires.AddSeconds(-1) })
+            {
+                clock.Now = now;
+                using var response = await reopened.GetAsync("/api/child/auth/me");
+                Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+                Assert.True(JsonNode.DeepEquals(identity, await response.Content.ReadFromJsonAsync<JsonNode>()));
+                Assert.False(response.Headers.Contains(HeaderNames.SetCookie));
+            }
+            await ChildHarness.Csrf(reopened);
+            clock.Now = expires;
+            Assert.Equal(HttpStatusCode.Unauthorized, (await reopened.GetAsync("/api/child/auth/me")).StatusCode);
+            Assert.Equal(HttpStatusCode.Unauthorized, (await reopened.PostAsync("/api/child/auth/logout", null)).StatusCode);
+            using var verification = restarted.Services.CreateScope();
+            var grant = await verification.ServiceProvider.GetRequiredService<LearningDbContext>().ChildDeviceGrants.SingleAsync();
+            Assert.Equal(expires.UtcDateTime, grant.ExpiresAtUtc);
+            Assert.Null(grant.RevokedAtUtc);
+        }
+        finally { if (Directory.Exists(directory)) Directory.Delete(directory, recursive: true); }
+    }
+
     [Theory]
     [InlineData("--migrate")]
     [InlineData("--create-parent")]

@@ -158,14 +158,14 @@ setup in the [README](../README.md) and presentation in the
 ## Next steps
 
 The parent and child workflows include profile/device management, assignment,
-activation, a resumable activity player and parent review. The remaining
-milestone work is full-flow acceptance in Task 7 of the
-[implementation plan](child-flow-plan.md). Optional profile details and elapsed
-time displays below remain later enhancements.
+activation, a resumable activity player and parent review. All seven tasks in the
+[implementation plan](child-flow-plan.md) passed software acceptance. The next
+step is a family sanity test with separate parent and child browsers. Optional
+profile grade/age and elapsed time displays are also implemented.
 
-Alongside that work, review representative saved evaluation outputs for
-correctness, Hebrew, suitability and answer quality before handing the
-activities to children. Use concrete findings to guide further AI tuning.
+Before giving activities to children, review representative saved evaluation
+outputs for correctness, Hebrew, suitability and answer quality. Use concrete
+findings to guide further AI tuning.
 Before inviting other families, add account recovery and tested backup/restore.
 Shared-parent onboarding, dashboards, broad library pagination, update notices,
 offline synchronization and native packaging remain later work.
@@ -177,13 +177,12 @@ Deferred maintenance from the live-update work:
 - Review the `braces` advisory (GHSA-vfj7-8cjw-p6xm) in the Markdown lint tool's
   development dependencies before choosing a dependency change.
 
-## Child flow — next milestone
+## Child flow
 
-**Partially implemented, 6 October 2026:** child access, assignment, resumable
-work/submission and parent grading/report APIs (Tasks 1–4), plus parent
-management, assignment and review screens (Task 5), and child activation, inbox
-and resumable player screens (Task 6), are available. Full milestone acceptance
-and documentation cutover remain in Task 7. This milestone completes
+**Implemented and verified, 6 October 2026:** child access,
+assignment, resumable work/submission, parent grading/reports and both route
+shells are available. Acceptance evidence is recorded in the
+[implementation plan](child-flow-plan.md). This milestone completes
 one loop: the parent creates a child profile, assigns a reviewed activity,
 activates a separate child device and sees the submitted answers and results.
 It extends the current application and immutable snapshots. Creating a profile,
@@ -242,19 +241,24 @@ milestone. All existing question types remain available.
   display retry feedback without falsely reporting successful activation,
   saving or submission.
 
-### Optional grade and age — later enhancement
+### Optional grade and age
 
-After the current child-flow tasks, parents may optionally record **כיתה**
+Parents may optionally record **כיתה**
 (school grade) and **גיל** (age in completed years) on a child's profile.
-These fields are not part of Task 5 or the current API contract.
 
 - Leave both unset by default and allow either to be cleared independently.
   Grade and age do not imply each other or the child's learning ability.
-  Grade should accommodate kindergarten, school years and children outside
-  the usual school structure. Define bounded server validation before implementation.
+  Grade is trimmed free text of up to 100 characters, accommodating kindergarten,
+  school years and children outside the usual school structure. Age is an integer
+  from 0 to 120. The API publishes these validation bounds to the parent UI.
 - Store the date the age was confirmed and show when it was last updated;
   do not silently increment an age without knowing the birthday. An exact
-  date of birth is not needed for this purpose.
+  date of birth is not needed for this purpose. A new or changed age records the
+  server UTC time. There is no separate confirmation control. Unrelated
+  edits preserve the date, and clearing age clears it. These details are parent-only.
+- Create/update accepts an optional `details` object with required nullable
+  `grade` and `age` fields. Omitting the object on update
+  preserves existing details for older clients; all edits use the profile revision.
 - A future explicit parent action may use these values to prefill the audience
   of a new activity. Show the proposed audience for review and adjustment.
   The generic AI flow may use it for vocabulary, reading level, instruction
@@ -266,6 +270,21 @@ These fields are not part of Task 5 or the current API contract.
 - Profile editing, child access and all assignment/review workflows continue
   to work without these fields. No automatic tuning, AI grading or additional
   AI calls are introduced by recording them.
+
+### Profile and device cleanup
+
+- Profiles expose creation and last-update UTC times; legacy update times remain
+  unknown until the next save. Secondary timestamps use a collapsed “פרטי זמנים”
+  disclosure, including the date age was last changed.
+- A parent can delete a profile only if it has no assignments, including withdrawn
+  assignments. Deletion checks ownership and revision in the same transaction as
+  the history check and removes device grants and activation codes. Concurrent
+  assignment creation cannot lose history. Profiles with history can be disabled.
+- Active devices offer access revocation. Revoked or expired device entries can
+  then be removed from the list. The server rechecks ownership and inactivity;
+  removal never deletes assignments, answers or results.
+- Library removal already deletes unassigned activities and archives assigned
+  activities. No duplicate cleanup screen or automatic deletion is introduced.
 
 ### Assignments and learner-facing content
 
@@ -340,13 +359,12 @@ These fields are not part of Task 5 or the current API contract.
   edits, withdrawal or another attempt. Start/resume calls return this saved
   state and never reset it.
 
-### Elapsed activity time — later enhancement
+### Elapsed activity time
 
-Parents should be able to see how long it took from the child's first opening
-of the activity player to the saved submission. This is a later display
-enhancement, separate from the current child-flow tasks, using the existing
-server UTC `StartedAtUtc` and `SubmittedAtUtc` timestamps rather than a browser
-stopwatch or new duration counter.
+Parents see how long it took from the child's first opening of the activity
+player to the saved submission. The assignment detail and result use the saved
+server UTC `StartedAtUtc` and `SubmittedAtUtc` timestamps; there is no browser
+stopwatch or stored duration counter.
 
 - The first explicit opening/start of the child player creates the session and
   starts this interval. Parent previews and read-only API requests do not start

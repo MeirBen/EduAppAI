@@ -21,7 +21,10 @@ public static class AssignmentEndpoints
             var summary = await query.Select(AssignmentSummary.Projection).SingleOrDefaultAsync(ct);
             if (summary is null) return Results.NotFound();
             var snapshot = await db.TaskSnapshots.AsNoTracking().SingleOrDefaultAsync(s => s.Id == summary.SnapshotId && s.FamilyId == user.FamilyId(), ct);
-            return snapshot is null ? Results.NotFound() : Results.Ok(new AssignmentDetail(summary, SnapshotPreview.From(snapshot)));
+            if (snapshot is null) return Results.NotFound();
+            var timing = await db.TaskSessions.AsNoTracking().Where(s => s.AssignmentId == id)
+                .Select(s => new { s.StartedAtUtc, s.SavedAtUtc, s.SubmittedAtUtc }).SingleOrDefaultAsync(ct);
+            return Results.Ok(new AssignmentDetail(summary, SnapshotPreview.From(snapshot), timing?.StartedAtUtc, timing?.SavedAtUtc, timing?.SubmittedAtUtc));
         });
         assignments.MapPost("/{id:guid}/withdraw", WithdrawAsync);
         assignments.MapParentReviewEndpoints();

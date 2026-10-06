@@ -292,6 +292,43 @@ public sealed class ChildAccessTests
     }
 
     [Fact]
+    public async Task Only_owned_inactive_device_records_can_be_removed_without_erasing_learning_history()
+    {
+        await using var h = new ChildHarness();
+        using var parent = await h.App.ParentAsync();
+        using var foreign = await h.App.ParentAsync();
+        var profile = await Create(parent);
+        var sibling = await Create(parent);
+        using var child = await h.Activate(parent, profile);
+        var content = await ChildSessionTests.MixedSnapshot(parent);
+        var assignment = await AssignmentTests.Assign(parent, profile, content.Id);
+        var session = ChildSessionTests.SessionPath(assignment);
+        var saved = await ChildSessionTests.Start(child, session);
+        var device = (await parent.GetFromJsonAsync<JsonNode>(Path(profile) + "/devices"))!["items"]![0]!;
+        Assert.False(device["canRemove"]!.GetValue<bool>());
+        var path = Path(profile) + "/devices/" + device["id"];
+        Assert.Equal(HttpStatusCode.Conflict, (await parent.DeleteAsync(path + "/record")).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await foreign.DeleteAsync(path + "/record")).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await parent.DeleteAsync(Path(sibling) + "/devices/" + device["id"] + "/record")).StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, (await child.DeleteAsync(path + "/record")).StatusCode);
+        Assert.Equal(HttpStatusCode.NoContent, (await parent.DeleteAsync(path)).StatusCode);
+        Assert.True((await parent.GetFromJsonAsync<JsonNode>(Path(profile) + "/devices"))!["items"]![0]!["canRemove"]!.GetValue<bool>());
+        Assert.Equal(HttpStatusCode.NoContent, (await parent.DeleteAsync(path + "/record")).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await parent.DeleteAsync(path + "/record")).StatusCode);
+        using var replacement = await h.Activate(parent, profile);
+        Assert.True(JsonNode.DeepEquals(saved, await replacement.GetFromJsonAsync<JsonNode>(session)));
+        device = (await parent.GetFromJsonAsync<JsonNode>(Path(profile) + "/devices"))!["items"]![0]!;
+        h.Clock.Now = h.Clock.Now.AddDays(30);
+        Assert.True((await parent.GetFromJsonAsync<JsonNode>(Path(profile) + "/devices"))!["items"]![0]!["canRemove"]!.GetValue<bool>());
+        Assert.Equal(HttpStatusCode.NoContent, (await parent.DeleteAsync(Path(profile) + "/devices/" + device["id"] + "/record")).StatusCode);
+        using var scope = h.App.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<LearningDbContext>();
+        Assert.Single(await db.Assignments.ToListAsync());
+        Assert.Single(await db.TaskSessions.ToListAsync());
+        Assert.Empty(await db.ChildDeviceGrants.ToListAsync());
+    }
+
+    [Fact]
     public async Task Device_revoke_is_owned_idempotent_and_immediately_invalidates_the_cookie()
     {
         await using var h = new ChildHarness();
@@ -301,7 +338,7 @@ public sealed class ChildAccessTests
         using var child = await h.Activate(parent, profile);
         var devices = (await parent.GetFromJsonAsync<JsonNode>(Path(profile) + "/devices"))!["items"]!.AsArray();
         var device = Assert.Single(devices)!;
-        Assert.Equal(new[] { "createdAtUtc", "deviceLabel", "expiresAtUtc", "id", "revokedAtUtc" }, device.AsObject().Select(p => p.Key).Order().ToArray());
+        Assert.Equal(new[] { "canRemove", "createdAtUtc", "deviceLabel", "expiresAtUtc", "id", "revokedAtUtc" }, device.AsObject().Select(p => p.Key).Order().ToArray());
         var path = Path(profile) + "/devices/" + device["id"]!.GetValue<Guid>();
         Assert.Equal(HttpStatusCode.NotFound, (await stranger.DeleteAsync(path)).StatusCode);
         Assert.Equal(HttpStatusCode.NoContent, (await parent.DeleteAsync(path)).StatusCode);
@@ -324,6 +361,39 @@ public sealed class ChildAccessTests
         Assert.Single(second["items"]!.AsArray());
         Assert.False(second["hasMore"]!.GetValue<bool>());
         Assert.Equal(101, first["items"]!.AsArray().Concat(second["items"]!.AsArray()).Select(c => c!["id"]!.GetValue<Guid>()).Distinct().Count());
+    }
+
+    [Fact]
+    public async Task Device_paging_reaches_and_revokes_old_grants_without_exposing_another_childs_devices()
+    {
+        await using var h = new ChildHarness();
+        using var parent = await h.App.ParentAsync();
+        using var stranger = await h.App.ParentAsync();
+        var profile = await Create(parent);
+        var sibling = await Create(parent);
+        using var child = await h.Activate(parent, profile);
+        using var siblingClient = await h.Activate(parent, sibling);
+        using (var scope = h.App.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<LearningDbContext>();
+            for (var i = 0; i < 100; i++)
+                db.Add(new ChildDeviceGrant(profile["id"]!.GetValue<Guid>(), "newer device", h.Clock.Now.UtcDateTime.AddSeconds(1), h.Clock.Now.UtcDateTime.AddDays(30)));
+            await db.SaveChangesAsync();
+        }
+        var path = Path(profile) + "/devices";
+        Assert.Equal(HttpStatusCode.NotFound, (await stranger.GetAsync(path)).StatusCode);
+        var first = (await parent.GetFromJsonAsync<JsonNode>(path + "?pageSize=100"))!;
+        var second = (await parent.GetFromJsonAsync<JsonNode>(path + "?pageSize=100&page=2"))!;
+        Assert.Equal(100, first["items"]!.AsArray().Count);
+        Assert.True(first["hasMore"]!.GetValue<bool>());
+        var oldest = Assert.Single(second["items"]!.AsArray())!;
+        Assert.False(second["hasMore"]!.GetValue<bool>());
+        Assert.Equal(101, first["items"]!.AsArray().Concat(second["items"]!.AsArray()).Select(c => c!["id"]!.GetValue<Guid>()).Distinct().Count());
+        Assert.Equal("מחשב", oldest["deviceLabel"]!.GetValue<string>());
+        Assert.Equal(HttpStatusCode.NoContent, (await parent.DeleteAsync(path + "/" + oldest["id"]!.GetValue<Guid>())).StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, (await child.GetAsync("/api/child/auth/me")).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await siblingClient.GetAsync("/api/child/auth/me")).StatusCode);
+        Assert.Single((await parent.GetFromJsonAsync<JsonNode>(Path(sibling) + "/devices"))!["items"]!.AsArray());
     }
 
     [Fact]
