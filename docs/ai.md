@@ -124,6 +124,14 @@ On 6 October different-topic rewrites replayed the app's exact rewrite request.
   stored idea; it and "simpler language" still worked. A clarification reply,
   like the plan chat's, was not added: no tested instruction produced harmful
   content.
+- **Question wording (rejected):** questions for third-grade stories often used
+  formal words absent from the text, such as מעיד, אופיו and ביסודיות: 1.33 per
+  four-question set, in 18 of 24 sets. Two generic lines asking for everyday
+  words no harder than the material, with inference made hard by the thinking
+  rather than the vocabulary, gave 1.12 (p = 0.32) and 1.03 (p = 0.20) over 24
+  and 30 blind-labelled sets, and their per-story effects reversed between
+  samples. Parent review and the "ניסוח פשוט וברור יותר" suggestion remain the
+  safeguard.
 
 ## Material variety
 
