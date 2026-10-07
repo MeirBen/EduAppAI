@@ -19,6 +19,12 @@ import { assignmentStatuses } from './assignment-presentation';
 import { parentTaskError } from '../../core/api/parent-task-error';
 import { Pager } from '../../shared/pager/pager';
 import { writeError } from '../../core/api/api-error';
+import { refreshOnReturn } from '../../core/page-visibility';
+
+const changed = {
+  withdraw: 'ההקצאה בוטלה. היא נשמרת בבחירה "ההקצאה בוטלה".',
+  restore: 'ההקצאה הוחזרה, והעבודה השמורה זמינה שוב.',
+};
 
 /** Paged parent assignment history. Reading/filtering never starts or changes child work. */
 @Component({
@@ -60,30 +66,42 @@ export class AssignmentList {
   protected readonly failure = (error: unknown) =>
     parentTaskError(
       error,
-      'מצב ההקצאה השתנה. רעננו את הרשימה כדי לבדוק אם כבר הוגשה עבודה או שההקצאה בוטלה.',
+      'מצב ההקצאה השתנה, או שהפרופיל או הפעילות כבר לא זמינים. רעננו את הרשימה.',
     );
+  constructor() {
+    refreshOnReturn(() => this.assignments.reload());
+  }
   protected filterStatus(event: Event) {
     this.status.set((event.target as HTMLSelectElement).value as AssignmentStatus | '');
   }
-  protected async withdraw(assignment: AssignmentSummary) {
+  protected withdraw(assignment: AssignmentSummary) {
     if (
-      this.busy() ||
-      this.assignments.isLoading() ||
-      assignment.status !== 'assigned' ||
-      !window.confirm(
-        `לבטל את ההקצאה "${assignment.title}" עבור ${assignment.childName}? הגישה לעבודה תיחסם וההיסטוריה תישמר. אי אפשר יהיה להקצות את הפעילות הזו שוב לאותו פרופיל.`,
+      this.idle() &&
+      window.confirm(
+        `לבטל את ההקצאה "${assignment.title}" עבור ${assignment.childName}? הגישה לעבודה תיחסם, והעבודה השמורה תישאר. אפשר להחזיר את ההקצאה בהמשך.`,
       )
     )
-      return;
-    const restore = this.holdFocus();
+      return this.change(assignment, 'withdraw');
+    return undefined;
+  }
+  private idle() {
+    return !this.busy() && !this.assignments.isLoading();
+  }
+  /** Withdrawal is reversible: restoring gives back access and the saved work. */
+  protected restore(assignment: AssignmentSummary) {
+    return this.change(assignment, 'restore');
+  }
+  private async change(assignment: AssignmentSummary, action: 'withdraw' | 'restore') {
+    if (!this.idle()) return;
+    const restoreFocus = this.holdFocus();
     this.busy.set(true);
     this.error.set('');
     this.notice.set('');
     try {
-      await this.api.withdraw(assignment, this.lifetime);
+      await this.api.change(assignment, action, this.lifetime);
       if (this.lifetime.destroyed) return;
       this.assignments.reload();
-      this.notice.set('ההקצאה בוטלה. היא נשמרת בבחירה "ההקצאה בוטלה".');
+      this.notice.set(changed[action]);
     } catch (error) {
       if (!this.lifetime.destroyed)
         this.error.set(
@@ -96,7 +114,7 @@ export class AssignmentList {
     } finally {
       if (!this.lifetime.destroyed) {
         this.busy.set(false);
-        this.pendingFocus = restore;
+        this.pendingFocus = restoreFocus;
         this.restoreAfterLoad();
       }
     }

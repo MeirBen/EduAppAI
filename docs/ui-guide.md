@@ -189,8 +189,10 @@ Family navigation sits below the main header. Profile/assignment lists use share
 rows, native controls and `Pager`, which stays hidden while a list fits on one
 page. Empty states name the next step, or say that a filter or later page has
 nothing more. Separate profile edits from device access; confirmations explain
-disable/revoke effects. Activation codes stay selectable with expiry, never in
-URLs or persistent browser storage.
+disable/revoke effects. Activation codes show large as `XXXX-XXXX`, selectable
+with expiry, never in URLs or persistent browser storage. Withdrawn rows offer
+restore, which needs no confirmation. Lists of children's work refresh when the
+page becomes visible again (`refreshOnReturn`) and keep a refresh link.
 
 Grade (free text) and age (LTR integer, server bounds) are optional; each can
 be cleared, with no age-confirmation checkbox. Keep secondary dates under native
@@ -199,7 +201,7 @@ unused profiles offer deletion, profiles with history disabling, active devices
 revocation and inactive devices removal.
 
 Frozen previews own child selection/assignment and link to an existing pair on
-replay; a withdrawn pair explains that assigning again needs a new ready copy.
+replay; a withdrawn pair offers its explicit restore.
 Review shows frozen content, exact submitted text and parent-only answer
 disclosures. Pending grades start empty; automatic/completed awards stay
 read-only. Distinguish pending subtotal from final score; percentages require

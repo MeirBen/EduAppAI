@@ -99,6 +99,37 @@ public sealed class AssignmentTests
     }
 
     [Fact]
+    public async Task Withdrawn_work_returns_only_through_an_explicit_current_restore_for_an_enabled_child()
+    {
+        await using var h = new ChildHarness();
+        using var parent = await h.App.ParentAsync();
+        using var stranger = await h.App.ParentAsync();
+        var profile = await Create(parent);
+        using var child = await h.Activate(parent, profile);
+        var assignment = await Assign(parent, profile, await Snapshot(parent));
+        var path = "/api/assignments/" + assignment["id"]!.GetValue<Guid>();
+        var childPath = path.Replace("/api/", "/api/child/", StringComparison.Ordinal);
+        Assert.Equal(HttpStatusCode.OK, (await parent.PostAsJsonAsync(path + "/withdraw", new { expectedRevision = 1 })).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await stranger.PostAsJsonAsync(path + "/restore", new { expectedRevision = 2 })).StatusCode);
+        Assert.Equal(HttpStatusCode.Conflict, (await parent.PostAsJsonAsync(path + "/restore", new { expectedRevision = 1 })).StatusCode);
+        using (var restored = await parent.PostAsJsonAsync(path + "/restore", new { expectedRevision = 2 }))
+        {
+            var summary = (await restored.Content.ReadFromJsonAsync<JsonNode>())!;
+            Assert.Equal("assigned", summary["status"]!.GetValue<string>());
+            Assert.Equal(3, summary["revision"]!.GetValue<long>());
+        }
+        // A repeated restore is idempotent, like a repeated withdrawal.
+        Assert.Equal(HttpStatusCode.OK, (await parent.PostAsJsonAsync(path + "/restore", new { expectedRevision = 2 })).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await child.GetAsync(childPath)).StatusCode);
+        Assert.Single((await parent.GetFromJsonAsync<JsonNode>("/api/assignments"))!["items"]!.AsArray());
+        Assert.Empty((await parent.GetFromJsonAsync<JsonNode>("/api/assignments?status=withdrawn"))!["items"]!.AsArray());
+        // Restoring reopens access, so it needs the same eligibility as a new assignment.
+        Assert.Equal(HttpStatusCode.OK, (await parent.PostAsJsonAsync(path + "/withdraw", new { expectedRevision = 3 })).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await parent.PutAsJsonAsync(Path(profile), new { name = "disabled", enabled = false, expectedRevision = 1 })).StatusCode);
+        Assert.Equal(HttpStatusCode.Conflict, (await parent.PostAsJsonAsync(path + "/restore", new { expectedRevision = 4 })).StatusCode);
+    }
+
+    [Fact]
     public async Task New_assignments_require_owned_reviewed_content_and_an_enabled_child()
     {
         await using var h = new ChildHarness();

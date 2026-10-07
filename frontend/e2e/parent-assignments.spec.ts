@@ -93,7 +93,7 @@ test('parent manages access, assigns frozen work, recovers final grades and rese
   await page.getByLabel('שם המכשיר', { exact: true }).fill('הטאבלט של נועה');
   await page.getByRole('button', { name: 'יצירת קוד הפעלה', exact: true }).click();
   const codeBox = page.locator('[data-activation-code]');
-  await expect(codeBox).toHaveText(/^[A-Za-z0-9_-]{22}$/);
+  await expect(codeBox).toHaveText(/^[BCDFGHJKLMNPQRSTVWXZ]{4}-[BCDFGHJKLMNPQRSTVWXZ]{4}$/);
   const code = (await codeBox.textContent())!;
   expect(await page.evaluate(() => JSON.stringify(localStorage))).not.toContain(code);
   expect(await page.evaluate(() => JSON.stringify(sessionStorage))).not.toContain(code);
@@ -165,6 +165,13 @@ test('parent manages access, assigns frozen work, recovers final grades and rese
     ).toBeVisible();
     await expect(page.locator('[data-withdraw]')).toHaveCount(0);
     await narrow(page, 'assignments-mobile');
+    // Assigning the withdrawn pair again finds it; only the explicit restore gives the work back.
+    await page.goto(`/instances/${extra.id}`);
+    await page.getByRole('combobox', { name: 'ילד או ילדה', exact: true }).selectOption(child.id);
+    await page.getByRole('button', { name: 'הקצאת הפעילות', exact: true }).click();
+    await expect(page.getByText('בוטלה קודם', { exact: false })).toBeVisible();
+    await page.getByRole('button', { name: 'החזרת ההקצאה', exact: true }).click();
+    await expect(page.getByText('ההקצאה הוחזרה', { exact: false })).toBeVisible();
     const sessionPath = `${base}/api/child/assignments/${assignment.id}/session`;
     const learner = await (
       await childApi.get(`${base}/api/child/assignments/${assignment.id}`)

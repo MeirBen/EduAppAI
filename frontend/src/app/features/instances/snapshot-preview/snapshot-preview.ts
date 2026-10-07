@@ -22,6 +22,16 @@ import { ChildSelector } from '../../children/child-selector';
 import { DisabledInteractive } from '../../../shared/disabled-interactive';
 import { parentTaskError } from '../../../core/api/parent-task-error';
 
+const outcomes = {
+  created: 'הפעילות הוקצתה',
+  existing: 'הפעילות כבר הוקצתה',
+  restored: 'ההקצאה הוחזרה',
+};
+interface Assigned {
+  assignment: AssignmentSummary;
+  outcome: keyof typeof outcomes;
+}
+
 /** Immutable parent-only preview. Copying creates a separate editable draft without review or an AI call. */
 @Component({
   selector: 'app-snapshot-preview',
@@ -50,15 +60,14 @@ export class SnapshotPreviewPage {
   private readonly assignmentApi = inject(AssignmentApi);
   protected readonly childId = signal('');
   protected readonly assigning = signal(false);
-  protected readonly assigned = signal<
-    { assignment: AssignmentSummary; replay: boolean } | undefined
-  >(undefined);
+  protected readonly assigned = signal<Assigned | undefined>(undefined);
+  protected readonly outcomes = outcomes;
   protected readonly assignmentError = signal('');
   protected readonly measurements = computed(() => {
     const snapshot = this.snapshot.hasValue() ? this.snapshot.value() : undefined;
     return snapshot ? measurementItems(snapshot.measurements, snapshot.plan) : [];
   });
-  protected async assign() {
+  protected assign() {
     if (
       this.assigning() ||
       !this.childId() ||
@@ -66,31 +75,50 @@ export class SnapshotPreviewPage {
       this.snapshot.value().archivedAtUtc
     )
       return;
-    this.assigning.set(true);
     this.assigned.set(undefined);
-    this.assignmentError.set('');
-    try {
+    return this.request(async () => {
       const response = await this.assignmentApi.create(
         this.childId(),
         this.instanceId(),
         this.lifetime,
       );
-      if (!this.lifetime.destroyed && response.body)
-        this.assigned.set({ assignment: response.body, replay: response.status === 200 });
+      return response.body
+        ? { assignment: response.body, outcome: response.status === 200 ? 'existing' : 'created' }
+        : undefined;
+    });
+  }
+  /** Assigning a withdrawn pair finds it again; only this explicit action gives the work back. */
+  protected restore(assignment: AssignmentSummary) {
+    if (this.assigning()) return;
+    return this.request(async () => ({
+      assignment: await this.assignmentApi.change(assignment, 'restore', this.lifetime),
+      outcome: 'restored',
+    }));
+  }
+  private async request(send: () => Promise<Assigned | undefined>) {
+    const restoreFocus = this.holdFocus();
+    this.assigning.set(true);
+    this.assignmentError.set('');
+    try {
+      const result = await send();
+      if (!this.lifetime.destroyed && result) this.assigned.set(result);
     } catch (error) {
       if (!this.lifetime.destroyed)
         this.assignmentError.set(
           writeError(
             parentTaskError(
               error,
-              'אי אפשר להקצות את הפעילות. ייתכן שהפרופיל הושבת או שהפעילות הועברה לארכיון.',
+              'אי אפשר להקצות את הפעילות. ייתכן שהפרופיל הושבת, שהפעילות הועברה לארכיון או שההקצאה השתנתה.',
             ),
             error,
             'ייתכן שההקצאה נשמרה. בדקו בפעילויות לילדים לפני ניסיון נוסף.',
           ),
         );
     } finally {
-      if (!this.lifetime.destroyed) this.assigning.set(false);
+      if (!this.lifetime.destroyed) {
+        this.assigning.set(false);
+        restoreFocus();
+      }
     }
   }
   protected async copy() {

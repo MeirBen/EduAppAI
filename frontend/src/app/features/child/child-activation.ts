@@ -26,10 +26,11 @@ export class ChildActivation {
   protected readonly error = signal('');
   protected readonly fields = form(this.model, (path) => {
     disabled(path, () => this.busy() || this.recovery());
+    // The server owns the code's alphabet; this only catches a code that is not yet complete.
     validate(path.code, ({ value }) =>
-      /^[A-Za-z0-9_-]{22}$/.test(value().trim())
+      /^[a-z]{8}$/i.test(value().replace(/[\s-]/g, ''))
         ? undefined
-        : { kind: 'code', message: 'יש להדביק את קוד ההפעלה שקיבלתם מההורה.' },
+        : { kind: 'code', message: 'קוד ההפעלה בנוי מ־8 אותיות באנגלית, כמו שמופיע אצל ההורה.' },
     );
   });
   constructor() {

@@ -7,7 +7,8 @@ namespace FamilyLearning.Api.Features.Assignments;
 
 /// <summary>Both IDs must belong to the parent family. An existing pair replays without creating another attempt.</summary>
 public sealed record CreateAssignmentRequest([property: JsonRequired] Guid ChildId, [property: JsonRequired] Guid SnapshotId);
-public sealed record WithdrawAssignmentRequest([property: JsonRequired] long ExpectedRevision);
+/// <summary>Withdrawal and restore apply only to the revision the parent saw.</summary>
+public sealed record AssignmentStateRequest([property: JsonRequired] long ExpectedRevision);
 /// <summary>Parent list projection; fetch detail for content, never load content JSON to page this list.</summary>
 public sealed record AssignmentSummary(Guid Id, Guid ChildId, string ChildName, Guid SnapshotId, string Title,
     string Status, long Revision, DateTime CreatedAtUtc, bool HasStarted)

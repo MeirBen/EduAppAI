@@ -59,19 +59,30 @@
         }
         @if (assigned(); as result) {
           @if (result.assignment.status === 'withdrawn') {
-            <p class="field-error" role="alert">
-              ההקצאה של הפעילות הזו ל־<bdi>{{ result.assignment.childName }}</bdi> בוטלה, ולכן אי
-              אפשר להקצות אותה שוב. כדי להקצות מחדש, ערכו אותה כטיוטה חדשה וסמנו אותה כמוכנה.
-            </p>
+            <div class="flex flex-wrap items-center gap-x-4 gap-y-2">
+              <p class="note" role="status">
+                <span class="icon icon-info" aria-hidden="true"></span>ההקצאה ל־<bdi>{{
+                  result.assignment.childName
+                }}</bdi>
+                בוטלה קודם. אפשר להחזיר אותה, עם העבודה שכבר נשמרה.
+              </p>
+              <button
+                id="restore-assignment"
+                type="button"
+                class="button button-secondary"
+                [disabledInteractive]="assigning()"
+                (click)="restore(result.assignment)"
+              >
+                החזרת ההקצאה
+              </button>
+            </div>
           } @else {
             <p class="note" role="status">
               <span class="icon icon-check" aria-hidden="true"></span
-              >{{ result.replay ? 'הפעילות כבר הוקצתה' : 'הפעילות הוקצתה' }} ל־<bdi>{{
-                result.assignment.childName
-              }}</bdi
+              >{{ outcomes[result.outcome] }} ל־<bdi>{{ result.assignment.childName }}</bdi
               >.
               <a [routerLink]="['/assignments', result.assignment.id]"
-                >פתיחת ההקצאה{{ result.replay ? ' הקיימת' : '' }}</a
+                >פתיחת ההקצאה{{ result.outcome === 'existing' ? ' הקיימת' : '' }}</a
               >
             </p>
           }

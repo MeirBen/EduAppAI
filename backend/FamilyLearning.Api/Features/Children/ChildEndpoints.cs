@@ -1,10 +1,7 @@
 using System.Security.Claims;
-using System.Security.Cryptography;
-using System.Text;
 using FamilyLearning.Api.Infrastructure.Auth;
 using FamilyLearning.Api.Infrastructure.Persistence;
 using FamilyLearning.Api.Infrastructure.Web;
-using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.EntityFrameworkCore;
 
 namespace FamilyLearning.Api.Features.Children;
@@ -95,15 +92,15 @@ public static class ChildEndpoints
         if (child is null) return Results.NotFound();
         if (!ChildValidation.ValidName(request.DeviceLabel)) return ChildValidation.InvalidName("deviceLabel");
         if (!child.Enabled) return Results.Problem(statusCode: 409, title: "יש להפעיל את פרופיל הילד לפני יצירת קוד.");
-        var code = WebEncoders.Base64UrlEncode(RandomNumberGenerator.GetBytes(16));
-        var hash = HashCode(code);
+        var code = ActivationCode.New();
+        var hash = ActivationCode.Hash(code.Canonical);
         var expires = clock.GetUtcNow().UtcDateTime.AddMinutes(10);
         var activation = await db.ChildActivations.SingleOrDefaultAsync(a => a.ChildId == id, ct);
         if (activation is null) db.ChildActivations.Add(new ChildActivation(id, hash, request.DeviceLabel.Trim(), expires));
         else activation.Replace(hash, request.DeviceLabel.Trim(), expires);
         await db.SaveChangesAsync(ct);
         await transaction.CommitAsync(ct);
-        return Results.Ok(new ChildActivationCode(code, expires));
+        return Results.Ok(new ChildActivationCode(code.Display, expires));
     }
 
     private static async Task<IResult> DevicesAsync(Guid id, ClaimsPrincipal user, LearningDbContext db, TimeProvider clock, CancellationToken ct,
@@ -135,8 +132,6 @@ public static class ChildEndpoints
         await transaction.CommitAsync(ct);
         return Results.NoContent();
     }
-
-    internal static string HashCode(string code) => Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(code)));
 
     private static async Task<IResult> RemoveDeviceAsync(Guid id, Guid grantId, ClaimsPrincipal user, LearningDbContext db,
         TimeProvider clock, CancellationToken ct)

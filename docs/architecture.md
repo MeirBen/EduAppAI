@@ -217,8 +217,8 @@ checks revision/history, device-record deletion checks inactivity, and reset
 removes owned dependents before referenced content, all within transactions.
 
 `Features/Assignments` owns one assignment per child/snapshot pair. Transactions
-serialize creation, withdrawal and snapshot removal; composite foreign keys
-enforce family ownership and retention. Replay precedes new-create eligibility.
+serialize creation, withdrawal, restore and snapshot removal; composite foreign
+keys enforce family ownership and retention. Replay precedes new-create eligibility.
 Lists project names/titles and session existence (`HasStarted`) in SQL without
 loading answer buffers. Child reads use explicit learner contracts; read-only
 endpoints never start work.

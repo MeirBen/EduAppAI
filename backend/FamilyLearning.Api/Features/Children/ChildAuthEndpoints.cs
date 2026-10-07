@@ -32,8 +32,8 @@ public static class ChildAuthEndpoints
     private static async Task<IResult> ActivateAsync(ActivateChildRequest request, HttpContext context, LearningDbContext db,
         TimeProvider clock, CancellationToken ct)
     {
-        if (request.Code is null || request.Code.Length != 22) return InvalidCode();
-        var hash = ChildEndpoints.HashCode(request.Code);
+        if (ActivationCode.Normalize(request.Code) is not { } code) return InvalidCode();
+        var hash = ActivationCode.Hash(code);
         await using var transaction = await db.Database.BeginTransactionAsync(ct);
         var now = clock.GetUtcNow().UtcDateTime;
         var activation = await db.ChildActivations.SingleOrDefaultAsync(a => a.CodeHash == hash &&

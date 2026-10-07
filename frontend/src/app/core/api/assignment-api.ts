@@ -48,9 +48,10 @@ export class AssignmentApi {
       lifetime,
     );
   }
-  withdraw(assignment: AssignmentSummary, lifetime: DestroyRef) {
+  /** Withdraws available work or restores withdrawn work, at the revision the parent saw. */
+  change(assignment: AssignmentSummary, action: 'withdraw' | 'restore', lifetime: DestroyRef) {
     return requestResult(
-      this.http.post<AssignmentSummary>(`/api/assignments/${assignment.id}/withdraw`, {
+      this.http.post<AssignmentSummary>(`/api/assignments/${assignment.id}/${action}`, {
         expectedRevision: assignment.revision,
       }),
       lifetime,

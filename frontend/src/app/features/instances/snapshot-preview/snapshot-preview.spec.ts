@@ -70,7 +70,7 @@ describe('Immutable parent preview', () => {
     http.verify();
   });
 
-  it('explains that a withdrawn pair cannot be assigned again instead of calling it assigned', async () => {
+  it('finds a withdrawn pair on assignment and restores it only on an explicit, current request', async () => {
     const { root, http, fixture } = await preview([]);
     const selector = root.querySelector('select')!;
     selector.value = 'child';
@@ -79,11 +79,17 @@ describe('Immutable parent preview', () => {
     root.querySelector<HTMLButtonElement>('#assign-snapshot')!.click();
     http
       .expectOne('/api/assignments')
-      .flush({ id: 'existing', status: 'withdrawn', childName: 'נועה' });
+      .flush({ id: 'existing', status: 'withdrawn', revision: 2, childName: 'נועה' });
     await fixture.whenStable();
-    expect(root.querySelector('[role="alert"]')!.textContent).toContain('בוטלה');
-    expect(root.textContent).toContain('כטיוטה חדשה');
+    expect(root.textContent).toContain('בוטלה קודם');
     expect(root.textContent).not.toContain('כבר הוקצתה');
+    root.querySelector<HTMLButtonElement>('#restore-assignment')!.click();
+    const restore = http.expectOne('/api/assignments/existing/restore');
+    expect(restore.request.body).toEqual({ expectedRevision: 2 });
+    restore.flush({ id: 'existing', status: 'assigned', revision: 3, childName: 'נועה' });
+    await fixture.whenStable();
+    expect(root.textContent).toContain('ההקצאה הוחזרה');
+    expect(root.querySelector('a[href="/assignments/existing"]')).not.toBeNull();
     http.verify();
   });
 

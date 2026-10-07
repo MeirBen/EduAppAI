@@ -32,13 +32,13 @@ describe('Parent assignment list', () => {
     TestBed.inject(HttpTestingController).verify();
     vi.restoreAllMocks();
   });
-  async function open() {
+  async function open(
+    rows = [assignment, { ...assignment, id: 'completed', status: 'completed' }],
+  ) {
     const fixture = TestBed.createComponent(AssignmentList),
       http = TestBed.inject(HttpTestingController);
     fixture.detectChanges();
-    http
-      .expectOne('/api/assignments?page=1')
-      .flush(page([assignment, { ...assignment, id: 'completed', status: 'completed' }], true));
+    http.expectOne('/api/assignments?page=1').flush(page(rows, true));
     http
       .expectOne('/api/children?page=1')
       .flush(page([{ id: 'child', name: 'נועה', enabled: false }]));
@@ -108,6 +108,22 @@ describe('Parent assignment list', () => {
     await vi.waitFor(() =>
       expect(document.activeElement).toBe(root.querySelector('#assignments-heading')),
     );
+  });
+
+  it('restores withdrawn work at the revision shown, without a confirmation, then refreshes', async () => {
+    const { fixture, http, root } = await open([
+      { ...assignment, status: 'withdrawn', revision: 2 },
+    ]);
+    const confirm = vi.spyOn(window, 'confirm');
+    expect(root.querySelector('[data-withdraw]')).toBeNull();
+    root.querySelector<HTMLButtonElement>('[data-restore]')!.click();
+    const request = http.expectOne('/api/assignments/assignment/restore');
+    expect(request.request.body).toEqual({ expectedRevision: 2 });
+    request.flush({ ...assignment, revision: 3 });
+    (await vi.waitFor(() => http.expectOne('/api/assignments?page=1'))).flush(page([assignment]));
+    await fixture.whenStable();
+    expect(confirm).not.toHaveBeenCalled();
+    expect(root.textContent).toContain('ההקצאה הוחזרה');
   });
 
   it('refreshes after acknowledged withdrawal and cancels pending writes on destruction', async () => {

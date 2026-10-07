@@ -39,4 +39,12 @@ public sealed class Assignment(Guid familyId, Guid childId, Guid snapshotId, Dat
         WithdrawnAtUtc = utcNow;
         Revision++;
     }
+
+    /// <summary>Returns withdrawn work, with its saved session. The endpoint checks status, revision and eligibility.</summary>
+    public void Restore()
+    {
+        Status = "assigned";
+        WithdrawnAtUtc = null;
+        Revision++;
+    }
 }

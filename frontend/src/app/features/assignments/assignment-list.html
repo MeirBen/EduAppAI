@@ -75,6 +75,16 @@
             >
               ביטול ההקצאה
             </button>
+          } @else if (assignment.status === 'withdrawn') {
+            <button
+              class="button button-secondary"
+              data-restore
+              [disabledInteractive]="busy() || assignments.isLoading()"
+              [attr.aria-label]="'החזרת ההקצאה: ' + assignment.title + ' — ' + assignment.childName"
+              (click)="restore(assignment)"
+            >
+              החזרת ההקצאה
+            </button>
           }
         </article>
       } @empty {

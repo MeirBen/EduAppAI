@@ -7,6 +7,7 @@ import { DisabledInteractive } from '../../shared/disabled-interactive';
 import { LoadingIndicator } from '../../shared/loading-indicator/loading-indicator';
 import { Pager } from '../../shared/pager/pager';
 import { childError, childStatus } from './child-error';
+import { refreshOnReturn } from '../../core/page-visibility';
 
 type InboxView = 'available' | 'submitted';
 const views: { value: InboxView; label: string }[] = [
@@ -36,4 +37,7 @@ export class ChildInbox {
   }));
   protected readonly failure = childError;
   protected readonly status = childStatus;
+  constructor() {
+    refreshOnReturn(() => this.assignments.reload());
+  }
 }

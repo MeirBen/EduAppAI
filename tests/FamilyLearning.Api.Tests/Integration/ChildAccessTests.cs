@@ -14,6 +14,24 @@ namespace FamilyLearning.Api.Tests.Integration;
 public sealed class ChildAccessTests
 {
     [Fact]
+    public async Task Activation_codes_are_short_unambiguous_and_read_regardless_of_case_spaces_or_dashes()
+    {
+        await using var h = new ChildHarness();
+        using var parent = await h.App.ParentAsync();
+        var profile = await Create(parent);
+        var code = (await Issue(parent, profile))["code"]!.GetValue<string>();
+        Assert.Matches("^[BCDFGHJKLMNPQRSTVWXZ]{4}-[BCDFGHJKLMNPQRSTVWXZ]{4}$", code);
+        using var child = h.App.CreateClient();
+        await Csrf(child);
+        var letters = code.Replace("-", "", StringComparison.Ordinal);
+        var wrong = letters[..7] + (letters[7] == 'B' ? 'C' : 'B');
+        foreach (var invalid in new[] { letters[..7], letters + "B", wrong })
+            Assert.Equal(HttpStatusCode.BadRequest, (await child.PostAsJsonAsync("/api/child/auth/activate", new { code = invalid })).StatusCode);
+        var typed = $" {letters[..4].ToLowerInvariant()} {letters[4..]} ";
+        Assert.Equal(HttpStatusCode.NoContent, (await child.PostAsJsonAsync("/api/child/auth/activate", new { code = typed })).StatusCode);
+    }
+
+    [Fact]
     public async Task Reset_between_identity_access_check_and_projection_returns_unauthorized()
     {
         var pause = new PausedIdentityRead();

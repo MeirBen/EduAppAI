@@ -215,10 +215,14 @@ types remain available.
   Re-enabling requires fresh activation; it never restores a revoked grant.
 - The parent creates an activation code for a named device (trimmed, nonblank,
   1–100 characters).
-  Use 16 cryptographically random bytes encoded as base64url, valid for ten
-  minutes, displayed once and stored only as a SHA-256 hash. Send it in the
-  activation request body, never a URL, log or browser storage. Copy/paste is
-  sufficient for this release. Issuing a new code invalidates that child's
+  Following RFC 8628 user codes, it is eight cryptographically random letters
+  from the vowel-free alphabet `BCDFGHJKLMNPQRSTVWXZ`, shown as `XXXX-XXXX` so a
+  child can type it, and read regardless of case, spaces or dashes. Ten-minute
+  expiry, single use and the redemption rate limits make guessing impractical;
+  the stored SHA-256 hash keeps codes out of the database but does not resist
+  offline guessing of so short a code. It is displayed once and sent in the
+  activation request body, never a URL, log or browser storage. Issuing a new
+  code invalidates that child's
   previous unconsumed code. After a lost activation response, check for a valid
   child session first; if none exists, request a new code rather than replaying
   the consumed one.
@@ -295,11 +299,17 @@ Parents may record **כיתה** (school grade) and **גיל** (completed years).
   `TaskSnapshot`. New creation rejects disabled children and archived snapshots;
   an existing owned assignment may still be returned on replay. One
   assignment per child/snapshot pair is allowed, including after withdrawal;
-  replaying creation returns that assignment. A deliberate future repeat needs
+  replaying creation returns that assignment, even when withdrawn, so a delayed
+  duplicate never undoes a later withdrawal. A deliberate future repeat needs
   a new reviewed snapshot in this milestone.
 - Assignment state is `assigned`, `withdrawn`, `awaiting-review` or `completed`.
   Starting or saving work keeps it `assigned`. The parent may withdraw only an
   `assigned` item, preventing further child access while retaining its history.
+  An explicit restore at the current revision undoes a withdrawal, with the
+  saved session, under the same eligibility as new creation (enabled child,
+  active snapshot); repeating either request is harmless, and a stale one of
+  either returns a conflict. Restore acts only on withdrawn work and submission
+  only on assigned work, so the two never both succeed.
   Withdrawal and submission are serialized: whichever commits first wins.
   There are no due dates or automatic assignment expiry in this milestone.
 - The child inbox separates available work from submitted work. New collections

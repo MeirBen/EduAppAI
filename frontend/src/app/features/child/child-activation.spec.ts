@@ -28,18 +28,27 @@ describe('Child activation', () => {
     fixture.autoDetectChanges();
     const root = fixture.nativeElement as HTMLElement;
     const code = root.querySelector<HTMLInputElement>('#activation-code')!;
-    code.value = 'abcdefghijklmnopqrstuv';
+    code.value = 'bcdf-ghjk';
     code.dispatchEvent(new Event('input', { bubbles: true }));
     const send = () =>
       root.querySelector('form')!.dispatchEvent(new Event('submit', { cancelable: true }));
     return { fixture, http, navigate, root, code, send };
   }
+  it('asks for the whole eight-letter code before sending anything', async () => {
+    const { http, root, code, send } = await open();
+    code.value = 'bcdf-ghj';
+    code.dispatchEvent(new Event('input', { bubbles: true }));
+    send();
+    await vi.waitFor(() => expect(root.textContent).toContain('8 אותיות'));
+    http.expectNone('/api/child/auth/activate');
+  });
   it('clears the code and waits for identity-bound CSRF before entering the inbox', async () => {
     const { fixture, http, navigate, code, send } = await open();
     send();
     (await vi.waitFor(() => http.expectOne('/api/child/auth/csrf'))).flush({});
     const activation = await vi.waitFor(() => http.expectOne('/api/child/auth/activate'));
-    expect(activation.request.body).toEqual({ code: 'abcdefghijklmnopqrstuv' });
+    // The server reads the code regardless of case, spaces or dashes, so it travels as typed.
+    expect(activation.request.body).toEqual({ code: 'bcdf-ghjk' });
     activation.flush(null);
     (await vi.waitFor(() => http.expectOne('/api/child/auth/me'))).flush(identity);
     const token = await vi.waitFor(() => http.expectOne('/api/child/auth/csrf'));

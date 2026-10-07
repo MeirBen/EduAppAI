@@ -6,6 +6,8 @@ using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Hosting;
 
 namespace FamilyLearning.Api.Tests.Integration;
 
@@ -23,6 +25,8 @@ internal sealed class ChildHarness : IAsyncDisposable
             services.AddSingleton<IChatClient>(Chat);
             services.PostConfigure<CookieAuthenticationOptions>(IdentityConstants.ApplicationScheme,
                 options => options.TimeProvider = TimeProvider.System);
+            // Child tests generate nothing; a polling worker's transactions would race tests that pause the next transaction.
+            services.RemoveAll<IHostedService>();
             configure?.Invoke(services);
         });
     }
