@@ -1,7 +1,7 @@
 # AI guide
 
 The maintained reference for AI configuration, evaluation and tuning, as of
-6 October 2026. Product contracts live in the
+8 October 2026. Product contracts live in the
 [product specification](product-specification.md); implementation boundaries
 live in [architecture](architecture.md).
 
@@ -14,7 +14,8 @@ review, server validation and explicit recovery. Generated text gets one
 measured automatic polish; there is no production retry or model-specific code
 path. Six acceptance cases passed three historical rounds (42 calls, no
 retry/repair), before later prompt changes. Do not treat that sample as a
-current reliability rate.
+current reliability rate. Small 8 October comparisons favor GPT-6.1 Sol for
+writing and questions; see [model comparison](#model-comparison).
 
 ## Design and cutover decision
 
@@ -90,7 +91,8 @@ Retained:
   factual claim, a construct-state error, number agreement, two wrong words) and
   no introduced error; 14 came back unchanged. Validation rejected 0 of 51
   polishes. It left the ant-brood misconception in 6/6 texts and barely changed
-  formal words. Cost is about $0.010 per text, median 15 seconds (35 at p90).
+  formal words. Cost is about $0.010 per text, median 15 seconds (35 at p90);
+  later runs measured a 26–27 second median.
 
 Rejected or unproven; revisit only with new evidence:
 
@@ -121,9 +123,20 @@ Rejected or unproven; revisit only with new evidence:
   reduced prose paragraphing. Keep string bodies. Naming characters in premise
   ideas narrowed variety; always selecting the first tied idea favored the most
   typical premise. Neither was retained.
+- **Polish after rewrite:** suggestion-chip rewrites replace most of a text
+  (body similarity 0.11–0.67) and skip the polish. A registered run on 20
+  rewrites found 2 genuine corrections against the fresh-text bar of 3, none
+  introduced. Not wired: it would also double the parent's wait (27 s + 27 s).
+- **One text per activity:** removing the multi-text prompt lines, ID schema and
+  `totalLength` from the writing call changed nothing measurable (18 vs 20
+  issues; preferences 4/3/5 ties over 12 blind pairs). A cap is a product
+  choice worth about 200 lines of activity code, not a quality lever. The child
+  player shows every material, so a pasted source and its adaptation both reach
+  the learner.
 - **Earlier provider trials:** model comparisons, provider exclusions and
   shorter material prompts produced no stable quality winner. DeepSeek strict
-  authoring remains unverified after contract-description fixes.
+  authoring remains unverified after contract-description fixes. See
+  [model comparison](#model-comparison) for the 8 October results.
 
 ## Material variety
 
@@ -139,6 +152,44 @@ reduced repeated targets, but 8/48 later questions fell back to literal recall
 and one set missed requested inference. Cost rose from $0.0119 to $0.0153 per
 story, median latency from 23 to 34 seconds. Variety is best effort, not a
 uniqueness or educational-quality guarantee.
+
+## Model comparison
+
+Prompt and schema changes had stopped producing measured gains, so on 8 October
+the same production code ran three models, changing only configuration: the
+vendors' recommended medium effort and unset sampling. Labels are the
+assistant's and blind where possible; samples are small.
+
+| Stage test                 | Gemini 3.8 Flash | Opus 5.5     | GPT-6.1 Sol  |
+| -------------------------- | ---------------- | ------------ | ------------ |
+| Writing issues (4 texts)   | 7                | 4            | 2            |
+| Mean writing rank (1 best) | 2.75             | 1.75         | 1.5          |
+| Inference questions (of 4) | 3                | 3.5          | 4            |
+| Editor fixes (of 4)        | 2                | 2            | 1            |
+| Writing call: cost, median | $0.013, 31 s     | $0.056, 32 s | $0.010, 14 s |
+
+All 12 math keys were correct. No model fixed the ant claim, which came from the
+shared idea, and each still made Hebrew errors (Opus: masculine agreement for
+ants; Sol: `חָטִיף`). Only Opus simplified formal wording when editing, at four
+to five times the cost. Both candidates accepted the material, polish and
+question schemas in strict mode. OpenAI rejects the template schema
+(`invalid_json_schema`; not the `["null"]` spelling, equal bounds or patterns),
+so GPT-6.1 Sol needs `json_object` with `SchemaInPrompt` until that is resolved.
+
+End to end through the evaluation runner, GPT-6.1 Sol completed six cases
+(reading grades 1, 3 and 7, a drill, word problems, a shared math scenario) with
+every stage accepted and every automatic check passed, including exact
+10-question drills without a schema count. Against the latest Gemini results,
+blind: 2 issues against 5, preferences 2/2/2 ties. Sol was better on inference
+and the grade-7 text, worse on one grade-1 niqqud word (`בְּמָה`) and one
+incoherent scenario detail; all math keys were correct. The grade-7 and math
+baselines predate the polish stage, which fixes some of the counted wording. A
+reading activity cost about $0.056 against $0.046, with the text ready sooner
+(51 s against 77 s for ideas, writing and polish). Switching is a configuration
+change and has not been made. It first needs the rejected template-schema
+construct isolated (or `json_object` accepted), a measured
+`StrictQuestionCountLimit`, and more than six cases read by the owner, since
+Sol edited worst of the three and its grade-1 niqqud is not error-free.
 
 ## Configuration
 
@@ -268,6 +319,9 @@ output tokens (validated up to 32,768) stay below the endpoint maximum of
   and invented adjustable counts in all three plans; fixes were not retested.
 - **Availability:** Google 429/504 and AI Studio 503 responses were intermittent
   serving failures, not evidence that a schema or quality change was needed.
+- **Grade-1 niqqud:** all four Gemini grade-1 texts of 7 October pointed
+  `חָתוּל` as `חֲתוּל`, and three mispointed `כְּלַבְלַב`. Each tested model's
+  polish fixed one of the two words, never both.
 - **Judge blind spot:** all three tested judges missed `נמלות` (correct:
   `נמלים`) in `reported-ants-defects`. This control is advisory, not a calibration
   gate. A same-model judge and passing schema checks cannot certify content.
@@ -308,6 +362,14 @@ Historical caps do not authorize new paid runs.
   call; without an instruction, 3 of 6 titled texts came back unchanged, which
   `TaskAssembly.ReplaceMaterial` now accepts under the current requirements.
   18 calls, $0.19675 of a $0.50 cap, no unknown costs.
+- `rewrite-polish-2026-10-07/` (exploratory, 24 calls, $0.25642) and
+  `rewrite-polish-confirm-2026-10-07/` (registered, 40 calls, $0.40853):
+  polish after rewrite.
+- `one-text-writing-2026-10-07/`: one-text writing pairs, 24 calls, $0.298926.
+- `flagship-models-2026-10-08/`: stage tests, 23 calls, $0.570433 of $1.
+- `gpt-end-to-end-2026-10-08/`: GPT-6.1 Sol through the evaluation runner and
+  the template-schema diagnosis; 25 calls, $0.2703045 of $0.50, no unknown
+  costs.
 
 Retired design documents: `documentation-history-2026-10-01.zip`.
 
