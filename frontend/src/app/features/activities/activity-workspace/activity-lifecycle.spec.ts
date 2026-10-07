@@ -174,6 +174,23 @@ describe('Activity lifecycle', () => {
       kind,
     });
   });
+  it('reviews ready text without flagging the title or questions its next step creates', async () => {
+    await open(true, {
+      ...readingActivity,
+      document: { ...readingActivity.document, title: '', materials: [generatedText] },
+      diagnostics: {
+        title: ['חסרה כותרת.'],
+        questions: ['מספר השאלות אינו תואם לדרישה.'],
+        'questions.formats': ['חסרים סוגי שאלות שהתבקשו.'],
+      },
+    });
+    expect(root().querySelector('#document-title')!.getAttribute('aria-invalid')).not.toBe('true');
+    expect(root().querySelector('#review-title')!.textContent).toBe('בדיקת הטקסט');
+    const review = root().querySelector('app-activity-review')!.textContent!;
+    expect(review).toContain('כשהוא מוכן, צרו את השאלות.');
+    expect(review).not.toContain('עדיין אין שאלות');
+    expect(review).not.toContain('סימון כמוכנה');
+  });
   it('offers new text in place of stale text once questions exist', async () => {
     await open(true, {
       ...readingActivity,
@@ -232,11 +249,11 @@ describe('Activity lifecycle', () => {
     const messages = root().querySelectorAll('#question-1-answer-errors p');
     expect([...messages].map((message) => message.textContent)).toEqual(['חסרה תשובה נכונה.']);
     expect(root().querySelector('#question-0-answer')!.getAttribute('aria-invalid')).toBeNull();
-    expect(review.textContent).toContain('יש לתקן את המסומן בשאלה 2.');
+    expect(review.textContent).toContain('תקנו את המסומן בשאלה 2.');
     await type('question-1-answer', '4');
     expect(answer.getAttribute('aria-invalid')).toBeNull();
     expect(root().querySelector('#question-1-answer-errors')!.textContent!.trim()).toBe('');
-    expect(review.textContent).not.toContain('יש לתקן את המסומן');
+    expect(review.textContent).not.toContain('תקנו את המסומן');
   });
   it('saves incomplete manual content and undo as new revisions without acceptance metadata', async () => {
     await open();
@@ -475,7 +492,9 @@ describe('Activity lifecycle', () => {
     await click('reload-activity');
     http.expectOne('/api/activity-drafts/draft').flush(released);
     await settle();
-    expect(root().querySelector<HTMLInputElement>('#document-title')!.value).toBe('תרגול');
+    // Without local edits, the released draft reads as its frozen content.
+    expect(root().querySelector('#document-title')).toBeNull();
+    expect(root().querySelector('app-activity-document-view')!.textContent).toContain('תרגול');
     expect(root().querySelector('[aria-labelledby="available-title"]')).toBeNull();
     vi.restoreAllMocks();
   });
@@ -684,7 +703,8 @@ describe('Activity lifecycle', () => {
     await vi.waitFor(() =>
       expect(root().querySelector('a[href="/instances/ready"]')).not.toBeNull(),
     );
-    expect(root().querySelector<HTMLInputElement>('#document-title')!.disabled).toBe(true);
+    expect(root().querySelector('#document-title')).toBeNull();
+    expect(root().querySelector('app-activity-document-view')).not.toBeNull();
     expect(root().querySelector('#release-activity')).toBeNull();
   });
   it('does not ask to release a revision its saved check still blocks', async () => {
@@ -702,7 +722,7 @@ describe('Activity lifecycle', () => {
     });
     await vi.waitFor(() =>
       expect(root().querySelector('[role="alert"]')?.textContent?.trim()).toBe(
-        'יש לתקן את המסומן לפני סימון כמוכנה.',
+        'תקנו את המסומן לפני סימון כמוכנה.',
       ),
     );
     http.expectNone('/api/activity-drafts/draft/release');
@@ -1191,7 +1211,7 @@ describe('Activity lifecycle', () => {
       document: { ...savedActivity.document, questions: [savedQuestion] },
     });
     expect(root().querySelector('a[href="/instances/ready"]')!.textContent).toContain(
-      'צפייה בפעילות המוכנה',
+      'הקצאה לילדים',
     );
     http.expectNone((r) => r.method === 'POST');
     await click('copy-released');

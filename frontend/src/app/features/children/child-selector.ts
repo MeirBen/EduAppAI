@@ -12,11 +12,12 @@ import { ChildSummary } from '../../core/api/assignment-models';
 import { DisabledInteractive } from '../../shared/disabled-interactive';
 import { LoadingIndicator } from '../../shared/loading-indicator/loading-indicator';
 import { parentTaskError } from '../../core/api/parent-task-error';
+import { Pager } from '../../shared/pager/pager';
 
 /** Bounded profile selection for parent assignment screens; paging preserves the chosen child. */
 @Component({
   selector: 'app-child-selector',
-  imports: [DisabledInteractive, LoadingIndicator],
+  imports: [DisabledInteractive, LoadingIndicator, Pager],
   templateUrl: './child-selector.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
@@ -37,7 +38,7 @@ export class ChildSelector {
       : items;
   });
   protected readonly failure = (error: unknown) =>
-    parentTaskError(error, 'לא ניתן לקרוא את הפרופילים. רעננו את הרשימה.');
+    parentTaskError(error, 'לא הצלחנו לטעון את הפרופילים. רעננו את הרשימה.');
   protected choose(event: Event) {
     const id = (event.target as HTMLSelectElement).value;
     this.selected.set(this.options().find((child) => child.id === id));

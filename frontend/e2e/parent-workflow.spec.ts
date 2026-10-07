@@ -119,6 +119,8 @@ test('prompt to editable activity, independent template, scoped repair and froze
   await page.goto('/');
   await expect(page.locator('html')).toHaveAttribute('lang', 'he');
   await expect(page.locator('html')).toHaveAttribute('dir', 'rtl');
+  // The first Tab is meaningful only once the app has rendered the page it redirects to.
+  await expect(page.getByLabel('כתובת דוא״ל', { exact: true })).toBeVisible();
   await page.keyboard.press('Tab');
   await expect(page.getByRole('link', { name: 'דילוג לתוכן הראשי' })).toBeFocused();
   await page.keyboard.press('Enter');
@@ -169,13 +171,13 @@ test('prompt to editable activity, independent template, scoped repair and froze
   await narrow(page, 'workspace');
   await page.getByText('שמירה כתבנית לשימוש חוזר', { exact: true }).click();
   await page.locator('#save-template').click();
-  await expect(page.getByText('התבנית נשמרה בספרייה. הפעילות לא השתנתה.')).toBeVisible();
+  await expect(page.getByText('התבנית נשמרה במרחב שלנו. הפעילות לא השתנתה.')).toBeVisible();
   const templates = await (await page.request.get('/api/templates')).json();
   expect(templates).toHaveLength(templatesBefore + 1);
   const template = templates.find((value: { name: string }) => value.name === 'חוקרים וקוראים');
   expect((await (await page.request.get(state.draftPath)).json()).document).toEqual(draft.document);
   await page.locator('#release-activity').click();
-  await page.getByRole('link', { name: 'צפייה בפעילות המוכנה' }).click();
+  await page.getByRole('link', { name: 'הקצאה לילדים' }).click();
   await expect(page.getByRole('heading', { name: 'פעילות מוכנה — תצוגה להורים' })).toBeVisible();
   const frozenUrl = page.url();
   const frozenPath = '/api' + new URL(frozenUrl).pathname;
@@ -189,7 +191,7 @@ test('prompt to editable activity, independent template, scoped repair and froze
   await page.goto('/templates/' + template.id + '/edit');
   await page.getByLabel('שם התבנית', { exact: true }).fill('תבנית ששונתה');
   await page.locator('#save-template').click();
-  await expect(page.getByText('התבנית נשמרה בספרייה.', { exact: true })).toBeVisible();
+  await expect(page.getByText('התבנית נשמרה במרחב שלנו.', { exact: true })).toBeVisible();
   await page.goto(frozenUrl);
   expect(await (await page.request.get(frozenPath)).json()).toEqual(frozen);
   expect(errors).toEqual([]);
@@ -215,13 +217,13 @@ test('exact bilingual source bypasses material generation and missing answers bl
   await page.locator('#save-activity').click();
   await expect(page.getByText('נשמר', { exact: true })).toBeVisible();
   await expect(page.locator('#question-0-answer-errors')).toHaveText('חסרה תשובה נכונה.');
-  await expect(page.getByText('יש לתקן את המסומן בשאלה 1.')).toBeVisible();
+  await expect(page.getByText('תקנו את המסומן בשאלה 1.')).toBeVisible();
   await page.locator('#release-activity').click();
   await expect(page.getByRole('alert')).toBeVisible();
   expect(await (await page.request.get('/api/instances')).json()).toEqual([]);
   await page.locator('#question-0-answer').fill('דינוזאורים');
   await page.locator('#release-activity').click();
-  await expect(page.getByRole('link', { name: 'צפייה בפעילות המוכנה' })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'הקצאה לילדים' })).toBeVisible();
 });
 
 test('strict material rejection stops questions, while a question failure retains accepted material', async ({
@@ -281,7 +283,7 @@ test('question-only generation preserves typing and Undo across late output and 
   await expect(page.locator('#document-title')).not.toHaveValue('לומדים על חשבון');
   await page.locator('#document-title').fill('עריכה שחשוב לשמור');
   await page.locator('#save-activity').click();
-  await expect(page.getByRole('alert')).toContainText('הטיוטה השתנתה בשרת');
+  await expect(page.getByRole('alert')).toContainText('הטיוטה השתנתה בינתיים');
   await expect(page.locator('#document-title')).toHaveValue('עריכה שחשוב לשמור');
   page.once('dialog', (dialog) => dialog.accept());
   await page.locator('#reload-activity').click();
@@ -302,9 +304,9 @@ test('authoring failures expose safe errors and retain the parent request', asyn
   await login(page, 'failures@example.test');
   for (const [prompt, message] of [
     ['בדיקת כשל', ''],
-    ['בדיקת מגבלת פלט', 'מגבלת הפלט'],
-    ['בדיקת מכסה', 'מגבלת הבקשות'],
-    ['בדיקת מכסה בגוף התשובה', 'מגבלת הבקשות'],
+    ['בדיקת מגבלת פלט', 'ארוך מדי'],
+    ['בדיקת מכסה', 'יותר מדי בקשות'],
+    ['בדיקת מכסה בגוף התשובה', 'יותר מדי בקשות'],
   ]) {
     await page.getByRole('textbox', { name: 'מה תרצו להכין?' }).fill(prompt);
     await page.locator('#chat-send').click();
@@ -361,9 +363,9 @@ test('library deletion confirms intent, preserves independent items, recovers fr
   await finish(page, state);
   await page.getByText('שמירה כתבנית לשימוש חוזר', { exact: true }).click();
   await page.locator('#save-template').click();
-  await expect(page.getByText('התבנית נשמרה בספרייה. הפעילות לא השתנתה.')).toBeVisible();
+  await expect(page.getByText('התבנית נשמרה במרחב שלנו. הפעילות לא השתנתה.')).toBeVisible();
   await page.locator('#release-activity').click();
-  await expect(page.getByRole('link', { name: 'צפייה בפעילות המוכנה' })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'הקצאה לילדים' })).toBeVisible();
   await page.goto('/templates');
   const templates = page.locator('section[aria-labelledby="templates-title"]');
   const snapshots = page.locator('section[aria-labelledby="ready-title"]');
@@ -432,14 +434,14 @@ test('library deletion confirms intent, preserves independent items, recovers fr
   const savedSession = await save.json();
   expect(savedSession.answers).toEqual(answers);
   expect(await (await childRequest.get(sessionPath)).json()).toEqual(savedSession);
-  await expect(snapshots.getByText('הוקצתה לילד', { exact: false })).toBeVisible();
+  await expect(snapshots.getByText('· הוקצתה', { exact: false })).toBeVisible();
   page.once('dialog', async (dialog) => {
     expect(dialog.message()).toContain('ארכיון');
     expect(dialog.message()).toContain('לצמיתות');
     await dialog.accept();
   });
   await snapshots.getByRole('button', { name: /^הסרת הפעילות: / }).click();
-  await expect(page.getByText('הפעילות הוסרה מהספרייה.', { exact: true })).toBeVisible();
+  await expect(page.getByText('הפעילות הוסרה.', { exact: true })).toBeVisible();
   await expect(snapshots.locator('article')).toHaveCount(0);
   const archived = await (await page.request.get(`/api/instances/${snapshot.id}`)).json();
   expect(archived.document).toEqual(original.document);
@@ -493,6 +495,7 @@ test('library deletion confirms intent, preserves independent items, recovers fr
       await route.fulfill({ status: 500, json: { title: 'המחיקה נכשלה' } });
     else await route.continue();
   });
+  await page.getByText('ניהול נתונים', { exact: true }).click();
   page.once('dialog', (dialog) => dialog.accept());
   await page.getByRole('button', { name: 'איפוס נתוני הלמידה' }).click();
   await expect(page.getByRole('alert')).toBeVisible();
@@ -587,8 +590,8 @@ test('two pages follow generation, cancellation and release while preserving edi
   await expect(page.locator('#available-title')).toBeVisible();
   await expect(page.locator('#document-title')).toHaveValue('עריכה מקומית שנשמרת כאן');
   await actor.locator('#release-activity').click();
-  await expect(actor.getByRole('link', { name: 'צפייה בפעילות המוכנה' })).toBeVisible();
-  await expect(page.getByRole('link', { name: 'צפייה בפעילות המוכנה' })).toBeVisible();
+  await expect(actor.getByRole('link', { name: 'הקצאה לילדים' })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'הקצאה לילדים' })).toBeVisible();
   await expect(page.locator('#document-title')).toBeDisabled();
   await expect(page.locator('#document-title')).toHaveValue('עריכה מקומית שנשמרת כאן');
 

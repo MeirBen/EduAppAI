@@ -1,15 +1,15 @@
-<section class="panel mx-auto my-gutter grid max-w-lg gap-6" aria-labelledby="activation-title">
+<section class="panel mx-auto grid max-w-lg gap-6" aria-labelledby="activation-title">
   <header class="grid gap-1">
     <h1 id="activation-title" class="text-2xl">הפעלת המכשיר שלי</h1>
     <p class="text-muted">כדי לפתוח את הפעילויות, צריך קוד הפעלה מההורה.</p>
   </header>
   <p class="note">
-    <span class="icon icon-info" aria-hidden="true"></span>הדפדפן הזה ישמור גישה לעד 30 יום, עד
-    לניתוק המכשיר או לביטול הגישה בידי ההורה. מחיקת נתוני הדפדפן תחייב קוד חדש.
+    <span class="icon icon-info" aria-hidden="true"></span>הגישה נשמרת בדפדפן הזה עד 30 יום. אחרי
+    ניתוק המכשיר, ביטול הגישה בידי ההורה או מחיקת נתוני הדפדפן, צריך קוד חדש.
   </p>
   <form class="grid gap-4" (submit)="activate($event)" novalidate>
     <div>
-      <label for="activation-code" class="mb-2 block">קוד הפעלה</label>
+      <label for="activation-code">קוד הפעלה</label>
       <input
         id="activation-code"
         type="text"

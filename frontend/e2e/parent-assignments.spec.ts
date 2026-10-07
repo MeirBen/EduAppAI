@@ -123,9 +123,7 @@ test('parent manages access, assigns frozen work, recovers final grades and rese
     const unused = await createReviewSnapshot(page.request, headers, 'פעילות ללא הקצאה');
     await page.goto(`/instances/${snapshot.id}`);
     await expect(codeBox).toHaveCount(0);
-    await page
-      .getByRole('combobox', { name: 'הקצאה לילד או לילדה', exact: true })
-      .selectOption(child.id);
+    await page.getByRole('combobox', { name: 'ילד או ילדה', exact: true }).selectOption(child.id);
     const created = page.waitForResponse(
       (response) =>
         response.url().endsWith('/api/assignments') && response.request().method() === 'POST',
@@ -137,12 +135,10 @@ test('parent manages access, assigns frozen work, recovers final grades and rese
     await page.getByRole('link', { name: 'פתיחת ההקצאה', exact: true }).click();
     await expect(page.getByText('העבודה עדיין לא הוגשה.', { exact: false })).toBeVisible();
     await page.getByText('פרטי זמנים', { exact: true }).click();
-    await expect(page.getByText('טרם נפתחה', { exact: true })).toBeVisible();
+    await expect(page.getByText('עוד לא נפתחה', { exact: true })).toBeVisible();
     await expect(page.locator('[data-elapsed-time]')).toHaveCount(0);
     await page.goto(`/instances/${snapshot.id}`);
-    await page
-      .getByRole('combobox', { name: 'הקצאה לילד או לילדה', exact: true })
-      .selectOption(child.id);
+    await page.getByRole('combobox', { name: 'ילד או ילדה', exact: true }).selectOption(child.id);
     await page.getByRole('button', { name: 'הקצאת הפעילות', exact: true }).click();
     await expect(page.getByRole('link', { name: 'פתיחת ההקצאה הקיימת' })).toHaveAttribute(
       'href',
@@ -150,9 +146,7 @@ test('parent manages access, assigns frozen work, recovers final grades and rese
     );
     await narrow(page, 'snapshot-assignment-mobile');
     await page.goto(`/instances/${extra.id}`);
-    await page
-      .getByRole('combobox', { name: 'הקצאה לילד או לילדה', exact: true })
-      .selectOption(child.id);
+    await page.getByRole('combobox', { name: 'ילד או ילדה', exact: true }).selectOption(child.id);
     await page.getByRole('button', { name: 'הקצאת הפעילות', exact: true }).click();
     await expect(page.getByRole('link', { name: 'פתיחת ההקצאה', exact: true })).toBeVisible();
     await page.getByRole('link', { name: 'פעילויות לילדים', exact: true }).first().click();
@@ -160,7 +154,9 @@ test('parent manages access, assigns frozen work, recovers final grades and rese
     await page
       .getByRole('button', { name: 'ביטול ההקצאה: עבודה לביטול — נועה', exact: true })
       .click();
-    await expect(page.getByText('ההקצאה בוטלה.', { exact: true })).toBeVisible();
+    await expect(
+      page.getByText('ההקצאה בוטלה. היא נשמרת בבחירה "ההקצאה בוטלה".', { exact: true }),
+    ).toBeVisible();
     await page
       .getByRole('combobox', { name: 'מצב הפעילות', exact: true })
       .selectOption('withdrawn');
@@ -184,7 +180,7 @@ test('parent manages access, assigns frozen work, recovers final grades and rese
     await page.goto(`/assignments/${assignment.id}`);
     await page.getByText('פרטי זמנים', { exact: true }).click();
     await expect(page.getByText('נפתחה ב־', { exact: false })).toBeVisible();
-    await expect(page.getByText('טרם הוגשה', { exact: true })).toBeVisible();
+    await expect(page.getByText('עוד לא הוגשה', { exact: true })).toBeVisible();
     await expect(page.locator('[data-elapsed-time]')).toHaveCount(0);
     const answers = [
       { questionId: snapshot.document.questions[0].id, value: '+02.00' },
@@ -210,10 +206,10 @@ test('parent manages access, assigns frozen work, recovers final grades and rese
     expect((await page.request.get(`/api/instances/${unused.id}`)).status()).toBe(404);
     page.once('dialog', (dialog) => dialog.accept());
     await page.getByRole('button', { name: 'הסרת הפעילות: בדיקת תשובות', exact: true }).click();
-    await expect(page.getByText('הפעילות הוסרה מהספרייה.', { exact: true })).toBeVisible();
+    await expect(page.getByText('הפעילות הוסרה.', { exact: true })).toBeVisible();
     await page.goto(`/assignments/${assignment.id}`);
     await expect(page.getByText('הפעילות בארכיון.', { exact: false })).toBeVisible();
-    await expect(page.getByText('סכום אוטומטי:', { exact: false })).toBeVisible();
+    await expect(page.getByText('ניקוד אוטומטי עד כה:', { exact: false })).toBeVisible();
     await expect(page.locator('[data-elapsed-time]')).toHaveText('פחות מדקה');
     const elapsed = await page.locator('[data-elapsed-time]').textContent();
     const grade = page.getByLabel('נקודות לשאלה 2 — בין 0 ל־3', { exact: true });
@@ -285,6 +281,7 @@ test('parent manages access, assigns frozen work, recovers final grades and rese
     await expect(page.getByText('הפרופיל מושבת.', { exact: false })).toBeVisible();
     await expect(page.getByRole('button', { name: 'יצירת קוד הפעלה', exact: true })).toHaveCount(0);
     await page.goto('/templates');
+    await page.getByText('ניהול נתונים', { exact: true }).click();
     page.once('dialog', async (dialog) => {
       for (const scope of ['פרופילי הילדים', 'המכשירים', 'ההקצאות', 'התשובות', 'הציונים'])
         expect(dialog.message()).toContain(scope);

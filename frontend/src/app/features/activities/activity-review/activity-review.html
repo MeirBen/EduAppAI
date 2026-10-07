@@ -17,7 +17,9 @@
 @if (measurements().length) {
   <app-measurement-list [items]="measurements()" />
 }
-<p class="note">
-  <span class="icon icon-info" aria-hidden="true"></span>בדקו את השפה, העובדות והתשובות. סימון
-  כמוכנה שומר עותק קבוע של הגרסה הזו.
-</p>
+@if (!questionsNext()) {
+  <p class="note">
+    <span class="icon icon-info" aria-hidden="true"></span>בדקו את השפה, העובדות והתשובות. סימון
+    כמוכנה שומר עותק קבוע שאפשר להקצות לילדים.
+  </p>
+}

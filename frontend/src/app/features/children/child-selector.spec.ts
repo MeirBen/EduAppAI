@@ -27,7 +27,7 @@ describe('Paged child selection', () => {
     select.dispatchEvent(new Event('change'));
     await fixture.whenStable();
     const next = Array.from(root.querySelectorAll('button')).find((button) =>
-      button.textContent?.includes('נוספים'),
+      button.textContent?.includes('הבא'),
     )!;
     next.click();
     TestBed.tick();

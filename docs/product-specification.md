@@ -433,7 +433,8 @@ For stored results and parent review:
   The UI names archiving/deletion accurately before confirmation. Assignment
   creation and snapshot removal share transaction-safe ownership/state checks
   and restrictive foreign keys, so a race cannot leave dangling work.
-- Keep withdrawn assignments and submitted results. Disabling a child revokes
+- Keep withdrawn assignments and submitted results; the parent's list shows
+  withdrawn work only under its own status filter. Disabling a child revokes
   access rather than deleting its history. Releasing a new snapshot or changing
   a template never changes an existing assignment or result.
 - The explicit family reset remains the destructive exception. Its confirmation

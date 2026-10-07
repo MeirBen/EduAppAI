@@ -229,7 +229,7 @@ test('two families and siblings keep separate work through resume, lost submissi
       await peerPage.getByRole('textbox', { name: '2 + 3 = ?', exact: true }).fill('1');
       await peerPage.getByRole('textbox', { name: 'מה למדתם מהטקסט?', exact: true }).fill(name);
       await peerPage.getByRole('button', { name: 'שמירת התשובות', exact: true }).click();
-      await expect(peerPage.getByText('התשובות נשמרו.', { exact: true })).toBeVisible();
+      await expect(peerPage.getByText('כל התשובות שמורות', { exact: true })).toBeVisible();
       const peerPath = `/api/child/assignments/${peerId}/session`;
       const saved = await peerContext.request.get(peerPath);
       await expectChildResponse(saved);
@@ -243,7 +243,7 @@ test('two families and siblings keep separate work through resume, lost submissi
     }
     await child.goto('/child');
     await expect(child).toHaveURL('/child/activate');
-    await expect(child.getByText('הדפדפן הזה ישמור גישה', { exact: false })).toBeVisible();
+    await expect(child.getByText('הגישה נשמרת בדפדפן הזה', { exact: false })).toBeVisible();
     await narrow(child, 'activation-mobile');
     await child.getByLabel('קוד הפעלה', { exact: true }).fill(code);
     await child.getByRole('button', { name: 'פתיחת הפעילויות שלי' }).click();
@@ -333,7 +333,7 @@ test('two families and siblings keep separate work through resume, lost submissi
     await child.getByRole('link', { name: 'לפעילויות שלי', exact: true }).click();
     await expect(child).toHaveURL(`/child/assignments/${assignment.id}`);
     await child.getByRole('button', { name: 'שמירת התשובות', exact: true }).click();
-    await expect(child.getByText('התשובות נשמרו.', { exact: true })).toBeVisible();
+    await expect(child.getByText('כל התשובות שמורות', { exact: true })).toBeVisible();
     await child.reload();
     await expect(numeric).toHaveValue('-');
     await expect(text).toHaveValue(exactAnswer);
@@ -408,8 +408,10 @@ test('two families and siblings keep separate work through resume, lost submissi
     expect(await reread.json()).toEqual(finalResult);
     await child.getByRole('link', { name: 'לפעילויות שלי', exact: true }).click();
     await child
-      .getByRole('combobox', { name: 'איזה פעילויות להציג?', exact: true })
-      .selectOption('submitted');
+      .getByRole('group', { name: 'אילו פעילויות להציג?' })
+      .locator('label', { hasText: 'כבר הוגשו' })
+      .click();
+    await expect(child.getByRole('radio', { name: 'כבר הוגשו', exact: true })).toBeChecked();
     await expect(
       child.getByRole('link', { name: snapshot.document.title, exact: true }),
     ).toBeVisible();

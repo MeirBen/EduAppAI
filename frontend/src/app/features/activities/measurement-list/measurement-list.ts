@@ -14,7 +14,7 @@ import { MeasurementItem } from '../activity-document-view/measurements';
           @if (item.state === 'met') {
             <span class="sr-only">· עומד בדרישה</span>
           } @else if (item.state === 'blocking') {
-            · יש לקצר או להאריך לפני סימון כמוכנה
+            · התאימו את האורך לפני סימון כמוכנה
           }
         </li>
       }

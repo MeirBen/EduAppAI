@@ -1,5 +1,5 @@
 @let isTemplate = context() === 'template';
-<section class="mx-auto grid max-w-3xl gap-6 py-gutter" aria-labelledby="workspace-title">
+<section class="mx-auto grid max-w-3xl gap-6" aria-labelledby="workspace-title">
   <header class="grid gap-4">
     <div class="grid gap-1">
       <a routerLink="/templates" class="text-link"
@@ -53,7 +53,7 @@
               </p>
             }
           </div>
-          @if (hasContent()) {
+          @if (hasContent() && !released()) {
             <button
               type="button"
               class="text-link"
@@ -121,7 +121,7 @@
         <ng-container [ngTemplateOutlet]="authorChat" />
       </section>
     }
-    @if (!operationTarget()) {
+    @if (!operationTarget() && !released()) {
       <ng-container [ngTemplateOutlet]="operationStatus" />
     }
     @if (elsewhere() !== 'deleted' && available(); as result) {
@@ -146,7 +146,9 @@
         (transferred)="editCandidate(candidate.index)"
       />
     }
-    @if (saved() || hasContent()) {
+    @if (released() && !dirty()) {
+      <div class="panel"><app-activity-document-view [document]="saved()!.document" /></div>
+    } @else if (saved() || hasContent()) {
       <app-activity-document-editor
         [fields]="fields.document"
         [materials]="raw().plan.materials"
@@ -180,11 +182,15 @@
         @if (released()) {
           <div class="grid gap-1">
             <h2 id="review-title">הפעילות מוכנה</h2>
-            <p>הפעילות סומנה כמוכנה ונשמרה כעותק קבוע. שינויים נעשים בעותק חדש לעריכה.</p>
+            <p>
+              הפעילות נשמרה כעותק קבוע, ואפשר להקצות אותה לילדים. כדי לשנות אותה, ערכו אותה כטיוטה
+              חדשה.
+            </p>
           </div>
         } @else {
-          <h2 id="review-title">בדיקה וסימון כמוכנה</h2>
+          <h2 id="review-title">{{ questionsNext() ? 'בדיקת הטקסט' : 'בדיקה וסימון כמוכנה' }}</h2>
           <app-activity-review
+            [questionsNext]="questionsNext()"
             [issues]="issues()"
             [measurements]="measurements()"
             [saved]="!!saved()"
@@ -239,8 +245,8 @@
         <summary>שמירה כתבנית לשימוש חוזר</summary>
         <div class="grid gap-4">
           <p>
-            תבנית מאפשרת ליצור בקלות פעילויות דומות בהמשך. השמירה אינה יוצרת תוכן ואינה שומרת את
-            הפעילות. שם התבנית: <bdi>{{ raw().plan.name }}</bdi>
+            התבנית שומרת את ההגדרות בלי התוכן, כדי ליצור בקלות פעילויות דומות. שם התבנית:
+            <bdi>{{ raw().plan.name }}</bdi>
             <span class="text-sm text-muted"> (אפשר לשנות באפשרויות המתקדמות)</span>
           </p>
           <ng-container [ngTemplateOutlet]="publishAction" />
@@ -262,7 +268,7 @@
         <app-field-errors [field]="fields" />
         @if (startRecovery()) {
           <p>
-            לא ידוע אם בקשת היצירה התקבלה. הבדיקה שולחת את אותה בקשה בדיוק, ואינה מתחילה ניסיון חדש.
+            לא ברור אם בקשת היצירה התקבלה. הבדיקה שולחת שוב את אותה בקשה, בלי להתחיל יצירה חדשה.
           </p>
         }
         @if (isTemplate) {
@@ -284,7 +290,7 @@
               <a
                 class="button"
                 [routerLink]="['/instances', (available() ?? saved())!.releasedSnapshotId]"
-                ><span class="icon icon-view" aria-hidden="true"></span>צפייה בפעילות המוכנה</a
+                ><span class="icon icon-users" aria-hidden="true"></span>הקצאה לילדים</a
               >
               <button
                 id="copy-released"
@@ -374,8 +380,8 @@
         </div>
         @if (isTemplate) {
           <p class="note">
-            <span class="icon icon-info" aria-hidden="true"></span>השמירה מפרסמת גרסה של התבנית
-            בספרייה, ואינה יוצרת פעילות.
+            <span class="icon icon-info" aria-hidden="true"></span>השמירה מעדכנת את התבנית במרחב
+            שלנו ולא יוצרת פעילות.
           </p>
         }
         <app-loading-indicator [active]="copying()" label="יוצרים טיוטה חדשה…" />
@@ -441,7 +447,7 @@
     <div class="flex flex-wrap items-center gap-x-4">
       <p role="alert" class="field-error">{{ problem.message }}</p>
       @if (problem.checkLibrary) {
-        <a id="check-library" routerLink="/templates" class="text-link">בדיקת התבנית בספרייה</a>
+        <a id="check-library" routerLink="/templates" class="text-link">בדיקת התבנית במרחב שלנו</a>
       }
     </div>
   }

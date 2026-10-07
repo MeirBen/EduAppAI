@@ -1,4 +1,4 @@
-<section class="mx-auto grid max-w-3xl gap-6 py-gutter" aria-labelledby="snapshot-heading">
+<section class="mx-auto grid max-w-3xl gap-6" aria-labelledby="snapshot-heading">
   <header class="grid gap-1">
     <a class="text-link" routerLink="/templates"
       ><span class="icon icon-back" aria-hidden="true"></span>המרחב שלנו</a
@@ -37,46 +37,50 @@
         <app-measurement-list [items]="measurements()" />
       }
     </div>
-    <div class="panel"><app-activity-document-view [document]="snapshot.value().document" /></div>
-    <section class="action-bar" aria-labelledby="snapshot-actions-title">
-      <h2 id="snapshot-actions-title" class="sr-only">פעולות</h2>
-      @if (!snapshot.value().archivedAtUtc) {
-        <div class="grid gap-4">
-          <app-child-selector
-            [(value)]="childId"
-            [disabled]="assigning()"
-            label="הקצאה לילד או לילדה"
-          />
-          <div class="flex flex-wrap items-center gap-3">
-            <button
-              id="assign-snapshot"
-              class="button"
-              [disabledInteractive]="assigning() || !childId()"
-              (click)="assign()"
-            >
-              הקצאת הפעילות
-            </button>
-            <a class="text-link" routerLink="/children">ניהול הילדים והמכשירים</a>
-          </div>
-          <app-loading-indicator [active]="assigning()" label="מקצים את הפעילות…" />
-          @if (assignmentError()) {
-            <p class="field-error" role="alert">{{ assignmentError() }}</p>
-            <a class="text-link" routerLink="/assignments">בדיקת הפעילויות לילדים</a>
-          }
-          @if (assigned(); as result) {
+    @if (!snapshot.value().archivedAtUtc) {
+      <section class="panel grid gap-4" aria-labelledby="assign-heading">
+        <h2 id="assign-heading">הקצאה לילד או לילדה</h2>
+        <app-child-selector [(value)]="childId" [disabled]="assigning()" label="ילד או ילדה" />
+        <div class="flex flex-wrap items-center gap-3">
+          <button
+            id="assign-snapshot"
+            class="button"
+            [disabledInteractive]="assigning() || !childId()"
+            (click)="assign()"
+          >
+            הקצאת הפעילות
+          </button>
+          <a class="text-link" routerLink="/children">ניהול הילדים והמכשירים</a>
+        </div>
+        <app-loading-indicator [active]="assigning()" label="מקצים את הפעילות…" />
+        @if (assignmentError()) {
+          <p class="field-error" role="alert">{{ assignmentError() }}</p>
+          <a class="text-link" routerLink="/assignments">בדיקת הפעילויות לילדים</a>
+        }
+        @if (assigned(); as result) {
+          @if (result.assignment.status === 'withdrawn') {
+            <p class="field-error" role="alert">
+              ההקצאה של הפעילות הזו ל־<bdi>{{ result.assignment.childName }}</bdi> בוטלה, ולכן אי
+              אפשר להקצות אותה שוב. כדי להקצות מחדש, ערכו אותה כטיוטה חדשה וסמנו אותה כמוכנה.
+            </p>
+          } @else {
             <p class="note" role="status">
               <span class="icon icon-check" aria-hidden="true"></span
               >{{ result.replay ? 'הפעילות כבר הוקצתה' : 'הפעילות הוקצתה' }} ל־<bdi>{{
                 result.assignment.childName
               }}</bdi
               >.
-              <a class="text-link" [routerLink]="['/assignments', result.assignment.id]"
+              <a [routerLink]="['/assignments', result.assignment.id]"
                 >פתיחת ההקצאה{{ result.replay ? ' הקיימת' : '' }}</a
               >
             </p>
           }
-        </div>
-      }
+        }
+      </section>
+    }
+    <div class="panel"><app-activity-document-view [document]="snapshot.value().document" /></div>
+    <section class="action-bar" aria-labelledby="snapshot-actions-title">
+      <h2 id="snapshot-actions-title" class="sr-only">פעולות</h2>
       @if (error()) {
         <p role="alert" class="field-error">{{ error() }}</p>
       }
@@ -96,7 +100,7 @@
           id="copy-snapshot"
           type="button"
           class="button button-secondary"
-          [disabled]="copying()"
+          [disabledInteractive]="copying()"
           (click)="copy()"
         >
           <span class="icon icon-copy" aria-hidden="true"></span>עריכה כטיוטה חדשה

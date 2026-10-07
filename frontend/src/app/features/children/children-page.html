@@ -1,4 +1,4 @@
-<section class="grid gap-6 py-gutter" aria-labelledby="children-heading">
+<section class="grid gap-6" aria-labelledby="children-heading">
   <header class="grid gap-1">
     <h1 id="children-heading">הילדים והמכשירים</h1>
     <p class="text-muted">ניהול הפרופילים והגישה לפעילויות של המשפחה.</p>
@@ -54,24 +54,12 @@
       } @empty {
         <p class="empty-state">עוד אין פרופילים. הוסיפו ילד או ילדה כדי להקצות פעילויות.</p>
       }
-      <nav class="flex flex-wrap items-center gap-3" aria-label="עמודי פרופילים">
-        <button
-          class="button button-secondary"
-          [disabledInteractive]="busy() || children.isLoading() || page() === 1"
-          (click)="page.set(page() - 1)"
-        >
-          הקודם
-        </button>
-        <span>עמוד {{ page() }}</span
-        ><button
-          id="children-next"
-          class="button button-secondary"
-          [disabledInteractive]="busy() || children.isLoading() || !children.value().hasMore"
-          (click)="page.set(page() + 1)"
-        >
-          הבא
-        </button>
-      </nav>
+      <app-pager
+        label="עמודי פרופילים"
+        [(page)]="page"
+        [hasMore]="children.value().hasMore"
+        [busy]="busy() || children.isLoading()"
+      />
     }
   </section>
   <section class="panel grid gap-4" aria-labelledby="profile-heading">
@@ -83,7 +71,82 @@
         </button>
       }
     </div>
+    <form id="profile-form" class="grid gap-4" (submit)="save($event)">
+      <div>
+        <label for="child-name">שם הילד או הילדה</label
+        ><input
+          id="child-name"
+          dir="auto"
+          autocomplete="off"
+          [formField]="fields.name"
+          aria-describedby="child-name-errors"
+        />
+        <app-field-errors id="child-name-errors" [field]="fields.name" />
+      </div>
+      <div>
+        <label for="child-grade">כיתה (רשות)</label>
+        <input
+          id="child-grade"
+          dir="auto"
+          autocomplete="off"
+          [formField]="fields.grade"
+          aria-describedby="child-grade-help child-grade-errors"
+        />
+        <p id="child-grade-help" class="mt-2 text-sm text-muted">
+          למשל: גן חובה, כיתה ד׳ או חינוך ביתי.
+        </p>
+        <app-field-errors id="child-grade-errors" [field]="fields.grade" />
+      </div>
+      <div>
+        <label for="child-age">גיל (רשות)</label>
+        <input
+          id="child-age"
+          type="text"
+          inputmode="numeric"
+          dir="ltr"
+          autocomplete="off"
+          [formField]="fields.age"
+          aria-describedby="child-age-help child-age-errors"
+        />
+        <p id="child-age-help" class="mt-2 text-sm text-muted">בשנים שלמות.</p>
+        <app-field-errors id="child-age-errors" [field]="fields.age" />
+      </div>
+      @if (selected()) {
+        <label
+          ><input id="child-enabled" type="checkbox" [formField]="fields.enabled" />פרופיל
+          פעיל</label
+        >
+      }
+      <div class="grid gap-3">
+        <app-loading-indicator [active]="working() === 'profile'" label="שומרים את הפרופיל…" />
+        @if (notice()) {
+          <p role="status" class="note">
+            <span class="icon icon-check" aria-hidden="true"></span>{{ notice() }}
+          </p>
+        }
+        @if (error()) {
+          <p role="alert" class="field-error">{{ error() }}</p>
+        }
+        <button class="button" [disabledInteractive]="busy()">
+          {{ selected() ? 'שמירת הפרופיל' : 'יצירת פרופיל' }}
+        </button>
+      </div>
+    </form>
     @if (selected(); as child) {
+      @if (child.hasAssignments) {
+        <p class="text-sm text-muted">
+          לפרופיל יש פעילויות, ולכן אפשר רק להשבית אותו. ההיסטוריה תישמר.
+        </p>
+      } @else {
+        <button
+          id="delete-child"
+          class="text-link justify-self-start"
+          [disabledInteractive]="busy()"
+          (click)="deleteProfile()"
+        >
+          מחיקת הפרופיל
+        </button>
+      }
       <details id="profile-dates" class="text-sm text-muted">
         <summary [attr.aria-label]="'פרטי זמנים של הפרופיל: ' + child.name">פרטי זמנים</summary>
         <div class="mt-2 grid gap-1">
@@ -103,84 +166,6 @@
         </div>
       </details>
     }
-    <form id="profile-form" class="grid gap-4" (submit)="save($event)">
-      <div>
-        <label class="mb-2 block" for="child-name">שם הילד או הילדה</label
-        ><input
-          id="child-name"
-          dir="auto"
-          autocomplete="off"
-          [formField]="fields.name"
-          aria-describedby="child-name-help child-name-errors"
-        />
-        <p id="child-name-help" class="mt-2 text-sm text-muted">{{ nameHint }}</p>
-        <app-field-errors id="child-name-errors" [field]="fields.name" />
-      </div>
-      <fieldset class="grid gap-4">
-        <legend class="mb-3 font-semibold">פרטים נוספים</legend>
-        <div>
-          <label class="mb-2 block" for="child-grade">כיתה (רשות)</label>
-          <input
-            id="child-grade"
-            dir="auto"
-            autocomplete="off"
-            [formField]="fields.grade"
-            aria-describedby="child-grade-help child-grade-errors"
-          />
-          <p id="child-grade-help" class="mt-2 text-sm text-muted">
-            למשל: גן חובה, כיתה ד׳ או חינוך ביתי.
-          </p>
-          <app-field-errors id="child-grade-errors" [field]="fields.grade" />
-        </div>
-        <div>
-          <label class="mb-2 block" for="child-age">גיל (רשות)</label>
-          <input
-            id="child-age"
-            type="text"
-            inputmode="numeric"
-            dir="ltr"
-            autocomplete="off"
-            [formField]="fields.age"
-            aria-describedby="child-age-help child-age-errors"
-          />
-          <p id="child-age-help" class="mt-2 text-sm text-muted">בשנים שלמות.</p>
-          <app-field-errors id="child-age-errors" [field]="fields.age" />
-        </div>
-      </fieldset>
-      @if (selected()) {
-        <label class="flex items-center gap-2"
-          ><input id="child-enabled" type="checkbox" [formField]="fields.enabled" />פרופיל
-          פעיל</label
-        >
-      }
-      <div class="grid gap-3">
-        @if (error()) {
-          <p role="alert" class="field-error">{{ error() }}</p>
-        }
-        @if (fields().touched() && fields().invalid()) {
-          <p class="field-error">יש לתקן את פרטי הפרופיל לפני השמירה.</p>
-        }
-        <button class="button" [disabledInteractive]="busy()">
-          {{ selected() ? 'שמירת הפרופיל' : 'יצירת פרופיל' }}
-        </button>
-      </div>
-    </form>
-    @if (selected(); as child) {
-      @if (child.hasAssignments) {
-        <p class="text-sm text-muted">
-          לפרופיל יש פעילויות שמורות. אפשר להשבית אותו ולשמור על ההיסטוריה.
-        </p>
-      } @else {
-        <button
-          id="delete-child"
-          class="text-link justify-self-start"
-          [disabledInteractive]="busy()"
-          (click)="deleteProfile()"
-        >
-          מחיקת הפרופיל
-        </button>
-      }
-    }
   </section>
   @if (selected(); as child) {
     <section class="panel grid gap-4" aria-labelledby="access-heading">
@@ -190,7 +175,7 @@
       @if (child.enabled) {
         <form id="activation-form" class="grid gap-4" (submit)="issue($event)">
           <div>
-            <label class="mb-2 block" for="device-label">שם המכשיר</label
+            <label for="device-label">שם המכשיר</label
             ><input
               id="device-label"
               dir="auto"
@@ -198,19 +183,14 @@
               [formField]="deviceFields.label"
               aria-describedby="device-label-help device-label-errors"
             />
-            <p id="device-label-help" class="mt-2 text-sm text-muted">
-              למשל: הטאבלט בבית. {{ nameHint }}
-            </p>
+            <p id="device-label-help" class="mt-2 text-sm text-muted">למשל: הטאבלט בבית.</p>
             <app-field-errors id="device-label-errors" [field]="deviceFields.label" />
           </div>
           <p class="note">
             <span class="icon icon-info" aria-hidden="true"></span>
-            הקוד מוצג כאן פעם אחת בלבד. קוד חדש מבטל קוד קודם שטרם נוצל. יש להשתמש בדפדפן נפרד
-            מכניסת ההורים.
+            הקוד יוצג פעם אחת בלבד, וקוד חדש מבטל קוד קודם שלא נוצל. השתמשו בו בדפדפן אחר מזה שבו
+            אתם מחוברים.
           </p>
-          @if (deviceFields().touched() && deviceFields().invalid()) {
-            <p class="field-error">יש לתקן את שם המכשיר לפני יצירת קוד.</p>
-          }
           <button class="button button-secondary justify-self-start" [disabledInteractive]="busy()">
             יצירת קוד הפעלה
           </button>
@@ -218,7 +198,7 @@
       } @else {
         <p class="note">
           <span class="icon icon-info" aria-hidden="true"></span>
-          הפרופיל מושבת. כדי לחבר מכשיר, הפעילו את הפרופיל ושמרו אותו לפני יצירת קוד חדש.
+          הפרופיל מושבת. כדי לחבר מכשיר, הפעילו אותו ושמרו.
         </p>
       }
       @if (activation(); as code) {
@@ -243,6 +223,12 @@
             הסתרת הקוד
           </button>
         </div>
+      }
+      <app-loading-indicator [active]="working() === 'access'" label="מעדכנים את הגישה…" />
+      @if (accessNotice()) {
+        <p role="status" class="note">
+          <span class="icon icon-check" aria-hidden="true"></span>{{ accessNotice() }}
+        </p>
       }
       @if (accessError()) {
         <p class="field-error" role="alert">{{ accessError() }}</p>
@@ -325,33 +311,22 @@
               }
             </article>
           } @empty {
-            <p class="text-muted">אין מכשירים בעמוד זה.</p>
+            <p class="empty-state">
+              {{
+                devicePage() > 1
+                  ? 'אין מכשירים נוספים.'
+                  : 'עוד לא חוברו מכשירים. צרו קוד הפעלה כדי לחבר מכשיר.'
+              }}
+            </p>
           }
-          <nav class="flex flex-wrap items-center gap-3" aria-label="עמודי מכשירים">
-            <button
-              class="button button-secondary"
-              [disabledInteractive]="busy() || devices.isLoading() || devicePage() === 1"
-              (click)="devicePage.set(devicePage() - 1)"
-            >
-              הקודם</button
-            ><span>עמוד {{ devicePage() }}</span
-            ><button
-              id="devices-next"
-              class="button button-secondary"
-              [disabledInteractive]="busy() || devices.isLoading() || !devices.value().hasMore"
-              (click)="devicePage.set(devicePage() + 1)"
-            >
-              הבא
-            </button>
-          </nav>
+          <app-pager
+            label="עמודי מכשירים"
+            [(page)]="devicePage"
+            [hasMore]="devices.value().hasMore"
+            [busy]="busy() || devices.isLoading()"
+          />
         }
       </section>
     </section>
-  }
-  <app-loading-indicator [active]="busy()" label="שומרים שינויים…" />
-  @if (notice()) {
-    <p role="status" class="note">
-      <span class="icon icon-info" aria-hidden="true"></span>{{ notice() }}
-    </p>
   }
 </section>

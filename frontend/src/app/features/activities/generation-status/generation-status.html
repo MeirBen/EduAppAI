@@ -33,24 +33,24 @@
     </div>
   </div>
   @if (active()) {
-    <div class="grid gap-1">
+    <div class="flex flex-wrap items-center gap-x-4 gap-y-1">
       <button
         id="cancel-generation"
         type="button"
-        class="button button-secondary"
+        class="text-link"
         [disabledInteractive]="locked()"
         (click)="cancelled.emit()"
       >
         <span class="icon icon-close" aria-hidden="true"></span>ביטול
       </button>
       <p class="note">
-        <span class="icon icon-info" aria-hidden="true"></span>בקשה שכבר נשלחה עשויה להסתיים ולהיות
-        מחויבת גם אחרי ביטול.
+        <span class="icon icon-info" aria-hidden="true"></span>בקשה שכבר נשלחה עשויה להיות מחויבת גם
+        אחרי ביטול.
       </p>
     </div>
   }
   @if (!active() && configured() && current.retry; as retry) {
-    <div class="grid gap-1">
+    <div class="flex flex-wrap items-center gap-x-4 gap-y-1">
       <button
         id="retry-generation"
         type="button"
@@ -91,8 +91,8 @@
       </ol>
       @if (operation().diagnosticsExpired) {
         <p class="note">
-          <span class="icon icon-info" aria-hidden="true"></span>פג תוקף פרטי האבחון. התוכן השמור
-          וסיכום הפעולה נשמרו.
+          <span class="icon icon-info" aria-hidden="true"></span>הפרטים הטכניים כבר לא זמינים. התוכן
+          השמור וסיכום הפעולה נשמרו.
         </p>
       }
       @for (step of operation().artifacts?.steps; track $index) {
@@ -104,9 +104,7 @@
         }
         @if (candidateText(step.candidate, step.call?.output); as text) {
           <details class="well">
-            <summary>
-              תשובת השירות לאבחון — {{ stageNames[step.stage] || 'יצירת תוכן' }}, לא תוכן שאושר
-            </summary>
+            <summary>התשובה שהתקבלה — {{ stageNames[step.stage] || 'יצירת תוכן' }}</summary>
             <div class="grid gap-4">
               <div class="flex items-center justify-between gap-3">
                 <p class="note">

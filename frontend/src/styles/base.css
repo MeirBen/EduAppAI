@@ -64,6 +64,10 @@
   p {
     text-wrap: pretty;
   }
+  /* A link inside a sentence stays on its line and keeps an underline; standalone actions use `.text-link`. */
+  p a:not([class]) {
+    @apply font-medium text-brand underline;
+  }
 
   button,
   summary {
@@ -94,9 +98,13 @@
     @apply mb-2 block font-medium;
   }
 
-  /* A label that wraps its checkbox is the whole field, with the box beside its text. */
+  /* A label that wraps its control is the whole field, so nothing follows it at a label's margin. */
+  label:has(input, select, textarea) {
+    @apply mb-0;
+  }
+  /* A wrapped checkbox sits beside its text. */
   label:has(input[type='checkbox']) {
-    @apply mb-0 flex min-h-11 cursor-pointer items-center gap-2 font-normal;
+    @apply flex min-h-11 cursor-pointer items-center gap-2 font-normal;
   }
   label:has(input[type='checkbox']:disabled) {
     @apply cursor-not-allowed text-muted;

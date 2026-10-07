@@ -8,9 +8,9 @@ import { DisabledInteractive } from '../../../shared/disabled-interactive';
   selector: 'app-access-unavailable',
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <section class="panel mx-auto my-gutter grid max-w-lg gap-4" aria-labelledby="access-title">
+    <section class="panel mx-auto grid max-w-lg gap-4" aria-labelledby="access-title">
       <h1 id="access-title" class="text-2xl">המרחב לא זמין כרגע</h1>
-      <p class="error" role="alert">לא הצלחנו לפתוח את המרחב. אפשר לנסות שוב בעוד רגע.</p>
+      <p class="error" role="alert">לא הצלחנו לפתוח את המרחב. נסו שוב בעוד רגע.</p>
       <button
         type="button"
         class="button"

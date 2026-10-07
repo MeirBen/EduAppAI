@@ -19,7 +19,7 @@ import {
 import { apply, applyEach, disabled, form, maxLength, validateTree } from '@angular/forms/signals';
 import { Router, RouterLink } from '@angular/router';
 import { Subject } from 'rxjs';
-import { apiError, rejected } from '../../../core/api/api-error';
+import { apiError, rejected, writeError } from '../../../core/api/api-error';
 import { LearningApi } from '../../../core/api/learning-api';
 import { Limits } from '../../../core/api/limits';
 import {
@@ -87,6 +87,9 @@ import {
 } from './workspace-form';
 import { DisabledInteractive } from '../../../shared/disabled-interactive';
 import { FieldErrors } from '../../../shared/forms/field-errors';
+
+/** Release checks that only the questions step can satisfy: the title it writes and its questions. */
+const questionChecks = new Set(['title', 'questions', 'questions.formats']);
 
 /**
  * Route owner for one template or activity: the editable buffer, chat correlation, source
@@ -344,16 +347,32 @@ export class ActivityWorkspace {
   protected readonly measurements = computed(() =>
     measurementItems(this.saved()?.measurements ?? [], this.saved()?.plan),
   );
+  /** The text is ready and its questions come next. */
+  protected readonly questionsNext = computed(
+    () => this.createAction()?.kind === 'GenerateQuestions',
+  );
+  /** The saved checks the parent can act on now; creating the questions resolves their own. */
+  private readonly checks = computed(() => {
+    const saved = this.saved();
+    return saved && this.questionsNext()
+      ? {
+          ...saved,
+          diagnostics: Object.fromEntries(
+            Object.entries(saved.diagnostics).filter(([key]) => !questionChecks.has(key)),
+          ),
+        }
+      : saved;
+  });
   /** Release problems matter once content is ready to review: present, and no generation writing it. */
   protected readonly contentIssues = computed(() =>
     savedContentIssues(
-      this.hasContent() && !this.operationActive() ? this.saved() : undefined,
+      this.hasContent() && !this.operationActive() ? this.checks() : undefined,
       this.raw().document,
       this.baseline().document,
     ),
   );
   protected readonly issues = computed(() => [
-    ...reviewIssues(this.saved()),
+    ...reviewIssues(this.checks()),
     ...fieldPointers(this.contentIssues(), this.raw().document, this.saved()?.plan),
   ]);
   protected readonly stale = computed(() => staleContent(this.saved()));
@@ -616,20 +635,20 @@ export class ActivityWorkspace {
       if (this.context() === 'template') {
         // A template is its plan and defaults, so publication saves the whole buffer.
         this.baseline.set(structuredClone(this.raw()));
-        this.templateNotice.set('התבנית נשמרה בספרייה.');
+        this.templateNotice.set('התבנית נשמרה במרחב שלנו.');
       } else {
         // Publication from an activity cannot claim that its edits or per-task input were saved.
         if (!this.saved())
           this.baseline.update((raw) => ({ ...raw, plan: structuredClone(this.raw().plan) }));
-        this.templateNotice.set('התבנית נשמרה בספרייה. הפעילות לא השתנתה.');
+        this.templateNotice.set('התבנית נשמרה במרחב שלנו. הפעילות לא השתנתה.');
       }
     } catch (error) {
       if (!this.lifetime.destroyed)
         this.error.set({
           message:
             error instanceof HttpErrorResponse && error.status === 409
-              ? 'התבנית השתנתה בינתיים. השינויים שלכם נשארים כאן; בדקו את הגרסה בספרייה.'
-              : `${apiError(error)} לא ידוע אם התבנית נשמרה. בדקו בספרייה לפני ניסיון נוסף.`,
+              ? 'התבנית השתנתה בינתיים. השינויים שלכם נשארו כאן. בדקו את הגרסה השמורה במרחב שלנו.'
+              : `${apiError(error)} לא ידוע אם התבנית נשמרה. בדקו במרחב שלנו לפני ניסיון נוסף.`,
           checkLibrary: true,
         });
     } finally {
@@ -708,7 +727,7 @@ export class ActivityWorkspace {
       } else if (action === 'release') {
         // Every saved diagnostic blocks release, and each already shows at its content or review.
         if (Object.keys(saved.diagnostics).length) {
-          this.activityError.set({ message: 'יש לתקן את המסומן לפני סימון כמוכנה.' });
+          this.activityError.set({ message: 'תקנו את המסומן לפני סימון כמוכנה.' });
           return;
         }
         const snapshot = await this.api.releaseActivity(saved.id, saved.revision, this.lifetime);
@@ -783,9 +802,11 @@ export class ActivityWorkspace {
     } catch (error) {
       if (!this.lifetime.destroyed)
         this.activityError.set({
-          message:
-            apiError(error) +
-            (rejected(error) ? '' : ' ייתכן שהעותק נשמר. בדקו בספרייה לפני ניסיון נוסף.'),
+          message: writeError(
+            apiError(error),
+            error,
+            'ייתכן שהטיוטה נוצרה. בדקו במרחב שלנו לפני ניסיון נוסף.',
+          ),
         });
     } finally {
       if (!this.lifetime.destroyed) this.copying.set(false);
@@ -1009,9 +1030,12 @@ export class ActivityWorkspace {
 
   private activityFailure(error: unknown): string {
     if (error instanceof HttpErrorResponse && error.status === 409)
-      return 'הטיוטה השתנתה בשרת. השינויים שלכם נשארים כאן; טענו את הגרסה השמורה לפני שממשיכים.';
-    const uncertain = ' ייתכן שהבקשה נשמרה; בדקו את הגרסה השמורה לפני ניסיון נוסף.';
-    return `${apiError(error)} השינויים שלכם נשארים כאן.${rejected(error) ? '' : uncertain}`;
+      return 'הטיוטה השתנתה בינתיים. השינויים שלכם נשארו כאן. טענו את הגרסה השמורה לפני שממשיכים.';
+    return writeError(
+      `${apiError(error)} השינויים שלכם נשארו כאן.`,
+      error,
+      'ייתכן שהבקשה נשמרה. בדקו את הגרסה השמורה לפני ניסיון נוסף.',
+    );
   }
 
   private snapshot(): WorkspaceSnapshot {

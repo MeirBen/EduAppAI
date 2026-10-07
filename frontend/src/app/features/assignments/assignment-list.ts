@@ -17,11 +17,13 @@ import { LoadingIndicator } from '../../shared/loading-indicator/loading-indicat
 import { ChildSelector } from '../children/child-selector';
 import { assignmentStatuses } from './assignment-presentation';
 import { parentTaskError } from '../../core/api/parent-task-error';
+import { Pager } from '../../shared/pager/pager';
+import { writeError } from '../../core/api/api-error';
 
 /** Paged parent assignment history. Reading/filtering never starts or changes child work. */
 @Component({
   selector: 'app-assignment-list',
-  imports: [DatePipe, RouterLink, ChildSelector, DisabledInteractive, LoadingIndicator],
+  imports: [DatePipe, RouterLink, ChildSelector, DisabledInteractive, LoadingIndicator, Pager],
   templateUrl: './assignment-list.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
@@ -69,7 +71,7 @@ export class AssignmentList {
       this.assignments.isLoading() ||
       assignment.status !== 'assigned' ||
       !window.confirm(
-        `לבטל את ההקצאה "${assignment.title}" עבור ${assignment.childName}? הגישה לעבודה תיחסם. ההיסטוריה תישמר ולא ניתן להקצות שוב את אותו עותק לאותו ילד.`,
+        `לבטל את ההקצאה "${assignment.title}" עבור ${assignment.childName}? הגישה לעבודה תיחסם וההיסטוריה תישמר. אי אפשר יהיה להקצות את הפעילות הזו שוב לאותו פרופיל.`,
       )
     )
       return;
@@ -81,10 +83,16 @@ export class AssignmentList {
       await this.api.withdraw(assignment, this.lifetime);
       if (this.lifetime.destroyed) return;
       this.assignments.reload();
-      this.notice.set('ההקצאה בוטלה.');
+      this.notice.set('ההקצאה בוטלה. היא נשמרת בבחירה "ההקצאה בוטלה".');
     } catch (error) {
       if (!this.lifetime.destroyed)
-        this.error.set(this.failure(error) + ' ייתכן שהפעולה נשמרה. בדקו ברשימה לפני ניסיון נוסף.');
+        this.error.set(
+          writeError(
+            this.failure(error),
+            error,
+            'ייתכן שהפעולה נשמרה. בדקו ברשימה לפני ניסיון נוסף.',
+          ),
+        );
     } finally {
       if (!this.lifetime.destroyed) {
         this.busy.set(false);

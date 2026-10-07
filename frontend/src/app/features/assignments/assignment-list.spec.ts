@@ -47,7 +47,9 @@ describe('Parent assignment list', () => {
   }
   it('pages and resets paging on child/status filters, including disabled profiles', async () => {
     const { fixture, http, root } = await open();
-    root.querySelector<HTMLButtonElement>('#assignments-next')!.click();
+    root
+      .querySelector<HTMLButtonElement>('nav[aria-label="עמודי פעילויות"] button:last-of-type')!
+      .click();
     TestBed.tick();
     http.expectOne('/api/assignments?page=2').flush(page([], false, 2));
     await fixture.whenStable();

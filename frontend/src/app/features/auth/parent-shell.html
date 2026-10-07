@@ -10,7 +10,7 @@
           ariaCurrentWhenActive="page"
           ><span class="icon icon-home" aria-hidden="true"></span><span>המרחב שלנו</span></a
         >
-        <button class="nav-link text-muted" (click)="logout()" [disabled]="signingOut()">
+        <button class="nav-link text-muted" (click)="logout()" [disabledInteractive]="signingOut()">
           <span class="icon icon-sign-out" aria-hidden="true"></span
           ><span>{{ signingOut() ? 'מתנתקים…' : 'יציאה' }}</span>
         </button>
@@ -20,7 +20,7 @@
     }
   </div>
   @if (auth.signedIn()) {
-    <nav class="mb-6 flex flex-wrap gap-x-6 gap-y-3" aria-label="ניהול המשפחה">
+    <nav class="mb-2 flex flex-wrap gap-x-6 gap-y-1" aria-label="ניהול המשפחה">
       <a
         class="text-link aria-[current=page]:font-semibold"
         routerLink="/children"

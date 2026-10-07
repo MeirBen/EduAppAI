@@ -48,14 +48,14 @@ export class ChildActivation {
         const identity = await this.auth.activate(code, this.lifetime);
         if (this.lifetime.destroyed) return;
         if (identity) await this.router.navigateByUrl('/child', { replaceUrl: true });
-        else this.error.set('לא נמצאה גישה פעילה. צריך לבקש מההורה קוד חדש.');
+        else this.error.set('לא נמצאה גישה פעילה. בקשו מההורה קוד חדש.');
       } catch (error) {
         if (this.lifetime.destroyed) return;
         const status = childStatus(error);
         this.recovery.set(status !== 400 && status !== 429);
         this.error.set(
           status === 400
-            ? 'הקוד אינו תקף או שכבר נוצל. צריך לבקש מההורה קוד חדש.'
+            ? 'הקוד לא תקף או שכבר השתמשו בו. בקשו מההורה קוד חדש.'
             : status === 409
               ? 'כבר פתוח חשבון בדפדפן הזה. הפעילו את מכשיר הילד בדפדפן נפרד, או סגרו קודם את החשבון הפעיל.'
               : status === 429
@@ -77,11 +77,11 @@ export class ChildActivation {
       if (identity) await this.router.navigateByUrl('/child', { replaceUrl: true });
       else {
         this.recovery.set(false);
-        this.error.set('לא נמצאה גישה פעילה. צריך לבקש מההורה קוד חדש.');
+        this.error.set('לא נמצאה גישה פעילה. בקשו מההורה קוד חדש.');
       }
     } catch {
       if (!this.lifetime.destroyed)
-        this.error.set('לא הצלחנו לבדוק את הגישה כרגע. אפשר לבדוק שוב בעוד רגע.');
+        this.error.set('לא הצלחנו לבדוק את הגישה כרגע. נסו שוב בעוד רגע.');
     } finally {
       if (!this.lifetime.destroyed) this.busy.set(false);
     }

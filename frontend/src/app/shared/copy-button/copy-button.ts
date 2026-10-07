@@ -28,7 +28,7 @@ export class CopyButton {
   protected readonly feedback: Record<CopyState, { icon: string; message: string }> = {
     ready: { icon: 'icon-copy', message: '' },
     copied: { icon: 'icon-check', message: 'הועתק' },
-    failed: { icon: 'icon-alert', message: 'לא ניתן להעתיק. סמנו את הטקסט והעתיקו ידנית.' },
+    failed: { icon: 'icon-alert', message: 'ההעתקה לא הצליחה. סמנו את הטקסט והעתיקו ידנית.' },
   };
   private reset?: ReturnType<typeof setTimeout>;
 

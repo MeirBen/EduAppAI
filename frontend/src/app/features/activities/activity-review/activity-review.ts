@@ -20,11 +20,17 @@ export class ActivityReview {
   readonly saved = input(false);
   /** Local edits or a running generation may still change the checks. */
   readonly outdated = input(false);
-  protected readonly summary = computed(() =>
-    this.issues().length
-      ? 'לפני סימון כמוכנה יש לטפל בדברים הבאים:'
+  /** Only the text exists so far; its questions are the next step. */
+  readonly questionsNext = input(false);
+  protected readonly summary = computed(() => {
+    if (this.questionsNext())
+      return this.issues().length
+        ? 'כדי ליצור את השאלות, טפלו בדברים הבאים:'
+        : 'קראו את הטקסט ותקנו אותו לפי הצורך. כשהוא מוכן, צרו את השאלות.';
+    return this.issues().length
+      ? 'כדי לסמן את הפעילות כמוכנה, טפלו בדברים הבאים:'
       : this.saved() && !this.outdated()
         ? 'הפעילות מוכנה לבדיקה שלכם.'
-        : '',
-  );
+        : '';
+  });
 }

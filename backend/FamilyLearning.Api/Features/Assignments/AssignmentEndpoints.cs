@@ -62,7 +62,8 @@ public static class AssignmentEndpoints
             return Results.ValidationProblem(new Dictionary<string, string[]> { ["status"] = ["מצב ההקצאה אינו תקף."] });
         var query = db.Assignments.AsNoTracking().Where(a => a.FamilyId == user.FamilyId());
         if (childId.HasValue) query = query.Where(a => a.ChildId == childId.Value);
-        if (status is not null) query = query.Where(a => a.Status == status);
+        // Withdrawn work is history: only its own filter lists it.
+        query = status is null ? query.Where(a => a.Status != "withdrawn") : query.Where(a => a.Status == status);
         var rows = await query.OrderByDescending(a => a.CreatedAtUtc).ThenByDescending(a => a.Id)
             .Select(AssignmentSummary.Projection).Skip(paging.Offset).Take(pageSize + 1).ToListAsync(ct);
         return Results.Ok(PageResponse<AssignmentSummary>.From(rows, page, pageSize));

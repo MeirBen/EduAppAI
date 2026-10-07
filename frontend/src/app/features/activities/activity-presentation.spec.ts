@@ -108,9 +108,9 @@ describe('Parent-facing activity presentation', () => {
     });
     expect(reviewIssues(saved)).toEqual(['אין מספיק מקום לטקסטים ולשאלות שהתבקשו.']);
     expect(fieldPointers(issues, form, saved.plan)).toEqual([
-      'יש לתקן את המסומן בכותרת.',
-      `יש לתקן את המסומן בטקסט "${material.label}".`,
-      'יש לתקן את המסומן בשאלות 1 ו-2.',
+      'תקנו את המסומן בכותרת.',
+      `תקנו את המסומן בטקסט "${material.label}".`,
+      'תקנו את המסומן בשאלות 1 ו-2.',
     ]);
     expect(savedContentIssues(saved, { ...form, title: 'פעילות' }, form).title).toBeUndefined();
   });

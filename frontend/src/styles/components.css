@@ -87,6 +87,14 @@
   .chip {
     @apply inline-flex min-h-11 items-center gap-2 rounded-full border border-line bg-surface px-4 py-2 text-start text-sm text-balance text-ink shadow-control transition-colors actionable:hover:border-brand/30 actionable:hover:bg-soft;
   }
+  /* One choice among a few: a fieldset of labels around visually hidden radios; the checked one fills its segment. */
+  .segmented {
+    @apply flex w-fit items-center gap-0.5 rounded-full bg-soft p-1;
+
+    & > label {
+      @apply relative grid cursor-pointer place-items-center rounded-full text-muted transition-colors not-has-checked:hover:text-ink has-checked:bg-brand has-checked:text-on-brand forced-colors:has-checked:border-2 has-focus-visible:outline-2 has-focus-visible:outline-offset-2 has-focus-visible:outline-focus;
+    }
+  }
 
   /* Surfaces. */
   .panel {
@@ -175,9 +183,10 @@
   .icon-tile {
     @apply grid shrink-0 place-items-center rounded-inset bg-accent text-brand ring-1 ring-brand/15 ring-inset;
   }
-  /* An outcome beside a status title; `data-problem` marks a failure. */
+  /* An outcome beside a status title, centered on its first line; `data-problem` marks a failure. */
   .status-icon {
     @apply grid size-9 shrink-0 place-items-center rounded-full bg-soft text-brand;
+    margin-block-start: calc((1lh - --spacing(9)) / 2);
 
     &[data-problem] {
       @apply bg-danger-soft text-danger;

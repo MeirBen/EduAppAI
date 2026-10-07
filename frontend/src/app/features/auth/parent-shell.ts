@@ -4,11 +4,12 @@ import { Auth } from '../../core/auth/auth';
 import { parentSignOut } from '../../core/auth/login-guard';
 import { apiError } from '../../core/api/api-error';
 import { PageShell } from '../../shared/page-shell/page-shell';
+import { DisabledInteractive } from '../../shared/disabled-interactive';
 
 /** Parent shell with session-aware navigation and explicit sign-out feedback. */
 @Component({
   selector: 'app-parent-shell',
-  imports: [PageShell, RouterOutlet, RouterLink, RouterLinkActive],
+  imports: [PageShell, RouterOutlet, RouterLink, RouterLinkActive, DisabledInteractive],
   templateUrl: './parent-shell.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })

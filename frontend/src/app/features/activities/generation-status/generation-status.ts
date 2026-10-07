@@ -88,13 +88,9 @@ export class GenerationStatus {
       case 'completed':
         return {
           title: completedTitles[scope],
-          // The review panel below already asks for a general review; text asks for its own check.
+          // The review panel below guides the next step; only a rewritten text adds a check.
           details:
-            scope === 'text'
-              ? ['בדקו את הטקסט ותקנו אותו לפי הצורך, ואז צרו את השאלות.']
-              : scope === 'material'
-                ? ['בדקו את הטקסט ואת השאלות שתלויות בו לפני סימון כמוכנה.']
-                : [],
+            scope === 'material' ? ['בדקו את הטקסט ואת השאלות שתלויות בו לפני סימון כמוכנה.'] : [],
           problem: false,
         };
       case 'failed':
@@ -146,16 +142,20 @@ export class GenerationStatus {
         title: 'הטקסט שנוצר לא עמד בדרישת האורך.',
         details: [...required, unchanged],
         problem: true,
-        retry: scope === 'text' ? { kind: 'GenerateMaterials', label: 'ניסיון נוסף' } : undefined,
+        retry:
+          operation.stage === 'materials'
+            ? { kind: 'GenerateMaterials', label: 'ניסיון נוסף' }
+            : undefined,
       };
     }
     if (scope === 'material' || scope === 'question')
       return {
         title: 'השיפור לא הצליח.',
-        details: [unchanged, 'אפשר לנסות שוב מהחלק עצמו.'],
+        details: [unchanged, 'נסו שוב מהחלק עצמו.'],
         problem: true,
       };
-    return scope === 'questions'
+    // The failed stage, not the kind that started it, names the part that needs another try.
+    return operation.stage === 'questions'
       ? {
           title: 'יצירת השאלות נכשלה.',
           details: [unchanged],

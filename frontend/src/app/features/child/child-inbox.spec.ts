@@ -39,14 +39,13 @@ describe('Child inbox', () => {
       { items: [], page: 2, pageSize: 25, hasMore: false },
     );
     await fixture.whenStable();
-    const filter = root.querySelector('select')!;
-    filter.value = 'submitted';
-    filter.dispatchEvent(new Event('change'));
+    root.querySelector<HTMLInputElement>('input[value="submitted"]')!.click();
     (await vi.waitFor(() => http.expectOne('/api/child/assignments?state=submitted&page=1'))).flush(
       { items: [], page: 1, pageSize: 25, hasMore: false },
     );
     await fixture.whenStable();
-    expect(root.textContent).toContain('עמוד 1');
+    // The first page of the new view needs no paging controls.
+    expect(root.querySelector('nav')).toBeNull();
     http.expectNone((r) => r.method !== 'GET' || r.url === '/api/limits');
   });
 });

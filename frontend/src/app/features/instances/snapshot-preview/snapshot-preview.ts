@@ -12,7 +12,7 @@ import {
 import { DatePipe } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { LearningApi } from '../../../core/api/learning-api';
-import { apiError } from '../../../core/api/api-error';
+import { apiError, writeError } from '../../../core/api/api-error';
 import { ActivityDocumentView } from '../../activities/activity-document-view/activity-document-view';
 import { focusHolder } from '../../../shared/focus-holder';
 import { LoadingIndicator } from '../../../shared/loading-indicator/loading-indicator';
@@ -80,10 +80,14 @@ export class SnapshotPreviewPage {
     } catch (error) {
       if (!this.lifetime.destroyed)
         this.assignmentError.set(
-          parentTaskError(
+          writeError(
+            parentTaskError(
+              error,
+              'אי אפשר להקצות את הפעילות. ייתכן שהפרופיל הושבת או שהפעילות הועברה לארכיון.',
+            ),
             error,
-            'לא ניתן ליצור הקצאה חדשה. ייתכן שהפרופיל הושבת או שהפעילות הועברה לארכיון.',
-          ) + ' ייתכן שההקצאה נשמרה. בדקו בפעילויות לילדים לפני ניסיון נוסף.',
+            'ייתכן שההקצאה נשמרה. בדקו בפעילויות לילדים לפני ניסיון נוסף.',
+          ),
         );
     } finally {
       if (!this.lifetime.destroyed) this.assigning.set(false);
@@ -99,7 +103,13 @@ export class SnapshotPreviewPage {
       if (!this.lifetime.destroyed) this.copiedId.set(draft.id);
     } catch (error) {
       if (!this.lifetime.destroyed)
-        this.error.set(apiError(error) + ' ייתכן שהעותק נשמר. בדקו בספרייה לפני ניסיון נוסף.');
+        this.error.set(
+          writeError(
+            apiError(error),
+            error,
+            'ייתכן שהטיוטה נוצרה. בדקו במרחב שלנו לפני ניסיון נוסף.',
+          ),
+        );
     } finally {
       if (!this.lifetime.destroyed) {
         this.copying.set(false);

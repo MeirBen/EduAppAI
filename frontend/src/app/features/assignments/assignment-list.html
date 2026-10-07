@@ -1,10 +1,20 @@
-<section class="grid gap-6 py-gutter" aria-labelledby="assignments-heading">
-  <header class="grid gap-1">
-    <h1 id="assignments-heading">פעילויות לילדים</h1>
-    <p class="text-muted">
-      עבודה זמינה, הגשות וציונים. להקצאה חדשה, פתחו פעילות מוכנה
-      <a class="text-link" routerLink="/templates">במרחב שלנו</a>.
-    </p>
+<section class="grid gap-6" aria-labelledby="assignments-heading">
+  <header class="flex flex-wrap items-end justify-between gap-4">
+    <div class="grid gap-1">
+      <h1 id="assignments-heading">פעילויות לילדים</h1>
+      <p class="text-muted">
+        עבודה זמינה, הגשות וציונים. להקצאה חדשה, פתחו פעילות מוכנה
+        <a routerLink="/templates">במרחב שלנו</a>.
+      </p>
+    </div>
+    <button
+      id="refresh-assignments"
+      class="text-link"
+      [disabledInteractive]="busy() || assignments.isLoading()"
+      (click)="assignments.reload()"
+    >
+      רענון הפעילויות
+    </button>
   </header>
   <div class="grid gap-4 sm:grid-cols-2">
     <app-child-selector
@@ -16,31 +26,21 @@
     <label
       ><span class="mb-2 block">מצב הפעילות</span
       ><select [value]="status()" [disabled]="busy()" (change)="filterStatus($event)">
-        <option value="">כל המצבים</option>
+        <option value="">ללא הקצאות שבוטלו</option>
         @for (option of statusOptions; track option[0]) {
           <option [value]="option[0]">{{ option[1] }}</option>
         }
       </select></label
     >
   </div>
-  <div class="grid gap-2">
-    <button
-      id="refresh-assignments"
-      class="text-link justify-self-start"
-      [disabledInteractive]="busy() || assignments.isLoading()"
-      (click)="assignments.reload()"
-    >
-      רענון הפעילויות
-    </button>
-    @if (error() || assignments.error()) {
-      <p class="error" role="alert">{{ error() || failure(assignments.error()) }}</p>
-    }
-    @if (notice()) {
-      <p class="note" role="status">
-        <span class="icon icon-info" aria-hidden="true"></span>{{ notice() }}
-      </p>
-    }
-  </div>
+  @if (error() || assignments.error()) {
+    <p class="error" role="alert">{{ error() || failure(assignments.error()) }}</p>
+  }
+  @if (notice()) {
+    <p class="note" role="status">
+      <span class="icon icon-info" aria-hidden="true"></span>{{ notice() }}
+    </p>
+  }
   <app-loading-indicator
     [active]="busy() || assignments.isLoading()"
     label="מעדכנים את רשימת הפעילויות…"
@@ -78,25 +78,22 @@
           }
         </article>
       } @empty {
-        <p class="empty-state">אין פעילויות בעמוד זה עבור הבחירה הנוכחית.</p>
+        <p class="empty-state">
+          {{
+            page() > 1
+              ? 'אין פעילויות נוספות.'
+              : childId() || status()
+                ? 'אין פעילויות שמתאימות לבחירה.'
+                : 'אין כרגע פעילויות שהוקצו.'
+          }}
+        </p>
       }
     </div>
-    <nav class="flex flex-wrap items-center gap-3" aria-label="עמודי פעילויות">
-      <button
-        class="button button-secondary"
-        [disabledInteractive]="busy() || assignments.isLoading() || page() === 1"
-        (click)="page.set(page() - 1)"
-      >
-        הקודם</button
-      ><span>עמוד {{ page() }}</span
-      ><button
-        id="assignments-next"
-        class="button button-secondary"
-        [disabledInteractive]="busy() || assignments.isLoading() || !assignments.value().hasMore"
-        (click)="page.set(page() + 1)"
-      >
-        הבא
-      </button>
-    </nav>
+    <app-pager
+      label="עמודי פעילויות"
+      [(page)]="page"
+      [hasMore]="assignments.value().hasMore"
+      [busy]="busy() || assignments.isLoading()"
+    />
   }
 </section>

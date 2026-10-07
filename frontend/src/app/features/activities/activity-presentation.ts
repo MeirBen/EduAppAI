@@ -159,10 +159,10 @@ export function fieldPointers(
   const numbers = document.questions.flatMap((q, i) => (issues.questions.has(q.id) ? [i + 1] : []));
   const list = new Intl.ListFormat('he', { type: 'conjunction' }).format(numbers.map(String));
   return [
-    ...(issues.title ? ['יש לתקן את המסומן בכותרת.'] : []),
-    ...[...issues.materials.keys()].map((id) => `יש לתקן את המסומן בטקסט "${label(id)}".`),
+    ...(issues.title ? ['תקנו את המסומן בכותרת.'] : []),
+    ...[...issues.materials.keys()].map((id) => `תקנו את המסומן בטקסט "${label(id)}".`),
     ...(numbers.length
-      ? [`יש לתקן את המסומן ${numbers.length === 1 ? 'בשאלה' : 'בשאלות'} ${list}.`]
+      ? [`תקנו את המסומן ${numbers.length === 1 ? 'בשאלה' : 'בשאלות'} ${list}.`]
       : []),
   ];
 }

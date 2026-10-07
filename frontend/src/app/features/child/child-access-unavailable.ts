@@ -8,11 +8,11 @@ import { DisabledInteractive } from '../../shared/disabled-interactive';
   imports: [RouterLink, DisabledInteractive],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: ` <section
-    class="panel mx-auto my-gutter grid max-w-lg gap-4"
+    class="panel mx-auto grid max-w-lg gap-4"
     aria-labelledby="child-unavailable-title"
   >
     <h1 id="child-unavailable-title" class="text-2xl">הפעילויות לא זמינות כרגע</h1>
-    <p class="error" role="alert">לא הצלחנו לבדוק את הגישה למכשיר. אפשר לנסות שוב בעוד רגע.</p>
+    <p class="error" role="alert">לא הצלחנו לבדוק את הגישה למכשיר. נסו שוב בעוד רגע.</p>
     <button
       class="button"
       routerLink="/child"

@@ -115,7 +115,7 @@ describe('Parent frozen result and grading', () => {
     expect(root.querySelector('[data-child-answer="text"]')!.textContent).toBe('  תשובה\n ');
     expect(root.querySelector('#grade-auto')).toBeNull();
     expect(root.querySelector<HTMLInputElement>('#grade-text')!.value).toBe('');
-    expect(root.textContent).toContain('סכום אוטומטי');
+    expect(root.textContent).toContain('ניקוד אוטומטי');
     expect(root.textContent).not.toContain('ציון סופי:');
   });
   it.each([
@@ -123,9 +123,9 @@ describe('Parent frozen result and grading', () => {
     ['2026-10-01T00:53:00Z', '7 דקות'],
     ['2026-09-30T23:53:00Z', 'שעה ו־7 דקות'],
     ['2026-09-29T23:00:00Z', '26 שעות'],
-    [null, 'משך הזמן אינו זמין'],
-    ['invalid', 'משך הזמן אינו זמין'],
-    ['2026-10-01T02:00:00Z', 'משך הזמן אינו זמין'],
+    [null, 'משך הזמן לא זמין'],
+    ['invalid', 'משך הזמן לא זמין'],
+    ['2026-10-01T02:00:00Z', 'משך הזמן לא זמין'],
   ])(
     'shows elapsed time for start %s independently of review time',
     async (startedAtUtc, expected) => {
@@ -149,8 +149,8 @@ describe('Parent frozen result and grading', () => {
       });
       await fixture.whenStable();
       const root = fixture.nativeElement as HTMLElement;
-      expect(root.textContent).toContain(startedAtUtc ? 'נפתחה ב־' : 'טרם נפתחה');
-      expect(root.textContent).toContain('טרם הוגשה');
+      expect(root.textContent).toContain(startedAtUtc ? 'נפתחה ב־' : 'עוד לא נפתחה');
+      expect(root.textContent).toContain('עוד לא הוגשה');
       expect(root.querySelector('[data-elapsed-time]')).toBeNull();
       http.expectNone((r) => r.method !== 'GET' || r.url.endsWith('/result'));
     },
@@ -160,9 +160,9 @@ describe('Parent frozen result and grading', () => {
     async (submittedAtUtc) => {
       const { root } = await open({ ...completed(), submittedAtUtc });
       expect(root.querySelector('[data-elapsed-time]')?.textContent?.trim()).toBe(
-        'משך הזמן אינו זמין',
+        'משך הזמן לא זמין',
       );
-      expect(root.textContent).not.toContain('טרם הוגשה');
+      expect(root.textContent).not.toContain('עוד לא הוגשה');
     },
   );
   it.each(['', '-1', '4', '1.5', '1e0'])(

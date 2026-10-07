@@ -5,7 +5,7 @@ import { apiError } from './api-error';
 export function parentTaskError(error: unknown, conflict: string): string {
   if (error instanceof HttpErrorResponse) {
     if (error.status === 409) return conflict;
-    if (error.status >= 500) return 'השרת לא הצליח להשלים את הבקשה. אפשר לנסות שוב בעוד רגע.';
+    if (error.status >= 500) return 'השרת לא הצליח להשלים את הבקשה. נסו שוב בעוד רגע.';
   }
   return apiError(error);
 }

@@ -1,4 +1,4 @@
-<section class="mx-auto grid max-w-3xl gap-6 py-gutter" aria-labelledby="player-title">
+<section class="mx-auto grid max-w-3xl gap-6" aria-labelledby="player-title">
   <a class="text-link justify-self-start" routerLink="/child"
     ><span class="icon icon-back" aria-hidden="true"></span>לפעילויות שלי</a
   >
@@ -50,7 +50,7 @@
             @for (question of document.questions; track question.id; let index = $index) {
               <li class="grid gap-2">
                 <div>
-                  <label class="mb-2 block whitespace-pre-wrap" [for]="'answer-' + question.id"
+                  <label class="whitespace-pre-wrap" [for]="'answer-' + question.id"
                     ><bdi>{{ question.prompt }}</bdi></label
                   >
                   @switch (question.interaction.type) {
@@ -79,7 +79,7 @@
                         "
                       />
                       <p class="mt-2 text-sm text-muted" [id]="'number-help-' + question.id">
-                        מספר עם נקודה עשרונית לפי הצורך, ללא מפרידי אלפים.
+                        כתבו את המספר בלי פסיקים, למשל 1250 או 3.5
                       </p>
                     }
                     @case ('text-input') {
@@ -123,54 +123,43 @@
     }
     @if (terminal()) {
       @let receipt = outcome()!;
-      <section class="well grid gap-2" aria-labelledby="receipt-title">
-        <h2 id="receipt-title">העבודה הוגשה</h2>
-        <p>
-          {{
-            receipt.status === 'awaiting-review'
-              ? 'התשובות נשמרו ומחכות לבדיקה של ההורה.'
-              : 'הבדיקה הושלמה.'
-          }}
-        </p>
-        @if (receipt.submittedAtUtc) {
+      <section class="well flex items-start gap-3" aria-labelledby="receipt-title">
+        <span class="status-icon" aria-hidden="true"><span class="icon icon-check"></span></span>
+        <div class="grid min-w-0 gap-1">
+          <h2 id="receipt-title">העבודה הוגשה</h2>
           <p>
-            הוגשה ב־<bdi>{{ receipt.submittedAtUtc | date }}</bdi>
+            {{
+              receipt.status === 'awaiting-review'
+                ? 'התשובות מחכות עכשיו לבדיקה של ההורה.'
+                : 'הבדיקה הושלמה.'
+            }}
           </p>
-        }
-        @if (
-          receipt.status === 'completed' &&
-          receipt.finalTotal !== null &&
-          receipt.possibleTotal !== null
-        ) {
-          <p>
-            ציון סופי: {{ receipt.finalTotal }} מתוך {{ receipt.possibleTotal }}
-            @if (receipt.possibleTotal > 0) {
-              <span>
-                ({{ (receipt.finalTotal / receipt.possibleTotal) * 100 | number: '1.0-1' }}%)</span
-              >
-            }
-          </p>
-        }
+          @if (receipt.submittedAtUtc) {
+            <p class="text-sm text-muted">
+              הוגשה ב־<bdi>{{ receipt.submittedAtUtc | date }}</bdi>
+            </p>
+          }
+          @if (
+            receipt.status === 'completed' &&
+            receipt.finalTotal !== null &&
+            receipt.possibleTotal !== null
+          ) {
+            <p class="font-semibold">
+              ציון סופי: {{ receipt.finalTotal }} מתוך {{ receipt.possibleTotal }}
+              @if (receipt.possibleTotal > 0) {
+                <span>
+                  ({{
+                    (receipt.finalTotal / receipt.possibleTotal) * 100 | number: '1.0-1'
+                  }}%)</span
+                >
+              }
+            </p>
+          }
+        </div>
       </section>
     }
-    <section class="action-bar grid gap-4" aria-labelledby="answer-actions-title">
+    <section class="action-bar" aria-labelledby="answer-actions-title">
       <h2 id="answer-actions-title" class="sr-only">שמירה והגשה</h2>
-      @if (session()?.status === 'assigned' && !terminal()) {
-        <p role="status">
-          {{
-            busy()
-              ? 'שומרים את התשובות…'
-              : dirty()
-                ? 'יש תשובות שלא נשמרו.'
-                : 'כל התשובות שבעמוד שמורות.'
-          }}
-        </p>
-        @if (session()?.savedAtUtc) {
-          <p class="text-sm text-muted">
-            שמירה אחרונה: <bdi>{{ session()!.savedAtUtc | date }}</bdi>
-          </p>
-        }
-      }
       <app-loading-indicator [active]="busy() || reading()" label="מעדכנים את העבודה…" />
       @if (notice()) {
         <p class="note" role="status">
@@ -183,50 +172,73 @@
       @if (blocked() === 401) {
         <a class="button justify-self-start" routerLink="/child/activate">הפעלת המכשיר מחדש</a>
       }
-      <div class="flex flex-wrap gap-3">
-        @if (session()?.status === 'assigned' && !terminal()) {
-          <button
-            class="button"
-            type="submit"
-            form="answer-form"
-            [disabledInteractive]="busy() || reading() || recovery() || !!blocked()"
-          >
-            הגשת העבודה
-          </button>
-          <button
-            id="save-answers"
-            class="button button-secondary"
-            [disabledInteractive]="busy() || reading() || recovery() || !!blocked() || !dirty()"
-            (click)="write(false)"
-          >
-            שמירת התשובות
-          </button>
-        }
-        @if (!session() && !recovery() && !blocked()) {
-          <button class="button" [disabledInteractive]="busy() || reading()" (click)="start()">
-            פתיחת הפעילות
-          </button>
-        }
-        @if ((session() || recovery()) && !blocked()) {
-          <button
-            id="read-saved-session"
-            class="button button-secondary"
-            [disabledInteractive]="busy() || reading()"
-            (click)="readSaved()"
-          >
-            בדיקת העבודה השמורה
-          </button>
-        }
-        @if (savedSession() && !blocked()) {
-          <button
-            id="use-saved-session"
-            class="button button-secondary"
-            [disabledInteractive]="busy() || reading()"
-            (click)="useSaved()"
-          >
-            טעינת העבודה השמורה
-          </button>
-        }
+      <div class="flex flex-wrap items-center gap-x-6 gap-y-2">
+        <div class="flex grow flex-wrap items-center gap-3">
+          @if (session()?.status === 'assigned' && !terminal()) {
+            <button
+              class="button"
+              type="submit"
+              form="answer-form"
+              [disabledInteractive]="busy() || reading() || recovery() || !!blocked()"
+            >
+              הגשת העבודה
+            </button>
+            <button
+              id="save-answers"
+              class="button button-secondary"
+              [disabledInteractive]="busy() || reading() || recovery() || !!blocked() || !dirty()"
+              (click)="write(false)"
+            >
+              שמירת התשובות
+            </button>
+          }
+          @if (!session() && !recovery() && !blocked()) {
+            <button class="button" [disabledInteractive]="busy() || reading()" (click)="start()">
+              פתיחת הפעילות
+            </button>
+          }
+          @if (savedSession() && !blocked()) {
+            <button
+              id="use-saved-session"
+              class="button button-secondary"
+              [disabledInteractive]="busy() || reading()"
+              (click)="useSaved()"
+            >
+              טעינת העבודה השמורה
+            </button>
+          }
+        </div>
+        <div class="flex flex-wrap items-center gap-x-4 text-sm text-muted">
+          @if (session()?.status === 'assigned' && !terminal()) {
+            <p class="flex items-center gap-2">
+              <span class="h-2 w-16 overflow-hidden rounded-full bg-soft" aria-hidden="true"
+                ><span
+                  class="block h-full rounded-full bg-brand transition-[width] motion-reduce:transition-none"
+                  [style.width.%]="(answered() / answers().length) * 100"
+                ></span
+              ></span>
+              ענית על {{ answered() }} מתוך {{ answers().length }}
+            </p>
+            <p>
+              <span role="status" [class.font-medium]="dirty()" [class.text-ink]="dirty()">{{
+                busy() ? 'שומרים…' : dirty() ? 'יש תשובות שלא נשמרו' : 'כל התשובות שמורות'
+              }}</span>
+              @if (session()?.savedAtUtc && !dirty()) {
+                · <bdi>{{ session()!.savedAtUtc | date }}</bdi>
+              }
+            </p>
+          }
+          @if ((recovery() || terminal()) && !blocked()) {
+            <button
+              id="read-saved-session"
+              class="text-link"
+              [disabledInteractive]="busy() || reading()"
+              (click)="readSaved()"
+            >
+              <span class="icon icon-refresh" aria-hidden="true"></span>בדיקת העבודה השמורה
+            </button>
+          }
+        </div>
       </div>
     </section>
   }

@@ -21,7 +21,7 @@ export class ChildShell {
   protected async logout() {
     if (
       this.signingOut() ||
-      !window.confirm('לנתק את המכשיר? כדי לחזור לפעילויות יהיה צורך בקוד חדש מההורה.')
+      !window.confirm('לנתק את המכשיר? כדי לחזור לפעילויות תצטרכו קוד חדש מההורה.')
     )
       return;
     this.signingOut.set(true);

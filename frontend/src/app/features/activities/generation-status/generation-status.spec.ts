@@ -160,7 +160,7 @@ describe('GenerationStatus', () => {
       diagnosticsExpired: true,
       artifacts: null,
     });
-    expect(root.textContent).toContain('פג תוקף');
+    expect(root.textContent).toContain('הפרטים הטכניים כבר לא זמינים');
     expect(root.textContent).toContain('לא ידועה');
     expect(root.querySelector('[data-edit-candidate]')).toBeNull();
   });

@@ -137,7 +137,7 @@ describe('ActivityWorkspace plan ownership', () => {
       definition: save.request.body.definition,
     });
     await settle();
-    expect(root().textContent).toContain('התבנית נשמרה בספרייה.');
+    expect(root().textContent).toContain('התבנית נשמרה במרחב שלנו.');
     expect(root().textContent).not.toContain('הפעילות לא השתנתה');
     expect(root().textContent).not.toContain('לא נשמר');
     http.expectNone('/api/activity-drafts');

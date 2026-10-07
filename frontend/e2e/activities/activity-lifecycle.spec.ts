@@ -254,7 +254,7 @@ test('saves before generation, edits manually, reviews the current revision and 
   await expect(page.getByText('נשמר', { exact: true })).toBeVisible();
   expect(state.writes.filter((w) => w.path.endsWith('/operations'))).toHaveLength(1);
   await page.locator('#release-activity').click();
-  await page.getByRole('link', { name: 'צפייה בפעילות המוכנה' }).click();
+  await page.getByRole('link', { name: 'הקצאה לילדים' }).click();
   await expect(page.getByRole('heading', { name: 'פעילות מוכנה — תצוגה להורים' })).toBeVisible();
   await expect(page.locator('textarea')).toHaveCount(0);
   await page.locator('summary').first().click();

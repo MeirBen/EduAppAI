@@ -70,6 +70,23 @@ describe('Immutable parent preview', () => {
     http.verify();
   });
 
+  it('explains that a withdrawn pair cannot be assigned again instead of calling it assigned', async () => {
+    const { root, http, fixture } = await preview([]);
+    const selector = root.querySelector('select')!;
+    selector.value = 'child';
+    selector.dispatchEvent(new Event('change'));
+    await fixture.whenStable();
+    root.querySelector<HTMLButtonElement>('#assign-snapshot')!.click();
+    http
+      .expectOne('/api/assignments')
+      .flush({ id: 'existing', status: 'withdrawn', childName: 'נועה' });
+    await fixture.whenStable();
+    expect(root.querySelector('[role="alert"]')!.textContent).toContain('בוטלה');
+    expect(root.textContent).toContain('כטיוטה חדשה');
+    expect(root.textContent).not.toContain('כבר הוקצתה');
+    http.verify();
+  });
+
   it('explains archived content while retaining the parent preview and copy action', async () => {
     const { root, http } = await preview([], '2026-10-06T00:00:00Z');
     expect(root.textContent).toContain('הפעילות בארכיון');

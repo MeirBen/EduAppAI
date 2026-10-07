@@ -100,7 +100,9 @@ describe('Parent child management', () => {
     update.flush({}, { status: 409, statusText: 'Conflict' });
     await fixture.whenStable();
     await vi.waitFor(() => expect(root.textContent).toContain('הפרופיל השתנה'));
-    expect(root.textContent).not.toContain('התבנית השתנתה');
+    expect(root.textContent).not.toContain('הנתונים השתנו בינתיים');
+    // A conflict is a definite rejection, so the message never suggests the save may have applied.
+    expect(root.textContent).not.toContain('ייתכן שהפעולה נשמרה');
     root.querySelector<HTMLButtonElement>('#refresh-children')!.click();
     TestBed.tick();
     http
@@ -187,7 +189,7 @@ describe('Parent child management', () => {
     await edit();
     expect(root.querySelector('#delete-child')).toBeNull();
     expect(root.querySelector('#child-enabled')).not.toBeNull();
-    expect(root.textContent).toContain('לפרופיל יש פעילויות שמורות');
+    expect(root.textContent).toContain('לפרופיל יש פעילויות, ולכן אפשר רק להשבית אותו');
   });
   it('keeps profile dates in a quiet disclosure and shows only known update times', async () => {
     const { root, edit } = await open({ ...child, updatedAtUtc: '2026-10-02T10:30:00Z' });
@@ -311,7 +313,9 @@ describe('Parent child management', () => {
 
   it('requires confirmation for disabling and revoking, and pages devices and profiles', async () => {
     const { fixture, http, root, edit, submit } = await open();
-    root.querySelector<HTMLButtonElement>('#children-next')!.click();
+    root
+      .querySelector<HTMLButtonElement>('nav[aria-label="עמודי פרופילים"] button:last-of-type')!
+      .click();
     TestBed.tick();
     http.expectOne('/api/children?page=2').flush(page([child], false, 2));
     await fixture.whenStable();
@@ -354,7 +358,9 @@ describe('Parent child management', () => {
       page([], true),
     );
     await fixture.whenStable();
-    root.querySelector<HTMLButtonElement>('#devices-next')!.click();
+    root
+      .querySelector<HTMLButtonElement>('nav[aria-label="עמודי מכשירים"] button:last-of-type')!
+      .click();
     TestBed.tick();
     http.expectOne('/api/children/child/devices?page=2').flush(page([], false, 2));
   });

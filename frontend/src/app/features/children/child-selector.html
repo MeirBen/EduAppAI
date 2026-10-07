@@ -27,27 +27,15 @@
   }
   @if (children.hasValue()) {
     @if (!children.value().items.length) {
-      <p class="text-sm text-muted">אין פרופילים בעמוד זה.</p>
+      <p class="text-sm text-muted">
+        {{ page() === 1 ? 'עוד לא הוספתם ילדים.' : 'אין פרופילים נוספים.' }}
+      </p>
     }
-    @if (page() > 1 || children.value().hasMore) {
-      <nav class="flex flex-wrap items-center gap-3" aria-label="עמודי בחירת פרופיל">
-        <button
-          type="button"
-          class="text-link"
-          [disabledInteractive]="disabled() || children.isLoading() || page() === 1"
-          (click)="page.set(page() - 1)"
-        >
-          פרופילים קודמים</button
-        ><span>עמוד {{ page() }}</span
-        ><button
-          type="button"
-          class="text-link"
-          [disabledInteractive]="disabled() || children.isLoading() || !children.value().hasMore"
-          (click)="page.set(page() + 1)"
-        >
-          פרופילים נוספים
-        </button>
-      </nav>
-    }
+    <app-pager
+      label="עמודי בחירת פרופיל"
+      [(page)]="page"
+      [hasMore]="children.value().hasMore"
+      [busy]="disabled() || children.isLoading()"
+    />
   }
 </div>

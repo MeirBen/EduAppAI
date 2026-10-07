@@ -30,6 +30,7 @@ import { FieldErrors } from '../../shared/forms/field-errors';
 import { FieldValidity } from '../../shared/forms/field-validity';
 import { LoadingIndicator } from '../../shared/loading-indicator/loading-indicator';
 import { childError, childStatus } from './child-error';
+import { writeError } from '../../core/api/api-error';
 
 /** Page-owned answer buffer. Reads offer a checkpoint; only acknowledgement or explicit acceptance replaces edits. */
 @Component({
@@ -61,6 +62,9 @@ export class ChildPlayer {
   protected readonly session = signal<LearnerSession | undefined>(undefined);
   protected readonly savedSession = signal<LearnerSession | undefined>(undefined);
   protected readonly answers = signal<LearnerAnswer[]>([]);
+  protected readonly answered = computed(
+    () => this.answers().filter((answer) => answer.value.trim()).length,
+  );
   protected readonly busy = signal(false);
   protected readonly reading = signal(false);
   protected readonly recovery = signal(false);
@@ -89,9 +93,7 @@ export class ChildPlayer {
   protected readonly fields = form(this.answers, (path) => {
     disabled(path, () => this.busy() || this.reading() || this.terminal() || !!this.blocked());
     applyEach(path, (row) => {
-      maxLength(row.value, this.answerLength, {
-        message: `אפשר להזין עד ${this.answerLength} תווים.`,
-      });
+      maxLength(row.value, this.answerLength);
       validate(row.value, ({ value, valueOf }) => {
         const text = value();
         if (!text.trim()) return undefined;
@@ -111,7 +113,7 @@ export class ChildPlayer {
         )
           return {
             kind: 'number',
-            message: 'יש להזין מספר רגיל, עם נקודה עשרונית לפי הצורך וללא מפרידי אלפים.',
+            message: 'יש לכתוב מספר בלי פסיקים, למשל 1250 או 3.5',
           };
         return undefined;
       });
@@ -179,11 +181,13 @@ export class ChildPlayer {
     this.triedSubmit.set(submitting);
     this.error.set('');
     await submit(this.fields, async () => {
-      const missing = this.answers().filter((answer) => !answer.value.trim()).length;
+      const missing = this.answers().length - this.answered();
       if (
         submitting &&
         missing &&
-        !window.confirm(`נותרו ${missing} שאלות ללא תשובה. להגיש בכל זאת?`)
+        !window.confirm(
+          `${missing === 1 ? 'נותרה שאלה אחת' : `נותרו ${missing} שאלות`} ללא תשובה. להגיש בכל זאת?`,
+        )
       )
         return;
       const restore = this.holdFocus();
@@ -196,7 +200,8 @@ export class ChildPlayer {
           : this.api.save(this.assignmentId(), session.revision, answers, this.lifetime));
         if (this.lifetime.destroyed) return;
         this.accept(saved);
-        this.notice.set(submitting ? 'העבודה הוגשה ונשמרה.' : 'התשובות נשמרו.');
+        // The status line already reports a save; only a submission changes the page enough to announce.
+        this.notice.set(submitting ? 'כל הכבוד, סיימת!' : '');
       } catch (error) {
         if (!this.lifetime.destroyed) this.failed(error);
       } finally {
@@ -207,7 +212,7 @@ export class ChildPlayer {
       }
     });
     if (this.fields().invalid()) {
-      this.error.set('יש תשובות שצריך לתקן לפני ההמשך.');
+      this.error.set('תקנו את התשובות המסומנות.');
       this.fields().errorSummary()[0]?.fieldTree().focusBoundControl();
     }
   }
@@ -216,8 +221,11 @@ export class ChildPlayer {
     this.requestBlock.set(status === 401 || status === 404 || status === 410 ? status : undefined);
     this.recovery.set(true);
     this.error.set(
-      childError(error) +
-        (!this.blocked() ? ' ייתכן שהבקשה נשמרה. בדקו את העבודה השמורה לפני ניסיון נוסף.' : ''),
+      writeError(
+        childError(error),
+        error,
+        'ייתכן שהבקשה נשמרה. בדקו את העבודה השמורה לפני ניסיון נוסף.',
+      ),
     );
   }
   protected async readSaved() {
@@ -232,21 +240,19 @@ export class ChildPlayer {
         this.recovery.set(false);
         this.savedSession.set(undefined);
         this.error.set('');
-        this.notice.set('העבודה השמורה נבדקה. התשובות המקומיות נשארו כאן ואפשר להמשיך.');
+        this.notice.set('העבודה השמורה נבדקה. התשובות שכתבתם נשארו כאן, ואפשר להמשיך.');
       } else {
         this.savedSession.set(saved);
         this.recovery.set(true);
         this.error.set('');
-        this.notice.set(
-          'נמצאה עבודה שמורה. התשובות המקומיות נשארו כאן עד לבחירה בטעינת העבודה השמורה.',
-        );
+        this.notice.set('נמצאה עבודה שמורה. התשובות שכתבתם נשארו כאן עד שתטענו אותה.');
       }
     } catch (error) {
       if (this.lifetime.destroyed) return;
       if (!this.session() && childStatus(error) === 404) {
         // A lost start may never have created a session. A new explicit start rechecks ownership/withdrawal.
         this.recovery.set(false);
-        this.error.set('לא נמצאה עבודה שהתחילה. אפשר לנסות לפתוח את הפעילות שוב.');
+        this.error.set('לא נמצאה עבודה שמורה. נסו לפתוח את הפעילות שוב.');
       } else this.failed(error);
     } finally {
       if (!this.lifetime.destroyed) {
@@ -262,7 +268,7 @@ export class ChildPlayer {
       this.blocked() ||
       this.busy() ||
       this.reading() ||
-      (this.dirty() && !window.confirm('להחליף את התשובות שבעמוד בעבודה השמורה?'))
+      (this.dirty() && !window.confirm('להחליף את התשובות שכתבתם בעבודה השמורה?'))
     )
       return;
     const restore = this.holdFocus();

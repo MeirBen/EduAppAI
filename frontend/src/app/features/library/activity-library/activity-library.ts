@@ -15,6 +15,15 @@ import { apiError } from '../../../core/api/api-error';
 import { whenIdle } from '../../../core/when-idle';
 import { focusHolder } from '../../../shared/focus-holder';
 import { LoadingIndicator } from '../../../shared/loading-indicator/loading-indicator';
+import { DisabledInteractive } from '../../../shared/disabled-interactive';
+
+/** A removed ready activity may live on in the archive, so only drafts and templates say "deleted". */
+const removedNotices = {
+  all: 'נתוני הלמידה נמחקו.',
+  draft: 'הטיוטה נמחקה.',
+  template: 'התבנית נמחקה.',
+  snapshot: 'הפעילות הוסרה.',
+};
 
 /**
  * Content-first library; drafts, independent templates and immutable snapshots have distinct routes
@@ -22,7 +31,7 @@ import { LoadingIndicator } from '../../../shared/loading-indicator/loading-indi
  */
 @Component({
   selector: 'app-activity-library',
-  imports: [RouterLink, DatePipe, LoadingIndicator],
+  imports: [RouterLink, DatePipe, LoadingIndicator, DisabledInteractive],
   templateUrl: './activity-library.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
@@ -61,8 +70,8 @@ export class ActivityLibrary {
       kind === 'all'
         ? 'למחוק את כל נתוני הלמידה של המשפחה, כולל פרופילי הילדים, הגישה מהמכשירים, ההקצאות, התשובות, הציונים, התבניות, הטיוטות והפעילויות? אי אפשר לבטל את הפעולה. חשבונות ההורים והגדרות ה־AI יישארו.'
         : kind === 'snapshot'
-          ? `להסיר את "${name}" מהספרייה? פעילות שהוקצתה לילד תועבר לארכיון והעבודה תישמר. פעילות שלא הוקצתה תימחק לצמיתות. שאר הפריטים יישארו.`
-          : `למחוק את "${name}"? שאר הפריטים יישארו.`;
+          ? `להסיר את "${name}"? אם הפעילות הוקצתה, היא תעבור לארכיון והעבודה תישמר. אחרת היא תימחק לצמיתות.`
+          : `למחוק את "${name}"? אי אפשר לבטל את המחיקה.`;
     if (!window.confirm(prompt)) return;
     const restoreFocus = this.holdFocus();
     this.deleting.set(true);
@@ -81,13 +90,7 @@ export class ActivityLibrary {
       if (kind === 'draft' || kind === 'all') removeFrom(this.drafts);
       if (kind === 'snapshot' || kind === 'all') removeFrom(this.snapshots);
       if (kind === 'template' || kind === 'all') removeFrom(this.templates);
-      this.notice.set(
-        kind === 'all'
-          ? 'נתוני הלמידה נמחקו.'
-          : kind === 'snapshot'
-            ? 'הפעילות הוסרה מהספרייה.'
-            : 'הפריט נמחק.',
-      );
+      this.notice.set(removedNotices[kind]);
     } catch (error) {
       if (!this.lifetime.destroyed)
         this.failure.set({ id: kind === 'all' ? 'all' : id, message: apiError(error) });

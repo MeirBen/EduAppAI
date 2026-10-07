@@ -62,9 +62,9 @@
         <app-field-errors id="password-error" [field]="fields.password" />
       </div>
       @if (error()) {
-        <p class="error" role="alert">{{ error() }}</p>
+        <p class="field-error" role="alert">{{ error() }}</p>
       }
-      <button class="button w-full" type="submit" [disabled]="fields().submitting()">
+      <button class="button w-full" type="submit" [disabledInteractive]="fields().submitting()">
         {{ fields().submitting() ? 'מתחברים…' : 'כניסה למרחב שלנו' }}
       </button>
     </form>

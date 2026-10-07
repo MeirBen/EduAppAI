@@ -25,12 +25,15 @@ parent labels keep their original language and values.
   action per card, with quieter edit links and `text-link-danger` deletions.
   Native disclosures reveal answers; their summary shares the select's chevron.
 - A page that edits or acts on one item ends with an `action-bar`: its save
-  state and current actions, with their errors and recovery. It pins to the
-  window's bottom while the window is at least 40rem tall at the current text
-  size, and scroll padding keeps focus clear of it.
+  state and one row of current actions, with their errors and recovery. Forms,
+  such as assignment, stay in their own panel so the bar never hides content.
+  It pins to the window's bottom while the window is at least 40rem tall at the
+  current text size, and scroll padding keeps focus clear of it.
 - Pages opened from the library lead back with a link above their heading. A
   `list-row` with a `row-link` opens from anywhere on the row, which shows the
-  link's hover and focus; the row's other actions stay separate controls.
+  link's hover and focus; the row's other actions stay separate controls. A
+  link inside a sentence stays a plain underlined `a`; standalone actions use
+  `text-link`, whose control height would stretch a line of text.
 - Icons come from the one set in `icons.css`, scale with their text and lead a
   label only where they add meaning. Repeated actions with a familiar shape
   (remove, move, undo, edit in a row, send and stop) are icon-only
@@ -66,26 +69,31 @@ parent labels keep their original language and values.
   motion when reduced motion is preferred.
 - Each problem shows on the field or group that can fix it: its edge and
   message appear once the parent leaves it, and on every field once they try
-  to save or send. That attempt adds one line beside its action, where problems
-  with the whole form also show; a closed disclosure names invalid content in
-  its summary. A problem the field did not just cause shows at once: an answer
-  that another field's edit left unmatched, or one the saved check found.
+  to save or send. A failed attempt sets one announced line beside its action,
+  where problems with the whole form also show; a closed disclosure names
+  invalid content in its summary. A problem the field did not just cause shows
+  at once: an answer that another field's edit left unmatched, or one the
+  saved check found. Field messages state their rule ("יש להזין…"); the
+  attempt line says what to do ("תקנו את השדות המסומנים."). Length rules rely
+  on the native `maxlength` and add no message.
 
 ## Spacing
 
 Containers own `gap`; shared primitives have no outer margin. `main` owns the
-side gutter, so sections add only vertical padding. Lists span the header width;
+page padding, so page roots add none. Lists span the header width;
 editable/frozen activity documents use `max-w-3xl`.
 
-| Token   | Use                                                     |
-| ------- | ------------------------------------------------------- |
-| `gap-1` | Heading/description, status/content, stacked text links |
-| `gap-2` | Control and revealed content                            |
-| `gap-3` | Buttons in an action row                                |
-| `gap-4` | Fields and blocks, including field/action rows          |
-| `gap-6` | Page sections and headed groups                         |
-| `mb-2`  | Label above its control                                 |
-| `mt-2`  | Hint/help/error below its control                       |
+| Token             | Use                                                     |
+| ----------------- | ------------------------------------------------------- |
+| `gap-1`           | Heading/description, status/content, stacked text links |
+| `gap-2`           | Control and revealed content                            |
+| `gap-3`           | Buttons in an action row                                |
+| `gap-4`           | Fields and blocks, including field/action rows          |
+| `gap-6`           | Page sections and headed groups                         |
+| `gap-x-6 gap-y-2` | A wrapping row of actions and links                     |
+| `gap-x-4`         | An inline row of links or status text                   |
+| `mb-2`            | Label above its control, set once in `base.css`         |
+| `mt-2`            | Hint/help/error below its control                       |
 
 Keep each label/control in one field block, not separate gapped children.
 Disclosures own summary/content spacing; empty live regions occupy no slot.
@@ -106,7 +114,8 @@ Render optional content only when present.
   choice.
 - `base.css` styles elements, including native form controls and focus.
 - `components.css` holds every shared visual treatment, grouped as actions
-  (buttons, links, `icon-button` with its `tooltip`, `chip`), surfaces
+  (buttons, links, `icon-button` with its `tooltip`, `chip`, `segmented`
+  radios), surfaces
   (`panel`, `well`, `card-section`, `action-bar`, `list-row` with its
   `row-link`, `empty-state`), conversation (`bubble`, `composer`), marks
   (`badge`, `icon-tile`, `status-icon`, `ai-mark`), lists (`steps`,
@@ -158,7 +167,10 @@ server's `Limits`; child answer controls use `ChildSessionIdentity.answerLength`
 instead, without calling parent APIs. Never hard-code content limits in forms.
 
 Write concise Hebrew for labels, validation, loading and errors, and never expose
-raw framework or provider errors. Render generated text through interpolation,
+raw framework or provider errors. Address parents and children in the plural
+imperative ("בדקו", "נסו שוב"), call the parent home "המרחב שלנו" and avoid
+internal terms such as model, item or local copy. A count of one reads in words
+("שאלה אחת"). Render generated text through interpolation,
 never HTML, and never rewrite saved content for presentation. Generated text is
 bare by contract, so presentation supplies its structure: keep line breaks with
 `whitespace-pre-wrap` (blank lines between paragraphs, single breaks for poem
@@ -174,18 +186,21 @@ only difficulty has fixed options.
 ## Parent learning management
 
 Family navigation sits below the main header. Profile/assignment lists use shared
-rows, native controls and bounded previous/next paging. Separate profile edits
-from device access; confirmations explain disable/revoke effects. Activation
-codes stay selectable with expiry, never in URLs or persistent browser storage.
+rows, native controls and `Pager`, which stays hidden while a list fits on one
+page. Empty states name the next step, or say that a filter or later page has
+nothing more. Separate profile edits from device access; confirmations explain
+disable/revoke effects. Activation codes stay selectable with expiry, never in
+URLs or persistent browser storage.
 
-Group optional grade (free text) and age (LTR integer, server bounds); each can
+Grade (free text) and age (LTR integer, server bounds) are optional; each can
 be cleared, with no age-confirmation checkbox. Keep secondary dates under native
-“פרטי זמנים” disclosures. Follow the [cleanup contract](product-specification.md#profile-and-device-cleanup):
+“פרטי זמנים” disclosures at the end of their card. Follow the [cleanup contract](product-specification.md#profile-and-device-cleanup):
 unused profiles offer deletion, profiles with history disabling, active devices
 revocation and inactive devices removal.
 
 Frozen previews own child selection/assignment and link to an existing pair on
-replay. Review shows frozen content, exact submitted text and parent-only answer
+replay; a withdrawn pair explains that assigning again needs a new ready copy.
+Review shows frozen content, exact submitted text and parent-only answer
 disclosures. Pending grades start empty; automatic/completed awards stay
 read-only. Distinguish pending subtotal from final score; percentages require
 positive possible points. Recovery stays beside finalization and never silently
@@ -194,8 +209,8 @@ logical utilities without separate stylesheets.
 
 Group creation, opening, last-save, submission and review dates in “פרטי זמנים”.
 Label elapsed time “זמן מהפתיחה עד ההגשה (כולל הפסקות)”, using minutes/hours or
-“פחות מדקה”. Unsubmitted work shows “טרם הוגשה”; missing/reversed timestamps show
-unavailable duration. See [timing semantics](product-specification.md#elapsed-activity-time).
+“פחות מדקה”. Unsubmitted work shows “עוד לא הוגשה”; missing/reversed timestamps
+show unavailable duration. See [timing semantics](product-specification.md#elapsed-activity-time).
 
 ## Child learning
 
@@ -205,14 +220,18 @@ a copyable address for a separate browser, without the code. Explain persistent
 access and fresh activation after disconnect/revocation/expiry. An uncertain
 activation offers a session check; availability failures offer retry.
 
-Separate available/submitted inbox views with native selection and bounded
-paging. Keep materials above numbered questions in the reading column. Numeric
-answers use LTR text inputs with a decimal keyboard, retaining invalid edits;
-text preserves whitespace and native options isolate their labels. The action
-bar owns save, submit, saved-work recovery and dirty/saved status. Invalid submit
+Separate available/submitted inbox views with a `segmented` switch and bounded
+paging; rows carry a status `badge`, which keeps the state on phones where the
+tile drops. Keep materials above numbered questions in the reading column.
+Numeric answers use LTR text inputs with a decimal keyboard, retaining invalid
+edits; text preserves whitespace and native options isolate their labels. The
+action bar owns save, submit, how many questions have answers, saved-work
+recovery and dirty/saved status; the saved-work check shows only while
+recovering or after submission, where it fetches the grade. Invalid submit
 focuses the first problem; missing answers need confirmation. Checkpoint reads
-never overwrite local text implicitly. A submission receipt locks editing;
-pending review has no final score, and zero possible points has no percentage.
+never overwrite local text implicitly. A submission receipt locks editing and
+leads with its outcome icon; pending review has no final score, and zero
+possible points has no percentage.
 
 ## Workspace actions
 
@@ -240,7 +259,11 @@ Parent turns sit at the end edge; AI replies show `ai-mark`, computed changes
 and assumptions, with a typing bubble while pending. Enter sends; Shift+Enter
 adds a line. Send becomes Stop while retaining focus; failure/cancellation
 restores the request text. `SuggestionChips` only fill fields, keeping focus on
-the chip; they never send. Mark AI actions with `icon-ai`.
+the chip; they never send. Starters cover what generation does best: a reading
+text, an early reader, a drill, word problems on a shared story and questions
+on the parent's own text, in formats the app grades. Change and improvement
+suggestions suit any plan, so none contradicts its settings. Mark AI actions
+with `icon-ai`.
 
 Use parent terminology: "הגדרות" for plan, "טקסט" for material, source kinds
 "כתבו עבורי תוכן חדש", "יש לי טקסט משלי" and (templates) "אבחר טקסט חדש בכל פעם".
@@ -262,7 +285,8 @@ Confirm AI-extracted source text only while pending, preserving exact content.
 Keep invalid edits repairable. When later edits/Undo fence off generation results,
 offer the saved result for explicit inspection/reload. External saves/deletions
 appear in save status with reload when available. Failed writes offer reload;
-they may have applied unless rejection is definite. Local blockers send nothing
+they may have applied unless rejection is definite, so `writeError` says where
+to check only then. Local blockers send nothing
 and offer no reload. Keep stages, outcomes, cost and raw output under
 **פרטים טכניים**; never imply automatic paid retries.
 
@@ -271,7 +295,8 @@ strict blockers and parent educational review. Once content is present and ready
 for review, with no generation writing it, show saved field diagnostics at the
 field until edited. The review names where to fix and lists only non-field
 blockers; it never shows ready during generation. Offer adoption only beside
-saved-stale content. Frozen previews disclose answers and offer copy-to-draft.
+saved-stale content. A released draft shows its content read-only and points to
+assignment. Frozen previews disclose answers and offer copy-to-draft.
 Reusable read-only text gets `CopyButton`; editable fields copy natively.
 
 ## Loading

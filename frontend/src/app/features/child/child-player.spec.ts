@@ -155,7 +155,7 @@ describe('Child player', () => {
     });
     await fixture.whenStable();
     expect(fixture.componentInstance.canLeave()).toBe(true);
-    expect(root.textContent).toContain('התשובות נשמרו');
+    expect(root.textContent).toContain('כל התשובות שמורות');
   });
   it.each(['-', '1.', '.5', '1e2', '1,000', ' 1'])(
     'keeps invalid numeric input %j visible and focuses it on submit',
@@ -268,6 +268,12 @@ describe('Child player', () => {
     async (status) => {
       const { http, fixture, root, field, type, save } = await open();
       type('text', 'מקומי');
+      save();
+      (await vi.waitFor(() => http.expectOne((r) => r.method === 'PUT'))).flush(
+        {},
+        { status: 409, statusText: 'Conflict' },
+      );
+      await fixture.whenStable();
       root.querySelector<HTMLButtonElement>('#read-saved-session')!.click();
       http
         .expectOne(sessionUrl)
@@ -286,6 +292,18 @@ describe('Child player', () => {
       http.expectNone((r) => r.method === 'PUT');
     },
   );
+  it('offers the saved-work check only to recover, not beside a plain session', async () => {
+    const { http, fixture, root, type, save } = await open();
+    expect(root.querySelector('#read-saved-session')).toBeNull();
+    type('text', 'שלי');
+    save();
+    (await vi.waitFor(() => http.expectOne((r) => r.method === 'PUT'))).flush(
+      {},
+      { status: 409, statusText: 'Conflict' },
+    );
+    await fixture.whenStable();
+    expect(root.querySelector('#read-saved-session')).not.toBeNull();
+  });
   it('renders completed sessions read-only and without a percentage for zero possible points', async () => {
     const { root } = await open({
       ...session,
@@ -297,6 +315,8 @@ describe('Child player', () => {
     expect(root.querySelector('form')).toBeNull();
     expect(root.textContent).toContain('ציון סופי');
     expect(root.textContent).not.toContain('%');
+    // A submitted child checks here for the parent's grade.
+    expect(root.querySelector('#read-saved-session')).not.toBeNull();
   });
   it('cancels a pending save when the player is destroyed', async () => {
     const { http, fixture, type, save } = await open();

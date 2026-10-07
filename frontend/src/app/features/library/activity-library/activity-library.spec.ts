@@ -51,8 +51,8 @@ describe('Activity library', () => {
     expect(confirm.mock.calls[0][0]).toContain('לצמיתות');
     http.expectOne((r) => r.url === '/api/instances/ready' && r.method === 'DELETE').flush(null);
     await fixture.whenStable();
-    expect(root.textContent).toContain('הפעילות הוסרה מהספרייה');
-    expect(root.textContent).not.toContain('הפריט נמחק');
+    expect(root.textContent).toContain('הפעילות הוסרה');
+    expect(root.textContent).not.toContain('נמחקה');
     expect(root.querySelector('a[href="/instances/ready"]')).toBeNull();
     http.verify();
   });
@@ -67,7 +67,7 @@ describe('Activity library', () => {
     http
       .expectOne((r) => r.url === '/api/activity-drafts/draft' && r.method === 'DELETE')
       .flush(null);
-    await vi.waitFor(() => expect(root.textContent).toContain('הפריט נמחק'));
+    await vi.waitFor(() => expect(root.textContent).toContain('הטיוטה נמחקה'));
     await fixture.whenStable();
     expect(root.querySelector('a[href="/activities/draft"]')).toBeNull();
     expect(root.querySelector('a[href="/instances/ready"]')).not.toBeNull();
@@ -154,7 +154,7 @@ describe('Activity library', () => {
     http.expectOne('/api/templates').flush(null, { status: 503, statusText: 'Unavailable' });
     await fixture.whenStable();
     vi.spyOn(window, 'confirm').mockReturnValue(true);
-    root.querySelector<HTMLButtonElement>('[aria-labelledby="data-title"] button')!.click();
+    root.querySelector<HTMLButtonElement>('details .button-danger')!.click();
     http
       .expectOne((request) => request.method === 'DELETE' && request.url === '/api/templates')
       .flush(null);

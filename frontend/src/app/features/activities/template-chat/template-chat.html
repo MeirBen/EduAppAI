@@ -8,14 +8,14 @@
   }
   @if (start && !started()) {
     <p id="chat-help" class="text-muted">
-      ספרו במילים פשוטות מה הילד או הילדה צריכים ללמוד או לתרגל: גיל או כיתה, נושא, אורך וסוג
-      השאלות. העוזר יכין הגדרות שתוכלו לבדוק ולשנות.
+      ספרו במילים פשוטות מה הילד או הילדה צריכים ללמוד או לתרגל: כיתה, נושא, אורך וסוג השאלות. העוזר
+      יכין הגדרות לבדיקה, ומהן תיצרו את הפעילות: קודם הטקסט, אם יש, ואז השאלות.
     </p>
   }
   @if (!configured()) {
     <p role="status" class="note">
-      <span class="icon icon-info" aria-hidden="true"></span>יצירה בעזרת AI אינה זמינה כרגע. אפשר
-      למלא את הפרטים ידנית.
+      <span class="icon icon-info" aria-hidden="true"></span>יצירה בעזרת AI לא זמינה כרגע. אפשר למלא
+      את הפרטים ידנית.
     </p>
   }
   <div class="grid gap-4" role="log" aria-live="polite" aria-label="השיחה עם העוזר">

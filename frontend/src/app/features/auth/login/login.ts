@@ -6,11 +6,12 @@ import { apiError } from '../../../core/api/api-error';
 import { LoadingIndicator } from '../../../shared/loading-indicator/loading-indicator';
 import { FieldValidity } from '../../../shared/forms/field-validity';
 import { FieldErrors } from '../../../shared/forms/field-errors';
+import { DisabledInteractive } from '../../../shared/disabled-interactive';
 
 /** Parent sign-in form with local feedback and navigation after cookie authentication. */
 @Component({
   selector: 'app-login',
-  imports: [FieldErrors, FieldValidity, LoadingIndicator, FormField],
+  imports: [FieldErrors, FieldValidity, LoadingIndicator, FormField, DisabledInteractive],
   templateUrl: './login.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })

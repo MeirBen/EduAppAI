@@ -68,7 +68,7 @@ export function documentValue(
   let total = 0;
   const check = (value: string, max: number, path: FieldIssue['path']) => {
     total += value.length;
-    if (value.length > max) errors.push({ path, message: `עד ${count(max)} תווים.` });
+    if (value.length > max) errors.push({ path, message: `אפשר להזין עד ${count(max)} תווים.` });
   };
   check(raw.title, limits.titleLength, ['document', 'title']);
   check(raw.instructions, limits.instructionsLength, ['document', 'instructions']);
@@ -89,7 +89,7 @@ export function documentValue(
       if (q.options.length > limits.maxChoiceCount)
         errors.push({
           path: [...at, 'options'],
-          message: `אפשר להזין עד ${limits.maxChoiceCount} אפשרויות.`,
+          message: `אפשר להוסיף עד ${limits.maxChoiceCount} אפשרויות.`,
         });
       q.options.forEach((o, j) =>
         check(o.value, limits.answerLength, [...at, 'options', j, 'value']),

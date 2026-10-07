@@ -93,6 +93,9 @@ public sealed class AssignmentTests
         Assert.Equal(HttpStatusCode.Gone, (await child.GetAsync(childPath)).StatusCode);
         Assert.Equal(HttpStatusCode.NotFound, (await otherChild.GetAsync(childPath)).StatusCode);
         Assert.Empty((await child.GetFromJsonAsync<JsonNode>("/api/child/assignments"))!["items"]!.AsArray());
+        // Withdrawn work is kept as history that only its own filter lists.
+        Assert.Empty((await parent.GetFromJsonAsync<JsonNode>("/api/assignments"))!["items"]!.AsArray());
+        Assert.Single((await parent.GetFromJsonAsync<JsonNode>("/api/assignments?status=withdrawn"))!["items"]!.AsArray());
     }
 
     [Fact]

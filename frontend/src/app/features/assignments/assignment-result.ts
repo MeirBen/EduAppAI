@@ -23,6 +23,7 @@ import { LoadingIndicator } from '../../shared/loading-indicator/loading-indicat
 import { ActivityDocumentView } from '../activities/activity-document-view/activity-document-view';
 import { assignmentStatuses } from './assignment-presentation';
 import { parentTaskError } from '../../core/api/parent-task-error';
+import { writeError } from '../../core/api/api-error';
 
 /** Frozen parent report with a local grade buffer. Reconciliation reads never replace entered grades. */
 @Component({
@@ -60,7 +61,7 @@ export class AssignmentResult {
     const start = Date.parse(source.startedAtUtc ?? ''),
       end = Date.parse(source.submittedAtUtc ?? ''),
       saved = Date.parse(source.savedAtUtc ?? '');
-    let elapsed = 'משך הזמן אינו זמין';
+    let elapsed = 'משך הזמן לא זמין';
     if (Number.isFinite(start) && Number.isFinite(end) && end >= start) {
       const minutes = Math.floor((end - start) / 60_000),
         hours = Math.floor(minutes / 60),
@@ -174,7 +175,11 @@ export class AssignmentResult {
       } catch (error) {
         if (this.lifetime.destroyed) return;
         this.error.set(
-          this.failure(error) + ' ייתכן שהציונים נשמרו. קראו את התוצאה השמורה כדי לבדוק.',
+          writeError(
+            this.failure(error),
+            error,
+            'ייתכן שהציונים נשמרו. קראו את התוצאה השמורה כדי לבדוק.',
+          ),
         );
         this.recovery.set(true);
       } finally {
@@ -184,6 +189,7 @@ export class AssignmentResult {
         }
       }
     });
+    if (this.fields().invalid()) this.error.set('תקנו את הניקוד המסומן.');
   }
   protected async readSaved() {
     if (this.busy() || this.reading()) return;
@@ -214,7 +220,7 @@ export class AssignmentResult {
       !saved ||
       this.busy() ||
       this.reading() ||
-      (this.dirty() && !window.confirm('להחליף את הציונים המקומיים בתוצאה השמורה?'))
+      (this.dirty() && !window.confirm('להחליף את הציונים שהקלדתם בתוצאה השמורה?'))
     )
       return;
     const restore = this.holdFocus();

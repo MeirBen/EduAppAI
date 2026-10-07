@@ -2,14 +2,21 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { apiError } from './api-error';
 
 describe('Hebrew API feedback', () => {
-  it('explains device-session conflicts without presenting a template conflict or server text', () => {
+  it('explains device-session conflicts without presenting a generic conflict or server text', () => {
     const error = { type: 'urn:family-learning:device-session-conflict', title: 'private detail' };
     const message = apiError(new HttpErrorResponse({ status: 409, error }));
     expect(message).toContain('דפדפן');
-    expect(message).toContain('להתנתק');
-    expect(message).not.toContain('התבנית');
+    expect(message).toContain('התנתקו');
+    expect(message).not.toContain('הנתונים השתנו');
     expect(message).not.toContain('private detail');
-    expect(apiError(new HttpErrorResponse({ status: 409, error: {} }))).toContain('התבנית');
+    expect(apiError(new HttpErrorResponse({ status: 409, error: {} }))).toContain('הנתונים השתנו');
+  });
+
+  it('says an oversized AI request needs less content instead of a generic rejection', () => {
+    const error = { type: 'urn:family-learning:ai-input-limit', title: 'private detail' };
+    const message = apiError(new HttpErrorResponse({ status: 413, error }));
+    expect(message).toContain('ארוכה מדי');
+    expect(message).not.toContain('private detail');
   });
 
   it('shows AI validation failures only for the application-owned problem type', () => {
@@ -51,11 +58,11 @@ describe('Hebrew API feedback', () => {
       title: 'private provider details',
     };
     const message = apiError(new HttpErrorResponse({ status: 502, error }));
-    expect(message).toContain('מגבלת הפלט');
+    expect(message).toContain('ארוך מדי');
     expect(message).not.toContain('לא נשמר');
     expect(message).not.toContain('private provider');
-    expect(apiError(new HttpErrorResponse({ status: 504, error }))).not.toContain('מגבלת הפלט');
-    expect(apiError(new HttpErrorResponse({ status: 502, error: {} }))).not.toContain('מגבלת הפלט');
+    expect(apiError(new HttpErrorResponse({ status: 504, error }))).not.toContain('ארוך מדי');
+    expect(apiError(new HttpErrorResponse({ status: 502, error: {} }))).not.toContain('ארוך מדי');
   });
 
   it.each([502, 503, 504])('does not infer persistence from a failed AI call (%s)', (status) => {

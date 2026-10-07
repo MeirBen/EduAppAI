@@ -134,7 +134,7 @@ function controlValue(
     if ((result.maxLength ?? limits.textValueLength) > limits.textValueLength)
       issues.push({
         path: [...path, 'maxLength'],
-        message: `עד ${limits.textValueLength} תווים.`,
+        message: `יש להזין מספר שלם בין 1 ל־${count(limits.textValueLength)}.`,
       });
   }
   if (form.type === 'select') {
@@ -323,7 +323,10 @@ export function requestValue(
     const path = ['input', 'choiceCount'];
     value.choiceCount = integer(form.choiceCount, errors, path, true, limits.minChoiceCount);
     if (value.choiceCount !== undefined && value.choiceCount > limits.maxChoiceCount)
-      errors.push({ path, message: `עד ${limits.maxChoiceCount} אפשרויות.` });
+      errors.push({
+        path,
+        message: `מספר האפשרויות חייב להיות בין ${limits.minChoiceCount} ל־${limits.maxChoiceCount}.`,
+      });
   }
   if (plan.totalLength?.count?.adjustable && form.totalWordCount !== '') {
     value.totalWordCount = integer(

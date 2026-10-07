@@ -45,10 +45,10 @@ describe('ActivityReview', () => {
     const [advisory, strict] = Array.from(root.querySelectorAll('li'));
     expect(advisory.textContent).toContain('284 מילים');
     expect(advisory.textContent).toContain('מבוקש: בערך 300 מילים');
-    expect(advisory.textContent).not.toContain('לפני סימון כמוכנה');
+    expect(advisory.textContent).not.toContain('התאימו את האורך');
     expect(strict.textContent).toContain('82 מילים');
     expect(strict.textContent).toContain('נדרש: 100–150 מילים');
-    expect(strict.textContent).toContain('לפני סימון כמוכנה');
+    expect(strict.textContent).toContain('התאימו את האורך');
   });
 
   it('lists blockers and notes that unsaved edits are not yet checked', async () => {
@@ -57,7 +57,9 @@ describe('ActivityReview', () => {
       outdated: true,
       issues: ['בשאלה 2 חסרה תשובה נכונה.'],
     });
-    expect(root.querySelector('[role="status"]')!.textContent).toContain('לפני סימון כמוכנה');
+    expect(root.querySelector('[role="status"]')!.textContent).toContain(
+      'כדי לסמן את הפעילות כמוכנה',
+    );
     expect(root.textContent).toContain('בשאלה 2 חסרה תשובה נכונה.');
     expect(root.textContent).toContain('מתעדכנת אחרי שמירה');
   });

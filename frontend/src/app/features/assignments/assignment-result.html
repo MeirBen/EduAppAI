@@ -1,4 +1,4 @@
-<section class="mx-auto grid max-w-3xl gap-6 py-gutter" aria-labelledby="result-heading">
+<section class="mx-auto grid max-w-3xl gap-6" aria-labelledby="result-heading">
   <header class="grid gap-1">
     <a class="text-link" routerLink="/assignments"
       ><span class="icon icon-back" aria-hidden="true"></span>פעילויות לילדים</a
@@ -45,7 +45,7 @@
             זמן מהפתיחה עד ההגשה (כולל הפסקות): <span data-elapsed-time>{{ times.elapsed }}</span>
           </p>
         } @else {
-          <p class="text-muted">טרם הוגשה</p>
+          <p class="text-muted">עוד לא הוגשה</p>
         }
         <details class="text-sm text-muted">
           <summary>פרטי זמנים</summary>
@@ -57,7 +57,7 @@
               @if (times.startedAt !== null) {
                 נפתחה ב־<bdi>{{ times.startedAt | date }}</bdi>
               } @else {
-                {{ assignment.hasStarted ? 'מועד הפתיחה אינו זמין' : 'טרם נפתחה' }}
+                {{ assignment.hasStarted ? 'מועד הפתיחה לא זמין' : 'עוד לא נפתחה' }}
               }
             </p>
             @if (times.savedAt !== null) {
@@ -95,10 +95,14 @@
           </p>
         } @else {
           <p class="note">
-            <span class="icon icon-info" aria-hidden="true"></span> סכום אוטומטי:
-            {{ report.evaluation.automaticSubtotal }} מתוך
-            {{ report.evaluation.possibleTotal }} נקודות אפשריות.
-            {{ report.evaluation.pendingCount }} תשובות ממתינות לבדיקה. עדיין אין ציון סופי.
+            <span class="icon icon-info" aria-hidden="true"></span>ניקוד אוטומטי עד כה:
+            {{ report.evaluation.automaticSubtotal }} מתוך {{ report.evaluation.possibleTotal }}.
+            {{
+              report.evaluation.pendingCount === 1
+                ? 'תשובה אחת מחכה'
+                : report.evaluation.pendingCount + ' תשובות מחכות'
+            }}
+            לבדיקה שלכם.
           </p>
         }
       </div>
@@ -114,13 +118,16 @@
         </section>
       }
       <form id="review-form" class="grid gap-6" (submit)="finalize($event)">
-        <ol class="grid list-decimal gap-4 ps-6">
+        <ol role="list" class="grid gap-4">
           @for (row of rows(); track row.question.id) {
             <li class="panel" [attr.aria-labelledby]="'question-' + row.question.id">
               <div class="grid gap-4">
-                <h3 [id]="'question-' + row.question.id" class="whitespace-pre-wrap">
-                  <bdi>{{ row.question.prompt }}</bdi>
-                </h3>
+                <div class="grid gap-1">
+                  <h3 [id]="'question-' + row.question.id">שאלה {{ $index + 1 }}</h3>
+                  <p class="whitespace-pre-wrap">
+                    <bdi>{{ row.question.prompt }}</bdi>
+                  </p>
+                </div>
                 @if (row.question.interaction.options?.length) {
                   <ul class="grid list-disc gap-1 ps-6">
                     @for (option of row.question.interaction.options; track $index) {
@@ -153,7 +160,7 @@
                 </div>
                 @if (row.gradeIndex !== undefined) {
                   <div>
-                    <label class="mb-2 block" [for]="'grade-' + row.question.id"
+                    <label [for]="'grade-' + row.question.id"
                       >נקודות לשאלה {{ $index + 1 }} — בין 0 ל־{{ row.award.possiblePoints }}</label
                     ><input
                       [id]="'grade-' + row.question.id"
@@ -191,20 +198,18 @@
           }
           <app-loading-indicator [active]="busy() || reading()" label="מעדכנים את הבדיקה…" />
           @if (report.evaluation.pendingCount) {
-            @if (fields().touched() && fields().invalid()) {
-              <p class="field-error">יש להזין ניקוד תקין לכל התשובות שממתינות לבדיקה.</p>
-            }
-            <div class="flex flex-wrap gap-3">
+            <div class="flex flex-wrap items-center gap-x-6 gap-y-2">
               <button class="button" [disabledInteractive]="busy() || reading() || recovery()">
-                שמירת ציונים וסיום הבדיקה</button
-              ><button
+                שמירת ציונים וסיום הבדיקה
+              </button>
+              <button
                 id="read-saved-result"
                 type="button"
-                class="button button-secondary"
+                class="text-link text-sm"
                 [disabledInteractive]="busy() || reading()"
                 (click)="readSaved()"
               >
-                קריאת התוצאה השמורה
+                <span class="icon icon-refresh" aria-hidden="true"></span>קריאת התוצאה השמורה
               </button>
             </div>
           }
@@ -222,7 +227,7 @@
                       saved.evaluation.possibleTotal
                 }}
               </p>
-              <p>הציונים המקומיים נשמרו למעלה. הצגת התוצאה השמורה תחליף אותם.</p>
+              <p>הציונים שהקלדתם עדיין מוצגים למעלה. הצגת התוצאה השמורה תחליף אותם.</p>
               <button
                 id="use-saved-result"
                 type="button"

@@ -1,27 +1,37 @@
-<section class="grid gap-6 py-gutter" aria-labelledby="child-inbox-title">
-  <header class="grid gap-1">
-    <h1 id="child-inbox-title">הפעילויות שלי</h1>
-    @if (auth.identity(); as identity) {
-      <p class="text-muted">
-        שלום <bdi>{{ identity.name }}</bdi
-        >, כאן מחכות הפעילויות שלך.
-      </p>
-    }
+<section class="grid gap-6" aria-labelledby="child-inbox-title">
+  <header class="flex flex-wrap items-end justify-between gap-4">
+    <div class="grid gap-1">
+      <h1 id="child-inbox-title">הפעילויות שלי</h1>
+      @if (auth.identity(); as identity) {
+        <p class="text-muted">
+          שלום <bdi>{{ identity.name }}</bdi
+          >, כאן מחכות הפעילויות שלך.
+        </p>
+      }
+    </div>
+    <button
+      class="text-link"
+      [disabledInteractive]="assignments.isLoading()"
+      (click)="assignments.reload()"
+    >
+      רענון הפעילויות
+    </button>
   </header>
-  <label class="max-w-lg"
-    ><span class="mb-2 block">איזה פעילויות להציג?</span
-    ><select [value]="filter().state" (change)="changeState($event)">
-      <option value="available">לעבודה</option>
-      <option value="submitted">כבר הוגשו</option>
-    </select></label
-  >
-  <button
-    class="text-link justify-self-start"
-    [disabledInteractive]="assignments.isLoading()"
-    (click)="assignments.reload()"
-  >
-    רענון הפעילויות
-  </button>
+  <fieldset class="segmented">
+    <legend class="sr-only">אילו פעילויות להציג?</legend>
+    @for (view of views; track view.value) {
+      <label class="min-h-11 px-5"
+        ><input
+          class="sr-only"
+          type="radio"
+          name="inbox-view"
+          [value]="view.value"
+          [checked]="state() === view.value"
+          (change)="state.set(view.value)"
+        />{{ view.label }}</label
+      >
+    }
+  </fieldset>
   <app-loading-indicator [active]="assignments.isLoading()" label="קוראים את הפעילויות…" />
   @if (assignments.error(); as error) {
     <p class="error" role="alert">{{ failure(error) }}</p>
@@ -33,48 +43,49 @@
     <div class="grid gap-4">
       @for (assignment of assignments.value().items; track assignment.id) {
         <article class="list-row">
-          <div class="grid min-w-0 flex-1 gap-1">
+          <span class="icon-tile size-10" aria-hidden="true"
+            ><span
+              class="icon"
+              [class]="assignment.status === 'assigned' ? 'icon-book' : 'icon-check'"
+            ></span
+          ></span>
+          <div class="grid min-w-1/2 flex-1 gap-1">
             <h2>
               <a class="row-link" [routerLink]="['/child/assignments', assignment.id]"
                 ><bdi>{{ assignment.title }}</bdi></a
               >
             </h2>
-            <p>
-              {{
-                assignment.status === 'assigned'
-                  ? assignment.hasStarted
-                    ? 'אפשר להמשיך מהמקום שנשמר'
-                    : 'מוכנה להתחלה'
-                  : assignment.status === 'awaiting-review'
-                    ? 'הוגשה ומחכה לבדיקה'
-                    : 'הבדיקה הושלמה'
-              }}
-            </p>
             <p class="text-sm text-muted">
               נוספה ב־<bdi>{{ assignment.createdAtUtc | date }}</bdi>
             </p>
           </div>
+          <span class="badge">{{
+            assignment.status === 'assigned'
+              ? assignment.hasStarted
+                ? 'אפשר להמשיך'
+                : 'מוכנה להתחלה'
+              : assignment.status === 'awaiting-review'
+                ? 'מחכה לבדיקה'
+                : 'הבדיקה הושלמה'
+          }}</span>
         </article>
       } @empty {
-        <p class="empty-state">אין פעילויות בעמוד הזה.</p>
+        <p class="empty-state">
+          {{
+            page() > 1
+              ? 'אין פעילויות נוספות.'
+              : state() === 'available'
+                ? 'אין כרגע פעילויות חדשות. פעילות חדשה מההורה תופיע כאן.'
+                : 'עוד אין עבודות שהוגשו.'
+          }}
+        </p>
       }
     </div>
-    <nav class="flex flex-wrap items-center gap-3" aria-label="עמודי הפעילויות שלי">
-      <button
-        class="button button-secondary"
-        [disabledInteractive]="assignments.isLoading() || filter().page === 1"
-        (click)="movePage(-1)"
-      >
-        הקודם
-      </button>
-      <span>עמוד {{ filter().page }}</span>
-      <button
-        class="button button-secondary"
-        [disabledInteractive]="assignments.isLoading() || !assignments.value().hasMore"
-        (click)="movePage(1)"
-      >
-        הבא
-      </button>
-    </nav>
+    <app-pager
+      label="עמודי הפעילויות שלי"
+      [(page)]="page"
+      [hasMore]="assignments.value().hasMore"
+      [busy]="assignments.isLoading()"
+    />
   }
 </section>

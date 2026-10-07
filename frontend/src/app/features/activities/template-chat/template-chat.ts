@@ -16,13 +16,17 @@ import { LoadingIndicator } from '../../../shared/loading-indicator/loading-indi
 import { FieldDirection } from '../../../shared/forms/field-direction';
 import { SuggestionChips } from '../../../shared/suggestion-chips/suggestion-chips';
 
-/** Suggestions only fill the composer; every request still goes through the parent's send. */
+/**
+ * Suggestions only fill the composer; every request still goes through the parent's send. Starters
+ * cover what generation supports best: a reading text, an early reader, a drill, word problems on a
+ * shared story and questions on the parent's own text, each with formats the app can grade.
+ */
 const starterSuggestions = [
-  'קטע מידע על החלל לכיתה ג׳, כ־250 מילים, עם 5 שאלות בחירה מתוך אפשרויות',
-  'סיפור קצר עם מספרים לכיתה ג׳ ו־4 שאלות מילוליות בחשבון על הסיפור',
+  'קטע מידע על החלל לכיתה ד׳, כ־250 מילים, עם 5 שאלות אמריקאיות',
+  'סיפור קצר לכיתה א׳ עם 3 שאלות אמריקאיות',
   '10 תרגילי חיבור וחיסור עד 100 לכיתה ב׳',
+  'סיפור קצר עם מספרים לכיתה ג׳ ו־4 בעיות מילוליות עליו',
   '5 שאלות הבנה על טקסט שאדביק, לכיתה ה׳',
-  '8 שאלות אוצר מילים באנגלית על בעלי חיים, לכיתה ד׳',
 ];
 /** Changes that suit any plan, so none can contradict its settings. */
 const changeSuggestions = [

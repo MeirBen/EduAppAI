@@ -22,6 +22,8 @@ import { focusHolder } from '../../shared/focus-holder';
 import { LoadingIndicator } from '../../shared/loading-indicator/loading-indicator';
 import { CopyButton } from '../../shared/copy-button/copy-button';
 import { parentTaskError } from '../../core/api/parent-task-error';
+import { Pager } from '../../shared/pager/pager';
+import { writeError } from '../../core/api/api-error';
 
 /** One local profile buffer; list refreshes never replace edits or retain activation secrets. */
 @Component({
@@ -35,6 +37,7 @@ import { parentTaskError } from '../../core/api/parent-task-error';
     DisabledInteractive,
     LoadingIndicator,
     CopyButton,
+    Pager,
   ],
   templateUrl: './children-page.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -52,7 +55,9 @@ export class ChildrenPage {
   protected readonly selected = signal<ChildSummary | undefined>(undefined);
   protected readonly devicePage = signal(1);
   protected readonly devices = this.api.devices(() => this.selected()?.id, this.devicePage);
-  protected readonly busy = signal(false);
+  /** The panel whose action is running; while one runs, every action waits. */
+  protected readonly working = signal<'profile' | 'access' | undefined>(undefined);
+  protected readonly busy = computed(() => !!this.working());
   private pendingDeviceFocus?: () => void;
   // Device rows change or disappear on reload; restore focus only after the refreshed list renders.
   private readonly restoreAfterDevices = whenIdle(
@@ -65,6 +70,7 @@ export class ChildrenPage {
   protected readonly error = signal('');
   protected readonly accessError = signal('');
   protected readonly notice = signal('');
+  protected readonly accessNotice = signal('');
   protected readonly activation = signal<ChildActivation | undefined>(undefined);
   protected readonly model = signal({
     name: '',
@@ -95,12 +101,11 @@ export class ChildrenPage {
       value().trim() ? undefined : { kind: 'required', message: 'יש להזין שם למכשיר.' },
     );
   });
-  protected readonly nameHint = `עד ${count(this.limits.nameLength)} תווים.`;
   protected readonly ageHint = `גיל בשנים שלמות, בין 0 ל־${count(this.limits.maxChildAge)}.`;
   protected readonly failure = (error: unknown) =>
     parentTaskError(
       error,
-      'הפרופיל השתנה או אינו פעיל. רעננו את הרשימה ובחרו את הפרופיל המעודכן לפני שמירה נוספת. השינויים כאן נשמרו.',
+      'הפרופיל השתנה או הושבת. רעננו את הרשימה ובחרו אותו שוב. מה שהקלדתם עדיין בטופס.',
     );
   private readonly dirty = computed(
     () =>
@@ -127,6 +132,7 @@ export class ChildrenPage {
     this.error.set('');
     this.accessError.set('');
     this.notice.set('');
+    this.accessNotice.set('');
     restore();
   }
   private acceptProfile(child?: ChildSummary) {
@@ -157,7 +163,7 @@ export class ChildrenPage {
       )
         return;
       const restore = this.holdFocus();
-      this.busy.set(true);
+      this.working.set('profile');
       try {
         const profile = {
           name: name.trim(),
@@ -177,15 +183,20 @@ export class ChildrenPage {
       } catch (error) {
         if (!this.lifetime.destroyed)
           this.error.set(
-            this.failure(error) + ' ייתכן שהפעולה נשמרה. בדקו ברשימה לפני ניסיון נוסף.',
+            writeError(
+              this.failure(error),
+              error,
+              'ייתכן שהפעולה נשמרה. בדקו ברשימה לפני ניסיון נוסף.',
+            ),
           );
       } finally {
         if (!this.lifetime.destroyed) {
-          this.busy.set(false);
+          this.working.set(undefined);
           restore();
         }
       }
     });
+    if (this.fields().invalid()) this.error.set('תקנו את השדות המסומנים.');
   }
   protected async deleteProfile() {
     const child = this.selected();
@@ -199,7 +210,7 @@ export class ChildrenPage {
     )
       return;
     const restore = this.holdFocus();
-    this.busy.set(true);
+    this.working.set('profile');
     this.error.set('');
     try {
       await this.api.delete(child, this.lifetime);
@@ -214,12 +225,12 @@ export class ChildrenPage {
         this.error.set(
           parentTaskError(
             error,
-            'הפרופיל השתנה או שנוספו לו פעילויות. רעננו את הרשימה. פרופיל עם היסטוריה אפשר להשבית.',
+            'הפרופיל השתנה או שהוקצו לו פעילויות. רעננו את הרשימה. פרופיל עם פעילויות אפשר רק להשבית.',
           ) + ' בדקו ברשימה לפני ניסיון נוסף.',
         );
     } finally {
       if (!this.lifetime.destroyed) {
-        this.busy.set(false);
+        this.working.set(undefined);
         restore();
       }
     }
@@ -230,18 +241,19 @@ export class ChildrenPage {
     if (this.busy() || !child?.enabled) return;
     this.accessError.set('');
     await submit(this.deviceFields, async () => {
-      this.busy.set(true);
+      this.working.set('access');
       this.activation.set(undefined);
       try {
         const code = await this.api.issue(child.id, this.deviceModel().label.trim(), this.lifetime);
         if (!this.lifetime.destroyed) this.activation.set(code);
       } catch (error) {
         if (!this.lifetime.destroyed)
-          this.accessError.set(this.failure(error) + ' יצירת קוד נוסף תבטל כל קוד קודם שטרם נוצל.');
+          this.accessError.set(this.failure(error) + ' קוד חדש יבטל כל קוד קודם שלא נוצל.');
       } finally {
-        if (!this.lifetime.destroyed) this.busy.set(false);
+        if (!this.lifetime.destroyed) this.working.set(undefined);
       }
     });
+    if (this.deviceFields().invalid()) this.accessError.set('תקנו את שם המכשיר.');
   }
   protected async changeDeviceAccess(device: ChildDevice) {
     const child = this.selected();
@@ -256,7 +268,7 @@ export class ChildrenPage {
     )
       return;
     const restore = this.holdFocus();
-    this.busy.set(true);
+    this.working.set('access');
     this.accessError.set('');
     try {
       if (device.canRemove) await this.api.removeDevice(child.id, device.id, this.lifetime);
@@ -265,7 +277,7 @@ export class ChildrenPage {
       if (device.canRemove && this.devicePage() > 1 && this.devices.value()?.items.length === 1)
         this.devicePage.update((page) => page - 1);
       else this.devices.reload();
-      this.notice.set(device.canRemove ? 'המכשיר הוסר מהרשימה.' : 'הגישה מהמכשיר בוטלה.');
+      this.accessNotice.set(device.canRemove ? 'המכשיר הוסר מהרשימה.' : 'הגישה מהמכשיר בוטלה.');
     } catch (error) {
       if (!this.lifetime.destroyed)
         this.accessError.set(
@@ -273,7 +285,7 @@ export class ChildrenPage {
         );
     } finally {
       if (!this.lifetime.destroyed) {
-        this.busy.set(false);
+        this.working.set(undefined);
         this.pendingDeviceFocus = restore;
         this.restoreAfterDevices();
       }

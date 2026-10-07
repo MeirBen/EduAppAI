@@ -85,7 +85,7 @@ test('clarifies, confirms exact source text and saves only the reusable plan', a
   await page.getByRole('button', { name: 'הטקסט הועתק נכון' }).click();
   await expect(page.getByText('בדקו שהטקסט הועתק נכון לפני שממשיכים.')).toBeHidden();
   await page.locator('#save-template').click();
-  await expect(page.getByText('התבנית נשמרה בספרייה. הפעילות לא השתנתה.')).toBeVisible();
+  await expect(page.getByText('התבנית נשמרה במרחב שלנו. הפעילות לא השתנתה.')).toBeVisible();
   expect(writes).toHaveLength(1);
   expect(writes[0].url).toBe('/api/templates');
   expect(writes[0].body).toMatchObject({ materials: [{ text: sourceText }] });
@@ -132,7 +132,7 @@ test('local typing wins over a pending author request and publication conflicts 
   await expect(page.locator('#chat-cancel')).toBeHidden();
   release();
   await page.locator('#save-template').click();
-  await expect(page.getByRole('alert')).toContainText('השינויים שלכם נשארים כאן');
+  await expect(page.getByRole('alert')).toContainText('השינויים שלכם נשארו כאן');
   await expect(page.getByLabel('שם התבנית')).toHaveValue('עריכה מקומית');
 });
 
@@ -143,7 +143,7 @@ test('direct editing works without AI at 360px and 200% text with keyboard-acces
   await page.setViewportSize({ width: 360, height: 800 });
   await page.goto('/templates/new');
   await textSize(page, 32);
-  await expect(page.getByText('יצירה בעזרת AI אינה זמינה כרגע.', { exact: false })).toBeVisible();
+  await expect(page.getByText('יצירה בעזרת AI לא זמינה כרגע.', { exact: false })).toBeVisible();
   await page.getByLabel('שם התבנית').fill('תרגול ידני');
   await page.getByLabel('מה רוצים ללמוד או לתרגל?').fill('תרגול מספרים');
   await page.locator('#activity-topic').fill('חשבון');
@@ -151,7 +151,7 @@ test('direct editing works without AI at 360px and 200% text with keyboard-acces
   await page.locator('#activity-questionCount').fill('3');
   await page.locator('#save-template').focus();
   await page.keyboard.press('Enter');
-  await expect(page.getByText('התבנית נשמרה בספרייה.', { exact: true })).toBeVisible();
+  await expect(page.getByText('התבנית נשמרה במרחב שלנו.', { exact: true })).toBeVisible();
   await expect(page.locator('[id$="-length-mode"]')).toHaveCount(0);
   // A new blank choice opens unflagged and focus stays on the add button; closed, it shows what
   // still needs fixing, and removing the only choice returns focus to adding one.
