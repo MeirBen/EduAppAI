@@ -8,19 +8,21 @@ live in [architecture](architecture.md).
 ## Current status
 
 Gemini 3.8 Flash uses native strict `json_schema`, medium reasoning and
-provider-default sampling. **Structural acceptance does not establish educational
-quality or superiority to the old one-shot flow.** Keep parent review, server
-validation and explicit recovery; no automatic repair, production retry or
-model-specific code path. Six acceptance cases passed three historical rounds
-(42 calls, no retry/repair), before later prompt changes. Do not treat that
-sample as a current reliability rate.
+provider-default sampling. **Structural acceptance does not establish
+educational quality or superiority to the old one-shot flow.** Keep parent
+review, server validation and explicit recovery. Generated text gets one
+measured automatic polish; there is no production retry or model-specific code
+path. Six acceptance cases passed three historical rounds (42 calls, no
+retry/repair), before later prompt changes. Do not treat that sample as a
+current reliability rate.
 
 ## Design and cutover decision
 
-The owner chose prompt → editable plan → material ideas/writing → questions →
-reviewed immutable snapshot for editing, source preservation and checkpoint
-recovery. Supplied sources and question-only activities skip material generation.
-See [architecture](architecture.md#ai-and-persistence) for stage ownership,
+The owner chose prompt → editable plan → material ideas/writing/polish → parent
+text review → questions → reviewed immutable snapshot for editing, source
+preservation and checkpoint recovery. Supplied sources and question-only
+activities skip material generation. See
+[architecture](architecture.md#ai-and-persistence) for stage ownership,
 replacement, staleness and persistence.
 
 The 1 October comparison did **not** meet its quality threshold: one-shot passed
@@ -76,7 +78,25 @@ Retained:
   rejections); the `="` form still fails. Probe keys: 51/52 correct across
   remainders, fractions, decimals, order of operations and word problems.
 
+- **Text polish (revision 34):** after writing, one minimal-edit call reviews the
+  generated text for its audience (spelling, grammar, agreement, niqqud,
+  unnatural or too-formal wording, clearly wrong facts) in the writing schema.
+  On 31 saved texts it fixed a meaning error, agreement, niqqud vowels and a
+  factual imprecision, with three minor style regressions. A pre-registered
+  confirmation on 20 fresh texts found 5 genuine corrections in 4 texts (a
+  factual claim, a construct-state error, number agreement, two wrong words) and
+  no introduced error; 13 came back unchanged. Validation rejected 0 of 51
+  polishes. It left the ant-brood misconception in 6/6 texts and barely changed
+  formal words. Cost is about $0.010 per text, median 15 seconds (35 at p90).
+
 Rejected or unproven; revisit only with new evidence:
+
+- **Question polish:** the same pass over questions, with code guards keeping
+  formats, points, option positions, keys and numbers, was safe (0 of 53
+  rejected, no harmful edit) but barely simplified wording: formal words per
+  grade-3 set went from 2.33 to 2.21, and 2.12 after one operational revision,
+  against a bar of 1.17. Not shipped; parent review and the "ניסוח פשוט וברור
+  יותר" suggestion remain.
 
 - **Less reasoning:** lower cost/latency came with more Hebrew errors; one
   Gemini comparison found 9 findings versus 1. Disabled reasoning also failed
@@ -106,7 +126,8 @@ Rejected or unproven; revisit only with new evidence:
 
 The [generation architecture](architecture.md#ai-and-persistence) owns the
 five-idea stage, bounded family history and application-drawn tie-breaking.
-Generated material adds one call; supplied sources and question-only work do not.
+The idea stage adds one call to generated material and the polish another;
+supplied sources and question-only work make neither.
 
 Revision 29 trials on two grade-3 story topics found no repeated family premise
 in 24 stories, versus 25–31% with revision 26. Without relevant history, all
@@ -224,7 +245,9 @@ output tokens (validated up to 32,768) stay below the endpoint maximum of
 
 - **Content:** incomplete inference coverage, unnatural Hebrew/niqqud, factual
   errors and wrong answer keys remain possible. Observed errors include claims
-  that orbit has no gravity and that ants move brood deeper during rain.
+  that orbit has no gravity and that ants move brood deeper during rain. The
+  text polish corrects some slips, but the same model keeps claims it believes,
+  such as the ant one, and questions are not polished.
 - **Shared math sources:** one structurally valid trial confused a book price
   with a booklet price and supplied the wrong key. Baseline and final outputs
   added quantities despite source-only requirements. A stronger answer-check
@@ -274,6 +297,10 @@ Historical caps do not authorize new paid runs.
   evidence (`bidi.png`), final controls and a four-case reading regression.
 - `difficulty-default-2026-10-07/`: difficulty-default candidate and a broad
   revision-33 regression; cost in its `budget.json`, within a separate $1 cap.
+- `polish-2026-10-07/`: text and question polish replays over saved outputs
+  and a final two-case live check, 138 calls, $1.2922 of a $1.50 cap, no
+  unknown costs; `protocol.txt` records each registered rule before its run,
+  with blind labels and analysis.
 
 Retired design documents: `documentation-history-2026-10-01.zip`.
 
@@ -322,8 +349,9 @@ never relax a check to raise pass rates.
 
 Reports go to `artifacts/evaluations/<run>/` or `--output`. `run.json` is the
 authoritative checkpoint with exact requests, schemas, versions, content,
-usage and safe diagnostics, never secrets or reasoning text. `summary.json` is
-derived; unknown costs are null with coverage counts
+usage and safe diagnostics, never secrets or reasoning text. Generated text is
+recorded as written and as polished, in separate steps of the same run.
+`summary.json` is derived; unknown costs are null with coverage counts
 ([usage accounting][usage]).
 
 Judge findings are advisory: each must quote a supplied field and never edits

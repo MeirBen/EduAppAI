@@ -19,7 +19,7 @@ public sealed record EvaluationCase(string Id, string Prompt, string ReviewFocus
     public int ExpectedGeneratedMaterials { get; init; }
     public ResolvedLength? ExpectedLength { get; init; }
     public int PlannedCalls => (InitialPlan is null ? 1 + Refinements.Length : 0) +
-        ((InitialPlan?.Materials.Count(material => material.Source == "generated") ?? ExpectedGeneratedMaterials) > 0 ? 2 : 0) +
+        ((InitialPlan?.Materials.Count(material => material.Source == "generated") ?? ExpectedGeneratedMaterials) > 0 ? 3 : 0) +
         1 + Replacements.Length;
 }
 
@@ -91,6 +91,8 @@ public sealed class EvaluationResult(string caseId, int repetition)
     /// <summary>The validated selected idea, kept even when writing fails.</summary>
     public MaterialIdea? SelectedMaterialIdea { get; set; }
     public EvaluationStep? Materials { get; set; }
+    /// <summary>The applied polish of the written text; the writing step keeps the text as first written.</summary>
+    public EvaluationStep? MaterialPolish { get; set; }
     public EvaluationStep? Generation { get; set; }
     [JsonRequired] public List<EvaluationStep> Replacements { get; init; } = [];
     public EvaluationStep? Judge { get; set; }
@@ -106,7 +108,7 @@ public sealed class EvaluationResult(string caseId, int repetition)
     public bool EndToEndReady { get; set; }
     [JsonIgnore]
     public IEnumerable<EvaluationStep> Steps => new[] { Authoring }.OfType<EvaluationStep>()
-        .Concat(Refinements).Concat(new[] { MaterialIdeas, Materials, Generation }.OfType<EvaluationStep>())
+        .Concat(Refinements).Concat(new[] { MaterialIdeas, Materials, MaterialPolish, Generation }.OfType<EvaluationStep>())
         .Concat(Replacements).Concat(new[] { Judge }.OfType<EvaluationStep>());
     /// <summary>Shared TextLength count across material bodies; null when no independent length check ran.</summary>
     public int? PassageWordCount { get; set; }

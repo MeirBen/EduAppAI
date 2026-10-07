@@ -85,7 +85,7 @@ public sealed class EvaluationReportsTests : IDisposable
             Results = [new(scenario.Id, 1)
             {
                 Authoring = Skipped("authoring", "fixed-plan"), Plan = plan,
-            MaterialIdeas = Skipped("material-ideas"), Materials = Skipped(), Generation = Step(role: "questions"),
+            MaterialIdeas = Skipped("material-ideas"), Materials = Skipped(), MaterialPolish = Skipped("material-polish"), Generation = Step(role: "questions"),
                 Input = LearningPlanFixture.Resolve(LearningPlanFixture.Supplied() with
                 { Materials = [plan.Materials[0] with { Text = source }] }) with { EngineRevision = revision }
             }]
@@ -125,6 +125,7 @@ public sealed class EvaluationReportsTests : IDisposable
             Input = LearningPlanFixture.Resolve(EvaluationFixtures.Plan()),
             MaterialIdeas = Skipped("material-ideas"),
             Materials = Skipped(),
+            MaterialPolish = Skipped("material-polish"),
             Authoring = Step(20, 8, 2, 0.2m, 200),
             Generation = Step(30, 12, null, null, 300, "questions"),
             Judge = Step(40, 16, 4, 0.3m, 400),
@@ -320,12 +321,14 @@ public sealed class EvaluationReportsTests : IDisposable
                 Input = LearningPlanFixture.Resolve(EvaluationFixtures.Plan()),
                 MaterialIdeas = Skipped("material-ideas"),
                 Materials = Skipped(),
+                MaterialPolish = Skipped("material-polish"),
                 Authoring = Step(),
                 Generation = Skipped("questions", "earlier-stage")
             };
             result.Input = null;
             result.MaterialIdeas = Skipped("material-ideas", "earlier-stage");
             result.Materials = Skipped("materials", "earlier-stage");
+            result.MaterialPolish = Skipped("material-polish", "earlier-stage");
             if (invalidDefaults) result.Checks["inputResolution"] = false;
             else
             {
@@ -479,6 +482,7 @@ public sealed class EvaluationReportsTests : IDisposable
         Input = LearningPlanFixture.Resolve(EvaluationFixtures.Plan()),
         MaterialIdeas = Skipped("material-ideas"),
         Materials = Skipped(),
+        MaterialPolish = Skipped("material-polish"),
         Authoring = Step(),
         Generation = Step(role: "questions"),
         Judge = judge,

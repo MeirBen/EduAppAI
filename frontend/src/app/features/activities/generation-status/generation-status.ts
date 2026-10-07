@@ -6,18 +6,21 @@ import { isRunning, stageNames } from './operation-state';
 import { DisabledInteractive } from '../../../shared/disabled-interactive';
 import { CopyButton } from '../../../shared/copy-button/copy-button';
 
-type Scope = 'activity' | 'material' | 'question';
+type Scope = 'text' | 'questions' | 'material' | 'question';
 const scopes: Partial<Record<GenerationKind, Scope>> = {
+  GenerateQuestions: 'questions',
   ReplaceMaterial: 'material',
   ReplaceQuestion: 'question',
 };
 const runningTitles: Record<Scope, string> = {
-  activity: 'יוצרים את הפעילות…',
+  text: 'יוצרים את הטקסט…',
+  questions: 'יוצרים את השאלות…',
   material: 'משפרים את הטקסט…',
   question: 'משפרים את השאלה…',
 };
 const completedTitles: Record<Scope, string> = {
-  activity: 'הפעילות נוצרה.',
+  text: 'הטקסט נוצר.',
+  questions: 'השאלות נוצרו.',
   material: 'הטקסט עודכן.',
   question: 'השאלה עודכנה.',
 };
@@ -55,6 +58,7 @@ export class GenerationStatus {
   protected readonly stages: Record<string, string> = {
     'material-ideas': 'בוחרים רעיון לטקסט',
     materials: 'כותבים את הטקסט',
+    'material-polish': 'משפרים את ניסוח הטקסט',
     questions: 'מכינים את השאלות',
     'replace-material': 'כותבים גרסה חדשה לטקסט',
     'replace-question': 'מכינים גרסה חדשה לשאלה',
@@ -72,7 +76,7 @@ export class GenerationStatus {
   };
   protected readonly view = computed((): StatusView => {
     const operation = this.operation();
-    const scope = scopes[operation.kind] ?? 'activity';
+    const scope = scopes[operation.kind] ?? 'text';
     switch (operation.status) {
       case 'queued':
       case 'calling':
@@ -84,9 +88,13 @@ export class GenerationStatus {
       case 'completed':
         return {
           title: completedTitles[scope],
-          // The review panel below already asks for a general review; only a new text adds a check.
+          // The review panel below already asks for a general review; text asks for its own check.
           details:
-            scope === 'material' ? ['בדקו את הטקסט ואת השאלות שתלויות בו לפני סימון כמוכנה.'] : [],
+            scope === 'text'
+              ? ['בדקו את הטקסט ותקנו אותו לפי הצורך, ואז צרו את השאלות.']
+              : scope === 'material'
+                ? ['בדקו את הטקסט ואת השאלות שתלויות בו לפני סימון כמוכנה.']
+                : [],
           problem: false,
         };
       case 'failed':
@@ -113,6 +121,13 @@ export class GenerationStatus {
     }
   });
   private failure(operation: GenerationOperation, scope: Scope): StatusView {
+    // A failed polish leaves the text its writing stage saved, so no retry is offered.
+    if (operation.stage === 'material-polish')
+      return {
+        title: 'הטקסט נשמר, אבל שיפור הניסוח לא הושלם.',
+        details: ['בדקו את הטקסט בעצמכם לפני שיוצרים את השאלות.'],
+        problem: true,
+      };
     const unchanged = 'התוצאה לא החליפה את התוכן הקיים.';
     const lengths = (operation.artifacts?.steps ?? []).flatMap((step) =>
       Object.keys(step.diagnostics ?? {}).filter((key) => key.startsWith('length.')),
@@ -131,41 +146,28 @@ export class GenerationStatus {
         title: 'הטקסט שנוצר לא עמד בדרישת האורך.',
         details: [...required, unchanged],
         problem: true,
-        retry:
-          scope === 'activity' ? { kind: 'GenerateActivity', label: 'ניסיון נוסף' } : undefined,
+        retry: scope === 'text' ? { kind: 'GenerateMaterials', label: 'ניסיון נוסף' } : undefined,
       };
     }
-    if (scope !== 'activity')
+    if (scope === 'material' || scope === 'question')
       return {
         title: 'השיפור לא הצליח.',
         details: [unchanged, 'אפשר לנסות שוב מהחלק עצמו.'],
         problem: true,
       };
-    if (operation.stage === 'questions') {
-      const materialsKept = operation.steps.some(
-        (step) =>
-          step.stage === 'materials' && (step.outcome === 'accepted' || step.outcome === 'applied'),
-      );
-      return materialsKept
-        ? {
-            title: 'הטקסט נשמר, אבל יצירת השאלות נכשלה.',
-            details: ['אפשר לנסות ליצור את השאלות שוב בלי לאבד את הטקסט.'],
-            problem: true,
-            retry: { kind: 'GenerateQuestions', label: 'יצירת השאלות שוב' },
-          }
-        : {
-            title: 'יצירת השאלות נכשלה.',
-            details: [unchanged],
-            problem: true,
-            retry: { kind: operation.kind, label: 'ניסיון נוסף' },
-          };
-    }
-    return {
-      title: 'יצירת הטקסט נכשלה.',
-      details: [unchanged],
-      problem: true,
-      retry: { kind: 'GenerateActivity', label: 'ניסיון נוסף' },
-    };
+    return scope === 'questions'
+      ? {
+          title: 'יצירת השאלות נכשלה.',
+          details: [unchanged],
+          problem: true,
+          retry: { kind: 'GenerateQuestions', label: 'ניסיון נוסף' },
+        }
+      : {
+          title: 'יצירת הטקסט נכשלה.',
+          details: [unchanged],
+          problem: true,
+          retry: { kind: 'GenerateMaterials', label: 'ניסיון נוסף' },
+        };
   }
   protected messages(diagnostics: Record<string, string[]> | null) {
     return Object.values(diagnostics ?? {}).flat();

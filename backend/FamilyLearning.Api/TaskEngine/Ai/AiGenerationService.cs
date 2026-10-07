@@ -127,6 +127,18 @@ public sealed class AiGenerationService(IEnumerable<IChatClient> clients, ILogge
         return result with { Value = candidate };
     }
 
+    /// <summary>One minimal-edit pass over every accepted generated material, in the writing schema; supplied sources are context only.</summary>
+    public async Task<AiResult<MaterialCandidateBatch>> PolishMaterialsAsync(PolishInput input, CancellationToken ct, AiCallEvidence? evidence = null)
+    {
+        var targets = TaskAssembly.MaterialPolishTargets(input);
+        var result = await RequestAsync<MaterialCandidateBatch>(AiPrompts.MaterialPolish,
+            JsonSerializer.Serialize(new { request = EffectiveInput(input.Request), materials = targets.Select(m => new { m.Id, m.Title, m.Body }) }, Json),
+            AiSchemas.MaterialsFor(targets.Select(m => m.Id).ToArray()), AiPrompts.Version("material-polish"), ct, evidence: evidence);
+        try { TaskAssembly.PolishMaterials(input, result.Value, result.Metadata); }
+        catch (TaskValidationException exception) { throw InvalidOutput("material-validation", result.Metadata.PromptVersion, exception.Errors); }
+        return result;
+    }
+
     // Version/provenance fields are evidence for the caller, never competing generation requirements.
     private static object EffectiveInput(ResolvedTaskRequest request) => new
     {
@@ -140,8 +152,7 @@ public sealed class AiGenerationService(IEnumerable<IChatClient> clients, ILogge
     };
 
     private static MaterialGenerationInput RequireMaterials(MaterialGenerationInput input) =>
-        TaskAssembly.PrepareMaterials(input.Request, new("", null, input.Materials, []))
-        ?? throw new TaskValidationException("materials", "אין חומרים חסרים או מיושנים ליצירה.");
+        TaskAssembly.RequireMaterialWork(input.Request, new("", null, input.Materials, []));
 
     private static object SourceContext(IEnumerable<MaterialContent> materials) =>
         materials.Select(m => new { m.Id, m.Revision, m.Title, m.Body }).ToArray();

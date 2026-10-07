@@ -136,7 +136,7 @@ public sealed class GenerationRaceTests
         await using var app = new GenerationHarness();
         using var parent = await app.ParentAsync();
         var draft = await Create(parent, Numeric(1));
-        var request = new { operationKey = Guid.NewGuid(), expectedRevision = 1, kind = "GenerateActivity" };
+        var request = new { operationKey = Guid.NewGuid(), expectedRevision = 1, kind = "GenerateQuestions" };
         var replies = await Task.WhenAll(parent.PostAsJsonAsync(Path(draft) + "/operations", request), parent.PostAsJsonAsync(Path(draft) + "/operations", request));
         Assert.All(replies, response => Assert.Equal(HttpStatusCode.Accepted, response.StatusCode));
         using var scope = app.App.Services.CreateScope();

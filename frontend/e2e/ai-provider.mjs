@@ -39,7 +39,7 @@ export async function startAiProvider(port = 0) {
       const schema = input.response_format.json_schema.schema;
       assert.equal(schema.additionalProperties, false);
       const stage = input.response_format.json_schema.name.match(
-        /^content_first_(author|material_ideas|materials|questions|replace_material|replace_question)_v[1-9]\d*$/,
+        /^content_first_(author|material_ideas|materials|material_polish|questions|replace_material|replace_question)_v[1-9]\d*$/,
       )?.[1];
       assert.ok(stage, 'Only supported content-first stages may reach the provider');
       const user = JSON.parse(input.messages[1].content);
@@ -83,18 +83,20 @@ export async function startAiProvider(port = 0) {
                     .filter((/** @type {{source: string}} */ m) => m.source === 'generated')
                     .map(material),
                 }
-              : stage === 'replace_material'
-                ? material(user.target)
-                : stage === 'replace_question'
-                  ? question(effective, 0, true)
-                  : {
-                      title: 'לומדים על ' + effective.settings.topic,
-                      instructions: 'קראו ובדקו את תשובותיכם.',
-                      questions: Array.from(
-                        { length: effective.settings.questionCount },
-                        (_, index) => question(effective, index),
-                      ),
-                    };
+              : stage === 'material_polish'
+                ? { materials: user.materials }
+                : stage === 'replace_material'
+                  ? material(user.target)
+                  : stage === 'replace_question'
+                    ? question(effective, 0, true)
+                    : {
+                        title: 'לומדים על ' + effective.settings.topic,
+                        instructions: 'קראו ובדקו את תשובותיכם.',
+                        questions: Array.from(
+                          { length: effective.settings.questionCount },
+                          (_, index) => question(effective, index),
+                        ),
+                      };
       if (stage === 'material_ideas') {
         assert.equal(schema.properties.ideas.minItems, 5);
         assert.equal(schema.properties.ideas.maxItems, 5);
@@ -104,6 +106,10 @@ export async function startAiProvider(port = 0) {
         assert.ok(user.request);
         assert.equal(typeof user.idea.premise, 'string');
         assert.equal(typeof user.idea.structure, 'string');
+      }
+      if (stage === 'material_polish') {
+        assert.equal(user.history, undefined);
+        assert.ok(user.materials.length > 0);
       }
       if (stage === 'questions') {
         assert.ok(Array.isArray(user.history));

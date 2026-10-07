@@ -61,6 +61,7 @@ public static class EvaluationRunner
                         Authoring = Skipped("authoring", scenario.InitialPlan is null ? "earlier-stage" : "fixed-plan"),
                         MaterialIdeas = Skipped("material-ideas", "earlier-stage"),
                         Materials = Skipped("materials", "earlier-stage"),
+                        MaterialPolish = Skipped("material-polish", "earlier-stage"),
                         Generation = Skipped("questions", "earlier-stage"),
                         Judge = Skipped("review", report.JudgeEnabled ? "earlier-stage" : "disabled")
                     };
@@ -108,11 +109,21 @@ public static class EvaluationRunner
                         result.Document = accepted.Document;
                         result.Materials.Applied = true;
                         await SaveAsync();
+                        stage = "material-polish";
+                        // As in the app, a failed polish ends the text part; the written text stays in the writing step.
+                        var polishInput = new PolishInput(input, result.Document);
+                        var polished = await AttemptAsync(step => result.MaterialPolish = step,
+                            (evidence, token) => engine.PolishMaterialsAsync(polishInput, token, evidence), input, result.Document.Materials);
+                        if (polished is null) { await SaveAsync(); continue; }
+                        result.Document = TaskAssembly.PolishMaterials(polishInput, polished, result.MaterialPolish!.Metadata);
+                        result.MaterialPolish.Applied = true;
+                        await SaveAsync();
                     }
                     else
                     {
                         result.MaterialIdeas = Skipped("material-ideas", "no-generated-materials");
                         result.Materials = Skipped("materials", "no-generated-materials");
+                        result.MaterialPolish = Skipped("material-polish", "no-generated-materials");
                     }
                     stage = "questions";
                     var questions = TaskAssembly.PrepareQuestions(input, result.Document);

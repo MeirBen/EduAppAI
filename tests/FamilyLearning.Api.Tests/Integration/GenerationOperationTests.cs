@@ -106,7 +106,7 @@ public sealed class GenerationOperationTests
         await Create(parent, Numeric(1));
         using var scope = app.App.Services.CreateScope();
         var draft = await scope.ServiceProvider.GetRequiredService<LearningDbContext>().ActivityDrafts.SingleAsync();
-        var operation = new GenerationOperation(draft, new(Guid.NewGuid(), 1, "GenerateActivity"), Resolve(Numeric(1)),
+        var operation = new GenerationOperation(draft, new(Guid.NewGuid(), 1, "GenerateQuestions"), Resolve(Numeric(1)),
             StoredJson.Read<Api.TaskEngine.Models.TaskDocument>(draft.DocumentJson), new([], []), "questions", app.Worker.ProfileFingerprint, app.Clock.Now.UtcDateTime);
         var original = operation.ArtifactsJson;
         var artifacts = operation.Artifacts;
@@ -151,14 +151,10 @@ public sealed class GenerationOperationTests
     {
         var replacement = kind == "ReplaceMaterial" ? """{"id":"11111111111111111111111111111111","title":null,"body":"סיפור חדש"}""" :
             """{"prompt":"שאלה חדשה","interaction":{"type":"text-input","options":null},"answer":{"value":"חדש"},"points":1}""";
-        await using var app = new GenerationHarness(GenerationHarness.Ideas, GenerationHarness.Materials, GenerationHarness.Questions("text-input"), replacement);
+        await using var app = new GenerationHarness(GenerationHarness.Ideas, GenerationHarness.Materials, GenerationHarness.UnchangedPolish,
+            GenerationHarness.Questions("text-input"), replacement);
         using var parent = await app.ParentAsync();
-        var draft = await Create(parent, Reading() with { Defaults = Numeric(1).Defaults });
-        await GenerationHarness.Start(parent, draft);
-        await app.Worker.RunNextAsync(default);
-        await app.Worker.RunNextAsync(default);
-        await app.Worker.RunNextAsync(default);
-        draft = (await parent.GetFromJsonAsync<JsonNode>(Path(draft)))!;
+        var draft = await app.GenerateAsync(parent, await Create(parent, Reading() with { Defaults = Numeric(1).Defaults }));
         var questionId = draft["document"]!["questions"]![0]!["id"]!.GetValue<string>();
         var operation = await GenerationHarness.Start(parent, draft, kind, kind == "ReplaceMaterial" ? MaterialId : questionId);
         await app.Worker.RunNextAsync(default);
@@ -172,7 +168,7 @@ public sealed class GenerationOperationTests
             Assert.Contains("questions[0].stale", changed["diagnostics"]!.AsObject().Select(p => p.Key));
         }
         else Assert.True(JsonNode.DeepEquals(draft["document"]!["materials"], changed["document"]!["materials"]));
-        Assert.Equal(4, app.Chat.Requests.Count);
+        Assert.Equal(5, app.Chat.Requests.Count);
         Assert.Equal("completed", (await parent.GetFromJsonAsync<JsonNode>(GenerationHarness.OperationPath(operation)))!["status"]!.GetValue<string>());
     }
 
@@ -186,7 +182,7 @@ public sealed class GenerationOperationTests
         var edit = Edit(draft);
         edit["document"]!["materials"] = new JsonArray(new JsonObject { ["id"] = MaterialId, ["body"] = "קצר" });
         draft = await Save(parent, draft, edit);
-        foreach (var kind in new[] { "GenerateActivity", "GenerateQuestions" })
+        foreach (var kind in new[] { "GenerateMaterials", "GenerateQuestions" })
             Assert.Equal(HttpStatusCode.BadRequest, (await parent.PostAsJsonAsync(Path(draft) + "/operations",
                 new { operationKey = Guid.NewGuid(), expectedRevision = 2, kind })).StatusCode);
         using var scope = app.App.Services.CreateScope();
@@ -209,7 +205,7 @@ public sealed class GenerationOperationTests
         using var ninthFamily = await app.ParentAsync();
         var blocked = await Create(ninthFamily, Numeric(1));
         Assert.Equal(HttpStatusCode.TooManyRequests, (await ninthFamily.PostAsJsonAsync(Path(blocked) + "/operations",
-            new { operationKey = Guid.NewGuid(), expectedRevision = 1, kind = "GenerateActivity" })).StatusCode);
+            new { operationKey = Guid.NewGuid(), expectedRevision = 1, kind = "GenerateQuestions" })).StatusCode);
         Assert.Empty(app.Chat.Requests);
     }
 
@@ -257,7 +253,7 @@ public sealed class GenerationOperationTests
             var limiter = app.App.Services.GetRequiredService<AiStartLimiter>();
             for (var i = 0; i < 9; i++) Assert.True(limiter.TryAcquire(familyId));
         }
-        var request = new { operationKey = Guid.NewGuid(), expectedRevision = 1, kind = "GenerateActivity" };
+        var request = new { operationKey = Guid.NewGuid(), expectedRevision = 1, kind = "GenerateQuestions" };
         using var start = await parent.PostAsJsonAsync(Path(draft) + "/operations", request);
         Assert.Equal(HttpStatusCode.Accepted, start.StatusCode);
         var operation = (await start.Content.ReadFromJsonAsync<JsonNode>())!;
@@ -267,20 +263,20 @@ public sealed class GenerationOperationTests
     }
 
     [Fact]
-    public async Task Material_checkpoint_queues_questions_and_replay_survives_progress_and_completion()
+    public async Task Text_operation_writes_then_polishes_and_stops_and_replay_survives_progress_and_completion()
     {
-        await using var app = new GenerationHarness(GenerationHarness.Ideas, GenerationHarness.Materials, GenerationHarness.Questions("text-input"));
+        const string polished = """{"materials":[{"id":"11111111111111111111111111111111","title":null,"body":"שלום לכולם"}]}""";
+        await using var app = new GenerationHarness(GenerationHarness.Ideas, GenerationHarness.Materials, polished, GenerationHarness.Questions("text-input"));
         using var parent = await app.ParentAsync();
         var draft = await Create(parent, Reading() with { Defaults = Numeric(1).Defaults });
-        var request = new { operationKey = Guid.NewGuid(), expectedRevision = 1, kind = "GenerateActivity" };
+        var request = new { operationKey = Guid.NewGuid(), expectedRevision = 1, kind = "GenerateMaterials" };
         using var start = await parent.PostAsJsonAsync(Path(draft) + "/operations", request);
         Assert.Equal(HttpStatusCode.Accepted, start.StatusCode);
         var operation = (await start.Content.ReadFromJsonAsync<JsonNode>())!;
         Assert.True(await app.Worker.RunNextAsync(default));
         Assert.True(await app.Worker.RunNextAsync(default));
         var checkpoint = (await parent.GetFromJsonAsync<JsonNode>(Path(draft)))!;
-        Assert.Single(checkpoint["document"]!["materials"]!.AsArray());
-        Assert.Empty(checkpoint["document"]!["questions"]!.AsArray());
+        Assert.Equal("שלום עולם", checkpoint["document"]!["materials"]![0]!["body"]!.GetValue<string>());
         Assert.Equal(2, checkpoint["revision"]!.GetValue<long>());
         Assert.Equal(2, app.Chat.Requests.Count);
         using var replay = await parent.PostAsJsonAsync(Path(draft) + "/operations", request);
@@ -289,15 +285,23 @@ public sealed class GenerationOperationTests
         Assert.True(await app.Worker.RunNextAsync(default));
         var completed = (await parent.GetFromJsonAsync<JsonNode>(GenerationHarness.OperationPath(operation)))!;
         Assert.Equal("completed", completed["status"]!.GetValue<string>());
-        Assert.Equal(3, completed["steps"]!.AsArray().Count);
+        Assert.Equal(["material-ideas", "materials", "material-polish"], completed["steps"]!.AsArray().Select(s => s!["stage"]!.GetValue<string>()));
         var saved = (await parent.GetFromJsonAsync<JsonNode>(Path(draft)))!;
+        Assert.Equal("שלום לכולם", saved["document"]!["materials"]![0]!["body"]!.GetValue<string>());
+        Assert.Empty(saved["document"]!["questions"]!.AsArray());
         Assert.Equal(3, saved["revision"]!.GetValue<long>());
         Assert.Equal(3, completed["expectedRevision"]!.GetValue<long>());
         Assert.Null(saved["activeOperationId"]);
-        Assert.Empty(saved["diagnostics"]!.AsObject());
+        Assert.DoesNotContain(saved["diagnostics"]!.AsObject(), diagnostic => diagnostic.Key.StartsWith("materials") || diagnostic.Key.StartsWith("length"));
+        // Questions are the parent's next, separate request; the text operation never queues them.
         Assert.False(await app.Worker.RunNextAsync(default));
         Assert.Equal(HttpStatusCode.Accepted, (await parent.PostAsJsonAsync(Path(draft) + "/operations", request)).StatusCode);
         Assert.Equal(3, app.Chat.Requests.Count);
+        await GenerationHarness.Start(parent, saved, "GenerateQuestions");
+        Assert.True(await app.Worker.RunNextAsync(default));
+        saved = (await parent.GetFromJsonAsync<JsonNode>(Path(draft)))!;
+        Assert.Single(saved["document"]!["questions"]!.AsArray());
+        Assert.Empty(saved["diagnostics"]!.AsObject());
     }
 
     [Theory]
@@ -316,6 +320,8 @@ public sealed class GenerationOperationTests
         if (!rejectMaterial) await app.Worker.RunNextAsync(default);
         var failed = (await parent.GetFromJsonAsync<JsonNode>(GenerationHarness.OperationPath(operation)))!;
         Assert.Equal("failed", failed["status"]!.GetValue<string>());
+        // A rejected polish ends the operation like any stage, keeping the text already written.
+        Assert.Equal(rejectMaterial ? "materials" : "material-polish", failed["stage"]!.GetValue<string>());
         Assert.NotNull(failed["artifacts"]!["steps"]![1]!["call"]!["output"]);
         var saved = (await parent.GetFromJsonAsync<JsonNode>(Path(draft)))!;
         Assert.Equal(rejectMaterial ? 0 : 1, saved["document"]!["materials"]!.AsArray().Count);
@@ -359,7 +365,7 @@ public sealed class GenerationOperationTests
         using var parent = await app.ParentAsync();
         using var stranger = await app.ParentAsync();
         var draft = await Create(parent, Numeric(1));
-        var request = new { operationKey = Guid.NewGuid(), expectedRevision = 1, kind = "GenerateActivity" };
+        var request = new { operationKey = Guid.NewGuid(), expectedRevision = 1, kind = "GenerateQuestions" };
         var path = Path(draft) + "/operations";
         Assert.Equal(HttpStatusCode.NotFound, (await stranger.PostAsJsonAsync(path, request)).StatusCode);
         using var start = await parent.PostAsJsonAsync(path, request);

@@ -246,7 +246,8 @@ Use parent terminology: "הגדרות" for plan, "טקסט" for material, source
 "כתבו עבורי תוכן חדש", "יש לי טקסט משלי" and (templates) "אבחר טקסט חדש בכל פעם".
 Describe lengths as approximate words or strict ranges. Distinguish template
 publication, draft saving and marking a reviewed revision ready. The primary
-action progresses from create activity to mark ready; template editing uses
+action progresses from create text to create questions to mark ready (plans
+without generated text start at create questions); template editing uses
 publish. The action bar holds it, save, save state and Undo; the review card
 holds readiness. Put uncommon actions under **פעולות נוספות** or a disclosure.
 

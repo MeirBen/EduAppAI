@@ -23,6 +23,10 @@ public static class TaskAssembly
             ? new(request, RestoreSources(request, current.Materials)) : null;
     }
 
+    /// <summary>Material work for an explicit text request: rejects a request with nothing absent or stale to write.</summary>
+    public static MaterialGenerationInput RequireMaterialWork(ResolvedTaskRequest request, TaskDocument current) =>
+        PrepareMaterials(request, current) ?? throw new TaskValidationException("materials", "אין טקסט חסר או שאינו עדכני ליצירה.");
+
     /// <summary>Allows question work only against exact, current, strict-valid materials, including manual edits.</summary>
     public static QuestionGenerationInput PrepareQuestions(ResolvedTaskRequest request, TaskDocument current)
     {
@@ -149,6 +153,48 @@ public static class TaskAssembly
             new(fingerprint, materials.Select(m => new MaterialRevision(m.Id, m.Revision)).ToArray()));
         var check = TaskDocumentValidator.ValidateMaterials(input.Request, document);
         var errors = TaskDocumentValidator.ValidateAdoption(input.Request, document, [], [target.Id], check);
+        if (errors.Count > 0) throw new TaskValidationException(errors);
+        return document;
+    }
+
+    /// <summary>Checks a polish of every generated material before the call; all materials must be current and strict-valid.</summary>
+    public static MaterialContent[] MaterialPolishTargets(PolishInput input)
+    {
+        RequireSafe(input.Request, input.Current);
+        RequireMaterials(TaskDocumentValidator.ValidateMaterials(input.Request, input.Current));
+        var targets = input.Current.Materials.Where(m => input.Request.Materials.Any(r => r.Id == m.Id && r.Source == "generated")).ToArray();
+        return targets.Length > 0 ? targets : throw TargetError("materials");
+    }
+
+    /// <summary>Applies a complete same-ID polish under strict material checks. Unchanged materials keep their revision; an edited one
+    /// keeps its idea, because a polish edits idea-derived text rather than rewriting it, and its dependent questions become stale.</summary>
+    public static TaskDocument PolishMaterials(PolishInput input, MaterialCandidateBatch candidate, GenerationMetadata? metadata = null)
+    {
+        var targets = MaterialPolishTargets(input);
+        var items = candidate?.Materials;
+        if (items is null || items.Length != targets.Length ||
+            items.Any(item => item is null || !HasText(item.Body, BodyLimit) || item.Title?.Length > TitleLength) ||
+            !targets.All(target => items.Count(item => item.Id == target.Id) == 1))
+            throw TargetError("materials");
+        var fingerprint = TaskRequestResolver.Fingerprint(input.Request);
+        var document = input.Current with
+        {
+            Materials = input.Current.Materials.Select(m => items.FirstOrDefault(item => item.Id == m.Id) is { } item &&
+                (item.Title != m.Title || item.Body != m.Body)
+                ? m with
+                {
+                    Revision = checked(m.Revision + 1),
+                    Title = item.Title,
+                    Body = item.Body,
+                    Origin = new("generated", input.Request.EngineRevision, fingerprint, metadata),
+                    Acceptance = new(fingerprint, [])
+                }
+                : m with { Acceptance = CopyAcceptance(m.Acceptance) }).ToArray(),
+            Questions = CopyQuestions(input.Current.Questions)
+        };
+        var materialCheck = TaskDocumentValidator.ValidateMaterials(input.Request, document);
+        var errors = TaskDocumentValidator.ValidateDraft(input.Request, document, materialCheck).Errors;
+        foreach (var diagnostic in materialCheck.Diagnostics) errors.AddError(diagnostic.Key, diagnostic.Value[0]);
         if (errors.Count > 0) throw new TaskValidationException(errors);
         return document;
     }

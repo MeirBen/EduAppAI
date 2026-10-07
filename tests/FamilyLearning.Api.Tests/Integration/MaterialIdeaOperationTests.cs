@@ -31,7 +31,7 @@ public sealed class MaterialIdeaOperationTests
     [Fact]
     public async Task Idea_checkpoint_resumes_writing_without_repeating_the_call_and_the_idea_stays_through_edits()
     {
-        await using var app = new GenerationHarness(Ideas, Materials, Questions("text-input"));
+        await using var app = new GenerationHarness(Ideas, Materials, UnchangedPolish);
         using var parent = await app.ParentAsync();
         var draft = await Create(parent, Reading() with { Defaults = Numeric(1).Defaults });
         var operation = await Start(parent, draft);
@@ -81,14 +81,14 @@ public sealed class MaterialIdeaOperationTests
     [InlineData(true)]
     public async Task Admission_freezes_owned_history_without_answers_and_each_stage_receives_only_its_part(bool paddedPrompt)
     {
-        await using var app = new GenerationHarness(Ideas, Materials, Questions("text-input"));
+        await using var app = new GenerationHarness(Ideas, Materials, UnchangedPolish, Questions("text-input"));
         using var parent = await app.ParentAsync();
         using var stranger = await app.ParentAsync();
         var family = await FamilyId(parent);
         await AddDraftWithIdea(app, family, "owned", (paddedPrompt ? new string(' ', 300) : "") + "owned-question");
         await AddDraftWithIdea(app, await FamilyId(stranger), "foreign");
         var draft = await Create(parent, Reading() with { Defaults = Numeric(1).Defaults });
-        var request = new { operationKey = Guid.NewGuid(), expectedRevision = 1, kind = "GenerateActivity" };
+        var request = new { operationKey = Guid.NewGuid(), expectedRevision = 1, kind = "GenerateMaterials" };
         using var started = await parent.PostAsJsonAsync(Path(draft) + "/operations", request);
         var frozen = (await started.Content.ReadFromJsonAsync<JsonNode>())!["artifacts"]!["history"]!.DeepClone();
         Assert.Equal("owned-premise", frozen["ideas"]![0]!["premise"]!.GetValue<string>());
@@ -96,20 +96,27 @@ public sealed class MaterialIdeaOperationTests
         await AddDraftWithIdea(app, family, "after-admission");
         using var replay = await parent.PostAsJsonAsync(Path(draft) + "/operations", request);
         Assert.True(JsonNode.DeepEquals(frozen, (await replay.Content.ReadFromJsonAsync<JsonNode>())!["artifacts"]!["history"]));
-        for (var stage = 0; stage < 3; stage++) await app.Worker.RunNextAsync(default);
-        Assert.Equal(3, app.Chat.Requests.Count);
+        while (await app.Worker.RunNextAsync(default)) { }
+        var questionOperation = await Start(parent, (await parent.GetFromJsonAsync<JsonNode>(Path(draft)))!, "GenerateQuestions");
+        await AddDraftWithIdea(app, family, "after-questions");
+        while (await app.Worker.RunNextAsync(default)) { }
+        Assert.Equal(4, app.Chat.Requests.Count);
         var ideas = SentHistory(app.Chat.Requests[0].Input);
-        var questions = SentHistory(app.Chat.Requests[2].Input);
+        var questions = SentHistory(app.Chat.Requests[3].Input);
         Assert.Contains("owned-premise", ideas);
         Assert.DoesNotContain("owned-question", ideas);
+        Assert.DoesNotContain("after-admission", ideas);
         Assert.Contains("owned-question", questions);
         Assert.DoesNotContain("owned-premise", questions);
+        Assert.DoesNotContain("after-questions", questions);
+        // Writing and polishing receive no history.
+        Assert.All(app.Chat.Requests.Skip(1).Take(2), call => Assert.DoesNotContain("\"history\"", call.Input));
         Assert.All(new[] { ideas, questions }, history =>
         {
-            Assert.DoesNotContain("after-admission", history);
             Assert.DoesNotContain("secret-answer", history);
             Assert.DoesNotContain("foreign", history);
         });
+        Assert.Equal("completed", (await parent.GetFromJsonAsync<JsonNode>(OperationPath(questionOperation)))!["status"]!.GetValue<string>());
 
         static string SentHistory(string input)
         {
@@ -141,13 +148,10 @@ public sealed class MaterialIdeaOperationTests
     [Fact]
     public async Task Released_ideas_enter_history_once_and_only_for_their_family()
     {
-        await using var app = new GenerationHarness(Ideas, Materials, Questions("text-input"));
+        await using var app = new GenerationHarness(Ideas, Materials, UnchangedPolish, Questions("text-input"));
         using var parent = await app.ParentAsync();
         using var stranger = await app.ParentAsync();
-        var prior = await Create(parent, Reading() with { Defaults = Numeric(1).Defaults });
-        await Start(parent, prior);
-        for (var stage = 0; stage < 3; stage++) await app.Worker.RunNextAsync(default);
-        prior = (await parent.GetFromJsonAsync<JsonNode>(Path(prior)))!;
+        var prior = await app.GenerateAsync(parent, await Create(parent, Reading() with { Defaults = Numeric(1).Defaults }));
         var snapshot = await Release(parent, prior);
         await Release(stranger, await SaveQuestion(stranger, "foreign-question"));
         using var copy = await parent.PostAsJsonAsync("/api/activity-drafts", new { snapshotId = snapshot["id"]!.GetValue<Guid>() });

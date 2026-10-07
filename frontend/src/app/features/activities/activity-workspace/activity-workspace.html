@@ -193,25 +193,29 @@
           <details>
             <summary>פעולות נוספות</summary>
             <div class="grid gap-1">
-              <button
-                id="generate-questions"
-                class="text-link"
-                type="button"
-                [disabledInteractive]="!canGenerate()"
-                (click)="activityAction('GenerateQuestions')"
-              >
-                <span class="icon icon-ai" aria-hidden="true"></span>יצירת כל השאלות מחדש
-              </button>
-              <button
-                id="generate-activity"
-                class="text-link"
-                type="button"
-                [disabledInteractive]="!canGenerate()"
-                (click)="activityAction('GenerateActivity')"
-              >
-                <span class="icon icon-ai" aria-hidden="true"></span>יצירת הפעילות מחדש, כולל טקסט
-                שאינו עדכני
-              </button>
+              @if (!createAction()) {
+                <button
+                  id="regenerate-questions"
+                  class="text-link"
+                  type="button"
+                  [disabledInteractive]="!canGenerate()"
+                  (click)="activityAction('GenerateQuestions')"
+                >
+                  <span class="icon icon-ai" aria-hidden="true"></span>יצירת כל השאלות מחדש
+                </button>
+                @if (textNeeded()) {
+                  <button
+                    id="regenerate-text"
+                    class="text-link"
+                    type="button"
+                    [disabledInteractive]="!canGenerate()"
+                    (click)="activityAction('GenerateMaterials')"
+                  >
+                    <span class="icon icon-ai" aria-hidden="true"></span>יצירת טקסט חדש במקום טקסט
+                    שאינו עדכני
+                  </button>
+                }
+              }
               <button
                 type="button"
                 id="new-activity"
@@ -303,7 +307,19 @@
                   <span class="icon icon-refresh" aria-hidden="true"></span>בדיקת בקשת היצירה
                 </button>
               }
-              @if (hasContent()) {
+              @if (createAction(); as create) {
+                <button
+                  [id]="
+                    create.kind === 'GenerateMaterials' ? 'generate-text' : 'generate-questions'
+                  "
+                  class="button"
+                  type="button"
+                  [disabledInteractive]="!canGenerate()"
+                  (click)="activityAction(create.kind)"
+                >
+                  <span class="icon icon-ai" aria-hidden="true"></span>{{ create.label }}
+                </button>
+              } @else {
                 <button
                   id="release-activity"
                   class="button"
@@ -312,16 +328,6 @@
                   (click)="activityAction('release')"
                 >
                   <span class="icon icon-check" aria-hidden="true"></span>סימון כמוכנה
-                </button>
-              } @else {
-                <button
-                  id="generate-activity"
-                  class="button"
-                  type="button"
-                  [disabledInteractive]="!canGenerate()"
-                  (click)="activityAction('GenerateActivity')"
-                >
-                  <span class="icon icon-ai" aria-hidden="true"></span>יצירת הפעילות
                 </button>
               }
               <button

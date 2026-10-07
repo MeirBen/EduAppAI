@@ -43,12 +43,24 @@ internal sealed class GenerationHarness(params string[] responses) : IAsyncDispo
         return App.ParentAsync();
     }
 
-    internal static async Task<JsonNode> Start(HttpClient parent, JsonNode draft, string kind = "GenerateActivity", string? targetId = null)
+    /// <summary>Starts <paramref name="kind"/>, by default the next part as the workspace offers it: text when the plan writes any, else questions.</summary>
+    internal static async Task<JsonNode> Start(HttpClient parent, JsonNode draft, string? kind = null, string? targetId = null)
     {
+        kind ??= draft["plan"]!["materials"]!.AsArray().Any(m => m!["source"]!.GetValue<string>() == "generated") ? "GenerateMaterials" : "GenerateQuestions";
         using var response = await parent.PostAsJsonAsync(Path(draft) + "/operations", new
         { operationKey = Guid.NewGuid(), expectedRevision = draft["revision"]!.GetValue<long>(), kind, targetId });
         Assert.True(response.StatusCode == HttpStatusCode.Accepted, await response.Content.ReadAsStringAsync());
         return (await response.Content.ReadFromJsonAsync<JsonNode>())!;
+    }
+
+    /// <summary>Creates the text (idea, writing and polish) and then its questions: the two parts a parent starts in turn.</summary>
+    internal async Task<JsonNode> GenerateAsync(HttpClient parent, JsonNode draft)
+    {
+        await Start(parent, draft, "GenerateMaterials");
+        while (await Worker.RunNextAsync(default)) { }
+        await Start(parent, (await parent.GetFromJsonAsync<JsonNode>(Path(draft)))!, "GenerateQuestions");
+        while (await Worker.RunNextAsync(default)) { }
+        return (await parent.GetFromJsonAsync<JsonNode>(Path(draft)))!;
     }
 
     internal static string OperationPath(JsonNode operation) => $"/api/activity-drafts/{operation["draftId"]!.GetValue<Guid>()}/operations/{operation["id"]!.GetValue<Guid>()}";
@@ -63,6 +75,8 @@ internal sealed class GenerationHarness(params string[] responses) : IAsyncDispo
         ]}
         """;
     internal const string Materials = """{"materials":[{"id":"11111111111111111111111111111111","title":null,"body":"שלום עולם"}]}""";
+    /// <summary>A polish that finds nothing to change returns the written text.</summary>
+    internal const string UnchangedPolish = Materials;
     public ValueTask DisposeAsync() => app?.DisposeAsync() ?? ValueTask.CompletedTask;
 
     internal sealed class TestClock : TimeProvider

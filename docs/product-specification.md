@@ -20,12 +20,15 @@ Save template: independently publish the reusable plan at any point
 2. Review shared settings, material sources, question formats and explicitly
    requested controls, and confirm exact source text extracted from a prompt.
    Supplied sources keep their original text.
-3. Generate without publishing a template. The server saves a draft checkpoint,
-   then runs applicable stages; supplied sources and question-only plans skip
-   material generation, and accepted materials survive a question failure.
+3. Create the activity in two parent-started parts, without publishing a
+   template: first the generated text, then its questions. Generated text gets
+   one automatic polish for wording, level and clear errors before the parent
+   reviews, edits or rewrites it and asks for questions; supplied sources are
+   never edited, and plans without generated text start with questions. Each
+   part saves a draft checkpoint, and accepted text survives a question failure.
 4. Edit text, answers, options and points, or regenerate one material, one
-   question or all questions. Incomplete drafts save with diagnostics, and
-   generation never silently overwrites later edits.
+   question, all questions or stale text. Incomplete drafts save with
+   diagnostics, and generation never silently overwrites later edits.
 5. Review the saved content and answer keys, then mark it ready. Release needs
    current accepted content, matching requirements and complete answers. The
    snapshot is read-only; copy it to a new draft to make changes.

@@ -69,16 +69,20 @@ false, zero and explicit empty text survive. IDs and provenance belong to the
 application.
 
 `AiGenerationService` uses `IChatClient` without identity/database access.
-Authoring, ideas, material writing, questions and scoped replacements use
-separate schema-constrained calls, without tools, automatic repair or retry.
-`TaskAssembly` copies supplied sources exactly; accepted materials survive a
-question failure. Question replacement is atomic over prompt, options and key.
-`AiSchemas` builds request-owned schemas with exact counts, allowed IDs and the
-same `EngineValidation` constants used by prompts and validators. The OpenRouter
+Authoring, ideas, material writing, material polish, questions and scoped
+replacements use separate schema-constrained calls, without tools or retry. The
+polish is the only automatic edit: one minimal-edit call over freshly written
+text in the writing schema, which `TaskAssembly` accepts only for the same IDs
+under strict material checks, bumping only edited revisions. Supplied sources
+are never edited, and questions are not polished. `TaskAssembly` copies supplied
+sources exactly; accepted materials survive a question failure. Question
+replacement is atomic over prompt, options and key. `AiSchemas` builds
+request-owned schemas with exact counts, allowed IDs and the same
+`EngineValidation` constants used by prompts and validators. The OpenRouter
 adapter owns transport/configuration and sends the native SDK response format.
 Responses must finish normally and pass size, shape, numeric and domain checks;
-question text fields are trimmed first, the only normalization applied; see
-[AI configuration](ai.md#configuration).
+question text fields are trimmed first, the only normalization applied; see [AI
+configuration](ai.md#configuration).
 
 `AiPrompts` composes stage/shared rules; `MathPromptGuidance` owns authoring-time
 math interpretation. Schema descriptions own source roles and answer-format
@@ -87,8 +91,9 @@ capabilities. All subjects use the same stages and authoritative validators.
 `MaterialIdeas` validates five bounded ideas and selects the lowest estimated
 overlap with recent family ideas. An application-owned draw breaks ties: the
 worker's operation ID keeps selection stable within an operation. Only the
-selected idea reaches the writer; manual edits retain it as provenance, AI
-rewrites clear it. Supplied sources and question-only operations skip ideas.
+selected idea reaches the writer; manual edits and the polish retain it as
+provenance, AI rewrites clear it. Supplied sources and question-only operations
+skip ideas.
 
 After admission's idempotency checks, `GenerationHistoryReader` captures the
 current document, then at most 12 unreleased drafts and 12 snapshots, yielding
@@ -151,13 +156,17 @@ generation; any revision change fences the result into an unapplied diagnostic
 candidate. Cancellation commits its terminal state before signaling transport.
 Draft deletion cascades operation evidence and keys.
 
-Each claim captures immutable stage input. The idea stage checkpoints the
+A text operation runs the idea, writing and polish stages; questions are a
+separate operation the parent starts after reviewing the text, and supplied
+sources and question-only plans start there. Each claim captures immutable
+stage input. The idea stage checkpoints the
 selected idea and queues writing without advancing the draft's content revision.
 A content checkpoint saves content, candidate, usage and the next stage
 together. `ExpectedRevision` advances with each accepted checkpoint;
 cancellation advances it only when no other writer has changed the draft. This
 identifies the revisions owned by the operation without changing the original
-start-key fingerprint. Expected AI failures end only their operation. On
+start-key fingerprint. Expected AI failures end only their operation; a failed
+polish keeps the text its writing checkpoint saved. On
 restart, compatible queued stages resume, while uncheckpointed calling steps
 become unknown and are never replayed. Profile fingerprints exclude credentials,
 so key rotation keeps queued work valid.

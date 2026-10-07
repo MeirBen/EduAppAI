@@ -49,6 +49,7 @@ public sealed class EvaluationRunStoreTests : IDisposable
             Authoring = new() { Outcome = "failed", Failure = "provider-error", RequestSent = true, FinishedAtUtc = DateTime.UtcNow },
             MaterialIdeas = EvaluationReportsTests.Skipped("material-ideas", "earlier-stage"),
             Materials = EvaluationReportsTests.Skipped("materials", "earlier-stage"),
+            MaterialPolish = EvaluationReportsTests.Skipped("material-polish", "earlier-stage"),
             Generation = EvaluationReportsTests.Skipped("questions", "earlier-stage")
         });
         await EvaluationFiles.SaveAsync(report, store.DirectoryFor(id));
@@ -74,6 +75,7 @@ public sealed class EvaluationRunStoreTests : IDisposable
                 Input = LearningPlanFixture.Resolve(EvaluationFixtures.Plan()),
                 MaterialIdeas = EvaluationReportsTests.Skipped("material-ideas"),
                 Materials = EvaluationReportsTests.Skipped(),
+                MaterialPolish = EvaluationReportsTests.Skipped("material-polish"),
                 Authoring = EvaluationReportsTests.Step(),
                 Generation = EvaluationReportsTests.Step(role: "questions")
             });

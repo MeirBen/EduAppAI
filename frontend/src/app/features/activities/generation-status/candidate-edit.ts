@@ -112,8 +112,8 @@ export function candidateEdit(
       materials: [],
       questions: questions as EditableQuestion[],
     }).questions;
-  } else if (stage === 'materials' || stage === 'replace-material') {
-    const candidates = stage === 'materials' ? value['materials'] : [value];
+  } else if (stage === 'materials' || stage === 'material-polish' || stage === 'replace-material') {
+    const candidates = stage === 'replace-material' ? [value] : value['materials'];
     if (!Array.isArray(candidates) || !candidates.length || candidates.length > limits.maxMaterials)
       return;
     const seen = new Set<string>();

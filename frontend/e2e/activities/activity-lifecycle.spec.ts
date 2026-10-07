@@ -218,7 +218,7 @@ test('removing a scoped generation target keeps progress and cancellation access
 }) => {
   const state = await isolate(page);
   await page.goto('/templates/example/create');
-  await page.locator('#generate-activity').click();
+  await page.locator('#generate-questions').click();
   await expect(page.locator('#cancel-generation')).toBeVisible();
   state.complete();
   await expect(page.locator('#question-0-answer')).toHaveValue('2');
@@ -228,7 +228,7 @@ test('removing a scoped generation target keeps progress and cancellation access
   await page.getByRole('button', { name: 'הסרת שאלה 1', exact: true }).click();
   await expect(page.locator('#cancel-generation')).toBeVisible();
   await expect(page.locator('app-generation-status')).toHaveCount(1);
-  await expect(page.locator('#generate-activity')).toHaveAttribute('aria-disabled', 'true');
+  await expect(page.locator('#regenerate-questions')).toHaveAttribute('aria-disabled', 'true');
   await page.locator('#cancel-generation').click();
   await expect(page.locator('#cancel-generation')).toHaveCount(0);
   expect(state.writes.filter((write) => write.path.endsWith('/cancel'))).toHaveLength(1);
@@ -240,8 +240,8 @@ test('saves before generation, edits manually, reviews the current revision and 
 }) => {
   const state = await isolate(page);
   await page.goto('/templates/example/create');
-  await page.locator('#generate-activity').click();
-  await expect(page.getByText('יוצרים את הפעילות…', { exact: true })).toBeVisible();
+  await page.locator('#generate-questions').click();
+  await expect(page.getByText('יוצרים את השאלות…', { exact: true })).toBeVisible();
   expect(state.writes.map((w) => w.path)).toEqual([
     '/api/activity-drafts',
     '/api/activity-drafts/draft/operations',
@@ -323,7 +323,7 @@ test('unknown outcomes retain local work and do not automatically start another 
 }) => {
   const state = await isolate(page);
   await page.goto('/templates/example/create');
-  await page.locator('#generate-activity').click();
+  await page.locator('#generate-questions').click();
   await expect(page.locator('#cancel-generation')).toBeVisible();
   await page.locator('#document-title').fill('העבודה שלי נשמרת מקומית');
   state.unknown();

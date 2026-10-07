@@ -19,13 +19,13 @@ public sealed class EvaluationCommandTests : IDisposable
     private readonly string directory = Path.Combine(Path.GetTempPath(), $"learning-evaluation-cli-{Guid.NewGuid():N}");
 
     [Theory]
-    [InlineData(false, 4, 0, 0, false)]
+    [InlineData(false, 5, 0, 0, false)]
     [InlineData(true, 1, 2, 0, false)]
-    [InlineData(true, 4, 0, 4, false)]
-    [InlineData(true, 4, 0, 4, true)]
+    [InlineData(true, 5, 0, 5, false)]
+    [InlineData(true, 5, 0, 5, true)]
     [InlineData(true, 2, 2, 0, false, "malformed-endpoint")]
-    [InlineData(true, 5, 0, 5, false, null, true, "0")]
-    [InlineData(true, 5, 0, 5, true, null, true, "Thu, 01 Jan 1970 00:00:00 GMT")]
+    [InlineData(true, 6, 0, 6, false, null, true, "0")]
+    [InlineData(true, 6, 0, 6, true, null, true, "Thu, 01 Jan 1970 00:00:00 GMT")]
     [InlineData(true, 5, 1, 1, false, null, true, "301")]
     public async Task Cli_and_dashboard_use_the_real_adapter_without_database_access(
         bool live, int budget, int expectedExitCode, int expectedCalls, bool dashboard, string? endpoint = null,
@@ -67,7 +67,7 @@ public sealed class EvaluationCommandTests : IDisposable
             }
             else if (schema.Contains("material_ideas", StringComparison.Ordinal))
                 output = JsonNode.Parse(EvaluationFixtures.MaterialIdeas())!;
-            else if (schema.Contains("materials", StringComparison.Ordinal))
+            else if (schema.Contains("materials", StringComparison.Ordinal) || schema.Contains("material_polish", StringComparison.Ordinal))
             {
                 var messages = request.RootElement.GetProperty("messages");
                 using var input = JsonDocument.Parse(messages[messages.GetArrayLength() - 1].GetProperty("content").GetString()!);
@@ -171,8 +171,8 @@ public sealed class EvaluationCommandTests : IDisposable
             Assert.Equal(0, retry.GetProperty("call").GetProperty("retryAfterSeconds").GetDouble());
             Assert.Equal(0, retry.GetProperty("delaySeconds").GetDouble());
         }
-        Assert.Equal(0.004m, report.RootElement.GetProperty("reportedCostCredits").GetDecimal());
-        Assert.Equal(4, report.RootElement.GetProperty("callsWithReportedCost").GetInt32());
+        Assert.Equal(0.005m, report.RootElement.GetProperty("reportedCostCredits").GetDecimal());
+        Assert.Equal(5, report.RootElement.GetProperty("callsWithReportedCost").GetInt32());
         Assert.Equal(1, report.RootElement.GetProperty("automaticPasses").GetInt32());
         var authoring = report.RootElement.GetProperty("results")[0].GetProperty("authoring");
         Assert.Equal(10, authoring.GetProperty("reasoningTokens").GetInt32());

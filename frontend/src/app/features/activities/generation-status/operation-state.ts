@@ -4,6 +4,7 @@ import { GenerationOperation } from '../../../core/api/models';
 export const stageNames: Record<string, string> = {
   'material-ideas': 'רעיונות לטקסט',
   materials: 'טקסט שנוצר',
+  'material-polish': 'טקסט בניסוח משופר',
   questions: 'שאלות שנוצרו',
   'replace-material': 'טקסט חלופי',
   'replace-question': 'שאלה חלופית',

@@ -25,7 +25,7 @@ const draft: ActivityDetail = {
 const operation: GenerationOperation = {
   id: 'op',
   draftId: 'draft',
-  kind: 'GenerateActivity',
+  kind: 'GenerateMaterials',
   status: 'calling',
   stage: 'materials',
   originalRevision: 1,

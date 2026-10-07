@@ -14,6 +14,9 @@ public sealed record MaterialReplacementInput(ResolvedTaskRequest Request, TaskD
 /// <summary>An application-selected question; the rest of the activity is read-only context and app-owned identities never enter the provider request.</summary>
 public sealed record QuestionReplacementInput(ResolvedTaskRequest Request, TaskDocument Current, string QuestionId, string? Instruction = null);
 
+/// <summary>Freshly accepted content for one minimal-edit polish pass; the application decides what the pass may change.</summary>
+public sealed record PolishInput(ResolvedTaskRequest Request, TaskDocument Current);
+
 /// <summary>Untrusted generated-only material output; IDs must exactly match the selected generated requirements.</summary>
 public sealed record MaterialCandidate([property: JsonRequired] string Id, string? Title, [property: JsonRequired] string Body);
 

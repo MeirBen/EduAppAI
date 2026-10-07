@@ -135,6 +135,10 @@ public sealed partial class GenerationWorker(IServiceScopeFactory scopes, AiGene
                 var materials = await ai.GenerateMaterialsAsync(TaskAssembly.PrepareMaterials(input, current)!, idea, ct, evidence);
                 var accepted = TaskAssembly.AcceptMaterials(input, current, materials.Value, materials.Metadata, idea);
                 return new(accepted.Document ?? throw new TaskValidationException(accepted.Diagnostics), Candidate(materials.Value));
+            case "material-polish":
+                var polishInput = new PolishInput(input, current);
+                var polished = await ai.PolishMaterialsAsync(polishInput, ct, evidence);
+                return new(TaskAssembly.PolishMaterials(polishInput, polished.Value, polished.Metadata), Candidate(polished.Value));
             case "questions":
                 var questions = await ai.GenerateQuestionsAsync(TaskAssembly.PrepareQuestions(input, current), call.Artifacts.History.Questions, ct, evidence);
                 return new(TaskAssembly.AcceptQuestions(input, current, questions.Value, questions.Metadata), Candidate(questions.Value));
@@ -265,11 +269,11 @@ public sealed partial class GenerationWorker(IServiceScopeFactory scopes, AiGene
     [LoggerMessage(1005, LogLevel.Debug, "Expired generation artifacts for {OperationCount} operations")]
     private static partial void LogArtifactsExpired(ILogger logger, int operationCount);
 
-    /// <summary>The generated-activity pipeline; every other stage is final.</summary>
+    /// <summary>Text is written from its idea, then polished; questions are a separate parent-started operation, and every other stage is final.</summary>
     private static string? NextStage(string stage) => stage switch
     {
         "material-ideas" => "materials",
-        "materials" => "questions",
+        "materials" => "material-polish",
         _ => null
     };
 

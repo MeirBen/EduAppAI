@@ -120,7 +120,7 @@ describe('ActivityWorkspace plan ownership', () => {
     expect(root().querySelector('#choices-title')).not.toBeNull();
     expect(field('activity-topic').closest('details')).toBeNull();
     expect(root().querySelector('#plan-topic')).toBeNull();
-    expect(root().querySelector('#generate-activity')).toBeNull();
+    expect(root().querySelector('#generate-text, #generate-questions')).toBeNull();
     expect(root().querySelector('#save-activity')).toBeNull();
     expect(root().querySelector('#save-template')!.closest('details')).toBeNull();
     expect(
@@ -153,7 +153,9 @@ describe('ActivityWorkspace plan ownership', () => {
     // A new activity authors its own plan, so it may define choices that a template keeps.
     expect(root().querySelector('#choices-title')).not.toBeNull();
     expect(root().querySelector('#save-template')!.closest('details')!.open).toBe(false);
-    expect(root().querySelector('#generate-activity')!.closest('details')).toBeNull();
+    expect(
+      root().querySelector('#generate-text, #generate-questions')!.closest('details'),
+    ).toBeNull();
     expect(root().querySelector('#release-activity')).toBeNull();
   });
 
@@ -250,7 +252,7 @@ describe('ActivityWorkspace plan ownership', () => {
     expect(field('chat-message').getAttribute('aria-labelledby')).toBe('plan-title');
     expect(chatFollowsSettings()).toBe(false);
     expect(root().querySelector('#save-template')).toBeNull();
-    expect(root().querySelector('#generate-activity')).toBeNull();
+    expect(root().querySelector('#generate-text, #generate-questions')).toBeNull();
     field('chat-message').focus();
     const request = await ask();
     reply(request);

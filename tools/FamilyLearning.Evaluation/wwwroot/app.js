@@ -53,6 +53,7 @@ function stages(evaluation) {
     ...(evaluation.refinements ?? []).map((step, index) => [`Refinement ${index + 1}`, step]),
     ['Material ideas', evaluation.materialIdeas],
     ['Materials', evaluation.materials],
+    ['Material polish', evaluation.materialPolish],
     ['Questions', evaluation.generation],
     ...(evaluation.replacements ?? []).map((step, index) => [
       `Replacement ${index + 1} · ${step.role}`,

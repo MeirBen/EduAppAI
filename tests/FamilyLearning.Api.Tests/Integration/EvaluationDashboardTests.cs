@@ -210,7 +210,7 @@ public sealed class EvaluationDashboardTests : IAsyncLifetime
     public async Task Store_rejects_traversal(string id) =>
         await Assert.ThrowsAsync<ArgumentException>(() => new EvaluationRunStore(directory).ReadAsync(id));
 
-    private static EvaluationRunRequest Request() => new(["reading-grade3"], 1, false, 4, Confirmed: true, CallDelaySeconds: 0);
+    private static EvaluationRunRequest Request() => new(["reading-grade3"], 1, false, 5, Confirmed: true, CallDelaySeconds: 0);
 
     public async Task DisposeAsync()
     {

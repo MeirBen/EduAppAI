@@ -133,7 +133,7 @@ public sealed class LoggingTests : IDisposable
         await using var app = new GenerationHarness(Questions()) { StorageDirectory = directory };
         using var parent = await app.ParentAsync();
         var draft = await Create(parent, Numeric(1));
-        var request = new { operationKey = Guid.NewGuid(), expectedRevision = 1, kind = "GenerateActivity" };
+        var request = new { operationKey = Guid.NewGuid(), expectedRevision = 1, kind = "GenerateQuestions" };
         using var start = await parent.PostAsJsonAsync(Path(draft) + "/operations", request);
         var operation = (await start.Content.ReadFromJsonAsync<JsonNode>())!;
         using var replay = await parent.PostAsJsonAsync(Path(draft) + "/operations", request);

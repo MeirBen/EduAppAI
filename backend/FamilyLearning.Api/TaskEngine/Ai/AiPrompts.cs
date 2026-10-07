@@ -108,6 +108,20 @@ internal static class AiPrompts
         Other questions and learner instructions are context only: keep the replacement distinct from those questions and consistent with the instructions.
         """ + "\n\n" + QuestionQuality + "\n\n" + StructuredRules + "\n\n" + LanguageQuality;
 
+    private const string PolishRules = """
+        This is a minimal editing pass over accepted content, not new writing. Return every field, exactly unchanged where it needs no change.
+        Read it as the audience would and fix only real problems: spelling, grammar, agreement, niqqud, awkward or unnatural phrasing,
+        and words or sentence structures too hard or too formal for the audience. Prefer familiar everyday words.
+        Change the fewest words that fix each problem. Keep meaning, names, numbers, notation, structure and line breaks,
+        and keep the thinking each part requires: simpler wording, not simpler ideas.
+        """;
+
+    internal static readonly string MaterialPolish = """
+        Polish the generated materials for their audience under the effective requirements. Return each one with its ID, title and complete body.
+        Keep each body's events, information, paragraphs and length; do not add, remove or summarize content.
+        Correct a factual claim only when it is clearly wrong, with the smallest accurate change. Supplied sources are context only.
+        """ + "\n\n" + PolishRules + "\n\n" + MaterialWritingRules + "\n\n" + StructuredRules + "\n\n" + LanguageQuality;
+
     // Bare text, line breaks and whole-item calculations rely on the UI guide's generated-text rendering contract.
     private const string LanguageQuality = """
         ## Language and presentation

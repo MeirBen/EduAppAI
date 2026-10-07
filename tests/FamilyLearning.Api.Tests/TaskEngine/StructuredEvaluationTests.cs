@@ -60,11 +60,11 @@ public sealed class StructuredEvaluationTests : IDisposable
     {
         var length = mode == "range" ? new LengthExpectation(mode, Lower: 100, Upper: 150) : new(mode, new(100, false));
         var plan = Reading() with { Materials = [Reading().Materials[0] with { Length = length }] };
-        using var chat = new AiFixtures.ScriptedChat(EvaluationFixtures.MaterialIdeas(), JsonSerializer.Serialize(new
+        var material = JsonSerializer.Serialize(new
         {
-            materials = new[]
-        { new { id = MaterialId, title = "כותרת", body = string.Join(' ', Enumerable.Repeat("מילה", 99)) } }
-        }), Questions("text-input"));
+            materials = new[] { new { id = MaterialId, title = "כותרת", body = string.Join(' ', Enumerable.Repeat("מילה", 99)) } }
+        });
+        using var chat = new AiFixtures.ScriptedChat(EvaluationFixtures.MaterialIdeas(), material, material, Questions("text-input"));
         var result = Assert.Single((await Run(chat, Fixed(plan))).Results);
         Assert.Equal(accepted, result.Materials!.Applied);
         Assert.Equal(accepted, result.EndToEndReady);
@@ -185,7 +185,7 @@ public sealed class StructuredEvaluationTests : IDisposable
         {
             0 => Proposal(plan),
             1 => EvaluationFixtures.MaterialIdeas(),
-            2 => JsonSerializer.Serialize(new { materials = new[] { new { id = input.GetProperty("request").GetProperty("materials")[0].GetProperty("id").GetString(), title = "כותרת", body = string.Join(' ', Enumerable.Repeat("מילה", 120)) } } }),
+            2 or 3 => JsonSerializer.Serialize(new { materials = new[] { new { id = input.GetProperty("request").GetProperty("materials")[0].GetProperty("id").GetString(), title = "כותרת", body = string.Join(' ', Enumerable.Repeat("מילה", 120)) } } }),
             _ => Questions("text-input")
         });
         var report = await Run(chat, scenario);
@@ -208,7 +208,7 @@ public sealed class StructuredEvaluationTests : IDisposable
         var plan = Reading() with { Materials = [Reading().Materials[0] with { Length = null }] };
         var body = prefix + string.Join(' ', Enumerable.Repeat("מִלָּה", words));
         var material = JsonSerializer.Serialize(new { materials = new[] { new { id = MaterialId, title = "כותרת", body } } });
-        using var chat = new AiFixtures.ScriptedChat(EvaluationFixtures.MaterialIdeas(), material, Questions("text-input"));
+        using var chat = new AiFixtures.ScriptedChat(EvaluationFixtures.MaterialIdeas(), material, material, Questions("text-input"));
         var report = await Run(chat, Fixed(plan) with { MinPassageWords = 100, MaxPassageWords = 150 });
         var result = Assert.Single(report.Results);
         Assert.True(result.Generation!.ContractValid);

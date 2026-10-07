@@ -194,8 +194,9 @@ export interface ActivitySummary {
   revision: number;
   updatedAtUtc: string;
 }
+/** Text and questions are separate parent-started parts; replacements change one card. */
 export type GenerationKind =
-  'GenerateActivity' | 'GenerateQuestions' | 'ReplaceMaterial' | 'ReplaceQuestion';
+  'GenerateMaterials' | 'GenerateQuestions' | 'ReplaceMaterial' | 'ReplaceQuestion';
 /** Keep this exact request for explicit same-key recovery after a lost response. */
 export interface StartGeneration {
   operationKey: string;

@@ -1,10 +1,10 @@
 # Family Learning
 
-**Parent prompt → editable plan → generated activity → parent review → frozen
-snapshot.** Generate without saving a template, edit the content or replace one
-question, then save the draft and mark the reviewed revision ready. Saving a
-reusable template is separate; template edits publish immutable versions and
-never change existing activities. See the
+**Parent prompt → editable plan → generated text → its questions → parent
+review → frozen snapshot.** Generate without saving a template, edit the content
+or replace one question, then save the draft and mark the reviewed revision
+ready. Saving a reusable template is separate; template edits publish immutable
+versions and never change existing activities. See the
 [product specification](docs/product-specification.md) for scope and
 [architecture](docs/architecture.md) for implementation.
 
@@ -18,9 +18,9 @@ use the app's [public HTTPS address](#public-https-address), not `localhost`.
 
 1. Sign in with the parent account created during setup.
 2. Open `/children` and add a child profile; grade and age are optional.
-3. Create an activity at `/activities/new`. Generate and review the material,
-   questions and answer keys, then save and mark it ready. From the ready
-   activity's preview, select the child and assign it.
+3. Create an activity at `/activities/new`. Create and review the text, then
+   create and review its questions and answer keys, and mark it ready. From the
+   ready activity's preview, select the child and assign it.
 4. At `/children`, select that child, name the device and create an activation
    code. Give the child the displayed activation address and code; the code
    works once and expires after ten minutes.

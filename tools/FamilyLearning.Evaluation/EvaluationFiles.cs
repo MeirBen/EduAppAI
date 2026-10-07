@@ -100,7 +100,7 @@ public static class EvaluationFiles
             .Any(issues => issues is not null && !HebrewJudge.ValidateIssues(issues)) ||
             report.Steps.Any(step => step.EngineRevision < 1 || step.SchemaVersion < 1 || step.Sources is null || step.Request is null ||
                 step.Outcome is not ("pending" or "accepted" or "failed" or "skipped" or "clarification" or "cancelled" or "not-started") ||
-                step.Role is not ("authoring" or "refinement" or "material-ideas" or "materials" or "questions" or "replace-material" or "replace-question" or "review" or "calibration") ||
+                step.Role is not ("authoring" or "refinement" or "material-ideas" or "materials" or "material-polish" or "questions" or "replace-material" or "replace-question" or "review" or "calibration") ||
                 step.Applied && !step.ContractValid || step.Outcome == "skipped" && (step.RequestSent || string.IsNullOrWhiteSpace(step.SkipReason)) ||
                 !double.IsFinite(step.ElapsedMilliseconds) || step.ElapsedMilliseconds < 0 ||
                 step.InputTokens < 0 || step.OutputTokens < 0 || step.ReasoningTokens < 0 || step.CostCredits < 0))
@@ -143,12 +143,14 @@ public static class EvaluationFiles
         if (!ready)
         {
             if (!Skipped(result.MaterialIdeas, "material-ideas", "earlier-stage") ||
-                !Skipped(result.Materials, "materials", "earlier-stage")) return false;
+                !Skipped(result.Materials, "materials", "earlier-stage") ||
+                !Skipped(result.MaterialPolish, "material-polish", "earlier-stage")) return false;
         }
         else if (!result.Input!.Materials.Any(material => material.Source == "generated"))
         {
             if (!Skipped(result.MaterialIdeas, "material-ideas", "no-generated-materials") ||
-                !Skipped(result.Materials, "materials", "no-generated-materials")) return false;
+                !Skipped(result.Materials, "materials", "no-generated-materials") ||
+                !Skipped(result.MaterialPolish, "material-polish", "no-generated-materials")) return false;
         }
         else
         {
@@ -160,6 +162,12 @@ public static class EvaluationFiles
                 ready = result.Materials!.Applied;
             }
             else if (!Skipped(result.Materials, "materials", "earlier-stage")) return false;
+            if (ready)
+            {
+                if (!Finished(result.MaterialPolish, "material-polish")) return false;
+                ready = result.MaterialPolish!.Applied;
+            }
+            else if (!Skipped(result.MaterialPolish, "material-polish", "earlier-stage")) return false;
         }
         if (!ready)
         {

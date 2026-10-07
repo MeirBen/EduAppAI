@@ -5,23 +5,22 @@ import { GenerationKind, GenerationOperation } from '../../../core/api/models';
 const unknownOperation: GenerationOperation = {
   id: 'op',
   draftId: 'draft',
-  kind: 'GenerateActivity',
+  kind: 'GenerateMaterials',
   status: 'unknown',
-  stage: 'questions',
+  stage: 'materials',
   originalRevision: 1,
   expectedRevision: 2,
   failure: 'interrupted',
   diagnosticsExpired: false,
   steps: [
-    { stage: 'material-ideas', outcome: 'accepted', usage: null, metadata: null },
-    { stage: 'materials', outcome: 'accepted', usage: { costCredits: 0.25 }, metadata: null },
-    { stage: 'questions', outcome: 'unknown', usage: null, metadata: null },
+    { stage: 'material-ideas', outcome: 'accepted', usage: { costCredits: 0.25 }, metadata: null },
+    { stage: 'materials', outcome: 'unknown', usage: null, metadata: null },
   ],
   artifacts: {
     targetId: null,
     steps: [
       {
-        stage: 'questions',
+        stage: 'materials',
         candidate: null,
         diagnostics: null,
         call: { output: '<script>alert(1)</script>' },
@@ -58,29 +57,54 @@ describe('GenerationStatus', () => {
     expect(visible()).not.toContain('0.25');
     const technical = root.querySelector('details')!;
     expect(technical.querySelector('summary')!.textContent).toContain('פרטים טכניים');
-    expect(technical.textContent).toContain('טקסט שנוצר · תוכן התקבל');
+    expect(technical.textContent).toContain('רעיונות לטקסט · תוכן התקבל');
     expect(technical.textContent).toContain('0.25');
     expect(root.querySelector('script')).toBeNull();
     expect(technical.textContent).toContain('<script>');
     expect(root.querySelector('[data-edit-candidate]')).toBeNull();
   });
 
-  it('keeps accepted material visible after a question failure and offers only an explicit question retry', async () => {
+  it('offers only an explicit retry of the failed part', async () => {
     const { visible, root, retried } = await render({
       ...unknownOperation,
+      kind: 'GenerateQuestions',
       status: 'failed',
+      stage: 'questions',
       failure: 'invalid-output',
-      steps: [
-        { stage: 'material-ideas', outcome: 'accepted', usage: null, metadata: null },
-        { stage: 'materials', outcome: 'accepted', usage: null, metadata: null },
-        { stage: 'questions', outcome: 'failed', usage: null, metadata: null },
-      ],
+      steps: [{ stage: 'questions', outcome: 'failed', usage: null, metadata: null }],
     });
-    expect(visible()).toContain('הטקסט נשמר, אבל יצירת השאלות נכשלה.');
-    expect(visible()).toContain('בלי לאבד את הטקסט');
+    expect(visible()).toContain('יצירת השאלות נכשלה.');
+    expect(visible()).toContain('התוצאה לא החליפה את התוכן הקיים.');
     expect(retried).toEqual([]);
     root.querySelector<HTMLButtonElement>('#retry-generation')!.click();
     expect(retried).toEqual(['GenerateQuestions']);
+  });
+
+  it('keeps the written text after a failed polish and offers no retry', async () => {
+    const { visible, root } = await render({
+      ...unknownOperation,
+      status: 'failed',
+      stage: 'material-polish',
+      steps: [
+        { stage: 'material-ideas', outcome: 'accepted', usage: null, metadata: null },
+        { stage: 'materials', outcome: 'accepted', usage: null, metadata: null },
+        { stage: 'material-polish', outcome: 'failed', usage: null, metadata: null },
+      ],
+      artifacts: {
+        targetId: null,
+        steps: [
+          {
+            stage: 'material-polish',
+            candidate: null,
+            diagnostics: { 'length.m': ['אורך הטקסט אינו עומד בדרישה המדויקת או בטווח.'] },
+          },
+        ],
+      },
+    });
+    expect(visible()).toContain('הטקסט נשמר, אבל שיפור הניסוח לא הושלם.');
+    expect(visible()).not.toContain('לא עמד בדרישת האורך');
+    expect(root.querySelector('#retry-generation')).toBeNull();
+    expect(root.querySelector('details')!.textContent).toContain('טקסט בניסוח משופר · נכשל');
   });
 
   it('states the strict requirement after a length rejection without implying success', async () => {
@@ -113,7 +137,7 @@ describe('GenerationStatus', () => {
     expect(visible()).toContain('הטקסט שנוצר לא עמד בדרישת האורך.');
     expect(visible()).toContain('נדרש: 100–150 מילים');
     expect(visible()).toContain('התוצאה לא החליפה את התוכן הקיים.');
-    expect(visible()).not.toContain('הפעילות נוצרה');
+    expect(visible()).not.toContain('הטקסט נוצר');
   });
 
   it('shows plain progress while running, without stages, percentages or cost', async () => {
@@ -122,7 +146,7 @@ describe('GenerationStatus', () => {
       status: 'calling',
       stage: 'materials',
     });
-    expect(visible()).toContain('יוצרים את הפעילות…');
+    expect(visible()).toContain('יוצרים את הטקסט…');
     expect(visible()).toContain('כותבים את הטקסט');
     expect(visible()).not.toMatch(/%|עלות/);
     expect(root.querySelector('#cancel-generation')).not.toBeNull();

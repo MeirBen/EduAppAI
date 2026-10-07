@@ -66,8 +66,8 @@ public static class GenerationOperationEndpoints
         var existing = await db.GenerationOperations.SingleOrDefaultAsync(o => o.FamilyId == familyId && o.OperationKey == body.OperationKey, ct);
         if (existing is not null)
             return existing.RequestFingerprint == GenerationOperation.Fingerprint(id, body) ? Accepted(existing, diagnostics) : Conflict();
-        if (body.OperationKey == Guid.Empty || body.Kind is not ("GenerateActivity" or "GenerateQuestions" or "ReplaceMaterial" or "ReplaceQuestion") ||
-            (body.Kind is "GenerateActivity" or "GenerateQuestions" && (body.TargetId is not null || body.Instruction is not null)))
+        if (body.OperationKey == Guid.Empty || body.Kind is not ("GenerateMaterials" or "GenerateQuestions" or "ReplaceMaterial" or "ReplaceQuestion") ||
+            (body.Kind is "GenerateMaterials" or "GenerateQuestions" && (body.TargetId is not null || body.Instruction is not null)))
             return Results.ValidationProblem(new Dictionary<string, string[]> { ["operation"] = ["יש לבחור פעולת יצירה והנחיה תקינות."] });
         if (draft.ReleasedSnapshotId.HasValue || draft.Revision != body.ExpectedRevision || draft.ActiveOperationId.HasValue) return Conflict();
         if (await db.GenerationOperations.CountAsync(o => o.DraftId == id, ct) >= GenerationOperationOptions.DraftLimit ||
@@ -91,8 +91,7 @@ public static class GenerationOperationEndpoints
     {
         switch (body.Kind)
         {
-            case "GenerateActivity" when TaskAssembly.PrepareMaterials(input, document) is not null: return "material-ideas";
-            case "GenerateActivity":
+            case "GenerateMaterials": TaskAssembly.RequireMaterialWork(input, document); return "material-ideas";
             case "GenerateQuestions": TaskAssembly.PrepareQuestions(input, document); return "questions";
             case "ReplaceMaterial": TaskAssembly.MaterialTarget(new(input, document, body.TargetId!, body.Instruction)); return "replace-material";
             case "ReplaceQuestion": TaskAssembly.QuestionTarget(new(input, document, body.TargetId!, body.Instruction)); return "replace-question";

@@ -10,7 +10,7 @@ import {
 import { PageReuseStrategy } from '../../../core/page-reuse-strategy';
 import { RouterTestingHarness } from '@angular/router/testing';
 import { ActivityWorkspace } from './activity-workspace';
-import { numericPlan, suppliedPlan, sourceText } from '../learning-plan.fixture';
+import { numericPlan, readingPlan, suppliedPlan, sourceText } from '../learning-plan.fixture';
 import { ActivityDetail } from '../../../core/api/models';
 import { provideLimits } from '../../../core/api/limits.fixture';
 import { FakeEventSource } from '../../../core/api/event-source.fixture';
@@ -112,7 +112,7 @@ describe('Activity lifecycle', () => {
   );
   it('creates a durable draft from a valid plan before starting generation without template publication', async () => {
     await open(false);
-    await click('generate-activity');
+    await click('generate-questions');
     const create = http.expectOne('/api/activity-drafts');
     expect(create.request.body).toMatchObject({
       plan: numericPlan,
@@ -124,12 +124,15 @@ describe('Activity lifecycle', () => {
     create.flush(savedActivity);
     await settle();
     const operation = http.expectOne('/api/activity-drafts/draft/operations');
-    expect(operation.request.body).toMatchObject({ expectedRevision: 1, kind: 'GenerateActivity' });
+    expect(operation.request.body).toMatchObject({
+      expectedRevision: 1,
+      kind: 'GenerateQuestions',
+    });
     operation.flush({ title: 'שירות לא זמין' }, { status: 503, statusText: 'Unavailable' });
     await settle();
     http.expectNone('/api/templates');
   });
-  it.each(['generate-activity', 'generate-questions', 'release-activity'])(
+  it.each(['regenerate-questions', 'release-activity'])(
     'does not perform %s after a required save fails',
     async (action) => {
       await open(true, {
@@ -146,11 +149,52 @@ describe('Activity lifecycle', () => {
       http.expectNone((r) => r.method === 'POST');
     },
   );
+  const generatedText = {
+    id: readingPlan.materials[0].id,
+    title: null,
+    body: 'טקסט שנוצר',
+    revision: 1,
+    origin: { kind: 'generated' },
+    acceptance: null,
+  };
+  const readingActivity: ActivityDetail = {
+    ...savedActivity,
+    plan: readingPlan,
+    input: { settings: readingPlan.defaults },
+  };
+  it.each([
+    ['before any text', [], 'generate-text', 'GenerateMaterials'],
+    ['once the text exists', [generatedText], 'generate-questions', 'GenerateQuestions'],
+  ])('starts the next part of a generated activity %s', async (_, materials, action, kind) => {
+    await open(true, { ...readingActivity, document: { ...readingActivity.document, materials } });
+    expect(root().querySelector('#release-activity')).toBeNull();
+    await click(action);
+    expect(http.expectOne('/api/activity-drafts/draft/operations').request.body).toMatchObject({
+      expectedRevision: 1,
+      kind,
+    });
+  });
+  it('offers new text in place of stale text once questions exist', async () => {
+    await open(true, {
+      ...readingActivity,
+      document: {
+        ...readingActivity.document,
+        materials: [generatedText],
+        questions: [savedQuestion],
+      },
+      diagnostics: { [`materials.${generatedText.id}.stale`]: ['הטקסט נוצר לפי הגדרות קודמות.'] },
+    });
+    expect(root().querySelector('#release-activity')).not.toBeNull();
+    await click('regenerate-text');
+    expect(http.expectOne('/api/activity-drafts/draft/operations').request.body).toMatchObject({
+      kind: 'GenerateMaterials',
+    });
+  });
   it('retains invalid points without a save or paid call', async () => {
     await open();
     await click('add-question');
     await type('question-0-points', '1.5');
-    await click('generate-activity');
+    await click('regenerate-questions');
     http.expectNone((r) => r.method === 'PUT' || r.method === 'POST');
     expect((root().querySelector('#question-0-points') as HTMLInputElement).value).toBe('1.5');
   });
@@ -224,11 +268,11 @@ describe('Activity lifecycle', () => {
     vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] });
     try {
       await open();
-      await click('generate-activity');
+      await click('generate-questions');
       const operation = {
         id: 'op',
         draftId: 'draft',
-        kind: 'GenerateActivity',
+        kind: 'GenerateQuestions',
         status: 'queued',
         stage: 'questions',
         originalRevision: 1,
@@ -291,11 +335,11 @@ describe('Activity lifecycle', () => {
     'waits for checkpoint ownership before applying content received between status reads (%s)',
     async (outcome) => {
       await open();
-      await click('generate-activity');
+      await click('generate-questions');
       const operation = {
         id: 'op',
         draftId: 'draft',
-        kind: 'GenerateActivity',
+        kind: 'GenerateQuestions',
         status: 'calling',
         stage: 'questions',
         originalRevision: 1,
@@ -462,12 +506,12 @@ describe('Activity lifecycle', () => {
   });
   it('recovers a lost start response with the exact original operation key and revision', async () => {
     await open();
-    await click('generate-activity');
+    await click('generate-questions');
     const start = http.expectOne('/api/activity-drafts/draft/operations');
     const body = start.request.body;
     start.error(new ProgressEvent('error'));
     await settle();
-    expect(root().querySelector('#generate-activity')!.getAttribute('aria-disabled')).toBe('true');
+    expect(root().querySelector('#generate-questions')!.getAttribute('aria-disabled')).toBe('true');
     await type('document-title', 'עריכה אחרי השליחה');
     await click('recover-start');
     const replay = http.expectOne('/api/activity-drafts/draft/operations');
@@ -475,7 +519,7 @@ describe('Activity lifecycle', () => {
     replay.flush({
       id: 'op',
       draftId: 'draft',
-      kind: 'GenerateActivity',
+      kind: 'GenerateQuestions',
       status: 'completed',
       stage: 'questions',
       originalRevision: 1,
@@ -497,7 +541,7 @@ describe('Activity lifecycle', () => {
       http.expectOne('/api/activity-drafts/draft/operations/op').flush({
         id: 'op',
         draftId: 'draft',
-        kind: 'GenerateActivity',
+        kind: 'GenerateQuestions',
         status: 'unknown',
         stage: 'questions',
         originalRevision: 1,
@@ -533,7 +577,7 @@ describe('Activity lifecycle', () => {
       http.expectOne('/api/activity-drafts/draft/operations/op').flush({
         id: 'op',
         draftId: 'draft',
-        kind: 'GenerateActivity',
+        kind: 'GenerateQuestions',
         status: 'completed',
         stage: 'questions',
         originalRevision: 1,
@@ -670,11 +714,11 @@ describe('Activity lifecycle', () => {
     vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] });
     try {
       await open();
-      await click('generate-activity');
+      await click('generate-questions');
       const operation = {
         id: 'op',
         draftId: 'draft',
-        kind: 'GenerateActivity',
+        kind: 'GenerateQuestions',
         status: 'queued',
         stage: 'questions',
         originalRevision: 1,
@@ -753,11 +797,11 @@ describe('Activity lifecycle', () => {
   );
   it('uses the new saved revision after cancelling without local edits', async () => {
     await open();
-    await click('generate-activity');
+    await click('generate-questions');
     const operation = {
       id: 'op',
       draftId: 'draft',
-      kind: 'GenerateActivity',
+      kind: 'GenerateQuestions',
       status: 'queued',
       stage: 'questions',
       originalRevision: 1,
@@ -776,7 +820,7 @@ describe('Activity lifecycle', () => {
     const read = await vi.waitFor(() => http.expectOne('/api/activity-drafts/draft'));
     read.flush({ ...savedActivity, revision: 2 });
     await settle();
-    await click('generate-activity');
+    await click('generate-questions');
     const next = http.expectOne('/api/activity-drafts/draft/operations');
     expect(next.request.body.expectedRevision).toBe(2);
     next.flush({ ...operation, id: 'next' });
@@ -790,7 +834,7 @@ describe('Activity lifecycle', () => {
       http.expectOne('/api/activity-drafts/draft/operations/op').flush({
         id: 'op',
         draftId: 'draft',
-        kind: 'GenerateActivity',
+        kind: 'GenerateQuestions',
         status: 'calling',
         stage: 'questions',
         originalRevision: 1,
@@ -812,7 +856,7 @@ describe('Activity lifecycle', () => {
       cancellation.flush({
         id: 'op',
         draftId: 'draft',
-        kind: 'GenerateActivity',
+        kind: 'GenerateQuestions',
         status: 'cancelled',
         stage: 'questions',
         originalRevision: 1,
@@ -846,7 +890,7 @@ describe('Activity lifecycle', () => {
         .expectOne('/api/activity-drafts/draft')
         .flush({ ...savedActivity, activeOperationId: 'remote' });
       await settle();
-      expect(root().querySelector('#generate-activity')?.getAttribute('aria-disabled')).toBe(
+      expect(root().querySelector('#generate-questions')?.getAttribute('aria-disabled')).toBe(
         'true',
       );
       expect(root().querySelector<HTMLInputElement>('#document-title')!.value).toBe('עריכה מקומית');
@@ -854,7 +898,7 @@ describe('Activity lifecycle', () => {
       http.expectOne('/api/activity-drafts/draft/operations/remote').flush({
         id: 'remote',
         draftId: 'draft',
-        kind: 'GenerateActivity',
+        kind: 'GenerateQuestions',
         status: 'completed',
         stage: 'questions',
         originalRevision: 1,
@@ -881,11 +925,11 @@ describe('Activity lifecycle', () => {
     vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] });
     try {
       await open();
-      await click('generate-activity');
+      await click('generate-questions');
       const operation = {
         id: 'op',
         draftId: 'draft',
-        kind: 'GenerateActivity',
+        kind: 'GenerateQuestions',
         status: 'queued',
         stage: 'questions',
         originalRevision: 1,
@@ -995,7 +1039,7 @@ describe('Activity lifecycle', () => {
       '2 שאלות מספריות',
     );
     expect(
-      root().querySelector<HTMLDetailsElement>('#generate-activity')!.closest('details')!.open,
+      root().querySelector<HTMLDetailsElement>('#regenerate-questions')!.closest('details')!.open,
     ).toBe(false);
     expect(root().querySelector('#release-activity')!.closest('details')).toBeNull();
     toggle.click();
@@ -1093,11 +1137,11 @@ describe('Activity lifecycle', () => {
     'offers a %s result for editing only when it was not applied',
     async (status, outcome, offered) => {
       await open();
-      await click('generate-activity');
+      await click('generate-questions');
       http.expectOne('/api/activity-drafts/draft/operations').flush({
         id: 'op',
         draftId: 'draft',
-        kind: 'GenerateActivity',
+        kind: 'GenerateQuestions',
         status,
         stage: 'questions',
         originalRevision: 1,

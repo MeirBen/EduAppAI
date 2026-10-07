@@ -62,7 +62,7 @@ test('clarifies, confirms exact source text and saves only the reusable plan', a
   });
   await page.goto('/activities/new');
   await expect(page.locator('#save-template')).toHaveCount(0);
-  await expect(page.locator('#generate-activity')).toHaveCount(0);
+  await expect(page.locator('#generate-text, #generate-questions')).toHaveCount(0);
   await page.getByRole('textbox', { name: 'מה תרצו להכין?' }).fill('תרגול לפי מקור דו לשוני');
   await page.getByRole('button', { name: 'שליחה', exact: true }).click();
   await expect(page.locator('#chat-clarification')).toHaveText('לאיזה גיל?');

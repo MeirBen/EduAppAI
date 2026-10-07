@@ -35,6 +35,7 @@ public sealed record EvaluationSummary
     public required StageCounts Refinements { get; init; }
     public required StageCounts MaterialIdeas { get; init; }
     public required StageCounts Materials { get; init; }
+    public required StageCounts MaterialPolish { get; init; }
     public required StageCounts Replacements { get; init; }
     public required StageCounts Generation { get; init; }
     public int InterpretationPasses { get; init; }
@@ -64,6 +65,8 @@ public sealed record EvaluationSummary
     public static EvaluationSummary Create(EvaluationReport report)
     {
         var planned = report.Cases.Length * report.Repeat;
+        var writtenRuns = report.Cases.Count(item =>
+            item.InitialPlan?.Materials.Any(material => material.Source == "generated") ?? item.ExpectedGeneratedMaterials > 0) * report.Repeat;
         var calls = report.Steps.Where(step => step.RequestSent).ToArray();
         var responses = calls.Where(step => step.ResponseReceived && step.FinishedAtUtc.HasValue).ToArray();
         var generationSteps = report.Results.SelectMany(result => result.Steps.Where(step => step != result.Judge));
@@ -84,10 +87,9 @@ public sealed record EvaluationSummary
             AttemptedCalls = calls.Length,
             Authoring = StageCounts.From(report.Results.Select(result => result.Authoring), report.Cases.Count(item => item.InitialPlan is null) * report.Repeat),
             Refinements = StageCounts.From(report.Results.SelectMany(result => result.Refinements), report.Cases.Sum(item => item.Refinements.Length) * report.Repeat),
-            MaterialIdeas = StageCounts.From(report.Results.Select(result => result.MaterialIdeas), report.Cases.Count(item =>
-                item.InitialPlan?.Materials.Any(material => material.Source == "generated") ?? item.ExpectedGeneratedMaterials > 0) * report.Repeat),
-            Materials = StageCounts.From(report.Results.Select(result => result.Materials), report.Cases.Count(item =>
-                item.InitialPlan?.Materials.Any(material => material.Source == "generated") ?? item.ExpectedGeneratedMaterials > 0) * report.Repeat),
+            MaterialIdeas = StageCounts.From(report.Results.Select(result => result.MaterialIdeas), writtenRuns),
+            Materials = StageCounts.From(report.Results.Select(result => result.Materials), writtenRuns),
+            MaterialPolish = StageCounts.From(report.Results.Select(result => result.MaterialPolish), writtenRuns),
             Replacements = StageCounts.From(report.Results.SelectMany(result => result.Replacements), report.Cases.Sum(item => item.Replacements.Length) * report.Repeat),
             Generation = StageCounts.From(report.Results.Select(result => result.Generation), planned),
             InterpretationPasses = report.Results.Count(result => result.InterpretationPassed == true),

@@ -19,9 +19,10 @@ async function propose(page: Page, prompt: string) {
   await expect(page.locator('#chat-cancel')).toBeHidden();
 }
 
+/** Starts the next part the workspace offers: the text, or questions once the text exists. */
 async function start(page: Page) {
   const previous = new URL(page.url()).searchParams.get('operation');
-  await page.locator('#generate-activity').click();
+  await page.locator('#generate-text, #generate-questions').click();
   await expect(page).toHaveURL(
     (url) =>
       /^\/activities\/[a-f0-9-]+$/.test(url.pathname) &&
@@ -95,12 +96,18 @@ test('the parent keeps their place: pages open at the top, focus follows the act
   await page.keyboard.press('Enter');
   await expect(page.getByText('נשמר', { exact: true })).toBeVisible();
   await expect(page.locator('#save-activity')).toBeFocused();
-  await page.locator('#generate-activity').focus();
+  await page.locator('#generate-text').focus();
   await page.keyboard.press('Enter');
   await expect(page.locator('#cancel-generation')).toBeVisible();
   // Starting generation keeps focus on its own, now unavailable, button and shows the progress.
-  await expect(page.locator('#generate-activity')).toBeFocused();
+  await expect(page.locator('#generate-text')).toBeFocused();
   await expect(page.locator('app-generation-status')).toBeInViewport();
+  // The same action then offers the questions, so focus stays while the text arrives.
+  await expect(page.locator('#generate-questions')).toBeFocused({ timeout: 20_000 });
+  await expect(page.locator('#generate-questions')).not.toHaveAttribute('aria-disabled', 'true');
+  await page.keyboard.press('Enter');
+  await expect(page.locator('#cancel-generation')).toBeVisible();
+  // Questions replace the create action, so focus moves to the content they joined.
   await expect(page.locator('#document-heading')).toBeFocused({ timeout: 15_000 });
 });
 
@@ -136,8 +143,16 @@ test('prompt to editable activity, independent template, scoped repair and froze
   );
   let draft = await finish(page, state);
   expect((await operation(page, state)).steps.map((step: { stage: string }) => step.stage)).toEqual(
-    ['material-ideas', 'materials', 'questions'],
+    ['material-ideas', 'materials', 'material-polish'],
   );
+  // The text is ready for review before any question exists; questions are the next request.
+  expect(draft.document.questions).toEqual([]);
+  await expect(page.getByText('הטקסט נוצר.', { exact: true })).toBeVisible();
+  const questions = await start(page);
+  draft = await finish(page, questions);
+  expect(
+    (await operation(page, questions)).steps.map((step: { stage: string }) => step.stage),
+  ).toEqual(['questions']);
   await expect(page.locator('#question-0-prompt')).toHaveValue('על מה לומדים בקטע? 1');
   expect((await (await page.request.get('/api/templates')).json()).length).toBe(templatesBefore);
   expect(draft.templateVersionId).toBeNull();
@@ -187,7 +202,7 @@ test('exact bilingual source bypasses material generation and missing answers bl
   await propose(page, 'תרגול לפי מקור דו לשוני');
   const source = '"שָׁלוֹם" — Hello!\nDon\'t change בעלי־חיים.\n';
   await expect(page.getByLabel('הטקסט שלכם')).toHaveValue(source);
-  await page.locator('#generate-activity').click();
+  await page.locator('#generate-questions').click();
   await expect(page.getByRole('alert')).toContainText('אשרו שהטקסט שלכם הועתק נכון');
   await page.getByRole('button', { name: 'הטקסט הועתק נכון' }).click();
   const state = await start(page);
@@ -218,26 +233,27 @@ test('strict material rejection stops questions, while a question failure retain
   let draft = await finish(page, state, 'failed');
   await expect(page.getByText('הטקסט שנוצר לא עמד בדרישת האורך.')).toBeVisible();
   await expect(page.getByText('נדרש: 100–120 מילים', { exact: true })).toBeVisible();
-  await expect(page.getByText('הפעילות נוצרה.')).toHaveCount(0);
+  await expect(page.getByText('הטקסט נוצר.')).toHaveCount(0);
   expect(draft.document.materials).toEqual([]);
   expect(draft.document.questions).toEqual([]);
   expect((await operation(page, state)).steps.map((step: { stage: string }) => step.stage)).toEqual(
     ['material-ideas', 'materials'],
   );
   await propose(page, 'תרגול קריאה עם כשל בשאלות');
+  await finish(page, await start(page));
   state = await start(page);
   draft = await finish(page, state, 'failed');
   expect(draft.document.materials[0].body).toContain('מאובנים');
   expect(draft.document.questions).toEqual([]);
-  await expect(page.getByText('הטקסט נשמר, אבל יצירת השאלות נכשלה.')).toBeVisible();
-  await expect(page.getByRole('button', { name: 'יצירת השאלות שוב' })).toBeVisible();
+  await expect(page.getByText('יצירת השאלות נכשלה.')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'ניסיון נוסף' })).toBeVisible();
   await page.reload();
   await expect(page.locator('#material-0-body')).toHaveValue(/מאובנים/);
   expect((await operation(page, state)).steps.map((step: { stage: string }) => step.stage)).toEqual(
-    ['material-ideas', 'materials', 'questions'],
+    ['questions'],
   );
   const acceptedMaterials = draft.document.materials;
-  await page.getByRole('button', { name: 'יצירת השאלות שוב' }).click();
+  await page.getByRole('button', { name: 'ניסיון נוסף' }).click();
   await expect(page).not.toHaveURL(new RegExp('operation=' + state.operationId));
   const retried = {
     draftPath: state.draftPath,
@@ -274,7 +290,7 @@ test('question-only generation preserves typing and Undo across late output and 
     ['questions'],
   );
   await page.getByText('פעולות נוספות', { exact: true }).click();
-  await page.locator('#generate-questions').click();
+  await page.locator('#regenerate-questions').click();
   await expect(page.locator('#cancel-generation')).toBeVisible();
   await page.locator('#document-title').fill('עריכה בזמן ביטול');
   await page.locator('#cancel-generation').click();
@@ -319,10 +335,10 @@ test('a lost start response replays the original key and preserves later local t
       await route.fulfill({ response });
     }
   });
-  await page.locator('#generate-activity').click();
+  await page.locator('#generate-questions').click();
   await expect(page.locator('#recover-start')).toBeVisible();
   await page.locator('#document-title').fill('עריכה אחרי אובדן תשובה');
-  await expect(page.locator('#generate-activity')).toBeDisabled();
+  await expect(page.locator('#generate-questions')).toBeDisabled();
   await page.locator('#recover-start').click();
   await expect(page.locator('#recover-start')).toBeHidden();
   await expect(page).toHaveURL(new RegExp('operation=' + acceptedId));
@@ -559,7 +575,7 @@ test('two pages follow generation, cancellation and release while preserving edi
   expect((await (await actor.request.get(path)).json()).revision).toBe(draft.revision);
   await page.unroute('**/api/library/changes?*');
   await page.locator('#reconnect-draft').click();
-  await expect(page.locator('#generate-activity')).toHaveAttribute('aria-disabled', 'true');
+  await expect(page.locator('#generate-questions')).toHaveAttribute('aria-disabled', 'true');
   await actor.locator('#cancel-generation').click();
   await expect(page.getByText('היצירה בוטלה.', { exact: true })).toBeVisible();
   expect((await operation(actor, running)).status).toBe('cancelled');

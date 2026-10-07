@@ -284,6 +284,23 @@ export class ActivityWorkspace {
   protected readonly hasContent = computed(
     () => !!this.raw().document.materials.length || !!this.raw().document.questions.length,
   );
+  /** Generated texts the plan asks for that are missing or saved as stale; text is created before its questions. */
+  protected readonly textNeeded = computed(() => {
+    const { plan, document } = this.raw(),
+      stale = this.stale().materials;
+    return plan.materials.some(
+      ({ id, source }) =>
+        source === 'generated' && (stale.has(id) || !document.materials.some((m) => m.id === id)),
+    );
+  });
+  /** The primary action until questions exist: create the text first, then its questions. */
+  protected readonly createAction = computed(() =>
+    this.raw().document.questions.length
+      ? undefined
+      : this.textNeeded()
+        ? { kind: 'GenerateMaterials' as const, label: 'יצירת הטקסט' }
+        : { kind: 'GenerateQuestions' as const, label: 'יצירת השאלות' },
+  );
   /** Problems the closed advanced options name; source texts sit with the settings instead. */
   protected readonly advancedInvalid = computed(() => {
     const plan = this.fields.plan;
@@ -712,7 +729,7 @@ export class ActivityWorkspace {
         };
         this.startRecovery.set({ draftId: saved.id, request });
         await this.submitOperation(saved.id, request);
-        if (action === 'GenerateActivity' || action === 'GenerateQuestions') this.revealProgress();
+        if (action === 'GenerateMaterials' || action === 'GenerateQuestions') this.revealProgress();
       }
     });
   }
