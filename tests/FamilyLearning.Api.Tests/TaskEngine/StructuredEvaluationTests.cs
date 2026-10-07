@@ -237,6 +237,7 @@ public sealed class StructuredEvaluationTests : IDisposable
     [Theory]
     [InlineData("750", "336", true)]
     [InlineData("750", "335", false)]
+    [InlineData("750", "+335", false)]
     public async Task Calculation_prompts_are_recalculated_exactly_against_their_keys(string first, string second, bool passed)
     {
         var batch = JsonSerializer.Serialize(new QuestionCandidateBatch("תרגול", null,

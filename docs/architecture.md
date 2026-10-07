@@ -92,8 +92,8 @@ capabilities. All subjects use the same stages and authoritative validators.
 overlap with recent family ideas. An application-owned draw breaks ties: the
 worker's operation ID keeps selection stable within an operation. Only the
 selected idea reaches the writer; manual edits and the polish retain it as
-provenance, AI rewrites clear it. Supplied sources and question-only operations
-skip ideas.
+provenance, an AI rewrite that changes the text clears it. Supplied sources and
+question-only operations skip ideas.
 
 After admission's idempotency checks, `GenerationHistoryReader` captures the
 current document, then at most 12 unreleased drafts and 12 snapshots, yielding

@@ -17,6 +17,7 @@ public sealed class ExactArithmeticTests
     [InlineData("7/8 - 1/2 =", "3/8")]
     [InlineData("2/6 + 1/3", "2/3")]
     [InlineData("-3 + 8 =", "5")]
+    [InlineData("125 × 6 =", "+750")]
     [InlineData("2 · 3 ÷ 4", "1.5")]
     public void Calculation_prompts_and_keys_compare_as_exact_values(string prompt, string key)
     {

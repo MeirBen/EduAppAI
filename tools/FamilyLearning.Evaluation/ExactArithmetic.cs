@@ -4,8 +4,9 @@ using System.Numerics;
 namespace FamilyLearning.Evaluation;
 
 /// <summary>Exact evaluation of bare calculation text, so recalculating a key needs neither floating point nor a reviewer.</summary>
-/// <remarks>Accepts the whole-item form generated prompts use: decimals, + − × · : ÷ /, parentheses and an optional
-/// trailing "=" with a blank or question mark. Any other text, including a missing-number blank, is not a calculation.</remarks>
+/// <remarks>Accepts the whole-item form generated prompts and numeric keys use: signed decimals, + − × · : ÷ /, parentheses
+/// and an optional trailing "=" with a blank or question mark. Any other text, including a missing-number blank, is not a
+/// calculation.</remarks>
 internal static class ExactArithmetic
 {
     /// <summary>A value in lowest terms with a positive denominator, so equal values are structurally equal.</summary>
@@ -70,11 +71,11 @@ internal static class ExactArithmetic
             SkipSpace();
             value = default;
             if (position == text.Length) return false;
-            if (text[position] is '-' or '−')
+            if (text[position] is '+' or '-' or '−')
             {
-                position++;
-                if (!TryFactor(out var negated)) return false;
-                value = Rational.Create(-negated.Numerator, negated.Denominator);
+                var negative = text[position++] != '+';
+                if (!TryFactor(out value)) return false;
+                if (negative) value = Rational.Create(-value.Numerator, value.Denominator);
                 return true;
             }
             if (text[position] == '(')

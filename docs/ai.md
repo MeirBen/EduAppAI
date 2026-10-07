@@ -63,9 +63,12 @@ Retained:
   now defaults to easy through third grade and medium above (was medium for
   all). Basis: medium third-grade texts used 6.1 formal words against 4.4 at
   easy (p ≈ 0.05, 6 October). Candidate runs: grade 1 and four grade-3 plans
-  defaulted to easy, grade 4 and 7 stayed medium, the default was disclosed in
-  6 of 7 assumption lists, and a grade-3 "up to 1000" drill kept its range
-  (results to 800) with 20/20 correct keys. One ants pair read plainer at easy.
+  defaulted to easy, grade 4 and 7 stayed medium, and a grade-3 "up to 1000"
+  drill kept its range (results to 800) with 20/20 correct keys. One ants pair
+  read plainer at easy. Deviation: the registered rule required every grade 1–3
+  plan to disclose the default, but `space-reading-grade3` did not (6 of 7 plans
+  did); it was adopted anyway because the plan editor always shows the
+  difficulty setting.
 - **Comparison signs (revision 32):** comparison drills wrote every option and
   instruction as Hebrew words plus a sign (`קטן מ־ (<)`), which real Chromium
   displays as `(>)` through bidi mirroring, in 4/4 such baseline drills; the
@@ -85,7 +88,7 @@ Retained:
   factual imprecision, with three minor style regressions. A pre-registered
   confirmation on 20 fresh texts found 5 genuine corrections in 4 texts (a
   factual claim, a construct-state error, number agreement, two wrong words) and
-  no introduced error; 13 came back unchanged. Validation rejected 0 of 51
+  no introduced error; 14 came back unchanged. Validation rejected 0 of 51
   polishes. It left the ant-brood misconception in 6/6 texts and barely changed
   formal words. Cost is about $0.010 per text, median 15 seconds (35 at p90).
 
@@ -301,6 +304,10 @@ Historical caps do not authorize new paid runs.
   and a final two-case live check, 138 calls, $1.2922 of a $1.50 cap, no
   unknown costs; `protocol.txt` records each registered rule before its run,
   with blind labels and analysis.
+- `stale-rewrite-2026-10-07/`: rewrites of stale text through the real rewrite
+  call; without an instruction, 3 of 6 titled texts came back unchanged, which
+  `TaskAssembly.ReplaceMaterial` now accepts under the current requirements.
+  18 calls, $0.19675 of a $0.50 cap, no unknown costs.
 
 Retired design documents: `documentation-history-2026-10-01.zip`.
 
