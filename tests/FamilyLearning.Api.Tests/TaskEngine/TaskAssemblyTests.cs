@@ -140,6 +140,20 @@ public sealed class TaskAssemblyTests
     }
 
     [Fact]
+    public void Unchanged_rewrite_of_a_stale_material_accepts_it_under_current_requirements()
+    {
+        var request = Resolve(Reading());
+        var document = TaskAssembly.AcceptMaterials(request, Empty, new([new(MaterialId, null, "שלום עולם")])).Document!;
+        document = TaskAssembly.AcceptQuestions(request, document, Questions(Question("text-input"), Question("text-input")));
+        var changedInput = request with { Settings = request.Settings with { QuestionCount = 3 } };
+        var rewritten = TaskAssembly.ReplaceMaterial(new(changedInput, document, MaterialId), new(MaterialId, null, "שלום עולם"));
+        Assert.Equal(document.Materials[0].Revision, rewritten.Materials[0].Revision);
+        Assert.Equal(document.Materials[0].Origin, rewritten.Materials[0].Origin);
+        TaskAssembly.PrepareQuestions(changedInput, rewritten);
+        Assert.Contains("questions[0].stale", TaskDocumentValidator.ValidateDraft(changedInput, rewritten).Diagnostics.Keys);
+    }
+
+    [Fact]
     public void Adoption_and_question_preflight_cannot_waive_strict_material_length()
     {
         var plan = Reading();
