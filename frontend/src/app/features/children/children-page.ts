@@ -24,6 +24,7 @@ import { CopyButton } from '../../shared/copy-button/copy-button';
 import { parentTaskError } from '../../core/api/parent-task-error';
 import { Pager } from '../../shared/pager/pager';
 import { writeError } from '../../core/api/api-error';
+import { refreshOnReturn } from '../../core/page-visibility';
 
 /** One local profile buffer; list refreshes never replace edits or retain activation secrets. */
 @Component({
@@ -84,7 +85,7 @@ export class ChildrenPage {
     maxLength(path.grade, this.limits.nameLength);
     validate(path.age, ({ value }) => {
       const age = value();
-      return age === '' ||
+      return !age.trim() ||
         (isIntegerInput(age) && Number(age) >= 0 && Number(age) <= this.limits.maxChildAge)
         ? undefined
         : { kind: 'age', message: this.ageHint };
@@ -117,6 +118,8 @@ export class ChildrenPage {
 
   constructor() {
     this.lifetime.onDestroy(() => this.activation.set(undefined));
+    // A device activated elsewhere shows when the parent comes back; the profile list stays with its form.
+    refreshOnReturn(() => this.devices.reload());
   }
   /** Protects unsaved profile changes on navigation and explicit selection. */
   canLeave() {
@@ -169,7 +172,7 @@ export class ChildrenPage {
           name: name.trim(),
           details: {
             grade: grade.trim() || null,
-            age: age === '' ? null : Number(age),
+            age: age.trim() ? Number(age) : null,
           },
         };
         const saved = child

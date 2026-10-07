@@ -46,7 +46,7 @@ function integer(
   required = false,
   minimum = -2147483648,
 ): number | undefined {
-  if (value === '' && !required) return undefined;
+  if (!value.trim() && !required) return undefined;
   if (!isIntegerInput(value) || Number(value) < minimum) {
     issues.push({ path, message: 'יש להזין מספר שלם.' });
     return undefined;

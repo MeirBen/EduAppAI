@@ -14,7 +14,7 @@ export const childRoutes: Routes = [
         canMatch: [childActivationGuard],
         canActivate: [childSignOutGuard],
         runGuardsAndResolvers: 'always',
-        title: 'הפעלת מכשיר · לומדים ביחד',
+        title: 'כניסה לפעילויות · לומדים ביחד',
         loadComponent: () => import('./child-activation').then((m) => m.ChildActivation),
       },
       {

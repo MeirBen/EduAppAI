@@ -28,7 +28,11 @@ parent labels keep their original language and values.
   state and one row of current actions, with their errors and recovery. Forms,
   such as assignment, stay in their own panel so the bar never hides content.
   It pins to the window's bottom while the window is at least 40rem tall at the
-  current text size, and scroll padding keeps focus clear of it.
+  current text size, and scroll padding keeps focus clear of it. Its main row is
+  `action-bar-row`: `action-bar-actions`, then `action-bar-status`, which ends
+  at the far edge. On long working pages (`actionBar` with
+  `app-action-bar-toggle`) the pinned bar can shrink to its status line; an
+  alert always shows it whole.
 - Pages opened from the library lead back with a link above their heading. A
   `list-row` with a `row-link` opens from anywhere on the row, which shows the
   link's hover and focus; the row's other actions stay separate controls. A
@@ -39,8 +43,9 @@ parent labels keep their original language and values.
   (remove, move, undo, edit in a row, send and stop) are icon-only
   `icon-button`s whose `tooltip` is their accessible name; where the same action
   repeats per item, an `aria-label` adds the item and hides the tooltip from
-  assistive technology. Tooltips show on hover or keyboard focus and Escape
-  hides them; anchor positioning keeps them within the window. Actions with
+  assistive technology. Tooltips show on hover or keyboard focus; Escape hides
+  them, and pressing a control hides its tooltip until the pointer or focus
+  leaves it; anchor positioning keeps them within the window. Actions with
   lasting effects keep their visible label.
 - Keep hover/press feedback brief, exclude disabled controls and respect reduced
   motion. Use theme shadows and colors rather than page-specific copies.
@@ -67,46 +72,37 @@ parent labels keep their original language and values.
   first plan, takes it at its heading. Results are announced, never focused or
   scrolled to; only full generation brings its progress into view once, without
   motion when reduced motion is preferred.
-- Each problem shows on the field or group that can fix it: its edge and
-  message appear once the parent leaves it, and on every field once they try
-  to save or send. A failed attempt sets one announced line beside its action,
-  where problems with the whole form also show; a closed disclosure names
-  invalid content in its summary. A problem the field did not just cause shows
-  at once: an answer that another field's edit left unmatched, or one the
-  saved check found. Field messages state their rule ("יש להזין…"); the
-  attempt line says what to do ("תקנו את השדות המסומנים."). Length rules rely
-  on the native `maxlength` and add no message.
-
-## Spacing
-
-Containers own `gap`; shared primitives have no outer margin. `main` owns the
-page padding, so page roots add none. Lists span the header width;
-editable/frozen activity documents use `max-w-3xl`.
-
-| Token             | Use                                                     |
-| ----------------- | ------------------------------------------------------- |
-| `gap-1`           | Heading/description, status/content, stacked text links |
-| `gap-2`           | Control and revealed content                            |
-| `gap-3`           | Buttons in an action row                                |
-| `gap-4`           | Fields and blocks, including field/action rows          |
-| `gap-6`           | Page sections and headed groups                         |
-| `gap-x-6 gap-y-2` | A wrapping row of actions and links                     |
-| `gap-x-4`         | An inline row of links or status text                   |
-| `mb-2`            | Label above its control, set once in `base.css`         |
-| `mt-2`            | Hint/help/error below its control                       |
-
-Keep each label/control in one field block, not separate gapped children.
-Disclosures own summary/content spacing; empty live regions occupy no slot.
-Use `role="group"` with an inset heading for grouped card fields, not a `.well`
-fieldset legend; later headed groups use `card-section`. Related fields share
-rows: two-column settings, sibling numbers and list-item remove controls.
-Content beside a tile/actions uses `min-w-1/2 flex-1`, wrapping below half-width.
-Render optional content only when present.
-
-## Styles and theming
-
-`frontend/src/styles.css` imports each layer from `frontend/src/styles/`:
-
+- Each problem shows on the field or group that can fix it: its edge and message
+  appear once the parent leaves it, and on every field once they try to save or
+  send. A failed attempt sets one announced line beside its action, where
+  problems with the whole form also show; a closed disclosure names invalid
+  content in its summary. A problem the field did not just cause shows at once:
+  an answer that another field's edit left unmatched, or one the saved check
+  found. Field messages state their rule ("יש להזין…"); the attempt line says
+  what to do ("תקנו את השדות המסומנים."). Length rules rely on the native
+  `maxlength` and add no message. ## Spacing Containers own `gap`; shared
+  primitives have no outer margin. `main` owns the page padding, so page roots
+  add none. Lists span the header width; editable/frozen activity documents use
+  `max-w-3xl`. | Token | Use | | ----------------- |
+  ------------------------------------------------------- | | `gap-1` |
+  Heading/description, status/content, stacked text links | | `gap-2` | Control
+  and revealed content | | `gap-3` | Buttons in an action row | | `gap-4` |
+  Fields and blocks, including field/action rows | | `gap-6` | Page sections and
+  headed groups | | `gap-x-6 gap-y-2` | A wrapping row of actions and links | |
+  `gap-x-4` | An inline row of links or status text | | `mb-2` | Label above its
+  control, set once in `base.css` | | `mt-2` | Hint/help/error below its control
+  | Keep each label/control in one field block, not separate gapped children.
+  Disclosures own summary/content spacing; empty live regions occupy no slot.
+  Use `role="group"` with an inset heading for grouped card fields, not a
+  `.well` fieldset legend; later headed groups use `card-section`. Related
+  fields share rows: two-column settings, sibling numbers and list-item remove
+  controls. Content beside a tile/actions uses `min-w-1/2 flex-1`, wrapping
+  below half-width. Render optional content only when present. ## Styles and
+  theming `frontend/src/styles.css` imports each layer from
+  `frontend/src/styles/`: Final or replacing actions ask first with the native
+  confirm, naming the effect: deleting, reset, withdrawal, disabling, revoking,
+  marking ready, regenerating and submitting. Reversible edits rely on Undo
+  instead.
 - `theme.css` owns the colors, elevations and corner radii. Tailwind's default
   palettes and scales are cleared, so templates can only use theme values.
 - `utilities.css` owns project variants: `pinned-header`, `pinned-actions`, and
@@ -115,7 +111,7 @@ Render optional content only when present.
 - `base.css` styles elements, including native form controls and focus.
 - `components.css` holds every shared visual treatment, grouped as actions
   (buttons, links, `icon-button` with its `tooltip`, `chip`, `segmented`
-  radios), surfaces
+  radios, `choice` answer cards), surfaces
   (`panel`, `well`, `card-section`, `action-bar`, `list-row` with its
   `row-link`, `empty-state`), conversation (`bubble`, `composer`), marks
   (`badge`, `icon-tile`, `status-icon`, `ai-mark`), lists (`steps`,
@@ -166,18 +162,21 @@ Read every size limit, count cap and the numbers in their messages from the
 server's `Limits`; child answer controls use `ChildSessionIdentity.answerLength`
 instead, without calling parent APIs. Never hard-code content limits in forms.
 
-Write concise Hebrew for labels, validation, loading and errors, and never expose
-raw framework or provider errors. Address parents and children in the plural
-imperative ("בדקו", "נסו שוב"), call the parent home "המרחב שלנו" and avoid
-internal terms such as model, item or local copy. A count of one reads in words
-("שאלה אחת"). Render generated text through interpolation,
-never HTML, and never rewrite saved content for presentation. Generated text is
-bare by contract, so presentation supplies its structure: keep line breaks with
-`whitespace-pre-wrap` (blank lines between paragraphs, single breaks for poem
-lines and dialogue turns), number questions in an ordered list and show choices
-as separate items or native options. `bdi`/`dir="auto"` display a whole-item
-calculation or comparison in order, but bidi mirroring reverses `<` and `>`
-beside Hebrew words, so the content contract keeps signs out of Hebrew text.
+Write concise Hebrew for labels, validation, loading and errors, and never
+expose raw framework or provider errors. Address parents and children in the
+plural imperative ("בדקו", "נסו שוב"), call the parent home "המרחב שלנו" and
+avoid internal terms such as model, item or local copy. A count of one reads in
+words ("שאלה אחת"). Children read short, warm sentences that say what to do
+next, without technical words such as access, device, browser, request or saved
+work; actions name their result ("הגשה להורה", "בדיקת עדכונים"). Render
+generated text through interpolation, never HTML, and never rewrite saved
+content for presentation. Generated text is bare by contract, so presentation
+supplies its structure: keep line breaks with `whitespace-pre-wrap` (blank lines
+between paragraphs, single breaks for poem lines and dialogue turns), number
+questions in an ordered list and show choices as separate items or native
+options. `bdi`/`dir="auto"` display a whole-item calculation or comparison in
+order, but bidi mirroring reverses `<` and `>` beside Hebrew words, so the
+content contract keeps signs out of Hebrew text.
 [`AiPrompts`](../backend/FamilyLearning.Api/TaskEngine/Ai/AiPrompts.cs) promises
 this to the model, so change both together. Control labels and options come from
 the reviewed template; the shared settings use application-owned labels, and
@@ -191,8 +190,9 @@ page. Empty states name the next step, or say that a filter or later page has
 nothing more. Separate profile edits from device access; confirmations explain
 disable/revoke effects. Activation codes show large as `XXXX-XXXX`, selectable
 with expiry, never in URLs or persistent browser storage. Withdrawn rows offer
-restore, which needs no confirmation. Lists of children's work refresh when the
-page becomes visible again (`refreshOnReturn`) and keep a refresh link.
+restore, which needs no confirmation. Lists of children's work and a profile's devices
+refresh when the page becomes visible again (`refreshOnReturn`) and keep a
+refresh link.
 
 Grade (free text) and age (LTR integer, server bounds) are optional; each can
 be cleared, with no age-confirmation checkbox. Keep secondary dates under native
@@ -226,14 +226,19 @@ Separate available/submitted inbox views with a `segmented` switch and bounded
 paging; rows carry a status `badge`, which keeps the state on phones where the
 tile drops. Keep materials above numbered questions in the reading column.
 Numeric answers use LTR text inputs with a decimal keyboard, retaining invalid
-edits; text preserves whitespace and native options isolate their labels. The
-action bar owns save, submit, how many questions have answers, saved-work
-recovery and dirty/saved status; the saved-work check shows only while
-recovering or after submission, where it fetches the grade. Invalid submit
-focuses the first problem; missing answers need confirmation. Checkpoint reads
-never overwrite local text implicitly. A submission receipt locks editing and
-leads with its outcome icon; pending review has no final score, and zero
-possible points has no percentage.
+edits and sending no surrounding spaces; text preserves whitespace. Choice
+questions are a fieldset whose legend is the prompt, with every option a
+`choice` card around its native radio, so long answers wrap rather than hide in
+a closed select. An answered question fills its number. The action bar owns
+save, submit, saved-work recovery and one status line whose items wrap only
+whole, with the save state at a fixed width so changing it never reflows the
+bar: save state, how many questions have answers and the time since the first
+start, which ticks only while work is open and the page is visible. The
+saved-work check shows only while recovering or after submission, where it
+fetches the grade. Invalid submit focuses the first problem; missing answers
+need confirmation. Checkpoint reads never overwrite local text implicitly. A
+submission receipt locks editing and leads with its outcome icon; pending review
+has no final score, and zero possible points has no percentage.
 
 ## Workspace actions
 

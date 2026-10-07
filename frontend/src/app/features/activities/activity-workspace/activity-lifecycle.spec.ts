@@ -78,6 +78,8 @@ describe('Activity lifecycle', () => {
     await settle();
   }
   beforeEach(async () => {
+    // Final and replacing actions confirm; a test that cancels says so itself.
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
     vi.stubGlobal('matchMedia', () => ({ matches: true }));
     Element.prototype.scrollIntoView = vi.fn();
     TestBed.configureTestingModule({
@@ -98,7 +100,11 @@ describe('Activity lifecycle', () => {
     http = TestBed.inject(HttpTestingController);
     harness = await RouterTestingHarness.create();
   });
-  afterEach(() => http.verify());
+  afterEach(() => {
+    // Restore first, so a test that fails verification cannot leak its mocks into the next one.
+    vi.restoreAllMocks();
+    http.verify();
+  });
   it.each([
     ['its own plan', true, null, true],
     ['a template being used', false, null, false],
@@ -206,6 +212,34 @@ describe('Activity lifecycle', () => {
     expect(http.expectOne('/api/activity-drafts/draft/operations').request.body).toMatchObject({
       kind: 'GenerateMaterials',
     });
+  });
+  it('asks before replacing generated content and sends nothing when the parent cancels', async () => {
+    await open(true, {
+      ...readingActivity,
+      document: {
+        ...readingActivity.document,
+        materials: [generatedText],
+        questions: [savedQuestion],
+      },
+      diagnostics: { [`materials.${generatedText.id}.stale`]: ['הטקסט נוצר לפי הגדרות קודמות.'] },
+    });
+    vi.mocked(window.confirm).mockReturnValue(false);
+    await click('regenerate-text');
+    await click('regenerate-questions');
+    http.expectNone((r) => r.method === 'POST');
+    expect(window.confirm).toHaveBeenCalledTimes(2);
+  });
+  it('freezes a version only after the parent confirms the release', async () => {
+    await open(true, {
+      ...savedActivity,
+      document: { ...savedActivity.document, questions: [savedQuestion] },
+      diagnostics: {},
+    });
+    vi.mocked(window.confirm).mockReturnValue(false);
+    await click('release-activity');
+    await settle();
+    http.expectNone('/api/activity-drafts/draft/release');
+    expect(window.confirm).toHaveBeenCalledOnce();
   });
   it('retains invalid points without a save or paid call', async () => {
     await open();

@@ -198,7 +198,7 @@
           }
           <app-loading-indicator [active]="busy() || reading()" label="מעדכנים את הבדיקה…" />
           @if (report.evaluation.pendingCount) {
-            <div class="flex flex-wrap items-center gap-x-6 gap-y-2">
+            <div class="action-bar-row">
               <button class="button" [disabledInteractive]="busy() || reading() || recovery()">
                 שמירת ציונים וסיום הבדיקה
               </button>

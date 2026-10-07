@@ -87,6 +87,7 @@ import {
 } from './workspace-form';
 import { DisabledInteractive } from '../../../shared/disabled-interactive';
 import { FieldErrors } from '../../../shared/forms/field-errors';
+import { ActionBar, ActionBarToggle } from '../../../shared/action-bar/action-bar';
 
 /** Release checks that only the questions step can satisfy: the title it writes and its questions. */
 const questionChecks = new Set(['title', 'questions', 'questions.formats']);
@@ -114,6 +115,8 @@ const questionChecks = new Set(['title', 'questions', 'questions.formats']);
     NgTemplateOutlet,
     SourceReplacement,
     UnappliedResult,
+    ActionBar,
+    ActionBarToggle,
   ],
   templateUrl: './activity-workspace.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -694,6 +697,14 @@ export class ActivityWorkspace {
   }
 
   /** Every content action flushes one validated checkpoint first; no failed save can start work. */
+  /** Regeneration replaces content the parent may have reviewed or edited, so it asks first. */
+  protected regenerate(kind: GenerationKind) {
+    const prompt =
+      kind === 'GenerateQuestions'
+        ? 'ליצור את כל השאלות מחדש? השאלות הנוכחיות יוחלפו.'
+        : 'ליצור טקסט חדש? הטקסט שאינו עדכני יוחלף, והשאלות שתלויות בו יסומנו לבדיקה.';
+    return window.confirm(prompt) ? this.activityAction(kind) : undefined;
+  }
   protected async activityAction(
     action: 'save' | 'release' | 'adopt' | GenerationKind,
     target?: {
@@ -730,6 +741,13 @@ export class ActivityWorkspace {
           this.activityError.set({ message: 'תקנו את המסומן לפני סימון כמוכנה.' });
           return;
         }
+        // Asked only once release can succeed: it freezes this version for assignment.
+        if (
+          !window.confirm(
+            'לסמן את הפעילות כמוכנה? היא תישמר כעותק קבוע שאפשר להקצות, ושינויים ייעשו בטיוטה חדשה.',
+          )
+        )
+          return;
         const snapshot = await this.api.releaseActivity(saved.id, saved.revision, this.lifetime);
         if (!this.lifetime.destroyed)
           this.saved.set({

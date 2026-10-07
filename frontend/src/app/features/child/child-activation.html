@@ -1,15 +1,11 @@
 <section class="panel mx-auto grid max-w-lg gap-6" aria-labelledby="activation-title">
   <header class="grid gap-1">
-    <h1 id="activation-title" class="text-2xl">הפעלת המכשיר שלי</h1>
-    <p class="text-muted">כדי לפתוח את הפעילויות, צריך קוד הפעלה מההורה.</p>
+    <h1 id="activation-title" class="text-2xl">כניסה לפעילויות</h1>
+    <p class="text-muted">כתבו את הקוד שקיבלתם מההורה.</p>
   </header>
-  <p class="note">
-    <span class="icon icon-info" aria-hidden="true"></span>הגישה נשמרת בדפדפן הזה עד 30 יום. אחרי
-    ניתוק המכשיר, ביטול הגישה בידי ההורה או מחיקת נתוני הדפדפן, צריך קוד חדש.
-  </p>
   <form class="grid gap-4" (submit)="activate($event)" novalidate>
     <div>
-      <label for="activation-code">קוד הפעלה</label>
+      <label for="activation-code">הקוד מההורה</label>
       <input
         id="activation-code"
         type="text"
@@ -23,11 +19,9 @@
       />
       <app-field-errors id="activation-code-errors" [field]="fields.code" />
     </div>
-    <button class="button" type="submit" [disabledInteractive]="busy() || recovery()">
-      פתיחת הפעילויות שלי
-    </button>
+    <button class="button" type="submit" [disabledInteractive]="busy() || recovery()">כניסה</button>
   </form>
-  <app-loading-indicator [active]="busy()" label="בודקים את הגישה למכשיר…" />
+  <app-loading-indicator [active]="busy()" label="רק רגע…" />
   @if (error()) {
     <p class="field-error" role="alert">{{ error() }}</p>
   }
@@ -38,7 +32,11 @@
       [disabledInteractive]="busy()"
       (click)="checkAccess()"
     >
-      בדיקת הגישה למכשיר
+      בדיקת הכניסה
     </button>
   }
+  <p class="note">
+    <span class="icon icon-info" aria-hidden="true"></span>אחרי הכניסה, המכשיר הזה יזכור אתכם עד 30
+    יום.
+  </p>
 </section>

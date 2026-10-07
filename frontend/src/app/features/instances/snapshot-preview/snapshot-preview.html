@@ -97,7 +97,7 @@
       }
       <app-loading-indicator [active]="copying()" label="יוצרים טיוטה חדשה…" />
       @if (copiedId()) {
-        <div class="flex flex-wrap items-center gap-x-6 gap-y-2">
+        <div class="action-bar-row">
           <a class="button" [routerLink]="['/activities', copiedId()]"
             ><span class="icon icon-edit" aria-hidden="true"></span>פתיחת הטיוטה החדשה</a
           >

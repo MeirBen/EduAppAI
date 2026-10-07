@@ -4,6 +4,7 @@ import {
   Component,
   computed,
   DestroyRef,
+  DOCUMENT,
   effect,
   inject,
   input,
@@ -19,7 +20,9 @@ import {
   submit,
   validate,
 } from '@angular/forms/signals';
+import { toSignal } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
+import { interval } from 'rxjs';
 import { ChildApi } from '../../core/api/child-api';
 import { LearnerAnswer, LearnerSession } from '../../core/api/child-models';
 import { ChildAuth } from '../../core/auth/child-auth';
@@ -31,6 +34,9 @@ import { FieldValidity } from '../../shared/forms/field-validity';
 import { LoadingIndicator } from '../../shared/loading-indicator/loading-indicator';
 import { childError, childStatus } from './child-error';
 import { writeError } from '../../core/api/api-error';
+import { pageVisible } from '../../core/page-visibility';
+import { ActionBar, ActionBarToggle } from '../../shared/action-bar/action-bar';
+import { elapsedClock } from './elapsed-clock';
 
 /** Page-owned answer buffer. Reads offer a checkpoint; only acknowledgement or explicit acceptance replaces edits. */
 @Component({
@@ -45,6 +51,8 @@ import { writeError } from '../../core/api/api-error';
     FieldDirection,
     DisabledInteractive,
     LoadingIndicator,
+    ActionBar,
+    ActionBarToggle,
   ],
   templateUrl: './child-player.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -104,23 +112,61 @@ export class ChildPlayer {
           question?.interaction.type === 'single-choice' &&
           !question.interaction.options?.includes(text)
         )
-          return { kind: 'choice', message: 'יש לבחור אחת מהאפשרויות.' };
+          return { kind: 'choice', message: 'בחרו אחת מהתשובות.' };
         // Keep incomplete numeric keystrokes saveable. The server also enforces its decimal range at submission.
         if (
           this.triedSubmit() &&
           question?.interaction.type === 'numeric-input' &&
-          !/^[+-]?[0-9]+(?:\.[0-9]+)?$(?![\s\S])/.test(text)
+          !/^[+-]?[0-9]+(?:\.[0-9]+)?$(?![\s\S])/.test(text.trim())
         )
           return {
             kind: 'number',
-            message: 'יש לכתוב מספר בלי פסיקים, למשל 1250 או 3.5',
+            message: 'כתבו רק מספר, בלי פסיקים.',
           };
         return undefined;
       });
     });
   });
 
+  /** A number is sent without the surrounding spaces mobile keyboards add; text keeps its own. */
+  private readonly numericQuestions = computed(() =>
+    this.assignment.hasValue()
+      ? new Set(
+          this.assignment
+            .value()
+            .document.questions.filter((q) => q.interaction.type === 'numeric-input')
+            .map((q) => q.id),
+        )
+      : new Set<string>(),
+  );
+  /** Open work the child can still change. */
+  protected readonly working = computed(
+    () => this.session()?.status === 'assigned' && !this.terminal(),
+  );
+  /** The bar's one line of feedback, so a slow request never adds a row while the child scrolls. */
+  protected readonly statusText = computed(() => {
+    if (this.reading()) return 'בודקים…';
+    if (!this.session()) return '';
+    if (this.busy()) return 'שומרים…';
+    if (!this.working()) return '';
+    return this.dirty() ? 'לא נשמר' : 'נשמר';
+  });
+  private readonly visible = toSignal(pageVisible(inject(DOCUMENT)), { requireSync: true });
+  private readonly now = signal(Date.now());
+  /** Wall-clock time since the server start, as the parent's report counts it; nothing is measured here. */
+  protected readonly elapsed = computed(() => {
+    const started = this.session()?.startedAtUtc;
+    return started ? elapsedClock(started, this.now()) : '';
+  });
+
   constructor() {
+    // The clock ticks only while work is open and the page is visible; it reads the server start again on return.
+    effect((onCleanup) => {
+      if (!this.visible() || !this.working()) return;
+      this.now.set(Date.now());
+      const tick = interval(1000).subscribe(() => this.now.set(Date.now()));
+      onCleanup(() => tick.unsubscribe());
+    });
     let opened = false;
     effect(() => {
       if (this.assignment.hasValue() && !opened) {
@@ -132,7 +178,7 @@ export class ChildPlayer {
   }
   /** Leaving may cancel transport, but cannot undo a write already committed on the server. */
   canLeave() {
-    return !this.dirty() || window.confirm('יש תשובות שלא נשמרו. לצאת מהפעילות בלי לשמור?');
+    return !this.dirty() || window.confirm('יש תשובות שלא נשמרו. לצאת בכל זאת?');
   }
   protected beforeUnload(event: BeforeUnloadEvent) {
     if (this.dirty()) event.preventDefault();
@@ -181,20 +227,26 @@ export class ChildPlayer {
     this.triedSubmit.set(submitting);
     this.error.set('');
     await submit(this.fields, async () => {
+      // Submitting is final, so it always asks; unanswered questions are named first.
       const missing = this.answers().length - this.answered();
+      const unanswered = !missing
+        ? ''
+        : missing === 1
+          ? 'נשארה שאלה אחת בלי תשובה. '
+          : `נשארו ${missing} שאלות בלי תשובה. `;
       if (
         submitting &&
-        missing &&
-        !window.confirm(
-          `${missing === 1 ? 'נותרה שאלה אחת' : `נותרו ${missing} שאלות`} ללא תשובה. להגיש בכל זאת?`,
-        )
+        !window.confirm(`${unanswered}להגיש להורה? אחרי ההגשה אי אפשר לשנות את התשובות.`)
       )
         return;
       const restore = this.holdFocus();
       this.busy.set(true);
       this.notice.set('');
       try {
-        const answers = this.answers().map(({ questionId, value }) => ({ questionId, value }));
+        const answers = this.answers().map(({ questionId, value }) => ({
+          questionId,
+          value: this.numericQuestions().has(questionId) ? value.trim() : value,
+        }));
         const saved = await (submitting
           ? this.api.submit(this.assignmentId(), session.revision, answers, this.lifetime)
           : this.api.save(this.assignmentId(), session.revision, answers, this.lifetime));
@@ -224,7 +276,7 @@ export class ChildPlayer {
       writeError(
         childError(error),
         error,
-        'ייתכן שהבקשה נשמרה. בדקו את העבודה השמורה לפני ניסיון נוסף.',
+        'אולי זה כבר נשמר. לחצו על "בדיקת עדכונים" לפני שמנסים שוב.',
       ),
     );
   }
@@ -240,19 +292,19 @@ export class ChildPlayer {
         this.recovery.set(false);
         this.savedSession.set(undefined);
         this.error.set('');
-        this.notice.set('העבודה השמורה נבדקה. התשובות שכתבתם נשארו כאן, ואפשר להמשיך.');
+        this.notice.set('הכול בסדר, אפשר להמשיך.');
       } else {
         this.savedSession.set(saved);
         this.recovery.set(true);
         this.error.set('');
-        this.notice.set('נמצאה עבודה שמורה. התשובות שכתבתם נשארו כאן עד שתטענו אותה.');
+        this.notice.set('יש תשובות שמורות חדשות יותר. אפשר לטעון אותן במקום התשובות שכאן.');
       }
     } catch (error) {
       if (this.lifetime.destroyed) return;
       if (!this.session() && childStatus(error) === 404) {
         // A lost start may never have created a session. A new explicit start rechecks ownership/withdrawal.
         this.recovery.set(false);
-        this.error.set('לא נמצאה עבודה שמורה. נסו לפתוח את הפעילות שוב.');
+        this.error.set('עוד לא נשמר כלום. נסו להתחיל שוב.');
       } else this.failed(error);
     } finally {
       if (!this.lifetime.destroyed) {
@@ -268,12 +320,12 @@ export class ChildPlayer {
       this.blocked() ||
       this.busy() ||
       this.reading() ||
-      (this.dirty() && !window.confirm('להחליף את התשובות שכתבתם בעבודה השמורה?'))
+      (this.dirty() && !window.confirm('להחליף את התשובות שכאן בתשובות השמורות?'))
     )
       return;
     const restore = this.holdFocus();
     this.accept(saved);
-    this.notice.set('העבודה השמורה מוצגת.');
+    this.notice.set('התשובות השמורות מוצגות.');
     restore();
   }
 }

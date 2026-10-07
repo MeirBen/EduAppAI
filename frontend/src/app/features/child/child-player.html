@@ -8,10 +8,10 @@
     label="פותחים את הפעילות…"
   />
   @if (assignment.error(); as error) {
-    <h1 id="player-title">הפעילות אינה זמינה</h1>
+    <h1 id="player-title">הפעילות לא זמינה</h1>
     <p class="error" role="alert">{{ failure(error) }}</p>
     @if (status(error) === 401) {
-      <a class="button justify-self-start" routerLink="/child/activate">הפעלת המכשיר מחדש</a>
+      <a class="button justify-self-start" routerLink="/child/activate">כניסה מחדש</a>
     } @else if (status(error) !== 404 && status(error) !== 410) {
       <button
         class="button button-secondary justify-self-start"
@@ -48,25 +48,31 @@
         <form id="answer-form" (submit)="write(true, $event)" novalidate>
           <ol role="list" class="steps grid gap-6">
             @for (question of document.questions; track question.id; let index = $index) {
-              <li class="grid gap-2">
+              <li class="grid gap-2" [attr.data-done]="answers()[index].value.trim() ? '' : null">
                 <div>
-                  <label class="whitespace-pre-wrap" [for]="'answer-' + question.id"
-                    ><bdi>{{ question.prompt }}</bdi></label
-                  >
-                  @switch (question.interaction.type) {
-                    @case ('single-choice') {
-                      <select
-                        [id]="'answer-' + question.id"
-                        [formField]="fields[index].value"
-                        [attr.aria-describedby]="'answer-errors-' + question.id"
-                      >
-                        <option value="">בחירת תשובה</option>
-                        @for (option of question.interaction.options; track $index) {
-                          <option [value]="option">&#x2068;{{ option }}&#x2069;</option>
-                        }
-                      </select>
-                    }
-                    @case ('numeric-input') {
+                  @if (question.interaction.type === 'single-choice') {
+                    <fieldset
+                      class="grid gap-2"
+                      [attr.aria-describedby]="'answer-errors-' + question.id"
+                    >
+                      <legend class="whitespace-pre-wrap">
+                        <bdi>{{ question.prompt }}</bdi>
+                      </legend>
+                      @for (option of question.interaction.options; track $index) {
+                        <label class="choice"
+                          ><input
+                            type="radio"
+                            [value]="option"
+                            [formField]="fields[index].value"
+                          /><bdi class="whitespace-pre-wrap">{{ option }}</bdi></label
+                        >
+                      }
+                    </fieldset>
+                  } @else {
+                    <label class="whitespace-pre-wrap" [for]="'answer-' + question.id"
+                      ><bdi>{{ question.prompt }}</bdi></label
+                    >
+                    @if (question.interaction.type === 'numeric-input') {
                       <input
                         type="text"
                         inputmode="decimal"
@@ -79,10 +85,9 @@
                         "
                       />
                       <p class="mt-2 text-sm text-muted" [id]="'number-help-' + question.id">
-                        כתבו את המספר בלי פסיקים, למשל 1250 או 3.5
+                        רק מספר, בלי פסיקים. למשל: 12 או 3.5
                       </p>
-                    }
-                    @case ('text-input') {
+                    } @else {
                       <textarea
                         rows="3"
                         dir="auto"
@@ -104,16 +109,16 @@
           </ol>
         </form>
       } @else {
-        <ol role="list" class="steps grid gap-4">
+        <ol role="list" class="steps grid gap-6">
           @for (question of document.questions; track question.id; let index = $index) {
-            <li class="grid gap-2">
+            <li class="grid gap-2" [attr.data-done]="answers()[index].value.trim() ? '' : null">
               <p class="whitespace-pre-wrap">
                 <bdi>{{ question.prompt }}</bdi>
               </p>
               <p class="whitespace-pre-wrap">
                 <bdi
                   [attr.data-saved-answer]="question.id"
-                  [textContent]="answers()[index].value || 'לא נענתה'"
+                  [textContent]="answers()[index].value || 'בלי תשובה'"
                 ></bdi>
               </p>
             </li>
@@ -130,13 +135,13 @@
           <p>
             {{
               receipt.status === 'awaiting-review'
-                ? 'התשובות מחכות עכשיו לבדיקה של ההורה.'
-                : 'הבדיקה הושלמה.'
+                ? 'התשובות מחכות לבדיקה של ההורה.'
+                : 'הבדיקה הסתיימה.'
             }}
           </p>
           @if (receipt.submittedAtUtc) {
             <p class="text-sm text-muted">
-              הוגשה ב־<bdi>{{ receipt.submittedAtUtc | date }}</bdi>
+              נשלחה ב־<bdi>{{ receipt.submittedAtUtc | date }}</bdi>
             </p>
           }
           @if (
@@ -145,7 +150,7 @@
             receipt.possibleTotal !== null
           ) {
             <p class="font-semibold">
-              ציון סופי: {{ receipt.finalTotal }} מתוך {{ receipt.possibleTotal }}
+              הציון: {{ receipt.finalTotal }} מתוך {{ receipt.possibleTotal }}
               @if (receipt.possibleTotal > 0) {
                 <span>
                   ({{
@@ -158,9 +163,8 @@
         </div>
       </section>
     }
-    <section class="action-bar" aria-labelledby="answer-actions-title">
+    <section class="action-bar" actionBar aria-labelledby="answer-actions-title">
       <h2 id="answer-actions-title" class="sr-only">שמירה והגשה</h2>
-      <app-loading-indicator [active]="busy() || reading()" label="מעדכנים את העבודה…" />
       @if (notice()) {
         <p class="note" role="status">
           <span class="icon icon-info" aria-hidden="true"></span>{{ notice() }}
@@ -170,18 +174,18 @@
         <p class="field-error" role="alert">{{ errorMessage() }}</p>
       }
       @if (blocked() === 401) {
-        <a class="button justify-self-start" routerLink="/child/activate">הפעלת המכשיר מחדש</a>
+        <a class="button justify-self-start" routerLink="/child/activate">כניסה מחדש</a>
       }
-      <div class="flex flex-wrap items-center gap-x-6 gap-y-2">
-        <div class="flex grow flex-wrap items-center gap-3">
-          @if (session()?.status === 'assigned' && !terminal()) {
+      <div class="action-bar-row">
+        <div class="action-bar-actions">
+          @if (working()) {
             <button
               class="button"
               type="submit"
               form="answer-form"
               [disabledInteractive]="busy() || reading() || recovery() || !!blocked()"
             >
-              הגשת העבודה
+              הגשה להורה
             </button>
             <button
               id="save-answers"
@@ -189,12 +193,12 @@
               [disabledInteractive]="busy() || reading() || recovery() || !!blocked() || !dirty()"
               (click)="write(false)"
             >
-              שמירת התשובות
+              שמירה
             </button>
           }
           @if (!session() && !recovery() && !blocked()) {
             <button class="button" [disabledInteractive]="busy() || reading()" (click)="start()">
-              פתיחת הפעילות
+              התחלה
             </button>
           }
           @if (savedSession() && !blocked()) {
@@ -204,29 +208,40 @@
               [disabledInteractive]="busy() || reading()"
               (click)="useSaved()"
             >
-              טעינת העבודה השמורה
+              טעינת התשובות השמורות
             </button>
           }
         </div>
-        <div class="flex flex-wrap items-center gap-x-4 text-sm text-muted">
-          @if (session()?.status === 'assigned' && !terminal()) {
-            <p class="flex items-center gap-2">
-              <span class="h-2 w-16 overflow-hidden rounded-full bg-soft" aria-hidden="true"
+        <div class="action-bar-status whitespace-nowrap">
+          @if (statusText(); as text) {
+            <span
+              role="status"
+              class="min-w-16"
+              [class.font-medium]="dirty()"
+              [class.text-ink]="dirty()"
+              >{{ text }}</span
+            >
+          }
+          @if (working()) {
+            <span class="flex items-center gap-2">
+              <span class="h-2 w-12 overflow-hidden rounded-full bg-soft" aria-hidden="true"
                 ><span
                   class="block h-full rounded-full bg-brand transition-[width] motion-reduce:transition-none"
                   [style.width.%]="(answered() / answers().length) * 100"
                 ></span
               ></span>
-              ענית על {{ answered() }} מתוך {{ answers().length }}
-            </p>
-            <p>
-              <span role="status" [class.font-medium]="dirty()" [class.text-ink]="dirty()">{{
-                busy() ? 'שומרים…' : dirty() ? 'יש תשובות שלא נשמרו' : 'כל התשובות שמורות'
-              }}</span>
-              @if (session()?.savedAtUtc && !dirty()) {
-                · <bdi>{{ session()!.savedAtUtc | date }}</bdi>
-              }
-            </p>
+              <span
+                ><span class="max-sm:sr-only">ענית על </span>{{ answered() }} מתוך
+                {{ answers().length }}</span
+              >
+            </span>
+            @if (elapsed(); as time) {
+              <span class="flex items-center gap-2" role="timer">
+                <span class="icon icon-clock" aria-hidden="true"></span
+                ><span class="sr-only">זמן מתחילת הפעילות, כולל הפסקות:</span
+                ><time class="tabular-nums" dir="ltr">{{ time }}</time>
+              </span>
+            }
           }
           @if ((recovery() || terminal()) && !blocked()) {
             <button
@@ -235,9 +250,10 @@
               [disabledInteractive]="busy() || reading()"
               (click)="readSaved()"
             >
-              <span class="icon icon-refresh" aria-hidden="true"></span>בדיקת העבודה השמורה
+              <span class="icon icon-refresh" aria-hidden="true"></span>בדיקת עדכונים
             </button>
           }
+          <app-action-bar-toggle />
         </div>
       </div>
     </section>

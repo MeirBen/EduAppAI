@@ -30,7 +30,7 @@ export class ChildActivation {
     validate(path.code, ({ value }) =>
       /^[a-z]{8}$/i.test(value().replace(/[\s-]/g, ''))
         ? undefined
-        : { kind: 'code', message: 'קוד ההפעלה בנוי מ־8 אותיות באנגלית, כמו שמופיע אצל ההורה.' },
+        : { kind: 'code', message: 'הקוד הוא 8 אותיות באנגלית, כמו אצל ההורה.' },
     );
   });
   constructor() {
@@ -49,19 +49,19 @@ export class ChildActivation {
         const identity = await this.auth.activate(code, this.lifetime);
         if (this.lifetime.destroyed) return;
         if (identity) await this.router.navigateByUrl('/child', { replaceUrl: true });
-        else this.error.set('לא נמצאה גישה פעילה. בקשו מההורה קוד חדש.');
+        else this.error.set('צריך קוד חדש. בקשו אותו מההורה.');
       } catch (error) {
         if (this.lifetime.destroyed) return;
         const status = childStatus(error);
         this.recovery.set(status !== 400 && status !== 429);
         this.error.set(
           status === 400
-            ? 'הקוד לא תקף או שכבר השתמשו בו. בקשו מההורה קוד חדש.'
+            ? 'הקוד הזה לא עובד. בקשו מההורה קוד חדש.'
             : status === 409
-              ? 'כבר פתוח חשבון בדפדפן הזה. הפעילו את מכשיר הילד בדפדפן נפרד, או סגרו קודם את החשבון הפעיל.'
+              ? 'הדפדפן הזה מחובר לחשבון של הורה. היכנסו בדפדפן אחר, או התנתקו קודם מחשבון ההורה.'
               : status === 429
-                ? 'נעשו ניסיונות רבים בזמן קצר. נסו שוב בעוד רגע עם קוד חדש.'
-                : 'לא הצלחנו לאשר שההפעלה הסתיימה. בדקו את הגישה למכשיר לפני בקשת קוד חדש.',
+                ? 'היו יותר מדי ניסיונות. חכו רגע ובקשו קוד חדש.'
+                : 'לא ברור אם הכניסה הצליחה. בדקו לפני שמבקשים קוד חדש.',
         );
       } finally {
         if (!this.lifetime.destroyed) this.busy.set(false);
@@ -78,11 +78,10 @@ export class ChildActivation {
       if (identity) await this.router.navigateByUrl('/child', { replaceUrl: true });
       else {
         this.recovery.set(false);
-        this.error.set('לא נמצאה גישה פעילה. בקשו מההורה קוד חדש.');
+        this.error.set('צריך קוד חדש. בקשו אותו מההורה.');
       }
     } catch {
-      if (!this.lifetime.destroyed)
-        this.error.set('לא הצלחנו לבדוק את הגישה כרגע. נסו שוב בעוד רגע.');
+      if (!this.lifetime.destroyed) this.error.set('משהו לא עבד. נסו שוב עוד רגע.');
     } finally {
       if (!this.lifetime.destroyed) this.busy.set(false);
     }

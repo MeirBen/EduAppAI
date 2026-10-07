@@ -69,7 +69,14 @@ async function createSnapshot(parent: APIRequestContext, headers: Record<string,
           {
             id: null,
             prompt: 'איזו אפשרות בחרתם?',
-            interaction: { type: 'single-choice', options: ['אדום', 'blue'] },
+            // A long option with an unbreakable number must wrap inside its card at any text size.
+            interaction: {
+              type: 'single-choice',
+              options: [
+                'אדום כמו תפוח בשל, או בעצם 12345678901234567890123456789012345678901234567890',
+                'blue',
+              ],
+            },
             answer: { value: 'blue' },
             points: 1,
           },
@@ -119,12 +126,12 @@ async function narrow(page: Page, name: string) {
   await page.evaluate(() => window.scrollTo(0, 0));
   await page.screenshot({ animations: 'disabled', path: test.info().outputPath(name + '.png') });
   if (await page.locator('#answer-form').count()) {
-    await page.locator('#answer-form input').scrollIntoViewIfNeeded();
+    await page.locator('#answer-form input[inputmode="decimal"]').scrollIntoViewIfNeeded();
     await page.screenshot({
       animations: 'disabled',
       path: test.info().outputPath(name + '-numeric.png'),
     });
-    await page.locator('#answer-form select').scrollIntoViewIfNeeded();
+    await page.locator('#answer-form fieldset').scrollIntoViewIfNeeded();
     await page.screenshot({
       animations: 'disabled',
       path: test.info().outputPath(name + '-choice.png'),
@@ -222,14 +229,14 @@ test('two families and siblings keep separate work through resume, lost submissi
       await inspectChildResponses(peerPage);
       trackRequests(peerPage);
       await peerPage.goto('/child/activate');
-      await peerPage.getByLabel('קוד הפעלה', { exact: true }).fill(peerCode);
-      await peerPage.getByRole('button', { name: 'פתיחת הפעילויות שלי' }).click();
+      await peerPage.getByLabel('הקוד מההורה', { exact: true }).fill(peerCode);
+      await peerPage.getByRole('button', { name: 'כניסה', exact: true }).click();
       await expect(peerPage).toHaveURL('/child');
       await peerPage.getByRole('link', { name: content.document.title, exact: true }).click();
       await peerPage.getByRole('textbox', { name: '2 + 3 = ?', exact: true }).fill('1');
       await peerPage.getByRole('textbox', { name: 'מה למדתם מהטקסט?', exact: true }).fill(name);
-      await peerPage.getByRole('button', { name: 'שמירת התשובות', exact: true }).click();
-      await expect(peerPage.getByText('כל התשובות שמורות', { exact: true })).toBeVisible();
+      await peerPage.getByRole('button', { name: 'שמירה', exact: true }).click();
+      await expect(peerPage.getByText('נשמר', { exact: true })).toBeVisible();
       const peerPath = `/api/child/assignments/${peerId}/session`;
       const saved = await peerContext.request.get(peerPath);
       await expectChildResponse(saved);
@@ -243,10 +250,10 @@ test('two families and siblings keep separate work through resume, lost submissi
     }
     await child.goto('/child');
     await expect(child).toHaveURL('/child/activate');
-    await expect(child.getByText('הגישה נשמרת בדפדפן הזה', { exact: false })).toBeVisible();
+    await expect(child.getByText('המכשיר הזה יזכור אתכם', { exact: false })).toBeVisible();
     await narrow(child, 'activation-mobile');
-    await child.getByLabel('קוד הפעלה', { exact: true }).fill(code);
-    await child.getByRole('button', { name: 'פתיחת הפעילויות שלי' }).click();
+    await child.getByLabel('הקוד מההורה', { exact: true }).fill(code);
+    await child.getByRole('button', { name: 'כניסה', exact: true }).click();
     await expect(child).toHaveURL('/child');
     await expect(
       child.getByRole('link', { name: snapshot.document.title, exact: true }),
@@ -325,20 +332,20 @@ test('two families and siblings keep separate work through resume, lost submissi
     expect(await child.locator('[data-material]').last().textContent()).toBe(poem);
     const numeric = child.getByRole('textbox', { name: '2 + 3 = ?', exact: true });
     const text = child.getByRole('textbox', { name: 'מה למדתם מהטקסט?', exact: true });
-    const choice = child.getByRole('combobox', { name: 'איזו אפשרות בחרתם?', exact: true });
+    const choice = child.getByRole('group', { name: 'איזו אפשרות בחרתם?', exact: true });
     await numeric.fill('-');
     await text.fill(exactAnswer);
-    await choice.selectOption('blue');
+    await choice.getByRole('radio', { name: 'blue', exact: true }).check();
     child.once('dialog', (dialog) => dialog.dismiss());
     await child.getByRole('link', { name: 'לפעילויות שלי', exact: true }).click();
     await expect(child).toHaveURL(`/child/assignments/${assignment.id}`);
-    await child.getByRole('button', { name: 'שמירת התשובות', exact: true }).click();
-    await expect(child.getByText('כל התשובות שמורות', { exact: true })).toBeVisible();
+    await child.getByRole('button', { name: 'שמירה', exact: true }).click();
+    await expect(child.getByText('נשמר', { exact: true })).toBeVisible();
     await child.reload();
     await expect(numeric).toHaveValue('-');
     await expect(text).toHaveValue(exactAnswer);
-    await expect(choice).toHaveValue('blue');
-    await child.getByRole('button', { name: 'הגשת העבודה', exact: true }).click();
+    await expect(choice.getByRole('radio', { name: 'blue', exact: true })).toBeChecked();
+    await child.getByRole('button', { name: 'הגשה להורה', exact: true }).click();
     await expect(numeric).toBeFocused();
     expect(submissions).toBe(0);
     await numeric.fill('+05.00');
@@ -359,16 +366,20 @@ test('two families and siblings keep separate work through resume, lost submissi
       },
       { times: 1 },
     );
-    await child.getByRole('button', { name: 'הגשת העבודה', exact: true }).click();
-    await expect(child.getByRole('alert')).toContainText('ייתכן שהבקשה נשמרה');
+    child.once('dialog', async (dialog) => {
+      expect(dialog.message()).toContain('אחרי ההגשה אי אפשר לשנות');
+      await dialog.accept();
+    });
+    await child.getByRole('button', { name: 'הגשה להורה', exact: true }).click();
+    await expect(child.getByRole('alert')).toContainText('אולי זה כבר נשמר');
     await expect(text).toHaveValue(exactAnswer);
-    await child.getByRole('button', { name: 'בדיקת העבודה השמורה', exact: true }).click();
+    await child.getByRole('button', { name: 'בדיקת עדכונים', exact: true }).click();
     await expect(child.getByRole('heading', { name: 'העבודה הוגשה', exact: true })).toBeVisible();
     await expect(text).toBeDisabled();
-    await expect(child.getByText('ציון סופי:', { exact: false })).toHaveCount(0);
+    await expect(child.getByText('הציון:', { exact: false })).toHaveCount(0);
     expect(submissions).toBe(1);
     child.once('dialog', (dialog) => dialog.accept());
-    await child.getByRole('button', { name: 'טעינת העבודה השמורה', exact: true }).click();
+    await child.getByRole('button', { name: 'טעינת התשובות השמורות', exact: true }).click();
     expect(
       await child
         .locator(`[data-saved-answer="${snapshot.document.questions[1].id}"]`)
@@ -389,9 +400,9 @@ test('two families and siblings keep separate work through resume, lost submissi
     parent.once('dialog', (dialog) => dialog.accept());
     await parent.getByRole('button', { name: 'שמירת ציונים וסיום הבדיקה', exact: true }).click();
     await expect(parent.getByText('ציון סופי:', { exact: false })).toBeVisible();
-    await child.getByRole('button', { name: 'בדיקת העבודה השמורה', exact: true }).click();
-    await expect(child.getByText('ציון סופי:', { exact: false })).toContainText('5 מתוך 6');
-    await child.getByRole('button', { name: 'טעינת העבודה השמורה', exact: true }).click();
+    await child.getByRole('button', { name: 'בדיקת עדכונים', exact: true }).click();
+    await expect(child.getByText('הציון:', { exact: false })).toContainText('5 מתוך 6');
+    await child.getByRole('button', { name: 'טעינת התשובות השמורות', exact: true }).click();
     const finalResponse = await context.request.get(sessionPath);
     await expectChildResponse(finalResponse);
     const finalResult = await finalResponse.json();
@@ -402,16 +413,16 @@ test('two families and siblings keep separate work through resume, lost submissi
       answers: receipt.answers,
     });
     await child.reload();
-    await expect(child.getByText('ציון סופי:', { exact: false })).toContainText('5 מתוך 6');
+    await expect(child.getByText('הציון:', { exact: false })).toContainText('5 מתוך 6');
     const reread = await context.request.get(sessionPath);
     await expectChildResponse(reread);
     expect(await reread.json()).toEqual(finalResult);
     await child.getByRole('link', { name: 'לפעילויות שלי', exact: true }).click();
     await child
       .getByRole('group', { name: 'אילו פעילויות להציג?' })
-      .locator('label', { hasText: 'כבר הוגשו' })
+      .locator('label', { hasText: 'הגשתי' })
       .click();
-    await expect(child.getByRole('radio', { name: 'כבר הוגשו', exact: true })).toBeChecked();
+    await expect(child.getByRole('radio', { name: 'הגשתי', exact: true })).toBeChecked();
     await expect(
       child.getByRole('link', { name: snapshot.document.title, exact: true }),
     ).toBeVisible();
@@ -420,7 +431,7 @@ test('two families and siblings keep separate work through resume, lost submissi
       await child.evaluate(() => JSON.stringify(localStorage) + JSON.stringify(sessionStorage)),
     ).not.toContain(exactAnswer);
     child.once('dialog', (dialog) => dialog.accept());
-    await child.getByRole('button', { name: 'ניתוק המכשיר', exact: true }).click();
+    await child.getByRole('button', { name: 'יציאה', exact: true }).click();
     await expect(child).toHaveURL('/child/activate');
     const disconnected = await context.request.get('/api/child/auth/me');
     expect(disconnected.status()).toBe(401);

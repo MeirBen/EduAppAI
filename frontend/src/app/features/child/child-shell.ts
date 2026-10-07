@@ -19,10 +19,7 @@ export class ChildShell {
   protected readonly signingOut = signal(false);
   protected readonly error = signal('');
   protected async logout() {
-    if (
-      this.signingOut() ||
-      !window.confirm('לנתק את המכשיר? כדי לחזור לפעילויות תצטרכו קוד חדש מההורה.')
-    )
+    if (this.signingOut() || !window.confirm('לצאת? כדי לחזור לפעילויות תצטרכו קוד חדש מההורה.'))
       return;
     this.signingOut.set(true);
     this.error.set('');

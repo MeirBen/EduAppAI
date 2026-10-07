@@ -32,11 +32,11 @@
       >
     }
   </fieldset>
-  <app-loading-indicator [active]="assignments.isLoading()" label="קוראים את הפעילויות…" />
+  <app-loading-indicator [active]="assignments.isLoading()" label="מביאים את הפעילויות…" />
   @if (assignments.error(); as error) {
     <p class="error" role="alert">{{ failure(error) }}</p>
     @if (status(error) === 401) {
-      <a class="button justify-self-start" routerLink="/child/activate">הפעלת המכשיר מחדש</a>
+      <a class="button justify-self-start" routerLink="/child/activate">כניסה מחדש</a>
     }
   }
   @if (assignments.hasValue()) {
@@ -62,11 +62,11 @@
           <span class="badge">{{
             assignment.status === 'assigned'
               ? assignment.hasStarted
-                ? 'אפשר להמשיך'
-                : 'מוכנה להתחלה'
+                ? 'להמשיך'
+                : 'חדשה'
               : assignment.status === 'awaiting-review'
                 ? 'מחכה לבדיקה'
-                : 'הבדיקה הושלמה'
+                : 'נבדקה'
           }}</span>
         </article>
       } @empty {
@@ -76,7 +76,7 @@
               ? 'אין פעילויות נוספות.'
               : state() === 'available'
                 ? 'אין כרגע פעילויות חדשות. פעילות חדשה מההורה תופיע כאן.'
-                : 'עוד אין עבודות שהוגשו.'
+                : 'עוד לא הגשתם פעילויות.'
           }}
         </p>
       }

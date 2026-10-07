@@ -11,8 +11,8 @@ import { refreshOnReturn } from '../../core/page-visibility';
 
 type InboxView = 'available' | 'submitted';
 const views: { value: InboxView; label: string }[] = [
-  { value: 'available', label: 'לעבודה' },
-  { value: 'submitted', label: 'כבר הוגשו' },
+  { value: 'available', label: 'לעשות' },
+  { value: 'submitted', label: 'הגשתי' },
 ];
 
 /** Bounded child inbox; listing work never starts a session. */

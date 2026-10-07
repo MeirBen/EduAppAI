@@ -176,6 +176,7 @@ test('prompt to editable activity, independent template, scoped repair and froze
   expect(templates).toHaveLength(templatesBefore + 1);
   const template = templates.find((value: { name: string }) => value.name === 'חוקרים וקוראים');
   expect((await (await page.request.get(state.draftPath)).json()).document).toEqual(draft.document);
+  page.once('dialog', (dialog) => dialog.accept());
   await page.locator('#release-activity').click();
   await page.getByRole('link', { name: 'הקצאה לילדים' }).click();
   await expect(page.getByRole('heading', { name: 'פעילות מוכנה — תצוגה להורים' })).toBeVisible();
@@ -222,6 +223,10 @@ test('exact bilingual source bypasses material generation and missing answers bl
   await expect(page.getByRole('alert')).toBeVisible();
   expect(await (await page.request.get('/api/instances')).json()).toEqual([]);
   await page.locator('#question-0-answer').fill('דינוזאורים');
+  page.once('dialog', async (dialog) => {
+    expect(dialog.message()).toContain('לסמן את הפעילות כמוכנה');
+    await dialog.accept();
+  });
   await page.locator('#release-activity').click();
   await expect(page.getByRole('link', { name: 'הקצאה לילדים' })).toBeVisible();
 });
@@ -292,6 +297,7 @@ test('question-only generation preserves typing and Undo across late output and 
     ['questions'],
   );
   await page.getByText('פעולות נוספות', { exact: true }).click();
+  page.once('dialog', (dialog) => dialog.accept());
   await page.locator('#regenerate-questions').click();
   await expect(page.locator('#cancel-generation')).toBeVisible();
   await page.locator('#document-title').fill('עריכה בזמן ביטול');
@@ -364,6 +370,7 @@ test('library deletion confirms intent, preserves independent items, recovers fr
   await page.getByText('שמירה כתבנית לשימוש חוזר', { exact: true }).click();
   await page.locator('#save-template').click();
   await expect(page.getByText('התבנית נשמרה במרחב שלנו. הפעילות לא השתנתה.')).toBeVisible();
+  page.once('dialog', (dialog) => dialog.accept());
   await page.locator('#release-activity').click();
   await expect(page.getByRole('link', { name: 'הקצאה לילדים' })).toBeVisible();
   await page.goto('/templates');
@@ -589,6 +596,7 @@ test('two pages follow generation, cancellation and release while preserving edi
   await expect(page.locator('#cancel-generation')).toBeHidden();
   await expect(page.locator('#available-title')).toBeVisible();
   await expect(page.locator('#document-title')).toHaveValue('עריכה מקומית שנשמרת כאן');
+  actor.once('dialog', (dialog) => dialog.accept());
   await actor.locator('#release-activity').click();
   await expect(actor.getByRole('link', { name: 'הקצאה לילדים' })).toBeVisible();
   await expect(page.getByRole('link', { name: 'הקצאה לילדים' })).toBeVisible();

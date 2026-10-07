@@ -375,7 +375,10 @@ Parents may record **כיתה** (school grade) and **גיל** (completed years).
 ### Elapsed activity time
 
 Derive elapsed time from server UTC `StartedAtUtc` and `SubmittedAtUtc` in
-assignment details/results; no browser stopwatch or stored duration counter.
+assignment details/results; no browser stopwatch or stored duration counter. The
+player shows the same interval live while work is open, computed from
+`StartedAtUtc` and the device clock for display only; a device clock behind the
+server reads as zero.
 
 - The first explicit player start begins the interval. Previews/read-only
   requests do not start it; reopening, refreshing and resuming do not reset it.
@@ -399,7 +402,8 @@ At submission:
 - **Unanswered, any type:** Zero points, no pending parent grade.
 - **Single choice:** Must be one frozen option; exact match to the frozen key
   earns full points, another option earns zero.
-- **Numeric:** Use the existing invariant decimal grammar: an optional leading
+- **Numeric:** The player sends numeric answers without surrounding spaces.
+  Use the existing invariant decimal grammar: an optional leading
   sign, digits and an optional decimal point followed by digits. No commas,
   exponent, NaN or overflow. Compare the exact decimal values expressed by the
   strings, ignoring leading integer zeros, trailing fractional zeros and the sign

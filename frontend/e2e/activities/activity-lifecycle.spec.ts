@@ -253,6 +253,7 @@ test('saves before generation, edits manually, reviews the current revision and 
   await page.locator('#save-activity').click();
   await expect(page.getByText('נשמר', { exact: true })).toBeVisible();
   expect(state.writes.filter((w) => w.path.endsWith('/operations'))).toHaveLength(1);
+  page.once('dialog', (dialog) => dialog.accept());
   await page.locator('#release-activity').click();
   await page.getByRole('link', { name: 'הקצאה לילדים' }).click();
   await expect(page.getByRole('heading', { name: 'פעילות מוכנה — תצוגה להורים' })).toBeVisible();

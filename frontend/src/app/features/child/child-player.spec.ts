@@ -101,10 +101,14 @@ describe('Child player', () => {
       control.dispatchEvent(new Event('input', { bubbles: true }));
       fixture.detectChanges();
     };
+    const choose = (option: string) => {
+      root.querySelector<HTMLInputElement>(`input[type="radio"][value="${option}"]`)!.click();
+      fixture.detectChanges();
+    };
     const save = () => root.querySelector<HTMLButtonElement>('#save-answers')!.click();
     const submit = () =>
       root.querySelector('form')!.dispatchEvent(new Event('submit', { cancelable: true }));
-    return { http, fixture, root, field, type, save, submit };
+    return { http, fixture, root, field, type, choose, save, submit };
   }
   it('renders learner text faithfully with numbered questions, isolated calculations and native choices', async () => {
     const { root, field } = await open();
@@ -117,15 +121,19 @@ describe('Child player', () => {
     expect(root.querySelector('label bdi')!.textContent).toBe('2 + 3 = ?');
     expect(field('number').getAttribute('type')).toBe('text');
     expect(field('number').getAttribute('dir')).toBe('ltr');
-    expect(field('choice').tagName).toBe('SELECT');
+    // Every option stays visible as a native radio, labelled by the question in its legend.
+    const options = root.querySelectorAll<HTMLInputElement>('fieldset input[type="radio"]');
+    expect([...options].map((option) => option.value)).toEqual(['אדום', 'blue']);
+    expect(new Set([...options].map((option) => option.name)).size).toBe(1);
+    expect(root.querySelector('fieldset legend')!.textContent!.trim()).not.toBe('');
     expect(root.querySelector('script')).toBeNull();
     expect(root.querySelector('details')).toBeNull();
   });
   it('saves incomplete numeric text and exact multiline answers only explicitly, then clears dirty state', async () => {
-    const { http, fixture, root, type, save } = await open();
+    const { http, fixture, root, type, choose, save } = await open();
     type('number', '-');
     type('text', '  תשובה\n ');
-    type('choice', 'blue');
+    choose('blue');
     await fixture.whenStable();
     http.expectNone((r) => r.method !== 'GET');
     vi.mocked(window.confirm).mockReturnValue(false);
@@ -155,9 +163,32 @@ describe('Child player', () => {
     });
     await fixture.whenStable();
     expect(fixture.componentInstance.canLeave()).toBe(true);
-    expect(root.textContent).toContain('כל התשובות שמורות');
+    expect(root.querySelector('.action-bar-status [role="status"]')!.textContent!.trim()).toBe(
+      'נשמר',
+    );
   });
-  it.each(['-', '1.', '.5', '1e2', '1,000', ' 1'])(
+  it('asks before every submission, since it is final, and sends nothing when the child cancels', async () => {
+    const { http, fixture, type, choose, submit } = await open();
+    type('number', '3');
+    type('text', 'תשובה');
+    choose('blue');
+    vi.mocked(window.confirm).mockReturnValue(false);
+    submit();
+    await fixture.whenStable();
+    http.expectNone((r) => r.url.endsWith('/submit'));
+    expect(window.confirm).toHaveBeenLastCalledWith(
+      'להגיש להורה? אחרי ההגשה אי אפשר לשנות את התשובות.',
+    );
+  });
+  it('accepts a number with the surrounding spaces a keyboard adds and sends it without them', async () => {
+    const { http, type, submit } = await open();
+    type('number', ' 12.5 ');
+    vi.mocked(window.confirm).mockReturnValue(true);
+    submit();
+    const request = await vi.waitFor(() => http.expectOne(sessionUrl + '/submit'));
+    expect(request.request.body.answers).toContainEqual({ questionId: 'number', value: '12.5' });
+  });
+  it.each(['-', '1.', '.5', '1e2', '1,000', '1 2'])(
     'keeps invalid numeric input %j visible and focuses it on submit',
     async (value) => {
       const { http, fixture, field, type, submit } = await open();
@@ -189,7 +220,7 @@ describe('Child player', () => {
     });
     await fixture.whenStable();
     expect(root.textContent).toContain('העבודה הוגשה');
-    expect(root.textContent).not.toContain('ציון סופי');
+    expect(root.textContent).not.toContain('הציון:');
     expect(root.querySelector('#save-answers')).toBeNull();
     expect(root.querySelector('[data-saved-answer="text"]')!.textContent).toBe('  הסבר\n');
     expect(fixture.componentInstance.canLeave()).toBe(true);
@@ -245,7 +276,7 @@ describe('Child player', () => {
     await fixture.whenStable();
     expect(field('text').value).toBe('הטקסט שלי');
     expect(field('text').disabled).toBe(true);
-    expect(root.textContent).toContain('ציון סופי');
+    expect(root.textContent).toContain('הציון:');
     expect(root.textContent).not.toContain('%');
     http.expectNone((r) => r.method === 'POST');
   });
@@ -261,7 +292,7 @@ describe('Child player', () => {
     expect(field('text').value).toBe('לשמור');
     expect(field('text').disabled).toBe(true);
     expect(root.querySelector('a[href="/child/activate"]') !== null).toBe(status === 401);
-    if (status === 410) expect(root.textContent).toContain('ביטל');
+    if (status === 410) expect(root.textContent).toContain('בוטלה');
   });
   it.each([401, 404, 410])(
     'cannot unlock a known HTTP %s denial by accepting an older offered checkpoint',
@@ -313,7 +344,7 @@ describe('Child player', () => {
       submittedAtUtc: '2026-10-01T00:06:00Z',
     });
     expect(root.querySelector('form')).toBeNull();
-    expect(root.textContent).toContain('ציון סופי');
+    expect(root.textContent).toContain('הציון:');
     expect(root.textContent).not.toContain('%');
     // A submitted child checks here for the parent's grade.
     expect(root.querySelector('#read-saved-session')).not.toBeNull();

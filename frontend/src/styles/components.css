@@ -87,6 +87,15 @@
   .chip {
     @apply inline-flex min-h-11 items-center gap-2 rounded-full border border-line bg-surface px-4 py-2 text-start text-sm text-balance text-ink shadow-control transition-colors actionable:hover:border-brand/30 actionable:hover:bg-soft;
   }
+  /* One answer among a question's options: a full-width card around its native radio, so long text wraps. */
+  .choice {
+    @apply flex cursor-pointer items-start gap-3 rounded-inset border border-line bg-surface px-4 py-3 font-normal transition-colors has-checked:border-brand has-checked:bg-soft has-disabled:cursor-not-allowed;
+
+    /* The radio sits on the first line of a long answer. */
+    & > input {
+      margin-block-start: calc((1lh - --spacing(6)) / 2);
+    }
+  }
   /* One choice among a few: a fieldset of labels around visually hidden radios; the checked one fills its segment. */
   .segmented {
     @apply flex w-fit items-center gap-0.5 rounded-full bg-soft p-1;
@@ -116,6 +125,27 @@
     & .button {
       @apply max-sm:grow;
     }
+    /* Minimized while pinned, it keeps only its status line at the end edge; an alert shows it whole. */
+    @variant pinned-actions {
+      &[data-minimized]:not(:has([role='alert'])) {
+        @apply w-fit justify-self-end;
+
+        & > :not(.action-bar-row),
+        & .action-bar-actions {
+          @apply hidden;
+        }
+      }
+    }
+  }
+  /* The bar's main row: its actions, then its status line, which ends at the far edge. */
+  .action-bar-row {
+    @apply flex flex-wrap items-center gap-x-6 gap-y-2;
+  }
+  .action-bar-actions {
+    @apply flex grow flex-wrap items-center gap-3 empty:hidden;
+  }
+  .action-bar-status {
+    @apply ms-auto flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted;
   }
   /* One item in a panel's list; its link and actions stay native controls. */
   .list-row {
@@ -213,7 +243,11 @@
     }
     & > li::before {
       content: counter(step);
-      @apply absolute inset-s-0 grid size-7 place-items-center rounded-full bg-soft text-sm font-semibold text-brand ring-1 ring-brand/15 ring-inset;
+      @apply absolute inset-s-0 grid size-7 place-items-center rounded-full bg-soft text-sm font-semibold text-brand ring-1 ring-brand/15 ring-inset transition-colors;
+    }
+    /* An answered item fills its number, so progress shows where it happened. */
+    & > li[data-done]::before {
+      @apply bg-brand text-on-brand ring-brand;
     }
   }
   /* Derived phases: mark the current item aria-current="step" and finished items data-done. */

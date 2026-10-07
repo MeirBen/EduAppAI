@@ -12,7 +12,7 @@ import { DisabledInteractive } from '../../shared/disabled-interactive';
     aria-labelledby="child-unavailable-title"
   >
     <h1 id="child-unavailable-title" class="text-2xl">הפעילויות לא זמינות כרגע</h1>
-    <p class="error" role="alert">לא הצלחנו לבדוק את הגישה למכשיר. נסו שוב בעוד רגע.</p>
+    <p class="error" role="alert">משהו לא עבד. נסו שוב עוד רגע.</p>
     <button
       class="button"
       routerLink="/child"
