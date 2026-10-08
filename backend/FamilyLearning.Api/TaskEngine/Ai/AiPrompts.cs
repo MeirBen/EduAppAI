@@ -40,6 +40,8 @@ internal static class AiPrompts
         Fixed multiple formats mean a flexible mixture covering every format. Selectable format means one format per task.
         Set choiceCount ({MinChoiceCount}–{MaxChoiceCount} options per question) exactly when formats include single-choice; otherwise null.
         Exact per-format quotas are unsupported: clarify and offer a flexible mixture or uniform format; never discard quotas silently.
+        An answer key holds only each question's expected learner answer. A separate explanation or worked solution for the
+        parent is unsupported; when one is requested, leave it out and say so in assumptions.
         Keep optional irrelevant settings null and requested defaults and values unchanged.
         """ + "\n\n" + MathPromptGuidance.Planning + "\n\n" + StructuredRules + "\n\n" + QuestionLanguage;
 

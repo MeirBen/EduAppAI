@@ -111,6 +111,14 @@ Retained:
   question prompts are byte-identical. On 9 write-then-polish pairs the package
   caused no validation, Hebrew or content regression.
 
+- **Answer-key scope (revision 38):** a real plan asked for a solution
+  explanation in the answer key, which holds only the expected learner answer.
+  Authoring now leaves such requests out and says so in assumptions. Explicit
+  requests went from 4/4 written into guidance to 0/6, each with the
+  assumption; plans that ask the learner to explain keep that requirement.
+  Side effect: some plans add an accurate but redundant "the key holds only the
+  answer" sentence to guidance.
+
 Rejected or unproven; revisit only with new evidence:
 
 - **Plain-language writing sentence:** "write in plain, everyday language ...;
@@ -428,6 +436,8 @@ Historical caps do not authorize new paid runs.
 - `text-prompts-2026-10-08/`: text prompt cleanup, 36 calls, $0.34465 of $0.50.
 - `plain-language-2026-10-08/`: plain-language sentence alone, 32 calls,
   $0.27161 of $0.40.
+- `answer-key-scope-2026-10-08/`: answer-key scope in authoring, 21 calls,
+  $0.1791937 of $0.20.
 
 Retired design documents: `documentation-history-2026-10-01.zip`.
 
