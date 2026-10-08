@@ -1,7 +1,9 @@
 # Architecture
 
-The [product specification](product-specification.md) defines the workflow and
-contracts; this guide describes their implementation.
+This guide describes the current implementation. The
+[product specification](product-specification.md) defines the target
+activity-only redesign; its template retirement and chat workflow are not yet
+implemented. Update this guide alongside that cutover.
 
 ## Structure
 

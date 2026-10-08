@@ -27,6 +27,13 @@ activities skip material generation. See
 [architecture](architecture.md#ai-and-persistence) for stage ownership,
 replacement, staleness and persistence.
 
+The [target activity-only redesign](product-specification.md) retires reusable
+templates and the intermediate parent text-review stop. It keeps these engine
+stages, with one atomic operation and prompts for concrete activity requirements;
+the [chat design](activity-chat-design.md#prompt-and-schema-changes) specifies
+the pending contract changes. The current prompts and evidence below predate
+that cutover.
+
 The 1 October comparison did **not** meet its quality threshold: one-shot passed
 9/9 structural trials and split 7/9, with split costing about 3× and taking
 3.4× median provider latency. The one-shot implementation was removed; do not

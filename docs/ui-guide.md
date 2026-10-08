@@ -178,9 +178,8 @@ options. `bdi`/`dir="auto"` display a whole-item calculation or comparison in
 order, but bidi mirroring reverses `<` and `>` beside Hebrew words, so the
 content contract keeps signs out of Hebrew text.
 [`AiPrompts`](../backend/FamilyLearning.Api/TaskEngine/Ai/AiPrompts.cs) promises
-this to the model, so change both together. Control labels and options come from
-the reviewed template; the shared settings use application-owned labels, and
-only difficulty has fixed options.
+this to the model, so change both together. Question labels/options keep their
+saved text; the settings summary uses application-owned labels.
 
 ## Parent learning management
 
@@ -242,69 +241,65 @@ has no final score, and zero possible points has no percentage.
 
 ## Workspace actions
 
-Derive presentation from the workspace's single buffer; do not store or route
-phases. Before a plan, emphasize the request with manual entry in a disclosure.
-Shared settings (topic, audience, difficulty, count) are plan defaults in both
-templates and activities, with source text beside them. Show only applicable
-activity length, format, option count and requested choices. Templates define
-plans and link to activity creation after publication.
+**Target redesign; not implemented yet.** Follow the activity-only lifecycle
+in the [product specification](product-specification.md#activity-lifecycle)
+and the execution details in the [chat design](activity-chat-design.md).
+Shared layout, language and accessibility rules remain applicable throughout.
 
-Activities show four derived steps: describe, settings, review, ready. Only the
-current step keeps its label on narrow screens. Put plan definitions/guidance
-under **אפשרויות מתקדמות**, initially open only for template editing. End plan
-authoring with **מה אפשר לשנות בכל פעילות**: applicable length, option-count and
-one-format toggles, plus scoped choice cards and one add button. Template-based
-activities only set permitted values. Hide ineffective options: combined length
-needs several generated texts; format selection needs several formats; required
-is moot with a default. Name each text in its fields and choices.
+The library shows **טיוטות** and **פעילויות מוכנות**, with **פעילות חדשה** as
+its creation entry. Remove template links, publication/version controls and the
+reusable-parameter editor. Derive presentation from one activity buffer; do not
+store parallel page phases or keep a hidden template workspace mode.
 
-After a plan exists, its change conversation follows settings and can edit all
-settings. Once content exists, collapse settings/chat to a derived one-line
-summary visible only while collapsed; content becomes the main surface.
+Before content exists, emphasize the request, the concrete requirements summary
+and any required source input/confirmation. Show settings read-only and change
+requirements through chat. Clearly distinguish unsaved initial setup from a
+saved draft; incomplete activity content can be saved and resumed later.
 
-Parent turns sit at the end edge; AI replies show `ai-mark`, computed changes
+Once content exists, show the activity as a readable document with chat beside
+it on wide screens and below it on phones. **עריכה** opens titles, instructions,
+texts, questions/options, answers and points in the same buffer. Successful
+manual save returns to reading; failure keeps the edits. Structural changes
+use chat.
+Each text/question offers an accessible “ask about this” action that fills and
+focuses the composer without sending. Keep the selected target visible.
+
+Parent turns sit at the end edge; AI replies show `ai-mark`, committed changes
 and assumptions, with a typing bubble while pending. Enter sends; Shift+Enter
-adds a line. Send becomes Stop while retaining focus; failure/cancellation
-restores the request text. `SuggestionChips` only fill fields, keeping focus on
-the chip; they never send. Starters cover what generation does best: a reading
-text, an early reader, a drill, word problems on a shared story and questions
-on the parent's own text, in formats the app grades. Change and improvement
-suggestions suit any plan, so none contradicts its settings. Mark AI actions
-with `icon-ai`.
+adds a line. Send becomes Stop while retaining focus. Failure/cancellation keeps
+the request available for an explicit new attempt. `SuggestionChips` only fill
+fields and never send. Suggestions apply to the current activity; mark AI
+execution actions with `icon-ai`.
 
-Use parent terminology: "הגדרות" for plan, "טקסט" for material, source kinds
-"כתבו עבורי תוכן חדש", "יש לי טקסט משלי" and (templates) "אבחר טקסט חדש בכל פעם".
-Describe lengths as approximate words or strict ranges. Distinguish template
-publication, draft saving and marking a reviewed revision ready. The primary
-action progresses from create text to create questions to mark ready (plans
-without generated text start at create questions); template editing uses
-publish. The action bar holds it, save, save state and Undo; the review card
-holds readiness. Put uncommon actions under **פעולות נוספות** or a disclosure.
+Use **יצירת הפעילות** for initial generation, **שמירת טיוטה** for a save and
+**אישור הפעילות** for explicit approval of the saved revision. The action bar
+shows the relevant action, save state and available Undo. Save/approval make no
+AI call. Keep source text confirmation separate from activity approval.
+Use “טקסט” for material and “הגדרות” for its requirements summary; source choices
+are “כתבו עבורי תוכן חדש” and “יש לי טקסט משלי”. Describe lengths as approximate
+word counts or strict ranges, without reusable-template terminology.
 
-Question cards show prompt, options and parent-only answer, with move/remove
-icons in the header. From `sm`, typed answers share the prompt row; choice
-answers follow options. Type/points live in a disclosure. Lists consistently
-use an item remove icon and one secondary add button below. Scoped AI actions
-keep optional instructions, progress, results and errors in their card; full
-generation reports above content.
+Save pending edits before AI starts; while active, keep the canvas readable,
+pause editing and show truthful operation status with Stop. Apply a complete
+validated change at once. Failure/cancellation leaves saved content intact;
+reconcile uncertain responses with saved state. External saves/deletions offer
+explicit reload without discarding local edits. Keep stage details, outcomes,
+usage and raw output under **פרטים טכניים**; never imply automatic paid retries.
 
-Confirm AI-extracted source text only while pending, preserving exact content.
-Keep invalid edits repairable. When later edits/Undo fence off generation results,
-offer the saved result for explicit inspection/reload. External saves/deletions
-appear in save status with reload when available. Failed writes offer reload;
-they may have applied unless rejection is definite, so `writeError` says where
-to check only then. Local blockers send nothing
-and offer no reload. Keep stages, outcomes, cost and raw output under
-**פרטים טכניים**; never imply automatic paid retries.
+Question cards show prompts/options and disclose parent-only answers. Manual
+fields keep native labels; format is read-only and points can use a disclosure.
+Remove separate scoped AI forms and manual add/remove/reorder controls when chat
+covers them.
+Show server diagnostics and length measurements beside their fields. After a
+saved source/text edit, offer question regeneration or validated confirmation
+that the questions still fit; derive the offer from saved diagnostics.
 
-Show server length measurements with diagnostics, distinguishing advisory targets,
-strict blockers and parent educational review. Once content is present and ready
-for review, with no generation writing it, show saved field diagnostics at the
-field until edited. The review names where to fix and lists only non-field
-blockers; it never shows ready during generation. Offer adoption only beside
-saved-stale content. A released draft shows its content read-only and points to
-assignment. Frozen previews disclose answers and offer copy-to-draft.
-Reusable read-only text gets `CopyButton`; editable fields copy natively.
+Approval remains unavailable until the complete saved activity passes release
+checks and no operation is active. A ready preview is read-only, discloses
+parent answers and offers assignment. Editing ready content creates a new draft
+and keeps assigned content intact. Read-only text can use `CopyButton`; editable
+fields copy natively. Keep keyboard focus, screen-reader announcements, RTL and
+360px/200% text usable across reading, editing, chat and failure states.
 
 ## Loading
 

@@ -5,8 +5,12 @@ review → frozen snapshot.** Generate without saving a template, edit the conte
 or replace one question, then save the draft and mark the reviewed revision
 ready. Saving a reusable template is separate; template edits publish immutable
 versions and never change existing activities. See the
-[product specification](docs/product-specification.md) for scope and
-[architecture](docs/architecture.md) for implementation.
+[architecture](docs/architecture.md) for the current implementation.
+
+The [target product specification](docs/product-specification.md) simplifies
+this to **activity → saved draft → approval**, with chat beside the activity
+and no standalone templates. That redesign is not implemented yet; the quick
+start below describes the running app.
 
 ## Parent and child quick start
 

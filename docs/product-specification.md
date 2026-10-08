@@ -1,99 +1,150 @@
 # Product specification
 
-The application implements a content-first activity workflow. Every subject uses
-the same AI path; there are no subject-specific generators or seeded
-educational records.
+**Target redesign, 8 October 2026:** the parent product centers on activities,
+saved drafts and explicit approval. The activity-only/chat workflow below is
+not yet implemented; the [architecture](architecture.md) describes current code.
+The implemented child flow remains in force. Every subject uses the same generic
+AI path; there are no subject-specific generators or seeded educational records.
+This is a fresh-start cutover: existing learning data need not be exported,
+converted or supported by the new contracts.
 
 ```text
-Parent prompt → editable learning plan + activity choices
-→ applicable material ideas and writing → questions → editable draft
-→ parent review → immutable ready snapshot
-
-Save template: independently publish the reusable plan at any point
+Describe an activity → create and refine its draft → approve when ready
+                                               ↘ save and resume later
 ```
 
-## Current workflow
+## Activity lifecycle
 
-1. Describe the goal, audience and requirements. AI proposes a structured plan
-   or asks one clarification; direct editing and Undo remain available. A
-   request built on a text the learner works with always includes that text.
-2. Review shared settings, material sources, question formats and explicitly
-   requested controls, and confirm exact source text extracted from a prompt.
-   Supplied sources keep their original text.
-3. Create the activity in two parent-started parts, without publishing a
-   template: first the generated text, then its questions. Generated text gets
-   one automatic polish for wording, level and clear errors before the parent
-   reviews, edits or rewrites it and asks for questions; supplied sources are
-   never edited, and plans without generated text start with questions. Each
-   part saves a draft checkpoint, and accepted text survives a question failure.
-4. Edit text, answers, options and points, or regenerate one material, one
-   question, all questions or stale text. Incomplete drafts save with
-   diagnostics, and generation never silently overwrites later edits.
-5. Review the saved content and answer keys, then mark it ready. Release needs
-   current accepted content, matching requirements and complete answers. The
-   snapshot is read-only; copy it to a new draft to make changes.
+1. **New activity:** describe the goal, audience and requirements in chat. AI
+   proposes requirements or asks one focused clarification. Show a concise
+   summary, collect required source text and confirm AI-extracted sources.
+2. **Draft:** once requirements and source inputs are valid, save the activity
+   and chat before generation. A draft may have missing texts/questions or
+   unresolved content diagnostics; saving it makes no AI call. Initial setup
+   before this checkpoint remains visibly unsaved and uses the navigation guard.
+   While the draft has no questions or generated text, chat can update its
+   requirements without generating content; Create remains explicit.
+3. **Create:** one parent-started operation generates the needed texts and
+   questions. Apply the complete validated result atomically; a failed or
+   cancelled operation keeps the saved draft unchanged. The parent does not
+   orchestrate separate writing, polish and question steps.
+4. **Refine or resume:** read the activity with chat alongside it. Chat changes
+   structure and requirements; explicit Edit opens content fields. Save manual
+   edits before starting AI and pause editing while it runs. Saved drafts can
+   be reopened with their chat, status and available undo.
+5. **Approve:** review the saved content and answer keys, then explicitly mark
+   the activity ready. Approval validates and freezes the saved revision; it
+   makes no AI call and never assigns work automatically. Ready activities are
+   read-only and can be assigned to children. Editing one starts a new draft
+   from its snapshot, preserving existing assignments and results.
 
-Saving a template publishes only the reusable plan; it never saves activity
-edits, generates content or releases a snapshot, and later versions never change
-existing drafts or snapshots. Template editing defines only the plan and its
-defaults; activities are created from a saved version.
+The library has **drafts** and **ready activities**, with one New activity entry
+point. There is no template catalog, template editor, template publication,
+template version history or “create from template” flow. An internal learning
+plan belongs to its activity; it is not a separately saved reusable product.
 
-The URL keeps the draft and operation for reload during generation; chat,
-unsaved edits and Undo stay local. Cancellation preserves saved checkpoints. An
-unknown provider outcome is terminal and never retried automatically, a lost
-start response can be checked with its idempotency key, and a stale save returns
-409 while preserving local input.
+### Workspace and changes
 
-The library separates templates, drafts and snapshots, and deleting one keeps
-content copied from it. Deleting a draft removes its operation history. A
-confirmed family reset removes all owned learning records, including items
-beyond list limits, keeping accounts and AI configuration. The server enforces
-ownership on every read and write. An open library follows changes saved on
-other devices, and an open draft says when another device saved or deleted it,
-loading a newer version only on request.
+The activity is a readable canvas by default, with chat beside it on desktop
+and below it on phones. Use Hebrew/RTL, accessible native controls and the same
+state for read/edit views. Titles, instructions, wording, options, answers and
+points remain manually editable; adding/removing/reordering content and changing
+requirements belong to chat. Settings are a summary, not a template form.
+
+- Answers, clarifications, refusals and no-ops change no activity content.
+- Add questions with an optional focused instruction: generate only additions,
+  preserve originals and update the activity's question count atomically.
+  Removal/reorder uses validated surviving IDs after the planner call; it
+  preserves their content and makes no content-generation call.
+- Broader changes regenerate dependent content. The server derives scope from
+  effective requirements and explicit edits; the model cannot suppress needed
+  dependent work. Text changes never silently leave old questions current.
+- After manual source/text edits, offer to update questions or confirm that
+  they still fit. Confirmation makes no AI call and must pass validation.
+- Keep one-level undo for the last successful chat change or question update,
+  including structure changes, but not initial creation. It restores plan and
+  document together under a new revision; manual save, adoption and approval
+  clear it.
+
+The [activity chat design](activity-chat-design.md) owns the execution matrix,
+prompt/schema/context contracts, operation bounds and rollout checks.
+
+### Saving and recovery
+
+One active AI operation is allowed per draft. Saves, adoption, undo and approval
+are blocked while it runs, with server revision checks for races and other tabs.
+Intermediate AI results stay in operation evidence; only final success changes
+saved content. Stop commits cancellation before stopping transport; a completion
+that already committed remains successful. Unknown outcomes are never retried
+automatically. Reuse the operation key to check a lost start response; check
+saved state after an uncertain save or approval. Conflicts preserve local edits.
+
+The URL identifies the saved draft and operation. Chat and undo are parent-only
+draft state; unsaved field edits stay local. Another device's save/deletion is
+announced without silently replacing the current buffer. Draft deletion removes
+its operation history and chat, and late AI output cannot recreate it.
+
+Library deletion and family reset follow the [retention rules](#retention-and-reset).
+Reset remains an explicit family action independent of template routes. The
+server enforces ownership on every read and write.
 
 ## Contracts
 
-- **LearningPlan:** goal, guidance, shared defaults, scoped controls, up to four
-  material definitions and question requirements ([contract][template]).
-- **TaskTemplate / TaskTemplateVersion:** family-owned reusable identity and
-  immutable plan versions.
-- **ActivityDraft:** mutable saved plan, input and editable
+- **LearningPlan:** the activity's concrete settings, goal/guidance, up to four
+  material definitions and question requirements. Simplify the
+  [current contract][plan]; it has no independent identity or publication.
+- **ActivityDraft:** mutable saved plan and editable
   [document][content] with a concurrency revision; content identity, provenance
   and acceptance are server-owned.
 - **GenerationOperation:** durable idempotent start, stage checkpoints, safe
   failure evidence and cancellation and recovery state.
-- **TaskSnapshot:** immutable reviewed plan, resolved input, content and answer
-  keys, independent of later template or draft deletion.
+- **TaskSnapshot:** immutable reviewed plan, content and answer
+  keys for a ready activity, independent of later draft edits/deletion.
+
+Reuse these engine/storage boundaries. Draft and ready are the visible
+activity states; generation status is operational, not another product type.
+Retire `TaskTemplate`/`TaskTemplateVersion` and their active dependencies through
+the cutover below; do not replace them with another reusable-definition layer.
 
 Shared settings are topic and audience (required, up to 200 characters),
 difficulty (`easy`, `medium` or `hard`, relative to the audience) and a question
 count from 1 to 20. When a parent's request names no difficulty, authoring
 defaults to `easy` through third grade and `medium` above, disclosed as an
-assumption. Per-activity settings override template defaults; inside an
-activity they are its plan defaults, which a saved template keeps. Feasibility
-and total content limits also bound the count. A value the parent may change
-per activity is bounded only by these application limits.
+assumption. Resolve choices into one effective set of activity requirements;
+the plan and displayed count must agree. Feasibility and total content limits
+also bound the count. New requirements are concrete values for
+this activity, not adjustable defaults for future activities.
 
-Controls hold text, integer, select or boolean values in plan, material or
-question scope, with stable application-owned IDs and a human-readable meaning.
-AI adds them only for explicitly requested per-activity choices; fixed
-requirements stay in guidance. Values are validated before AI calls.
+Use one canonical plan: `settings` hold concrete values; materials hold their
+source, guidance and length; questions hold formats, choice count and guidance.
+Extra subject requirements belong to scoped guidance. Remove custom control
+definitions, selectable defaults, adjustable flags and per-activity override
+maps. There is no separately persisted `TaskRequest`/input JSON to synchronize.
+The server derives typed stage inputs and fingerprints from the saved plan.
 
-Omission resolves defaults once; explicit null, numeric strings, unknown IDs,
-inapplicable fields and fixed overrides are invalid, while false, zero and
-empty optional text survive. Renaming keeps a material's or control's identity.
-New AI proposals use null IDs and may not invent existing identities or alter a
-retained fixed source.
+Keep `name` as the parent library label and document `title` as the learner
+heading. A material has an ID, label, source, guidance, optional length and
+source text: text is required for `supplied` and null for `generated`. Question
+requirements contain the allowed formats, guidance and one concrete choice
+count (2–6 when single-choice is included, otherwise null). Length is either
+an approximate integer count or a strict lower/upper range, never adjustable.
 
-Material sources are generated, fixed verbatim text, or text supplied per
-activity. Length requirements apply only to generated bodies, either per
-material or as a combined total, never both: an approximate target is advisory,
+Validate types and bounds before AI calls; reject unknown fields, IDs and
+inapplicable values. Null is allowed only where the contract permits it.
+Renaming keeps material identity. New AI proposals use null new IDs and may
+not invent existing identities or alter a retained supplied source.
+
+Material sources are `generated` or `supplied`; supplied text belongs directly
+to this activity and stays verbatim. Length requirements apply only to generated
+bodies, either per material or as a combined total, never both. An approximate
+target is advisory,
 while an inclusive range, whose minimum is below its maximum, is strict. Exact
 word counts are not offered, since generation cannot meet them reliably; a
 request for one becomes a target. Counted words contain a Unicode letter or
 digit; body headings count, but titles, instructions, questions and answers do
-not.
+not. The first slice defers strict total-length changes that need allocation
+across several AI calls; clarify per-text ranges or an approximate total as
+defined in the chat design, preserving the saved draft until the parent chooses.
 Transforming supplied text needs a separate generated material that preserves
 the original. A failed strict material stage blocks questions and release.
 New material first gets five ideas with distinct causal or explanatory structures.
@@ -102,8 +153,8 @@ content, drawing among ties, and checkpoints that choice before writing.
 Questions also receive bounded previous prompts to vary evidence targets where
 the learning requirements permit. Topic, source fidelity and prescribed practice
 take priority over novelty; variety is not guaranteed. Improving one text
-follows the parent's instruction within the activity's requirements; a different
-topic or other choice is changed in the activity choices and regenerated. Hebrew
+follows the parent's instruction within the activity's requirements; changing
+topic or other requirements goes through chat and updates dependent content. Hebrew
 is written without niqqud, except full niqqud for beginning readers up to second
 grade or on request; a plan records niqqud only when the parent asks for it.
 Prose is split into paragraphs of a few sentences; poems and dialogue keep their
@@ -111,9 +162,9 @@ lines.
 
 Questions are numeric, short-text or single-choice, each with an application
 ID, prompt, typed interaction, answer and integer points. Numeric answers use
-invariant decimal text; choice answers exactly match an option. A fixed set of
-formats means a mixture containing each at least once; a selectable format
-means one format for the activity, with an allowed default. Exact per-format
+invariant decimal text; choice answers exactly match an option. Multiple selected
+formats mean a mixture containing each at least once; one selected format
+applies to all questions. There is no separate format-selection mode. Exact per-format
 quotas need clarification rather than approximation, and choice count applies
 only to single-choice questions. A calculation or comparison is a whole prompt,
 option or answer; inside sentences, including texts and instructions,
@@ -124,9 +175,10 @@ nothing else in a response is repaired.
 
 Authoring gives one proposal or one focused clarification per parent message,
 with assumptions reflected in the plan. A request carries up to 4,000
-characters plus six unresolved turns or 12,000 characters; a full context needs
-explicit consolidation, never silent truncation. The app computes the actual
-plan changes.
+characters plus six unresolved turns or 12,000 characters. Drop only old,
+completed exchanges when bounding history; clarify references that remain
+unresolved and never truncate required sources or constraints. The app computes
+the actual plan changes.
 
 For math, explicit operand/result ranges, operations, fractions, remainders and
 precision take precedence over inferred teaching choices. Grade and difficulty
@@ -145,16 +197,15 @@ Generated content records its accepted effective input, and questions depend on
 every material sent with them. Editing a source or requirement makes dependent
 content stale until it is edited or explicitly adopted; adoption never rewrites
 its origin or waives strict checks. Changing a choice leaves an answer
-diagnostic instead of picking a replacement. Scoped repair can run beside
-unrelated incomplete fields, but release checks the whole saved document.
+diagnostic instead of picking a replacement. Missing or stale dependencies
+outside an operation's scope need explicit repair/adoption before content calls;
+approval checks the whole saved document.
 Validators never judge educational truth.
 
 Server limits:
 
 - Plans: 24,000 serialized characters; names and labels 100; goal 500; shared
   guidance 4,000; material and question guidance 1,000.
-- Controls: up to 16 across all scopes; text values up to 500 characters; select
-  controls have 1–20 distinct options of up to 100 characters.
 - Questions: 1–20 per activity; strict AI schemas carry the exact count up to a
   configured endpoint limit ([AI guide](ai.md#strict-schema-contract)).
 - Documents: 0–4 materials and 8,000 total characters; release needs at least
@@ -174,13 +225,39 @@ See [architecture](architecture.md) for implementation, [README](../README.md)
 for setup, [UI guide](ui-guide.md) for presentation and the
 [AI guide](ai.md#design-and-cutover-decision) for quality evidence and trade-offs.
 
+## Activity-only cutover
+
+- Remove the template library, creation/editing routes, Save template action,
+  publication/version APIs and template-specific workspace state. Keep one
+  activity workspace, one chat and one saved draft as the source of truth.
+- Adapt authoring and revision to the same concrete plan schema. Remove the
+  parameter-builder UI, control/override contracts and duplicated input storage;
+  keep generic generation, content validators and the existing worker.
+- Creation accepts an activity plan or a ready snapshot for editing. Remove
+  template IDs/version checks and their provenance columns and tables/entities.
+- Move initial authoring to `POST /api/ai/activity-plans` and family reset to
+  `DELETE /api/learning-data` before retiring template routes. Preserve family
+  ownership, CSRF, rate limits, reset confirmation and transactional deletion.
+  Update application, evaluation and test callers together.
+- Start with empty learning records at the coordinated cutover. No template
+  export, conversion, legacy readers or old-operation compatibility path is
+  required. Keep parent accounts, family identity and AI configuration. Use a
+  reviewed EF migration/reset; application startup must never silently erase data.
+- Cut over only after draft creation/resume, atomic AI changes, approval,
+  assignment, reset and fresh-database setup pass the isolated acceptance
+  checks. Ship the matching frontend/backend together; implementation slices
+  are not independent releases. Stop the running app/worker for the explicit
+  learning-data reset and schema update. Verify account/configuration retention
+  and an empty queue before restart. Update implementation/setup docs on release.
+
 ## Next steps
 
-The parent/child milestone and approved enhancements passed software acceptance;
-see the [acceptance record](child-flow-plan.md). Next, run the family sanity test
-with separate browsers and review representative generated content for
-correctness, Hebrew, suitability and answer quality before giving it to children.
-Use concrete findings to guide further AI tuning.
+Implement the activity-only redesign in the slices defined by the
+[chat design](activity-chat-design.md#delivery-and-verification). The existing
+parent/child [acceptance record](child-flow-plan.md) is baseline evidence, not
+verification of this redesign. Repeat the affected lifecycle, fresh-start and
+isolation checks, then review representative generated activities with the
+family before giving them to children.
 
 Before inviting other families, add account recovery and tested backup/restore.
 Shared-parent onboarding, dashboards, broad library pagination, update notices,
@@ -366,7 +443,7 @@ Parents may record **כיתה** (school grade) and **גיל** (completed years).
 - An owned withdrawn assignment returns 410 and stops editing with an explicit
   withdrawal message. Lost access asks for activation; missing work returns 404.
   Temporary failures offer a saved-state check without discarding the local
-  buffer or describing the problem as a parent-login, template or AI failure.
+  buffer or describing the problem as a parent-login or AI failure.
 - Submission freezes answers. It becomes `completed` immediately if no parent
   grades are needed, otherwise `awaiting-review`. Neither state accepts answer
   edits, withdrawal or another attempt. Start/resume calls return this saved
@@ -417,7 +494,7 @@ At submission:
 For stored results and parent review:
 
 - The server stores the scoring-policy version and automatic awards at
-  submission. Reports never rerun scoring with a changed rule or live template.
+  submission. Reports never rerun scoring against changed rules or draft content.
   A pending result shows the automatic subtotal, possible total and outstanding
   review count, clearly labeled; it has no final total or percentage.
 - The parent reviews the submitted text alongside the frozen question, source
@@ -449,8 +526,8 @@ For stored results and parent review:
   and restrictive foreign keys, so a race cannot leave dangling work.
 - Keep withdrawn assignments and submitted results; the parent's list shows
   withdrawn work only under its own status filter. Disabling a child revokes
-  access rather than deleting its history. Releasing a new snapshot or changing
-  a template never changes an existing assignment or result.
+  access rather than deleting its history. Approving a new activity revision
+  never changes an existing assignment or result.
 - The explicit family reset remains the destructive exception. Its confirmation
   must name children, device access, assignments, answers, grades and content.
   Delete all of them in one transaction, including records beyond list limits;
@@ -480,7 +557,7 @@ maps these requirements to regression suites:
 - Keyboard/screen-reader labels, error focus, RTL/mixed-language content,
   narrow screens and enlarged text per the [UI checks](ui-guide.md#check).
 
-[template]: ../backend/FamilyLearning.Api/TaskEngine/Models/LearningPlan.cs
+[plan]: ../backend/FamilyLearning.Api/TaskEngine/Models/LearningPlan.cs
 [content]: ../backend/FamilyLearning.Api/TaskEngine/Models/TaskDocument.cs
 [auth-schemes]: https://learn.microsoft.com/en-us/aspnet/core/security/authorization/authorize-with-a-specific-scheme?view=aspnetcore-8.0
 [csrf]: https://learn.microsoft.com/en-us/aspnet/core/security/anti-request-forgery?view=aspnetcore-8.0

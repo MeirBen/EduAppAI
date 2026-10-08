@@ -2,9 +2,10 @@
 
 - Do not commit, stage, branch, merge, or perform other Git mutations. The user
   handles Git.
-- Prompt-first AI template authoring and generic AI task generation are the
-  primary product flow. Do not add static or subject-specific deterministic
-  generators; all task creation uses the generic AI path.
+- The target product flow is prompt-first activity creation, saved drafts and
+  explicit approval; see docs/product-specification.md. Retire standalone
+  templates through its cutover. All task creation uses the generic AI path;
+  do not add static or subject-specific deterministic generators.
 - Read README.md and docs/architecture.md before making structural changes.
 - Follow docs/commenting-guide.md and keep comments accurate in the same change
   as the code.
@@ -13,8 +14,8 @@
   installations outside the repo.
 - Use DbContext directly. Do not add repository, unit-of-work or mediator
   wrappers.
-- Template versions and task content are immutable snapshots; edits publish a
-  version.
+- Reviewed activity snapshots and assigned content are immutable; later edits
+  start a new draft and never change existing assignments or results.
 - Enforce family/child ownership on the server. Parent answer keys must never
   enter child DTOs.
 - Use ProblemDetails, bounded validation, cancellation tokens and UTC
