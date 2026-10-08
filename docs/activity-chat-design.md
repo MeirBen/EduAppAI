@@ -1,297 +1,367 @@
 # Activity chat design
 
-**Status:** design for owner review, 8 October 2026. Not implemented. It
-replaces the scattered AI entry points of the activity workspace with one editor
-and one persistent chat. Read with the
-[product specification](product-specification.md#current-workflow),
+**Status:** revised design, 8 October 2026; not implemented. This replaces the
+activity workspace's separate AI controls with one activity canvas and one chat.
+The [product specification](product-specification.md#current-workflow),
 [architecture](architecture.md#ai-and-persistence), [AI guide](ai.md) and
-[UI guide](ui-guide.md); those documents change in the same delivery slices.
-
-## Why
-
-**Core idea:** the chat builds the activity with the parent from first request
-to ready, so the parent never has to find their way around a large form. The
-parent says what they want; the chat keeps settings, texts and questions
-consistent; the editor is for reading, checking and small hand edits.
-
-Today each AI entry point changes one layer: the plan chat changes settings,
-"שיפור בעזרת AI" under a text rewrites that text inside the old settings, and
-the box under a question replaces one question. Layers drift: settings describe
-one activity, the text another, and questions were built on an older text. The
-parent then meets stale markers, "adopt" choices and regeneration buttons.
-
-## Owner decisions
-
-1. One editor and one chat per activity, from the first request to release.
-2. The chat keeps the settings (the plan) in sync; the parent sees a read-only
-   summary and never edits settings fields inside an activity.
-3. A chat request applies at once to every affected part, and the reply says
-   what changed. Undo reverts the last chat change until the parent edits by
-   hand.
-4. The first request creates the whole activity: settings, text and questions.
-5. After a manual text edit, the chat offers to update the questions or keep
-   them; no AI call runs without that click.
-6. The chat history is saved with the draft.
-7. Approach: the chat plans the change and the server runs the existing,
-   measured stages (plan-then-execute), not one whole-activity rewrite.
+[UI guide](ui-guide.md) change alongside implementation.
 
 ## Experience
 
-One page per activity: the editor (title, instructions, texts, questions,
-answers and points, plus a read-only settings summary) and the chat panel beside
-it on wide screens, below it on narrow ones, in RTL.
+A ChatGPT-style canvas: the activity is the main, readable document, with chat
+beside it on wide screens and below it on phones, in Hebrew and RTL. Show the
+activity itself, not code or JSON. The parent describes changes in chat and
+reviews the resulting activity without navigating a large form.
 
-- **First request.** The parent describes the activity. Authoring proposes the
-  plan or asks one clarifying question in the chat. Once a plan exists, the
-  draft is created with the conversation so far, and one operation writes the
-  text and questions.
-- **Chat change.** "Make the story about pirates", "question 3 is too hard",
-  "6 questions instead of 10": the chat replies in one or two Hebrew sentences
-  and the activity updates as a whole. Each text and question has an "ask about
-  this" shortcut that starts a message aimed at that item.
-- **Questions about content.** "Why is this the answer?" gets a reply and no
-  change.
-- **Manual edit.** Editing text or questions by hand stays in the editor. If a
-  text edit leaves questions out of date, the chat offers "update the questions"
-  or "the questions still fit".
-- **Undo.** One button reverts the last chat change while the activity is
-  unchanged since; after a manual edit the chat explains why undo is gone.
-- **Ready.** Marking the activity ready stays an explicit parent action with the
-  existing release checks.
+- **Read first.** The canvas is read-only by default. An explicit Edit action
+  opens titles, instructions, text, questions, answers and points in the same
+  workspace buffer. A successful manual save returns to the reading view;
+  failed saves preserve the edits. Settings remain a read-only summary.
+- **Chat owns structure.** Add, remove or reorder texts/questions and change
+  settings through chat. Each text/question has an “ask about this” shortcut
+  that fills and focuses the composer without sending.
+- **First request.** Authoring proposes a plan or asks one clarification.
+  Collect required source text and confirm AI-extracted sources, then save the
+  draft and conversation. One Create operation produces text and questions.
+- **Changes and answers.** Apply a complete validated change at once and report
+  what changed. A content question or clarification changes nothing.
+- **Manual text changes.** After saving, offer “update questions” or “the
+  questions still fit” when needed. Derive this from saved diagnostics so it
+  survives reload. Adoption still requires validation; typing calls no AI.
+- **While working.** Save pending edits before AI starts, then pause editing.
+  Keep the canvas readable, show status and allow Stop. A failed or cancelled
+  operation leaves saved content unchanged, including during first creation.
+- **Undo and ready.** Offer one-level undo for the last successful chat change.
+  Marking ready remains an explicit parent action against the saved revision.
+  Released activities remain read-only; editing starts from a snapshot copy.
 
-Templates keep their settings-only workspace and synchronous authoring; they use
-the same chat component with a local, unsaved thread.
+Templates keep settings-only authoring and local chat/undo. Activities replace
+scoped AI boxes, the four-step progress list, the text-then-questions stop and
+unapplied-result controls with this canvas/chat flow. Keep field diagnostics,
+source input/replacement and technical evidence accessible.
 
-## Architecture
+## Execution
 
-### Principles
+Use the existing worker and AI stages. One planner call chooses a bounded
+change; deterministic server code runs a fixed sequence. No agent loop, generic
+workflow engine, dependency graph or automatic paid retry.
 
-- **Plan, then execute.** One structured-output call decides; deterministic
-  server code executes with the existing stage calls. No tool-calling loop: the
-  steps are predictable, so a workflow is cheaper to bound, test and make
-  idempotent than an agent.
-- **State is the truth.** The planner reads the current plan and content plus a
-  short window of recent turns, never the whole transcript.
-- **The server owns dependencies.** Which content a settings change affects is
-  computed from the plan diff, not trusted to the model.
-- **All or nothing.** An operation works on a copy and applies it in one save.
-  If it fails, it applies its accepted work only when nothing would be stale;
-  otherwise nothing changes. Settings and content never conflict.
-- **Reuse.** Ideas, writing, polish, questions, single-text rewrite and
-  single-question replacement keep their prompts, schemas and validators.
-- **Framework-native.** `IChatClient` structured output (strict
-  `json_schema`), EF Core with additive migrations, minimal-API endpoints with
-  ProblemDetails, standalone signal-based Angular with native controls.
+1. **Admit:** flush valid edits; check ownership, expected revision, operation
+   key, optional target and existing rate/queue limits. Allow one active operation
+   per unreleased draft. Append the parent turn and start the operation atomically;
+   key replay returns it without another turn or call.
+2. **Plan:** freeze the base plan, input, document and history. Normalize a
+   detached working copy, validate the planner response with
+   `PlanChanges.AssignNewIds` and resolve its effective requirements. Answers,
+   clarifications and no-ops finish here: save the reply, keep content and undo.
+3. **Scope:** pure `RevisionScope` code merges requirement changes with one-off
+   instructions using the table below. The model cannot narrow dependencies.
+4. **Execute:** rewrite existing targets in plan order; run ideas, writing and
+   polish once for new materials; then generate or replace questions. Save
+   intermediate results only in operation artifacts. Rewrites get no polish.
+5. **Apply:** validate the complete result, then save plan, input, document,
+   completion notice, undo and terminal operation state in one transaction,
+   fenced by draft revision and active-operation identity.
 
-### One chat change
+Shared requirements are goal, global guidance/controls, topic, audience and
+difficulty. Question requirements include count, formats, choice count,
+guidance and controls. Text generation always excludes supplied sources.
 
-1. `POST activity-drafts/{id}/operations` with kind `Revise`, the parent
-   message and an optional target (an existing material or question ID). The
-   existing start limiter and queue limits apply. In one transaction the server
-   appends the parent turn to the saved chat and queues the operation; the
-   idempotency key makes a lost response safe to resend.
-2. **Revise step.** The planner returns a reply, the full updated plan or one
-   clarification, assumptions, and one-off content changes (see the contract
-   below). Production validation accepts it: envelope, `PlanChanges.AssignNewIds`
-   and plan validation, and target IDs that exist and are generated content.
-3. **Scope.** `RevisionScope` (pure, in `TaskEngine`) merges the plan diff with
-   the planner's list. It compares fields, not `PlanChanges` paths: the planner
-   also fixes wording that names a changed value (a topic change edits the
-   question guidance sentence that mentions the old topic), so a path alone
-   would over-trigger.
+| Change                              | Work                              |
+| ----------------------------------- | --------------------------------- |
+| Plan name                           | Rename draft/library entry        |
+| Shared requirements or total length | All generated texts and questions |
+| One material's requirements or edit | That generated text and questions |
+| Add generated material              | Write/polish new text; questions  |
+| Remove/reorder materials            | Apply structure; questions        |
+| Question requirements               | All questions                     |
+| One-off question edits              | Replace up to three; else all     |
+| Pure question reorder               | Reorder IDs; preserve content     |
 
-   | Change                                      | Content work        |
-   | ------------------------------------------- | ------------------- |
-   | Name only                                   | None                |
-   | Goal, guidance, topic, audience, difficulty | Rewrite all texts   |
-   | Total length                                | Rewrite all texts   |
-   | One material's definition changed           | Rewrite that text   |
-   | Material added                              | Write it fresh      |
-   | Material removed                            | Remove it           |
-   | Question formats, choice count or count     | All questions       |
-   | Question guidance wording only              | None, unless listed |
-   | Planner lists a text                        | Rewrite it          |
-   | Planner lists up to three questions         | Replace them        |
+Compare effective fields by value. **Every question-guidance change rebuilds
+questions**; do not guess whether prose changes are cosmetic. Shared changes
+also rebuild questions in activities with no generated texts. A full rebuild
+absorbs selected replacements while retaining their instructions. Combined
+question-content/order changes rebuild the full set with the ordering request.
 
-   Fresh writing is the measured first-text path (ideas, writing, polish).
-   Question guidance text changes alone rebuild nothing: the planner restates
-   app rules there (it replaced the unsupported answer-key sentence with
-   "results only"), and the existing questions still fit. A guidance change
-   that existing questions no longer satisfy must come with "all questions" in
-   the planner's list; slice 1 measures that case before shipping.
-   A rewrite is the existing single-text stage: it receives the current title
-   and body under the updated settings, with the planner's instruction or, when
-   none is listed, the parent's message. So "turn the story into a poem" keeps
-   the plot, while "make it about pirates" yields a new story. Rewrites are not
-   polished, as measured. Any text change rebuilds all questions, because
-   questions depend on every material revision, and "all questions" absorbs
-   single replacements. Content that needs no work is re-accepted under the new
-   settings through the existing adoption rules; if it fails validation (for
-   example a new strict length range), it is rewritten instead.
+Give writing and polish explicit new-material targets; today they process the
+whole generated set. Validate each intermediate candidate's identity, source
+fidelity and field bounds, then validate combined length and complete materials
+before questions. A strict total-length change must not fail halfway because
+other texts still await rewriting. Validate the finished document before apply;
+keep existing standalone-path checks during migration.
 
-4. **Execute.** The worker runs the scoped steps in order on the operation's
-   working copy (`GenerationArtifacts` gains the working plan and a pending
-   step queue), checkpointing each step's evidence as today.
-5. **Apply.** One save writes plan, input, document, the assistant reply and
-   the undo copy, fenced by the draft revision. A clarification, or an answer
-   that changes nothing, saves only the reply.
+For partial work under `totalLength`, derive temporary length budgets from
+preserved/finalized texts, reserving room for pending targets. Do not count
+pending old bodies as final or persist these budgets as plan requirements.
+Reject an impossible remaining budget before the next call; never silently
+rewrite extra texts or relax the parent's range.
 
-A manual save, undo or release clears the undo copy; a running operation keeps
-manual saves out (409) as today.
+Rebase acceptance only for previously current content outside the affected
+scope, preserving content, revisions and origin after validation. This is not
+parent adoption. Never silently accept already stale content. Missing/invalid
+dependencies outside scope require an explicit creation, repair or adoption
+choice before content calls. Metadata-only changes may retain existing
+diagnostics; they cannot clear them or make a draft ready.
 
-### Planner contract
+## AI contract and context
 
-- **Prompt.** The authoring prompt, unchanged, plus one revision block. It tells
-  the model to return the complete updated plan, keep untouched fields
-  verbatim, record lasting requirements in the plan, list only one-off edits the
-  plan does not express, never list supplied sources or questions that depend
-  on a changed text, and reply in one or two short Hebrew sentences.
-- **Input.** Message, optional target, base plan, current document (titles,
-  bodies, questions with answers; no provenance), and at most
-  `MaxContextTurns` recent turns within `ContextLength`.
-- **Schema.** The template schema root plus `reply` (1–600 characters) and
-  `changes`: materials `[{ id, instruction }]` and questions
-  `{ scope: none | selected | all, items[≤3]: { id, instruction } }`. IDs are
-  request-owned enums, as `AiSchemas` already builds for other stages.
-- **Version.** A new stage name under `EngineVersions.Revision`; the bump
-  follows the usual rule.
+The revision planner returns exactly one outcome:
 
-### Operations
+- **Answer or clarification:** a Hebrew reply of at most 600 characters, no
+  mutations. Refusals must not rewrite unrelated old requirements.
+- **Change:** the complete updated plan, existing bounded assumptions and
+  one-off edits. Preserve untouched fields; put lasting requirements in the
+  plan. The application writes the completion notice from committed changes
+  and displays the assumptions beside it.
 
-- Public kinds become `Create` (write whatever generated text and questions are
-  missing), `Revise` (chat change) and `GenerateQuestions` (the chat's "update
-  the questions" button). Material and question replacement remain internal
-  steps.
-- The fixed `NextStage` chain becomes the stored pending queue. `StepLimit`
-  rises to the bound the scope table allows: revise, ideas, writing, polish, up
-  to four rewrites and one question step or three replacements (12).
-- `DraftLimit` (128 operations per draft) stays; reaching it asks the parent to
-  copy the activity, as today.
-- Recovery, cancellation, the compatibility guard and artifact expiry are
-  unchanged.
+Reuse the plan schema definitions. Material edits are `[{ id, instruction }]`.
+Question edits are `{ scope: none | selected | all, instruction, items }`, with
+at most three selected `{ id, instruction }` items. Item instructions allow
+500 characters; a full-rebuild instruction uses `MessageLength`. `none` has no
+instruction/items; `selected` has one to three items; `all` has no selected items.
+A nullable `questionOrder` is a complete, unique list of existing IDs for a pure
+reorder only. Validate combinations, duplicate IDs and targets against the base
+and proposed state. Use request-owned ID enums where applicable.
 
-### Chat and undo storage
+Instructions must be self-contained after clarification: downstream calls must
+not need to interpret “yes” or earlier chat. Plan name and document title are
+separate fields. Direct title/instruction requests outside this contract point
+to the editor; do not claim unsupported changes. Supplied sources can be
+explanation targets but never rewrite targets. Preserve retained source kinds
+and exact text, including per-activity sources; a transformation creates a
+separate generated material. New supplied sources require explicit input and
+confirmation.
 
-- `ActivityDraft.ChatJson`: turns with role (parent or assistant), text, UTC
-  time and the operation they belong to. At most 100 stored turns, oldest
-  dropped; parent text up to `MessageLength`, assistant text up to 600
-  characters. Assistant failure and notice turns are application-written
-  Hebrew, not model output.
-- `ActivityDraft.UndoJson`: the plan, input and document before the last
-  chat-started operation (`Revise` or `GenerateQuestions`), with the revision
-  that operation produced. One level.
-- Both are parent-only: they never enter snapshots, child DTOs, the library
-  projection or change notes, and draft deletion and family reset remove them.
+### Prompt and schema changes
 
-### Inputs fold into the plan
+Adapt the existing [AI prompts](../backend/FamilyLearning.Api/TaskEngine/Ai/AiPrompts.cs),
+[schema builders](../backend/FamilyLearning.Api/TaskEngine/Ai/AiSchemas.cs) and
+typed stage inputs together. Keep one provider boundary and reuse existing
+content schemas.
 
-An activity created from a template folds the chosen settings, question format,
-choice count, total length and control values into its own plan, so the plan is
-the single truth the chat edits and a per-activity override can never mask a
-chat change. Text the parent supplies per activity stays in the input: the chat
-never edits supplied sources, and its source kind is part of the resolved
-request. The template keeps its provenance link and is never changed. Existing
-drafts fold the same way when their first `Revise` starts. The acceptance
-fingerprint covers resolved values, not plan defaults, so folding leaves content
-acceptance unchanged; a test proves it.
+- **Authoring:** keep `PlanAuthoring` and `template.schema.json` for
+  plan/clarification. Share applicable planning constraints with revision;
+  keep source confirmation in the application.
+- **Revision:** add one activity-revision prompt,
+  `activity-revision.schema.json` and typed candidate. Use a nested outcome
+  union under an object root. Propose requirements and bounded edits, never
+  execution steps or completion claims.
+- **Ideas/writing/polish:** replace “all generated materials” instructions with
+  explicit new targets; retained texts are read-only context. Reuse output
+  shapes; pass only target IDs/counts to `MaterialsFor`. Skip empty target sets.
+- **Text rewrite:** reuse the single-material output. Prompt with updated
+  requirements, temporary length budget and pending/final sibling distinction;
+  remove the assumption that every sibling stays unchanged.
+- **Questions:** full generation receives the rebuild instruction and prior
+  questions. Preserve compatible title/instructions and requested question
+  content; recompute answers against final materials. Replacement keeps its
+  existing single-question shape and server-owned ID.
 
-An added material is written with the existing texts as context: the writing
-stage gains a mode that writes only absent materials instead of regenerating
-the whole generated set, so a chat request such as "add a short poem too" never
-rewrites the story.
+Compose the revision schema from the existing plan definitions; do not fork
+the plan schema. Keep required fields, null branches and closed objects aligned
+with typed deserialization. Derive bounds from engine constants and retain the
+[existing schema compatibility rules](ai.md#strict-schema-contract). Use an
+empty edit list when no valid targets exist, never an empty ID enum.
+
+Validate outcome exclusivity, lengths, IDs, source fidelity and cross-field
+rules on the server in every response mode. Schema acceptance is not semantic
+validation. Invalid/truncated output fails the operation without a repair call.
+Keep `RequestAsync`, response-format settings and evidence capture; do not add
+model-specific paths. Bump `EngineVersions.Revision` for changed prompts and
+provider contracts; this alone does not change the saved plan's schema version.
+
+### Call context
+
+Build explicit payloads in `AiGenerationService` from typed stage inputs. Keep
+full server-side state for validation; send relevant requirements and content,
+without duplicate source bodies. Generation/edit calls share the effective goal,
+global guidance/controls, topic, audience and difficulty, plus the context below.
+Text/idea calls also receive the question requirements the materials must
+support, without generated questions or answer keys.
+
+- **Authoring:** message, optional base plan, bounded unresolved turns and
+  parent-supplied text → plan or clarification.
+- **Revision:** normalized plan, current document including answers,
+  message/target and bounded recent turns with outcomes → one planner outcome.
+- **Ideas:** new-material definitions/controls, lengths, retained/supplied
+  texts and bounded family idea history → ideas for the new batch.
+- **Writing:** material requirements/context, new target IDs, selected idea
+  and scoped instructions → exactly those titles/bodies.
+- **Polish:** new texts, audience/language rules, length-preservation instruction
+  and retained/supplied context → minimal edits to new targets only.
+- **Text rewrite:** old target title/body, updated material requirements/controls
+  and length, sibling texts and target instruction → one same-ID text.
+- **Questions:** question requirements/controls, final validated materials,
+  bounded prompt history and rebuild instruction → title, instructions and the
+  complete ordered question batch.
+- **Question replacement:** question requirements, final materials, target
+  including answer/options/points, current siblings, learner instructions and
+  target instruction → one complete question; the server retains its ID.
+
+Context rules:
+
+- Only authoring/revision receive conversation, bounded by `MaxContextTurns`
+  and `ContextLength`. Include target/outcome context; failed requests are not
+  applied edits. Send the current message once, excluding it from history.
+  Current state takes precedence; clarify unresolved references rather than guess.
+- Only ideas receive family idea history; only full question generation receives
+  family prompt history. Writing receives the selected idea, not rejected ones.
+  Text calls receive no question answers. Keep database identity, credentials,
+  provenance, acceptance and operation evidence out of provider payloads.
+- Rebuilds receive existing title/instructions and ordered question prompts,
+  options and IDs as reference, without old keys. Include absorbed instructions
+  so requests such as “keep the first three” retain their meaning. New answers
+  follow final materials.
+- Later stages use the latest validated working content. Mark sibling texts
+  awaiting rewrite as pending context; question calls wait for all materials.
+  Freeze history at admission and never reread the live draft for stage inputs.
+- Treat source text as data. Trim old conversation/novelty history first; never
+  truncate required sources, target context or constraints to fit. Reject an
+  oversized required payload against the configured request/schema byte limits
+  before calling the provider.
+
+These are required adaptations to existing payloads, not claims that current
+stage methods already support them. Evaluate the final production form.
+
+## Implementation boundaries
+
+- **Engine:** pure normalization, scope and assembly checks in `TaskEngine`;
+  extend existing stage records and explicit AI payload/schema builders.
+- **Persistence:** the existing activity endpoints, worker and DbContext own
+  admission, checkpoints and commits. Keep transactions outside AI calls.
+- **Frontend:** one workspace buffer and existing observer/API client; shared
+  chat renders turns and emits actions. Read/edit views use the same state.
+- **Scaffolding:** add only necessary contracts/helpers and an additive storage
+  migration. No new project, repository/mediator layer, executor hierarchy,
+  second chat store or parallel AI stack. Keep comments with their behavior.
+
+### Operations and recovery
+
+The activity UI uses `Create` (complete missing content), `Revise`, and
+`GenerateQuestions` (the manual-edit offer). Create preserves current existing
+texts; stale texts require explicit repair. Extend `GenerationArtifacts` with
+working plan/input, scope and progress cursor. `NextStage` follows the fixed
+sequence, not an arbitrary stored queue.
+
+New and rewritten targets are disjoint, at most four combined. Maximum calls:
+**eight** for revision (planner + three rewrites + ideas/writing/polish for one
+new material + questions); **four** for Create after authoring. With no material
+work, at most three question replacements follow the planner.
+
+Reject manual saves, adoption, undo and release with 409 while active. This is a
+behavior change: current saves are allowed to fence generation. Retain revision
+and active-operation concurrency checks for races and other tabs. Only applied
+plan/content changes advance content revision; chat/status changes do not.
+
+Cancellation commits before transport stops; late output records usage only.
+If completion committed first, Stop returns that completed outcome. A network
+error proves neither cancellation nor rollback: reread saved operation state.
+Compatible queued stages resume from checkpoints; interrupted calling stages
+become terminal unknown outcomes. Failure, conflict, cancellation and evidence
+overflow apply no working content. Deletion/reset discards late results.
+Recovery never retries an uncertain call.
+Keep existing queue, evidence and retention bounds and the single-process host.
+At `DraftLimit` (128), explain that AI is unavailable while manual save/review
+remain available; do not promise an unimplemented draft-copy feature.
+
+### Plan, chat and undo
+
+Fold chosen settings, formats, counts, lengths and controls into the activity's
+own plan. Rebuild `TaskRequest.Settings` and clear folded overrides after every
+proposed plan change. Preserve retained source input, IDs, control order and
+false/zero/empty values; remove input for deleted items. Never change the template.
+Existing drafts normalize in the working copy and persist only on a successful
+change. Require equal resolved values and fingerprints for normalization alone.
+
+- `ChatJson`: at most 100 turns with role, text, UTC time, optional target and
+  operation reference; assistant turns may include bounded assumptions.
+  Parent text uses `MessageLength`; imported authoring replies retain their
+  existing 1,000-character limit, revision replies/notices use 600. Drop oldest
+  completed exchanges. Reuse operation status and append one terminal reply/notice
+  per operation, including recovery and Stop.
+- `UndoJson`: pre-change plan/input/document and the resulting revision for
+  the last successful changing Revise or GenerateQuestions. No Create undo.
+  Restore only at that revision with no active operation; advance revision,
+  consume undo and append a notice. Unsaved edits disable it; manual save,
+  adoption or release clears it. Answers, no-ops and failures do not replace it.
+- Both fields are parent-only and excluded from snapshots, child DTOs, library
+  projections and change notes. Draft deletion/family reset removes them.
 
 ### API
 
-Routes are under `/api/activity-drafts`; `POST /api/ai/template-drafts` is
-unchanged.
+Routes remain under `/api/activity-drafts`. **Only undo is a new endpoint.**
+The other rows extend existing contracts; this is not the complete API list.
 
-| Request                   | Change                                       |
-| ------------------------- | -------------------------------------------- |
-| `POST /`                  | Accepts the pre-draft chat turns             |
-| `POST {id}/operations`    | The three kinds in [Operations](#operations) |
-| `POST {id}/undo`          | New; expected revision                       |
-| `POST {id}/adopt-content` | Kept for "the questions still fit"           |
-| `GET {id}`                | Adds chat turns and undo availability        |
+| Request                   | Purpose and change                     |
+| ------------------------- | -------------------------------------- |
+| `POST /`                  | Create draft; also accept bounded chat |
+| `POST {id}/operations`    | Start AI work; add operation kinds     |
+| `POST {id}/undo`          | New: restore the previous content      |
+| `POST {id}/adopt-content` | Confirm “questions still fit”; no AI   |
+| `GET {id}`                | Load draft; also return chat and undo  |
 
-### Frontend
+Reuse these separate handlers for creation, queued AI work, restoration,
+parent confirmation and reads. Keep existing manual-save and status/cancel
+routes, template authoring and family ownership checks. Validate imported turns
+without accepting client-supplied operation identity. Replay a lost operation
+start with the same key; an explicit new attempt gets a new key. Uncertain
+creation/undo responses offer a saved-state check, not automatic resubmission.
+Client limits belong in `EngineValidation`/`GET limits`; worker policies stay
+in `GenerationOperationOptions`. Parent answer keys never enter child DTOs.
 
-- `template-chat` becomes the shared assistant chat: saved thread for
-  activities, local thread for templates, with item targeting.
-- The activity workspace becomes editor plus chat; the read-only settings
-  summary replaces the activity's plan editor and setup fields.
-- Removed from activities: `scoped-repair` boxes, the four-step progress list,
-  the text-then-questions stop, stale and adopt banners, and the unapplied-result
-  panel (a conflicting change now applies nothing and the chat offers to resend).
+## Delivery and verification
 
-## Ownership and bounds
+1. Engine/API: planner, scope, context projections, atomic Create/Revise,
+   new-material-only writing/polish, normalization, chat and undo. Add new
+   operation kinds alongside current ones.
+2. Canvas/chat: reading/editing, initial creation and source confirmation,
+   targeting, status, undo and manual-edit offer. Remove replaced controls only
+   when the complete activity flow works; preserve the template workflow.
+3. Cutover: migrate all UI/evaluation callers before retiring old operation
+   kinds; update the four guides. Old stored operations remain readable, with
+   the compatibility guard preventing incompatible queued execution.
 
-Every route stays family-scoped through the draft; the planner call has no
-identity or database access. All new limits live in `EngineValidation` and are
-served through `GET limits`. Answer keys reach the planner (a server-side,
-parent-owned call) but never child DTOs. The planner's targets are checked
-against the draft before any step runs.
+Acceptance checks:
 
-## Verification
+- Scope table, pure/combined reorder, normalization fingerprints, false/zero/
+  empty values, mixed/missing sources, shared strict lengths and call bounds.
+- Captured provider requests for every call type: required context present,
+  unrelated/private fields absent, self-contained follow-ups, latest working
+  texts used and absorbed instructions retained. Use the isolated provider.
+- Prompt/schema/candidate agreement in strict and prompt-schema modes;
+  zero/max targets, duplicate/foreign IDs, invalid outcome combinations,
+  unknown fields, oversized/truncated replies and unchanged authoring contracts.
+- Outcomes including no-ops, every failure stage, replay, stale targets,
+  cancellation/completion races, restart, deletion, evidence/chat limits,
+  concurrent tabs, undo, release and family/child/snapshot isolation.
+- Read/edit switching, failed saves, targeting, reload-persistent offers,
+  keyboard/focus/screen readers, RTL and 360px layout at 200% text size.
 
-- **Engine:** `RevisionScope` table cases, merge rules, and re-acceptance
-  fallback; planner envelope and target validation.
-- **API (isolated AI provider):** revise success, clarification, reply-only,
-  failure with nothing applied, consistent-prefix apply for `Create`, revision
-  fence conflict, undo allowed and refused, chat bounds, cross-family access
-  denied, snapshots and child DTOs without chat or undo.
-- **Angular:** chat thread, targeting, undo, manual-edit offer, loading, empty
-  and error states, keyboard and screen-reader paths, RTL and narrow layout.
-- **Browser:** the isolated end-to-end workflow test updated to the new flow.
-- **AI:** the planner prompt is new, so it has a pre-registered measurement
-  before it ships; see [planner evidence](#planner-evidence).
+Run `scripts/verify.sh` for changes; implementation workflow changes also run
+publication and the isolated browser suite. Paid evaluation requires a budget;
+freeze cases and acceptance criteria before evaluating new prompts or schemas.
 
-## Delivery slices
+## Evidence
 
-Each slice leaves the app working, tested and documented. Slices 1 and 2 bring
-the chat to existing activities, slice 3 the first-request flow, and slice 4
-removes what the new flow replaced.
+The original prototype used three activities, each with one generated text and
+existing questions: 20 planner calls, $0.2598664, all passing its registered
+validation and assistant-reviewed intent checks. This established a useful
+starting contract, not execution correctness or general reliability. Retained
+records: `artifacts/evaluations/revise-planner-2026-10-08/`.
 
-1. Engine and API: planner stage, `RevisionScope`, step queue, all-or-nothing
-   apply, folding at the first `Revise`, chat and undo storage, `Revise` and
-   undo endpoints.
-2. Frontend: shared chat, editor plus chat workspace, targeting, undo,
-   manual-edit offer; remove `scoped-repair` and the progress list.
-3. First request: draft creation from the first plan, `Create`, folding at
-   template-based creation, absent-only writing.
-4. Cleanup: retire public replacement kinds and the two-part flow, update the
-   evaluation harness and the four guides.
+The review added four probes for **$0.0810189 of the authorized $0.30**, with no
+unknown costs:
 
-A typical message costs about $0.05 (planner, one rewrite, questions); a reply
-with no change costs about $0.01.
+- Both vocabulary-focus requests changed question guidance but returned
+  `scope: none`. The old rule would retain old questions despite promising a
+  change. Hence question-guidance changes always rebuild questions.
+- A supplied-source fixture with no generated-material targets was accepted
+  with the original schema and with an alternative empty-target schema, once
+  each. No special provider workaround was justified by this sample.
 
-## Planner evidence
-
-A prototype of the planner contract ran on three owner activities (grade-3
-reading, numeric word problems and a story) with ten chat requests, twice each,
-under a pre-registered reading (`artifacts/evaluations/revise-planner-2026-10-08/`,
-20 calls, $0.26 of $0.30):
-
-- Valid output 20/20 and the intended outcome 20/20: an easier replacement for
-  a targeted question, pirates, medium difficulty, six questions, a story half
-  as long, one of two near-identical questions replaced, a rhymed poem, the
-  answer-key explanation refused with an assumption, a content question
-  answered, and "thanks" changing nothing.
-- Requests that should not touch settings returned identical plans, except the
-  answer-key request, which replaced the stored unsupported sentence. Topic and
-  difficulty changes also edited the question guidance sentence that named the
-  old value (4 calls); the protocol had not listed that path for the topic
-  request, so counted strictly it sits exactly at the registered limit. Scope
-  therefore compares fields, and question guidance wording alone rebuilds
-  nothing.
-- Not yet measured: a question guidance change that existing questions no longer
-  satisfy (for example "focus the questions on vocabulary").
-- The planner listed only the two question replacements and expressed every
-  other change in the plan, so server-derived scope carries most content work.
-  A genre conversion arrives as a guidance change, which is why affected text is
-  rewritten from its current body rather than written fresh.
-- A planner call costs about $0.013; each message then costs whatever stages its
-  scope runs.
-
-The prototype measured planning only. Each delivery slice still measures its
-own end-to-end behavior with isolated providers, and the production prompt must
-match the tested block byte for byte.
+Records: `artifacts/evaluations/activity-chat-review-2026-10-08-jp61rjew/`.
+The review also passed 56 existing race, recovery, resolution and assembly tests;
+these check the current baseline, not this unimplemented design. The final
+planner/context contracts still need evaluation. End-to-end latency and cost
+remain unmeasured; preserve old evidence rather than rewriting it to fit changes.
