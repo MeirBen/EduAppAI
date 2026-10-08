@@ -360,14 +360,20 @@
           "maximum": 500
         },
         "options": {
-          "type": [
-            "array",
-            "null"
-          ],
-          "items": {
-            "$ref": "#/$defs/option"
-          },
-          "minItems": 1
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/option"
+              },
+              "minItems": 1
+            },
+            {
+              "type": [
+                "null"
+              ]
+            }
+          ]
         }
       },
       "required": [

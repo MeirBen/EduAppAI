@@ -7,15 +7,16 @@ live in [architecture](architecture.md).
 
 ## Current status
 
-Gemini 3.8 Flash uses native strict `json_schema`, medium reasoning and
-provider-default sampling. **Structural acceptance does not establish
+GPT-6.1 Sol (since 8 October, revision 35) uses native strict `json_schema`,
+medium reasoning and provider-default sampling; Gemini 3.8 Flash is the measured
+rollback, a one-line `Model` change. **Structural acceptance does not establish
 educational quality or superiority to the old one-shot flow.** Keep parent
 review, server validation and explicit recovery. Generated text gets one
 measured automatic polish; there is no production retry or model-specific code
 path. Six acceptance cases passed three historical rounds (42 calls, no
 retry/repair), before later prompt changes. Do not treat that sample as a
-current reliability rate. Small 8 October comparisons favor GPT-6.1 Sol for
-writing and questions; see [model comparison](#model-comparison).
+current reliability rate. The switch rests on small 8 October comparisons; see
+[model comparison](#model-comparison).
 
 ## Design and cutover decision
 
@@ -142,7 +143,9 @@ Rejected or unproven; revisit only with new evidence:
   introduced errors (niqqud added or stripped against requirements, nonsense
   words) and 8 meaning changes. The integration also needed `max_tokens`,
   answers read from `message.reasoning`, streaming and disabled SDK retries, and
-  met ~90 s provider caps. No second provider was added.
+  met ~90 s provider caps. The model's recommended sampling (temperature 0.6,
+  top-k 20, top-p 0.95) changed nothing: 4 of 15 returned, with 7 errors. No
+  second provider was added.
 - **Earlier provider trials:** model comparisons, provider exclusions and
   shorter material prompts produced no stable quality winner. DeepSeek strict
   authoring remains unverified after contract-description fixes. See
@@ -182,9 +185,10 @@ All 12 math keys were correct. No model fixed the ant claim, which came from the
 shared idea, and each still made Hebrew errors (Opus: masculine agreement for
 ants; Sol: `חָטִיף`). Only Opus simplified formal wording when editing, at four
 to five times the cost. Both candidates accepted the material, polish and
-question schemas in strict mode. OpenAI rejects the template schema
-(`invalid_json_schema`; not the `["null"]` spelling, equal bounds or patterns),
-so GPT-6.1 Sol needs `json_object` with `SchemaInPrompt` until that is resolved.
+question schemas in strict mode. OpenAI rejected the template schema
+(`invalid_json_schema`) until revision 35: removing one part at a time traced it
+to a nullable array of `$ref` items (control options), now an `anyOf` that both
+providers accept.
 
 End to end through the evaluation runner, GPT-6.1 Sol completed six cases
 (reading grades 1, 3 and 7, a drill, word problems, a shared math scenario) with
@@ -195,11 +199,11 @@ and the grade-7 text, worse on one grade-1 niqqud word (`בְּמָה`) and one
 incoherent scenario detail; all math keys were correct. The grade-7 and math
 baselines predate the polish stage, which fixes some of the counted wording. A
 reading activity cost about $0.056 against $0.046, with the text ready sooner
-(51 s against 77 s for ideas, writing and polish). Switching is a configuration
-change and has not been made. It first needs the rejected template-schema
-construct isolated (or `json_object` accepted), a measured
-`StrictQuestionCountLimit`, and more than six cases read by the owner, since
-Sol edited worst of the three and its grade-1 niqqud is not error-free.
+(51 s against 77 s for ideas, writing and polish). At revision 35 Sol passed
+strict end to end on a select-control plan and an exact 10-question drill, and
+Gemini passed the same plan. The owner made the switch; a wider read of real
+activities is still advised, since Sol edited worst of the three and its
+grade-1 niqqud is not error-free.
 
 ## Configuration
 
@@ -229,7 +233,8 @@ Credentials never belong in reports.
 
 The current profile requests 16,384 output tokens with a 180-second deadline,
 no fallback model and no excluded providers. Medium reasoning and omitted
-sampling follow [Google's guidance][gemini] and the
+sampling follow [OpenAI's guidance][gpt6] (medium is the default; temperature
+and top-p are not allowed with reasoning) and the
 [OpenRouter reasoning mapping][reasoning]. The adapter sends
 `reasoning: { effort, exclude: true }`; **exclusion hides returned thinking
 text but does not disable reasoning or its billing.** Reasoning shares the
@@ -288,7 +293,9 @@ added `propertyOrdering` matching the declared key order.
   nullable string and drops a `description` beside `anyOf`. So the version uses
   `minimum` = `maximum` ([string enums only][vertex-schema]), null-only branches
   use `["null"]`, nullable arrays use type arrays, and cross-field rules such as
-  `choiceCount` live in the prompt. All are equivalent JSON Schema.
+  `choiceCount` live in the prompt. All are equivalent JSON Schema. OpenAI strict
+  mode rejects a nullable array of `$ref` items, so that one uses `anyOf` with a
+  `["null"]` branch.
 - **Descriptions carry validator semantics.** `adjustable` is true only for an
   explicitly requested per-activity input; before that description, models
   repeatedly invented adjustable counts.
@@ -297,13 +304,14 @@ Over-limit requests for 30 questions, six passages and a 25-option select each
 drew a focused clarification instead of a rejected plan.
 
 Limit provenance: `StrictQuestionCountLimit` is endpoint-specific and measured
-(20 for Gemini at six choices), because Google publishes no budget; re-measure
+(20 for Gemini and GPT-6.1 Sol at six choices; 20 is also the product
+maximum), because providers publish no budget; re-measure
 it for a new model or a higher choice cap. New schema features also need live
 acceptance within an explicitly authorized budget. Question count, choices, controls,
 options, materials, content size and field lengths are owner-set product
 limits in the [product specification](product-specification.md). The 16,384
-output tokens (validated up to 32,768) stay below the endpoint maximum of
-65,536.
+output tokens (validated up to 32,768) stay below the endpoint maxima
+(128,000 for GPT-6.1 Sol, 65,536 for Gemini 3.8 Flash).
 
 ## Unresolved failures
 
@@ -384,6 +392,9 @@ Historical caps do not authorize new paid runs.
   $0.08608 (9 calls), Featherless about $0.09 dashboard-reconciled through the
   main run plus addenda whose streamed calls report no usage (ledger upper
   bound $0.2773).
+- `sol-strict-switch-2026-10-08/`: template-schema diagnosis and the strict
+  verification runs before the switch (Sol $0.0791635, Gemini $0.0652965, plus
+  a few cents of schema probes).
 
 Retired design documents: `documentation-history-2026-10-01.zip`.
 
@@ -468,7 +479,7 @@ current baseline and stop on flat results. Do not add prompt exceptions for
 individual holdouts, and keep claims proportional to the evidence. Maintain
 this guide in place; keep experimental evidence in artifacts.
 
-[gemini]: https://ai.google.dev/gemini-api/docs/generate-content/latest-model
+[gpt6]: https://developers.openai.com/api/docs/guides/latest-model
 [gemini-schema]: https://ai.google.dev/gemini-api/docs/structured-output
 [vertex-schema]: https://docs.cloud.google.com/vertex-ai/generative-ai/docs/multimodal/control-generated-output
 [reasoning]: https://openrouter.ai/docs/guides/best-practices/reasoning-tokens

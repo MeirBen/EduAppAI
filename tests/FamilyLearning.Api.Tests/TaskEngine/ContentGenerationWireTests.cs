@@ -41,6 +41,10 @@ public sealed class ContentGenerationWireTests
             var types = Types(schema).ToArray();
             Assert.DoesNotContain(types, type => type.ValueKind == JsonValueKind.String && type.GetString() == "null");
             Assert.Contains(types, type => type.ValueKind == JsonValueKind.Array && type.EnumerateArray().Select(t => t.GetString()).SequenceEqual(["null"]));
+            // OpenAI strict mode rejects the whole schema (invalid_json_schema) for a nullable array whose items are a
+            // $ref; anyOf with a ["null"] branch is the equivalent form both providers accept.
+            Assert.DoesNotContain(Nodes(schema), node => node.TryGetProperty("type", out var type) && type.ValueKind == JsonValueKind.Array &&
+                type.EnumerateArray().Any(t => t.GetString() == "array") && node.TryGetProperty("items", out var items) && items.TryGetProperty("$ref", out _));
         }
         var definitions = schemas[0].GetProperty("$defs");
         var version = definitions.GetProperty("plan").GetProperty("properties").GetProperty("schemaVersion");
@@ -54,8 +58,15 @@ public sealed class ContentGenerationWireTests
             definitions.GetProperty("plan").GetProperty("properties").GetProperty("controls"),
             definitions.GetProperty("material").GetProperty("properties").GetProperty("controls"),
             definitions.GetProperty("questionPlan").GetProperty("properties").GetProperty("controls"),
-            definitions.GetProperty("control").GetProperty("properties").GetProperty("options")
+            definitions.GetProperty("control").GetProperty("properties").GetProperty("options").GetProperty("anyOf")[0]
         }, list => Assert.False(list.TryGetProperty("maxItems", out _)));
+
+        static IEnumerable<JsonElement> Nodes(JsonElement node) => node.ValueKind switch
+        {
+            JsonValueKind.Object => [node, .. node.EnumerateObject().SelectMany(p => Nodes(p.Value))],
+            JsonValueKind.Array => node.EnumerateArray().SelectMany(Nodes),
+            _ => []
+        };
 
         static IEnumerable<JsonElement> Types(JsonElement node) => node.ValueKind switch
         {
