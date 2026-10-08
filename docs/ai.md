@@ -115,8 +115,9 @@ Rejected or unproven; revisit only with new evidence:
 
 - **Plain-language writing sentence:** "write in plain, everyday language ...;
   use a harder word only when the text teaches it". With the cleanup it cut
-  hard or formal words from 20 to 16 over 9 pairs and won 5 of 6 decided
-  pairs, short of the registered 30% bar; not adopted.
+  hard or formal words from 20 to 16 over 9 pairs, short of the registered
+  30% bar. Tested alone against revision 37 on 16 writing pairs: 75 hard or
+  formal words versus 74, with equal validation and niqqud. Rejected.
 - **Question polish:** the same pass over questions, with code guards keeping
   formats, points, option positions, keys and numbers, was safe (0 of 53
   rejected, no harmful edit) but barely simplified wording: formal words per
@@ -425,6 +426,8 @@ Historical caps do not authorize new paid runs.
 - `question-level-2026-10-08/`: question thinking level, 18 calls, $0.27386 of
   $0.50.
 - `text-prompts-2026-10-08/`: text prompt cleanup, 36 calls, $0.34465 of $0.50.
+- `plain-language-2026-10-08/`: plain-language sentence alone, 32 calls,
+  $0.27161 of $0.40.
 
 Retired design documents: `documentation-history-2026-10-01.zip`.
 
