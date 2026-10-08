@@ -74,15 +74,33 @@ guidance and controls. Text generation always excludes supplied sources.
 | One material's requirements or edit | That generated text and questions |
 | Add generated material              | Write/polish new text; questions  |
 | Remove/reorder materials            | Apply structure; questions        |
-| Question requirements               | All questions                     |
+| Other question requirements         | All questions                     |
+| Only increase question count        | Keep originals; append additions  |
 | One-off question edits              | Replace up to three; else all     |
-| Pure question reorder               | Reorder IDs; preserve content     |
+| Pure question removal/reorder       | Keep listed IDs and their content |
+
+For removal/reorder, `questionOrder` lists surviving IDs in their desired order;
+omitted IDs are removed. Set the plan's count to that list's length. Preserve
+survivors' IDs, prompts, options, answers and points. This needs only the planner
+call. Require at least one question and coverage of every required format;
+clarify conflicts instead of regenerating survivors or changing requirements.
+A count-only decrease must provide this list; otherwise clarify before content
+calls.
+
+A count-only increase reuses the full question-generation call with the saved
+questions as a required prefix. Assemble the result from the unchanged saved
+prefix and the returned extra questions; keep saved title/instructions, reject
+exact duplicate questions and validate the assembled batch. Never replace
+originals with model copies.
+These preservation paths require current valid content and unchanged remaining
+requirements; other question changes use the full rebuild below.
 
 Compare effective fields by value. **Every question-guidance change rebuilds
 questions**; do not guess whether prose changes are cosmetic. Shared changes
 also rebuild questions in activities with no generated texts. A full rebuild
 absorbs selected replacements while retaining their instructions. Combined
-question-content/order changes rebuild the full set with the ordering request.
+question-content/structure changes rebuild the full set with explicit removal
+and ordering instructions; do not claim to preserve unchanged questions there.
 
 Give writing and polish explicit new-material targets; today they process the
 whole generated set. Validate each intermediate candidate's identity, source
@@ -91,11 +109,13 @@ before questions. A strict total-length change must not fail halfway because
 other texts still await rewriting. Validate the finished document before apply;
 keep existing standalone-path checks during migration.
 
-For partial work under `totalLength`, derive temporary length budgets from
-preserved/finalized texts, reserving room for pending targets. Do not count
-pending old bodies as final or persist these budgets as plan requirements.
-Reject an impossible remaining budget before the next call; never silently
-rewrite extra texts or relax the parent's range.
+**Slice 1 defers length allocation across calls.** A strict `totalLength` works
+for one complete new batch or one rewrite with unchanged siblings. When it
+would require multiple rewrites or new writing alongside retained generated
+texts, return a clarification before content calls: offer per-text ranges or
+an approximate total. Apply that choice only after the parent's reply. Material
+removal must also leave the strict total valid or request clarification. Never
+silently rewrite extra texts or relax the range; add allocation only if needed.
 
 Rebase acceptance only for previously current content outside the affected
 scope, preserving content, revisions and origin after validation. This is not
@@ -109,7 +129,8 @@ diagnostics; they cannot clear them or make a draft ready.
 The revision planner returns exactly one outcome:
 
 - **Answer or clarification:** a Hebrew reply of at most 600 characters, no
-  mutations. Refusals must not rewrite unrelated old requirements.
+  mutations. Refusals leave the entire plan/input/document unchanged, including
+  old unsupported requirements; no opportunistic cleanup or content calls.
 - **Change:** the complete updated plan, existing bounded assumptions and
   one-off edits. Preserve untouched fields; put lasting requirements in the
   plan. The application writes the completion notice from committed changes
@@ -120,9 +141,11 @@ Question edits are `{ scope: none | selected | all, instruction, items }`, with
 at most three selected `{ id, instruction }` items. Item instructions allow
 500 characters; a full-rebuild instruction uses `MessageLength`. `none` has no
 instruction/items; `selected` has one to three items; `all` has no selected items.
-A nullable `questionOrder` is a complete, unique list of existing IDs for a pure
-reorder only. Validate combinations, duplicate IDs and targets against the base
-and proposed state. Use request-owned ID enums where applicable.
+A nullable `questionOrder` is a nonempty, unique ordered subset of existing IDs
+for pure removal/reorder; no separate removal field. It requires question-edit
+scope `none` and a proposed count matching its length. Validate combinations,
+duplicate IDs and targets against the base and proposed state. Use request-owned
+ID enums where applicable.
 
 Instructions must be self-contained after clarification: downstream calls must
 not need to interpret “yes” or earlier chat. Plan name and document title are
@@ -151,12 +174,13 @@ content schemas.
   explicit new targets; retained texts are read-only context. Reuse output
   shapes; pass only target IDs/counts to `MaterialsFor`. Skip empty target sets.
 - **Text rewrite:** reuse the single-material output. Prompt with updated
-  requirements, temporary length budget and pending/final sibling distinction;
-  remove the assumption that every sibling stays unchanged.
+  requirements and pending/final sibling distinction. The strict-total rule
+  with unchanged siblings applies only after the slice-1 scope guard passes.
 - **Questions:** full generation receives the rebuild instruction and prior
   questions. Preserve compatible title/instructions and requested question
-  content; recompute answers against final materials. Replacement keeps its
-  existing single-question shape and server-owned ID.
+  content; recompute answers against final materials. Count-only additions keep
+  the saved prefix through server assembly. Replacement keeps its existing
+  single-question shape and server-owned ID.
 
 Compose the revision schema from the existing plan definitions; do not fork
 the plan schema. Keep required fields, null branches and closed objects aligned
@@ -248,6 +272,10 @@ New and rewritten targets are disjoint, at most four combined. Maximum calls:
 **eight** for revision (planner + three rewrites + ideas/writing/polish for one
 new material + questions); **four** for Create after authoring. With no material
 work, at most three question replacements follow the planner.
+Raise `GenerationOperationOptions.StepLimit` from **3 to 8**, including the
+planner step. Update storage/worker checks and the current fourth-step rejection
+test to accept eight and reject nine. Keep the 2 MiB evidence and 16 KiB summary
+bounds; test eight bounded summaries and atomic failure on evidence overflow.
 
 Reject manual saves, adoption, undo and release with 409 while active. This is a
 behavior change: current saves are allowed to fence generation. Retain revision
@@ -261,7 +289,7 @@ Compatible queued stages resume from checkpoints; interrupted calling stages
 become terminal unknown outcomes. Failure, conflict, cancellation and evidence
 overflow apply no working content. Deletion/reset discards late results.
 Recovery never retries an uncertain call.
-Keep existing queue, evidence and retention bounds and the single-process host.
+Keep all other queue, evidence and retention bounds and the single-process host.
 At `DraftLimit` (128), explain that AI is unavailable while manual save/review
 remain available; do not promise an unimplemented draft-copy feature.
 
@@ -322,10 +350,16 @@ in `GenerationOperationOptions`. Parent answer keys never enter child DTOs.
    kinds; update the four guides. Old stored operations remain readable, with
    the compatibility guard preventing incompatible queued execution.
 
-Acceptance checks:
+Acceptance checks (freeze the AI cases before slice-1 implementation):
 
-- Scope table, pure/combined reorder, normalization fingerprints, false/zero/
-  empty values, mixed/missing sources, shared strict lengths and call bounds.
+- Scope table, removal/reorder with survivor equality, append-only additions,
+  last-question/last-required-format conflicts and combined changes.
+- Normalization fingerprints, false/zero/empty values, mixed/missing sources,
+  supported strict lengths, deferred-scope clarification and eight-step bounds.
+- Refusal regression: “add explanations to the answer key,” including a plan
+  with an old unsupported explanation requirement. Require a refusal, identical
+  saved plan/input/document and no content calls. Test server rejection of a
+  reply carrying edits and evaluate the final prompt against this frozen case.
 - Captured provider requests for every call type: required context present,
   unrelated/private fields absent, self-contained follow-ups, latest working
   texts used and absorbed instructions retained. Use the isolated provider.
@@ -339,29 +373,8 @@ Acceptance checks:
   keyboard/focus/screen readers, RTL and 360px layout at 200% text size.
 
 Run `scripts/verify.sh` for changes; implementation workflow changes also run
-publication and the isolated browser suite. Paid evaluation requires a budget;
-freeze cases and acceptance criteria before evaluating new prompts or schemas.
-
-## Evidence
-
-The original prototype used three activities, each with one generated text and
-existing questions: 20 planner calls, $0.2598664, all passing its registered
-validation and assistant-reviewed intent checks. This established a useful
-starting contract, not execution correctness or general reliability. Retained
-records: `artifacts/evaluations/revise-planner-2026-10-08/`.
-
-The review added four probes for **$0.0810189 of the authorized $0.30**, with no
-unknown costs:
-
-- Both vocabulary-focus requests changed question guidance but returned
-  `scope: none`. The old rule would retain old questions despite promising a
-  change. Hence question-guidance changes always rebuild questions.
-- A supplied-source fixture with no generated-material targets was accepted
-  with the original schema and with an alternative empty-target schema, once
-  each. No special provider workaround was justified by this sample.
-
-Records: `artifacts/evaluations/activity-chat-review-2026-10-08-jp61rjew/`.
-The review also passed 56 existing race, recovery, resolution and assembly tests;
-these check the current baseline, not this unimplemented design. The final
-planner/context contracts still need evaluation. End-to-end latency and cost
-remain unmeasured; preserve old evidence rather than rewriting it to fit changes.
+publication and the isolated browser suite. Coordinate the full verification
+run with the parent: its `npm ci` can interrupt `scripts/dev.sh`/`ng serve`.
+For doc-only review while development is active, run installed formatting and
+Markdown checks without reinstalling dependencies. Freeze cases and acceptance
+criteria before authorized paid evaluation of the final prompts and schemas.
