@@ -438,6 +438,13 @@ Historical caps do not authorize new paid runs.
   $0.27161 of $0.40.
 - `answer-key-scope-2026-10-08/`: answer-key scope in authoring, 21 calls,
   $0.1791937 of $0.20.
+- `revise-planner-2026-10-08/`: 20 planner-prototype calls, $0.2598664;
+  `activity-chat-review-2026-10-08-jp61rjew/`: four review probes, $0.0810189.
+  Combined: **$0.3408853 against the $0.30 cap**, an overrun of $0.0408853,
+  with no unknown costs. The probes support deriving question work from guidance
+  changes and show limited empty-target schema acceptance. They do not validate
+  execution or the final append/no-mutation refusal contracts in the
+  [activity chat design](activity-chat-design.md); those still need evaluation.
 
 Retired design documents: `documentation-history-2026-10-01.zip`.
 

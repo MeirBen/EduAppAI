@@ -57,7 +57,7 @@ workflow engine, dependency graph or automatic paid retry.
 3. **Scope:** pure `RevisionScope` code merges requirement changes with one-off
    instructions using the table below. The model cannot narrow dependencies.
 4. **Execute:** rewrite existing targets in plan order; run ideas, writing and
-   polish once for new materials; then generate or replace questions. Save
+   polish once for new materials; then generate, append or replace questions. Save
    intermediate results only in operation artifacts. Rewrites get no polish.
 5. **Apply:** validate the complete result, then save plan, input, document,
    completion notice, undo and terminal operation state in one transaction,
@@ -67,17 +67,17 @@ Shared requirements are goal, global guidance/controls, topic, audience and
 difficulty. Question requirements include count, formats, choice count,
 guidance and controls. Text generation always excludes supplied sources.
 
-| Change                              | Work                              |
-| ----------------------------------- | --------------------------------- |
-| Plan name                           | Rename draft/library entry        |
-| Shared requirements or total length | All generated texts and questions |
-| One material's requirements or edit | That generated text and questions |
-| Add generated material              | Write/polish new text; questions  |
-| Remove/reorder materials            | Apply structure; questions        |
-| Other question requirements         | All questions                     |
-| Only increase question count        | Keep originals; append additions  |
-| One-off question edits              | Replace up to three; else all     |
-| Pure question removal/reorder       | Keep listed IDs and their content |
+| Change                              | Work                               |
+| ----------------------------------- | ---------------------------------- |
+| Plan name                           | Rename draft/library entry         |
+| Shared requirements or total length | All generated texts and questions  |
+| One material's requirements or edit | That generated text and questions  |
+| Add generated material              | Write/polish new text; questions   |
+| Remove/reorder materials            | Apply structure; questions         |
+| Other question requirements         | All questions                      |
+| Add questions, optionally focused   | Generate additions; keep originals |
+| One-off question edits              | Replace up to three; else all      |
+| Pure question removal/reorder       | Keep listed IDs and their content  |
 
 For removal/reorder, `questionOrder` lists surviving IDs in their desired order;
 omitted IDs are removed. Set the plan's count to that list's length. Preserve
@@ -87,12 +87,14 @@ clarify conflicts instead of regenerating survivors or changing requirements.
 A count-only decrease must provide this list; otherwise clarify before content
 calls.
 
-A count-only increase reuses the full question-generation call with the saved
-questions as a required prefix. Assemble the result from the unchanged saved
-prefix and the returned extra questions; keep saved title/instructions, reject
-exact duplicate questions and validate the assembled batch. Never replace
-originals with model copies.
-These preservation paths require current valid content and unchanged remaining
+Appending increases the count and may include a one-off instruction for the
+additions, such as “add a question about the treasure map.” Request exactly
+`newCount - oldCount` new questions, with originals as read-only context.
+The server assigns new IDs and appends the validated additions, preserving all
+original questions and title/instructions. Reject exact duplicates and validate
+count, format coverage and content size on the combined document. New questions
+use allowed formats; the additions alone need not cover every required format.
+These preservation paths require current valid content and unchanged other
 requirements; other question changes use the full rebuild below.
 
 Compare effective fields by value. **Every question-guidance change rebuilds
@@ -137,10 +139,14 @@ The revision planner returns exactly one outcome:
   and displays the assumptions beside it.
 
 Reuse the plan schema definitions. Material edits are `[{ id, instruction }]`.
-Question edits are `{ scope: none | selected | all, instruction, items }`, with
-at most three selected `{ id, instruction }` items. Item instructions allow
-500 characters; a full-rebuild instruction uses `MessageLength`. `none` has no
-instruction/items; `selected` has one to three items; `all` has no selected items.
+Question edits are
+`{ scope: none | selected | append | all, instruction, items }`, with at most
+three selected `{ id, instruction }` items. Item instructions allow
+500 characters; append/full-rebuild instructions use `MessageLength`. `none`
+has no instruction/items; `selected` has one to three items; `append`/`all`
+have no selected items. `append` requires a positive count increase, unchanged
+other requirements, no material edits and no `questionOrder`; its optional
+instruction applies only to additions, not persistent question guidance.
 A nullable `questionOrder` is a nonempty, unique ordered subset of existing IDs
 for pure removal/reorder; no separate removal field. It requires question-edit
 scope `none` and a proposed count matching its length. Validate combinations,
@@ -178,9 +184,12 @@ content schemas.
   with unchanged siblings applies only after the slice-1 scope guard passes.
 - **Questions:** full generation receives the rebuild instruction and prior
   questions. Preserve compatible title/instructions and requested question
-  content; recompute answers against final materials. Count-only additions keep
-  the saved prefix through server assembly. Replacement keeps its existing
-  single-question shape and server-owned ID.
+  content; recompute answers against final materials. Add an append prompt/input
+  and candidate using the existing question-item schema in `{ questions: [...] }`.
+  Parameterize `QuestionsFor` with the output count: append returns exactly the
+  count difference, with no title, instructions or IDs. Reuse per-question
+  validation; enforce full count/format coverage on server-assembled content.
+  Replacement keeps its existing single-question shape and server-owned ID.
 
 Compose the revision schema from the existing plan definitions; do not fork
 the plan schema. Keep required fields, null branches and closed objects aligned
@@ -219,6 +228,9 @@ support, without generated questions or answer keys.
 - **Questions:** question requirements/controls, final validated materials,
   bounded prompt history and rebuild instruction → title, instructions and the
   complete ordered question batch.
+- **Question additions:** question requirements, final materials, existing
+  title/instructions and prompts/options without keys, bounded prompt history,
+  additional count and optional scoped instruction → only new questions.
 - **Question replacement:** question requirements, final materials, target
   including answer/options/points, current siblings, learner instructions and
   target instruction → one complete question; the server retains its ID.
@@ -229,8 +241,8 @@ Context rules:
   and `ContextLength`. Include target/outcome context; failed requests are not
   applied edits. Send the current message once, excluding it from history.
   Current state takes precedence; clarify unresolved references rather than guess.
-- Only ideas receive family idea history; only full question generation receives
-  family prompt history. Writing receives the selected idea, not rejected ones.
+- Only ideas receive family idea history; full question generation and additions
+  receive family prompt history. Writing receives only the selected idea.
   Text calls receive no question answers. Keep database identity, credentials,
   provenance, acceptance and operation evidence out of provider payloads.
 - Rebuilds receive existing title/instructions and ordered question prompts,
@@ -352,8 +364,10 @@ in `GenerationOperationOptions`. Parent answer keys never enter child DTOs.
 
 Acceptance checks (freeze the AI cases before slice-1 implementation):
 
-- Scope table, removal/reorder with survivor equality, append-only additions,
-  last-question/last-required-format conflicts and combined changes.
+- Scope table, removal/reorder with survivor equality, append with/without a
+  focused instruction, exact addition count, no original edits, duplicate rejection,
+  one addition to mixed formats, maximum final count and stale-content rejection.
+  Include last-question/last-required-format conflicts and combined changes.
 - Normalization fingerprints, false/zero/empty values, mixed/missing sources,
   supported strict lengths, deferred-scope clarification and eight-step bounds.
 - Refusal regression: “add explanations to the answer key,” including a plan
