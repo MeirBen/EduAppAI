@@ -133,6 +133,16 @@ Rejected or unproven; revisit only with new evidence:
   choice worth about 200 lines of activity code, not a quality lever. The child
   player shows every material, so a pasted source and its adaptation both reach
   the learner.
+- **Hebrew-specialist polish (DictaLM 3.0 24B Thinking on Featherless):** on 35
+  production Hebrew texts it was worse than the Gemini polish in every tested
+  setup. Under the production contract 14 validated, with 0 genuine fixes and 1
+  introduced error against Gemini's 8 fixes and none. It repeatedly turned the
+  text into quiz questions. Narrower inputs with the production prompt validated
+  none of 15 attempts. An exploratory minimal Hebrew prompt validated 25 with 15
+  introduced errors (niqqud added or stripped against requirements, nonsense
+  words) and 8 meaning changes. The integration also needed `max_tokens`,
+  answers read from `message.reasoning`, streaming and disabled SDK retries, and
+  met ~90 s provider caps. No second provider was added.
 - **Earlier provider trials:** model comparisons, provider exclusions and
   shorter material prompts produced no stable quality winner. DeepSeek strict
   authoring remains unverified after contract-description fixes. See
@@ -370,6 +380,10 @@ Historical caps do not authorize new paid runs.
 - `gpt-end-to-end-2026-10-08/`: GPT-6.1 Sol through the evaluation runner and
   the template-schema diagnosis; 25 calls, $0.2703045 of $0.50, no unknown
   costs.
+- `dictalm-polish-2026-10-08/`: DictaLM polish against Gemini; OpenRouter
+  $0.08608 (9 calls), Featherless about $0.09 dashboard-reconciled through the
+  main run plus addenda whose streamed calls report no usage (ledger upper
+  bound $0.2773).
 
 Retired design documents: `documentation-history-2026-10-01.zip`.
 
