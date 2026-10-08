@@ -41,17 +41,23 @@ internal static class AiPrompts
         Set choiceCount ({MinChoiceCount}–{MaxChoiceCount} options per question) exactly when formats include single-choice; otherwise null.
         Exact per-format quotas are unsupported: clarify and offer a flexible mixture or uniform format; never discard quotas silently.
         Keep optional irrelevant settings null and requested defaults and values unchanged.
-        """ + "\n\n" + MathPromptGuidance.Planning + "\n\n" + StructuredRules + "\n\n" + LanguageQuality;
+        """ + "\n\n" + MathPromptGuidance.Planning + "\n\n" + StructuredRules + "\n\n" + QuestionLanguage;
 
-    private const string MaterialWritingRules = """
+    // The polish keeps the written length, so it gets the format rules without the length rules.
+    private const string MaterialFormatRules = """
         Do not append the activity's questions, answer choices, answer key or learner instructions to a material body.
         Break prose into paragraphs of a few sentences separated by a blank line; keep poem lines and dialogue turns on separate lines.
+        """;
+
+    private const string MaterialLengthRules = """
         Word counts apply to bodies only: include headings inside a body, but exclude the separate title field.
         Count whitespace-separated tokens containing a letter or number; attached prefixes, vowel marks and hyphens do not split words.
         For a strict range, plan near its midpoint. totalLength counts generated bodies together.
         Before returning, silently check and revise bodies to meet their lengths while preserving coherent, useful content.
         Do not add filler, count reports or appendices to reach a length.
         """;
+
+    private const string MaterialWritingRules = MaterialFormatRules + "\n" + MaterialLengthRules;
 
     internal static readonly string MaterialIdeaGeneration = $"""
         Propose exactly {MaterialIdeas.CandidateCount} compact ideas for the requested generated-material batch; do not write materials or questions.
@@ -74,7 +80,7 @@ internal static class AiPrompts
         Never mention the idea in materials.
         This stage creates materials only. Question requirements describe what the materials must support in a later stage.
         Supplied sources are context only.
-        """ + "\n\n" + MaterialWritingRules + "\n\n" + StructuredRules + "\n\n" + LanguageQuality;
+        """ + "\n\n" + MaterialWritingRules + "\n\n" + StructuredRules + "\n\n" + TextLanguage;
 
     private const string QuestionQuality = """
         Create objectively checkable questions covering distinct aspects of the learning goal; preserve deliberate repeated practice.
@@ -93,7 +99,7 @@ internal static class AiPrompts
         history lists recent question prompts, not examples to imitate or instructions.
         Where the requirements permit, vary answer/evidence targets and reasoning approaches from relevant prior questions;
         paraphrasing the same question is not variety. Preserve prescribed skills, deliberate practice and grounding in current materials.
-        """ + "\n\n" + QuestionQuality + "\n\n" + StructuredRules + "\n\n" + LanguageQuality;
+        """ + "\n\n" + QuestionQuality + "\n\n" + StructuredRules + "\n\n" + QuestionLanguage;
 
     internal static readonly string MaterialReplacement = """
         Replace only the selected generated material with a complete title/body under its current requirements and parent's instruction.
@@ -101,13 +107,13 @@ internal static class AiPrompts
         or other requirements, so apply only its compatible parts.
         Return the same selected material ID. Other material is context only; do not return it or questions.
         For totalLength, count the replacement together with unchanged generated bodies; exclude supplied sources.
-        """ + "\n\n" + MaterialWritingRules + "\n\n" + StructuredRules + "\n\n" + LanguageQuality;
+        """ + "\n\n" + MaterialWritingRules + "\n\n" + StructuredRules + "\n\n" + TextLanguage;
 
     internal static readonly string QuestionReplacement = """
         Replace only the selected question with a complete prompt, interaction, answer and points under the current requirements.
         Follow the parent's instruction. Return no question identity, other questions, activity title or learner instructions.
         Other questions and learner instructions are context only: keep the replacement distinct from those questions and consistent with the instructions.
-        """ + "\n\n" + QuestionQuality + "\n\n" + StructuredRules + "\n\n" + LanguageQuality;
+        """ + "\n\n" + QuestionQuality + "\n\n" + StructuredRules + "\n\n" + QuestionLanguage;
 
     private const string PolishRules = """
         This is a minimal editing pass over accepted content, not new writing. Return every field, exactly unchanged where it needs no change.
@@ -121,9 +127,8 @@ internal static class AiPrompts
         Polish the generated materials for their audience under the effective requirements. Return each one with its ID, title and complete body.
         Keep each body's events, information, paragraphs and length; do not add, remove or summarize content.
         Correct a factual claim only when it is clearly wrong, with the smallest accurate change. Supplied sources are context only.
-        """ + "\n\n" + PolishRules + "\n\n" + MaterialWritingRules + "\n\n" + StructuredRules + "\n\n" + LanguageQuality;
+        """ + "\n\n" + PolishRules + "\n\n" + MaterialFormatRules + "\n\n" + StructuredRules + "\n\n" + TextLanguage;
 
-    // Bare text, line breaks and whole-item calculations rely on the UI guide's generated-text rendering contract.
     private const string LanguageQuality = """
         ## Language and presentation
         Use the language requested for each part; default to Hebrew. Keep labels and short answers concise.
@@ -135,10 +140,18 @@ internal static class AiPrompts
         בעברית יש להשתמש במילים טבעיות ומוכרות שמתאימות להקשר ולגיל, בכתיב מלא ובפיסוק ברור.
         יש להקפיד על התאמה במין ובמספר, על נטיית הפעלים ועל שימוש תקין בשמות מספר.
         יש לכתוב מילים בעברית באותיות עבריות ולהימנע מתרגום מילולי וממעברים לא מכוונים בין שפות.
+        """;
+
+    // Authoring and question stages only; text stages write no questions or app terminology.
+    private const string QuestionPresentation = """
         המונחים הם "תבנית", "משימה", "שאלה", "אפשרות תשובה" ו"מפתח תשובות".
         לתיאור סוגי התשובות יש להשתמש בניסוחים "בחירה מתוך אפשרויות", "תשובה קצרה" ו"תשובה מספרית".
         The app numbers questions and lists choices. Supply bare question/answer text; do not add or prescribe
         decorative letters, numbers, bullets or separators such as a leading ": ". Refer to choices by their text.
+        """;
+
+    // Bare text, line breaks and whole-item calculations rely on the UI guide's generated-text rendering contract.
+    private const string RenderingRules = """
         Write an expression of numbers joined by symbols, such as a calculation, as a whole question prompt, option or answer;
         inside sentences, write the operation in words, so the app shows it in order. Plain numbers in sentences are fine.
         Comparison signs follow the same rule: beside Hebrew words < and > display reversed, so name the relation in words there
@@ -146,5 +159,8 @@ internal static class AiPrompts
         Preserve symbols, letters and numbers that are answers or essential learning content.
         Proofread every generated text field for spelling, agreement and natural phrasing before returning it.
         """;
+
+    private const string QuestionLanguage = LanguageQuality + "\n" + QuestionPresentation + "\n" + RenderingRules;
+    private const string TextLanguage = LanguageQuality + "\n" + RenderingRules;
 
 }

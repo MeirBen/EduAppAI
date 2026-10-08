@@ -104,8 +104,19 @@ Retained:
   to 28, with requested inference kept and no wrong keys. The grade-7 control
   also lost its two far questions; watch older audiences.
 
+- **Stage-scoped language rules (revision 37):** text writing, rewrite and
+  polish no longer receive the question-only lines (app terms, answer-type
+  names, question numbering), and the polish no longer receives the writing
+  length rules that contradicted "keep the length". Authoring, ideas and
+  question prompts are byte-identical. On 9 write-then-polish pairs the package
+  caused no validation, Hebrew or content regression.
+
 Rejected or unproven; revisit only with new evidence:
 
+- **Plain-language writing sentence:** "write in plain, everyday language ...;
+  use a harder word only when the text teaches it". With the cleanup it cut
+  hard or formal words from 20 to 16 over 9 pairs and won 5 of 6 decided
+  pairs, short of the registered 30% bar; not adopted.
 - **Question polish:** the same pass over questions, with code guards keeping
   formats, points, option positions, keys and numbers, was safe (0 of 53
   rejected, no harmful edit) but barely simplified wording: formal words per
@@ -413,6 +424,7 @@ Historical caps do not authorize new paid runs.
   $0.60.
 - `question-level-2026-10-08/`: question thinking level, 18 calls, $0.27386 of
   $0.50.
+- `text-prompts-2026-10-08/`: text prompt cleanup, 36 calls, $0.34465 of $0.50.
 
 Retired design documents: `documentation-history-2026-10-01.zip`.
 
