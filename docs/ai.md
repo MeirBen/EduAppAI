@@ -205,6 +205,11 @@ Gemini passed the same plan. The owner made the switch; a wider read of real
 activities is still advised, since Sol edited worst of the three and its
 grade-1 niqqud is not error-free.
 
+Effort stays medium. On fixed inputs, high cost about 1.8 times as much and took
+twice as long (15 s against 28 s median) for no writing or question gain: 5
+issues against 4 over 10 blind pairs. Its polish fixed 3 of 4 labelled errors
+against 1 of 4, on only three texts; the app has no per-stage effort.
+
 ## Configuration
 
 [appsettings.json](../backend/FamilyLearning.Api/appsettings.json) holds the
@@ -395,6 +400,8 @@ Historical caps do not authorize new paid runs.
 - `sol-strict-switch-2026-10-08/`: template-schema diagnosis and the strict
   verification runs before the switch (Sol $0.0791635, Gemini $0.0652965, plus
   a few cents of schema probes).
+- `sol-effort-2026-10-08/`: medium against high effort, 17 calls, $0.31071 of
+  $0.60.
 
 Retired design documents: `documentation-history-2026-10-01.zip`.
 
