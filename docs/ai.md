@@ -95,6 +95,15 @@ Retained:
   formal words. Cost is about $0.010 per text, median 15 seconds (35 at p90);
   later runs measured a 26–27 second median.
 
+- **Question thinking level (revision 36):** GPT-6.1 Sol pushed inference too
+  far for young readers; one owner grade-3 easy set had 6 of 10 questions with
+  hypotheticals, judged claims or the author's purpose. One sentence now matches
+  the thinking to audience and difficulty and keeps inference close to the text
+  for young readers and easy activities. On 18 fixed-text sets, far questions on
+  grade 1–3 easy inputs fell from 4 of 46 to 0 and near inference rose from 24
+  to 28, with requested inference kept and no wrong keys. The grade-7 control
+  also lost its two far questions; watch older audiences.
+
 Rejected or unproven; revisit only with new evidence:
 
 - **Question polish:** the same pass over questions, with code guards keeping
@@ -402,6 +411,8 @@ Historical caps do not authorize new paid runs.
   a few cents of schema probes).
 - `sol-effort-2026-10-08/`: medium against high effort, 17 calls, $0.31071 of
   $0.60.
+- `question-level-2026-10-08/`: question thinking level, 18 calls, $0.27386 of
+  $0.50.
 
 Retired design documents: `documentation-history-2026-10-01.zip`.
 

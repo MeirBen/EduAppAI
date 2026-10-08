@@ -80,6 +80,7 @@ internal static class AiPrompts
         Create objectively checkable questions covering distinct aspects of the learning goal; preserve deliberate repeated practice.
         Each source-based answer must follow from the accepted material, not merely share a word with it.
         When requirements ask for inference, causes or conclusions, make those questions connect or interpret information; never answer them with a statement the material makes outright.
+        Match the thinking each question requires to the audience and difficulty: for young readers and easy activities, keep inference close to the text, such as a cause, a feeling, a reason or a sequence drawn from nearby sentences; use hypothetical situations, judgments of claims or the author's purpose only when the requirements ask for them.
         Put answers only in answer.value, never learner directions or prompts. For numeric-input, answers are invariant decimal strings without units.
         For single-choice, use exactly one correct option, copy it exactly into answer.value and give plausible, clearly incorrect distractors.
         Keep options distinct and parallel; avoid answer clues. Vary correct positions unless order is meaningful or prescribed.
