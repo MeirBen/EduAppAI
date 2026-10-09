@@ -522,10 +522,19 @@ For the final activity-only contract, preview the fixed probe:
 This separate probe runs eight synthetic cases, at most 17 calls, through the
 production engine and native adapter: empty/populated revision targets,
 authoring defaults and unsupported extras, reply/refusal, metadata rename,
-new-only writing/polish beside retained texts, and question append. It does not
-exercise the worker/API or establish content quality. It has no retry, judge,
-fallback or schema downgrade and stops on a failed expectation. Keep the
-production strict schema, medium reasoning and 16,384 output-token profile.
+new-only writing/polish beside retained texts, and question append.
+`--protocol edits` instead runs eight everyday chat edits on one current
+grade-3 story, also at most 17 calls: a topic change, a poem with the same
+plot, a half-length story, an easier replacement for a targeted question,
+removing a named question, a focused added question, a vocabulary focus and a
+decrease that names no question. Each case checks the scope the server derives,
+then runs the worker's stages and checks that untouched content keeps its IDs
+and text; wording checks run last. The guard reserves about $0.21 per call, so
+a budget must exceed the expected spend by one reservation for the last call to
+start. Neither protocol exercises the worker/API or establishes content quality.
+They have no retry, judge, fallback or schema downgrade and stop on a failed
+expectation. Keep the production strict schema, medium reasoning and 16,384
+output-token profile.
 Probe-only routing selects standard OpenAI and caps prices at $2/M input and
 $10/M output; requests are bounded to 64 KiB, never truncated. Reserve each
 call's wire byte count plus 4,096 input tokens and all allowed output tokens

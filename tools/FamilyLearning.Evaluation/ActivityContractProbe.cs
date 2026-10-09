@@ -6,7 +6,7 @@ using FamilyLearning.Api.TaskEngine.Validation;
 
 namespace FamilyLearning.Evaluation;
 
-/// <summary>Fixed, synthetic acceptance protocol; never used by the application or normal evaluation runs.</summary>
+/// <summary>Fixed, synthetic acceptance protocols; never used by the application or normal evaluation runs.</summary>
 internal static class ActivityContractProbe
 {
     internal static readonly ActivityProbeScenario[] Protocol =
@@ -21,41 +21,65 @@ internal static class ActivityContractProbe
         new("append-two", "הוסף עוד שתי שאלות מאותו סוג, בלי לשנות או להסיר את שתי השאלות הקיימות ובלי לשנות שום דרישה אחרת.", ["revise", "append-questions"])
     ];
 
+    /// <summary>Everyday chat edits on one generated story, ordered by information value because a run stops at its first failed check.</summary>
+    internal static readonly ActivityProbeScenario[] EditProtocol =
+    [
+        new("topic-pirates", "תעשה שהסיפור יהיה על פיראטים במקום על גינה.", ["revise", "rewrite-material", "questions"]),
+        new("poem-same-plot", "תהפוך את הסיפור לשיר מחורז, עם אותה עלילה ואותן דמויות.", ["revise", "rewrite-material", "questions"]),
+        new("shorten-half", "הסיפור ארוך מדי. תקצר אותו לבערך חצי מהאורך.", ["revise", "rewrite-material", "questions"]),
+        new("replace-easier", "השאלה הזאת קשה מדי. תחליף אותה בשאלה קלה יותר.", ["revise", "revise-question"]),
+        new("remove-third", "תמחק את השאלה השלישית.", ["revise"]),
+        new("add-focused", "תוסיף שאלה על הצבע של פרחי החמנייה.", ["revise", "append-questions"]),
+        new("vocabulary-focus", "שהשאלות יתמקדו באוצר מילים מהסיפור.", ["revise", "questions"]),
+        new("decrease-unspecified", "תוריד שאלה אחת.", ["revise"])
+    ];
+
+    internal static ActivityProbeScenario[] Select(string name) => name switch
+    {
+        "contract" => Protocol,
+        "edits" => EditProtocol,
+        _ => throw new ArgumentException("Unknown probe protocol.")
+    };
+
+    internal static Task RunAsync(string name, AiGenerationService service, ActivityProbeReport report, Func<Task> save, CancellationToken ct) =>
+        name == "edits" ? RunEditsAsync(service, report, save, ct) : RunAsync(service, report, save, ct);
+
     internal static async Task RunAsync(AiGenerationService service, ActivityProbeReport report, Func<Task> save, CancellationToken ct)
     {
+        var session = new ProbeSession(service, report, save, Protocol, ct);
         var numeric = Numeric();
         var (mixedPlan, mixedDocument) = Mixed();
         var (unsupportedPlan, unsupportedDocument) = Mixed("יש להוסיף הסבר לכל תשובה במפתח התשובות.");
         var numericDocument = Questions(numeric, TaskAssembly.CreateDocument(Resolve(numeric)));
         report.Fixtures = JsonSerializer.SerializeToElement(new { numeric, numericDocument, mixedPlan, mixedDocument, unsupportedPlan, unsupportedDocument }, EvaluationFiles.Json);
-        var current = Begin("empty-clarification", numeric, TaskAssembly.CreateDocument(Resolve(numeric)));
-        var decision = await Revise();
+        var current = session.Begin("empty-clarification", numeric, TaskAssembly.CreateDocument(Resolve(numeric)));
+        var decision = await session.Revise();
         Require(decision.Clarification is not null && decision.Change is null, "empty-clarification");
-        await Finish(numeric, current.BeforeDocument);
+        await session.Finish(numeric, current.BeforeDocument);
 
-        current = Begin("author-grade3-create");
-        var authored = await Call("author", evidence => service.AuthorAsync(new(current.Message), ct, evidence));
+        current = session.Begin("author-grade3-create");
+        var authored = await session.Call("author", evidence => service.AuthorAsync(new(current.Message), ct, evidence));
         var plan = RequireAuthored(authored.Value, "easy");
         Require(authored.Value.Assumptions.Length > 0, "unsupported-extra-assumption");
         var document = TaskAssembly.CreateDocument(Resolve(plan));
-        document = await Generate(plan, document, RevisionScope.ForCreate(plan, document));
-        await Finish(plan, document);
+        document = await session.Generate(plan, document, RevisionScope.ForCreate(plan, document));
+        await session.Finish(plan, document);
 
-        current = Begin("author-grade4");
-        authored = await Call("author", evidence => service.AuthorAsync(new(current.Message), ct, evidence));
-        await Finish(RequireAuthored(authored.Value, "medium"), null);
+        current = session.Begin("author-grade4");
+        authored = await session.Call("author", evidence => service.AuthorAsync(new(current.Message), ct, evidence));
+        await session.Finish(RequireAuthored(authored.Value, "medium"), null);
 
         foreach (var id in new[] { "answer", "unsupported-refusal" })
         {
-            current = id == "unsupported-refusal" ? Begin(id, unsupportedPlan, unsupportedDocument) : Begin(id, mixedPlan, mixedDocument);
-            decision = await Revise();
+            current = id == "unsupported-refusal" ? session.Begin(id, unsupportedPlan, unsupportedDocument) : session.Begin(id, mixedPlan, mixedDocument);
+            decision = await session.Revise();
             Require(decision.Change is null && (decision.Answer is not null ||
                 id == "unsupported-refusal" && decision.Clarification is not null), id);
-            await Finish(current.BeforePlan!, current.BeforeDocument);
+            await session.Finish(current.BeforePlan!, current.BeforeDocument);
         }
 
-        current = Begin("label-only", mixedPlan, mixedDocument);
-        decision = await Revise();
+        session.Begin("label-only", mixedPlan, mixedDocument);
+        decision = await session.Revise();
         var change = RequireChange(decision);
         var expected = mixedPlan with { Materials = [mixedPlan.Materials[0] with { Label = "טקסט הגינה" }, .. mixedPlan.Materials.Skip(1)] };
         Require(Equal(expected, change.Plan), "label-only-plan");
@@ -63,10 +87,10 @@ internal static class ActivityContractProbe
         Require(work.NewMaterials.Length == 0 && work.Rewrites.Length == 0 && work.Questions == "none" && work.Clarification is null, "label-only-scope");
         document = RevisionScope.PrepareDocument(mixedPlan, mixedDocument, change.Plan, work);
         Require(SameContent(mixedDocument, document), "label-only-content");
-        await Finish(change.Plan, document);
+        await session.Finish(change.Plan, document);
 
-        current = Begin("new-text-only", mixedPlan, mixedDocument);
-        decision = await Revise();
+        session.Begin("new-text-only", mixedPlan, mixedDocument);
+        decision = await session.Revise();
         change = RequireChange(decision);
         work = RevisionScope.Derive(mixedPlan, mixedDocument, change);
         Require(work.NewMaterials.Length == 1 && work.Rewrites.Length == 0 && work.Questions == "all" && work.Clarification is null, "new-text-only-scope");
@@ -78,32 +102,120 @@ internal static class ActivityContractProbe
         };
         Require(Equal(mixedPlan, retainedPlan), "retained-plan");
         document = RevisionScope.PrepareDocument(mixedPlan, mixedDocument, change.Plan, work);
-        document = await Generate(change.Plan, document, work);
+        document = await session.Generate(change.Plan, document, work);
         Require(mixedDocument.Materials.All(before => document.Materials.Any(after =>
             after.Id == before.Id && after.Body == before.Body && after.Title == before.Title && after.Revision == before.Revision)), "retained-materials");
-        await Finish(change.Plan, document);
+        await session.Finish(change.Plan, document);
 
-        current = Begin("append-two", numeric, numericDocument);
-        decision = await Revise();
+        session.Begin("append-two", numeric, numericDocument);
+        decision = await session.Revise();
         change = RequireChange(decision);
         work = RevisionScope.Derive(numeric, numericDocument, change);
         Require(work.Questions == "append" && work.Rewrites.Length == 0 && work.NewMaterials.Length == 0 && work.Clarification is null &&
             change.Plan.Settings.QuestionCount == 4, "append-scope");
         document = RevisionScope.PrepareDocument(numeric, numericDocument, change.Plan, work);
         var addition = new QuestionAdditionInput(Resolve(change.Plan), document, 2, work.Instruction);
-        var appended = await Call("append-questions", evidence => service.AppendQuestionsAsync(addition, [], ct, evidence));
+        var appended = await session.Call("append-questions", evidence => service.AppendQuestionsAsync(addition, [], ct, evidence));
         document = TaskAssembly.AppendQuestions(addition, appended.Value, appended.Metadata);
         Require(document.Questions.Length == 4 && SameContent(numericDocument, document with { Questions = document.Questions[..2] }), "append-originals");
-        await Finish(change.Plan, document);
+        await session.Finish(change.Plan, document);
+    }
 
-        ActivityProbeCase Begin(string id, LearningPlan? beforePlan = null, TaskDocument? before = null)
+    /// <summary>Checks the scope each everyday request derives, then runs exactly the stages the worker would and keeps untouched content.</summary>
+    internal static async Task RunEditsAsync(AiGenerationService service, ActivityProbeReport report, Func<Task> save, CancellationToken ct)
+    {
+        var session = new ProbeSession(service, report, save, EditProtocol, ct);
+        var (plan, document) = Story();
+        report.Fixtures = JsonSerializer.SerializeToElement(new { plan, document }, EvaluationFiles.Json);
+        var story = document.Materials[0];
+        var questions = document.Questions;
+
+        // Shared and text requirement changes rewrite the existing text from its body, then rebuild every question.
+        foreach (var id in new[] { "topic-pirates", "poem-same-plot", "shorten-half" })
         {
-            var result = new ActivityProbeCase(id, Protocol.Single(item => item.Id == id).Message, beforePlan, before);
-            report.Cases.Add(result);
-            return result;
+            session.Begin(id, plan, document);
+            var change = RequireChange(await session.Revise());
+            var work = RevisionScope.Derive(plan, document, change);
+            Require(work.Clarification is null && work.NewMaterials.Length == 0 && work.Rewrites.Length == 1 && work.Rewrites[0].Id == story.Id &&
+                work.Questions == "all", id + "-scope");
+            var settings = change.Plan.Settings;
+            Require(settings.Audience == plan.Settings.Audience && settings.QuestionCount == plan.Settings.QuestionCount &&
+                change.Plan.Questions.Formats.SequenceEqual(plan.Questions.Formats) && (id == "topic-pirates" || settings.Topic == plan.Settings.Topic),
+                id + "-retained-requirements");
+            var result = await session.Execute(plan, document, change, work);
+            Require(result.Questions.All(rebuilt => questions.All(old => old.Id != rebuilt.Id)), id + "-questions-rebuilt");
+            var body = result.Materials[0].Body;
+            // Wording checks run last, so a scope miss is never hidden behind a phrasing miss.
+            Require(id switch
+            {
+                "topic-pirates" => body.Contains("פיראט"),
+                "poem-same-plot" => body.Contains("נועה") && body.Split('\n', StringSplitOptions.RemoveEmptyEntries).Length >= 4,
+                _ => TextLength.CountWords(body) <= TextLength.CountWords(story.Body) * 0.7
+            }, id + "-text");
+            await session.Finish(change.Plan, result);
         }
 
-        async Task Finish(LearningPlan acceptedPlan, TaskDocument? acceptedDocument)
+        var third = questions[2].Id;
+        session.Begin("replace-easier", plan, document, new("question", third));
+        var replace = RequireChange(await session.Revise());
+        var replaceWork = RevisionScope.Derive(plan, document, replace);
+        Require(replaceWork.Clarification is null && replaceWork.Rewrites.Length == 0 && replaceWork.Questions == "selected" &&
+            replaceWork.QuestionEdits.Select(edit => edit.Id).SequenceEqual([third]) && SameRequirements(plan, replace.Plan), "replace-scope");
+        var replaced = await session.Execute(plan, document, replace, replaceWork);
+        Require(replaced.Questions.Select(q => q.Id).SequenceEqual(questions.Select(q => q.Id)) && SameMaterials(document, replaced) &&
+            SameQuestions(questions[..2], replaced.Questions[..2]) && replaced.Questions[2].Prompt != questions[2].Prompt, "replace-content");
+        await session.Finish(replace.Plan, replaced);
+
+        session.Begin("remove-third", plan, document);
+        var remove = RequireChange(await session.Revise());
+        var removeWork = RevisionScope.Derive(plan, document, remove);
+        Require(removeWork.Clarification is null && removeWork.Questions == "preserve" && remove.Plan.Settings.QuestionCount == 2 &&
+            remove.QuestionOrder is { } order && order.SequenceEqual(questions[..2].Select(q => q.Id)), "remove-scope");
+        var removed = await session.Execute(plan, document, remove, removeWork);
+        Require(SameMaterials(document, removed) && SameQuestions(questions[..2], removed.Questions), "remove-content");
+        await session.Finish(remove.Plan, removed);
+
+        session.Begin("add-focused", plan, document);
+        var add = RequireChange(await session.Revise());
+        var addWork = RevisionScope.Derive(plan, document, add);
+        Require(addWork.Clarification is null && addWork.Questions == "append" && addWork.Rewrites.Length == 0 && add.Plan.Settings.QuestionCount == 4 &&
+            !string.IsNullOrWhiteSpace(addWork.Instruction), "add-scope");
+        var added = await session.Execute(plan, document, add, addWork);
+        Require(added.Questions.Length == 4 && SameMaterials(document, added) && SameQuestions(questions, added.Questions[..3]), "add-originals");
+        Require(added.Questions[3].Prompt.Contains("צבע") || added.Questions[3].Prompt.Contains("צהוב"), "add-focus");
+        await session.Finish(add.Plan, added);
+
+        session.Begin("vocabulary-focus", plan, document);
+        var vocabulary = RequireChange(await session.Revise());
+        var vocabularyWork = RevisionScope.Derive(plan, document, vocabulary);
+        Require(vocabularyWork.Clarification is null && vocabularyWork.Questions == "all" && vocabularyWork.Rewrites.Length == 0 &&
+            vocabularyWork.NewMaterials.Length == 0, "vocabulary-scope");
+        var rebuilt = await session.Execute(plan, document, vocabulary, vocabularyWork);
+        Require(SameMaterials(document, rebuilt) && rebuilt.Questions.All(q => questions.All(old => old.Id != q.Id)), "vocabulary-content");
+        await session.Finish(vocabulary.Plan, rebuilt);
+
+        // Choosing which question to remove is the parent's decision: the planner or the derived scope must ask.
+        session.Begin("decrease-unspecified", plan, document);
+        var decision = await session.Revise();
+        Require(decision.Clarification is not null ||
+            decision.Change is { } guessed && RevisionScope.Derive(plan, document, guessed).Clarification is not null, "decrease-clarification");
+        await session.Finish(plan, document);
+    }
+
+    /// <summary>One run: records each case and call and stops at the first failed expectation.</summary>
+    private sealed class ProbeSession(AiGenerationService service, ActivityProbeReport report, Func<Task> save,
+        ActivityProbeScenario[] protocol, CancellationToken ct)
+    {
+        private ActivityProbeCase current = null!;
+
+        internal ActivityProbeCase Begin(string id, LearningPlan? beforePlan = null, TaskDocument? before = null, RevisionTarget? target = null)
+        {
+            current = new ActivityProbeCase(id, protocol.Single(item => item.Id == id).Message, beforePlan, before, target);
+            report.Cases.Add(current);
+            return current;
+        }
+
+        internal async Task Finish(LearningPlan acceptedPlan, TaskDocument? acceptedDocument)
         {
             if (acceptedDocument is not null && current.Id != "empty-clarification")
                 Require(TaskDocumentValidator.ValidateRelease(Resolve(acceptedPlan), acceptedDocument).Count == 0, "release-validation");
@@ -113,10 +225,10 @@ internal static class ActivityContractProbe
             await save();
         }
 
-        async Task<RevisionDecision> Revise() => (await Call("revise", evidence => service.ReviseAsync(
-            new(current.BeforePlan!, current.BeforeDocument!, current.Message), ct, evidence))).Value;
+        internal async Task<RevisionDecision> Revise() => (await Call("revise", evidence => service.ReviseAsync(
+            new(current.BeforePlan!, current.BeforeDocument!, current.Message, current.Target), ct, evidence))).Value;
 
-        async Task<AiResult<T>> Call<T>(string stage, Func<AiCallEvidence, Task<AiResult<T>>> operation)
+        internal async Task<AiResult<T>> Call<T>(string stage, Func<AiCallEvidence, Task<AiResult<T>>> operation)
         {
             ct.ThrowIfCancellationRequested();
             if (report.Steps.Count >= ActivityProbeTransport.MaxCalls) throw new InvalidOperationException("Probe call limit reached.");
@@ -134,7 +246,8 @@ internal static class ActivityContractProbe
             finally { await save(); }
         }
 
-        async Task<TaskDocument> Generate(LearningPlan requirements, TaskDocument before, RevisionWork scope)
+        /// <summary>New texts get ideas, writing and polish; then the complete question batch is generated.</summary>
+        internal async Task<TaskDocument> Generate(LearningPlan requirements, TaskDocument before, RevisionWork scope)
         {
             var request = Resolve(requirements);
             var materials = new MaterialGenerationInput(request, before.Materials, scope.NewMaterials);
@@ -152,6 +265,44 @@ internal static class ActivityContractProbe
             var questions = await Call("questions", evidence => service.GenerateQuestionsAsync(questionInput, [], ct, evidence));
             return TaskAssembly.AcceptQuestions(request, working, questions.Value, questions.Metadata);
         }
+
+        /// <summary>Mirrors <c>GenerationWorker</c>: preparation, existing-text rewrites in plan order, then one question stage.</summary>
+        internal async Task<TaskDocument> Execute(LearningPlan before, TaskDocument document, RevisionChange change, RevisionWork work)
+        {
+            if (work.NewMaterials.Length > 0) throw new InvalidOperationException("The edit protocol does not add texts.");
+            var input = Resolve(change.Plan);
+            var working = RevisionScope.PrepareDocument(before, document, change.Plan, work);
+            for (var index = 0; index < work.Rewrites.Length; index++)
+            {
+                var rewrite = work.Rewrites[index];
+                var rewriteInput = new MaterialReplacementInput(input, new TaskDocument("", null, working.Materials, []), rewrite.Id, rewrite.Instruction,
+                    work.Rewrites.Skip(index + 1).Select(r => r.Id).ToArray());
+                var rewritten = await Call("rewrite-material", evidence => service.ReplaceMaterialAsync(rewriteInput, ct, evidence));
+                working = working with { Materials = TaskAssembly.ReplaceMaterial(rewriteInput, rewritten.Value, rewritten.Metadata).Materials };
+            }
+            switch (work.Questions)
+            {
+                case "all":
+                    var request = TaskAssembly.PrepareQuestions(input, new TaskDocument("", null, working.Materials, [])) with
+                    { Current = working, Instruction = work.Instruction };
+                    var questions = await Call("questions", evidence => service.GenerateQuestionsAsync(request, [], ct, evidence));
+                    return TaskAssembly.AcceptQuestions(input, working, questions.Value, questions.Metadata);
+                case "append":
+                    var addition = new QuestionAdditionInput(input, working, input.Settings.QuestionCount - working.Questions.Length, work.Instruction);
+                    var appended = await Call("append-questions", evidence => service.AppendQuestionsAsync(addition, [], ct, evidence));
+                    return TaskAssembly.AppendQuestions(addition, appended.Value, appended.Metadata);
+                case "selected":
+                    foreach (var edit in work.QuestionEdits)
+                    {
+                        var replacement = new QuestionReplacementInput(input, working, edit.Id, edit.Instruction);
+                        var replaced = await Call("revise-question", evidence => service.ReplaceQuestionAsync(replacement, ct, evidence));
+                        working = TaskAssembly.ReplaceQuestion(replacement, replaced.Value, replaced.Metadata);
+                    }
+                    return working;
+                default:
+                    return working;
+            }
+        }
     }
 
     private static LearningPlan RequireAuthored(AuthoringReply reply, string difficulty)
@@ -165,13 +316,18 @@ internal static class ActivityContractProbe
     private static void Require(bool condition, string check) { if (!condition) throw new ActivityProbeCheckException(check); }
     private static bool Equal<T>(T left, T right) => JsonSerializer.Serialize(left, EvaluationFiles.Json) == JsonSerializer.Serialize(right, EvaluationFiles.Json);
     private static bool SameContent(TaskDocument left, TaskDocument right) => Equal(Project(left), Project(right));
+    private static bool SameMaterials(TaskDocument left, TaskDocument right) => Equal(Materials(left), Materials(right));
+    private static bool SameQuestions(DocumentQuestion[] left, DocumentQuestion[] right) => Equal(QuestionContent(left), QuestionContent(right));
+    private static bool SameRequirements(LearningPlan left, LearningPlan right) => Equal(left with { Name = right.Name }, right);
     private static object Project(TaskDocument document) => new
     {
         document.Title,
         document.Instructions,
-        materials = document.Materials.Select(m => new { m.Id, m.Revision, m.Title, m.Body }),
-        questions = document.Questions.Select(q => new { q.Id, q.Prompt, q.Interaction, q.Answer, q.Points })
+        materials = Materials(document),
+        questions = QuestionContent(document.Questions)
     };
+    private static object Materials(TaskDocument document) => document.Materials.Select(m => new { m.Id, m.Revision, m.Title, m.Body }).ToArray();
+    private static object QuestionContent(DocumentQuestion[] questions) => questions.Select(q => new { q.Id, q.Prompt, q.Interaction, q.Answer, q.Points }).ToArray();
     private static ResolvedTaskRequest Resolve(LearningPlan plan) => TaskRequestResolver.ResolveOrThrow(plan);
     private static LearningPlan Numeric() => new("תרגול חיבור", "חיבור מספרים עד 10", "", new("חיבור", "כיתה ג׳", "easy", 2), [], new(["numeric-input"], null, ""));
     private static TaskDocument Questions(LearningPlan plan, TaskDocument document) => TaskAssembly.AcceptQuestions(Resolve(plan), document,
@@ -194,6 +350,30 @@ internal static class ActivityContractProbe
         var document = TaskAssembly.AcceptMaterials(request, TaskAssembly.CreateDocument(request), new([new(plan.Materials[0].Id!, "הגינה", "דני שתל פרח בגינה. הוא השקה אותו בכל בוקר.")])).Document!;
         return (plan, Questions(plan, document));
     }
+
+    /// <summary>A current grade-3 story with a named character, concrete numbers and three short-answer questions.</summary>
+    private static (LearningPlan, TaskDocument) Story()
+    {
+        var plan = Numeric() with
+        {
+            Name = "החמנייה של נועה",
+            Goal = "הבנת הנקרא",
+            Settings = new("גינה", "כיתה ג׳", "easy", 3),
+            Questions = new(["text-input"], null, ""),
+            Materials = [new("33333333333333333333333333333333", "סיפור", "generated", "סיפור קצר על ילדה ששותלת פרח בגינה", null, new("target", 50))]
+        };
+        var request = Resolve(plan);
+        var document = TaskAssembly.AcceptMaterials(request, TaskAssembly.CreateDocument(request), new([new(plan.Materials[0].Id!, "החמנייה של נועה",
+            "נועה קיבלה מסבתא שקית קטנה של זרעי חמנייה. בבוקר היא חפרה גומה בפינת הגינה, שמה בה שלושה זרעים וכיסתה אותם באדמה.\n\n" +
+            "כל יום אחרי בית הספר השקתה נועה את האדמה בעדינות. אחרי שבוע הופיעו שני נבטים ירוקים, ונועה רצה לספר לסבתא.\n\n" +
+            "בסוף הקיץ צמחה חמנייה גבוהה, ופרחיה הצהובים פנו אל השמש.")])).Document!;
+        return (plan, TaskAssembly.AcceptQuestions(request, document, new("החמנייה של נועה", "קראו את הסיפור וענו על השאלות.",
+        [
+            new("מה קיבלה נועה מסבתא?", new("text-input"), new("זרעי חמנייה"), 1),
+            new("כמה זרעים שמה נועה בגומה?", new("text-input"), new("שלושה"), 1),
+            new("מה עשתה נועה כל יום אחרי בית הספר?", new("text-input"), new("השקתה את האדמה"), 1)
+        ])));
+    }
 }
 
 internal sealed record ActivityProbeScenario(string Id, string Message, string[] Stages);
@@ -213,7 +393,7 @@ internal sealed class ActivityProbeReport
     public List<ActivityProbeStage> Steps { get; } = [];
 }
 
-internal sealed record ActivityProbeCase(string Id, string Message, LearningPlan? BeforePlan, TaskDocument? BeforeDocument)
+internal sealed record ActivityProbeCase(string Id, string Message, LearningPlan? BeforePlan, TaskDocument? BeforeDocument, RevisionTarget? Target = null)
 {
     public bool Passed { get; set; }
     public LearningPlan? Plan { get; set; }

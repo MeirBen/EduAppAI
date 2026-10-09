@@ -9,7 +9,7 @@ using Microsoft.Extensions.Options;
 
 namespace FamilyLearning.Evaluation;
 
-/// <summary>Preview-first command for the fixed activity contract probe, separate from the normal evaluation report format.</summary>
+/// <summary>Preview-first command for the fixed activity probes, separate from the normal evaluation report format.</summary>
 internal static class ActivityProbeCommand
 {
     internal static async Task<int> RunAsync(string[] args)
@@ -17,6 +17,7 @@ internal static class ActivityProbeCommand
         var live = false;
         decimal? budget = null;
         var output = "artifacts/evaluations";
+        var name = "contract";
         var seen = new HashSet<string>(StringComparer.Ordinal);
         for (var index = 0; index < args.Length; index++)
         {
@@ -27,11 +28,14 @@ internal static class ActivityProbeCommand
             if (flag == "--budget-usd" && decimal.TryParse(args[index], NumberStyles.AllowDecimalPoint, CultureInfo.InvariantCulture, out var amount) && amount is > 0 and <= 6)
                 budget = amount;
             else if (flag == "--output" && !string.IsNullOrWhiteSpace(args[index])) output = args[index];
+            else if (flag == "--protocol" && args[index] is "contract" or "edits") name = args[index];
             else throw new ArgumentException("Invalid probe flag or value.");
         }
         if (live && budget is null) throw new ArgumentException("Live probe requires an explicit budget.");
-        var protocol = ActivityContractProbe.Protocol;
-        Console.WriteLine("Activity contract probe: 8 synthetic cases, at most 17 calls, one repetition; no retries or judge.");
+        var protocol = ActivityContractProbe.Select(name);
+        var maxCalls = protocol.Sum(item => item.Stages.Length);
+        if (maxCalls > ActivityProbeTransport.MaxCalls) throw new InvalidOperationException("Probe protocol exceeds the transport call limit.");
+        Console.WriteLine($"Activity {name} probe: {protocol.Length} synthetic cases, at most {maxCalls} calls, one repetition; no retries or judge.");
         foreach (var item in protocol) Console.WriteLine($"  {item.Id}: {string.Join(", ", item.Stages)} ({item.Stages.Length})\n    {item.Message}");
         Console.WriteLine("Strict Sol / medium / 16,384 output tokens; standard OpenAI only, no provider fallback, $2/M input and $10/M output routing caps.");
         Console.WriteLine("64 KiB request limit; reserve before each call, retaining unknown costs. Maximum calculated reserve: $5.152768; lower budgets may stop early.");
@@ -39,7 +43,7 @@ internal static class ActivityProbeCommand
 
         var builder = Host.CreateApplicationBuilder(new HostApplicationBuilderSettings { Args = [], ContentRootPath = AppContext.BaseDirectory });
         builder.Logging.ClearProviders();
-        var directory = Path.GetFullPath(Path.Combine(output, "activity-contract-" + EvaluationRunStore.NewId()));
+        var directory = Path.GetFullPath(Path.Combine(output, $"activity-{name}-" + EvaluationRunStore.NewId()));
         using var handler = new ActivityProbeTransport(budget!.Value, directory, new HttpClientHandler { AllowAutoRedirect = false });
         using var http = new HttpClient(handler) { Timeout = Timeout.InfiniteTimeSpan };
         using var clients = EvaluationClients.Create(builder.Configuration, builder.Environment, transport: new HttpClientPipelineTransport(http)) ??
@@ -53,7 +57,7 @@ internal static class ActivityProbeCommand
         Console.CancelKeyPress += cancel;
         try
         {
-            await ActivityContractProbe.RunAsync(service, report, Save, cancellation.Token);
+            await ActivityContractProbe.RunAsync(name, service, report, Save, cancellation.Token);
             report.Status = "completed";
         }
         catch (OperationCanceledException) { report.Status = "cancelled"; }
@@ -68,7 +72,7 @@ internal static class ActivityProbeCommand
             report.FinishedAtUtc = DateTime.UtcNow;
             await Save();
         }
-        Console.WriteLine($"{report.Status}{(report.Failure is null ? "" : " (" + report.Failure + ")")}: {handler.Calls.Count}/17 calls; accounted cost including unknown reserves ${handler.AccountedUsd.ToString(CultureInfo.InvariantCulture)}. Evidence: {directory}");
+        Console.WriteLine($"{report.Status}{(report.Failure is null ? "" : " (" + report.Failure + ")")}: {handler.Calls.Count}/{maxCalls} calls; accounted cost including unknown reserves ${handler.AccountedUsd.ToString(CultureInfo.InvariantCulture)}. Evidence: {directory}");
         return report.Status == "completed" ? 0 : report.Status == "cancelled" ? 130 : 1;
 
         async Task Save()
@@ -79,7 +83,8 @@ internal static class ActivityProbeCommand
                 {
                     cases = protocol,
                     fixtures = report.Fixtures,
-                    maxCalls = 17,
+                    protocol = name,
+                    maxCalls,
                     budgetUsd = budget,
                     maxOutputTokens = 16384,
                     maxRequestBytes = 65536,
