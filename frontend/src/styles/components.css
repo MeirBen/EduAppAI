@@ -184,8 +184,8 @@
   .chat-layout {
     @apply grid;
   }
-  /* On roomy desktops, only history scrolls; expanded source forms use the normal page flow. */
-  @media (min-width: 64rem) and (min-height: 50rem) {
+  /* On desktops, including 768px-tall laptops, only history scrolls; expanded source forms use the normal page flow. */
+  @media (min-width: 64rem) and (min-height: 40rem) {
     .chat-panel[data-document]:not(:has(.chat-attachments[open], #chat-consolidated)) {
       @apply sticky top-24 flex flex-col;
       max-block-size: calc(100dvh - 15rem);

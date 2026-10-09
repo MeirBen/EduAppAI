@@ -297,7 +297,7 @@ stay open for correction. Structural changes use chat.
 Each text/question offers an accessible “ask about this” action that fills and
 focuses the composer without sending. Keep the selected target visible and
 update only the app-inserted prefix when switching targets, preserving parent
-text. At widths of 64rem and heights of 50rem or more, keep chat beside the
+text. At widths of 64rem and heights of 40rem or more, keep chat beside the
 document with only its history scrolling; expanded source forms and smaller
 screens use normal document flow. Respect enlarged browser text.
 

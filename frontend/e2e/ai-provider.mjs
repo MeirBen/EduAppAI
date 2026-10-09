@@ -62,7 +62,7 @@ export async function startAiProvider(port = 0) {
         stage === 'author'
           ? {
               result: {
-                proposal: plan(user.message, schema.$defs.plan.properties.schemaVersion.minimum),
+                proposal: plan(user.message, schema.$defs.plan.properties.schemaVersion.enum[0]),
                 clarification: null,
               },
               assumptions: [],

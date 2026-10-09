@@ -236,7 +236,9 @@ test('desktop chat stays reachable beside lower questions and returns to page fl
   await chat.locator('.chat-attachments > summary').click();
   await expect(chat).toHaveCSS('position', 'static');
   await chat.locator('.chat-attachments > summary').click();
+  // A 1366×768 laptop leaves about 650px for the page once the browser's own bars are drawn.
   for (const [width, height] of [
+    [1366, 650],
     [1280, 800],
     [1920, 1080],
   ]) {
