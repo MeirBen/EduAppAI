@@ -36,6 +36,15 @@ public sealed class AiPromptContractTests
         Assert.DoesNotContain("leave it out and say so in assumptions", revision);
     }
 
+    [Fact]
+    public async Task Revision_copies_only_supplied_texts_and_changes_generated_texts_in_place()
+    {
+        var revision = await PlanningPrompt(revision: true);
+        Assert.Contains("never rewrite targets; to transform\none, add a separate generated material.", revision);
+        Assert.Contains("A requested change to a generated text, such as a new genre or length, changes that\nmaterial in place.", revision);
+        Assert.DoesNotContain("For a transformation, add a separate generated material.", revision);
+    }
+
     [Theory]
     [InlineData("ideas")]
     [InlineData("materials")]

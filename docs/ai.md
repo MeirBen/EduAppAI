@@ -36,7 +36,10 @@ with a singleton enum after the [live diagnostic][activity-schema-diagnostic].
 The final [revision-42 contract run][activity-contract-42-complete] passed all
 eight scenarios through the production engine and native adapter: 17 calls,
 including new-only generation and question append. This is contract evidence,
-not a content-quality benchmark or worker/API test.
+not a content-quality benchmark or worker/API test. Revision 43 limits
+transformations into a separate text to supplied texts; a requested change to a
+generated text changes it in place. The [everyday-edit run][activity-edits-43]
+then passed all eight chat edits.
 Revision 41 restores the measured authoring omission rule, shares planning
 defaults with revision, and keeps planning permissions out of content stages.
 Verification uses isolated providers and does not establish live-model quality.
@@ -492,6 +495,20 @@ schema reviews are in `claude-strict-schema-2026-10-02/` and
   unresolved $0.194908 timeout reserve: **$0.4479986 accounted against $1**.
   The remaining allowance does not authorize further calls.
 
+- [Everyday-edit run, revision 42][activity-edits-42]: stopped after 4 calls,
+  $0.0345239. The topic change passed; for "turn the story into a poem" the
+  planner kept the story and added a separate poem, because the transformation
+  rule was not limited to supplied texts. Revision 43 scopes it.
+- [Everyday-edit run, revision 43][activity-edits-43]: all eight cases passed,
+  17 calls, $0.1108978 with no unknown costs; both runs together $0.1454217
+  against the approved $0.45 guard. Topic, poem and half-length requests
+  rewrote the one text in place and rebuilt its questions; a targeted
+  replacement, a named removal and a focused addition left the other questions
+  unchanged; a vocabulary focus rebuilt only the questions; a decrease that
+  named no question was clarified. Open observations: two forced rhymes in the
+  unpolished poem, and the activity name kept its old topic while the document
+  title followed the new one.
+
 Retired design documents: `documentation-history-2026-10-01.zip`.
 
 ## Using the evaluation harness
@@ -624,3 +641,5 @@ this guide in place; keep experimental evidence in artifacts.
 [activity-schema-diagnostic]: ../artifacts/evaluations/activity-schema-diagnostic-20261009/review.md
 [activity-contract-42]: ../artifacts/evaluations/activity-contract-20261009T160621Z-80857ab3351a4f918cf4a0fed289af8d/review.md
 [activity-contract-42-complete]: ../artifacts/evaluations/activity-contract-20261009T181523Z-78987c34b464423e8c16be451b165222/review.md
+[activity-edits-42]: ../artifacts/evaluations/activity-edits-20261009T195734Z-1edb04ddc70444a499e77f8d8665cbd0/review.md
+[activity-edits-43]: ../artifacts/evaluations/activity-edits-20261009T200011Z-67b459e1ef7b43b4abdd9f1165267b57/review.md
