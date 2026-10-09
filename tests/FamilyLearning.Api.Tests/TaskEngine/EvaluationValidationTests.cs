@@ -9,6 +9,20 @@ public sealed class EvaluationValidationTests : IDisposable
     private readonly string directory = Path.Combine(Path.GetTempPath(), $"learning-validation-{Guid.NewGuid():N}");
     private static readonly EvaluationCase ValidCase = new("reading-1", "בקשת לימוד", "התאמה לגיל", 2, "text-input", null, null, null);
 
+    [Fact]
+    public async Task Activity_cases_have_concrete_prompts_and_matching_frozen_counts()
+    {
+        var suite = await EvaluationFiles.LoadFixtureAsync<EvaluationCase>("cases.json");
+        foreach (var scenario in suite.Items)
+        {
+            Assert.DoesNotContain("תבנית", scenario.Prompt);
+            Assert.DoesNotContain("ברירת מחדל", scenario.Prompt);
+            Assert.DoesNotContain("הוסף שדה", scenario.Prompt);
+        }
+        foreach (var id in new[] { "no-explanations", "include-zero" })
+            Assert.Equal(4, suite.Items.Single(c => c.Id == id).QuestionCount);
+    }
+
     [Theory]
     [InlineData("id-unsafe")]
     [InlineData("prompt-empty")]
@@ -17,9 +31,6 @@ public sealed class EvaluationValidationTests : IDisposable
     [InlineData("interaction")]
     [InlineData("choices-small")]
     [InlineData("passage-inverted")]
-    [InlineData("settings-difficulty")]
-    [InlineData("count-override-mismatch")]
-    [InlineData("parameters-too-many")]
     [InlineData("both-plan-and-prompt")]
     [InlineData("too-many-refinements")]
     [InlineData("replacement-target")]
@@ -35,9 +46,6 @@ public sealed class EvaluationValidationTests : IDisposable
             "interaction" => ValidCase with { Interaction = "essay" },
             "choices-small" => ValidCase with { Interaction = "single-choice", ChoiceCount = 1 },
             "passage-inverted" => ValidCase with { MinPassageWords = 20, MaxPassageWords = 10 },
-            "settings-difficulty" => ValidCase with { SettingsOverride = LearningPlanFixture.Numeric().Defaults with { Difficulty = "unknown" } },
-            "count-override-mismatch" => ValidCase with { SettingsOverride = LearningPlanFixture.Numeric(3).Defaults },
-            "parameters-too-many" => ValidCase with { AdditionalControlCount = 17 },
             "both-plan-and-prompt" => ValidCase with { InitialPlan = LearningPlanFixture.Numeric() },
             "too-many-refinements" => ValidCase with { Refinements = ["א", "ב", "ג", "ד"] },
             "replacement-target" => ValidCase with { Replacements = [new("replace-question", 2)] },
@@ -66,9 +74,7 @@ public sealed class EvaluationValidationTests : IDisposable
             ReviewFocus = new('א', 1000),
             Interaction = interaction,
             ChoiceCount = choices,
-            AdditionalControlCount = 16,
             QuestionCount = 20,
-            SettingsOverride = LearningPlanFixture.Numeric(20).Defaults,
             MinPassageWords = 0,
             MaxPassageWords = 0
         };

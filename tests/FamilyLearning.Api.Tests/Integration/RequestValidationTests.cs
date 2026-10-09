@@ -21,7 +21,7 @@ public sealed class RequestValidationTests
         var maxQuestions = limits.GetProperty("maxQuestionCount").GetInt32();
         var nameLength = limits.GetProperty("nameLength").GetInt32();
         Assert.Empty(LearningPlanValidator.Validate(Numeric(maxQuestions) with { Name = new string('א', nameLength) }));
-        Assert.Contains("defaults.questionCount", LearningPlanValidator.Validate(Numeric(maxQuestions + 1)).Keys);
+        Assert.Contains("settings.questionCount", LearningPlanValidator.Validate(Numeric(maxQuestions + 1)).Keys);
         Assert.Contains("name", LearningPlanValidator.Validate(Numeric() with { Name = new string('א', nameLength + 1) }).Keys);
     }
 
@@ -40,54 +40,16 @@ public sealed class RequestValidationTests
         Assert.True(JsonNode.DeepEquals(draft, await parent.GetFromJsonAsync<JsonNode>(ActivityDraftTests.Path(draft))));
     }
 
-    [Theory]
-    [InlineData("controlValues", "null")]
-    [InlineData("choiceCount", "null")]
-    [InlineData("controlValues", "{\"22222222222222222222222222222222\":null}")]
-    [InlineData("controlValues", "{\"33333333333333333333333333333333\":\"0\"}")]
-    public async Task Activity_HTTP_preserves_explicit_invalid_values_for_validation(string member, string json)
-    {
-        await using var app = new ApiFactory();
-        using var parent = await app.ParentAsync();
-        var plan = PresencePlan();
-        var body = JsonSerializer.SerializeToNode(new { plan, input = new TaskRequest(plan.Defaults) }, new JsonSerializerOptions(JsonSerializerDefaults.Web))!;
-        body["input"]![member] = JsonNode.Parse(json);
-        await AssertBadRequestAsync(parent, "/api/activity-drafts", body.ToJsonString());
-        Assert.Equal(0, (await parent.GetFromJsonAsync<JsonElement>("/api/activity-drafts")).GetArrayLength());
-    }
 
-    [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public async Task Activity_HTTP_round_trips_omission_false_zero_and_empty_without_coercion(bool supplied)
-    {
-        await using var app = new ApiFactory();
-        using var parent = await app.ParentAsync();
-        var plan = PresencePlan();
-        var body = JsonSerializer.SerializeToNode(new { plan, input = new TaskRequest(plan.Defaults) }, new JsonSerializerOptions(JsonSerializerDefaults.Web))!;
-        if (supplied) body["input"]!["controlValues"] = JsonNode.Parse("""{"22222222222222222222222222222222":false,"33333333333333333333333333333333":0,"44444444444444444444444444444444":""}""");
-        using var response = await parent.PostAsJsonAsync("/api/activity-drafts", body);
-        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
-        var draft = (await response.Content.ReadFromJsonAsync<JsonNode>())!;
-        Assert.True(JsonNode.DeepEquals(body["input"], draft["input"]));
-        var edit = ActivityDraftTests.Edit(draft);
-        var saved = await ActivityDraftTests.Save(parent, draft, edit);
-        Assert.True(JsonNode.DeepEquals(body["input"], saved["input"]));
-    }
 
-    private static LearningPlan PresencePlan() => Numeric(1) with
-    {
-        Controls = [new(ControlId, "דגל", "boolean", "אפשרות", Default: Json("true")),
-            new(OtherId, "ערך", "integer", "מספר", Default: Json("5")),
-            new("44444444444444444444444444444444", "טקסט", "text", "טקסט נוסף", Default: Json("\"ברירה\""), MaxLength: 100)]
-    };
+
 
     [Fact]
     public async Task Missing_or_null_template_members_remain_client_errors()
     {
         using var app = new ApiFactory();
         using var parent = await app.ParentAsync();
-        foreach (var member in new[] { "schemaVersion", "name", "goal", "guidance", "defaults", "materials", "questions", "controls" })
+        foreach (var member in new[] { "schemaVersion", "name", "goal", "guidance", "settings", "materials", "questions" })
         {
             var definition = AiFixtures.PlanJson().AsObject();
             definition.Remove(member);
@@ -98,7 +60,7 @@ public sealed class RequestValidationTests
         foreach (var member in new[] { "topic", "audience", "difficulty", "questionCount" })
         {
             var definition = AiFixtures.PlanJson();
-            var defaults = definition["defaults"]!.AsObject();
+            var defaults = definition["settings"]!.AsObject();
             defaults.Remove(member);
             await AssertBadRequestAsync(parent, "/api/templates", definition.ToJsonString());
             defaults[member] = null;
@@ -134,12 +96,12 @@ public sealed class RequestValidationTests
     {
         using var app = new ApiFactory();
         using var parent = await app.ParentAsync();
-        var input = JsonSerializer.SerializeToNode(new TaskRequest(Numeric().Defaults), new JsonSerializerOptions(JsonSerializerDefaults.Web))!;
+        var input = AiFixtures.PlanJson();
         var section = (member == "settings" ? input : input["settings"]!).AsObject();
         section.Remove(member);
-        await AssertBadRequestAsync(parent, "/api/activity-drafts", new JsonObject { ["plan"] = AiFixtures.PlanJson(), ["input"] = input.DeepClone() }.ToJsonString());
+        await AssertBadRequestAsync(parent, "/api/activity-drafts", new JsonObject { ["plan"] = input.DeepClone() }.ToJsonString());
         section[member] = null;
-        await AssertBadRequestAsync(parent, "/api/activity-drafts", new JsonObject { ["plan"] = AiFixtures.PlanJson(), ["input"] = input.DeepClone() }.ToJsonString());
+        await AssertBadRequestAsync(parent, "/api/activity-drafts", new JsonObject { ["plan"] = input.DeepClone() }.ToJsonString());
         Assert.Equal(0, (await parent.GetFromJsonAsync<JsonElement>("/api/instances")).GetArrayLength());
     }
 

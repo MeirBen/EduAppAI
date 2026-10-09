@@ -33,14 +33,9 @@ public sealed class StructuredEvaluationTests : IDisposable
     }
 
     [Fact]
-    public async Task Per_task_source_and_source_revision_are_retained_in_exact_question_evidence()
+    public async Task Supplied_source_and_source_revision_are_retained_in_exact_question_evidence()
     {
-        var plan = Supplied("per-task");
-        var scenario = Fixed(plan) with
-        {
-            InitialInput = new(plan.Defaults,
-            MaterialInputs: Json(JsonSerializer.Serialize(new Dictionary<string, object> { [MaterialId] = new { sourceText = Source } })))
-        };
+        var scenario = Fixed(Supplied());
         using var chat = new AiFixtures.ScriptedChat(Questions());
         var result = Assert.Single((await Run(chat, scenario)).Results);
         Assert.Equal("no-generated-materials", result.Materials!.SkipReason);
@@ -58,7 +53,7 @@ public sealed class StructuredEvaluationTests : IDisposable
     [InlineData("range", false)]
     public async Task Target_is_advisory_while_a_strict_range_rejects_the_same_candidate(string mode, bool accepted)
     {
-        var length = mode == "range" ? new LengthExpectation(mode, Lower: 100, Upper: 150) : new(mode, new(100, false));
+        var length = mode == "range" ? new LengthExpectation(mode, Lower: 100, Upper: 150) : new(mode, 100);
         var plan = Reading() with { Materials = [Reading().Materials[0] with { Length = length }] };
         var material = JsonSerializer.Serialize(new
         {
@@ -178,7 +173,7 @@ public sealed class StructuredEvaluationTests : IDisposable
     [Fact]
     public async Task Dropped_range_demand_fails_adherence_even_when_generated_content_passes_weaker_plan()
     {
-        var plan = Reading() with { Materials = [Reading().Materials[0] with { Id = null, Length = null, Controls = [] }] };
+        var plan = Reading() with { Materials = [Reading().Materials[0] with { Id = null, Length = null }] };
         var scenario = new EvaluationCase("range", "קטע באורך 100–150 מילים", "טווח קבוע", 2, "text-input", null, 100, 150)
         { ExpectedGeneratedMaterials = 1, ExpectedLength = new("range", Lower: 100, Upper: 150) };
         using var chat = new EvaluationFixtures.Chat((index, input) => index switch
@@ -219,22 +214,6 @@ public sealed class StructuredEvaluationTests : IDisposable
     }
 
     [Theory]
-    [InlineData(0, 0, true)]
-    [InlineData(1, 0, false)]
-    [InlineData(1, 1, true)]
-    [InlineData(1, null, true)]
-    public async Task Custom_control_expectations_remain_independent_of_plan_validity(int actual, int? expected, bool passed)
-    {
-        var plan = EvaluationFixtures.Plan() with { Controls = actual == 0 ? [] : [new(null, "בחירה", "boolean", "אפשרות להורה", Default: Json("false"))] };
-        using var chat = new AiFixtures.ScriptedChat(Proposal(plan), EvaluationFixtures.Content().ToJsonString());
-        var scenario = new EvaluationCase("controls", "תרגול", "בחירות", 2, "text-input", null, null, 0, AdditionalControlCount: expected);
-        var result = Assert.Single((await Run(chat, scenario)).Results);
-        Assert.True(result.Generation!.ContractValid);
-        Assert.Equal(passed, result.EndToEndReady);
-        if (actual == 1) Assert.False(result.Input!.Controls[0].Value.GetBoolean());
-    }
-
-    [Theory]
     [InlineData("750", "336", true)]
     [InlineData("750", "335", false)]
     [InlineData("750", "+335", false)]
@@ -264,7 +243,7 @@ public sealed class StructuredEvaluationTests : IDisposable
     [InlineData("קטן מ־", true)]
     public async Task Comparison_signs_beside_Hebrew_words_fail_sign_direction(string option, bool passed)
     {
-        var plan = Mixed() with { Questions = Mixed().Questions with { Formats = ["single-choice"], ChoiceCount = new(3, false) } };
+        var plan = Mixed() with { Questions = Mixed().Questions with { Formats = ["single-choice"], ChoiceCount = 3 } };
         var batch = JsonSerializer.Serialize(new QuestionCandidateBatch("השוואה", "בחרו", Enumerable.Range(0, 3).Select(_ =>
             new QuestionCandidate("3/7 ___ 5/7", new("single-choice", [option, "גדול מ־", "שווה ל־"]), new(option), 1)).ToArray()), JsonOptions);
         using var chat = new AiFixtures.ScriptedChat(batch);
@@ -281,8 +260,8 @@ public sealed class StructuredEvaluationTests : IDisposable
         return await EvaluationFiles.ReadReportAsync(Path.Combine(directory, "run.json"));
     }
 
-    internal static EvaluationCase Fixed(LearningPlan plan) => new("fixed", "", "תוכן מהתכנית", plan.Defaults.QuestionCount,
-        plan.Questions.Formats[0], plan.Questions.ChoiceCount?.Value, null, null, InitialPlan: plan);
+    internal static EvaluationCase Fixed(LearningPlan plan) => new("fixed", "", "תוכן מהתכנית", plan.Settings.QuestionCount,
+        plan.Questions.Formats[0], plan.Questions.ChoiceCount, null, null, InitialPlan: plan);
     internal static string Proposal(LearningPlan plan) => JsonSerializer.Serialize(new { result = new { proposal = plan, clarification = (string?)null }, assumptions = Array.Empty<string>() }, JsonOptions);
     internal static string Questions(string format = "numeric-input") => JsonSerializer.Serialize(new QuestionCandidateBatch("תרגול", null,
         [new("כמה הם 1+1?", new(format), new("2"), 1), new("כמה הם 2+1?", new(format), new("3"), 1)]), JsonOptions);

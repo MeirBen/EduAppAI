@@ -1,7 +1,7 @@
 # AI guide
 
 The maintained reference for AI configuration, evaluation and tuning, as of
-8 October 2026. Product contracts live in the
+9 October 2026. Product contracts live in the
 [product specification](product-specification.md); implementation boundaries
 live in [architecture](architecture.md).
 
@@ -20,20 +20,17 @@ current reliability rate. The switch rests on small 8 October comparisons; see
 
 ## Design and cutover decision
 
-The owner chose prompt → editable plan → material ideas/writing/polish → parent
-text review → questions → reviewed immutable snapshot for editing, source
-preservation and checkpoint recovery. Supplied sources and question-only
-activities skip material generation. See
-[architecture](architecture.md#ai-and-persistence) for stage ownership,
-replacement, staleness and persistence.
+The engine/API uses concrete activity plans and atomic Create/Revise operations.
+New generated texts receive ideas/writing/polish before questions; existing
+rewrites receive no polish. Supplied sources stay exact. Revision planning
+produces a reply, clarification or validated change without repairing invalid
+output. See [architecture](architecture.md#durable-generation) for ownership
+and [chat design](activity-chat-design.md#ai-contract-and-context) for stage context.
 
-The [target activity-only redesign](product-specification.md) retires reusable
-templates and the intermediate parent text-review stop. It keeps these engine
-stages, with one atomic operation and prompts for concrete activity requirements;
-the [chat design](activity-chat-design.md#prompt-and-schema-changes) specifies
-the pending contract changes. The current prompts and evidence below predate
-that cutover.
-
+The current UI still exposes staged generation and template publication until
+slice 2. The historical live evidence below predates the activity-only prompts
+and schema (engine revision 39); slice-1 verification uses isolated providers
+and does not establish live-model quality.
 The 1 October comparison did **not** meet its quality threshold: one-shot passed
 9/9 structural trials and split 7/9, with split costing about 3× and taking
 3.4× median provider latency. The one-shot implementation was removed; do not
@@ -318,9 +315,8 @@ added `propertyOrdering` matching the declared key order.
   authoring input from about 7,100 to 5,000 tokens.
 - **Stay inside the complexity budget.** Gemini expands bounded arrays while
   compiling the schema and returns a bare HTTP 400 `INVALID_ARGUMENT` past an
-  undisclosed budget ([long array length limits][vertex-schema]). So the
-  validator, not the schema, bounds controls (16 per plan) and select options
-  (1–20); the authoring prompt states both limits from the same constants.
+  undisclosed budget ([long array length limits][vertex-schema]). Keep schemas
+  within the measured shape and enforce all product bounds in validators.
   Materials (up to 4) and questions up to `StrictQuestionCountLimit` stay exact.
   Gemini accepts 20 questions in the heaviest shape (all formats, six choices)
   and rejects 25.
@@ -337,19 +333,16 @@ added `propertyOrdering` matching the declared key order.
   `choiceCount` live in the prompt. All are equivalent JSON Schema. OpenAI strict
   mode rejects a nullable array of `$ref` items, so that one uses `anyOf` with a
   `["null"]` branch.
-- **Descriptions carry validator semantics.** `adjustable` is true only for an
-  explicitly requested per-activity input; before that description, models
-  repeatedly invented adjustable counts.
-
-Over-limit requests for 30 questions, six passages and a 25-option select each
-drew a focused clarification instead of a rejected plan.
+- **Descriptions carry validator semantics.** Activity schemas describe concrete
+  settings and generated/supplied source roles. Reusable controls, adjustable
+  fields and per-use overrides are absent.
 
 Limit provenance: `StrictQuestionCountLimit` is endpoint-specific and measured
 (20 for Gemini and GPT-6.1 Sol at six choices; 20 is also the product
 maximum), because providers publish no budget; re-measure
 it for a new model or a higher choice cap. New schema features also need live
-acceptance within an explicitly authorized budget. Question count, choices, controls,
-options, materials, content size and field lengths are owner-set product
+acceptance within an explicitly authorized budget. Question count, choices,
+materials, content size and field lengths are owner-set product
 limits in the [product specification](product-specification.md). The 16,384
 output tokens (validated up to 32,768) stay below the endpoint maxima
 (128,000 for GPT-6.1 Sol, 65,536 for Gemini 3.8 Flash).
@@ -487,9 +480,9 @@ unusable, 1 needs edits, 2 ready or null unreviewed; labels and notes also come
 from `--label` / `--notes`.
 
 [Cases](../tools/FamilyLearning.Evaluation/cases.json) hold a prompt or fixed
-`initialPlan`, optional input, up to three refinements and scoped replacements.
-`expectedGeneratedMaterials`, `settingsOverride`, `additionalControlCount`,
-`expectedLength` and `minPassageWords` / `maxPassageWords` are independent
+`initialPlan`, up to three refinements and scoped replacements.
+`expectedGeneratedMaterials`, `expectedLength` and
+`minPassageWords` / `maxPassageWords` are independent
 checks; `reviewFocus` guides human review. Two content checks need no fixture:
 `calculationKeys` recalculates every bare calculation prompt exactly (rational
 arithmetic, so `1/4 + 1/6 =` must key `5/12` or `0.41666…` never) and compares

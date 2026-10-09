@@ -29,7 +29,7 @@ describe('Editable document boundary', () => {
       materials: [],
       questions: [
         {
-          id: null,
+          id: 'q1',
           prompt: '',
           interaction: { type: 'numeric-input', options: null },
           answer: null,
@@ -41,7 +41,7 @@ describe('Editable document boundary', () => {
     expect(documentValue(raw, limits).value).toBeUndefined();
     expect(raw.questions[0].points).toBe('1.5');
     raw.questions[0].points = '0';
-    expect(documentValue(raw, limits).value?.questions[0]).toMatchObject({ id: null, points: 0 });
+    expect(documentValue(raw, limits).value?.questions[0]).toMatchObject({ id: 'q1', points: 0 });
   });
   it('bounds aggregate content and strips snapshot metadata at the editable boundary', () => {
     const snapshot = {

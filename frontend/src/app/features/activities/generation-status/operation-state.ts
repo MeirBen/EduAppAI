@@ -1,7 +1,11 @@
 import { GenerationOperation } from '../../../core/api/models';
 
-/** Semantic names for operation stages, shared by status evidence and result inspection. */
+/** Semantic names for operation stages in technical evidence. */
 export const stageNames: Record<string, string> = {
+  revise: 'תכנון השינוי',
+  'rewrite-material': 'עדכון טקסט',
+  'append-questions': 'הוספת שאלות',
+  'revise-question': 'עדכון שאלה',
   'material-ideas': 'רעיונות לטקסט',
   materials: 'טקסט שנוצר',
   'material-polish': 'טקסט בניסוח משופר',

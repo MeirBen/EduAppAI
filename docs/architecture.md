@@ -1,9 +1,9 @@
 # Architecture
 
-This guide describes the current implementation. The
-[product specification](product-specification.md) defines the target
-activity-only redesign; its template retirement and chat workflow are not yet
-implemented. Update this guide alongside that cutover.
+This guide describes the implemented slice-1 engine/API and its current Angular
+workspace. The [product specification](product-specification.md) and
+[chat design](activity-chat-design.md) define the remaining canvas, template
+retirement and coordinated data cutover. The slices are not separate releases.
 
 ## Structure
 
@@ -21,8 +21,8 @@ proxies `/api`; the published host serves both.
 Feature endpoints join `ApiConfiguration.MapApplicationApi` to inherit strict
 JSON, ProblemDetails and CSRF. Sibling parent and child groups select explicit
 cookie schemes; only sign-in, child activation and token issuance are anonymous.
-Kestrel bounds bodies to 256 KiB to allow escaped Hebrew
-JSON; validators enforce the smaller field and aggregate limits.
+Kestrel bounds bodies to 3 MiB to allow 100 imported chat turns, including
+escaped Hebrew JSON; validators enforce the smaller field and aggregate limits.
 
 Keep state and mutations in their owning feature, share rules through the
 engine, prefer native .NET, EF Core and Angular APIs, and remove obsolete
@@ -45,7 +45,7 @@ All routes are under `/api`; writes enforce CSRF.
 | Request                                   | Result                     |
 | ----------------------------------------- | -------------------------- |
 | `GET limits`                              | Server content limits      |
-| `POST ai/template-drafts`                 | Unsaved proposal           |
+| `POST ai/activity-plans`                  | Unsaved proposal           |
 | `POST templates`                          | Template version 1         |
 | `POST templates/{id}/versions`            | Publish a version          |
 | `POST activity-drafts`                    | New editable draft         |
@@ -53,32 +53,33 @@ All routes are under `/api`; writes enforce CSRF.
 | `POST activity-drafts/{id}/operations`    | Idempotent start           |
 | `POST activity-drafts/{id}/adopt-content` | Accept stale content       |
 | `POST activity-drafts/{id}/release`       | Review and freeze          |
+| `POST activity-drafts/{id}/undo`          | Restore prior content      |
 | `GET instances/{id}`                      | Frozen parent preview      |
 | `DELETE activity-drafts/{id}`             | Draft and operations       |
 | `DELETE instances/{id}`                   | Archive or delete snapshot |
 | `DELETE templates/{id}`                   | Template and versions      |
-| `DELETE templates`                        | Family learning reset      |
+| `DELETE learning-data`                    | Family learning reset      |
 | `GET library/changes`                     | Change notes (SSE)         |
 
 `EngineValidation` names every client-visible limit once; validators, their
 messages, prompts and `ContentLimits` (served by `GET limits`) all read those
 constants, so the client never hard-codes a limit.
 
-`LearningPlan` holds shared settings, scoped controls, material sources and
-question requirements; `TaskRequest` supplies per-activity choices.
-`TaskRequestResolver` resolves defaults into a self-contained input in which
-false, zero and explicit empty text survive. IDs and provenance belong to the
-application.
+`LearningPlan` is the sole authority for concrete settings, material sources,
+question formats and lengths. `TaskRequestResolver` derives typed stage
+requirements and effective-value fingerprints; no defaults, controls or input
+overrides are stored. IDs and provenance belong to the application.
 
 `AiGenerationService` uses `IChatClient` without identity/database access.
-Authoring, ideas, material writing, material polish, questions and scoped
-replacements use separate schema-constrained calls, without tools or retry. The
+Authoring, revision planning, ideas, material writing, polish, questions, append
+and scoped replacements use schema-constrained calls without tools or retry. The
 polish is the only automatic edit: one minimal-edit call over freshly written
 text in the writing schema, which `TaskAssembly` accepts only for the same IDs
 under strict material checks, bumping only edited revisions. Supplied sources
 are never edited, and questions are not polished. `TaskAssembly` copies supplied
-sources exactly; accepted materials survive a question failure. Question
-replacement is atomic over prompt, options and key. `AiSchemas` builds
+sources exactly. `RevisionScope` derives required changes, preserves unaffected
+valid content and requests clarification for unsupported length allocation.
+Question replacement is atomic over prompt, options and key. `AiSchemas` builds
 request-owned schemas with exact counts, allowed IDs and the same
 `EngineValidation` constants used by prompts and validators. The OpenRouter
 adapter owns transport/configuration and sends the native SDK response format.
@@ -111,11 +112,18 @@ never adjusted. `TaskAssembly` owns input fingerprints, acceptance and
 readiness. Valid structure does not prove correct content, so release requires
 the parent's review of the saved revision.
 
-`Features/Activities` owns saved plan, input and document checkpoints,
-content identity, adoption and release; engine validators derive diagnostics.
-Direct edits never call AI or republish the template, and the editable DTO
-excludes provenance and acceptance. A source change updates plan, input and
-document together, leaving dependent questions stale until edited or adopted.
+`Features/Activities` owns the saved plan/document, chat, one-level undo,
+content identity, adoption and release. Engine validators derive diagnostics.
+Manual edits preserve item IDs/order, formats and option counts; requirements
+change through Revise. Confirmed source replacement updates plan and document
+atomically, leaving unchanged questions stale. Editable DTOs exclude provenance
+and acceptance, and child/snapshot DTOs exclude chat and undo.
+
+A changing Revise or GenerateQuestions stores one prior plan/document checkpoint.
+Undo requires its resulting revision, restores content, advances revision and
+consumes the checkpoint. Manual save, adoption and release clear it; replies,
+no-ops and failures preserve it. Undo serializes its chat read/write with
+operation admission/completion even when a reply leaves content revision alone.
 
 An EF concurrency token guards each draft write. One `SaveChanges` creates the
 snapshot and marks the draft terminal, and a unique source-draft index prevents
@@ -125,11 +133,13 @@ erase snapshots, and family reset deletes learning records atomically while
 keeping accounts. Publication saves a version and its current pointer atomically
 under a concurrency token and unique index.
 
-Additive migrations extend `InitialCreate`; existing content is preserved.
-Development applies migrations; Production requires the explicit management
-command. Tests use disposable storage, real `Program` composition and isolated
-providers;
-worker tests disable automatic polling to drive transitions deterministically.
+Checked-in migrations add conversation storage and remove unused draft/snapshot
+input columns and the unread operation fingerprint. They do not convert old
+learning plans. The activity-only fresh start remains a coordinated cutover;
+no startup reset or legacy reader exists. Development applies migrations;
+Production requires the explicit management command. Tests use disposable
+storage, real `Program` composition and isolated providers; worker tests disable
+automatic polling to drive transitions deterministically.
 
 ## Change notes
 
@@ -152,32 +162,34 @@ checkpoint and disposes them before each AI call; its single content call shares
 the service's two provider slots with authoring.
 
 Starts share one per-family rate limiter with authoring. Owned key replay comes
-before revision, active-state and budget checks, and admission atomically
-enforces global, family and draft queue limits. Saves stay available during
-generation; any revision change fences the result into an unapplied diagnostic
-candidate. Cancellation commits its terminal state before signaling transport.
+before revision, active-state and budget checks. Admission atomically enforces
+queue limits, captures required context and appends the parent chat turn.
+One active operation locks save, adoption, undo and release with 409.
+Cancellation commits before transport is signalled; late output cannot apply.
 Draft deletion cascades operation evidence and keys.
 
-A text operation runs the idea, writing and polish stages; questions are a
-separate operation the parent starts after reviewing the text, and supplied
-sources and question-only plans start there. Each claim captures immutable
-stage input. The idea stage checkpoints the
-selected idea and queues writing without advancing the draft's content revision.
-A content checkpoint saves content, candidate, usage and the next stage
-together. `ExpectedRevision` advances with each accepted checkpoint;
-cancellation advances it only when no other writer has changed the draft. This
-identifies the revisions owned by the operation without changing the original
-start-key fingerprint. Expected AI failures end only their operation; a failed
-polish keeps the text its writing checkpoint saved. On
-restart, compatible queued stages resume, while uncheckpointed calling steps
-become unknown and are never replayed. Profile fingerprints exclude credentials,
-so key rotation keeps queued work valid.
+Create generates missing texts through ideas/writing/polish, then questions.
+Revise first plans a reply, clarification or bounded change; existing rewrites
+run in plan order, new texts alone receive writing/polish, then questions are
+rebuilt, appended or replaced. Intermediate checkpoints hold private working
+artifacts only. Final success applies plan, document, chat notice, undo and
+terminal status in one transaction under the active-operation/revision fences.
+Failures and cancellation leave saved content unchanged. Only applied content
+changes advance the draft revision; replies and status transitions do not.
 
-Operation artifacts are bounded to 2 MiB and three steps. After seven terminal
-days, startup and hourly cleanup expire up to 32 bulky artifacts per pass,
-keeping keys, fingerprints, outcomes and known usage until draft deletion.
-`GenerationOperationOptions` holds these policies; there is no distributed
-scheduler or retry loop.
+Current workspace callers also use GenerateMaterials, GenerateQuestions and
+single-item replacement actions. They use the same worker/engine; slice 2
+retires the replaced UI actions. GenerateQuestions remains the explicit recovery
+for manual text edits.
+
+On restart, engine/schema/profile-matching queued stages resume; uncheckpointed
+calling steps become unknown and are never retried. Profile fingerprints exclude
+credentials, so key rotation alone does not invalidate queued work.
+
+Operation artifacts are bounded to 2 MiB, with eight steps and a reserved 16 KiB
+summary budget. After seven terminal days, startup/hourly cleanup expires up to
+32 bulky artifacts per pass, retaining keys, outcomes and known usage until
+draft deletion. `GenerationOperationOptions` owns these bounds.
 
 ## Evaluation
 
@@ -214,7 +226,7 @@ for grant terms and revocation behavior. No child endpoint uses AI.
 Writes sample UTC and recheck access/state after acquiring a short SQLite
 transaction, so committed access loss wins over earlier authentication. Lists
 use SQL projection and bounded deterministic paging. Profile `details` omission
-preserves older-client metadata; details stay parent-only. Profile deletion
+preserves its current metadata; details stay parent-only. Profile deletion
 checks revision/history, device-record deletion checks inactivity, and reset
 removes owned dependents before referenced content, all within transactions.
 
@@ -332,30 +344,22 @@ and lost access also lock writes with child-specific feedback. Navigation/close
 warnings and lifetime cancellation protect work; answers are never persisted
 in a browser cache.
 
-`ActivityWorkspace` owns the template and activity URLs, one form buffer for
-plan and per-activity input, derived canonical projections, source confirmation
-and twenty coalesced Undo entries; its pure buffer transitions live in
-`workspace-form`, and plan projections in `plan-projection`. The projections own
-every form rule, and one `validateTree` attaches each issue to its field. ActivitySetup,
-PlanEditor, TemplateChat, SourceReplacement and the document editor edit the
-owner's Signal Forms and emit events; ActivityReview, GenerationStatus and
-UnappliedResult present state and emit explicit actions. None owns a copied
-draft or HTTP request, and phases, summaries and parent-language diagnostics
-are derived, never stored. Each parent message
-makes one correlated authoring request; local edits, Undo and cancellation
-invalidate pending responses.
+`ActivityWorkspace` owns the current template/activity routes and one editable
+plan/document buffer. `workspace-form` owns buffer transitions and
+`plan-projection` owns canonical form rules. Child editors use the owner's
+Signal Forms and emit changes; they do not copy drafts or issue HTTP requests.
+Unsaved setup has bounded local undo and correlated authoring requests. Saved
+plans use durable Revise/chat/undo; the fixed-structure content editor permits
+manual text, answer and point edits only. Active operations lock edits while
+status, cancellation and technical evidence remain accessible.
 
-Generate, replace, adopt and release first flush a valid checkpoint. An
-AI-extracted fixed source needs local confirmation, and changing a material's
-source kind creates a new material identity. Template publication briefly locks
-editing, uses `expectedVersion` and never writes an activity. Polling reads the
-operation status before the draft checkpoint so a terminal result includes its
-final commit, and pauses while the page is hidden. Only a revision confirmed by
-the operation and its unchanged local edit fence is applied automatically; other
-content stays an explicit reload offer. A checkpoint between the two GETs waits
-for a later status read to confirm ownership. Lost start responses keep their key
-and request for replay, and candidates pass a bounded editable-field mapping
-before transfer.
+Generation, adoption and release first flush a valid checkpoint. Supplied
+sources require explicit confirmation. Template publication uses
+`expectedVersion` and never writes an activity. Polling reads operation status
+before its draft, and only a confirmed revision with an unchanged local-edit
+fence applies automatically; other content is offered for explicit reload.
+Lost start responses retain the original key for reconciliation. Failed
+candidates remain technical evidence and cannot replace the edit buffer.
 
 `core/api/library-changes` owns each page's native change stream, pauses it while
 hidden and exposes a refused connection for explicit retry. The library's three

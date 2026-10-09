@@ -4,6 +4,7 @@ using FamilyLearning.Api.Infrastructure.Auth;
 using FamilyLearning.Api.Infrastructure.Persistence;
 using FamilyLearning.Api.TaskEngine;
 using FamilyLearning.Api.TaskEngine.Models;
+using FamilyLearning.Api.TaskEngine.Validation;
 using Microsoft.EntityFrameworkCore;
 using Serilog;
 
@@ -41,8 +42,9 @@ public static class GenerationOperationEndpoints
                 var now = clock.GetUtcNow().UtcDateTime;
                 var unchanged = draft.ActiveOperationId == operation.Id && draft.Revision == operation.ExpectedRevision;
                 operation.MarkInterruptedStep("cancelled");
-                draft.ClearOperation(operation.Id, now, cancelled: true);
+                draft.ClearOperation(operation.Id, now);
                 operation.Finish("cancelled", null, now, unchanged ? draft.Revision : null);
+                draft.CompleteChat(operation, now);
                 await db.SaveChangesAsync(ct);
                 await transaction.CommitAsync(ct);
             }
@@ -66,20 +68,24 @@ public static class GenerationOperationEndpoints
         var existing = await db.GenerationOperations.SingleOrDefaultAsync(o => o.FamilyId == familyId && o.OperationKey == body.OperationKey, ct);
         if (existing is not null)
             return existing.RequestFingerprint == GenerationOperation.Fingerprint(id, body) ? Accepted(existing, diagnostics) : Conflict();
-        if (body.OperationKey == Guid.Empty || body.Kind is not ("GenerateMaterials" or "GenerateQuestions" or "ReplaceMaterial" or "ReplaceQuestion") ||
-            (body.Kind is "GenerateMaterials" or "GenerateQuestions" && (body.TargetId is not null || body.Instruction is not null)))
+        if (body.OperationKey == Guid.Empty || body.Kind is not ("Create" or "Revise" or "GenerateMaterials" or "GenerateQuestions" or "ReplaceMaterial" or "ReplaceQuestion") ||
+            body.Kind != "Revise" && (body.Message is not null || body.Target is not null || body.Sources is not null) ||
+            body.Kind == "Revise" && (body.TargetId is not null || body.Instruction is not null) ||
+            (body.Kind is "Create" or "GenerateMaterials" or "GenerateQuestions" && (body.TargetId is not null || body.Instruction is not null)))
             return Results.ValidationProblem(new Dictionary<string, string[]> { ["operation"] = ["יש לבחור פעולת יצירה והנחיה תקינות."] });
         if (draft.ReleasedSnapshotId.HasValue || draft.Revision != body.ExpectedRevision || draft.ActiveOperationId.HasValue) return Conflict();
         if (await db.GenerationOperations.CountAsync(o => o.DraftId == id, ct) >= GenerationOperationOptions.DraftLimit ||
             await db.GenerationOperations.CountAsync(o => o.Status == "queued" || o.Status == "calling", ct) >= GenerationOperationOptions.GlobalLimit ||
             await db.GenerationOperations.CountAsync(o => o.FamilyId == familyId && (o.Status == "queued" || o.Status == "calling"), ct) >= GenerationOperationOptions.FamilyLimit)
-            return Results.Problem(statusCode: 429, title: "מכסת פעולות היצירה מלאה. אפשר להמשיך לערוך או ליצור עותק חדש במפורש.");
-        var request = TaskRequestResolver.ResolveOrThrow(draft.Plan, draft.Input);
+            return Results.Problem(statusCode: 429, title: "מכסת פעולות ה־AI מלאה. אפשר להמשיך לשמור עריכות ידניות ולעיין בפעילות לפני אישור.");
+        var request = TaskRequestResolver.ResolveOrThrow(draft.Plan);
         var document = draft.Document;
-        var stage = SelectStage(body, request, document);
+        if (body.Kind == "Revise") ActivityRevisionValidator.ValidateInput(new(draft.Plan, document, body.Message!, body.Target, body.Sources));
+        var stage = SelectStage(body, request, document, draft.Plan);
         if (!limiter.TryAcquire(familyId)) return Results.StatusCode(429);
         var history = await GenerationHistoryReader.ReadAsync(db, familyId, draft.Id, document, ct);
         var operation = new GenerationOperation(draft, body, request, document, history, stage, worker.ProfileFingerprint, clock.GetUtcNow().UtcDateTime);
+        if (body.Kind == "Revise") draft.AppendTurn(new("parent", body.Message!, clock.GetUtcNow().UtcDateTime, body.Target, operation.Id));
         draft.StartOperation(operation.Id);
         db.GenerationOperations.Add(operation);
         await db.SaveChangesAsync(ct);
@@ -87,10 +93,12 @@ public static class GenerationOperationEndpoints
         return Accepted(operation, diagnostics);
     }
 
-    internal static string SelectStage(StartGenerationRequest body, ResolvedTaskRequest input, TaskDocument document)
+    private static string SelectStage(StartGenerationRequest body, ResolvedTaskRequest input, TaskDocument document, LearningPlan plan)
     {
         switch (body.Kind)
         {
+            case "Revise": return "revise";
+            case "Create": return RevisionScope.ForCreate(plan, document).NewMaterials.Length > 0 ? "material-ideas" : "questions";
             case "GenerateMaterials": TaskAssembly.RequireMaterialWork(input, document); return "material-ideas";
             case "GenerateQuestions": TaskAssembly.PrepareQuestions(input, document); return "questions";
             case "ReplaceMaterial": TaskAssembly.MaterialTarget(new(input, document, body.TargetId!, body.Instruction)); return "replace-material";

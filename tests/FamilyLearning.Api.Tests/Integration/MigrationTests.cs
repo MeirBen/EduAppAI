@@ -17,6 +17,24 @@ namespace FamilyLearning.Api.Tests.Integration;
 public sealed class MigrationTests
 {
     [Fact]
+    public async Task Activity_storage_has_one_plan_authority_without_override_columns()
+    {
+        using var app = new ApiFactory();
+        using var parent = await app.ParentAsync();
+        using var scope = app.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<LearningDbContext>();
+        var draftColumns = await db.Database.SqlQueryRaw<string>("SELECT name AS Value FROM pragma_table_info('ActivityDrafts')").ToArrayAsync();
+        var snapshotColumns = await db.Database.SqlQueryRaw<string>("SELECT name AS Value FROM pragma_table_info('TaskSnapshots')").ToArrayAsync();
+        var operationColumns = await db.Database.SqlQueryRaw<string>("SELECT name AS Value FROM pragma_table_info('GenerationOperations')").ToArrayAsync();
+        Assert.DoesNotContain("InputFingerprint", operationColumns);
+        Assert.Contains("PlanJson", draftColumns);
+        Assert.Contains("PlanJson", snapshotColumns);
+        Assert.DoesNotContain("InputJson", draftColumns);
+        Assert.DoesNotContain("InputJson", snapshotColumns);
+        Assert.DoesNotContain("ResolvedInputJson", snapshotColumns);
+    }
+
+    [Fact]
     public async Task Upgrade_from_profile_details_adds_update_timestamp_without_rewriting_profiles()
     {
         await using var h = new ChildHarness();
@@ -190,10 +208,12 @@ public sealed class MigrationTests
         await upgraded.Database.MigrateAsync();
         await upgraded.Database.MigrateAsync();
         var after = await upgraded.TaskSnapshots.AsNoTracking().SingleAsync();
-        Assert.Equal((before.PlanJson, before.InputJson, before.ResolvedInputJson, before.DocumentJson, before.MeasurementsJson),
-            (after.PlanJson, after.InputJson, after.ResolvedInputJson, after.DocumentJson, after.MeasurementsJson));
+        Assert.Equal((before.PlanJson, before.DocumentJson, before.MeasurementsJson),
+            (after.PlanJson, after.DocumentJson, after.MeasurementsJson));
         Assert.Single(await upgraded.Users.ToListAsync());
-        Assert.Single(await upgraded.ActivityDrafts.ToListAsync());
+        var upgradedDraft = Assert.Single(await upgraded.ActivityDrafts.ToListAsync());
+        Assert.Equal("[]", upgradedDraft.ChatJson);
+        Assert.Null(upgradedDraft.UndoJson);
         Assert.Equal(withChildAccess ? 1 : 0, await upgraded.ChildDeviceGrants.CountAsync());
         Assert.Equal(upgraded.Database.GetMigrations(), await upgraded.Database.GetAppliedMigrationsAsync());
         Assert.Equal(earlier, (await db.Database.GetAppliedMigrationsAsync()).Last());

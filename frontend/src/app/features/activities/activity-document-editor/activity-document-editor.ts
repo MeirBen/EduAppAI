@@ -1,30 +1,15 @@
 import { NgTemplateOutlet } from '@angular/common';
-import {
-  ChangeDetectionStrategy,
-  Component,
-  inject,
-  input,
-  output,
-  TemplateRef,
-} from '@angular/core';
+import { ChangeDetectionStrategy, Component, input, output, TemplateRef } from '@angular/core';
 import { FieldTree, FormField } from '@angular/forms/signals';
 import { PlanMaterial } from '../../../core/api/models';
-import { Limits } from '../../../core/api/limits';
 import { ScopedRepair } from '../scoped-repair/scoped-repair';
 import { ContentIssues } from '../activity-presentation';
 import { DocumentForm } from './document-form';
 import { FieldDirection } from '../../../shared/forms/field-direction';
 import { DisabledInteractive } from '../../../shared/disabled-interactive';
-import { focusHolder } from '../../../shared/focus-holder';
 import { FieldErrors } from '../../../shared/forms/field-errors';
 import { FieldValidity } from '../../../shared/forms/field-validity';
 
-/** Structural edits remain in the route owner. New questions receive server IDs on save. */
-export type DocumentEdit =
-  | { kind: 'add-question' }
-  | { kind: 'remove-question' | 'move-up' | 'move-down' | 'add-option'; index: number }
-  | { kind: 'remove-option'; index: number; option: number }
-  | { kind: 'add-material'; id: string };
 /** Improvements that keep the activity's settings, so a picked idea cannot contradict the plan. */
 const materialSuggestions = [
   'שפה פשוטה יותר',
@@ -55,8 +40,6 @@ const questionSuggestions = [
   host: { '(input)': 'onEdit($event)', '(change)': 'onEdit($event)' },
 })
 export class ActivityDocumentEditor {
-  protected readonly limits = inject(Limits).current;
-  private readonly holdFocus = focusHolder();
   protected readonly materialSuggestions = materialSuggestions;
   protected readonly questionSuggestions = questionSuggestions;
   readonly fields = input.required<FieldTree<DocumentForm>>();
@@ -64,7 +47,7 @@ export class ActivityDocumentEditor {
   readonly locked = input(false);
   readonly aiAvailable = input(false);
   readonly operationActive = input(false);
-  /** No content yet: the editor stays available for manual writing without dominating the page. */
+  /** No content yet: keep the document heading and fields visually secondary until generation. */
   readonly empty = input(false);
   /**
    * Saved content whose server diagnostics ask for review under changed requirements. Adoption is
@@ -78,7 +61,6 @@ export class ActivityDocumentEditor {
   readonly status = input<TemplateRef<{ inCard: boolean }> | null>(null);
   readonly statusTarget = input<string | null>(null);
   readonly edited = output<{ key: string }>();
-  readonly structureChanged = output<DocumentEdit>();
   readonly replaced = output<{
     kind: 'ReplaceMaterial' | 'ReplaceQuestion';
     targetId: string;
@@ -86,26 +68,6 @@ export class ActivityDocumentEditor {
   }>();
   readonly adopted = output<{ materialIds: string[]; questionIds: string[] }>();
   readonly sourceReplaced = output<string>();
-  /**
-   * Applies a structural edit. Focus whose control it removes or moves goes to `successor`, an
-   * element ID: the same control after a move, else a neighbour's disclosure or the add button.
-   */
-  protected edit(change: DocumentEdit, successor: string) {
-    const restore = this.holdFocus();
-    this.structureChanged.emit(change);
-    restore(successor);
-  }
-  /** After removing question `index`, the heading of the question in its place, else adding one. */
-  protected questionSuccessor(index: number, count: number) {
-    const neighbour = index < count - 1 ? index : index - 1;
-    return neighbour < 0 ? 'add-question' : `question-${neighbour}-heading`;
-  }
-  protected missing(id: string) {
-    return !this.fields()
-      .materials()
-      .value()
-      .some((m) => m.id === id);
-  }
   protected generated(id: string) {
     return this.material(id)?.source === 'generated';
   }

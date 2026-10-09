@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
-import type { LearningPlan } from '../src/app/core/api/models';
+import { numericPlan } from '../src/app/features/activities/learning-plan.fixture';
 
-test('Kestrel accepts bounded Hebrew templates and rejects oversized bodies', async ({
+test('Kestrel accepts bounded Hebrew activity chat and rejects oversized bodies', async ({
   request,
 }) => {
   let csrf = await (await request.get('/api/auth/csrf')).json();
@@ -12,53 +12,44 @@ test('Kestrel accepts bounded Hebrew templates and rejects oversized bodies', as
   expect(login.status()).toBe(204);
   csrf = await (await request.get('/api/auth/csrf')).json();
   const headers = { 'X-XSRF-TOKEN': csrf.token, 'Content-Type': 'application/json' };
-  const definition: LearningPlan = {
+  const plan = {
+    ...numericPlan,
     schemaVersion: (await (await request.get('/api/ai/status')).json()).schemaVersion,
-    name: 'א'.repeat(100),
-    goal: 'א'.repeat(500),
-    guidance: 'א'.repeat(4000),
-    defaults: {
-      topic: 'א'.repeat(200),
-      audience: 'א'.repeat(200),
-      difficulty: 'medium',
-      questionCount: 4,
-    },
-    materials: [],
-    questions: { formats: ['numeric-input'], selectableFormat: false, guidance: '', controls: [] },
-    controls: Array.from({ length: 6 }, (_, index) => ({
-      id: index.toString(16).padStart(32, '0'),
-      meaning: 'א'.repeat(100),
-      label: 'א'.repeat(100),
-      type: 'select',
-      required: true,
-      default: 'א'.repeat(100),
-      options: Array.from({ length: 20 }, (_, option) => ({
-        value: String.fromCharCode(0x5d0 + option).repeat(100),
-      })),
+  };
+  const body = {
+    plan,
+    chat: Array.from({ length: 100 }, (_, index) => ({
+      role: index % 2 ? 'assistant' : 'parent',
+      text: 'א'.repeat(index % 2 ? 1000 : 4000),
+      atUtc: '2026-10-01T00:00:00Z',
+      target: null,
+      assumptions: null,
     })),
   };
-  expect(Buffer.byteLength(JSON.stringify(definition), 'utf8')).toBeGreaterThan(36_000);
-  const created = await request.post('/api/templates', { headers, data: definition });
-  expect(created.status(), await created.text()).toBe(201);
-  const template = await created.json();
-  try {
-    // Both native UTF-8 and JSON Unicode escapes must fit the same validated contract.
-    const escaped = JSON.stringify({ expectedVersion: 1, definition }).replace(
-      /[^\x00-\x7f]/g,
-      (character) => `\\u${character.charCodeAt(0).toString(16).padStart(4, '0')}`,
-    );
-    const published = await request.post(`/api/templates/${template.id}/versions`, {
-      headers,
-      data: escaped,
-    });
-    expect(published.status()).toBe(201);
-    expect((await published.json()).definition).toEqual(template.definition);
-    const oversized = await request.post('/api/templates', {
-      headers,
-      data: JSON.stringify(definition) + ' '.repeat(256 * 1024),
-    });
-    expect(oversized.status()).toBe(413);
-  } finally {
-    expect((await request.delete(`/api/templates/${template.id}`, { headers })).status()).toBe(204);
+  expect(Buffer.byteLength(JSON.stringify(body), 'utf8')).toBeGreaterThan(256 * 1024);
+  for (const escaped of [false, true]) {
+    const json = JSON.stringify(body);
+    const data = escaped
+      ? json.replace(
+          /[^\x00-\x7f]/g,
+          (character) => `\\u${character.charCodeAt(0).toString(16).padStart(4, '0')}`,
+        )
+      : json;
+    const created = await request.post('/api/activity-drafts', { headers, data });
+    expect(created.status(), await created.text()).toBe(201);
+    const draft = await created.json();
+    try {
+      expect(draft.chat).toHaveLength(100);
+      expect(draft.plan).toEqual(plan);
+    } finally {
+      expect((await request.delete(`/api/activity-drafts/${draft.id}`, { headers })).status()).toBe(
+        204,
+      );
+    }
   }
+  const oversized = await request.post('/api/activity-drafts', {
+    headers,
+    data: JSON.stringify({ plan }) + ' '.repeat(3 * 1024 * 1024),
+  });
+  expect(oversized.status()).toBe(413);
 });

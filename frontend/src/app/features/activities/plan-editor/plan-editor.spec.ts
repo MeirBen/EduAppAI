@@ -4,7 +4,7 @@ import { apply, form } from '@angular/forms/signals';
 import { PlanEditor, PlanStructureEdit } from './plan-editor';
 import { planFormSchema } from './plan-form';
 import { editPlanStructure, workspaceForm } from '../activity-workspace/workspace-form';
-import { numericPlan, readingPlan } from '../learning-plan.fixture';
+import { readingPlan } from '../learning-plan.fixture';
 import { LearningPlan } from '../../../core/api/models';
 import { limits, provideLimits } from '../../../core/api/limits.fixture';
 
@@ -12,7 +12,6 @@ import { limits, provideLimits } from '../../../core/api/limits.fixture';
   imports: [PlanEditor],
   template: `<app-plan-editor
     [fields]="fields.plan"
-    [definesChoices]="true"
     (edited)="edits = edits + 1"
     (structureChanged)="change($event)"
   />`,
@@ -22,8 +21,7 @@ class Host {
   readonly fields = form(this.raw, (path) => apply(path.plan, planFormSchema(limits)));
   edits = 0;
   change(edit: PlanStructureEdit) {
-    const next = editPlanStructure(this.raw(), edit, limits);
-    if (next) this.raw.set(next);
+    this.raw.set(editPlanStructure(this.raw(), edit, limits));
   }
 }
 async function render(plan: LearningPlan) {
@@ -31,110 +29,20 @@ async function render(plan: LearningPlan) {
   fixture.componentInstance.raw.set(workspaceForm(plan));
   await fixture.whenStable();
   const root: HTMLElement = fixture.nativeElement;
-  return { root, host: fixture.componentInstance, fixture, section: choices(root) };
+  return { root, host: fixture.componentInstance, fixture };
 }
-const choices = (root: HTMLElement) =>
-  root.querySelector<HTMLElement>('section[aria-labelledby="choices-title"]')!;
-const choice = (id: string, meaning = 'רמה') => ({
-  id: id.repeat(32),
-  label: 'רמה',
-  meaning,
-  type: 'boolean' as const,
-});
-const material = readingPlan.materials[0];
-
 describe('Plan editor choices', () => {
   beforeEach(() => TestBed.configureTestingModule({ providers: [provideLimits()] }));
 
-  it('gathers every per-activity choice and adjustable requirement in one section', async () => {
-    const { root, section } = await render({
-      ...readingPlan,
-      controls: [choice('a')],
-      materials: [{ ...material, controls: [choice('b')] }],
-      questions: { ...readingPlan.questions, controls: [choice('c')] },
-    });
-    for (const id of [`${material.id}-adjustable`, 'choice-adjustable', 'question-selectable'])
-      expect(section.querySelector(`[id="${id}"]`)).not.toBeNull();
-    const meanings = Array.from(root.querySelectorAll('[id$="-meaning"]'));
-    expect(meanings).toHaveLength(3);
-    expect(meanings.every((meaning) => section.contains(meaning))).toBe(true);
-    const owners = Array.from(section.querySelectorAll('details > summary'), (summary) =>
-      summary.textContent!.replace(/\s+/g, ' ').trim(),
-    );
-    expect(owners[0]).toContain('כל הפעילות');
-    expect(owners[1]).toContain('הטקסט קטע קריאה');
-    expect(owners[2]).toContain('השאלות');
-  });
-
-  it('offers only the adjustable requirements that apply', async () => {
-    const { section } = await render(numericPlan);
-    expect(section.querySelector('fieldset')).toBeNull();
-    expect(section.querySelector('#add-choice')).not.toBeNull();
-  });
-
-  it('adds a choice to the chosen part and opens it, leaving focus on the add button', async () => {
-    const { root, host, fixture } = await render(readingPlan);
-    const scope = root.querySelector<HTMLSelectElement>('#choice-scope')!;
-    scope.value = material.id;
-    scope.dispatchEvent(new Event('change', { bubbles: true }));
-    await fixture.whenStable();
-    // Picking where a choice goes is not a plan edit; it must not reach Undo or cancel a request.
-    expect(host.edits).toBe(0);
-    const add = root.querySelector<HTMLButtonElement>('#add-choice')!;
-    add.focus();
-    add.click();
-    await fixture.whenStable();
-    const [added] = host.raw().plan.materials[0].controls;
-    expect(added).toBeDefined();
-    const name = root.querySelector<HTMLInputElement>(`[id="${added.id}-label"]`)!;
-    expect(name.closest('details')!.open).toBe(true);
-    expect(document.activeElement).toBe(add);
-  });
-
-  it('marks an invalid collapsed choice in its summary', async () => {
-    const { section } = await render({ ...numericPlan, controls: [choice('a', '')] });
-    const card = section.querySelector('details')!;
-    expect(card.open).toBe(false);
-    expect(card.querySelector('summary')!.textContent).toContain('יש לתקן את הבחירה');
-  });
-
-  async function press(
-    fixture: { whenStable(): Promise<unknown> },
-    root: HTMLElement,
-    text: string,
-  ) {
-    const button = Array.from(root.querySelectorAll('button')).find(
-      (b) => b.textContent?.replace(/\s+/g, ' ').trim() === text,
+  it('moves focus from a removed material to the add control', async () => {
+    const { root, fixture, host } = await render(readingPlan);
+    const remove = Array.from(root.querySelectorAll('button')).find((b) =>
+      b.textContent?.includes('הסרת הטקסט'),
     )!;
-    button.focus();
-    button.click();
+    remove.focus();
+    remove.click();
     await fixture.whenStable();
-    return document.activeElement as HTMLElement;
-  }
-
-  it('moves focus from a removed choice to its neighbour, else to adding a choice', async () => {
-    const { root, fixture } = await render({
-      ...numericPlan,
-      controls: [
-        { ...choice('a'), label: 'ראשונה' },
-        { ...choice('b'), label: 'שנייה' },
-      ],
-    });
-    expect((await press(fixture, root, 'הסרת הבחירה ראשונה')).id).toBe('b'.repeat(32) + '-summary');
-    expect((await press(fixture, root, 'הסרת הבחירה שנייה')).id).toBe('add-choice');
-  });
-
-  it('moves focus from a removed text, or its last option, to adding one', async () => {
-    const id = 'd'.repeat(32);
-    const { root, fixture } = await render({
-      ...readingPlan,
-      controls: [
-        { id, label: 'סגנון', meaning: 'סגנון', type: 'select', options: [{ value: 'א' }] },
-      ],
-    });
-    root.querySelector<HTMLDetailsElement>(`[id="${id}-summary"]`)!.click();
-    await fixture.whenStable();
-    expect((await press(fixture, root, 'הסרת אפשרות 1')).id).toBe(id + '-add-option');
-    expect((await press(fixture, root, 'הסרת הטקסט קטע קריאה')).id).toBe('add-material');
+    expect(host.raw().plan.materials).toHaveLength(0);
+    expect((document.activeElement as HTMLElement).id).toBe('add-material');
   });
 });

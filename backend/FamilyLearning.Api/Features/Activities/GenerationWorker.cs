@@ -71,6 +71,12 @@ public sealed partial class GenerationWorker(IServiceScopeFactory scopes, AiGene
             {
                 cancellation.Token.ThrowIfCancellationRequested();
                 generated = await GenerateAsync(call, evidence, cancellation.Token);
+                var working = Advance(call, generated);
+                if (NextStage(call.Kind, call.Stage, working) is null && working.Scope?.RequiresComplete == true && working.Scope.Clarification is null)
+                {
+                    var errors = TaskDocumentValidator.ValidateRelease(working.Input, working.Current);
+                    if (errors.Count > 0) throw new TaskValidationException(errors);
+                }
             }
             catch (AiGenerationException error) { failure = error; }
             catch (TaskValidationException error) { failure = AiGenerationException.InvalidOutput(error.Errors); }
@@ -106,12 +112,13 @@ public sealed partial class GenerationWorker(IServiceScopeFactory scopes, AiGene
         await db.SaveChangesAsync(ct);
         await transaction.CommitAsync(ct);
         changes.Publish(operation.FamilyId);
-        return (true, new(operation.Id, operation.DraftId, operation.Stage, artifacts));
+        return (true, new(operation.Id, operation.DraftId, operation.Kind, operation.Stage, artifacts));
 
         async Task<(bool, ClaimedCall?)> RejectAsync(string status, string failure)
         {
             operation.Finish(status, failure, UtcNow);
             draft.ClearOperation(operation.Id, UtcNow);
+            draft.CompleteChat(operation, UtcNow);
             await db.SaveChangesAsync(ct);
             await transaction.CommitAsync(ct);
             changes.Publish(operation.FamilyId);
@@ -124,28 +131,59 @@ public sealed partial class GenerationWorker(IServiceScopeFactory scopes, AiGene
     {
         var input = call.Artifacts.Input;
         var current = call.Artifacts.Current;
+        var scope = call.Artifacts.Scope;
+        // Rebuilds retain old questions only as reference; their size/format cannot reject intermediate text.
+        var materialCurrent = scope is null ? current : new TaskDocument("", null, current.Materials, []);
+        TaskDocument PreserveReference(TaskDocument result) => scope is null ? result : current with { Materials = result.Materials };
+        var materialInput = scope is null ? null : new MaterialGenerationInput(input, current.Materials, scope.NewMaterials);
         switch (call.Stage)
         {
+            case "revise":
+                var originalPlan = call.Artifacts.Plan;
+                var revision = await ai.ReviseAsync(new(originalPlan, current, call.Artifacts.Instruction!, call.Artifacts.Target,
+                    call.Artifacts.Sources, call.Artifacts.Context), ct, evidence);
+                if (revision.Value.Change is not { } change)
+                    return new(current, Candidate(revision.Value), Reply: revision.Value.Answer ?? revision.Value.Clarification);
+                var work = RevisionScope.Derive(originalPlan, current, change);
+                if (work.Clarification is { } clarification) return new(current, Candidate(revision.Value), Reply: clarification);
+                var working = RevisionScope.PrepareDocument(originalPlan, current, change.Plan, work);
+                return new(working, Candidate(revision.Value), Plan: change.Plan, Scope: work, Assumptions: change.Assumptions);
             case "material-ideas":
-                var ideas = await ai.GenerateMaterialIdeasAsync(TaskAssembly.PrepareMaterials(input, current)!, call.Artifacts.History.Ideas, ct, evidence);
+                var ideas = await ai.GenerateMaterialIdeasAsync(materialInput ?? TaskAssembly.PrepareMaterials(input, current)!, call.Artifacts.History.Ideas, ct, evidence);
                 // The operation ID is the draw: an operation always selects the same idea, while operations vary.
                 return new(current, Candidate(ideas.Value), MaterialIdeas.Select(ideas.Value, call.Id.GetHashCode()));
             case "materials":
                 var idea = call.Artifacts.SelectedIdea ?? throw new InvalidOperationException("Materials are written only after an idea checkpoint.");
-                var materials = await ai.GenerateMaterialsAsync(TaskAssembly.PrepareMaterials(input, current)!, idea, ct, evidence);
-                var accepted = TaskAssembly.AcceptMaterials(input, current, materials.Value, materials.Metadata, idea);
-                return new(accepted.Document ?? throw new TaskValidationException(accepted.Diagnostics), Candidate(materials.Value));
+                var materials = await ai.GenerateMaterialsAsync(materialInput ?? TaskAssembly.PrepareMaterials(input, current)!, idea, ct, evidence);
+                var accepted = TaskAssembly.AcceptMaterials(input, materialCurrent, materials.Value, materials.Metadata, idea, scope?.NewMaterials);
+                return new(PreserveReference(accepted.Document ?? throw new TaskValidationException(accepted.Diagnostics)), Candidate(materials.Value));
             case "material-polish":
-                var polishInput = new PolishInput(input, current);
+                var polishInput = new PolishInput(input, materialCurrent, scope?.NewMaterials);
                 var polished = await ai.PolishMaterialsAsync(polishInput, ct, evidence);
-                return new(TaskAssembly.PolishMaterials(polishInput, polished.Value, polished.Metadata), Candidate(polished.Value));
+                return new(PreserveReference(TaskAssembly.PolishMaterials(polishInput, polished.Value, polished.Metadata)), Candidate(polished.Value));
             case "questions":
-                var questions = await ai.GenerateQuestionsAsync(TaskAssembly.PrepareQuestions(input, current), call.Artifacts.History.Questions, ct, evidence);
+                var questionRequest = TaskAssembly.PrepareQuestions(input, materialCurrent) with { Current = current, Instruction = scope?.Instruction };
+                var questions = await ai.GenerateQuestionsAsync(questionRequest, call.Artifacts.History.Questions, ct, evidence);
                 return new(TaskAssembly.AcceptQuestions(input, current, questions.Value, questions.Metadata), Candidate(questions.Value));
+            case "append-questions":
+                var additionInput = new QuestionAdditionInput(input, current, input.Settings.QuestionCount - current.Questions.Length, scope!.Instruction);
+                var additions = await ai.AppendQuestionsAsync(additionInput, call.Artifacts.History.Questions, ct, evidence);
+                return new(TaskAssembly.AppendQuestions(additionInput, additions.Value, additions.Metadata), Candidate(additions.Value));
+            case "rewrite-material":
+                var rewrite = scope!.Rewrites[call.Artifacts.RewriteIndex];
+                var rewriteInput = new MaterialReplacementInput(input, materialCurrent, rewrite.Id, rewrite.Instruction,
+                    scope.Rewrites.Skip(call.Artifacts.RewriteIndex + 1).Select(r => r.Id).ToArray());
+                var rewritten = await ai.ReplaceMaterialAsync(rewriteInput, ct, evidence);
+                return new(PreserveReference(TaskAssembly.ReplaceMaterial(rewriteInput, rewritten.Value, rewritten.Metadata)), Candidate(rewritten.Value));
+            case "revise-question":
+                var edit = scope!.QuestionEdits[call.Artifacts.QuestionIndex];
+                var replacement = new QuestionReplacementInput(input, current, edit.Id, edit.Instruction);
+                var replaced = await ai.ReplaceQuestionAsync(replacement, ct, evidence);
+                return new(TaskAssembly.ReplaceQuestion(replacement, replaced.Value, replaced.Metadata), Candidate(replaced.Value));
             case "replace-material":
-                var materialInput = new MaterialReplacementInput(input, current, call.Artifacts.TargetId!, call.Artifacts.Instruction);
-                var material = await ai.ReplaceMaterialAsync(materialInput, ct, evidence);
-                return new(TaskAssembly.ReplaceMaterial(materialInput, material.Value, material.Metadata), Candidate(material.Value));
+                var replacementInput = new MaterialReplacementInput(input, current, call.Artifacts.TargetId!, call.Artifacts.Instruction);
+                var material = await ai.ReplaceMaterialAsync(replacementInput, ct, evidence);
+                return new(TaskAssembly.ReplaceMaterial(replacementInput, material.Value, material.Metadata), Candidate(material.Value));
             case "replace-question":
                 var questionInput = new QuestionReplacementInput(input, current, call.Artifacts.TargetId!, call.Artifacts.Instruction);
                 var question = await ai.ReplaceQuestionAsync(questionInput, ct, evidence);
@@ -175,11 +213,7 @@ public sealed partial class GenerationWorker(IServiceScopeFactory scopes, AiGene
             artifacts.Steps[^1] = artifacts.Steps[^1] with { Call = evidence, Candidate = generated?.Candidate, Diagnostics = failure?.ValidationErrors };
             var steps = operation.Steps;
             steps[^1] = summary with { Outcome = outcome };
-            var acceptedArtifacts = outcome == "accepted" ? artifacts with
-            {
-                Current = generated!.Document,
-                SelectedIdea = generated.SelectedIdea ?? artifacts.SelectedIdea
-            } : artifacts;
+            var acceptedArtifacts = outcome == "accepted" ? Advance(call with { Artifacts = artifacts }, generated!) : artifacts;
             if (!operation.StoreArtifacts(acceptedArtifacts, steps))
             {
                 operation.RecordResult(summary with { Outcome = "failed" });
@@ -189,12 +223,19 @@ public sealed partial class GenerationWorker(IServiceScopeFactory scopes, AiGene
             else if (failure is not null || generated is null) operation.Finish("failed", failure?.Category ?? "cancelled-call", UtcNow);
             else
             {
-                // Idea selection changes no draft content. Content and the next stage commit together, so recovery never repeats a call.
-                if (call.Stage != "material-ideas") draft.Save(draft.Name, draft.PlanJson, draft.InputJson, StoredJson.Write(generated.Document));
-                if (NextStage(call.Stage) is { } next) operation.QueueStage(next, draft.Revision);
-                else operation.Finish("completed", null, UtcNow, draft.Revision);
+                if (NextStage(call.Kind, call.Stage, acceptedArtifacts) is { } next) operation.QueueStage(next, draft.Revision);
+                else
+                {
+                    var changed = draft.ApplyOperation(acceptedArtifacts.Plan, acceptedArtifacts.Current, call.Kind);
+                    operation.Finish("completed", null, UtcNow, draft.Revision);
+                    draft.CompleteChat(operation, UtcNow, acceptedArtifacts.Reply ?? (changed ? null : "הפעולה הסתיימה ללא שינוי בתוכן."), acceptedArtifacts.Assumptions);
+                }
             }
-            if (operation.Status != "queued") draft.ClearOperation(operation.Id, UtcNow);
+            if (operation.Status != "queued")
+            {
+                draft.ClearOperation(operation.Id, UtcNow);
+                draft.CompleteChat(operation, UtcNow);
+            }
         }
         await db.SaveChangesAsync(ct);
         await transaction.CommitAsync(ct);
@@ -219,6 +260,7 @@ public sealed partial class GenerationWorker(IServiceScopeFactory scopes, AiGene
                 operation.Status == "calling" ? "interrupted-call" : "configuration-changed", UtcNow);
             var draft = await db.ActivityDrafts.SingleAsync(d => d.Id == operation.DraftId, ct);
             draft.ClearOperation(operation.Id, UtcNow);
+            draft.CompleteChat(operation, UtcNow);
         }
         await db.SaveChangesAsync(ct);
         await transaction.CommitAsync(ct);
@@ -269,14 +311,46 @@ public sealed partial class GenerationWorker(IServiceScopeFactory scopes, AiGene
     [LoggerMessage(1005, LogLevel.Debug, "Expired generation artifacts for {OperationCount} operations")]
     private static partial void LogArtifactsExpired(ILogger logger, int operationCount);
 
-    /// <summary>Text is written from its idea, then polished; questions are a separate parent-started operation, and every other stage is final.</summary>
-    private static string? NextStage(string stage) => stage switch
+    private static GenerationArtifacts Advance(ClaimedCall call, Generated generated)
     {
-        "material-ideas" => "materials",
-        "materials" => "material-polish",
-        _ => null
-    };
+        var artifacts = call.Artifacts;
+        return artifacts with
+        {
+            Plan = generated.Plan ?? artifacts.Plan,
+            Input = generated.Plan is null ? artifacts.Input : TaskRequestResolver.ResolveOrThrow(generated.Plan),
+            Current = generated.Document,
+            Scope = generated.Scope ?? artifacts.Scope,
+            Reply = generated.Reply ?? artifacts.Reply,
+            Assumptions = generated.Assumptions ?? artifacts.Assumptions,
+            SelectedIdea = generated.SelectedIdea ?? artifacts.SelectedIdea,
+            RewriteIndex = artifacts.RewriteIndex + (call.Stage == "rewrite-material" ? 1 : 0),
+            QuestionIndex = artifacts.QuestionIndex + (call.Stage == "revise-question" ? 1 : 0)
+        };
+    }
 
-    private sealed record ClaimedCall(Guid Id, Guid DraftId, string Stage, GenerationArtifacts Artifacts);
-    private sealed record Generated(TaskDocument Document, JsonElement Candidate, MaterialIdea? SelectedIdea = null);
+    // Fixed sequence with bounded cursors; checkpoints never contain executable work queues.
+    private static string? NextStage(string kind, string stage, GenerationArtifacts artifacts)
+    {
+        if (stage == "material-ideas") return "materials";
+        if (stage == "materials") return "material-polish";
+        if (kind is not ("Create" or "Revise") || artifacts.Reply is not null || artifacts.Scope is not { } work) return null;
+        if (stage is "revise" or "rewrite-material")
+        {
+            if (artifacts.RewriteIndex < work.Rewrites.Length) return "rewrite-material";
+            if (work.NewMaterials.Length > 0) return "material-ideas";
+        }
+        if (stage is "revise" or "rewrite-material" or "material-polish" or "revise-question")
+            return work.Questions switch
+            {
+                "all" => "questions",
+                "append" => "append-questions",
+                "selected" when artifacts.QuestionIndex < work.QuestionEdits.Length => "revise-question",
+                _ => null
+            };
+        return null;
+    }
+
+    private sealed record ClaimedCall(Guid Id, Guid DraftId, string Kind, string Stage, GenerationArtifacts Artifacts);
+    private sealed record Generated(TaskDocument Document, JsonElement Candidate, MaterialIdea? SelectedIdea = null,
+        LearningPlan? Plan = null, RevisionWork? Scope = null, string? Reply = null, string[]? Assumptions = null);
 }

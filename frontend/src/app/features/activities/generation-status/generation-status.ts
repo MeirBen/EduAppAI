@@ -6,19 +6,24 @@ import { isRunning, stageNames } from './operation-state';
 import { DisabledInteractive } from '../../../shared/disabled-interactive';
 import { CopyButton } from '../../../shared/copy-button/copy-button';
 
-type Scope = 'text' | 'questions' | 'material' | 'question';
-const scopes: Partial<Record<GenerationKind, Scope>> = {
+type Scope = 'activity' | 'text' | 'questions' | 'material' | 'question';
+const scopes: Record<GenerationKind, Scope> = {
+  Create: 'activity',
+  Revise: 'activity',
+  GenerateMaterials: 'text',
   GenerateQuestions: 'questions',
   ReplaceMaterial: 'material',
   ReplaceQuestion: 'question',
 };
 const runningTitles: Record<Scope, string> = {
+  activity: 'עובדים על הפעילות…',
   text: 'יוצרים את הטקסט…',
   questions: 'יוצרים את השאלות…',
   material: 'משפרים את הטקסט…',
   question: 'משפרים את השאלה…',
 };
 const completedTitles: Record<Scope, string> = {
+  activity: 'הפעולה הושלמה.',
   text: 'הטקסט נוצר.',
   questions: 'השאלות נוצרו.',
   material: 'הטקסט עודכן.',
@@ -56,6 +61,10 @@ export class GenerationStatus {
   readonly checked = output<void>();
   protected readonly active = computed(() => isRunning(this.operation()));
   protected readonly stages: Record<string, string> = {
+    revise: 'בודקים את הבקשה',
+    'rewrite-material': 'מעדכנים טקסט',
+    'revise-question': 'מעדכנים שאלה',
+    'append-questions': 'מוסיפים שאלות',
     'material-ideas': 'בוחרים רעיון לטקסט',
     materials: 'כותבים את הטקסט',
     'material-polish': 'משפרים את ניסוח הטקסט',
@@ -76,7 +85,7 @@ export class GenerationStatus {
   };
   protected readonly view = computed((): StatusView => {
     const operation = this.operation();
-    const scope = scopes[operation.kind] ?? 'text';
+    const scope = scopes[operation.kind];
     switch (operation.status) {
       case 'queued':
       case 'calling':
@@ -104,7 +113,7 @@ export class GenerationStatus {
       case 'cancelled':
         return {
           title: 'היצירה בוטלה.',
-          details: ['תוכן שכבר נשמר נשאר בטיוטה.'],
+          details: ['התוכן השמור לא השתנה.'],
           problem: false,
         };
       default:
@@ -117,11 +126,10 @@ export class GenerationStatus {
     }
   });
   private failure(operation: GenerationOperation, scope: Scope): StatusView {
-    // A failed polish leaves the text its writing stage saved, so no retry is offered.
-    if (operation.stage === 'material-polish')
+    if (scope === 'activity')
       return {
-        title: 'הטקסט נשמר, אבל שיפור הניסוח לא הושלם.',
-        details: ['בדקו את הטקסט בעצמכם לפני שיוצרים את השאלות.'],
+        title: 'הפעולה לא הושלמה.',
+        details: ['התוכן השמור לא השתנה. אפשר לעיין בפרטים ולשלוח בקשה חדשה.'],
         problem: true,
       };
     const unchanged = 'התוצאה לא החליפה את התוכן הקיים.';

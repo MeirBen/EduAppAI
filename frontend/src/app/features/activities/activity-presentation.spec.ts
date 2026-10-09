@@ -8,7 +8,7 @@ import {
   staleContent,
 } from './activity-presentation';
 import { numericPlan, readingPlan } from './learning-plan.fixture';
-import { inputForm, planForm } from './plan-editor/plan-form';
+import { planForm } from './plan-editor/plan-form';
 
 const question = (id: string, options: string[] | null, answer: string) => ({
   id,
@@ -23,7 +23,7 @@ const draft = (overrides: Partial<ActivityDetail>): ActivityDetail => ({
   id: 'draft',
   revision: 2,
   plan: readingPlan,
-  input: { settings: readingPlan.defaults },
+
   document: { title: 'פעילות', instructions: null, materials: [], questions: [] },
   diagnostics: {},
   measurements: [],
@@ -33,27 +33,26 @@ const draft = (overrides: Partial<ActivityDetail>): ActivityDetail => ({
   releasedSourceRevision: null,
   createdAtUtc: '2026-10-01T00:00:00Z',
   updatedAtUtc: '2026-10-01T00:00:00Z',
+  chat: [],
+  canUndo: false,
   ...overrides,
 });
 
 describe('Parent-facing activity presentation', () => {
   it('summarizes a reading plan from the current choices without internal vocabulary', () => {
-    const plan = planForm(readingPlan),
-      input = inputForm(readingPlan);
-    expect(activitySummary(plan, input)).toEqual([
+    const plan = planForm(readingPlan);
+    expect(activitySummary(plan)).toEqual([
       'דינוזאורים',
       'כיתה ג׳',
       'בינוני',
       '5 שאלות אמריקאיות',
       'בערך 300 מילים',
     ]);
-    input.materials[0].wordCount = '450';
-    input.questionFormat = 'text-input';
-    expect(activitySummary(plan, input)).toContain('בערך 450 מילים');
-    expect(activitySummary(plan, input)).toContain('5 שאלות עם תשובה קצרה');
-    // Unfinished typing falls back to the plan value instead of an invented number.
-    input.materials[0].wordCount = '4.';
-    expect(activitySummary(plan, input)).toContain('בערך 300 מילים');
+    plan.materials[0].length.value = '450';
+    plan.questions.choice = false;
+    plan.questions.text = true;
+    expect(activitySummary(plan)).toContain('בערך 450 מילים');
+    expect(activitySummary(plan)).toContain('5 שאלות עם תשובה קצרה');
   });
 
   it('summarizes question-only and mixed plans', () => {
@@ -61,12 +60,10 @@ describe('Parent-facing activity presentation', () => {
       ...numericPlan,
       questions: { ...numericPlan.questions, formats: ['numeric-input', 'text-input'] },
     });
-    const summary = activitySummary(plan, inputForm(numericPlan));
+    const summary = activitySummary(plan);
     expect(summary).toContain('ללא טקסט מקדים');
     expect(summary).toContain('2 שאלות (מספר + תשובה קצרה)');
-    expect(activitySummary(planForm(numericPlan), inputForm(numericPlan))).toContain(
-      '2 שאלות מספריות',
-    );
+    expect(activitySummary(planForm(numericPlan))).toContain('2 שאלות מספריות');
   });
 
   it('places each field problem at its field until it changes and points the review there', () => {

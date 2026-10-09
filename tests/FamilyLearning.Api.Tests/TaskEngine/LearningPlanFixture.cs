@@ -15,33 +15,31 @@ internal static class LearningPlanFixture
 
     internal static LearningPlan Numeric(int count = 2) => new(
         "מספרים", "תרגול חשבון", "", new("חשבון", "כיתה ג", "medium", count), [],
-        new(["numeric-input"], false, null, null, "", []), []);
+        new(["numeric-input"], null, ""));
 
     internal static LearningPlan Reading() => Numeric() with
     {
         Name = "קריאה",
         Goal = "הבנת הנקרא",
-        Materials = [new(MaterialId, "סיפור", "generated", "עברית", null,
-            new("target", new(120, true)),
-            [new(ControlId, "סוג סיפור", "select", "בחר את סוג הסיפור", true,
-                Json("\"דמיון\""), Options: [new("דמיון", "סיפור דמיוני"), new("עובדות")])])],
-        Questions = new(["text-input"], false, null, null, "", [])
+        Materials = [new(MaterialId, "סיפור", "generated", "עברית", null, new("target", 120))],
+        Questions = new(["text-input"], null, "")
     };
 
-    internal static LearningPlan Supplied(string source = "fixed") => Numeric() with
+    internal static LearningPlan Supplied() => Numeric() with
     {
-        Materials = [new(MaterialId, "מקור", source, "", source == "fixed" ? Source : null, null, [])]
+        Materials = [new(MaterialId, "מקור", "supplied", "", Source, null)]
     };
 
-    internal static LearningPlan Mixed(bool selectable = false) => Numeric(3) with
+    internal static LearningPlan Mixed() => Numeric(3) with
     {
-        Questions = new(["numeric-input", "text-input", "single-choice"], selectable,
-            selectable ? "single-choice" : null, new(3, true), "", [])
+        Questions = new(["numeric-input", "text-input", "single-choice"], 3, "")
     };
 
-    internal static ResolvedTaskRequest Resolve(LearningPlan plan, TaskRequest? input = null)
+    internal static LearningPlan Choices(int count = 3) => Numeric(count) with { Questions = new(["single-choice"], 3, "") };
+
+    internal static ResolvedTaskRequest Resolve(LearningPlan plan)
     {
-        var result = TaskRequestResolver.Resolve(plan, input ?? new(plan.Defaults));
+        var result = TaskRequestResolver.Resolve(plan);
         Assert.Empty(result.Errors);
         return Assert.IsType<ResolvedTaskRequest>(result.Value);
     }

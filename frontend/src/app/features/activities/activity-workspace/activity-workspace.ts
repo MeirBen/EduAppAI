@@ -34,10 +34,7 @@ import {
 import { focusHolder } from '../../../shared/focus-holder';
 import { validationErrors } from '../../../shared/forms/projection';
 import { LoadingIndicator } from '../../../shared/loading-indicator/loading-indicator';
-import {
-  ActivityDocumentEditor,
-  DocumentEdit,
-} from '../activity-document-editor/activity-document-editor';
+import { ActivityDocumentEditor } from '../activity-document-editor/activity-document-editor';
 import {
   documentForm,
   documentSchema,
@@ -55,13 +52,11 @@ import {
 } from '../activity-presentation';
 import { ActivityReview } from '../activity-review/activity-review';
 import { ActivitySetup } from '../activity-setup/activity-setup';
-import { unappliedCandidates } from '../generation-status/candidate-edit';
 import { GenerationStatus } from '../generation-status/generation-status';
 import { isRunning } from '../generation-status/operation-state';
-import { UnappliedResult } from '../generation-status/unapplied-result/unapplied-result';
 import { PlanEditor, PlanStructureEdit } from '../plan-editor/plan-editor';
 import { planFormSchema } from '../plan-editor/plan-form';
-import { planValue, requestValue } from '../plan-editor/plan-projection';
+import { planValue } from '../plan-editor/plan-projection';
 import { SourceReplacement } from '../source-replacement/source-replacement';
 import { TemplateChat } from '../template-chat/template-chat';
 import { libraryChanges } from '../../../core/api/library-changes';
@@ -69,17 +64,14 @@ import { DraftObservation, observeDraft } from './draft-observer';
 import { UndoHistory } from './undo-history';
 import {
   ConfirmedSources,
-  editDocumentStructure,
   editPlanStructure,
   emptyWorkspace,
   fixedSources,
   hasPlanContent,
-  materialIdentity,
   proposedWorkspace,
   reconcile,
   replaceSourceText,
   sourceText,
-  withSavedQuestionIds,
   withSchemaVersion,
   WorkspaceForm,
   workspaceForm,
@@ -114,7 +106,6 @@ const questionChecks = new Set(['title', 'questions', 'questions.formats']);
     ActivityDocumentView,
     NgTemplateOutlet,
     SourceReplacement,
-    UnappliedResult,
     ActionBar,
     ActionBarToggle,
   ],
@@ -211,8 +202,10 @@ export class ActivityWorkspace {
   protected readonly released = computed(
     () => !!(this.available() ?? this.saved())?.releasedSnapshotId,
   );
-  /** Edits wait for any running save and stop for good once the activity is released. */
-  protected readonly locked = computed(() => this.saving() || this.released());
+  /** Editing pauses during work and stays locked once the activity is released. */
+  protected readonly locked = computed(
+    () => this.saving() || this.released() || this.operationActive() || !!this.startRecovery(),
+  );
   protected readonly aiConfigured = computed(() => this.ai.value()?.configured ?? false);
   /** Content actions wait for a running save or operation and for any unresolved start. */
   protected readonly contentBusy = computed(
@@ -234,15 +227,8 @@ export class ActivityWorkspace {
     },
   });
   protected readonly canGenerate = computed(() => this.aiConfigured() && !this.contentBusy());
-  /** The visible settings are the plan defaults, in a template and an activity alike; one set of fields owns them. */
-  protected readonly projection = computed(() => {
-    const { plan, input } = this.raw();
-    return planValue(plan, input.settings, this.limits);
-  });
-  protected readonly inputProjection = computed(() => {
-    const plan = this.projection().value;
-    return plan ? requestValue(plan, this.raw().input, this.limits) : { errors: [] };
-  });
+  /** The plan owns the activity's concrete settings. */
+  protected readonly projection = computed(() => planValue(this.raw().plan, this.limits));
   protected readonly documentProjection = computed(() =>
     documentValue(this.raw().document, this.limits),
   );
@@ -250,7 +236,7 @@ export class ActivityWorkspace {
     this.raw()
       .plan.materials.filter(
         (material) =>
-          material.source === 'fixed' && this.confirmed()[material.id] !== material.text,
+          material.source === 'supplied' && this.confirmed()[material.id] !== material.text,
       )
       .map((material) => material.id),
   );
@@ -258,11 +244,12 @@ export class ActivityWorkspace {
   protected readonly blocker = computed(() => {
     if (this.sourceReplacement().id) return 'אשרו את הטקסט החדש או בטלו את ההחלפה.';
     if (this.pendingSources().length) return 'אשרו שהטקסט שלכם הועתק נכון.';
-    const valid =
-      this.projection().value && this.inputProjection().value && this.documentProjection().value;
+    const valid = this.projection().value && this.documentProjection().value;
     return valid ? '' : 'תקנו את השדות המסומנים.';
   });
-  protected readonly thread = computed(() => [...this.answered(), ...this.conversation()]);
+  protected readonly thread = computed(
+    () => (this.available() ?? this.saved())?.chat ?? [...this.answered(), ...this.conversation()],
+  );
   protected readonly needsConsolidation = computed(
     () =>
       this.conversation().length > this.limits.maxContextTurns ||
@@ -277,13 +264,6 @@ export class ActivityWorkspace {
   protected readonly unsaved = computed(() => this.dirty() && !!this.saved());
   protected readonly templateChanged = computed(
     () => JSON.stringify(this.projection().value) !== this.publishedPlan(),
-  );
-  /**
-   * A template or an activity's own plan defines what activities may change; an activity created
-   * from a template, before or after its first save, only sets the values the template allows.
-   */
-  protected readonly definesChoices = computed(
-    () => this.context() === 'template' || (!this.templateId() && !this.saved()?.templateVersionId),
   );
   /** Any proposed, loaded or typed plan; an invalid edit keeps the setup visible for correction. */
   protected readonly hasPlan = computed(() => hasPlanContent(this.raw().plan));
@@ -320,6 +300,9 @@ export class ActivityWorkspace {
     () =>
       this.hasPlan() || !!this.saved() || !!this.publication() || !!this.history.entries().length,
   );
+  protected readonly canUndo = computed(() =>
+    this.saved() ? !!this.saved()?.canUndo && !this.dirty() : !!this.history.entries().length,
+  );
   protected readonly steps = ['תיאור', 'הגדרות', 'בדיקה', 'מוכנה'];
   /** The step indicator's phase: describe, set up, review, ready. */
   protected readonly stage = computed(() =>
@@ -327,7 +310,7 @@ export class ActivityWorkspace {
   );
   /** Setup collapses to its summary once content exists; the parent can reopen it at any time. */
   protected readonly setupOpen = linkedSignal(() => !this.hasContent());
-  protected readonly summary = computed(() => activitySummary(this.raw().plan, this.raw().input));
+  protected readonly summary = computed(() => activitySummary(this.raw().plan));
   protected readonly saveState = computed(() => {
     if (this.saving()) return 'שומרים…';
     if (this.elsewhere() === 'changed') return 'הפעילות עודכנה במכשיר אחר';
@@ -401,32 +384,23 @@ export class ActivityWorkspace {
           );
     return hasCard ? target : null;
   });
-  protected readonly editableCandidates = computed(() => {
-    const plan = this.projection().value,
-      operation = this.operation();
-    return plan && operation && !this.operationActive() && !this.released()
-      ? unappliedCandidates(operation, this.raw().document, plan, this.limits)
-      : [];
-  });
 
   protected readonly fields = form(this.raw, (path) => {
-    disabled(path, () => this.saving() || this.loading() || this.released());
+    disabled(path, () => this.locked() || this.loading());
+    disabled(path.plan, () => !!this.saved());
+    applyEach(path.document.questions, (question) => disabled(question.type, () => true));
     apply(path.document, documentSchema(this.limits));
     apply(path.plan, planFormSchema(this.limits));
-    applyEach(path.input.materials, (material) =>
-      maxLength(material.sourceText, this.limits.bodyLength),
-    );
     // The projections own every rule; each problem shows on the field that can fix it.
     validateTree(path, ({ fieldTree }) =>
       validationErrors(fieldTree, [
         ...this.projection().errors,
-        ...this.inputProjection().errors,
         ...this.documentProjection().errors,
       ]),
     );
   });
   protected readonly chatFields = form(this.chat, (path) => {
-    disabled(path, () => this.saving() || this.authoring() || this.released());
+    disabled(path, () => this.locked() || this.authoring());
     maxLength(path.message, this.limits.messageLength);
     maxLength(path.consolidated, this.limits.messageLength);
   });
@@ -440,7 +414,7 @@ export class ActivityWorkspace {
       const template = this.template.value();
       if (this.initialized || !(loaded || template)) return;
       const plan = loaded?.plan ?? template!.definition;
-      this.raw.set(workspaceForm(plan, loaded?.input, loaded?.document));
+      this.raw.set(workspaceForm(plan, loaded?.document));
       if (loaded) {
         this.saved.set(loaded);
         this.operationId.set(loaded.activeOperationId ?? this.resumeOperation());
@@ -452,7 +426,7 @@ export class ActivityWorkspace {
         this.publishedPlan.set(JSON.stringify(this.projection().value));
       }
       this.baseline.set(structuredClone(this.raw()));
-      this.history.checkpoint();
+      if (!loaded) this.history.checkpoint();
       this.initialized = true;
     });
     effect(() => {
@@ -480,10 +454,8 @@ export class ActivityWorkspace {
   }
 
   protected changeStructure(edit: PlanStructureEdit) {
-    if (this.locked()) return;
-    const next = editPlanStructure(this.raw(), edit, this.limits);
-    if (!next) return;
-    this.raw.set(next);
+    if (this.locked() || this.saved()) return;
+    this.raw.set(editPlanStructure(this.raw(), edit, this.limits));
     this.recordEdit('');
   }
 
@@ -496,17 +468,26 @@ export class ActivityWorkspace {
   }
 
   protected async undo() {
-    if (this.locked() || !this.history.entries().length) return;
+    if (this.locked() || !this.canUndo()) return;
+    const checkpoint = this.saved();
+    if (checkpoint) {
+      await this.runDraftRequest(async () => {
+        const restored = await this.api.undoActivity(
+          checkpoint.id,
+          checkpoint.revision,
+          this.lifetime,
+        );
+        if (!this.lifetime.destroyed) this.acceptCheckpoint(restored);
+      });
+      return;
+    }
     const previous = this.history.pop()!;
     this.raw.set(structuredClone(previous.raw));
     this.confirmed.set({ ...previous.confirmed });
     this.history.checkpoint();
     this.markLocalChange();
     this.clearPlanFeedback();
-    const saved = this.saved();
-    if (saved) this.raw.update((raw) => withSavedQuestionIds(raw, saved));
     this.notice.set('השינוי האחרון בוטל.');
-    if (saved) await this.activityAction('save');
   }
 
   protected cancelAuthor() {
@@ -534,6 +515,12 @@ export class ActivityWorkspace {
       return;
     const message = consolidate ? this.chat().consolidated : this.chat().message;
     if (!message.trim() || message.length > this.limits.messageLength) return;
+    if (this.saved()) {
+      await this.activityAction('Revise', { message });
+      if (this.operationActive() || this.startRecovery())
+        this.chat.update((chat) => ({ ...chat, message: '' }));
+      return;
+    }
     const baseDefinition = this.projection().value;
     if (!baseDefinition && this.hasPlan()) {
       this.fields().markAsTouched();
@@ -593,7 +580,7 @@ export class ActivityWorkspace {
           },
         ]);
         if (reply.changes.length) {
-          this.applyProposal(reply.proposal, !!baseDefinition);
+          this.applyProposal(reply.proposal);
           // The first plan replaces the request with settings; reading starts at their heading.
           if (!baseDefinition) restoreFocus('plan-title');
         }
@@ -636,7 +623,7 @@ export class ActivityWorkspace {
       this.publishedPlan.set(JSON.stringify(plan));
       this.history.endCoalescing();
       if (this.context() === 'template') {
-        // A template is its plan and defaults, so publication saves the whole buffer.
+        // Template publication saves the complete plan buffer.
         this.baseline.set(structuredClone(this.raw()));
         this.templateNotice.set('התבנית נשמרה במרחב שלנו.');
       } else {
@@ -663,14 +650,6 @@ export class ActivityWorkspace {
     }
   }
 
-  protected editDocument(edit: DocumentEdit) {
-    if (this.locked()) return;
-    const next = editDocumentStructure(this.raw(), edit, this.limits);
-    if (!next) return;
-    this.raw.set(next);
-    this.recordEdit('');
-  }
-
   protected replaceSource(id: string) {
     const text = sourceText(this.raw(), id);
     if (text !== undefined) this.sourceReplacement.set({ id, text });
@@ -687,16 +666,6 @@ export class ActivityWorkspace {
     this.sourceReplacement.set({ id: '', text: '' });
   }
 
-  protected editCandidate(index: number) {
-    if (this.saving()) return;
-    const candidate = this.editableCandidates().find((c) => c.index === index);
-    if (!candidate) return;
-    this.raw.update((raw) => ({ ...raw, document: candidate.document }));
-    this.recordEdit('');
-    this.notice.set('התוצאה הועברה לעריכה. בדקו ושמרו אותה.');
-  }
-
-  /** Every content action flushes one validated checkpoint first; no failed save can start work. */
   /** Regeneration replaces content the parent may have reviewed or edited, so it asks first. */
   protected regenerate(kind: GenerationKind) {
     const prompt =
@@ -705,6 +674,7 @@ export class ActivityWorkspace {
         : 'ליצור טקסט חדש? הטקסט שאינו עדכני יוחלף, והשאלות שתלויות בו יסומנו לבדיקה.';
     return window.confirm(prompt) ? this.activityAction(kind) : undefined;
   }
+  /** Every content action flushes one validated checkpoint first; no failed save can start work. */
   protected async activityAction(
     action: 'save' | 'release' | 'adopt' | GenerationKind,
     target?: {
@@ -712,10 +682,10 @@ export class ActivityWorkspace {
       instruction?: string;
       materialIds?: string[];
       questionIds?: string[];
+      message?: string;
     },
   ) {
-    if (this.locked() || (action !== 'save' && (this.operationActive() || this.startRecovery())))
-      return;
+    if (this.locked()) return;
     if (action !== 'save' && action !== 'release' && action !== 'adopt' && !this.aiConfigured())
       return;
     // Shows every field's state; fields take touched only while enabled, so before the lock.
@@ -763,6 +733,7 @@ export class ActivityWorkspace {
           kind: action,
           ...(target?.targetId ? { targetId: target.targetId } : {}),
           ...(target?.instruction ? { instruction: target.instruction } : {}),
+          ...(target?.message ? { message: target.message } : {}),
         };
         this.startRecovery.set({ draftId: saved.id, request });
         await this.submitOperation(saved.id, request);
@@ -833,9 +804,8 @@ export class ActivityWorkspace {
 
   protected async newActivity() {
     if (this.saving()) return;
-    const plan = this.projection().value,
-      input = this.inputProjection().value;
-    if (!plan || !input || this.pendingSources().length) {
+    const plan = this.projection().value;
+    if (!plan || this.pendingSources().length) {
       this.activityError.set({ message: this.blocker() });
       return;
     }
@@ -847,7 +817,7 @@ export class ActivityWorkspace {
     )
       return;
     await this.runDraftRequest(async () => {
-      const created = await this.api.createActivity(plan, input, undefined, this.lifetime);
+      const created = await this.api.createActivity(plan, undefined, this.lifetime);
       if (this.lifetime.destroyed) return;
       this.markLocalChange();
       this.history.clear();
@@ -869,10 +839,12 @@ export class ActivityWorkspace {
     if (this.dirty()) event.preventDefault();
   }
 
-  /** Records one edit for Undo, coalescing by field key, and clears replies about the earlier plan. */
+  /** Local setup edits coalesce for Undo; every edit clears replies about the earlier plan. */
   private recordEdit(key: string) {
-    this.raw.set(reconcile(this.raw(), this.saved()?.plan));
-    if (!this.history.record(key)) return;
+    if (!this.saved()) {
+      this.raw.set(reconcile(this.raw()));
+      if (!this.history.record(key)) return;
+    }
     this.markLocalChange();
     this.clearPlanFeedback();
     this.notice.set('');
@@ -895,17 +867,9 @@ export class ActivityWorkspace {
     this.authorError.set('');
   }
 
-  private applyProposal(proposal: LearningPlan, refining: boolean) {
-    const saved = this.saved()?.plan;
-    const plan = {
-      ...proposal,
-      materials: proposal.materials.map((material) => ({
-        ...material,
-        id: materialIdentity(saved, material.id, material.source),
-      })),
-    };
+  private applyProposal(plan: LearningPlan) {
     this.history.push();
-    this.raw.set(proposedWorkspace(this.raw(), plan, refining));
+    this.raw.set(proposedWorkspace(this.raw(), plan));
     this.confirmed.set(fixedSources(plan, this.confirmed()));
     this.clientRevision++;
     this.history.checkpoint();
@@ -931,15 +895,24 @@ export class ActivityWorkspace {
 
   private async flushDraft(): Promise<ActivityDetail | undefined> {
     const plan = this.projection().value,
-      input = this.inputProjection().value,
       document = this.documentProjection().value;
-    if (!plan || !input || !document || this.blocker()) {
+    if (!plan || !document || this.blocker()) {
       this.activityError.set({ message: this.blocker() });
       return;
     }
     let saved = this.saved();
     if (!saved) {
-      saved = await this.api.createActivity(plan, input, this.template.value(), this.lifetime);
+      saved = await this.api.createActivity(
+        plan,
+        this.template.value(),
+        this.lifetime,
+        this.thread().map((turn) => ({
+          ...turn,
+          atUtc: new Date().toISOString(),
+          target: null,
+          assumptions: null,
+        })),
+      );
       if (this.lifetime.destroyed) return;
       this.saved.set(saved);
       // Keep this workspace and its pending action alive while making reload reopen the durable draft.
@@ -949,13 +922,20 @@ export class ActivityWorkspace {
         return saved;
       }
     } else if (!this.dirty()) return saved;
+    const previousPlan = saved.plan;
     saved = await this.api.saveActivity(
       saved.id,
       saved.revision,
       plan,
-      input,
       document,
       this.lifetime,
+      plan.materials
+        .filter(
+          (m) =>
+            m.source === 'supplied' &&
+            previousPlan.materials.some((p) => p.id === m.id && p.text !== m.text),
+        )
+        .map((m) => ({ id: m.id, text: m.text! })),
     );
     if (!this.lifetime.destroyed) this.acceptCheckpoint(saved);
     return saved;
@@ -964,10 +944,10 @@ export class ActivityWorkspace {
   private acceptCheckpoint(saved: ActivityDetail) {
     if (this.lifetime.destroyed) return;
     this.saved.set(saved);
-    this.raw.set(workspaceForm(saved.plan, saved.input, saved.document));
+    this.raw.set(workspaceForm(saved.plan, saved.document));
     this.confirmed.set(fixedSources(saved.plan));
     this.baseline.set(structuredClone(this.raw()));
-    this.history.checkpoint();
+    this.history.clear();
     this.available.set(undefined);
     this.elsewhere.set(undefined);
   }
@@ -987,8 +967,21 @@ export class ActivityWorkspace {
 
   /** Only an operation-owned checkpoint may replace its unchanged local buffer; ambiguous reads wait for confirmation. */
   private receiveCheckpoint(saved: ActivityDetail) {
+    if (this.available()?.revision === saved.revision) this.available.set(saved);
+    const current = this.saved();
+    if (current && saved.revision === current.revision) {
+      // Replies, Stop and review can change metadata without replacing the local editing buffer.
+      this.saved.set({
+        ...saved,
+        plan: current.plan,
+        document: current.document,
+        diagnostics: current.diagnostics,
+        measurements: current.measurements,
+      });
+      return;
+    }
     if (
-      saved.revision <= (this.saved()?.revision ?? 0) ||
+      saved.revision < (current?.revision ?? 0) ||
       saved.revision < (this.available()?.revision ?? 0)
     )
       return;
@@ -997,7 +990,6 @@ export class ActivityWorkspace {
       this.operationClientRevision !== undefined && saved.revision === operation?.expectedRevision;
     if (own && !this.dirty() && this.clientRevision === this.operationClientRevision) {
       const restoreFocus = this.holdFocus();
-      this.history.push();
       this.clientRevision++;
       this.operationClientRevision = this.clientRevision;
       this.acceptCheckpoint(saved);

@@ -13,7 +13,8 @@ public static class TaskDocumentValidator
         ValidateDraft(request, document, null);
 
     // Reuse the material check when assembly already needed it for stage acceptance.
-    internal static DraftDocumentCheck ValidateDraft(ResolvedTaskRequest request, TaskDocument document, DraftDocumentCheck? materialCheck)
+    internal static DraftDocumentCheck ValidateDraft(ResolvedTaskRequest request, TaskDocument document, DraftDocumentCheck? materialCheck,
+        bool deferAggregate = false)
     {
         var errors = new Dictionary<string, string[]>();
         var diagnostics = new Dictionary<string, string[]>();
@@ -27,7 +28,7 @@ public static class TaskDocumentValidator
         long length = (long)(document.Title?.Length ?? 0) + (document.Instructions?.Length ?? 0);
         var fingerprint = TaskRequestResolver.Fingerprint(request);
         var ids = new HashSet<string>(StringComparer.Ordinal);
-        materialCheck ??= ValidateMaterials(request, document);
+        materialCheck ??= ValidateMaterials(request, document, deferAggregate);
         foreach (var error in materialCheck.Errors) errors.AddError(error.Key, error.Value[0]);
         foreach (var diagnostic in materialCheck.Diagnostics) diagnostics.AddError(diagnostic.Key, diagnostic.Value[0]);
         if (document.Materials is { Length: <= MaxMaterials })
@@ -62,7 +63,7 @@ public static class TaskDocumentValidator
             }
             if (request.Questions.Formats.Any(f => !seenFormats.Contains(f))) diagnostics.AddError("questions.formats", "חסרים סוגי שאלות שהתבקשו.");
         }
-        if (length > ContentLimit) errors.AddError("document", ContentLimitError);
+        if (!deferAggregate && length > ContentLimit) errors.AddError("document", ContentLimitError);
         return new(errors, diagnostics);
     }
 
@@ -75,7 +76,7 @@ public static class TaskDocumentValidator
     }
 
     /// <summary>Checks material readiness independently of incomplete questions and their bounded display diagnostics.</summary>
-    internal static DraftDocumentCheck ValidateMaterials(ResolvedTaskRequest request, TaskDocument document)
+    internal static DraftDocumentCheck ValidateMaterials(ResolvedTaskRequest request, TaskDocument document, bool deferCapacity = false)
     {
         var errors = new Dictionary<string, string[]>();
         var diagnostics = new Dictionary<string, string[]>();
@@ -115,7 +116,7 @@ public static class TaskDocumentValidator
                 !document.Materials.Select(m => m?.Id).SequenceEqual(request.Materials.Select(m => m.Id)))
                 errors.AddError("materials", "סדר החומרים חייב להתאים לתכנית.");
         }
-        if (length + 1 + MinimumQuestionLength(request.Settings.QuestionCount, request.Questions.Formats, request.Questions.ChoiceCount) > ContentLimit)
+        if (!deferCapacity && length + 1 + MinimumQuestionLength(request.Settings.QuestionCount, request.Questions.Formats, request.Questions.ChoiceCount) > ContentLimit)
             diagnostics.AddError("materials.capacity", "אין מספיק מקום לטקסטים ולשאלות שהתבקשו.");
         if (errors.Count == 0)
             foreach (var measurement in TextLength.Measure(request, document))
@@ -125,9 +126,9 @@ public static class TaskDocumentValidator
 
     /// <summary>Checks selected adoption targets directly, so diagnostic truncation cannot hide a blocking target error.</summary>
     internal static Dictionary<string, string[]> ValidateAdoption(ResolvedTaskRequest request, TaskDocument document,
-        HashSet<string> materialIds, HashSet<string> questionIds, DraftDocumentCheck materialCheck)
+        HashSet<string> materialIds, HashSet<string> questionIds, DraftDocumentCheck materialCheck, bool deferAggregate = false)
     {
-        var errors = ValidateDraft(request, document, materialCheck).Errors;
+        var errors = ValidateDraft(request, document, materialCheck, deferAggregate).Errors;
         if (errors.Count > 0) return errors;
         foreach (var diagnostic in materialCheck.Diagnostics)
             if ((materialIds.Count > 0 && diagnostic.Key is "length.total" or "materials.capacity") || materialIds.Any(id =>

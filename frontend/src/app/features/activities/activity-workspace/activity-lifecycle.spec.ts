@@ -28,7 +28,7 @@ const savedActivity: ActivityDetail = {
   id: 'draft',
   revision: 1,
   plan: numericPlan,
-  input: { settings: numericPlan.defaults },
+
   document: { title: 'תרגול', instructions: null, materials: [], questions: [] },
   diagnostics: { questions: ['נדרשות שאלות'] },
   measurements: [],
@@ -38,6 +38,8 @@ const savedActivity: ActivityDetail = {
   releasedSourceRevision: null,
   createdAtUtc: '2026-10-01T00:00:00Z',
   updatedAtUtc: '2026-10-01T00:00:00Z',
+  chat: [],
+  canUndo: false,
 };
 describe('Activity lifecycle', () => {
   let harness: RouterTestingHarness;
@@ -106,14 +108,14 @@ describe('Activity lifecycle', () => {
     http.verify();
   });
   it.each([
-    ['its own plan', true, null, true],
-    ['a template being used', false, null, false],
-    ['a draft from a template', true, 'v3', false],
+    ['its own plan', true, null],
+    ['a template being used', false, null],
+    ['a draft from a template', true, 'v3'],
   ] as const)(
-    'defines what activities may change only in %s',
-    async (_, existing, templateVersionId, defines) => {
+    'has concrete requirements without adjustable controls in %s',
+    async (_, existing, templateVersionId) => {
       await open(existing, { ...savedActivity, templateVersionId });
-      expect(!!root().querySelector('#choices-title')).toBe(defines);
+      expect(root().querySelector('#choices-title')).toBeNull();
     },
   );
   it('creates a durable draft from a valid plan before starting generation without template publication', async () => {
@@ -122,7 +124,7 @@ describe('Activity lifecycle', () => {
     const create = http.expectOne('/api/activity-drafts');
     expect(create.request.body).toMatchObject({
       plan: numericPlan,
-      input: { settings: numericPlan.defaults },
+
       templateId: 't',
       expectedVersion: 3,
     });
@@ -166,7 +168,6 @@ describe('Activity lifecycle', () => {
   const readingActivity: ActivityDetail = {
     ...savedActivity,
     plan: readingPlan,
-    input: { settings: readingPlan.defaults },
   };
   it.each([
     ['before any text', [], 'generate-text', 'GenerateMaterials'],
@@ -242,8 +243,10 @@ describe('Activity lifecycle', () => {
     expect(window.confirm).toHaveBeenCalledOnce();
   });
   it('retains invalid points without a save or paid call', async () => {
-    await open();
-    await click('add-question');
+    await open(true, {
+      ...savedActivity,
+      document: { ...savedActivity.document, questions: [savedQuestion] },
+    });
     await type('question-0-points', '1.5');
     await click('regenerate-questions');
     http.expectNone((r) => r.method === 'PUT' || r.method === 'POST');
@@ -289,7 +292,7 @@ describe('Activity lifecycle', () => {
     expect(root().querySelector('#question-1-answer-errors')!.textContent!.trim()).toBe('');
     expect(review.textContent).not.toContain('תקנו את המסומן');
   });
-  it('saves incomplete manual content and undo as new revisions without acceptance metadata', async () => {
+  it('saves incomplete manual content and clears persistent undo', async () => {
     await open();
     await type('document-title', 'תיקון');
     await click('save-activity');
@@ -306,13 +309,7 @@ describe('Activity lifecycle', () => {
       document: { ...savedActivity.document, title: 'תיקון' },
     });
     await settle();
-    await click('plan-undo');
-    const undo = http.expectOne('/api/activity-drafts/draft');
-    expect(undo.request.body.expectedRevision).toBe(2);
-    expect(undo.request.body.document.title).toBe('תרגול');
-    expect(JSON.stringify(undo.request.body)).not.toContain('acceptance');
-    undo.flush({ ...savedActivity, revision: 3 });
-    await settle();
+    expect(root().querySelector('#plan-undo')!.getAttribute('aria-disabled')).toBe('true');
     http.expectNone((r) => r.method === 'POST');
   });
   it('preserves local typing after operation completion and requires explicit reload', async () => {
@@ -511,8 +508,12 @@ describe('Activity lifecycle', () => {
       ...savedActivity,
       revision: 2,
       releasedSnapshotId: 'ready',
-      releasedSourceRevision: 1,
+      releasedSourceRevision: 2,
     };
+    FakeEventSource.opened[0].send();
+    await settle();
+    http.expectOne('/api/activity-drafts/draft').flush({ ...savedActivity, revision: 2 });
+    await settle();
     FakeEventSource.opened[0].send();
     await settle();
     http.expectOne('/api/activity-drafts/draft').flush(released);
@@ -715,7 +716,7 @@ describe('Activity lifecycle', () => {
     });
     adopted.flush({ ...initial, revision: 3 });
     await settle();
-    http.expectNone('/api/ai/template-drafts');
+    http.expectNone('/api/ai/activity-plans');
   });
   it('releases only the exact saved revision and locks the terminal draft', async () => {
     await open(true, {
@@ -791,13 +792,14 @@ describe('Activity lifecycle', () => {
       http.expectOne('/api/activity-drafts/draft').flush({
         ...savedActivity,
         revision: 2,
+        canUndo: true,
         document: { ...savedActivity.document, title: 'תוצאה' },
       });
       await settle();
       await click('plan-undo');
-      const save = http.expectOne('/api/activity-drafts/draft');
+      const save = http.expectOne('/api/activity-drafts/draft/undo');
       expect(save.request.body.expectedRevision).toBe(2);
-      expect(save.request.body.document.title).toBe('תרגול');
+      expect(save.request.body).toEqual({ expectedRevision: 2 });
       save.flush({ ...savedActivity, revision: 3 });
       await settle();
     } finally {
@@ -1018,65 +1020,69 @@ describe('Activity lifecycle', () => {
       vi.useRealTimers();
     }
   });
-  it.each(['manual', 'proposal'])(
-    'replaces a saved material identity after a %s source-kind change',
-    async (change) => {
-      await harness.navigateByUrl('/activities/draft', ActivityWorkspace);
-      http.expectOne('/api/ai/status').flush({ configured: true, schemaVersion: 1 });
-      http.expectOne('/api/activity-drafts/draft').flush({
-        ...savedActivity,
-        plan: suppliedPlan,
-        document: {
-          ...savedActivity.document,
-          materials: [
-            {
-              id: suppliedPlan.materials[0].id,
-              title: null,
-              body: sourceText,
-              revision: 1,
-              origin: { kind: 'supplied' },
-              acceptance: null,
-            },
-          ],
-        },
+  it('keeps saved requirements read-only and refreshes reply-only chat at the same revision', async () => {
+    await open();
+    await type('chat-message', 'הוסף הסברים למפתח התשובות');
+    vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] });
+    try {
+      expect(root().querySelector<HTMLInputElement>('#plan-name')!.disabled).toBe(true);
+      root().querySelector<HTMLButtonElement>('#chat-send')!.click();
+      await settle();
+      const request = http.expectOne('/api/activity-drafts/draft/operations');
+      expect(request.request.body).toMatchObject({
+        kind: 'Revise',
+        expectedRevision: 1,
+        message: 'הוסף הסברים למפתח התשובות',
       });
+      http.expectNone('/api/ai/activity-plans');
+      const operation = {
+        id: 'op',
+        draftId: 'draft',
+        kind: 'Revise',
+        status: 'queued',
+        stage: 'revise',
+        originalRevision: 1,
+        expectedRevision: 1,
+        failure: null,
+        diagnosticsExpired: false,
+        steps: [],
+        artifacts: null,
+      };
+      request.flush(operation);
       await settle();
-      if (change === 'manual') {
-        const select = root().querySelector<HTMLSelectElement>(
-          '[id="' + suppliedPlan.materials[0].id + '-source"]',
-        )!;
-        select.value = 'generated';
-        select.dispatchEvent(new Event('input', { bubbles: true }));
-      } else {
-        await type('chat-message', 'להחליף את המקור בחומר חדש שנוצר לפעילות');
-        await click('chat-send');
-        const request = http.expectOne('/api/ai/template-drafts');
-        request.flush({
-          requestId: request.request.body.requestId,
-          baseRevision: request.request.body.baseRevision,
-          proposal: {
-            ...suppliedPlan,
-            materials: suppliedPlan.materials.map((material) => ({
-              ...material,
-              source: 'generated',
-              text: null,
-            })),
+      advance(2000);
+      for (const read of http.match(
+        (r) => r.method === 'GET' && r.url === '/api/activity-drafts/draft',
+      ))
+        read.flush(savedActivity);
+      http
+        .expectOne('/api/activity-drafts/draft/operations/op')
+        .flush({ ...operation, status: 'completed' });
+      await settle();
+      const reply = {
+        ...savedActivity,
+        chat: [
+          {
+            role: 'assistant',
+            text: 'הבקשה אינה נתמכת.',
+            atUtc: '2026-10-09T00:00:00Z',
+            target: null,
+            operationId: 'op',
+            assumptions: [],
+            outcome: 'completed',
           },
-          changes: [{ kind: 'changed', path: 'materials' }],
-          assumptions: [],
-          clarification: null,
-        });
-      }
+        ],
+      };
+      http.expectOne('/api/activity-drafts/draft').flush(reply);
       await settle();
-      await click('save-activity');
-      const save = http.expectOne('/api/activity-drafts/draft');
-      expect(save.request.body.plan.materials[0].source).toBe('generated');
-      expect(save.request.body.plan.materials[0].id).not.toBe(suppliedPlan.materials[0].id);
-      expect(save.request.body.document.materials).toEqual([]);
-      save.flush({ ...savedActivity, revision: 2, plan: save.request.body.plan });
-      await settle();
-    },
-  );
+      expect(root().querySelector<HTMLInputElement>('#document-title')!.value).toBe(
+        savedActivity.document.title,
+      );
+      expect(root().textContent).toContain('הבקשה אינה נתמכת.');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
   it('collapses setup to its summary once content exists and keeps uncommon actions secondary', async () => {
     await open(true, {
       ...savedActivity,
@@ -1185,11 +1191,11 @@ describe('Activity lifecycle', () => {
     await settle();
   });
   it.each([
-    ['completed', 'accepted', false],
-    ['conflict', 'conflict', true],
+    ['completed', 'accepted'],
+    ['conflict', 'conflict'],
   ])(
-    'offers a %s result for editing only when it was not applied',
-    async (status, outcome, offered) => {
+    'keeps %s operation evidence readable without replacing the saved document',
+    async (status, outcome) => {
       await open();
       await click('generate-questions');
       http.expectOne('/api/activity-drafts/draft/operations').flush({
@@ -1226,15 +1232,12 @@ describe('Activity lifecycle', () => {
         },
       });
       await settle();
-      expect(!!root().querySelector('[data-edit-candidate]')).toBe(offered);
-      if (offered) {
-        expect(root().textContent).toContain('נוצרה תוצאה בזמן שהמשכתם לערוך');
-        expect(root().textContent).toContain('שאלות שנוצרו');
-        root().querySelector<HTMLButtonElement>('[data-edit-candidate]')!.click();
-        await settle();
-        expect(root().querySelector<HTMLTextAreaElement>('#question-0-prompt')!.value).toBe('כמה?');
-        http.expectNone((r) => r.method === 'PUT');
-      }
+      expect(root().querySelector('[data-edit-candidate]')).toBeNull();
+      expect(root().querySelector('pre')!.textContent).toContain('מועמד');
+      expect(root().querySelector('app-copy-button')).not.toBeNull();
+      expect(root().querySelector<HTMLInputElement>('#document-title')!.value).toBe('תרגול');
+      expect(root().querySelector('#question-0-prompt')).toBeNull();
+      http.expectNone((r) => r.method === 'PUT');
     },
   );
   it('copies a released activity into a new draft only on request', async () => {

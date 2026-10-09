@@ -27,7 +27,7 @@ public sealed class TextLengthTests
         {
             Materials = [Reading().Materials[0] with { Length = null },
             Supplied().Materials[0] with { Id = OtherId }],
-            TotalLength = new("target", new(120, true))
+            TotalLength = new("target", 120)
         };
         var request = Resolve(plan);
         var document = new TaskDocument("כותרת ארוכה", "הנחיות ארוכות",

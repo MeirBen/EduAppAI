@@ -1,3 +1,4 @@
+using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Nodes;
@@ -33,7 +34,7 @@ public sealed class MaterialIdeaOperationTests
     {
         await using var app = new GenerationHarness(Ideas, Materials, UnchangedPolish);
         using var parent = await app.ParentAsync();
-        var draft = await Create(parent, Reading() with { Defaults = Numeric(1).Defaults });
+        var draft = await Create(parent, Reading() with { Settings = Numeric(1).Settings });
         var operation = await Start(parent, draft);
         await app.Worker.RunNextAsync(default);
         var checkpoint = (await parent.GetFromJsonAsync<JsonNode>(OperationPath(operation)))!;
@@ -49,7 +50,7 @@ public sealed class MaterialIdeaOperationTests
         await app.Worker.RunNextAsync(default);
         Assert.False(await app.Worker.RunNextAsync(default));
         var saved = (await parent.GetFromJsonAsync<JsonNode>(Path(draft)))!;
-        Assert.Equal(3, saved["revision"]!.GetValue<long>());
+        Assert.Equal(2, saved["revision"]!.GetValue<long>());
         Assert.Equal(3, app.Chat.Requests.Count);
         Assert.True(JsonNode.DeepEquals(selected, saved["document"]!["materials"]![0]!["idea"]));
         var edit = Edit(saved);
@@ -87,7 +88,7 @@ public sealed class MaterialIdeaOperationTests
         var family = await FamilyId(parent);
         await AddDraftWithIdea(app, family, "owned", (paddedPrompt ? new string(' ', 300) : "") + "owned-question");
         await AddDraftWithIdea(app, await FamilyId(stranger), "foreign");
-        var draft = await Create(parent, Reading() with { Defaults = Numeric(1).Defaults });
+        var draft = await Create(parent, Reading() with { Settings = Numeric(1).Settings });
         var request = new { operationKey = Guid.NewGuid(), expectedRevision = 1, kind = "GenerateMaterials" };
         using var started = await parent.PostAsJsonAsync(Path(draft) + "/operations", request);
         var frozen = (await started.Content.ReadFromJsonAsync<JsonNode>())!["artifacts"]!["history"]!.DeepClone();
@@ -151,7 +152,7 @@ public sealed class MaterialIdeaOperationTests
         await using var app = new GenerationHarness(Ideas, Materials, UnchangedPolish, Questions("text-input"));
         using var parent = await app.ParentAsync();
         using var stranger = await app.ParentAsync();
-        var prior = await app.GenerateAsync(parent, await Create(parent, Reading() with { Defaults = Numeric(1).Defaults }));
+        var prior = await app.GenerateAsync(parent, await Create(parent, Reading() with { Settings = Numeric(1).Settings }));
         var snapshot = await Release(parent, prior);
         await Release(stranger, await SaveQuestion(stranger, "foreign-question"));
         using var copy = await parent.PostAsJsonAsync("/api/activity-drafts", new { snapshotId = snapshot["id"]!.GetValue<Guid>() });
@@ -177,11 +178,12 @@ public sealed class MaterialIdeaOperationTests
         {
             var edit = Edit(draft);
             edit["document"]!["title"] = "עריכה אחרי בחירת רעיון";
-            await Save(parent, draft, edit);
+            Assert.Equal(HttpStatusCode.Conflict, (await parent.PutAsJsonAsync(Path(draft), edit)).StatusCode);
+            await parent.PostAsync(OperationPath(operation) + "/cancel", null);
         }
         await app.Worker.RunNextAsync(default);
         var result = (await parent.GetFromJsonAsync<JsonNode>(OperationPath(operation)))!;
-        Assert.Equal(cancel ? "cancelled" : "conflict", result["status"]!.GetValue<string>());
+        Assert.Equal("cancelled", result["status"]!.GetValue<string>());
         Assert.Single(app.Chat.Requests);
         Assert.False(await app.Worker.RunNextAsync(default));
     }
@@ -205,12 +207,13 @@ public sealed class MaterialIdeaOperationTests
         {
             var edit = Edit(draft);
             edit["document"]!["title"] = "עריכה בזמן יצירת רעיונות";
-            await Save(parent, draft, edit);
+            Assert.Equal(HttpStatusCode.Conflict, (await parent.PutAsJsonAsync(Path(draft), edit)).StatusCode);
+            await parent.PostAsync(OperationPath(operation) + "/cancel", null);
         }
         release.SetResult();
         await work;
         var result = (await parent.GetFromJsonAsync<JsonNode>(OperationPath(operation)))!;
-        Assert.Equal(cancel ? "cancelled" : "conflict", result["status"]!.GetValue<string>());
+        Assert.Equal("cancelled", result["status"]!.GetValue<string>());
         Assert.False(await app.Worker.RunNextAsync(default));
         Assert.Single(app.Chat.Requests);
         Assert.Empty((await parent.GetFromJsonAsync<JsonNode>(Path(draft)))!["document"]!["materials"]!.AsArray());
@@ -226,7 +229,7 @@ public sealed class MaterialIdeaOperationTests
             [new("question", prompt ?? marker + "-question", new("text-input"), new(marker + "-secret-answer"), 1, new("manual"), new("accepted", []))]);
         using var scope = app.App.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<LearningDbContext>();
-        db.ActivityDrafts.Add(new(family, marker, "{}", "{}", StoredJson.Write(document), null, null, "test-parent"));
+        db.ActivityDrafts.Add(new(family, marker, "{}", StoredJson.Write(document), null, null, "test-parent"));
         await db.SaveChangesAsync();
     }
 
@@ -236,7 +239,7 @@ public sealed class MaterialIdeaOperationTests
         var edit = Edit(draft);
         edit["document"] = Document();
         edit["document"]!["questions"]![0]!["prompt"] = prompt;
-        return await Save(parent, draft, edit);
+        return await Seed(parent, draft, edit);
     }
 
     private static async Task<JsonNode> Release(HttpClient parent, JsonNode draft)

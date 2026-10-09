@@ -51,16 +51,6 @@ public sealed class ContentGenerationWireTests
         Assert.False(version.TryGetProperty("enum", out _));
         Assert.Equal(EngineVersions.SchemaVersion, version.GetProperty("minimum").GetInt32());
         Assert.Equal(EngineVersions.SchemaVersion, version.GetProperty("maximum").GetInt32());
-        // Gemini expands bounded arrays when compiling strict output; bounded control and option lists exceeded
-        // its schema budget (HTTP 400). LearningPlanValidator owns those limits.
-        Assert.All(new[]
-        {
-            definitions.GetProperty("plan").GetProperty("properties").GetProperty("controls"),
-            definitions.GetProperty("material").GetProperty("properties").GetProperty("controls"),
-            definitions.GetProperty("questionPlan").GetProperty("properties").GetProperty("controls"),
-            definitions.GetProperty("control").GetProperty("properties").GetProperty("options").GetProperty("anyOf")[0]
-        }, list => Assert.False(list.TryGetProperty("maxItems", out _)));
-
         static IEnumerable<JsonElement> Nodes(JsonElement node) => node.ValueKind switch
         {
             JsonValueKind.Object => [node, .. node.EnumerateObject().SelectMany(p => Nodes(p.Value))],
@@ -74,6 +64,38 @@ public sealed class ContentGenerationWireTests
             JsonValueKind.Array => node.EnumerateArray().SelectMany(Types),
             _ => []
         };
+    }
+
+    [Theory]
+    [InlineData("json_schema")]
+    [InlineData("json_object")]
+    public async Task Revision_schema_reuses_plan_and_enforces_outcomes_in_both_modes(string mode)
+    {
+        await using var local = await LocalAiProvider.StartAsync();
+        local.Respond = _ => Serialize(new { result = new RevisionDecision("תשובה", null, null) });
+        using var services = local.Services(mode);
+        var service = services.GetRequiredService<AiGenerationService>();
+        var plan = Numeric();
+        var input = new ActivityRevisionInput(plan, TaskAssembly.CreateDocument(Resolve(plan)), "שאלה");
+        Assert.Equal("תשובה", (await service.ReviseAsync(input, default)).Value.Answer);
+        using var body = JsonDocument.Parse(Assert.Single(local.Bodies));
+        var root = body.RootElement;
+        using var schema = JsonDocument.Parse(mode == "json_schema"
+            ? root.GetProperty("response_format").GetProperty("json_schema").GetProperty("schema").GetRawText()
+            : root.GetProperty("messages")[0].GetProperty("content").GetString()!.Split("\nOutput JSON schema:\n")[1]);
+        var contract = schema.RootElement;
+        Assert.Equal(AiSchemas.Authoring.GetProperty("$defs").GetProperty("plan").GetRawText(), contract.GetProperty("$defs").GetProperty("plan").GetRawText());
+        Assert.False(contract.GetProperty("additionalProperties").GetBoolean());
+        var outcomes = contract.GetProperty("properties").GetProperty("result").GetProperty("anyOf");
+        Assert.Equal(3, outcomes.GetArrayLength());
+        Assert.Equal(600, outcomes[0].GetProperty("properties").GetProperty("answer").GetProperty("maxLength").GetInt32());
+        var change = outcomes[2].GetProperty("properties").GetProperty("change").GetProperty("properties");
+        Assert.Equal(0, change.GetProperty("materialEdits").GetProperty("maxItems").GetInt32());
+        Assert.Equal(0, change.GetProperty("questions").GetProperty("properties").GetProperty("items").GetProperty("maxItems").GetInt32());
+        Assert.False(contract.GetProperty("$defs").GetProperty("questionEdit").GetProperty("properties").GetProperty("id").TryGetProperty("enum", out _));
+        local.Respond = _ => Serialize(new { result = new RevisionDecision("תשובה", "הבהרה", null) });
+        await Assert.ThrowsAsync<AiGenerationException>(() => service.ReviseAsync(input, default));
+        Assert.Equal(2, local.Bodies.Count);
     }
 
     [Theory]
@@ -126,25 +148,24 @@ public sealed class ContentGenerationWireTests
     {
         var plan = Numeric() with
         {
-            Controls = Enumerable.Range(1, 16).Select(i => new ControlDefinition(i.ToString("x32"), new string('א', 100), "text",
-                new string('ב', 400), true, JsonSerializer.SerializeToElement(new string('ג', 500)), MaxLength: 500)).ToArray(),
             Materials = Enumerable.Range(17, 4).Select(i => new MaterialDefinition(i.ToString("x32"), new string('ד', 100),
-                "generated", "", null, null, [])).ToArray()
+                "generated", new string('ג', 1000), null, null)).ToArray(),
+            Goal = new string('ב', 500),
+            Name = new string('א', 100),
+            Questions = new(["numeric-input"], null, new string('ג', 1000))
         };
         var json = new JsonSerializerOptions(JsonSerializerDefaults.Web) { Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping };
-        var room = 24000 - JsonSerializer.Serialize(plan, json).Length;
-        Assert.InRange(room, 0, 4000);
-        plan = plan with { Guidance = new string('ה', room) };
-        Assert.Equal(24000, JsonSerializer.Serialize(plan, json).Length);
+        plan = plan with { Guidance = new string('ה', 4000) };
+        Assert.True(JsonSerializer.Serialize(plan, json).Length <= 24000);
         Assert.Empty(LearningPlanValidator.Validate(plan));
         await using var local = await LocalAiProvider.StartAsync();
         local.Respond = _ => """{"result":{"proposal":null,"clarification":"מה לשנות?"},"assumptions":[]}""";
         using var services = local.Services(mode);
         var service = services.GetRequiredService<AiGenerationService>();
-        await service.AuthorAsync(new TemplateAuthoringInput(new string('ו', 4000), plan,
+        await service.AuthorAsync(new ActivityAuthoringInput(new string('ו', 4000), plan,
             Enumerable.Range(0, 6).Select(_ => new AuthoringTurn("parent", new string('ז', 2000))).ToArray()), default);
         Assert.True(Assert.Single(local.Bodies).Length < AiGenerationOptions.RequestByteLimit);
-        var error = await Assert.ThrowsAsync<TaskValidationException>(() => service.AuthorAsync(new TemplateAuthoringInput("רעיון", plan with { Guidance = plan.Guidance + "ה" }), default));
+        var error = await Assert.ThrowsAsync<TaskValidationException>(() => service.AuthorAsync(new ActivityAuthoringInput("רעיון", plan with { Guidance = plan.Guidance + "ה" }), default));
         Assert.NotEmpty(error.Errors);
         Assert.Single(local.Bodies);
     }
@@ -162,7 +183,7 @@ public sealed class ContentGenerationWireTests
         using var services = local.Services();
         var service = services.GetRequiredService<AiGenerationService>();
         var first = Resolve(Supplied());
-        var second = Resolve(Mixed(true));
+        var second = Resolve(Choices());
         var calls = await Task.WhenAll(service.GenerateQuestionsAsync(TaskAssembly.PrepareQuestions(first, TaskAssembly.CreateDocument(first)), [], default),
             service.GenerateQuestionsAsync(TaskAssembly.PrepareQuestions(second, TaskAssembly.CreateDocument(second)), [], default));
         Assert.Equal([2, 3], calls.Select(c => c.Value.Questions.Length));
@@ -225,7 +246,7 @@ public sealed class ContentGenerationWireTests
         var json = """{"result":{"proposal":null,"clarification":"איזה גיל?"},"assumptions":[]}""";
         using var chat = new AiFixtures.ScriptedChat(json.PadRight(length));
         using var service = Service(chat);
-        if (accepted) await service.AuthorAsync(new TemplateAuthoringInput("רעיון"), default);
-        else await Assert.ThrowsAsync<AiGenerationException>(() => service.AuthorAsync(new TemplateAuthoringInput("רעיון"), default));
+        if (accepted) await service.AuthorAsync(new ActivityAuthoringInput("רעיון"), default);
+        else await Assert.ThrowsAsync<AiGenerationException>(() => service.AuthorAsync(new ActivityAuthoringInput("רעיון"), default));
     }
 }

@@ -1,3 +1,4 @@
+import { generateDraft } from './generate-draft';
 import { expect, test, type Page } from '@playwright/test';
 import { numericPlan } from '../src/app/features/activities/learning-plan.fixture';
 import { textSize } from './text-size';
@@ -128,7 +129,6 @@ test('prompt to editable activity, independent template, scoped repair and froze
   await login(page);
   const templatesBefore = (await (await page.request.get('/api/templates')).json()).length;
   await propose(page, 'קריאה עם סגנון לבחירה והמתנה');
-  await page.getByRole('combobox', { name: 'סגנון', exact: true }).selectOption('סיפורי');
   const state = await start(page);
   await expect(page.locator('#cancel-generation')).toBeVisible();
   await page.reload();
@@ -158,7 +158,6 @@ test('prompt to editable activity, independent template, scoped repair and froze
   await expect(page.locator('#question-0-prompt')).toHaveValue('על מה לומדים בקטע? 1');
   expect((await (await page.request.get('/api/templates')).json()).length).toBe(templatesBefore);
   expect(draft.templateVersionId).toBeNull();
-  expect(Object.values(draft.input.controlValues)).toEqual(['סיפורי']);
   const secondQuestion = draft.document.questions[1];
   await page.locator('#question-0-improve').click();
   await page.locator('#question-0-improve-submit').click();
@@ -190,7 +189,7 @@ test('prompt to editable activity, independent template, scoped repair and froze
   await expect(page.locator('details').first()).toHaveAttribute('open', '');
   await narrow(page, 'snapshot');
   await page.goto('/templates/' + template.id + '/edit');
-  await page.getByLabel('שם התבנית', { exact: true }).fill('תבנית ששונתה');
+  await page.getByLabel('שם הפעילות', { exact: true }).fill('תבנית ששונתה');
   await page.locator('#save-template').click();
   await expect(page.getByText('התבנית נשמרה במרחב שלנו.', { exact: true })).toBeVisible();
   await page.goto(frozenUrl);
@@ -273,37 +272,34 @@ test('strict material rejection stops questions, while a question failure retain
   ).toEqual(['questions']);
 });
 
-test('question-only generation preserves typing and Undo across late output and stale save', async ({
+test('question generation locks editing, supports durable Undo and leaves saved content intact after Stop', async ({
   page,
 }) => {
   await login(page, 'races@example.test');
   await propose(page, 'תרגול חשבון ללא קטע עם המתנה');
   await expect(page.locator('[id$="-length-mode"]')).toHaveCount(0);
   const state = await start(page);
-  await page.locator('#document-title').fill('עריכה מקומית');
+  await expect(page.locator('#document-title')).toBeDisabled();
   await finish(page, state);
-  await expect(page.getByRole('heading', { name: 'נוצרה תוצאה בזמן שהמשכתם לערוך' })).toBeVisible();
-  await expect(page.locator('#document-title')).toHaveValue('עריכה מקומית');
+  await expect(page.locator('#document-title')).toHaveValue('לומדים על חשבון');
   await page.locator('#plan-undo').click();
-  await expect(page.locator('#document-title')).not.toHaveValue('לומדים על חשבון');
+  await expect(page.locator('#question-0-prompt')).toHaveCount(0);
+  await page.reload();
+  await expect(page.locator('#question-0-prompt')).toHaveCount(0);
+  await finish(page, await start(page));
   await page.locator('#document-title').fill('עריכה שחשוב לשמור');
   await page.locator('#save-activity').click();
-  await expect(page.getByRole('alert')).toContainText('הטיוטה השתנתה בינתיים');
-  await expect(page.locator('#document-title')).toHaveValue('עריכה שחשוב לשמור');
-  page.once('dialog', (dialog) => dialog.accept());
-  await page.locator('#reload-activity').click();
-  await expect(page.locator('#document-title')).toHaveValue('לומדים על חשבון');
-  expect((await operation(page, state)).steps.map((step: { stage: string }) => step.stage)).toEqual(
-    ['questions'],
-  );
+  await expect(page.getByText('נשמר', { exact: true })).toBeVisible();
+  await expect(page.locator('#plan-undo')).toBeDisabled();
   await page.getByText('פעולות נוספות', { exact: true }).click();
   page.once('dialog', (dialog) => dialog.accept());
   await page.locator('#regenerate-questions').click();
   await expect(page.locator('#cancel-generation')).toBeVisible();
-  await page.locator('#document-title').fill('עריכה בזמן ביטול');
+  await expect(page.locator('#document-title')).toBeDisabled();
   await page.locator('#cancel-generation').click();
   await expect(page.locator('#cancel-generation')).toBeHidden();
-  await expect(page.locator('#document-title')).toHaveValue('עריכה בזמן ביטול');
+  await expect(page.locator('#document-title')).toHaveValue('עריכה שחשוב לשמור');
+  await expect(page.locator('#document-title')).toBeEnabled();
 });
 
 test('authoring failures expose safe errors and retain the parent request', async ({ page }) => {
@@ -323,7 +319,7 @@ test('authoring failures expose safe errors and retain the parent request', asyn
   }
 });
 
-test('a lost start response replays the original key and preserves later local typing', async ({
+test('a lost start response locks editing until the original operation key is recovered', async ({
   page,
 }) => {
   await login(page, 'recovery@example.test');
@@ -345,7 +341,7 @@ test('a lost start response replays the original key and preserves later local t
   });
   await page.locator('#generate-questions').click();
   await expect(page.locator('#recover-start')).toBeVisible();
-  await page.locator('#document-title').fill('עריכה אחרי אובדן תשובה');
+  await expect(page.locator('#document-title')).toBeDisabled();
   await expect(page.locator('#generate-questions')).toBeDisabled();
   await page.locator('#recover-start').click();
   await expect(page.locator('#recover-start')).toBeHidden();
@@ -356,7 +352,7 @@ test('a lost start response replays the original key and preserves later local t
   });
   expect(starts).toHaveLength(2);
   expect(starts[1]).toEqual(starts[0]);
-  await expect(page.locator('#document-title')).toHaveValue('עריכה אחרי אובדן תשובה');
+  await expect(page.locator('#document-title')).toHaveValue('לומדים על חשבון');
 });
 
 test('library deletion confirms intent, preserves independent items, recovers from failure and follows other devices', async ({
@@ -497,7 +493,7 @@ test('library deletion confirms intent, preserves independent items, recovers fr
     verifyParentReview(page, childRequest, profile.id));
   await page.goto('/templates');
 
-  await page.route('**/api/templates', async (route) => {
+  await page.route('**/api/learning-data', async (route) => {
     if (route.request().method() === 'DELETE')
       await route.fulfill({ status: 500, json: { title: 'המחיקה נכשלה' } });
     else await route.continue();
@@ -509,7 +505,7 @@ test('library deletion confirms intent, preserves independent items, recovers fr
   await expect(snapshots.locator('article')).toHaveCount(0);
   expect((await childRequest.get(`${childBase}/api/child/auth/me`)).status()).toBe(200);
   expect(await (await childRequest.get(sessionPath)).json()).toEqual(completed);
-  await page.unroute('**/api/templates');
+  await page.unroute('**/api/learning-data');
   page.once('dialog', (dialog) => dialog.accept());
   await page.getByRole('button', { name: 'איפוס נתוני הלמידה' }).click();
   await expect(page.getByText('נתוני הלמידה נמחקו.', { exact: true })).toBeVisible();
@@ -530,7 +526,7 @@ test('library deletion confirms intent, preserves independent items, recovers fr
   const plan = { ...numericPlan, schemaVersion };
   const created = await page.request.post('/api/activity-drafts', {
     headers,
-    data: { plan, input: { settings: plan.defaults } },
+    data: { plan },
   });
   const draft = await created.json();
   const drafts = page.locator('section[aria-labelledby="drafts-title"]');
@@ -541,7 +537,6 @@ test('library deletion confirms intent, preserves independent items, recovers fr
     data: {
       expectedRevision: draft.revision,
       plan,
-      input: draft.input,
       document: { title: 'מהטלפון', instructions: null, materials: [], questions: [] },
     },
   });
@@ -568,7 +563,7 @@ test('two pages follow generation, cancellation and release while preserving edi
   const plan = { ...numericPlan, schemaVersion, goal: 'תרגול חשבון עם המתנה' };
   const created = await page.request.post('/api/activity-drafts', {
     headers,
-    data: { plan, input: { settings: plan.defaults } },
+    data: { plan },
   });
   expect(created.status()).toBe(201);
   const draft = await created.json();
@@ -605,7 +600,7 @@ test('two pages follow generation, cancellation and release while preserving edi
 
   const another = await actor.request.post('/api/activity-drafts', {
     headers,
-    data: { plan, input: { settings: plan.defaults } },
+    data: { plan },
   });
   const current = await another.json();
   page.once('dialog', (dialog) => dialog.accept());
@@ -621,7 +616,6 @@ test('two pages follow generation, cancellation and release while preserving edi
     data: {
       expectedRevision: current.revision,
       plan,
-      input: current.input,
       document: { ...current.document, title: 'שינוי בזמן ההסתרה' },
     },
   });
@@ -636,4 +630,49 @@ test('two pages follow generation, cancellation and release while preserving edi
   await expect(page.getByText('הפעילות נמחקה במכשיר אחר', { exact: true })).toBeVisible();
   await expect(page.locator('#reload-activity')).toHaveCount(0);
   await actor.close();
+});
+
+test('Create and chat revisions persist across reload without changing content on refusal', async ({
+  page,
+}) => {
+  await login(page, 'source@example.test');
+  const headers = {
+    'X-XSRF-TOKEN': (await (await page.request.get('/api/auth/csrf')).json()).token,
+  };
+  const plan = {
+    ...numericPlan,
+    schemaVersion: (await (await page.request.get('/api/ai/status')).json()).schemaVersion,
+  };
+  const response = await page.request.post('/api/activity-drafts', { headers, data: { plan } });
+  expect(response.status()).toBe(201);
+  const created = await generateDraft(page.request, headers, await response.json());
+  const path = `/api/activity-drafts/${created.id}`;
+  await page.goto(`/activities/${created.id}`);
+  await page.locator('button[aria-controls="setup-body change-panel"]').click();
+  await page.locator('#chat-message').fill('הוסף הסברים למפתח התשובות');
+  await page.locator('#chat-send').click();
+  await expect(
+    page.getByText('הוספת הסברים למפתח התשובות אינה נתמכת.', { exact: true }),
+  ).toBeVisible();
+  const refused = await (await page.request.get(path)).json();
+  expect(refused.revision).toBe(created.revision);
+  expect(refused.document).toEqual(created.document);
+  expect(refused.plan).toEqual(created.plan);
+  await page.reload();
+  await page.locator('button[aria-controls="setup-body change-panel"]').click();
+  await expect(
+    page.getByText('הוספת הסברים למפתח התשובות אינה נתמכת.', { exact: true }),
+  ).toBeVisible();
+  await page.locator('#chat-message').fill('שנה את שם הפעילות');
+  await page.locator('#chat-send').click();
+  await expect
+    .poll(async () => (await (await page.request.get(path)).json()).plan.name)
+    .toBe('שם מעודכן');
+  await page.reload();
+  await expect(page.locator('#plan-undo')).toBeEnabled();
+  await page.locator('#plan-undo').click();
+  await expect
+    .poll(async () => (await (await page.request.get(path)).json()).plan.name)
+    .toBe(plan.name);
+  expect((await (await page.request.get(path)).json()).document).toEqual(created.document);
 });

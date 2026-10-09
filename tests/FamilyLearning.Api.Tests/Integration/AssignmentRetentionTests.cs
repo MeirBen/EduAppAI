@@ -123,7 +123,7 @@ public sealed class AssignmentRetentionTests
             for (var i = 0; i < 100; i++)
             {
                 var copy = new TaskSnapshot(source.FamilyId, Guid.NewGuid(), source.SourceDraftRevision, source.Title,
-                    source.PlanJson, source.InputJson, source.ResolvedInputJson, source.DocumentJson, source.MeasurementsJson,
+                    source.PlanJson, source.DocumentJson, source.MeasurementsJson,
                     source.EngineRevision, null, null, source.CreatedByParentId, source.DraftCreatedAtUtc, source.ReviewedByParentId, source.ReviewedAtUtc);
                 db.Add(copy);
                 ids.Add(copy.Id);
@@ -145,7 +145,7 @@ public sealed class AssignmentRetentionTests
         using (var scope = h.App.Services.CreateScope())
             await scope.ServiceProvider.GetRequiredService<LearningDbContext>().Database.ExecuteSqlRawAsync(
                 "CREATE TRIGGER prevent_snapshot_reset BEFORE DELETE ON TaskSnapshots BEGIN SELECT RAISE(ABORT, 'isolated'); END;");
-        Assert.Equal(HttpStatusCode.InternalServerError, (await parent.DeleteAsync("/api/templates")).StatusCode);
+        Assert.Equal(HttpStatusCode.InternalServerError, (await parent.DeleteAsync("/api/learning-data")).StatusCode);
         Assert.Equal(HttpStatusCode.OK, (await child.GetAsync("/api/child/auth/me")).StatusCode);
         Assert.Single((await parent.GetFromJsonAsync<JsonNode>("/api/assignments?pageSize=100&page=2"))!["items"]!.AsArray());
         using (var scope = h.App.Services.CreateScope())
@@ -154,7 +154,7 @@ public sealed class AssignmentRetentionTests
             Assert.Equal(102, await db.TaskSessions.CountAsync());
             await db.Database.ExecuteSqlRawAsync("DROP TRIGGER prevent_snapshot_reset;");
         }
-        Assert.Equal(HttpStatusCode.NoContent, (await parent.DeleteAsync("/api/templates")).StatusCode);
+        Assert.Equal(HttpStatusCode.NoContent, (await parent.DeleteAsync("/api/learning-data")).StatusCode);
         Assert.Empty((await parent.GetFromJsonAsync<JsonNode>("/api/assignments"))!["items"]!.AsArray());
         Assert.Equal(HttpStatusCode.Unauthorized, (await child.GetAsync("/api/child/auth/me")).StatusCode);
         Assert.Equal(HttpStatusCode.OK, (await stranger.GetAsync("/api/assignments/" + foreignAssignment["id"]!.GetValue<Guid>())).StatusCode);

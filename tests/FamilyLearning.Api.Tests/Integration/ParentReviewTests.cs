@@ -285,7 +285,7 @@ public sealed class ParentReviewTests
             questions = Enumerable.Range(0, 3).Select(i => new
             { id = (string?)null, prompt = "שאלה " + i, interaction = new { type = "text-input" }, answer = new { value = "private-key" }, points = 0 }).ToArray()
         });
-        draft = await ActivityDraftTests.Save(parent, draft, edit);
+        draft = await ActivityDraftTests.Seed(parent, draft, edit);
         using var release = await parent.PostAsJsonAsync(ActivityDraftTests.Path(draft) + "/release", new { expectedRevision = 2 });
         Assert.Equal(HttpStatusCode.Created, release.StatusCode);
         var snapshot = (await release.Content.ReadFromJsonAsync<JsonNode>())!;

@@ -1,3 +1,4 @@
+import { generateDraft } from './generate-draft';
 import { expect, test, type APIRequestContext, type Page } from '@playwright/test';
 import { suppliedPlan } from '../src/app/features/activities/learning-plan.fixture';
 import { textSize } from './text-size';
@@ -9,13 +10,13 @@ const exactAnswer = '  תשובה מְנֻקֶּדֶת — exact text\n  ';
 
 test.use({ actionTimeout: 10_000 });
 
-/** Three real interaction types with immutable, manually reviewed test content; no generation calls. */
+/** Three real interaction types with immutable, manually reviewed test content; isolated generation followed by manual review. */
 async function createSnapshot(parent: APIRequestContext, headers: Record<string, string>) {
   const { schemaVersion } = await (await parent.get('/api/ai/status')).json();
   const plan = {
     ...suppliedPlan,
     schemaVersion,
-    defaults: { ...suppliedPlan.defaults, questionCount: 3 },
+    settings: { ...suppliedPlan.settings, questionCount: 3 },
     materials: [
       { ...suppliedPlan.materials[0], text: story },
       {
@@ -28,22 +29,21 @@ async function createSnapshot(parent: APIRequestContext, headers: Record<string,
     questions: {
       ...suppliedPlan.questions,
       formats: ['numeric-input', 'text-input', 'single-choice'],
-      choiceCount: { value: 2, adjustable: false },
+      choiceCount: 2,
     },
   };
   const created = await parent.post('/api/activity-drafts', {
     headers,
-    data: { plan, input: { settings: plan.defaults } },
+    data: { plan },
   });
   expect(created.status()).toBe(201);
-  const draft = await created.json();
+  const draft = await generateDraft(parent, headers, await created.json());
   const path = `/api/activity-drafts/${draft.id}`;
   const saved = await parent.put(path, {
     headers,
     data: {
       expectedRevision: draft.revision,
       plan,
-      input: draft.input,
       document: {
         title: 'מסע הקריאה שלי',
         instructions: 'קראו וענו בקצב שלכם.',
@@ -53,21 +53,21 @@ async function createSnapshot(parent: APIRequestContext, headers: Record<string,
         ],
         questions: [
           {
-            id: null,
+            id: draft.document.questions[0].id,
             prompt: '2 + 3 = ?',
             interaction: { type: 'numeric-input' },
             answer: { value: '5' },
             points: 2,
           },
           {
-            id: null,
+            id: draft.document.questions[1].id,
             prompt: 'מה למדתם מהטקסט?',
             interaction: { type: 'text-input' },
             answer: { value: 'private-child-workflow-key' },
             points: 3,
           },
           {
-            id: null,
+            id: draft.document.questions[2].id,
             prompt: 'איזו אפשרות בחרתם?',
             // A long option with an unbreakable number must wrap inside its card at any text size.
             interaction: {
@@ -153,7 +153,6 @@ test('two families and siblings keep separate work through resume, lost submissi
   request,
 }) => {
   test.setTimeout(120_000);
-  const callsBefore = await (await request.get('http://127.0.0.1:5203/__stats')).json();
   await parent.goto('/login');
   await parent.getByLabel('כתובת דוא״ל', { exact: true }).fill('source@example.test');
   await parent.getByLabel('סיסמה', { exact: true }).fill('TestOnly!Parent12345');
@@ -198,6 +197,8 @@ test('two families and siblings keep separate work through resume, lost submissi
       'X-XSRF-TOKEN': (await (await otherParent.request.get('/api/auth/csrf')).json()).token,
     };
     const foreignSnapshot = await createSnapshot(otherParent.request, foreignHeaders);
+    // Parent fixtures use the isolated provider; child work below must make no further calls.
+    const callsBefore = await (await request.get('http://127.0.0.1:5203/__stats')).json();
     const peers = [];
     for (const { owner, ownerHeaders, peerContext, content, name } of [
       {
@@ -443,7 +444,7 @@ test('two families and siblings keep separate work through resume, lost submissi
       await expectChildResponse(saved);
       expect(await saved.json()).toEqual(peer.saved);
     }
-    expect((await parent.request.delete('/api/templates', { headers })).status()).toBe(204);
+    expect((await parent.request.delete('/api/learning-data', { headers })).status()).toBe(204);
     const revokedSibling = await siblingContext.request.get('/api/child/auth/me');
     expect(revokedSibling.status()).toBe(401);
     await expectChildResponse(revokedSibling);

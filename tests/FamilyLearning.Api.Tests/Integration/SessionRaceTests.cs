@@ -114,7 +114,7 @@ public sealed class SessionRaceTests
         try
         {
             await pause.Entered.Task.WaitAsync(TimeSpan.FromSeconds(10));
-            Assert.Equal(HttpStatusCode.NoContent, (await parent.DeleteAsync("/api/templates")).StatusCode);
+            Assert.Equal(HttpStatusCode.NoContent, (await parent.DeleteAsync("/api/learning-data")).StatusCode);
         }
         finally { pause.Resume.TrySetResult(); }
         Assert.Equal(HttpStatusCode.NotFound, (await waiting).StatusCode);
@@ -151,7 +151,7 @@ public sealed class SessionRaceTests
         try
         {
             await pause.Entered.Task.WaitAsync(TimeSpan.FromSeconds(10));
-            if (loss == "reset") Assert.Equal(HttpStatusCode.NoContent, (await parent.DeleteAsync("/api/templates")).StatusCode);
+            if (loss == "reset") Assert.Equal(HttpStatusCode.NoContent, (await parent.DeleteAsync("/api/learning-data")).StatusCode);
             else if (loss == "disable")
                 Assert.Equal(HttpStatusCode.OK, (await parent.PutAsJsonAsync(Path(profile), new { name = "disabled", enabled = false, expectedRevision = 1 })).StatusCode);
             else if (loss == "revoke")

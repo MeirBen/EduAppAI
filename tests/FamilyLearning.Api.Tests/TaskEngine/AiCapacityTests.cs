@@ -22,14 +22,14 @@ public sealed class AiCapacityTests
         var service = services.GetRequiredService<AiGenerationService>();
         var request = LearningPlanFixture.Resolve(LearningPlanFixture.Numeric());
         using var cancellation = new CancellationTokenSource();
-        var author = service.AuthorAsync(new TemplateAuthoringInput("רעיון"), cancellation.Token);
+        var author = service.AuthorAsync(new ActivityAuthoringInput("רעיון"), cancellation.Token);
         var content = service.GenerateQuestionsAsync(TaskAssembly.PrepareQuestions(request, TaskAssembly.CreateDocument(request)), [], cancellation.Token);
-        var error = await Assert.ThrowsAsync<AiGenerationException>(() => service.AuthorAsync(new TemplateAuthoringInput("עוד"), default));
+        var error = await Assert.ThrowsAsync<AiGenerationException>(() => service.AuthorAsync(new ActivityAuthoringInput("עוד"), default));
         Assert.Equal(503, error.StatusCode);
         cancellation.Cancel();
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() => Task.WhenAll(author, content));
         chat.Response = new(TaskCreationOptions.RunContinuationsAsynchronously);
-        var next = service.AuthorAsync(new TemplateAuthoringInput("שוב"), default);
+        var next = service.AuthorAsync(new ActivityAuthoringInput("שוב"), default);
         chat.Response.SetResult(Response("""{"result":{"proposal":null,"clarification":"איזה גיל?"},"assumptions":[]}"""));
         Assert.Equal("איזה גיל?", (await next).Value.Clarification);
     }
@@ -46,11 +46,11 @@ public sealed class AiCapacityTests
         using var chat = new PausedChat();
         using var services = CreateServices(chat, "1");
         var service = services.GetRequiredService<AiGenerationService>();
-        var first = service.AuthorAsync(new TemplateAuthoringInput("First idea"), cancellation.Token);
-        var second = service.AuthorAsync(new TemplateAuthoringInput("Second idea"), cancellation.Token);
+        var first = service.AuthorAsync(new ActivityAuthoringInput("First idea"), cancellation.Token);
+        var second = service.AuthorAsync(new ActivityAuthoringInput("Second idea"), cancellation.Token);
         Assert.False(first.IsCompleted);
         Assert.False(second.IsCompleted);
-        var busy = await Assert.ThrowsAsync<AiGenerationException>(() => service.AuthorAsync(new TemplateAuthoringInput("Excess"), deadline.Token));
+        var busy = await Assert.ThrowsAsync<AiGenerationException>(() => service.AuthorAsync(new ActivityAuthoringInput("Excess"), deadline.Token));
         Assert.Equal(503, busy.StatusCode);
 
         if (outcome is "cancellation" or "timeout")
@@ -79,8 +79,8 @@ public sealed class AiCapacityTests
 
         // Both replacement calls must be accepted before either response completes.
         chat.Response = new(TaskCreationOptions.RunContinuationsAsynchronously);
-        var next = service.AuthorAsync(new TemplateAuthoringInput("Next idea"), deadline.Token);
-        var another = service.AuthorAsync(new TemplateAuthoringInput("Another idea"), deadline.Token);
+        var next = service.AuthorAsync(new ActivityAuthoringInput("Next idea"), deadline.Token);
+        var another = service.AuthorAsync(new ActivityAuthoringInput("Another idea"), deadline.Token);
         Assert.False(next.IsCompleted);
         Assert.False(another.IsCompleted);
         chat.Response.SetResult(Response("""{"result":{"proposal":null,"clarification":"איזה גיל?"},"assumptions":[]}"""));

@@ -116,17 +116,14 @@ public static class HebrewJudge
         Add("plan.name", plan.Name);
         Add("plan.goal", plan.Goal);
         Add("plan.guidance", plan.Guidance);
-        Add("plan.defaults.topic", plan.Defaults.Topic);
-        Add("plan.defaults.audience", plan.Defaults.Audience);
-        AddControls("plan.controls", plan.Controls);
+        Add("plan.settings.topic", plan.Settings.Topic);
+        Add("plan.settings.audience", plan.Settings.Audience);
         Add("plan.questions.guidance", plan.Questions.Guidance);
-        AddControls("plan.questions.controls", plan.Questions.Controls);
         for (var index = 0; index < plan.Materials.Length; index++)
         {
             var material = plan.Materials[index];
             Add($"plan.materials[{index}].label", material.Label);
             Add($"plan.materials[{index}].guidance", material.Guidance);
-            AddControls($"plan.materials[{index}].controls", material.Controls);
         }
         Add("document.title", document.Title);
         Add("document.instructions", document.Instructions);
@@ -147,21 +144,6 @@ public static class HebrewJudge
         }
         return texts.ToArray();
 
-        void AddControls(string path, ControlDefinition[] controls)
-        {
-            for (var index = 0; index < controls.Length; index++)
-            {
-                var control = controls[index];
-                Add($"{path}[{index}].label", control.Label);
-                Add($"{path}[{index}].meaning", control.Meaning);
-                if (control.Default is { ValueKind: JsonValueKind.String } value) Add($"{path}[{index}].default", value.GetString());
-                for (var option = 0; option < (control.Options?.Length ?? 0); option++)
-                {
-                    Add($"{path}[{index}].options[{option}].value", control.Options![option].Value);
-                    Add($"{path}[{index}].options[{option}].meaning", control.Options[option].Meaning);
-                }
-            }
-        }
         void Add(string path, string? text) { if (!string.IsNullOrWhiteSpace(text)) texts.Add(new(path, text)); }
     }
 

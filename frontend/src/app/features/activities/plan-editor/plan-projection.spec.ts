@@ -1,152 +1,51 @@
-import { numericPlan, suppliedPlan, sourceText } from '../learning-plan.fixture';
-import { inputForm, planForm } from './plan-form';
-import { planValue, requestValue } from './plan-projection';
-import { LearningPlan } from '../../../core/api/models';
-import { taskSettingsDraft } from '../../../shared/forms/task-settings';
+import { planForm } from './plan-form';
+import { planValue } from './plan-projection';
 import { limits } from '../../../core/api/limits.fixture';
+import { numericPlan, readingPlan, suppliedPlan, sourceText } from '../learning-plan.fixture';
 
-describe('Plan projection', () => {
-  const defaults = () => taskSettingsDraft(numericPlan.defaults);
-  it('omits integer-only metadata after changing a requested choice to text', () => {
-    const form = planForm({
-      ...numericPlan,
-      controls: [
-        {
-          id: 'a'.repeat(32),
-          label: 'משך',
-          meaning: 'משך הפעילות',
-          type: 'integer',
-          unit: 'דקות',
-          min: 0,
-          max: 10,
-        },
-      ],
-    });
-    form.controls[0].type = 'text';
-    const control = planValue(form, defaults(), limits).value?.controls[0];
-    expect(control).not.toHaveProperty('unit');
-    expect(control).not.toHaveProperty('min');
-    expect(control).not.toHaveProperty('max');
-    expect(form.controls[0].unit).toBe('דקות');
-  });
-  it('preserves accepted source text and the server version without normalizing content', () => {
-    const form = planForm({ ...suppliedPlan, schemaVersion: 23 });
-    const settings = defaults();
-    expect(planValue(form, settings, limits).value?.materials[0].text).toBe(sourceText);
-    expect(planValue(form, settings, limits).value?.schemaVersion).toBe(23);
-    settings.questionCount = '';
-    expect(planValue(form, settings, limits).value).toBeUndefined();
-    expect(settings.questionCount).toBe('');
-    settings.questionCount = '21';
-    expect(planValue(form, settings, limits).errors).toContainEqual({
-      path: ['input', 'settings', 'questionCount'],
-      message: 'יש להזין מספר שלם בין 1 ל־20.',
-    });
-    settings.questionCount = '20';
-    expect(planValue(form, settings, limits).value?.defaults.questionCount).toBe(20);
-  });
-
-  it('maps blanks to omission, preserving explicit empty text, false and zero', () => {
-    const plan: LearningPlan = {
-      ...numericPlan,
-      controls: [
-        {
-          id: 'a'.repeat(32),
-          label: 'טקסט',
-          type: 'text',
-          meaning: 'פרט',
-          required: false,
-          default: 'רגיל',
-        },
-        {
-          id: 'b'.repeat(32),
-          label: 'מספר',
-          type: 'integer',
-          meaning: 'היסט',
-          required: false,
-          default: 2,
-        },
-        {
-          id: 'c'.repeat(32),
-          label: 'כן',
-          type: 'boolean',
-          meaning: 'הצגה',
-          required: false,
-          default: true,
-        },
-        {
-          id: 'd'.repeat(32),
-          label: 'בחירה',
-          type: 'select',
-          meaning: 'סוג',
-          required: false,
-          options: [{ value: 'א' }],
-        },
-      ],
-    };
-    const form = inputForm(plan);
-    form.controls[0].provided = true;
-    form.controls[0].value = '';
-    form.controls[1].value = '0';
-    form.controls[2].value = 'false';
-    expect(requestValue(plan, form, limits).value?.controlValues).toEqual({
-      ['a'.repeat(32)]: '',
-      ['b'.repeat(32)]: 0,
-      ['c'.repeat(32)]: false,
-    });
-    form.controls[1].value = '';
-    expect(requestValue(plan, form, limits).value?.controlValues).not.toHaveProperty(
-      'b'.repeat(32),
-    );
-    form.controls[1].value = '1.5';
-    expect(requestValue(plan, form, limits).value).toBeUndefined();
-  });
-
-  it('keeps form-only values out of conditional source, format and length contracts', () => {
+describe('Concrete plan projection', () => {
+  it('preserves exact source text and empty optional guidance without an override object', () => {
     const form = planForm(suppliedPlan);
-    const material = form.materials[0];
-    material.source = 'generated';
-    material.length.mode = 'target';
-    material.length.value = '120';
-    material.length.adjustable = false;
-    const generated = planValue(form, defaults(), limits).value!;
-    expect(generated.materials[0].text).toBeNull();
-    expect(generated.materials[0].length).toEqual({
-      mode: 'target',
-      count: { value: 120, adjustable: false },
-    });
-    material.source = 'per-task';
-    const perTask = planValue(form, defaults(), limits).value!;
-    expect(perTask.materials[0].length).toBeNull();
-    const inputs = inputForm(perTask);
-    expect(requestValue(perTask, inputs, limits).value).toBeUndefined();
-    inputs.materials[0].sourceText = sourceText;
-    inputs.materials[0].wordCount = '999';
-    expect(requestValue(perTask, inputs, limits).value?.materialInputs).toEqual({
-      [material.id]: { sourceText },
-    });
+    const result = planValue(form, limits);
+    expect(result.errors).toEqual([]);
+    expect(result.value?.materials[0].text).toBe(sourceText);
+    expect(result.value?.guidance).toBe('');
+    expect(result.value?.settings).toEqual(suppliedPlan.settings);
+    expect(result.value).not.toHaveProperty('defaults');
+    expect(result.value).not.toHaveProperty('controls');
   });
-
-  it('rejects invalid defaults and keeps zero, false and explicit empty defaults distinct', () => {
-    const plan: LearningPlan = {
-      ...numericPlan,
-      controls: [
-        { id: 'a'.repeat(32), label: 'טקסט', type: 'text', meaning: 'פרט', default: '' },
-        { id: 'b'.repeat(32), label: 'מספר', type: 'integer', meaning: 'היסט', default: 0 },
-        { id: 'c'.repeat(32), label: 'כן', type: 'boolean', meaning: 'הצגה', default: false },
-      ],
-    };
-    const form = planForm(plan);
-    expect(planValue(form, defaults(), limits).value?.controls.map((c) => c.default)).toEqual([
-      '',
-      0,
-      false,
-    ]);
-    form.controls[0].type = 'select';
-    form.controls[0].options = [{ value: 'חדש', meaning: '' }];
-    form.controls[0].defaultValue = 'לא קיים';
-    expect(planValue(form, defaults(), limits).value).toBeUndefined();
-    form.controls[0].defaultValue = 'חדש';
-    expect(planValue(form, defaults(), limits).value?.controls[0].default).toBe('חדש');
+  it('rejects unfinished counts without changing the local value', () => {
+    const form = planForm(numericPlan);
+    form.settings.questionCount = '1.';
+    expect(planValue(form, limits).value).toBeUndefined();
+    expect(form.settings.questionCount).toBe('1.');
+    form.settings.questionCount = String(limits.maxQuestionCount + 1);
+    expect(planValue(form, limits).value).toBeUndefined();
+  });
+  it('requires enough questions for the requested mixture and checks choice bounds', () => {
+    const form = planForm(readingPlan);
+    form.questions.numeric = true;
+    form.settings.questionCount = '1';
+    expect(planValue(form, limits).value).toBeUndefined();
+    form.settings.questionCount = '2';
+    form.questions.choiceCount.value = '7';
+    expect(planValue(form, limits).value).toBeUndefined();
+    form.questions.choiceCount.value = '2';
+    expect(planValue(form, limits).value?.questions.choiceCount).toBe(2);
+  });
+  it('keeps only applicable length and source fields and rejects conflicting length scopes', () => {
+    const form = planForm(readingPlan);
+    form.materials[0].text = 'local unused text';
+    expect(planValue(form, limits).value?.materials[0].text).toBeNull();
+    form.totalLength = { mode: 'range', value: '', lower: '100', upper: '200' };
+    expect(planValue(form, limits).value).toBeUndefined();
+    form.materials[0].length.mode = '';
+    expect(planValue(form, limits).value?.totalLength).toEqual({
+      mode: 'range',
+      lower: 100,
+      upper: 200,
+    });
+    form.totalLength.upper = '100';
+    expect(planValue(form, limits).value).toBeUndefined();
   });
 });

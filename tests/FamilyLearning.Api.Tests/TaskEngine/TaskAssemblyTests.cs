@@ -23,7 +23,7 @@ public sealed class TaskAssemblyTests
     [InlineData(true)]
     public void Returned_content_does_not_share_mutable_state_with_the_current_draft(bool adopt)
     {
-        var plan = Reading() with { Questions = Mixed(true).Questions };
+        var plan = Reading() with { Questions = Choices().Questions };
         var request = Resolve(plan);
         var current = TaskAssembly.AcceptMaterials(request, Empty, new([new(MaterialId, null, "שלום עולם")])).Document!;
         current = TaskAssembly.AcceptQuestions(request, current, Questions(Question("single-choice"), Question("single-choice")));
@@ -94,7 +94,7 @@ public sealed class TaskAssemblyTests
     [Fact]
     public void Manual_incomplete_answers_save_as_diagnostics_without_selecting_a_new_answer()
     {
-        var request = Resolve(Mixed(true));
+        var request = Resolve(Choices());
         var document = TaskAssembly.AcceptQuestions(request, Empty, Questions(Question("single-choice"), Question("single-choice"), Question("single-choice")));
         var original = document.Questions[0];
         document.Questions[0] = original with { Interaction = new("single-choice", ["א", "ד", "ג"]) };
@@ -195,7 +195,7 @@ public sealed class TaskAssemblyTests
     [Fact]
     public void Incomplete_questions_cannot_hide_a_strict_material_failure()
     {
-        var plan = Reading() with { Defaults = Reading().Defaults with { QuestionCount = 20 } };
+        var plan = Reading() with { Settings = Reading().Settings with { QuestionCount = 20 } };
         var request = Resolve(plan);
         var document = TaskAssembly.AcceptMaterials(request, Empty, new([new(MaterialId, null, "שלום עולם")])).Document!;
         document = TaskAssembly.AcceptQuestions(request, document, Questions(Enumerable.Repeat(Question("text-input"), 20).ToArray()));
@@ -222,8 +222,8 @@ public sealed class TaskAssemblyTests
     {
         var plan = Numeric(10) with
         {
-            Materials = [Reading().Materials[0] with { Length = null, Controls = [] },
-            Reading().Materials[0] with { Id = OtherId, Length = null, Controls = [] }]
+            Materials = [Reading().Materials[0] with { Length = null },
+            Reading().Materials[0] with { Id = OtherId, Length = null }]
         };
         var candidate = new MaterialCandidateBatch([new(MaterialId, null, new string('א', 3990)), new(OtherId, null, new string('ב', 3990))]);
         var request = Resolve(plan);

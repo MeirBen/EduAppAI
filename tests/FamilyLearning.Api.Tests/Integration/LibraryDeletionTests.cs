@@ -27,12 +27,12 @@ public sealed class LibraryDeletionTests
             var original = await db.ActivityDrafts.SingleAsync(d => d.Id == draft["id"]!.GetValue<Guid>());
             for (var index = 0; index < 101; index++)
                 db.ActivityDrafts.Add(new ActivityDraft(original.FamilyId, original.Name, original.PlanJson,
-                    original.InputJson, original.DocumentJson, null, null, original.CreatedByParentId));
+                    original.DocumentJson, null, null, original.CreatedByParentId));
             await db.SaveChangesAsync();
         }
         Assert.Equal(100, (await owner.GetFromJsonAsync<JsonElement>("/api/activity-drafts")).GetArrayLength());
-        Assert.Equal(HttpStatusCode.NoContent, (await owner.DeleteAsync("/api/templates")).StatusCode);
-        Assert.Equal(HttpStatusCode.NoContent, (await owner.DeleteAsync("/api/templates")).StatusCode);
+        Assert.Equal(HttpStatusCode.NoContent, (await owner.DeleteAsync("/api/learning-data")).StatusCode);
+        Assert.Equal(HttpStatusCode.NoContent, (await owner.DeleteAsync("/api/learning-data")).StatusCode);
         Assert.Equal(HttpStatusCode.OK, (await owner.GetAsync("/api/auth/me")).StatusCode);
         Assert.Equal(HttpStatusCode.OK, (await stranger.GetAsync(ActivityDraftTests.Path(foreign))).StatusCode);
         using var verification = app.Services.CreateScope();
@@ -51,11 +51,11 @@ public sealed class LibraryDeletionTests
         using var published = await owner.PostAsJsonAsync("/api/templates", plan);
         var template = await published.Content.ReadFromJsonAsync<JsonElement>();
         var templateId = template.GetProperty("id").GetGuid();
-        using var copied = await owner.PostAsJsonAsync("/api/activity-drafts", new { templateId, expectedVersion = 1, input = new Api.TaskEngine.Models.TaskRequest(plan.Defaults) });
+        using var copied = await owner.PostAsJsonAsync("/api/activity-drafts", new { templateId, expectedVersion = 1 });
         var draft = (await copied.Content.ReadFromJsonAsync<System.Text.Json.Nodes.JsonNode>())!;
         var edit = ActivityDraftTests.Edit(draft);
         edit["document"] = ActivityDraftTests.Document();
-        draft = await ActivityDraftTests.Save(owner, draft, edit);
+        draft = await ActivityDraftTests.Seed(owner, draft, edit);
         using var released = await owner.PostAsJsonAsync(ActivityDraftTests.Path(draft) + "/release", new { expectedRevision = 2 });
         var snapshot = await released.Content.ReadFromJsonAsync<JsonElement>();
         var snapshotId = snapshot.GetProperty("id").GetGuid();
@@ -63,7 +63,7 @@ public sealed class LibraryDeletionTests
         Assert.Equal(HttpStatusCode.NoContent, (await owner.DeleteAsync($"/api/templates/{templateId}")).StatusCode);
         Assert.Equal(HttpStatusCode.OK, (await owner.GetAsync(ActivityDraftTests.Path(draft))).StatusCode);
         Assert.Equal(HttpStatusCode.OK, (await owner.GetAsync($"/api/instances/{snapshotId}")).StatusCode);
-        Assert.Equal(HttpStatusCode.NoContent, (await owner.DeleteAsync("/api/templates")).StatusCode);
+        Assert.Equal(HttpStatusCode.NoContent, (await owner.DeleteAsync("/api/learning-data")).StatusCode);
         Assert.Equal(HttpStatusCode.NotFound, (await owner.GetAsync(ActivityDraftTests.Path(draft))).StatusCode);
         Assert.Equal(HttpStatusCode.NotFound, (await owner.GetAsync($"/api/instances/{snapshotId}")).StatusCode);
         Assert.Equal(HttpStatusCode.OK, (await stranger.GetAsync(ActivityDraftTests.Path(foreign))).StatusCode);
@@ -90,13 +90,13 @@ public sealed class LibraryDeletionTests
             var db = scope.ServiceProvider.GetRequiredService<LearningDbContext>();
             await db.Database.ExecuteSqlRawAsync("CREATE TRIGGER RejectSnapshotDeletion BEFORE DELETE ON TaskSnapshots BEGIN SELECT RAISE(ABORT, 'private'); END;");
         }
-        Assert.Equal(HttpStatusCode.InternalServerError, (await parent.DeleteAsync("/api/templates")).StatusCode);
+        Assert.Equal(HttpStatusCode.InternalServerError, (await parent.DeleteAsync("/api/learning-data")).StatusCode);
         Assert.Equal(HttpStatusCode.OK, (await parent.GetAsync(ActivityDraftTests.Path(draft))).StatusCode);
         Assert.Equal(1, (await parent.GetFromJsonAsync<JsonElement>("/api/instances")).GetArrayLength());
     }
 
     [Theory]
-    [InlineData("/api/templates")]
+    [InlineData("/api/learning-data")]
     [InlineData("/api/templates/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa")]
     [InlineData("/api/instances/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa")]
     public async Task Deletion_requires_authentication_and_csrf(string path)
@@ -126,7 +126,7 @@ public sealed class LibraryDeletionTests
         {
             await publication.Entered.Task.WaitAsync(TimeSpan.FromSeconds(10));
             Assert.Equal(HttpStatusCode.NoContent,
-                (await parent.DeleteAsync(reset ? "/api/templates" : $"/api/templates/{id}")).StatusCode);
+                (await parent.DeleteAsync(reset ? "/api/learning-data" : $"/api/templates/{id}")).StatusCode);
         }
         finally { publication.Resume.TrySetResult(); }
         Assert.Equal(HttpStatusCode.NotFound, (await saving).StatusCode);

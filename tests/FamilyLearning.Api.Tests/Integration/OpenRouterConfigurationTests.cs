@@ -123,7 +123,7 @@ public sealed class OpenRouterConfigurationTests
         AssertResponseSchema(request, responseFormat ?? "json_object", "proposal");
 
         var resolved = TaskEngine.LearningPlanFixture.Resolve(TaskEngine.LearningPlanFixture.Supplied() with
-        { Defaults = TaskEngine.LearningPlanFixture.Numeric(1).Defaults });
+        { Settings = TaskEngine.LearningPlanFixture.Numeric(1).Settings });
         var document = Api.TaskEngine.TaskAssembly.CreateDocument(resolved);
         var questions = await provider.GetRequiredService<AiGenerationService>().GenerateQuestionsAsync(new(resolved, document.Materials), [], deadline.Token);
         Assert.Equal("2", Assert.Single(questions.Value.Questions).Answer!.Value);

@@ -3,19 +3,25 @@ using System.Text.Json.Serialization;
 namespace FamilyLearning.Api.TaskEngine.Models;
 
 /// <summary>Resolved requirements and prior materials for batch selection/strict acceptance; no chat or persistence identity.</summary>
-public sealed record MaterialGenerationInput(ResolvedTaskRequest Request, MaterialContent[] Materials);
+public sealed record MaterialGenerationInput(ResolvedTaskRequest Request, MaterialContent[] Materials, string[]? TargetIds = null);
 
 /// <summary>Resolved requirements and exact accepted materials; every source revision becomes a question dependency.</summary>
-public sealed record QuestionGenerationInput(ResolvedTaskRequest Request, MaterialContent[] Materials);
+public sealed record QuestionGenerationInput(ResolvedTaskRequest Request, MaterialContent[] Materials, TaskDocument? Current = null, string? Instruction = null);
 
 /// <summary>An application-selected generated material. Current content supports aggregate safety checks, not unrestricted model edits.</summary>
-public sealed record MaterialReplacementInput(ResolvedTaskRequest Request, TaskDocument Current, string MaterialId, string? Instruction = null);
+public sealed record MaterialReplacementInput(ResolvedTaskRequest Request, TaskDocument Current, string MaterialId, string? Instruction = null, string[]? PendingIds = null);
 
 /// <summary>An application-selected question; the rest of the activity is read-only context and app-owned identities never enter the provider request.</summary>
 public sealed record QuestionReplacementInput(ResolvedTaskRequest Request, TaskDocument Current, string QuestionId, string? Instruction = null);
 
 /// <summary>Freshly accepted content for one minimal-edit polish pass; the application decides what the pass may change.</summary>
-public sealed record PolishInput(ResolvedTaskRequest Request, TaskDocument Current);
+public sealed record PolishInput(ResolvedTaskRequest Request, TaskDocument Current, string[]? TargetIds = null);
+
+/// <summary>Append-only question work against final materials and current originals.</summary>
+public sealed record QuestionAdditionInput(ResolvedTaskRequest Request, TaskDocument Current, int Count, string? Instruction = null);
+
+/// <summary>No title, learner instructions or model-owned IDs can be returned for append.</summary>
+public sealed record QuestionAdditionBatch([property: JsonRequired] QuestionCandidate[] Questions);
 
 /// <summary>Untrusted generated-only material output; IDs must exactly match the selected generated requirements.</summary>
 public sealed record MaterialCandidate([property: JsonRequired] string Id, string? Title, [property: JsonRequired] string Body);

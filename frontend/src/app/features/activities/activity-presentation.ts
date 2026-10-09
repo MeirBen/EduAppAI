@@ -2,13 +2,7 @@ import { ActivityDetail, LearningPlan, PlanChange, QuestionFormat } from '../../
 import { isIntegerInput } from '../../shared/forms/integer-input';
 import { DocumentForm } from './activity-document-editor/document-form';
 import { lengthText } from './activity-document-view/measurements';
-import {
-  formFormats,
-  InputForm,
-  LengthForm,
-  PlanForm,
-  planControls,
-} from './plan-editor/plan-form';
+import { formFormats, LengthForm, PlanForm } from './plan-editor/plan-form';
 
 /** Parent wording for app-owned question formats; raw enum values never reach the page. */
 export const formatNames: Record<QuestionFormat, string> = {
@@ -23,15 +17,6 @@ const mixtureNames: Record<QuestionFormat, string> = {
 };
 const difficultyNames = { easy: 'קל', medium: 'בינוני', hard: 'קשה' };
 
-/** Formats a generated activity uses: the chosen one for selectable plans, otherwise the fixed mixture. */
-export function activityFormats(plan: PlanForm, input: InputForm): QuestionFormat[] {
-  const allowed = formFormats(plan.questions);
-  const selected = input.questionFormat || plan.questions.defaultFormat;
-  return plan.questions.selectableFormat && selected && allowed.includes(selected)
-    ? [selected]
-    : allowed;
-}
-
 function questionPhrase(count: number, formats: QuestionFormat[]): string {
   const counted = count === 1 ? 'שאלה אחת' : `${count} שאלות`;
   if (formats.length !== 1)
@@ -42,34 +27,32 @@ function questionPhrase(count: number, formats: QuestionFormat[]): string {
   return count === 1 ? `שאלה ${one} אחת` : `${count} שאלות ${many}`;
 }
 
-/** Unfinished typing falls back to the plan's value instead of inventing a number. */
-function lengthPhrase(length: LengthForm, chosen: string): string | undefined {
+function lengthPhrase(length: LengthForm): string | undefined {
   const { mode, value, lower, upper } = length;
   if (!mode) return undefined;
-  return lengthText({ mode, value: isIntegerInput(chosen) ? chosen : value, lower, upper });
+  return lengthText({ mode, value, lower, upper });
 }
 
 /** One-line reading of the current local plan and choices; derived on every change, never stored. */
-export function activitySummary(plan: PlanForm, input: InputForm): string[] {
-  const settings = input.settings;
+export function activitySummary(plan: PlanForm): string[] {
+  const settings = plan.settings;
   const parts = [
     settings.topic.trim(),
     settings.audience.trim(),
     difficultyNames[settings.difficulty],
   ];
   if (isIntegerInput(settings.questionCount) && Number(settings.questionCount) > 0)
-    parts.push(questionPhrase(Number(settings.questionCount), activityFormats(plan, input)));
+    parts.push(questionPhrase(Number(settings.questionCount), formFormats(plan.questions)));
   if (!plan.materials.length) parts.push('ללא טקסט מקדים');
   for (const material of plan.materials) {
-    const chosen = input.materials.find((value) => value.id === material.id)?.wordCount ?? '';
     parts.push(
       material.source === 'generated'
-        ? (lengthPhrase(material.length, chosen) ?? material.label.trim())
+        ? (lengthPhrase(material.length) ?? material.label.trim())
         : 'טקסט משלכם',
     );
   }
   if (plan.materials.some((material) => material.source === 'generated'))
-    parts.push(lengthPhrase(plan.totalLength, input.totalWordCount) ?? '');
+    parts.push(lengthPhrase(plan.totalLength) ?? '');
   return [...new Set(parts.filter(Boolean))];
 }
 
@@ -218,7 +201,7 @@ export function reviewIssues(saved: ActivityDetail | undefined): string[] {
     else if (key === 'questions')
       issues.push(
         saved.document.questions.length
-          ? `מספר השאלות בפעילות (${saved.document.questions.length}) שונה מהמספר שנבחר (${saved.input.settings.questionCount}).`
+          ? `מספר השאלות בפעילות (${saved.document.questions.length}) שונה מהמספר שנבחר (${saved.plan.settings.questionCount}).`
           : 'עדיין אין שאלות בפעילות.',
       );
     else if (key === 'questions.formats') issues.push('חסרים סוגי שאלות שנבחרו בהגדרות.');
@@ -234,16 +217,16 @@ export function reviewIssues(saved: ActivityDetail | undefined): string[] {
 }
 
 const planFieldNames: Record<string, string> = {
-  name: 'שם התבנית',
+  name: 'שם הפעילות',
   goal: 'מטרת הפעילות',
   guidance: 'ההנחיות',
-  defaults: 'הגדרות ברירת המחדל',
+  settings: 'הגדרות הפעילות',
   totalLength: 'האורך הכולל',
   questions: 'הגדרות השאלות',
 };
 const changeKinds = { added: 'נוסף', removed: 'הוסר', moved: 'הועבר', changed: 'עודכן' };
 
-/** Parent wording for one computed plan change, naming the affected material, choice or field. */
+/** Parent wording for one computed plan change, naming the affected material or field. */
 export function planChangeLabel(
   change: PlanChange,
   before: LearningPlan,
@@ -252,7 +235,7 @@ export function planChangeLabel(
   if (change.path === 'plan') return 'נוספו הגדרות';
   const plan = change.kind === 'removed' ? before : after;
   const label =
-    [...plan.materials, ...planControls(plan)].find((item) => item.id === change.id)?.label ??
+    plan.materials.find((item) => item.id === change.id)?.label ??
     planFieldNames[change.path] ??
     'הגדרות הפעילות';
   return `${changeKinds[change.kind]}: ${label}`;

@@ -81,10 +81,8 @@
           <app-activity-setup
             class="motion-safe:animate-enter"
             [plan]="fields.plan"
-            [inputs]="fields.input"
             [pendingSources]="pendingSources()"
             [locked]="locked()"
-            [reusable]="isTemplate"
             (edited)="edited($event)"
             (sourceConfirmed)="confirmSource($event)"
           />
@@ -103,8 +101,7 @@
           </summary>
           <app-plan-editor
             [fields]="fields.plan"
-            [locked]="locked()"
-            [definesChoices]="definesChoices()"
+            [locked]="locked() || !!saved()"
             (edited)="edited($event)"
             (structureChanged)="changeStructure($event)"
           />
@@ -139,13 +136,6 @@
         <ng-container [ngTemplateOutlet]="reload" />
       </section>
     }
-    @for (candidate of editableCandidates(); track candidate.index) {
-      <app-unapplied-result
-        [candidate]="candidate"
-        [locked]="saving()"
-        (transferred)="editCandidate(candidate.index)"
-      />
-    }
     @if (released() && !dirty()) {
       <div class="panel"><app-activity-document-view [document]="saved()!.document" /></div>
     } @else if (saved() || hasContent()) {
@@ -162,7 +152,6 @@
         [status]="operationStatus"
         [statusTarget]="operationTarget()"
         (edited)="edited($event)"
-        (structureChanged)="editDocument($event)"
         (replaced)="activityAction($event.kind, $event)"
         (adopted)="activityAction('adopt', $event)"
         (sourceReplaced)="replaceSource($event)"
@@ -369,7 +358,7 @@
               id="plan-undo"
               class="icon-button icon-button-quiet"
               type="button"
-              [disabledInteractive]="locked() || !history.entries().length"
+              [disabledInteractive]="locked() || !canUndo()"
               (click)="undo()"
             >
               <span class="icon icon-undo" aria-hidden="true"></span
@@ -419,7 +408,7 @@
     <app-generation-status
       [operation]="current"
       [inCard]="!!inCard"
-      [locked]="locked()"
+      [locked]="saving() || released()"
       [configured]="aiConfigured()"
       (cancelled)="cancelGeneration()"
       (retried)="activityAction($event)"

@@ -1,8 +1,3 @@
-/** JSON scalar control value; the server validates type and bounds. */
-type ControlValue = string | number | boolean;
-/** Values keyed by application-owned control IDs. Omitted keys allow server defaults. */
-export type ControlValues = Record<string, ControlValue>;
-
 /** Shared task choices; difficulty is relative to the audience. */
 export interface TaskSettings {
   topic: string;
@@ -21,41 +16,21 @@ export interface GenerationMetadata {
 
 /** Supported application-owned question interactions. */
 export type QuestionFormat = 'numeric-input' | 'text-input' | 'single-choice';
-/** A fixed value, or a default the parent may change per activity within the application's limits. */
-export interface IntegerChoice {
-  value: number;
-  adjustable: boolean;
-}
 /** Generated-body words: an advisory target count or a strict range; supplied sources have none. */
 export interface LengthExpectation {
   mode: 'target' | 'range';
-  count?: IntegerChoice | null;
+  count?: number | null;
   lower?: number | null;
   upper?: number | null;
-}
-/** A requested choice at its containing scope. IDs are app-owned, never editable keys. */
-export interface PlanControl {
-  id: string;
-  label: string;
-  type: 'text' | 'integer' | 'select' | 'boolean';
-  meaning: string;
-  required?: boolean;
-  default?: ControlValue | null;
-  unit?: string | null;
-  min?: number | null;
-  max?: number | null;
-  maxLength?: number | null;
-  options?: { value: string; meaning?: string | null }[] | null;
 }
 /** A generated material or a source copied verbatim from the parent. */
 export interface PlanMaterial {
   id: string;
   label: string;
-  source: 'generated' | 'fixed' | 'per-task';
+  source: 'generated' | 'supplied';
   guidance: string;
   text?: string | null;
   length?: LengthExpectation | null;
-  controls: PlanControl[];
 }
 /** Canonical learning requirements. Preserve the schema version supplied by the API. */
 export interface LearningPlan {
@@ -63,27 +38,14 @@ export interface LearningPlan {
   name: string;
   goal: string;
   guidance: string;
-  defaults: TaskSettings;
+  settings: TaskSettings;
   materials: PlanMaterial[];
-  controls: PlanControl[];
   totalLength?: LengthExpectation | null;
   questions: {
     formats: QuestionFormat[];
-    selectableFormat: boolean;
-    defaultFormat?: QuestionFormat | null;
-    choiceCount?: IntegerChoice | null;
+    choiceCount: number | null;
     guidance: string;
-    controls: PlanControl[];
   };
-}
-/** Omitted overrides use defaults. Null and numeric strings never cross this boundary. */
-export interface ActivityInput {
-  settings: TaskSettings;
-  questionFormat?: QuestionFormat;
-  choiceCount?: number;
-  totalWordCount?: number;
-  materialInputs?: Record<string, { wordCount?: number; sourceText?: string }>;
-  controlValues?: ControlValues;
 }
 /** Unresolved conversation only. Accepted requirements live in the current plan. */
 export interface AuthoringTurn {
@@ -130,7 +92,7 @@ export interface EditableActivity {
   questions: EditableQuestion[];
 }
 export interface EditableQuestion {
-  id: string | null;
+  id: string;
   prompt: string;
   interaction: { type: QuestionFormat; options: string[] | null };
   answer: { value: string } | null;
@@ -144,7 +106,6 @@ export interface ActivityDocument extends EditableActivity {
     acceptance: ContentAcceptance | null;
   })[];
   questions: (EditableQuestion & {
-    id: string;
     origin: ContentOrigin;
     acceptance: ContentAcceptance | null;
   })[];
@@ -158,7 +119,7 @@ export interface ContentAcceptance {
   sources: { id: string; revision: number }[];
   adoptedAtUtc?: string | null;
 }
-/** A resolved generated-body expectation; a chosen per-activity count is already applied to `value`. */
+/** A generated-body length requirement resolved from the activity plan. */
 export interface ResolvedLength {
   mode: 'target' | 'range';
   value: number | null;
@@ -177,7 +138,6 @@ export interface ActivityDetail {
   id: string;
   revision: number;
   plan: LearningPlan;
-  input: ActivityInput;
   document: ActivityDocument;
   diagnostics: Record<string, string[]>;
   measurements: LengthMeasurement[];
@@ -187,6 +147,8 @@ export interface ActivityDetail {
   releasedSourceRevision: number | null;
   createdAtUtc: string;
   updatedAtUtc: string;
+  chat: ActivityChatTurn[];
+  canUndo: boolean;
 }
 export interface ActivitySummary {
   id: string;
@@ -194,9 +156,28 @@ export interface ActivitySummary {
   revision: number;
   updatedAtUtc: string;
 }
-/** Text and questions are separate parent-started parts; replacements change one card. */
+export interface RevisionTarget {
+  kind: 'material' | 'question';
+  id: string;
+}
+export interface ActivityChatTurn {
+  role: 'parent' | 'assistant';
+  text: string;
+  atUtc: string;
+  target: RevisionTarget | null;
+  operationId: string | null;
+  assumptions: string[] | null;
+  outcome: string | null;
+}
+export type ImportedChatTurn = Omit<ActivityChatTurn, 'operationId' | 'outcome'>;
+/** New atomic operations coexist with the old workspace actions until the canvas cutover. */
 export type GenerationKind =
-  'GenerateMaterials' | 'GenerateQuestions' | 'ReplaceMaterial' | 'ReplaceQuestion';
+  | 'Create'
+  | 'Revise'
+  | 'GenerateMaterials'
+  | 'GenerateQuestions'
+  | 'ReplaceMaterial'
+  | 'ReplaceQuestion';
 /** Keep this exact request for explicit same-key recovery after a lost response. */
 export interface StartGeneration {
   operationKey: string;
@@ -204,6 +185,9 @@ export interface StartGeneration {
   kind: GenerationKind;
   targetId?: string;
   instruction?: string;
+  message?: string;
+  target?: RevisionTarget;
+  sources?: { label: string; text: string }[];
 }
 /** Polling this parent-only evidence never starts a call. Unknown candidates remain diagnostic text. */
 export interface GenerationOperation {
@@ -213,7 +197,7 @@ export interface GenerationOperation {
   status: 'queued' | 'calling' | 'completed' | 'failed' | 'conflict' | 'cancelled' | 'unknown';
   stage: string;
   originalRevision: number;
-  /** Last revision owned by this operation, including accepted output and unchanged cancellation. */
+  /** Original revision until a successful atomic apply, then its resulting content revision. */
   expectedRevision: number;
   failure: string | null;
   diagnosticsExpired: boolean;
@@ -244,7 +228,6 @@ export interface SnapshotPreview {
   sourceDraftId: string;
   sourceDraftRevision: number;
   plan: LearningPlan;
-  input: ActivityInput;
   document: ActivityDocument;
   reviewedAtUtc: string;
   archivedAtUtc: string | null;
@@ -272,17 +255,11 @@ export interface ContentLimits {
   minChoiceCount: number;
   maxChoiceCount: number;
   maxMaterials: number;
-  maxControls: number;
-  maxSelectOptions: number;
   maxPoints: number;
   nameLength: number;
   goalLength: number;
   guidanceLength: number;
   scopedGuidanceLength: number;
-  meaningLength: number;
-  textValueLength: number;
-  selectOptionLength: number;
-  selectOptionMeaningLength: number;
   settingTextLength: number;
   titleLength: number;
   instructionsLength: number;
@@ -295,4 +272,11 @@ export interface ContentLimits {
   contextLength: number;
   listLimit: number;
   maxChildAge: number;
+  revisionReplyLength: number;
+  editInstructionLength: number;
+  maxSelectedEdits: number;
+  maxAssumptions: number;
+  assumptionLength: number;
+  maxChatTurns: number;
+  authoringReplyLength: number;
 }

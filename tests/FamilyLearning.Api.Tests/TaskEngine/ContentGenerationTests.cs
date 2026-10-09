@@ -20,10 +20,10 @@ public sealed class ContentGenerationTests
     [Fact]
     public async Task Authoring_normalizes_identity_computes_changes_and_excludes_client_metadata()
     {
-        var proposal = Reading() with { Materials = [Reading().Materials[0] with { Id = null, Controls = [] }] };
+        var proposal = Reading() with { Materials = [Reading().Materials[0] with { Id = null }] };
         using var chat = new AiFixtures.ScriptedChat(Serialize(new { result = new { proposal, clarification = (string?)null }, assumptions = new[] { "עברית" } }));
         using var service = Service(chat);
-        var result = await service.AuthorAsync(new TemplateAuthoringInput("רעיון", RequestId: "client-only", BaseRevision: 42), default);
+        var result = await service.AuthorAsync(new ActivityAuthoringInput("רעיון", RequestId: "client-only", BaseRevision: 42), default);
         Assert.Empty(LearningPlanValidator.Validate(result.Value.Proposal));
         Assert.NotEmpty(result.Value.Changes);
         Assert.DoesNotContain("client-only", chat.Requests[0].Input);
@@ -35,12 +35,12 @@ public sealed class ContentGenerationTests
     {
         using var chat = new AiFixtures.ScriptedChat("""{"result":{"proposal":null,"clarification":"לאיזה גיל?"},"assumptions":[]}""");
         using var service = Service(chat);
-        var result = await service.AuthorAsync(new TemplateAuthoringInput("רעיון", Context: [new("parent", "בקשה קודמת")]), default);
+        var result = await service.AuthorAsync(new ActivityAuthoringInput("רעיון", Context: [new("parent", "בקשה קודמת")]), default);
         Assert.Null(result.Value.Proposal);
         Assert.Equal("לאיזה גיל?", result.Value.Clarification);
         Assert.Single(chat.Requests);
         await Assert.ThrowsAsync<TaskValidationException>(() => service.AuthorAsync(
-            new TemplateAuthoringInput("רעיון", Context: Enumerable.Repeat(new AuthoringTurn("parent", "a"), 7).ToArray()), default));
+            new ActivityAuthoringInput("רעיון", Context: Enumerable.Repeat(new AuthoringTurn("parent", "a"), 7).ToArray()), default));
         Assert.Single(chat.Requests);
     }
 
@@ -87,7 +87,7 @@ public sealed class ContentGenerationTests
         var changed = plan with { Materials = [plan.Materials[0] with { Text = "changed" }] };
         using var chat = new AiFixtures.ScriptedChat(Serialize(new { result = new { proposal = changed, clarification = (string?)null }, assumptions = Array.Empty<string>() }));
         using var service = Service(chat);
-        await Assert.ThrowsAsync<AiGenerationException>(() => service.AuthorAsync(new TemplateAuthoringInput("שינוי", plan), default));
+        await Assert.ThrowsAsync<AiGenerationException>(() => service.AuthorAsync(new ActivityAuthoringInput("שינוי", plan), default));
     }
 
     [Theory]
@@ -142,7 +142,7 @@ public sealed class ContentGenerationTests
     [Fact]
     public void One_stale_material_regenerates_the_generated_batch_and_manual_strict_failure_blocks_questions()
     {
-        var plan = Reading() with { Materials = [Reading().Materials[0], Reading().Materials[0] with { Id = OtherId, Controls = [] }] };
+        var plan = Reading() with { Materials = [Reading().Materials[0], Reading().Materials[0] with { Id = OtherId }] };
         var request = Resolve(plan);
         var document = TaskAssembly.AcceptMaterials(request, Empty, new([new(MaterialId, null, "א"), new(OtherId, null, "ב")])).Document!;
         document.Materials[0] = document.Materials[0] with { Acceptance = null };
@@ -174,7 +174,7 @@ public sealed class ContentGenerationTests
     public async Task Surrounding_whitespace_in_question_text_is_trimmed_before_validation_and_acceptance()
     {
         // Observed live: sign-only comparison options arrive as "= " (and keys as "= ") while "<" and ">" are clean.
-        var plan = Mixed() with { Questions = Mixed().Questions with { Formats = ["single-choice"], ChoiceCount = new(3, false) } };
+        var plan = Mixed() with { Questions = Mixed().Questions with { Formats = ["single-choice"], ChoiceCount = 3 } };
         var request = Resolve(plan);
         var padded = new QuestionCandidateBatch(" השוואה", "בחרו את הסימן \n", Enumerable.Range(0, 3).Select(index =>
             new QuestionCandidate($"{300 + index} ___ {300 + index}\n", new("single-choice", ["<", ">", "= "]), new("= "), 1)).ToArray());

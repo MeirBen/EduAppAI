@@ -21,14 +21,14 @@ public sealed class ActivityReleaseTests
     {
         await using var app = new ApiFactory();
         using var parent = await app.ParentAsync();
-        var length = mode == "range" ? new LengthExpectation(mode, Lower: 100, Upper: 150) : new(mode, new(100, false));
-        var plan = Reading() with { Defaults = Numeric(1).Defaults, Materials = [Reading().Materials[0] with { Length = length }] };
+        var length = mode == "range" ? new LengthExpectation(mode, Lower: 100, Upper: 150) : new(mode, 100);
+        var plan = Reading() with { Settings = Numeric(1).Settings, Materials = [Reading().Materials[0] with { Length = length }] };
         var draft = await Create(parent, plan);
         var edit = Edit(draft);
         edit["document"] = Document();
         edit["document"]!["questions"]![0]!["interaction"]!["type"] = "text-input";
         edit["document"]!["materials"] = new JsonArray(new JsonObject { ["id"] = MaterialId, ["title"] = "כותרת שאינה נספרת", ["body"] = "שלום עולם" });
-        draft = await Save(parent, draft, edit);
+        draft = await Seed(parent, draft, edit);
         using var release = await parent.PostAsJsonAsync(Path(draft) + "/release", new { expectedRevision = draft["revision"]!.GetValue<long>() });
         Assert.Equal(expected, release.StatusCode);
         if (expected == HttpStatusCode.Created)
@@ -37,9 +37,9 @@ public sealed class ActivityReleaseTests
             Assert.Equal(2, snapshot["measurements"]![0]!["actual"]!.GetValue<int>());
             Assert.Null(snapshot["measurements"]![0]!["satisfied"]);
             Assert.True(JsonNode.DeepEquals(draft["plan"], snapshot["plan"]));
-            Assert.True(JsonNode.DeepEquals(draft["input"], snapshot["input"]));
+            Assert.Null(snapshot["input"]);
             Assert.True(JsonNode.DeepEquals(draft["document"], snapshot["document"]));
-            Assert.NotNull(snapshot["resolvedInput"]);
+            Assert.NotNull(snapshot["plan"]!["settings"]);
             Assert.NotNull(snapshot["reviewedByParentId"]);
             Assert.EndsWith("Z", snapshot["reviewedAtUtc"]!.GetValue<string>());
         }
@@ -72,7 +72,7 @@ public sealed class ActivityReleaseTests
             Assert.Equal(2, snapshot.SourceDraftRevision);
         }
         else Assert.Empty(await db.TaskSnapshots.ToListAsync());
-        Assert.Equal(3, (await db.ActivityDrafts.SingleAsync()).Revision);
+        Assert.Equal(responses[1].IsSuccessStatusCode ? 2 : 3, (await db.ActivityDrafts.SingleAsync()).Revision);
     }
 
     [Fact]
@@ -124,7 +124,7 @@ public sealed class ActivityReleaseTests
         var draft = await Create(parent, Numeric(1));
         var edit = Edit(draft);
         edit["document"] = Document();
-        return await Save(parent, draft, edit);
+        return await Seed(parent, draft, edit);
     }
 
     [Theory]
@@ -140,7 +140,7 @@ public sealed class ActivityReleaseTests
         if (fault == "count") edit["document"]!["questions"] = new JsonArray();
         if (fault == "format") edit["document"]!["questions"]![0]!["interaction"]!["type"] = "text-input";
         if (fault == "answer") edit["document"]!["questions"]![0]!["answer"]!["value"] = "not a number";
-        draft = await Save(parent, draft, edit);
+        draft = await Seed(parent, draft, edit);
         Assert.Equal(HttpStatusCode.BadRequest, (await parent.PostAsJsonAsync(Path(draft) + "/release", new { expectedRevision = 3 })).StatusCode);
         Assert.Equal(0, (await parent.GetFromJsonAsync<System.Text.Json.JsonElement>("/api/instances")).GetArrayLength());
     }
@@ -191,7 +191,7 @@ public sealed class ActivityReleaseTests
         var draft = await Create(parent, Numeric(1));
         var edit = Edit(draft);
         edit["document"] = Document();
-        draft = await Save(parent, draft, edit);
+        draft = await Seed(parent, draft, edit);
         var request = new { expectedRevision = draft["revision"]!.GetValue<long>() };
         using var release = await parent.PostAsJsonAsync(Path(draft) + "/release", request);
         Assert.True(release.StatusCode == HttpStatusCode.Created, await release.Content.ReadAsStringAsync());

@@ -3,7 +3,7 @@
   <section class="grid gap-4" aria-labelledby="purpose-title">
     <h3 id="purpose-title">מטרה והנחיות</h3>
     <div>
-      <label for="plan-name">שם התבנית</label
+      <label for="plan-name">שם הפעילות</label
       ><input id="plan-name" dir="auto" [formField]="f.name" aria-describedby="plan-name-errors" />
       <app-field-errors id="plan-name-errors" [field]="f.name" />
     </div>
@@ -130,12 +130,4 @@
       ><textarea id="question-guidance" dir="auto" [formField]="f.questions.guidance"></textarea>
     </div>
   </section>
-  @if (definesChoices()) {
-    <app-choice-definitions
-      [fields]="f"
-      [locked]="locked()"
-      (structureChanged)="structureChanged.emit($event)"
-      (edited)="edited.emit($event)"
-    />
-  }
 </div>

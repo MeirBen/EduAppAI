@@ -27,6 +27,10 @@ namespace FamilyLearning.Api.Infrastructure.Persistence.Migrations
                         .IsConcurrencyToken()
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("ChatJson")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
                     b.Property<DateTime>("CreatedAtUtc")
                         .HasColumnType("TEXT");
 
@@ -41,10 +45,6 @@ namespace FamilyLearning.Api.Infrastructure.Persistence.Migrations
                     b.Property<Guid>("FamilyId")
                         .HasColumnType("TEXT");
 
-                    b.Property<string>("InputJson")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(100)
@@ -55,6 +55,7 @@ namespace FamilyLearning.Api.Infrastructure.Persistence.Migrations
                         .HasColumnType("TEXT");
 
                     b.Property<Guid?>("ReleasedSnapshotId")
+                        .IsConcurrencyToken()
                         .HasColumnType("TEXT");
 
                     b.Property<long?>("ReleasedSourceRevision")
@@ -68,6 +69,10 @@ namespace FamilyLearning.Api.Infrastructure.Persistence.Migrations
                         .HasColumnType("TEXT");
 
                     b.Property<Guid?>("TemplateVersionId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("UndoJson")
+                        .IsConcurrencyToken()
                         .HasColumnType("TEXT");
 
                     b.Property<DateTime>("UpdatedAtUtc")
@@ -108,10 +113,6 @@ namespace FamilyLearning.Api.Infrastructure.Persistence.Migrations
                         .HasColumnType("TEXT");
 
                     b.Property<DateTime?>("FinishedAtUtc")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("InputFingerprint")
-                        .IsRequired()
                         .HasColumnType("TEXT");
 
                     b.Property<string>("Kind")
@@ -385,19 +386,11 @@ namespace FamilyLearning.Api.Infrastructure.Persistence.Migrations
                     b.Property<Guid>("FamilyId")
                         .HasColumnType("TEXT");
 
-                    b.Property<string>("InputJson")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
                     b.Property<string>("MeasurementsJson")
                         .IsRequired()
                         .HasColumnType("TEXT");
 
                     b.Property<string>("PlanJson")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("ResolvedInputJson")
                         .IsRequired()
                         .HasColumnType("TEXT");
 

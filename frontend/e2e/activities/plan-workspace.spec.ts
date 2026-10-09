@@ -40,7 +40,7 @@ async function isolate(page: Page, configured = true) {
 test('clarifies, confirms exact source text and saves only the reusable plan', async ({ page }) => {
   const writes = await isolate(page);
   const authoring: Record<string, unknown>[] = [];
-  await page.route('**/api/ai/template-drafts', async (route) => {
+  await page.route('**/api/ai/activity-plans', async (route) => {
     const body = route.request().postDataJSON();
     authoring.push(body);
     await route.fulfill({
@@ -98,7 +98,7 @@ test('local typing wins over a pending author request and publication conflicts 
   await isolate(page);
   let release!: () => void;
   const barrier = new Promise<void>((resolve) => (release = resolve));
-  await page.route('**/api/ai/template-drafts', async (route) => {
+  await page.route('**/api/ai/activity-plans', async (route) => {
     const body = route.request().postDataJSON();
     await barrier;
     await route
@@ -128,12 +128,12 @@ test('local typing wins over a pending author request and publication conflicts 
   await page.locator('#chat-message').fill('שינוי');
   await page.locator('#chat-send').click();
   await expect(page.locator('#chat-cancel')).toBeVisible();
-  await page.getByLabel('שם התבנית').fill('עריכה מקומית');
+  await page.getByLabel('שם הפעילות').fill('עריכה מקומית');
   await expect(page.locator('#chat-cancel')).toBeHidden();
   release();
   await page.locator('#save-template').click();
   await expect(page.getByRole('alert')).toContainText('השינויים שלכם נשארו כאן');
-  await expect(page.getByLabel('שם התבנית')).toHaveValue('עריכה מקומית');
+  await expect(page.getByLabel('שם הפעילות')).toHaveValue('עריכה מקומית');
 });
 
 test('direct editing works without AI at 360px and 200% text with keyboard-accessible controls', async ({
@@ -144,7 +144,7 @@ test('direct editing works without AI at 360px and 200% text with keyboard-acces
   await page.goto('/templates/new');
   await textSize(page, 32);
   await expect(page.getByText('יצירה בעזרת AI לא זמינה כרגע.', { exact: false })).toBeVisible();
-  await page.getByLabel('שם התבנית').fill('תרגול ידני');
+  await page.getByLabel('שם הפעילות').fill('תרגול ידני');
   await page.getByLabel('מה רוצים ללמוד או לתרגל?').fill('תרגול מספרים');
   await page.locator('#activity-topic').fill('חשבון');
   await page.locator('#activity-audience').fill('כיתה ג');
@@ -153,23 +153,7 @@ test('direct editing works without AI at 360px and 200% text with keyboard-acces
   await page.keyboard.press('Enter');
   await expect(page.getByText('התבנית נשמרה במרחב שלנו.', { exact: true })).toBeVisible();
   await expect(page.locator('[id$="-length-mode"]')).toHaveCount(0);
-  // A new blank choice opens unflagged and focus stays on the add button; closed, it shows what
-  // still needs fixing, and removing the only choice returns focus to adding one.
-  await page.locator('#add-choice').focus();
-  await page.keyboard.press('Enter');
-  const card = page.locator('section[aria-labelledby="choices-title"] details');
-  await expect(page.locator('#add-choice')).toBeFocused();
-  await expect(card.getByText('יש לתקן את הבחירה')).toBeHidden();
-  await card.locator('summary').click();
-  await expect(card.getByText('יש לתקן את הבחירה')).toBeVisible();
-  await card.locator('summary').click();
-  // Opening content renders a frame later; focus waits until it is visible.
-  const remove = card.getByRole('button', { name: /הסרת הבחירה/ });
-  await expect(remove).toBeVisible();
-  await remove.focus();
-  await page.keyboard.press('Enter');
-  await expect(card).toHaveCount(0);
-  await expect(page.locator('#add-choice')).toBeFocused();
+  await expect(page.locator('#add-choice')).toHaveCount(0);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(
     true,
   );

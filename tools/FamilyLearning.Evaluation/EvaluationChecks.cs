@@ -9,7 +9,6 @@ internal static class EvaluationChecks
     internal static void Plan(EvaluationCase scenario, EvaluationResult result)
     {
         var input = result.Input!;
-        var plan = result.Plan!;
         result.Checks["planQuestionCount"] = input.Settings.QuestionCount == scenario.QuestionCount;
         result.Checks["planInteraction"] = input.Questions.Formats.Contains(scenario.Interaction);
         if (scenario.ChoiceCount is { } choices) result.Checks["planChoiceCount"] = input.Questions.ChoiceCount == choices;
@@ -18,9 +17,7 @@ internal static class EvaluationChecks
         if (scenario.ExpectedLength is { } length)
             result.Checks["planLength"] = input.Materials.Count(material => material.Source == "generated") > 1
                 ? input.TotalLength == length : input.Materials.Any(material => material.Length == length);
-        if (scenario.AdditionalControlCount is { } count)
-            result.Checks["additionalControlCount"] = plan.Controls.Length + plan.Questions.Controls.Length +
-                plan.Materials.Sum(material => material.Controls.Length) == count;
+
     }
 
     internal static void Content(EvaluationCase scenario, EvaluationResult result)

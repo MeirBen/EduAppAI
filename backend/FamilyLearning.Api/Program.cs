@@ -43,7 +43,7 @@ try
     builder.Services.AddApplicationApi();
     builder.Services.AddActivityGeneration(builder.Configuration);
     // Allow all bounded template fields even when Hebrew characters use six-byte JSON escapes.
-    builder.WebHost.ConfigureKestrel(options => options.Limits.MaxRequestBodySize = 256 * 1024);
+    builder.WebHost.ConfigureKestrel(options => options.Limits.MaxRequestBodySize = 3 * 1024 * 1024);
     app = builder.Build();
     app.Logger.LogInformation("Starting API host with AI configured: {AiConfigured}", app.Services.GetRequiredService<AiGenerationService>().Configured);
     // Local proxies terminate TLS; retain the framework's one-hop, loopback-only trust defaults.

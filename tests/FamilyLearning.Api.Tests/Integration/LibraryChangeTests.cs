@@ -89,6 +89,9 @@ public sealed class LibraryChangeTests
             Notified();
             var edit = Edit(draft);
             edit["document"] = Document();
+            draft = await Seed(owner, draft, edit);
+            edit = Edit(draft);
+            edit["document"]!["title"] = "שם שנערך";
             draft = await Save(owner, draft, edit);
             Notified();
             using (var conflict = await owner.PutAsJsonAsync(Path(draft), edit))
@@ -126,7 +129,7 @@ public sealed class LibraryChangeTests
             Notified();
             await Create(owner, Numeric(1));
             Notified();
-            using (var reset = await owner.DeleteAsync("/api/templates")) Assert.Equal(HttpStatusCode.NoContent, reset.StatusCode);
+            using (var reset = await owner.DeleteAsync("/api/learning-data")) Assert.Equal(HttpStatusCode.NoContent, reset.StatusCode);
             Notified();
         }
         finally

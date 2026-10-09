@@ -46,7 +46,7 @@ public sealed class ChildAccessTests
         try
         {
             await pause.Entered.Task.WaitAsync(TimeSpan.FromSeconds(10));
-            Assert.Equal(HttpStatusCode.NoContent, (await parent.DeleteAsync("/api/templates")).StatusCode);
+            Assert.Equal(HttpStatusCode.NoContent, (await parent.DeleteAsync("/api/learning-data")).StatusCode);
         }
         finally { pause.Resume.TrySetResult(); }
         Assert.Equal(HttpStatusCode.Unauthorized, (await reading).StatusCode);
@@ -176,7 +176,7 @@ public sealed class ChildAccessTests
             }
             await db.SaveChangesAsync();
         }
-        Assert.Equal(HttpStatusCode.NoContent, (await parent.DeleteAsync("/api/templates")).StatusCode);
+        Assert.Equal(HttpStatusCode.NoContent, (await parent.DeleteAsync("/api/learning-data")).StatusCode);
         Assert.Equal(HttpStatusCode.Unauthorized, (await child.GetAsync("/api/child/auth/me")).StatusCode);
         await Csrf(child);
         Assert.Equal(HttpStatusCode.BadRequest, (await child.PostAsJsonAsync("/api/child/auth/activate", new { code = code["code"]!.GetValue<string>() })).StatusCode);

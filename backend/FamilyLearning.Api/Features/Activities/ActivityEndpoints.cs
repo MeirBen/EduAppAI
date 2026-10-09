@@ -30,6 +30,7 @@ public static class ActivityEndpoints
         drafts.MapPut("/{id:guid}", SaveAsync);
         drafts.MapPost("/{id:guid}/adopt-content", AdoptAsync);
         drafts.MapPost("/{id:guid}/release", ReleaseAsync);
+        drafts.MapPost("/{id:guid}/undo", UndoAsync);
         drafts.MapDelete("/{id:guid}", async (Guid id, ClaimsPrincipal user, LearningDbContext db, CancellationToken ct) =>
             await Owned(db, user, id).ExecuteDeleteAsync(ct) == 0 ? Results.NotFound() : Results.NoContent());
     }
@@ -37,19 +38,17 @@ public static class ActivityEndpoints
     private static async Task<IResult> CreateAsync(CreateActivityRequest body, ClaimsPrincipal user, LearningDbContext db, CancellationToken ct)
     {
         LearningPlan plan;
-        TaskRequest input;
         TaskDocument? document = null;
         Guid? templateVersionId = null;
         Guid? sourceSnapshotId = null;
         if (body.SnapshotId.ValueKind != JsonValueKind.Undefined)
         {
-            if (new[] { body.Plan, body.Input, body.TemplateId, body.ExpectedVersion }.Any(p => p.ValueKind != JsonValueKind.Undefined))
+            if (body.Chat is not null || new[] { body.Plan, body.TemplateId, body.ExpectedVersion }.Any(p => p.ValueKind != JsonValueKind.Undefined))
                 return Invalid("snapshotId", "יש לבחור מקור אחד ליצירת הטיוטה.");
             var snapshotId = Read<Guid>(body.SnapshotId);
             var snapshot = await db.TaskSnapshots.AsNoTracking().SingleOrDefaultAsync(s => s.Id == snapshotId && s.FamilyId == user.FamilyId(), ct);
             if (snapshot is null) return Results.NotFound();
             plan = StoredJson.Read<LearningPlan>(snapshot.PlanJson);
-            input = StoredJson.Read<TaskRequest>(snapshot.InputJson);
             document = StoredJson.Read<TaskDocument>(snapshot.DocumentJson);
             templateVersionId = snapshot.TemplateVersionId;
             sourceSnapshotId = snapshot.Id;
@@ -73,15 +72,15 @@ public static class ActivityEndpoints
                 if (body.ExpectedVersion.ValueKind != JsonValueKind.Undefined) return Invalid("expectedVersion", "יש לציין תבנית מקור.");
                 plan = Read<LearningPlan>(body.Plan);
             }
-            input = Read<TaskRequest>(body.Input);
         }
         // Copying a snapshot keeps content/provenance, but never copies its parent review or terminal state.
-        var resolved = TaskRequestResolver.ResolveOrThrow(plan, input);
+        var resolved = TaskRequestResolver.ResolveOrThrow(plan);
         document ??= TaskAssembly.CreateDocument(resolved);
         var errors = TaskDocumentValidator.ValidateDraft(resolved, document).Errors;
         if (errors.Count > 0) return Results.ValidationProblem(errors);
-        var draft = new ActivityDraft(user.FamilyId(), plan.Name, StoredJson.Write(plan), StoredJson.Write(input),
+        var draft = new ActivityDraft(user.FamilyId(), plan.Name, StoredJson.Write(plan),
             StoredJson.Write(document), templateVersionId, sourceSnapshotId, user.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        draft.ImportChat(body.Chat);
         db.ActivityDrafts.Add(draft);
         await db.SaveChangesAsync(ct);
         return Results.Created($"/api/activity-drafts/{draft.Id}", ActivityDetail.From(draft));
@@ -91,12 +90,9 @@ public static class ActivityEndpoints
     {
         var draft = await Owned(db, user, id).SingleOrDefaultAsync(ct);
         if (draft is null) return Results.NotFound();
-        if (draft.ReleasedSnapshotId.HasValue || draft.Revision != body.ExpectedRevision) return Conflict();
-        if (body.Input is null) return Invalid("input", "יש לציין קלט לפעילות.");
-        var before = TaskRequestResolver.ResolveOrThrow(draft.Plan, draft.Input);
-        var request = TaskRequestResolver.ResolveOrThrow(body.Plan, body.Input);
-        var document = ActivityDraftChanges.Apply(before, request, draft.Document, body.Document);
-        draft.Save(body.Plan.Name, StoredJson.Write(body.Plan), StoredJson.Write(body.Input), StoredJson.Write(document));
+        if (draft.ReleasedSnapshotId.HasValue || draft.Revision != body.ExpectedRevision || draft.ActiveOperationId.HasValue) return Conflict();
+        var (plan, document) = ActivityDraftChanges.Apply(draft, body);
+        draft.Save(plan.Name, StoredJson.Write(plan), StoredJson.Write(document));
         return await SaveCheckpointAsync(draft, db, user, ct);
     }
 
@@ -108,10 +104,23 @@ public static class ActivityEndpoints
         if (body.MaterialIds is not { Length: <= EngineValidation.MaxMaterials } || body.QuestionIds is not { Length: <= EngineValidation.MaxQuestionCount } ||
             body.MaterialIds.Length + body.QuestionIds.Length == 0)
             return Invalid("selection", "יש לבחור תוכן לבדיקה ולאימוץ.");
-        var request = TaskRequestResolver.ResolveOrThrow(draft.Plan, draft.Input);
+        var request = TaskRequestResolver.ResolveOrThrow(draft.Plan);
         var document = TaskAssembly.Adopt(request, draft.Document, body.MaterialIds, body.QuestionIds, DateTime.UtcNow);
-        draft.Save(draft.Name, draft.PlanJson, draft.InputJson, StoredJson.Write(document));
+        draft.Save(draft.Name, draft.PlanJson, StoredJson.Write(document));
         return await SaveCheckpointAsync(draft, db, user, ct);
+    }
+
+    private static async Task<IResult> UndoAsync(Guid id, UndoActivityRequest body, ClaimsPrincipal user, LearningDbContext db, TimeProvider clock, CancellationToken ct)
+    {
+        // Reply-only operations can leave the revision unchanged; serialize reading and extending the chat with their writes.
+        await using var transaction = await db.Database.BeginTransactionAsync(ct);
+        var draft = await Owned(db, user, id).SingleOrDefaultAsync(ct);
+        if (draft is null) return Results.NotFound();
+        if (draft.Revision != body.ExpectedRevision || !draft.CanUndo) return Conflict();
+        draft.RestoreUndo(clock.GetUtcNow().UtcDateTime);
+        var result = await SaveCheckpointAsync(draft, db, user, ct);
+        await transaction.CommitAsync(ct);
+        return result;
     }
 
     private static async Task<IResult> SaveCheckpointAsync(ActivityDraft draft, LearningDbContext db, ClaimsPrincipal user, CancellationToken ct)
@@ -130,13 +139,12 @@ public static class ActivityEndpoints
         if (draft is null) return Results.NotFound();
         if (draft.ReleasedSnapshotId.HasValue) return await ReplayAsync(draft, body.ExpectedRevision, db, ct);
         if (draft.Revision != body.ExpectedRevision || draft.ActiveOperationId.HasValue) return Conflict();
-        var input = TaskRequestResolver.ResolveOrThrow(draft.Plan, draft.Input);
+        var input = TaskRequestResolver.ResolveOrThrow(draft.Plan);
         var document = draft.Document;
         var errors = TaskDocumentValidator.ValidateRelease(input, document);
         if (errors.Count > 0) return Results.ValidationProblem(errors);
         var reviewedAt = DateTime.UtcNow;
-        var snapshot = new TaskSnapshot(draft.FamilyId, draft.Id, draft.Revision, document.Title, draft.PlanJson, draft.InputJson,
-            StoredJson.Write(input), draft.DocumentJson, StoredJson.Write(TextLength.Measure(input, document)), EngineVersions.Revision,
+        var snapshot = new TaskSnapshot(draft.FamilyId, draft.Id, draft.Revision, document.Title, draft.PlanJson, draft.DocumentJson, StoredJson.Write(TextLength.Measure(input, document)), EngineVersions.Revision,
             draft.TemplateVersionId, draft.SourceSnapshotId, draft.CreatedByParentId, draft.CreatedAtUtc,
             user.FindFirstValue(ClaimTypes.NameIdentifier)!, reviewedAt);
         draft.Release(snapshot.Id, reviewedAt);

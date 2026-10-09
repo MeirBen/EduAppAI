@@ -1,8 +1,9 @@
+import { generateDraft } from './generate-draft';
 import { expect, type APIRequestContext, type Page } from '@playwright/test';
 import { expectChildResponse } from './child-responses';
 import { sourceText, suppliedPlan } from '../src/app/features/activities/learning-plan.fixture';
 
-/** Publishes isolated mixed-interaction content through real parent APIs without AI calls. */
+/** Publishes isolated mixed-interaction content through real parent APIs using the suite's isolated provider. */
 export async function createReviewSnapshot(
   parent: APIRequestContext,
   headers: Record<string, string>,
@@ -16,31 +17,30 @@ export async function createReviewSnapshot(
   };
   const created = await parent.post('/api/activity-drafts', {
     headers,
-    data: { plan, input: { settings: plan.defaults } },
+    data: { plan },
   });
   expect(created.status()).toBe(201);
-  const draft = await created.json();
+  const draft = await generateDraft(parent, headers, await created.json());
   const draftPath = `/api/activity-drafts/${draft.id}`;
   const saved = await parent.put(draftPath, {
     headers,
     data: {
       expectedRevision: draft.revision,
       plan,
-      input: draft.input,
       document: {
         title,
         instructions: 'ענו על השאלות',
         materials: [{ id: plan.materials[0].id, title: null, body: sourceText }],
         questions: [
           {
-            id: null,
+            id: draft.document.questions[0].id,
             prompt: 'מספר?',
             interaction: { type: 'numeric-input' },
             answer: { value: '2' },
             points: 5,
           },
           {
-            id: null,
+            id: draft.document.questions[1].id,
             prompt: 'הסבר?',
             interaction: { type: 'text-input' },
             answer: { value: 'private-parent-key' },

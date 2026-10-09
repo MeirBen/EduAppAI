@@ -114,7 +114,7 @@ public sealed class LoggingTests : IDisposable
         await using var app = new GenerationHarness { StorageDirectory = directory };
         using var parent = await app.ParentAsync();
         app.Chat.BeforeResponse = _ => throw new InvalidOperationException("Synthetic logging failure");
-        using var response = await parent.PostAsJsonAsync("/api/ai/template-drafts", new TemplateAuthoringInput("private-parent-prompt"));
+        using var response = await parent.PostAsJsonAsync("/api/ai/activity-plans", new ActivityAuthoringInput("private-parent-prompt"));
         Assert.Equal(HttpStatusCode.InternalServerError, response.StatusCode);
         var traceId = (await response.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("traceId").GetString();
         await app.DisposeAsync();

@@ -19,12 +19,13 @@ public sealed class GenerationOperation
         DraftId = draft.Id;
         OperationKey = request.OperationKey;
         RequestFingerprint = Fingerprint(draft.Id, request);
-        InputFingerprint = TaskRequestResolver.Fingerprint(input);
         ProfileFingerprint = profileFingerprint;
         OriginalRevision = ExpectedRevision = draft.Revision;
         Kind = request.Kind;
         Stage = stage;
-        ArtifactsJson = StoredJson.Write(new GenerationArtifacts(input, document, request.TargetId, request.Instruction, [], history, null));
+        ArtifactsJson = StoredJson.Write(new GenerationArtifacts(input, document, request.TargetId, request.Message ?? request.Instruction, [], history, null,
+            draft.Plan, request.Kind == "Create" ? RevisionScope.ForCreate(draft.Plan, document) : null,
+            Context: ActivityChat.Context(draft.Chat), Sources: request.Sources, Target: request.Target));
         CreatedAtUtc = now;
     }
 
@@ -33,12 +34,11 @@ public sealed class GenerationOperation
     public Guid DraftId { get; private set; }
     public Guid OperationKey { get; private set; }
     public string RequestFingerprint { get; private set; } = "";
-    public string InputFingerprint { get; private set; } = "";
     public string ProfileFingerprint { get; private set; } = "";
     public int EngineRevision { get; private set; } = EngineVersions.Revision;
     public int SchemaVersion { get; private set; } = EngineVersions.SchemaVersion;
     public long OriginalRevision { get; private set; }
-    /// <summary>Last revision owned by this operation, including accepted output and cancellation of unchanged content.</summary>
+    /// <summary>Original content revision until a successful atomic apply, then its resulting revision.</summary>
     public long ExpectedRevision { get; private set; }
     public string Kind { get; private set; } = "";
     public string Stage { get; private set; } = "";
@@ -104,5 +104,15 @@ public sealed class GenerationOperation
     }
 
     internal static string Fingerprint(Guid draftId, StartGenerationRequest request) => Convert.ToHexString(SHA256.HashData(
-        JsonSerializer.SerializeToUtf8Bytes(new { draftId, request.ExpectedRevision, request.Kind, request.TargetId, request.Instruction }, EngineJson.Options)));
+        JsonSerializer.SerializeToUtf8Bytes(new
+        {
+            draftId,
+            request.ExpectedRevision,
+            request.Kind,
+            request.TargetId,
+            request.Instruction,
+            request.Message,
+            request.Target,
+            request.Sources
+        }, EngineJson.Options)));
 }

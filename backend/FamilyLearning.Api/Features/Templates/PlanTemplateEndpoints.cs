@@ -37,7 +37,6 @@ public static class PlanTemplateEndpoints
         });
         templates.MapPost("/{id:guid}/versions", PublishAsync);
         templates.MapDelete("/{id:guid}", (Guid id, ClaimsPrincipal user, LearningDbContext db, CancellationToken ct) => DeleteAsync(id, user, db, ct));
-        templates.MapDelete("/", (ClaimsPrincipal user, LearningDbContext db, CancellationToken ct) => DeleteAsync(null, user, db, ct));
     }
 
     private static async Task<IResult> PublishAsync(Guid id, PublishPlanRequest body, ClaimsPrincipal user, LearningDbContext db, CancellationToken ct)
@@ -57,24 +56,13 @@ public static class PlanTemplateEndpoints
         return Results.Created($"/api/templates/{id}", PlanTemplateDetail.From(version));
     }
 
-    private static async Task<IResult> DeleteAsync(Guid? id, ClaimsPrincipal user, LearningDbContext db, CancellationToken ct)
+    private static async Task<IResult> DeleteAsync(Guid id, ClaimsPrincipal user, LearningDbContext db, CancellationToken ct)
     {
         var familyId = user.FamilyId();
         var templates = db.TaskTemplates.Where(t => t.FamilyId == familyId);
-        if (id.HasValue) templates = templates.Where(t => t.Id == id.Value);
+        templates = templates.Where(t => t.Id == id);
         await using var transaction = await db.Database.BeginTransactionAsync(ct);
-        if (id.HasValue && !await templates.AnyAsync(ct)) return Results.NotFound();
-        if (!id.HasValue)
-        {
-            await db.TaskSessions.Where(s => s.Assignment.FamilyId == familyId).ExecuteDeleteAsync(ct);
-            await db.Assignments.Where(a => a.FamilyId == familyId).ExecuteDeleteAsync(ct);
-            var children = db.Children.Where(c => c.FamilyId == familyId).Select(c => c.Id);
-            await db.ChildDeviceGrants.Where(g => children.Contains(g.ChildId)).ExecuteDeleteAsync(ct);
-            await db.ChildActivations.Where(a => children.Contains(a.ChildId)).ExecuteDeleteAsync(ct);
-            await db.Children.Where(c => c.FamilyId == familyId).ExecuteDeleteAsync(ct);
-            await db.ActivityDrafts.Where(d => d.FamilyId == familyId).ExecuteDeleteAsync(ct);
-            await db.TaskSnapshots.Where(s => s.FamilyId == familyId).ExecuteDeleteAsync(ct);
-        }
+        if (!await templates.AnyAsync(ct)) return Results.NotFound();
         // Template provenance is detached: deleting a template alone must leave drafts and snapshots intact.
         await db.TaskTemplateVersions.Where(v => templates.Select(t => t.Id).Contains(v.TemplateId)).ExecuteDeleteAsync(ct);
         await templates.ExecuteDeleteAsync(ct);

@@ -22,7 +22,7 @@ async function preview(
     sourceDraftId: 'draft',
     sourceDraftRevision: 3,
     plan: numericPlan,
-    input: { settings: numericPlan.defaults },
+
     reviewedAtUtc: '2026-10-01T00:00:00Z',
     measurements: [],
     archivedAtUtc,

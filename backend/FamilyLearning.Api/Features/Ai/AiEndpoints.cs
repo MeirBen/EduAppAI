@@ -14,7 +14,7 @@ public static class AiEndpoints
         var ai = api.MapGroup("/ai");
         // New manual plans preserve the server's schema version; the client owns no version counter.
         ai.MapGet("/status", (AiGenerationService service) => Results.Ok(new { configured = service.Configured, schemaVersion = EngineVersions.SchemaVersion }));
-        ai.MapPost("/template-drafts", async (TemplateAuthoringInput request, AiGenerationService service,
+        ai.MapPost("/activity-plans", async (ActivityAuthoringInput request, AiGenerationService service,
             AiStartLimiter limiter, ClaimsPrincipal user, CancellationToken ct) =>
         {
             if (!limiter.TryAcquire(user.FamilyId())) return Results.StatusCode(429);

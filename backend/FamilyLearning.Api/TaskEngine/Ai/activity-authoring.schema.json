@@ -1,0 +1,289 @@
+{
+  "type": "object",
+  "properties": {
+    "result": {
+      "anyOf": [
+        {
+          "type": "object",
+          "properties": {
+            "proposal": {
+              "$ref": "#/$defs/plan"
+            },
+            "clarification": {
+              "type": [
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "proposal",
+            "clarification"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "proposal": {
+              "type": [
+                "null"
+              ]
+            },
+            "clarification": {
+              "type": "string",
+              "maxLength": 1000,
+              "minLength": 1
+            }
+          },
+          "required": [
+            "proposal",
+            "clarification"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "assumptions": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "maxLength": 200,
+        "minLength": 1
+      },
+      "minItems": 0,
+      "maxItems": 8
+    }
+  },
+  "required": [
+    "result",
+    "assumptions"
+  ],
+  "additionalProperties": false,
+  "$defs": {
+    "plan": {
+      "type": "object",
+      "properties": {
+        "schemaVersion": {
+          "type": "integer"
+        },
+        "name": {
+          "type": "string",
+          "maxLength": 100,
+          "minLength": 1
+        },
+        "goal": {
+          "type": "string",
+          "maxLength": 500,
+          "minLength": 1
+        },
+        "guidance": {
+          "type": "string",
+          "maxLength": 4000
+        },
+        "materials": {
+          "description": "Reading passages and other source content presented before questions, including shared mathematical scenarios or data. Keep requested sources separate even for one question. Short self-contained problems may keep their givens in the question prompt; they need no material.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/material"
+          },
+          "minItems": 0,
+          "maxItems": 4
+        },
+        "questions": {
+          "$ref": "#/$defs/questionPlan"
+        },
+        "totalLength": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/length"
+            },
+            {
+              "type": [
+                "null"
+              ]
+            }
+          ]
+        },
+        "settings": {
+          "type": "object",
+          "properties": {
+            "topic": {
+              "type": "string",
+              "maxLength": 200,
+              "minLength": 1
+            },
+            "audience": {
+              "type": "string",
+              "maxLength": 200,
+              "minLength": 1
+            },
+            "difficulty": {
+              "type": "string",
+              "enum": [
+                "easy",
+                "medium",
+                "hard"
+              ]
+            },
+            "questionCount": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          "required": [
+            "topic",
+            "audience",
+            "difficulty",
+            "questionCount"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "schemaVersion",
+        "name",
+        "goal",
+        "guidance",
+        "settings",
+        "materials",
+        "questions",
+        "totalLength"
+      ],
+      "additionalProperties": false
+    },
+    "material": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^[a-f0-9]{32}$"
+        },
+        "label": {
+          "type": "string",
+          "maxLength": 100,
+          "minLength": 1
+        },
+        "source": {
+          "description": "generated: AI creates material for this activity. supplied: exact parent-confirmed source text, preserved verbatim.",
+          "type": "string",
+          "enum": [
+            "generated",
+            "supplied"
+          ]
+        },
+        "guidance": {
+          "type": "string",
+          "maxLength": 1000
+        },
+        "text": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 4000
+        },
+        "length": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/length"
+            },
+            {
+              "type": [
+                "null"
+              ]
+            }
+          ]
+        }
+      },
+      "required": [
+        "id",
+        "label",
+        "source",
+        "guidance",
+        "text",
+        "length"
+      ],
+      "additionalProperties": false
+    },
+    "questionPlan": {
+      "type": "object",
+      "properties": {
+        "formats": {
+          "description": "numeric-input accepts one finite decimal number without units. Fraction expressions, quotient/remainder pairs and other written answers require text-input or single-choice.",
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "numeric-input",
+              "text-input",
+              "single-choice"
+            ]
+          },
+          "minItems": 1,
+          "maxItems": 3
+        },
+        "choiceCount": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 2,
+          "maximum": 6
+        },
+        "guidance": {
+          "type": "string",
+          "maxLength": 1000
+        }
+      },
+      "required": [
+        "formats",
+        "choiceCount",
+        "guidance"
+      ],
+      "additionalProperties": false
+    },
+    "length": {
+      "type": "object",
+      "properties": {
+        "mode": {
+          "type": "string",
+          "enum": [
+            "target",
+            "range"
+          ]
+        },
+        "count": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 1
+        },
+        "lower": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 1
+        },
+        "upper": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 1
+        }
+      },
+      "required": [
+        "mode",
+        "count",
+        "lower",
+        "upper"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

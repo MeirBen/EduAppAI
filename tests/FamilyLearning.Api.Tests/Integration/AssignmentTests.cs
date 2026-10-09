@@ -159,13 +159,13 @@ public sealed class AssignmentTests
         var profile = await Create(parent);
         using var child = await h.Activate(parent, profile);
         const string source = "<script>alert('answer')</script>\n\nKeep exact text: answer keys are data here.";
-        var plan = Reading() with { Defaults = Numeric(1).Defaults };
+        var plan = Reading() with { Settings = Numeric(1).Settings };
         var draft = await ActivityDraftTests.Create(parent, plan);
         var edit = ActivityDraftTests.Edit(draft);
         edit["document"] = ActivityDraftTests.Document("private-parent-key");
         edit["document"]!["questions"]![0]!["interaction"]!["type"] = "text-input";
         edit["document"]!["materials"] = new JsonArray(new JsonObject { ["id"] = MaterialId, ["title"] = "Source", ["body"] = source });
-        draft = await ActivityDraftTests.Save(parent, draft, edit);
+        draft = await ActivityDraftTests.Seed(parent, draft, edit);
         using var release = await parent.PostAsJsonAsync(ActivityDraftTests.Path(draft) + "/release", new { expectedRevision = 2 });
         Assert.Equal(HttpStatusCode.Created, release.StatusCode);
         var snapshot = (await release.Content.ReadFromJsonAsync<JsonNode>())!["id"]!.GetValue<Guid>();

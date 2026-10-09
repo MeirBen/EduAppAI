@@ -45,7 +45,7 @@ describe('ActivityWorkspace plan ownership', () => {
   async function ask(message = 'תרגול חשבון') {
     await type('chat-message', message);
     await click('chat-send');
-    return http.expectOne('/api/ai/template-drafts');
+    return http.expectOne('/api/ai/activity-plans');
   }
   function reply(
     request: TestRequest,
@@ -94,30 +94,11 @@ describe('ActivityWorkspace plan ownership', () => {
   });
   afterEach(() => http.verify());
 
-  it('shows requested-choice errors on the native field once tried, keeping invalid typing', async () => {
-    const id = 'a'.repeat(32);
-    await open('/templates/example/create', {
-      ...numericPlan,
-      controls: [{ id, label: 'היסט', meaning: 'היסט התרגול', type: 'integer', required: true }],
-    });
-    const help = () => root().querySelector('#' + id + '-input-help')!.textContent;
-    expect(field(id + '-input').getAttribute('aria-describedby')).toContain(id + '-input-help');
-    expect(help()).not.toContain('זהו שדה חובה');
-    expect(field(id + '-input').getAttribute('aria-invalid')).not.toBe('true');
-    await click('save-activity');
-    expect(help()).toContain('זהו שדה חובה');
-    expect(field(id + '-input').getAttribute('aria-invalid')).toBe('true');
-    await type(id + '-input', '1.5');
-    expect(help()).toContain('מספר שלם');
-    expect(field(id + '-input').value).toBe('1.5');
-    http.expectNone('/api/ai/template-drafts');
-  });
-
   it('edits a template definition and its defaults without creating activities', async () => {
     await open('/templates/example/edit', numericPlan);
     expect(root().querySelector('#workspace-title')!.textContent).toContain('עריכת תבנית');
     expect(field('plan-name').closest('details')!.open).toBe(true);
-    expect(root().querySelector('#choices-title')).not.toBeNull();
+    expect(root().querySelector('#choices-title')).toBeNull();
     expect(field('activity-topic').closest('details')).toBeNull();
     expect(root().querySelector('#plan-topic')).toBeNull();
     expect(root().querySelector('#generate-text, #generate-questions')).toBeNull();
@@ -129,7 +110,7 @@ describe('ActivityWorkspace plan ownership', () => {
     await type('activity-topic', 'נושא חדש');
     await click('save-template');
     const save = http.expectOne('/api/templates/example/versions');
-    expect(save.request.body.definition.defaults.topic).toBe('נושא חדש');
+    expect(save.request.body.definition.settings.topic).toBe('נושא חדש');
     save.flush({
       id: 'example',
       currentVersion: 4,
@@ -151,7 +132,7 @@ describe('ActivityWorkspace plan ownership', () => {
     expect(field('activity-questionCount').value).toBe('2');
     expect(field('plan-name').closest('details')!.open).toBe(false);
     // A new activity authors its own plan, so it may define choices that a template keeps.
-    expect(root().querySelector('#choices-title')).not.toBeNull();
+    expect(root().querySelector('#choices-title')).toBeNull();
     expect(root().querySelector('#save-template')!.closest('details')!.open).toBe(false);
     expect(
       root().querySelector('#generate-text, #generate-questions')!.closest('details'),
@@ -189,7 +170,7 @@ describe('ActivityWorkspace plan ownership', () => {
     expect(root().querySelector('#plan-undo')!.getAttribute('aria-disabled')).toBe('true');
     expect(field('plan-name').value).toBe('עריכה 0');
     expect(field('plan-goal').value).toBe('עריכה 1');
-    http.expectNone('/api/ai/template-drafts');
+    http.expectNone('/api/ai/activity-plans');
   });
 
   it.each(['/activities/new', '/templates/example/edit'])(
@@ -203,12 +184,12 @@ describe('ActivityWorkspace plan ownership', () => {
       expect(root().querySelector('#plan-questionCount')).toBeNull();
       await type('activity-questionCount', '7');
       const refine = await ask('שאלות קשות יותר');
-      expect(refine.request.body.baseDefinition.defaults.questionCount).toBe(7);
+      expect(refine.request.body.baseDefinition.settings.questionCount).toBe(7);
       reply(
         refine,
-        { ...numericPlan, defaults: { ...numericPlan.defaults, questionCount: 9 } },
+        { ...numericPlan, settings: { ...numericPlan.settings, questionCount: 9 } },
         null,
-        [{ kind: 'changed', path: 'defaults' }],
+        [{ kind: 'changed', path: 'settings' }],
       );
       await settle();
       expect(field('activity-questionCount').value).toBe('9');
@@ -220,7 +201,7 @@ describe('ActivityWorkspace plan ownership', () => {
     await type('plan-name', 'תכנית חלקית');
     await type('chat-message', 'תרגול חשבון');
     await click('chat-send');
-    http.expectNone('/api/ai/template-drafts');
+    http.expectNone('/api/ai/activity-plans');
     expect(field('plan-name').value).toBe('תכנית חלקית');
     expect(root().textContent).toContain('תקנו את ההגדרות המסומנות');
     // The marked field explains itself instead of a list elsewhere.
@@ -321,7 +302,7 @@ describe('ActivityWorkspace plan ownership', () => {
     expect(root().querySelector<HTMLButtonElement>('#chat-send')!.disabled).toBe(true);
     await type('chat-consolidated', 'בקשה מאוחדת שכוללת את כל התשובות');
     await click('chat-consolidate');
-    const consolidated = http.expectOne('/api/ai/template-drafts');
+    const consolidated = http.expectOne('/api/ai/activity-plans');
     expect(consolidated.request.body.context).toEqual([]);
     expect(consolidated.request.body.message).toContain('כל התשובות');
     reply(consolidated);
@@ -348,7 +329,7 @@ describe('ActivityWorkspace plan ownership', () => {
     expect(root().textContent).toContain(message);
     expect(root().textContent).toContain(clarification);
     await click('chat-send');
-    http.expectNone('/api/ai/template-drafts');
+    http.expectNone('/api/ai/activity-plans');
   });
 
   it('requires source confirmation, tracks it in Undo and publishes exact canonical text only', async () => {

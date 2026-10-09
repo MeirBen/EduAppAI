@@ -118,7 +118,7 @@ public sealed class EvaluationTests : IDisposable
     }
 
     [Theory]
-    [InlineData("authoring", "defaults.questionCount")]
+    [InlineData("authoring", "settings.questionCount")]
     [InlineData("generation", "questions[0].answer")]
     [InlineData("wrong-count", "questions")]
     [InlineData("null-questions", "questions")]
@@ -126,7 +126,7 @@ public sealed class EvaluationTests : IDisposable
     {
         var definition = EvaluationFixtures.Definition();
         var content = EvaluationFixtures.Content();
-        if (stage == "authoring") definition["result"]!["proposal"]!["defaults"]!["questionCount"] = 0;
+        if (stage == "authoring") definition["result"]!["proposal"]!["settings"]!["questionCount"] = 0;
         if (stage == "generation") content["questions"]![0]!["answer"]!["value"] = "";
         if (stage == "wrong-count") content = EvaluationFixtures.Content(count: 1);
         if (stage == "null-questions") content["questions"] = null;
@@ -177,14 +177,14 @@ public sealed class EvaluationTests : IDisposable
     }
 
     [Fact]
-    public async Task Shared_settings_override_reaches_generation_without_dynamic_fields()
+    public async Task Concrete_settings_reach_generation_without_dynamic_fields()
     {
-        using var chat = new AiFixtures.ScriptedChat(EvaluationFixtures.Definition().ToJsonString(), EvaluationFixtures.Content(count: 20).ToJsonString());
-        var report = await RunAsync(chat, Case with { SettingsOverride = new("חלל", "מבוגרים", "hard", 20), QuestionCount = 20 });
+        var plan = EvaluationFixtures.Plan() with { Settings = new("חלל", "מבוגרים", "hard", 20) };
+        using var chat = new AiFixtures.ScriptedChat(StructuredEvaluationTests.Proposal(plan), EvaluationFixtures.Content(count: 20).ToJsonString());
+        var report = await RunAsync(chat, Case with { QuestionCount = 20 });
 
         var result = Assert.Single(report.Results);
         Assert.Equal(new("חלל", "מבוגרים", "hard", 20), result.Input!.Settings);
-        Assert.Empty(result.Input.Controls);
         Assert.Contains("\"topic\":\"חלל\"", chat.Requests[1].Input);
         Assert.Contains("\"audience\":\"מבוגרים\"", chat.Requests[1].Input);
         Assert.Contains("\"difficulty\":\"hard\"", chat.Requests[1].Input);

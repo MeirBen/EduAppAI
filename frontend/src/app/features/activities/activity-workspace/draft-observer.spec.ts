@@ -11,7 +11,7 @@ const draft: ActivityDetail = {
   id: 'draft',
   revision: 1,
   plan: numericPlan,
-  input: { settings: numericPlan.defaults },
+
   document: { title: 'תרגול', instructions: null, materials: [], questions: [] },
   diagnostics: {},
   measurements: [],
@@ -21,6 +21,8 @@ const draft: ActivityDetail = {
   releasedSourceRevision: null,
   createdAtUtc: '2026-10-01T00:00:00Z',
   updatedAtUtc: '2026-10-01T00:00:00Z',
+  chat: [],
+  canUndo: false,
 };
 const operation: GenerationOperation = {
   id: 'op',

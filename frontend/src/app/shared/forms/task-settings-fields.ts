@@ -6,7 +6,7 @@ import { FieldErrors } from './field-errors';
 import { FieldValidity } from './field-validity';
 
 /**
- * The same accessible controls edit template defaults and task choices. The parent owns the form
+ * Accessible native controls edit concrete activity settings. The parent owns the form
  * and its grid; each field is one of that grid's cells.
  */
 @Component({

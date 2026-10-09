@@ -22,7 +22,7 @@ public sealed class AiAuthoringTests
         foreach (var message in new[] { "תרגול חשבון", "כיתה ג", "מספרים קטנים" })
         {
             var requestId = Guid.NewGuid().ToString();
-            using var response = await parent.PostAsJsonAsync("/api/ai/template-drafts", new TemplateAuthoringInput(message, Context: context, RequestId: requestId, BaseRevision: 7));
+            using var response = await parent.PostAsJsonAsync("/api/ai/activity-plans", new ActivityAuthoringInput(message, Context: context, RequestId: requestId, BaseRevision: 7));
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
             var reply = (await response.Content.ReadFromJsonAsync<JsonNode>())!;
             Assert.Equal(requestId, reply["requestId"]!.GetValue<string>());
@@ -52,9 +52,9 @@ public sealed class AiAuthoringTests
         string Reply(LearningPlan value) => JsonSerializer.Serialize(new { result = new { proposal = value, clarification = (string?)null }, assumptions = Array.Empty<string>() }, EngineJson.Options);
         await using var app = new GenerationHarness(Reply(plan with { Materials = [plan.Materials[0] with { Text = "changed" }] }), Reply(plan with { Materials = [] }));
         using var parent = await app.ParentAsync();
-        using var rejected = await parent.PostAsJsonAsync("/api/ai/template-drafts", new TemplateAuthoringInput("לשנות", plan));
+        using var rejected = await parent.PostAsJsonAsync("/api/ai/activity-plans", new ActivityAuthoringInput("לשנות", plan));
         Assert.Equal(HttpStatusCode.BadGateway, rejected.StatusCode);
-        using var removed = await parent.PostAsJsonAsync("/api/ai/template-drafts", new TemplateAuthoringInput("להסיר", plan));
+        using var removed = await parent.PostAsJsonAsync("/api/ai/activity-plans", new ActivityAuthoringInput("להסיר", plan));
         Assert.Equal(HttpStatusCode.OK, removed.StatusCode);
         var reply = (await removed.Content.ReadFromJsonAsync<JsonNode>())!;
         Assert.Equal("removed", reply["changes"]![0]!["kind"]!.GetValue<string>());
@@ -69,7 +69,7 @@ public sealed class AiAuthoringTests
         await using var app = new GenerationHarness();
         using var parent = await app.ParentAsync();
         var context = Enumerable.Range(0, turns).Select(_ => new AuthoringTurn("parent", new string('x', length))).ToArray();
-        using var response = await parent.PostAsJsonAsync("/api/ai/template-drafts", new TemplateAuthoringInput("עוד", Context: context));
+        using var response = await parent.PostAsJsonAsync("/api/ai/activity-plans", new ActivityAuthoringInput("עוד", Context: context));
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
         Assert.Empty(app.Chat.Requests);
     }

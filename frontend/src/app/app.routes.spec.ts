@@ -66,7 +66,7 @@ describe('Workspace routes', () => {
       id: 'saved',
       revision: 4,
       plan: numericPlan,
-      input: { settings: numericPlan.defaults },
+
       document: { title: '', instructions: null, materials: [], questions: [] },
       diagnostics: {},
       activeOperationId: null,
@@ -87,6 +87,6 @@ describe('Workspace routes', () => {
     http.expectNone(
       (request) => request.url.includes('/activity-drafts') && request.method !== 'GET',
     );
-    http.expectNone('/api/ai/template-drafts');
+    http.expectNone('/api/ai/activity-plans');
   });
 });

@@ -37,7 +37,7 @@ public sealed class ChildSessionTests
                 new { id = (string?)null, prompt = "טקסט?", interaction = new { type = "text-input" }, answer = new { value = "private-parent-key" }, points = textPoints }
             }
         });
-        draft = await ActivityDraftTests.Save(parent, draft, edit);
+        draft = await ActivityDraftTests.Seed(parent, draft, edit);
         using var release = await parent.PostAsJsonAsync(ActivityDraftTests.Path(draft) + "/release", new { expectedRevision = 2 });
         Assert.True(release.StatusCode == HttpStatusCode.Created, await release.Content.ReadAsStringAsync());
         var snapshot = (await release.Content.ReadFromJsonAsync<JsonNode>())!;

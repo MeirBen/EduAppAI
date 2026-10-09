@@ -8,13 +8,21 @@ import {
 import limits from '../../src/app/core/api/limits.fixture.json';
 import { textSize } from '../text-size';
 
-async function isolate(page: Page) {
+async function isolate(page: Page, format: 'numeric-input' | 'single-choice' = 'numeric-input') {
   let signedIn = true;
   let draft: ActivityDetail = {
     id: 'draft',
     revision: 1,
-    plan: numericPlan,
-    input: { settings: numericPlan.defaults },
+    plan: {
+      ...numericPlan,
+      questions: {
+        ...numericPlan.questions,
+        formats: [format],
+        choiceCount: format === 'single-choice' ? 2 : null,
+      },
+    },
+    chat: [],
+    canUndo: false,
     document: { title: 'תרגול', instructions: null, materials: [], questions: [] },
     diagnostics: { questions: ['נדרשות שתי שאלות'] },
     measurements: [],
@@ -47,7 +55,7 @@ async function isolate(page: Page) {
     // No other device exists here; 204 closes the change stream without a retry.
     if (path === '/api/library/changes') return route.fulfill({ status: 204 });
     if (path === '/api/ai/status')
-      return route.fulfill({ json: { configured: true, schemaVersion: 1 } });
+      return route.fulfill({ json: { configured: true, schemaVersion: 2 } });
     if (path === '/api/templates/example')
       return route.fulfill({
         json: { id: 'example', currentVersion: 3, versionId: 'v3', definition: numericPlan },
@@ -90,7 +98,7 @@ async function isolate(page: Page) {
       return route.fulfill({ json: operation });
     if (path === '/api/activity-drafts/draft/operations/op/cancel') {
       const unchanged = draft.revision === operation!.expectedRevision;
-      draft = { ...draft, activeOperationId: null, revision: draft.revision + 1 };
+      draft = { ...draft, activeOperationId: null };
       operation = {
         ...operation!,
         status: 'cancelled',
@@ -106,7 +114,6 @@ async function isolate(page: Page) {
         sourceDraftId: draft.id,
         sourceDraftRevision: draft.revision,
         plan: draft.plan,
-        input: draft.input,
         document: draft.document,
         reviewedAtUtc: '2026-10-01T00:00:00Z',
         measurements: [],
@@ -144,8 +151,11 @@ async function isolate(page: Page) {
           questions: [1, 2].map((i) => ({
             id: 'q' + i,
             prompt: `כמה הם ${i}+1?`,
-            interaction: { type: 'numeric-input' as const, options: null },
-            answer: { value: String(i + 1) },
+            interaction: {
+              type: format,
+              options: format === 'single-choice' ? ['שלום', 'אחר'] : null,
+            },
+            answer: { value: format === 'single-choice' ? 'שלום' : String(i + 1) },
             points: 1,
             origin: { kind: 'generated' },
             acceptance: null,
@@ -213,7 +223,7 @@ test('failed sign-out keeps edits and asks again before a later attempt', async 
   expect(state.writes.filter((write) => write.path === '/api/auth/logout')).toHaveLength(0);
 });
 
-test('removing a scoped generation target keeps progress and cancellation accessible', async ({
+test('active work locks content while keeping progress and cancellation accessible', async ({
   page,
 }) => {
   const state = await isolate(page);
@@ -225,14 +235,15 @@ test('removing a scoped generation target keeps progress and cancellation access
   await page.locator('#question-0-improve').click();
   await page.locator('#question-0-improve-submit').click();
   await expect(page.locator('#cancel-generation')).toBeVisible();
-  await page.getByRole('button', { name: 'הסרת שאלה 1', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'הסרת שאלה 1', exact: true })).toHaveCount(0);
+  await expect(page.locator('#question-0-prompt')).toBeDisabled();
   await expect(page.locator('#cancel-generation')).toBeVisible();
   await expect(page.locator('app-generation-status')).toHaveCount(1);
   await expect(page.locator('#regenerate-questions')).toHaveAttribute('aria-disabled', 'true');
   await page.locator('#cancel-generation').click();
   await expect(page.locator('#cancel-generation')).toHaveCount(0);
   expect(state.writes.filter((write) => write.path.endsWith('/cancel'))).toHaveLength(1);
-  await expect(page.locator('#question-0-prompt')).toHaveValue('כמה הם 2+1?');
+  await expect(page.locator('#question-0-prompt')).toHaveValue('כמה הם 1+1?');
 });
 
 test('saves before generation, edits manually, reviews the current revision and opens an immutable copy', async ({
@@ -268,55 +279,39 @@ test('saves before generation, edits manually, reviews the current revision and 
   expect(state.writes.at(-1)?.body).toEqual({ snapshotId: 'ready' });
 });
 
-test('supports keyboard content editing with native labels at 360px and 200% text', async ({
+test('supports keyboard content editing with fixed structure at 360px and 200% text', async ({
   page,
 }) => {
-  await isolate(page);
+  const state = await isolate(page, 'single-choice');
   await page.setViewportSize({ width: 360, height: 800 });
   await page.goto('/activities/draft');
+  await page.locator('#generate-questions').click();
+  await expect(page.locator('#cancel-generation')).toBeVisible();
+  state.complete();
+  await expect(page.locator('#question-0-prompt')).toBeVisible();
   await textSize(page, 32);
-  await page.locator('#add-question').focus();
+  const card = page.locator('li[aria-labelledby="question-0-heading"]');
+  await card.getByLabel('נוסח השאלה', { exact: true }).fill('מה פירוש Hello — שלום?');
+  await card.getByText('סוג התשובה והניקוד — שאלה 1').focus();
   await page.keyboard.press('Enter');
-  await page.getByLabel('נוסח השאלה', { exact: true }).fill('מה פירוש Hello — שלום?');
-  await expect(page.getByLabel('סוג התשובה', { exact: true })).toBeHidden();
-  await page.getByText('סוג התשובה והניקוד — שאלה 1').focus();
-  await page.keyboard.press('Enter');
-  await page.getByLabel('סוג התשובה', { exact: true }).selectOption('single-choice');
-  await page.getByRole('button', { name: 'הוספת אפשרות', exact: true }).click();
-  await page.getByLabel('אפשרות 1', { exact: true }).fill('שלום');
-  await page.getByLabel('תשובה נכונה').selectOption('שלום');
-  await expect(page.getByLabel('תשובה נכונה')).toHaveValue('שלום');
-  await page.getByLabel('אפשרות 1', { exact: true }).fill('שלום רב');
-  // Editing an option never re-points the answer; the mismatch stays visible for the parent.
-  await expect(page.getByLabel('תשובה נכונה')).toHaveValue('שלום');
-  await expect(page.getByLabel('תשובה נכונה')).toHaveAttribute('aria-invalid', 'true');
+  await expect(card.getByLabel('סוג התשובה', { exact: true })).toBeDisabled();
+  await expect(card.getByRole('button', { name: 'הוספת אפשרות', exact: true })).toHaveCount(0);
+  await card.getByLabel('תשובה נכונה').selectOption('שלום');
+  await card.getByLabel('אפשרות 1', { exact: true }).fill('שלום רב');
+  await expect(card.getByLabel('תשובה נכונה')).toHaveValue('שלום');
+  await expect(card.getByLabel('תשובה נכונה')).toHaveAttribute('aria-invalid', 'true');
   await page.locator('#question-0-points').fill('1.5');
   await expect(page.locator('#question-0-points-error')).toBeEmpty();
-  // A field's error shows once the parent leaves it.
   await page.locator('#question-0-points').blur();
   await expect(page.locator('#question-0-points-error')).toContainText('מספר שלם');
-  // The summary flags the problem only while the field that explains it is hidden.
   const more = page.locator('details:has(#question-0-points) > summary');
   await expect(more.getByText('נדרש תיקון')).toBeHidden();
   await more.click();
   await expect(more.getByText('נדרש תיקון')).toBeVisible();
   await more.click();
-  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(
-    true,
-  );
-  await page.screenshot({
-    path: test.info().outputPath('content-mobile.png'),
-    fullPage: true,
-  });
-  // Moving a question keeps focus on its move button; removing one hands it to a neighbour.
-  await page.locator('#add-question').focus();
-  await page.keyboard.press('Enter');
-  await page.locator('#question-1-move-up').focus();
-  await page.keyboard.press('Enter');
-  await expect(page.locator('#question-0-move-up')).toBeFocused();
-  await page.getByRole('button', { name: 'הסרת שאלה 1', exact: true }).focus();
-  await page.keyboard.press('Enter');
-  await expect(page.locator('#question-0-heading')).toBeFocused();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await expect(page.locator('#add-question')).toHaveCount(0);
+  await page.screenshot({ path: test.info().outputPath('content-mobile.png'), fullPage: true });
 });
 
 test('unknown outcomes retain local work and do not automatically start another operation', async ({
@@ -326,13 +321,15 @@ test('unknown outcomes retain local work and do not automatically start another 
   await page.goto('/templates/example/create');
   await page.locator('#generate-questions').click();
   await expect(page.locator('#cancel-generation')).toBeVisible();
-  await page.locator('#document-title').fill('העבודה שלי נשמרת מקומית');
+  await expect(page.locator('#document-title')).toBeDisabled();
   state.unknown();
   await expect(
     page.getByText('לא הפעלנו ניסיון נוסף אוטומטית כדי למנוע חיוב כפול.', { exact: true }),
   ).toBeVisible();
   await expect(page.locator('#check-saved')).toBeVisible();
   await expect(page.locator('#cancel-generation')).toBeHidden();
+  await expect(page.locator('#document-title')).toBeEnabled();
+  await page.locator('#document-title').fill('העבודה שלי נשמרת מקומית');
   await expect(page.locator('#document-title')).toHaveValue('העבודה שלי נשמרת מקומית');
   expect(state.writes.filter((write) => write.path.endsWith('/operations'))).toHaveLength(1);
 });

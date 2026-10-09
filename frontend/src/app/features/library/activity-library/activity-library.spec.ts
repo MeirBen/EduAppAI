@@ -156,7 +156,7 @@ describe('Activity library', () => {
     vi.spyOn(window, 'confirm').mockReturnValue(true);
     root.querySelector<HTMLButtonElement>('details .button-danger')!.click();
     http
-      .expectOne((request) => request.method === 'DELETE' && request.url === '/api/templates')
+      .expectOne((request) => request.method === 'DELETE' && request.url === '/api/learning-data')
       .flush(null);
     await fixture.whenStable();
     expect(root.textContent).toContain('נתוני הלמידה נמחקו');

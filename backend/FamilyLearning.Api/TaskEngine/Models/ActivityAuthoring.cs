@@ -3,7 +3,7 @@ using System.Text.Json.Serialization;
 namespace FamilyLearning.Api.TaskEngine.Models;
 
 /// <summary>One parent-initiated proposal call. Client correlation fields are never sent to the provider.</summary>
-public sealed record TemplateAuthoringInput(string Message, LearningPlan? BaseDefinition = null,
+public sealed record ActivityAuthoringInput(string Message, LearningPlan? BaseDefinition = null,
     AuthoringTurn[]? Context = null, string? RequestId = null, long? BaseRevision = null);
 
 /// <summary>Unresolved conversation only; roles are parent or assistant. Accepted requirements live in the base plan.</summary>

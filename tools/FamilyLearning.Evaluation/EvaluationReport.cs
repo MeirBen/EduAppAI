@@ -7,11 +7,9 @@ using FamilyLearning.Api.TaskEngine.Models;
 namespace FamilyLearning.Evaluation;
 
 /// <summary>Synthetic parent request, measurable expectations and a case-specific human review focus.</summary>
-/// <remarks>AdditionalControlCount excludes shared settings; null skips that adherence check.</remarks>
 public sealed record EvaluationCase(string Id, string Prompt, string ReviewFocus, int QuestionCount,
     string Interaction, int? ChoiceCount, int? MinPassageWords, int? MaxPassageWords,
-    TaskSettings? SettingsOverride = null, int? AdditionalControlCount = null,
-    LearningPlan? InitialPlan = null, TaskRequest? InitialInput = null)
+    LearningPlan? InitialPlan = null)
 {
     public string[] Refinements { get; init; } = [];
     public EvaluationReplacement[] Replacements { get; init; } = [];

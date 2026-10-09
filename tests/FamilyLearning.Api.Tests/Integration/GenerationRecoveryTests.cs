@@ -22,7 +22,7 @@ public sealed class GenerationRecoveryTests
     {
         await using var app = new GenerationHarness(Ideas, Materials, new string('x', 32000));
         using var parent = await app.ParentAsync();
-        var draft = await Create(parent, Reading() with { Defaults = Numeric(1).Defaults });
+        var draft = await Create(parent, Reading() with { Settings = Numeric(1).Settings });
         var operation = await Start(parent, draft);
         await app.Worker.RunNextAsync(default);
         await app.Worker.RunNextAsync(default);
@@ -48,9 +48,9 @@ public sealed class GenerationRecoveryTests
         Assert.Equal(42, state["steps"]![2]!["usage"]!["outputTokens"]!.GetValue<long>());
         Assert.Null(state["steps"]![2]!["usage"]!["costCredits"]);
         var saved = (await parent.GetFromJsonAsync<JsonNode>(Path(draft)))!;
-        Assert.Single(saved["document"]!["materials"]!.AsArray());
+        Assert.Empty(saved["document"]!["materials"]!.AsArray());
         Assert.Empty(saved["document"]!["questions"]!.AsArray());
-        Assert.Equal(2, saved["revision"]!.GetValue<long>());
+        Assert.Equal(1, saved["revision"]!.GetValue<long>());
         app.Clock.Now = app.Clock.Now.AddDays(7);
         await app.Worker.PurgeAsync(default);
         await app.Worker.RecoverAsync(default);
@@ -121,7 +121,7 @@ public sealed class GenerationRecoveryTests
         using var parent = await app.ParentAsync(services => services.AddScoped(provider => new LearningDbContext(
             new DbContextOptionsBuilder<LearningDbContext>(provider.GetRequiredService<DbContextOptions<LearningDbContext>>())
                 .ConfigureWarnings(warnings => warnings.Throw(CoreEventId.RowLimitingOperationWithoutOrderByWarning)).Options)));
-        var draft = await Create(parent, Reading() with { Defaults = Numeric(1).Defaults });
+        var draft = await Create(parent, Reading() with { Settings = Numeric(1).Settings });
         var operation = await Start(parent, draft);
         if (acceptedMaterial)
         {
@@ -140,11 +140,11 @@ public sealed class GenerationRecoveryTests
     [InlineData("EngineRevision")]
     [InlineData("SchemaVersion")]
     [InlineData("ProfileFingerprint")]
-    public async Task Configuration_change_stops_a_queued_polish_stage_and_preserves_material(string property)
+    public async Task Configuration_change_stops_a_queued_polish_stage_and_leaves_saved_content_unchanged(string property)
     {
         await using var app = new GenerationHarness(Ideas, Materials);
         using var parent = await app.ParentAsync();
-        var draft = await Create(parent, Reading() with { Defaults = Numeric(1).Defaults });
+        var draft = await Create(parent, Reading() with { Settings = Numeric(1).Settings });
         var operation = await Start(parent, draft);
         await app.Worker.RunNextAsync(default);
         await app.Worker.RunNextAsync(default);
@@ -160,16 +160,16 @@ public sealed class GenerationRecoveryTests
         var state = (await parent.GetFromJsonAsync<JsonNode>(OperationPath(operation)))!;
         Assert.Equal("conflict", state["status"]!.GetValue<string>());
         Assert.Equal("configuration-changed", state["failure"]!.GetValue<string>());
-        Assert.Single((await parent.GetFromJsonAsync<JsonNode>(Path(draft)))!["document"]!["materials"]!.AsArray());
+        Assert.Empty((await parent.GetFromJsonAsync<JsonNode>(Path(draft)))!["document"]!["materials"]!.AsArray());
         Assert.Equal(2, app.Chat.Requests.Count);
     }
 
     [Fact]
-    public async Task Shutdown_leaves_calling_unknown_on_restart_without_retrying_or_erasing_accepted_material()
+    public async Task Shutdown_leaves_calling_unknown_on_restart_without_retrying_or_applying_working_material()
     {
         await using var app = new GenerationHarness(Ideas, Materials, Questions("text-input"));
         using var parent = await app.ParentAsync();
-        var draft = await Create(parent, Reading() with { Defaults = Numeric(1).Defaults });
+        var draft = await Create(parent, Reading() with { Settings = Numeric(1).Settings });
         var operation = await Start(parent, draft);
         await app.Worker.RunNextAsync(default);
         await app.Worker.RunNextAsync(default);
@@ -195,7 +195,7 @@ public sealed class GenerationRecoveryTests
         Assert.False(await app.Worker.RunNextAsync(default));
         Assert.Equal(3, app.Chat.Requests.Count);
         var saved = (await parent.GetFromJsonAsync<JsonNode>(Path(draft)))!;
-        Assert.Single(saved["document"]!["materials"]!.AsArray());
+        Assert.Empty(saved["document"]!["materials"]!.AsArray());
         Assert.Null(saved["activeOperationId"]);
     }
 

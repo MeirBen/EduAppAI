@@ -231,22 +231,16 @@ public static class EvaluationFiles
                 item.ExpectedLength is { } length && !ValidLength(length, limits.ContentLength) ||
                 string.IsNullOrWhiteSpace(item.ReviewFocus) || item.ReviewFocus.Length > 1000 ||
                 item.QuestionCount < 1 || item.Interaction is not ("single-choice" or "text-input" or "numeric-input") ||
-                item.AdditionalControlCount < 0 || item.AdditionalControlCount > limits.MaxControls ||
                 (item.ChoiceCount.HasValue && (item.Interaction != "single-choice" || item.ChoiceCount < limits.MinChoiceCount || item.ChoiceCount > limits.MaxChoiceCount)) ||
-                item.MinPassageWords < 0 || item.MaxPassageWords < 0 || item.MinPassageWords > item.MaxPassageWords ||
-                (item.SettingsOverride is { } settings &&
-                    (TaskSettingsValidator.Validate(settings).Count > 0 || settings.QuestionCount != item.QuestionCount)))
+                item.MinPassageWords < 0 || item.MaxPassageWords < 0 || item.MinPassageWords > item.MaxPassageWords)
                 throw new InvalidDataException("Evaluation cases require unique safe IDs, bounded text and supported, consistent expectations.");
             if (item.InitialPlan is { } plan)
             {
-                if (item.InitialInput is not null && item.SettingsOverride is not null)
-                    throw new InvalidDataException("Fixed input and settings override cannot both be supplied.");
-                var resolved = TaskRequestResolver.Resolve(plan, item.InitialInput ?? new(item.SettingsOverride ?? plan.Defaults));
+                var resolved = TaskRequestResolver.Resolve(plan);
                 if (resolved.Value is not { } input || input.Settings.QuestionCount != item.QuestionCount ||
                     !input.Questions.Formats.Contains(item.Interaction) || item.ChoiceCount != input.Questions.ChoiceCount)
                     throw new InvalidDataException("Fixed-plan expectations must match valid effective input.");
             }
-            else if (item.InitialInput is not null) throw new InvalidDataException("Initial input requires a fixed plan.");
         }
     }
 

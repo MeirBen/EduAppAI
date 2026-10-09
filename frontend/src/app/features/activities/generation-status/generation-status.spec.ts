@@ -80,7 +80,7 @@ describe('GenerationStatus', () => {
     expect(retried).toEqual(['GenerateQuestions']);
   });
 
-  it('keeps the written text after a failed polish and offers no retry', async () => {
+  it('does not claim that intermediate text was saved after a failed polish', async () => {
     const { visible, root } = await render({
       ...unknownOperation,
       status: 'failed',
@@ -101,8 +101,8 @@ describe('GenerationStatus', () => {
         ],
       },
     });
-    expect(visible()).toContain('הטקסט נשמר, אבל שיפור הניסוח לא הושלם.');
-    expect(visible()).not.toContain('לא עמד בדרישת האורך');
+    expect(visible()).toContain('התוצאה לא החליפה את התוכן הקיים.');
+    expect(visible()).not.toContain('הטקסט נשמר');
     expect(root.querySelector('#retry-generation')).toBeNull();
     expect(root.querySelector('details')!.textContent).toContain('טקסט בניסוח משופר · נכשל');
   });

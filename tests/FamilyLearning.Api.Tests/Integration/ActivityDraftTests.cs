@@ -4,6 +4,7 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using FamilyLearning.Api.Features.Activities;
 using FamilyLearning.Api.Infrastructure.Persistence;
+using FamilyLearning.Api.TaskEngine;
 using FamilyLearning.Api.TaskEngine.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -13,6 +14,26 @@ namespace FamilyLearning.Api.Tests.Integration;
 
 public sealed class ActivityDraftTests
 {
+    [Fact]
+    public async Task Manual_save_accepts_format_set_order_without_changing_the_saved_requirements()
+    {
+        await using var app = new ApiFactory();
+        using var parent = await app.ParentAsync();
+        var plan = Numeric() with { Questions = new(["text-input", "numeric-input"], null, "") };
+        var draft = await Create(parent, plan);
+        var edit = Edit(draft);
+        edit["plan"]!["questions"]!["formats"] = new JsonArray("numeric-input", "text-input");
+        edit["document"]!["title"] = "כותרת ידנית";
+        using var response = await parent.PutAsJsonAsync(Path(draft), edit);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var saved = (await response.Content.ReadFromJsonAsync<JsonNode>())!;
+        Assert.True(JsonNode.DeepEquals(draft["plan"], saved["plan"]));
+        Assert.Equal("כותרת ידנית", saved["document"]!["title"]!.GetValue<string>());
+        var forbidden = Edit(saved);
+        forbidden["plan"]!["questions"]!["formats"] = new JsonArray("text-input");
+        Assert.Equal(HttpStatusCode.BadRequest, (await parent.PutAsJsonAsync(Path(draft), forbidden)).StatusCode);
+    }
+
     [Fact]
     public async Task Editable_library_limit_is_applied_after_excluding_released_drafts()
     {
@@ -24,7 +45,7 @@ public sealed class ActivityDraftTests
         var source = await db.ActivityDrafts.SingleAsync();
         for (var index = 0; index < 100; index++)
         {
-            var released = new ActivityDraft(source.FamilyId, source.Name, source.PlanJson, source.InputJson, source.DocumentJson, null, null, source.CreatedByParentId);
+            var released = new ActivityDraft(source.FamilyId, source.Name, source.PlanJson, source.DocumentJson, null, null, source.CreatedByParentId);
             released.Release(Guid.NewGuid(), DateTime.UtcNow.AddMinutes(1));
             db.ActivityDrafts.Add(released);
         }
@@ -39,11 +60,11 @@ public sealed class ActivityDraftTests
     {
         await using var factory = new ApiFactory();
         using var client = await factory.ParentAsync();
-        var plan = Reading() with { Materials = [Reading().Materials[0] with { Length = new("target", new(20, false)) }] };
+        var plan = Reading() with { Materials = [Reading().Materials[0] with { Length = new("target", 20) }] };
         var draft = await Create(client, plan);
         var edit = Edit(draft);
         edit["document"]!["materials"] = new JsonArray(new JsonObject { ["id"] = MaterialId, ["title"] = null, ["body"] = "שלום עולם" });
-        draft = await Save(client, draft, edit);
+        draft = await Seed(client, draft, edit);
         Assert.Equal(2, draft["measurements"]![0]!["actual"]!.GetValue<int>());
         Assert.Equal(20, draft["measurements"]![0]!["expected"]!["value"]!.GetValue<int>());
         Assert.Null(draft["measurements"]![0]!["satisfied"]);
@@ -75,9 +96,12 @@ public sealed class ActivityDraftTests
         using var parent = await app.ParentAsync();
         var draft = await Create(parent, Numeric(1));
         var edit = Edit(draft);
-        edit["document"] = Document(answer: null);
+        edit["document"] = Document();
+        draft = await Seed(parent, draft, edit);
+        edit = Edit(draft);
+        edit["document"]!["questions"]![0]!["answer"] = null;
         var saved = await Save(parent, draft, edit);
-        Assert.Equal(2, saved["revision"]!.GetValue<long>());
+        Assert.Equal(3, saved["revision"]!.GetValue<long>());
         Assert.Null(saved["document"]!["questions"]![0]!["answer"]);
         Assert.NotNull(saved["document"]!["questions"]![0]!["id"]);
         Assert.NotEmpty(saved["diagnostics"]!.AsObject());
@@ -97,7 +121,7 @@ public sealed class ActivityDraftTests
         using var published = await parent.PostAsJsonAsync("/api/templates", plan);
         var template = (await published.Content.ReadFromJsonAsync<JsonNode>())!;
         var templateId = template["id"]!.GetValue<Guid>();
-        var request = new { templateId, expectedVersion = 1, input = new TaskRequest(plan.Defaults) };
+        var request = new { templateId, expectedVersion = 1 };
         Assert.Equal(HttpStatusCode.NotFound, (await stranger.PostAsJsonAsync("/api/activity-drafts", request)).StatusCode);
         using var created = await parent.PostAsJsonAsync("/api/activity-drafts", request);
         Assert.Equal(HttpStatusCode.Created, created.StatusCode);
@@ -111,36 +135,34 @@ public sealed class ActivityDraftTests
         {
             templateId,
             expectedVersion = 2,
-            plan = plan with { Name = "עותק אישי" },
-            input = new TaskRequest(plan.Defaults)
+            plan = plan with { Name = "עותק אישי" }
         });
         Assert.Equal(HttpStatusCode.Created, customized.StatusCode);
         Assert.Equal("עותק אישי", (await customized.Content.ReadFromJsonAsync<JsonNode>())!["plan"]!["name"]!.GetValue<string>());
         Assert.True(JsonNode.DeepEquals(draft["plan"], (await parent.GetFromJsonAsync<JsonNode>(Path(draft)))!["plan"]));
     }
 
-    [Theory]
-    [InlineData("fixed")]
-    [InlineData("per-task")]
-    public async Task Source_replacement_is_atomic_and_stales_questions_without_editing_the_published_template(string kind)
+    [Fact]
+    public async Task Source_replacement_is_atomic_and_stales_questions_without_editing_the_published_template()
     {
         await using var app = new ApiFactory();
         using var parent = await app.ParentAsync();
-        var plan = Supplied(kind) with { Defaults = Numeric(1).Defaults };
+        var plan = Supplied() with { Settings = Numeric(1).Settings };
         using var publication = await parent.PostAsJsonAsync("/api/templates", plan);
         var template = (await publication.Content.ReadFromJsonAsync<JsonNode>())!;
-        var input = new TaskRequest(plan.Defaults, MaterialInputs: kind == "fixed" ? default :
-            JsonSerializer.SerializeToElement(new Dictionary<string, object> { [MaterialId] = new { sourceText = Source } }));
-        using var creation = await parent.PostAsJsonAsync("/api/activity-drafts", new { templateId = template["id"]!.GetValue<Guid>(), expectedVersion = 1, input });
+        using var creation = await parent.PostAsJsonAsync("/api/activity-drafts", new { templateId = template["id"]!.GetValue<Guid>(), expectedVersion = 1 });
         var draft = (await creation.Content.ReadFromJsonAsync<JsonNode>())!;
         var edit = Edit(draft);
         edit["document"]!["title"] = "קריאה";
         edit["document"]!["questions"] = Document()["questions"]!.DeepClone();
-        draft = await Save(parent, draft, edit);
+        draft = await Seed(parent, draft, edit);
         edit = Edit(draft);
         const string replacement = "שלום, Maya!\nמקור חדש עם ציטוט: \"hello\".";
-        if (kind == "fixed") edit["plan"]!["materials"]![0]!["text"] = replacement;
-        else edit["input"]!["materialInputs"]![MaterialId]!["sourceText"] = replacement;
+        edit["plan"]!["materials"]![0]!["text"] = replacement;
+        edit["sourceReplacements"] = new JsonArray(new JsonObject { ["id"] = MaterialId, ["text"] = replacement });
+        Assert.Equal(HttpStatusCode.BadRequest, (await parent.PutAsJsonAsync(Path(draft), edit)).StatusCode);
+        Assert.True(JsonNode.DeepEquals(draft, await parent.GetFromJsonAsync<JsonNode>(Path(draft))));
+        edit["document"]!["materials"]![0]!["body"] = replacement;
         var changed = await Save(parent, draft, edit);
         Assert.Equal(replacement, changed["document"]!["materials"]![0]!["body"]!.GetValue<string>());
         Assert.Equal(2, changed["document"]!["materials"]![0]!["revision"]!.GetValue<long>());
@@ -157,13 +179,13 @@ public sealed class ActivityDraftTests
     {
         await using var app = new ApiFactory();
         using var parent = await app.ParentAsync();
-        var plan = Reading() with { Defaults = Numeric(1).Defaults, Materials = [Reading().Materials[0] with { Length = new("range", Lower: 2, Upper: 3) }] };
+        var plan = Reading() with { Settings = Numeric(1).Settings, Materials = [Reading().Materials[0] with { Length = new("range", Lower: 2, Upper: 3) }] };
         var draft = await Create(parent, plan);
         var edit = Edit(draft);
         edit["document"] = Document();
         edit["document"]!["questions"]![0]!["interaction"]!["type"] = "text-input";
         edit["document"]!["materials"] = new JsonArray(new JsonObject { ["id"] = MaterialId, ["title"] = null, ["body"] = "שלום עולם" });
-        draft = await Save(parent, draft, edit);
+        draft = await Seed(parent, draft, edit);
         Assert.Empty(draft["diagnostics"]!.AsObject());
         edit = Edit(draft);
         edit["document"]!["materials"]![0]!["body"] = "קצר";
@@ -193,54 +215,38 @@ public sealed class ActivityDraftTests
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
-    public async Task Removing_and_restoring_a_material_requires_explicit_question_acceptance(bool removeRequirement)
+    public async Task Manual_removal_of_material_content_or_requirements_is_rejected(bool removeRequirement)
     {
         await using var app = new ApiFactory();
         using var parent = await app.ParentAsync();
-        var plan = Reading() with { Defaults = Numeric(1).Defaults, Materials = [Reading().Materials[0] with { Length = null }] };
+        var plan = Reading() with { Settings = Numeric(1).Settings, Materials = [Reading().Materials[0] with { Length = null }] };
         var draft = await Create(parent, plan);
         var edit = Edit(draft);
         edit["document"] = Document();
         edit["document"]!["questions"]![0]!["interaction"]!["type"] = "text-input";
         edit["document"]!["materials"] = new JsonArray(new JsonObject { ["id"] = MaterialId, ["title"] = null, ["body"] = "מקור ראשון" });
-        draft = await Save(parent, draft, edit);
+        draft = await Seed(parent, draft, edit);
         Assert.Empty(draft["diagnostics"]!.AsObject());
-        var originalPlan = draft["plan"]!.DeepClone();
-        var originalOrigin = draft["document"]!["questions"]![0]!["origin"]!.DeepClone();
+        var original = draft.DeepClone();
         edit = Edit(draft);
         edit["document"]!["materials"] = new JsonArray();
         if (removeRequirement) edit["plan"]!["materials"] = new JsonArray();
-        draft = await Save(parent, draft, edit);
-        edit = Edit(draft);
-        edit["plan"] = originalPlan;
-        edit["document"]!["materials"] = new JsonArray(new JsonObject { ["id"] = MaterialId, ["title"] = null, ["body"] = "מקור אחר" });
-        draft = await Save(parent, draft, edit);
-        Assert.Contains("questions[0].stale", draft["diagnostics"]!.AsObject().Select(p => p.Key));
-        Assert.True(JsonNode.DeepEquals(originalOrigin, draft["document"]!["questions"]![0]!["origin"]));
-        Assert.Equal(HttpStatusCode.BadRequest, (await parent.PostAsJsonAsync(Path(draft) + "/release", new { expectedRevision = draft["revision"]!.GetValue<long>() })).StatusCode);
-        using var adopted = await parent.PostAsJsonAsync(Path(draft) + "/adopt-content", new
-        {
-            expectedRevision = draft["revision"]!.GetValue<long>(),
-            materialIds = Array.Empty<string>(),
-            questionIds = new[] { draft["document"]!["questions"]![0]!["id"]!.GetValue<string>() }
-        });
-        Assert.Equal(HttpStatusCode.OK, adopted.StatusCode);
-        Assert.Empty((await adopted.Content.ReadFromJsonAsync<JsonNode>())!["diagnostics"]!.AsObject());
+        Assert.Equal(HttpStatusCode.BadRequest, (await parent.PutAsJsonAsync(Path(draft), edit)).StatusCode);
+        Assert.True(JsonNode.DeepEquals(original, await parent.GetFromJsonAsync<JsonNode>(Path(draft))));
     }
 
     [Fact]
-    public async Task Effective_input_changes_stale_unchanged_content_and_active_work_blocks_release_but_allows_edits()
+    public async Task Effective_input_changes_stale_unchanged_content_and_active_work_blocks_release_and_edits()
     {
         await using var app = new ApiFactory();
         using var parent = await app.ParentAsync();
         var draft = await Create(parent, Numeric(1));
         var edit = Edit(draft);
         edit["document"] = Document();
-        draft = await Save(parent, draft, edit);
+        draft = await Seed(parent, draft, edit);
         edit = Edit(draft);
-        edit["input"]!["settings"]!["topic"] = "נושא חדש";
-        draft = await Save(parent, draft, edit);
-        Assert.Contains("questions[0].stale", draft["diagnostics"]!.AsObject().Select(p => p.Key));
+        edit["plan"]!["settings"]!["topic"] = "נושא חדש";
+        Assert.Equal(HttpStatusCode.BadRequest, (await parent.PutAsJsonAsync(Path(draft), edit)).StatusCode);
         using (var scope = app.Services.CreateScope())
         {
             var db = scope.ServiceProvider.GetRequiredService<LearningDbContext>();
@@ -248,7 +254,7 @@ public sealed class ActivityDraftTests
             db.Entry(row).Property(d => d.ActiveOperationId).CurrentValue = Guid.NewGuid();
             await db.SaveChangesAsync();
         }
-        draft = await Save(parent, draft, Edit(draft));
+        Assert.Equal(HttpStatusCode.Conflict, (await parent.PutAsJsonAsync(Path(draft), Edit(draft))).StatusCode);
         Assert.Equal(HttpStatusCode.Conflict, (await parent.PostAsJsonAsync(Path(draft) + "/release", new { expectedRevision = draft["revision"]!.GetValue<long>() })).StatusCode);
     }
 
@@ -257,12 +263,12 @@ public sealed class ActivityDraftTests
     {
         await using var app = new ApiFactory();
         using var parent = await app.ParentAsync();
-        var plan = Numeric(1) with { Questions = new(["single-choice"], false, null, new(2, false), "", []) };
+        var plan = Numeric(1) with { Questions = new(["single-choice"], 2, "") };
         var draft = await Create(parent, plan);
         var edit = Edit(draft);
         edit["document"] = Document();
         edit["document"]!["questions"]![0]!["interaction"] = new JsonObject { ["type"] = "single-choice", ["options"] = new JsonArray("1", "2") };
-        draft = await Save(parent, draft, edit);
+        draft = await Seed(parent, draft, edit);
         edit = Edit(draft);
         edit["document"]!["questions"]![0]!["interaction"]!["options"]![1] = "3";
         draft = await Save(parent, draft, edit);
@@ -273,7 +279,7 @@ public sealed class ActivityDraftTests
 
     internal static async Task<JsonNode> Create(HttpClient parent, LearningPlan plan)
     {
-        using var response = await parent.PostAsJsonAsync("/api/activity-drafts", new { plan, input = new TaskRequest(plan.Defaults) });
+        using var response = await parent.PostAsJsonAsync("/api/activity-drafts", new { plan });
         Assert.True(response.StatusCode == HttpStatusCode.Created, await response.Content.ReadAsStringAsync());
         return (await response.Content.ReadFromJsonAsync<JsonNode>())!;
     }
@@ -284,7 +290,6 @@ public sealed class ActivityDraftTests
     {
         ["expectedRevision"] = draft["revision"]!.DeepClone(),
         ["plan"] = draft["plan"]!.DeepClone(),
-        ["input"] = draft["input"]!.DeepClone(),
         ["document"] = new JsonObject
         {
             ["title"] = draft["document"]!["title"]!.DeepClone(),
@@ -320,5 +325,30 @@ public sealed class ActivityDraftTests
         using var response = await parent.PutAsJsonAsync(Path(draft), edit);
         Assert.True(response.StatusCode == HttpStatusCode.OK, await response.Content.ReadAsStringAsync());
         return (await response.Content.ReadFromJsonAsync<JsonNode>())!;
+    }
+
+    // Fixture setup only: lifecycle tests start with generated-shaped content without expanding the public manual-save contract.
+    internal static async Task<JsonNode> Seed(HttpClient parent, JsonNode draft, JsonNode edit)
+    {
+        using var scope = ApiFactory.For(parent).Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<LearningDbContext>();
+        var row = await db.ActivityDrafts.SingleAsync(d => d.Id == draft["id"]!.GetValue<Guid>());
+        var body = edit.Deserialize<SaveActivityRequest>(EngineJson.Options)!;
+        var request = Resolve(body.Plan);
+        var fingerprint = TaskRequestResolver.Fingerprint(request);
+        var materials = body.Document.Materials.Select(m =>
+        {
+            var supplied = request.Materials.Single(r => r.Id == m.Id).Source == "supplied";
+            return new MaterialContent(m.Id, 1, m.Title, m.Body, new(supplied ? "supplied" : "manual"),
+                supplied ? null : new(fingerprint, []));
+        }).ToArray();
+        var sources = materials.Select(m => new MaterialRevision(m.Id, m.Revision)).ToArray();
+        var questions = body.Document.Questions.Select(q => new DocumentQuestion(q.Id ?? Guid.NewGuid().ToString("N"),
+            q.Prompt, q.Interaction, q.Answer, q.Points, new("manual"), new(fingerprint, sources))).ToArray();
+        var document = new TaskDocument(body.Document.Title, body.Document.Instructions, materials, questions);
+        Assert.Empty(FamilyLearning.Api.TaskEngine.Validation.TaskDocumentValidator.ValidateDraft(request, document).Errors);
+        row.Save(body.Plan.Name, StoredJson.Write(body.Plan), StoredJson.Write(document));
+        await db.SaveChangesAsync();
+        return (await parent.GetFromJsonAsync<JsonNode>(Path(draft)))!;
     }
 }

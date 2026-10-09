@@ -1,3 +1,4 @@
+using FamilyLearning.Api.Infrastructure.Persistence;
 using FamilyLearning.Api.TaskEngine;
 using FamilyLearning.Api.TaskEngine.Models;
 using FamilyLearning.Api.TaskEngine.Validation;
@@ -8,67 +9,79 @@ namespace FamilyLearning.Api.Features.Activities;
 /// <summary>Applies editable fields while owning identity, source revisions and acceptance associations.</summary>
 internal static class ActivityDraftChanges
 {
-    internal static TaskDocument Apply(ResolvedTaskRequest before, ResolvedTaskRequest request, TaskDocument current, EditableActivity edit)
+    private static LearningPlan ValidateManualSave(LearningPlan plan, TaskDocument current, SaveActivityRequest body)
     {
-        var errors = new Dictionary<string, string[]>();
-        if (edit is null || edit.Materials is not { Length: <= MaxMaterials } || edit.Questions is not { Length: <= MaxQuestionCount })
-            throw new TaskValidationException("document", "יש לציין תוכן פעילות בגודל נתמך.");
-        var materialIds = new HashSet<string>(StringComparer.Ordinal);
-        foreach (var item in edit.Materials)
-            if (item is null || !materialIds.Add(item.Id) || !request.Materials.Any(m => m.Id == item.Id))
-                errors.AddError("materials", "יש לציין חומרים בעלי מזהים מוכרים וייחודיים.");
-        if (errors.Count > 0) throw new TaskValidationException(errors);
-
-        var fingerprint = TaskRequestResolver.Fingerprint(request);
-        var materials = new List<MaterialContent>(request.Materials.Length);
-        foreach (var requirement in request.Materials)
+        var replacements = body.SourceReplacements ?? [];
+        if (replacements.Length > MaxMaterials || replacements.Any(r => r is null || !HasText(r.Text, BodyLimit) ||
+            !plan.Materials.Any(m => m.Id == r.Id && m.Source == "supplied")) ||
+            replacements.Select(r => r.Id).Distinct(StringComparer.Ordinal).Count() != replacements.Length)
+            throw new TaskValidationException("sourceReplacements", "יש לאשר החלפה של מקור קיים ובגודל נתמך.");
+        var allowed = plan with
         {
-            var priorRequirement = before.Materials.FirstOrDefault(m => m.Id == requirement.Id);
-            if (priorRequirement is not null && priorRequirement.Source != requirement.Source)
-                throw new TaskValidationException("materials", "שינוי סוג המקור דורש חומר חדש בעל מזהה חדש.");
-            var prior = current.Materials.FirstOrDefault(m => m.Id == requirement.Id);
-            var item = edit.Materials.FirstOrDefault(m => m.Id == requirement.Id);
-            if (requirement.Source != "generated")
+            Materials = plan.Materials.Select(m =>
+            replacements.FirstOrDefault(r => r.Id == m.Id) is { } replacement ? m with { Text = replacement.Text } : m).ToArray()
+        };
+        // Formats are a set; form projection order must not block content edits or replace the saved order.
+        if (body.Plan?.Questions?.Formats is not { } formats || formats.Length != allowed.Questions.Formats.Length ||
+            !formats.Order(StringComparer.Ordinal).SequenceEqual(allowed.Questions.Formats.Order(StringComparer.Ordinal)) ||
+            StoredJson.Write(allowed) != StoredJson.Write(
+                body.Plan with { Questions = body.Plan.Questions with { Formats = allowed.Questions.Formats } }))
+            throw new TaskValidationException("plan", "שינוי דרישות ומבנה הפעילות נעשה דרך השיחה.");
+        if (body.Document?.Materials is null || body.Document.Questions is null ||
+            !body.Document.Materials.Select(m => m?.Id).SequenceEqual(current.Materials.Select(m => m.Id)) ||
+            !body.Document.Questions.Select(q => q?.Id).SequenceEqual(current.Questions.Select(q => q.Id)) ||
+            body.Document.Questions.Where((q, i) => q?.Interaction is null || q.Interaction.Type != current.Questions[i].Interaction.Type ||
+                (q.Interaction.Options?.Length ?? 0) != (current.Questions[i].Interaction.Options?.Length ?? 0)).Any())
+            throw new TaskValidationException("document", "עריכה ידנית שומרת על הפריטים, הסדר וסוגי השאלות. שינוי המבנה נעשה דרך השיחה.");
+        return allowed;
+    }
+
+    internal static (LearningPlan Plan, TaskDocument Document) Apply(ActivityDraft draft, SaveActivityRequest body)
+    {
+        var current = draft.Document;
+        var plan = ValidateManualSave(draft.Plan, current, body);
+        var request = TaskRequestResolver.ResolveOrThrow(plan);
+        var edit = body.Document;
+        var fingerprint = TaskRequestResolver.Fingerprint(request);
+        var materials = new MaterialContent[current.Materials.Length];
+        for (var i = 0; i < materials.Length; i++)
+        {
+            var prior = current.Materials[i];
+            var item = edit.Materials[i];
+            var requirement = request.Materials.Single(m => m.Id == prior.Id);
+            var supplied = requirement.Source == "supplied";
+            if (supplied && (item.Title is not null || item.Body != requirement.Text))
+                throw new TaskValidationException("materials", "יש לאשר החלפת מקור, ולא לשנות את גוף החומר ישירות.");
+            var changed = prior.Title != item.Title || prior.Body != item.Body;
+            materials[i] = prior with
             {
-                // A source replacement changes plan/input atomically. A saved old echo is not a second source authority.
-                if (item is not null && (item.Title is not null || item.Body != requirement.Text &&
-                    !(priorRequirement?.Text != requirement.Text && item.Body == prior?.Body)))
-                    throw new TaskValidationException("materials", "יש לשנות מקור בתכנית או בקלט, ולא בגוף החומר.");
-                var revision = prior is null ? 1 : prior.Body == requirement.Text ? prior.Revision : checked(prior.Revision + 1);
-                materials.Add(new(requirement.Id, revision, null, requirement.Text!, new("supplied"), null));
-            }
-            else if (item is not null)
-            {
-                var changed = prior is null || prior.Title != item.Title || prior.Body != item.Body;
-                materials.Add(new(item.Id, prior is null ? 1 : changed ? checked(prior.Revision + 1) : prior.Revision,
-                    item.Title, item.Body, prior?.Origin ?? new("manual"),
-                    changed ? new(fingerprint, []) : prior!.Acceptance, prior?.Idea));
-            }
+                Title = item.Title,
+                Body = item.Body,
+                Revision = changed ? checked(prior.Revision + 1) : prior.Revision,
+                Acceptance = supplied ? null : changed ? new(fingerprint, []) : prior.Acceptance
+            };
         }
         var sources = materials.Select(m => new MaterialRevision(m.Id, m.Revision)).ToArray();
-        var used = request.Materials.Select(m => m.Id).ToHashSet(StringComparer.Ordinal);
-        var previousQuestions = current.Questions.ToDictionary(q => q.Id, StringComparer.Ordinal);
-        var questions = new List<DocumentQuestion>(edit.Questions.Length);
-        foreach (var item in edit.Questions)
+        var questions = new DocumentQuestion[current.Questions.Length];
+        for (var i = 0; i < questions.Length; i++)
         {
-            if (item is null) throw new TaskValidationException("questions", "שאלה אינה יכולה להיות null.");
-            if (item.Interaction is null) throw new TaskValidationException("questions", "יש לציין סוג שאלה נתמך.");
-            DocumentQuestion? prior = null;
-            if (item.Id is not null && (!previousQuestions.TryGetValue(item.Id, out prior) || !used.Add(item.Id)))
-                throw new TaskValidationException("questions", "מזהה השאלה אינו מוכר או מופיע יותר מפעם אחת.");
-            var id = item.Id ?? Guid.NewGuid().ToString("N");
-            var changed = prior is null || prior.Prompt != item.Prompt || prior.Answer != item.Answer || prior.Points != item.Points ||
-                prior.Interaction.Type != item.Interaction.Type || !SameOptions(prior.Interaction.Options, item.Interaction.Options);
-            var acceptance = changed ? new ContentAcceptance(fingerprint, sources.ToArray()) : prior!.Acceptance;
-            // A removed source can later return with revision 1. Its old acceptance must not silently become current again.
-            if (acceptance?.Sources.Any(source => !materials.Any(m => m.Id == source.Id)) == true) acceptance = null;
-            questions.Add(new(id, item.Prompt, item.Interaction, item.Answer, item.Points, prior?.Origin ?? new("manual"),
-                acceptance));
+            var prior = current.Questions[i];
+            var item = edit.Questions[i];
+            var changed = prior.Prompt != item.Prompt || prior.Answer != item.Answer || prior.Points != item.Points ||
+                !SameOptions(prior.Interaction.Options, item.Interaction.Options);
+            questions[i] = prior with
+            {
+                Prompt = item.Prompt,
+                Interaction = item.Interaction,
+                Answer = item.Answer,
+                Points = item.Points,
+                Acceptance = changed ? new(fingerprint, sources.ToArray()) : prior.Acceptance
+            };
         }
-        var document = new TaskDocument(edit.Title, edit.Instructions, materials.ToArray(), questions.ToArray());
-        errors = TaskDocumentValidator.ValidateDraft(request, document).Errors;
+        var document = new TaskDocument(edit.Title, edit.Instructions, materials, questions);
+        var errors = TaskDocumentValidator.ValidateDraft(request, document).Errors;
         if (errors.Count > 0) throw new TaskValidationException(errors);
-        return document;
+        return (plan, document);
     }
 
     private static bool SameOptions(string[]? left, string[]? right) =>

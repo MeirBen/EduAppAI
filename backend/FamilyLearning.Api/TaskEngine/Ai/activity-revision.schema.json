@@ -1,0 +1,185 @@
+{
+  "type": "object",
+  "properties": {
+    "result": {
+      "anyOf": [
+        {
+          "type": "object",
+          "properties": {
+            "answer": {
+              "type": "string"
+            },
+            "clarification": {
+              "type": [
+                "null"
+              ]
+            },
+            "change": {
+              "type": [
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "answer",
+            "clarification",
+            "change"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "answer": {
+              "type": [
+                "null"
+              ]
+            },
+            "clarification": {
+              "type": "string"
+            },
+            "change": {
+              "type": [
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "answer",
+            "clarification",
+            "change"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "answer": {
+              "type": [
+                "null"
+              ]
+            },
+            "clarification": {
+              "type": [
+                "null"
+              ]
+            },
+            "change": {
+              "type": "object",
+              "properties": {
+                "plan": {
+                  "$ref": "#/$defs/plan"
+                },
+                "assumptions": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "materialEdits": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/materialEdit"
+                  }
+                },
+                "questions": {
+                  "type": "object",
+                  "properties": {
+                    "scope": {
+                      "type": "string",
+                      "enum": [
+                        "none",
+                        "selected",
+                        "append",
+                        "all"
+                      ]
+                    },
+                    "instruction": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/$defs/questionEdit"
+                      }
+                    }
+                  },
+                  "required": [
+                    "scope",
+                    "instruction",
+                    "items"
+                  ],
+                  "additionalProperties": false
+                },
+                "questionOrder": {
+                  "type": [
+                    "array",
+                    "null"
+                  ],
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              },
+              "required": [
+                "plan",
+                "assumptions",
+                "materialEdits",
+                "questions",
+                "questionOrder"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "answer",
+            "clarification",
+            "change"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    }
+  },
+  "required": [
+    "result"
+  ],
+  "additionalProperties": false,
+  "$defs": {
+    "materialEdit": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "instruction": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "instruction"
+      ],
+      "additionalProperties": false
+    },
+    "questionEdit": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "instruction": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "instruction"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

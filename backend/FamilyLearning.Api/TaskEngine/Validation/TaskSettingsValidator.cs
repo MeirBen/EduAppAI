@@ -2,7 +2,7 @@ using FamilyLearning.Api.TaskEngine.Models;
 
 namespace FamilyLearning.Api.TaskEngine.Validation;
 
-/// <summary>Shared validation for template defaults and the settings submitted for one task.</summary>
+/// <summary>Validates the concrete settings owned by an activity plan.</summary>
 public static class TaskSettingsValidator
 {
     /// <summary>Returns application-authored field errors; the path identifies the owning form section.</summary>

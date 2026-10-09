@@ -16,8 +16,6 @@ export interface DocumentForm {
   materials: { id: string; title: string; body: string }[];
   questions: {
     id: string;
-    /** Stable local identity for unsaved questions; never sent to the server. */
-    key: string;
     prompt: string;
     type: QuestionFormat;
     options: { value: string }[];
@@ -49,8 +47,7 @@ export function documentForm(document?: EditableActivity | ActivityDocument): Do
       document?.materials.map((m) => ({ id: m.id, title: m.title ?? '', body: m.body })) ?? [],
     questions:
       document?.questions.map((q) => ({
-        id: q.id ?? '',
-        key: q.id ?? crypto.randomUUID(),
+        id: q.id,
         prompt: q.prompt,
         type: q.interaction.type,
         options: q.interaction.options?.map((value) => ({ value })) ?? [],
@@ -114,7 +111,7 @@ export function documentValue(
           instructions: raw.instructions || null,
           materials: raw.materials.map((m) => ({ id: m.id, title: m.title || null, body: m.body })),
           questions: raw.questions.map((q) => ({
-            id: q.id || null,
+            id: q.id,
             prompt: q.prompt,
             interaction: {
               type: q.type,

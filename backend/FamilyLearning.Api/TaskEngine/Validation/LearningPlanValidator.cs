@@ -20,22 +20,19 @@ public static class LearningPlanValidator
         if (!HasText(plan.Name, NameLength)) errors.AddError("name", $"יש להזין שם באורך של 1 עד {NameLength} תווים.");
         if (!HasText(plan.Goal, GoalLength)) errors.AddError("goal", $"יש להזין מטרה באורך של 1 עד {GoalLength} תווים.");
         if (plan.Guidance is null || plan.Guidance.Length > GuidanceLength) errors.AddError("guidance", $"ההנחיות מוגבלות ל־{Count(GuidanceLength)} תווים.");
-        foreach (var error in TaskSettingsValidator.Validate(plan.Defaults, "defaults")) errors.AddError(error.Key, error.Value[0]);
+        foreach (var error in TaskSettingsValidator.Validate(plan.Settings, "settings")) errors.AddError(error.Key, error.Value[0]);
         var ids = new HashSet<string>(StringComparer.Ordinal);
-        var controlCount = 0;
-        ValidateControls(plan.Controls, "controls", ids, ref controlCount, errors);
-        ValidateMaterials(plan.Materials, ids, ref controlCount, errors);
-        ValidateQuestions(plan.Questions, plan.Defaults?.QuestionCount, ids, ref controlCount, errors);
+        ValidateMaterials(plan.Materials, ids, errors);
+        ValidateQuestions(plan.Questions, plan.Settings?.QuestionCount, errors);
         ValidateLength(plan.TotalLength, "totalLength", errors);
         if (plan.TotalLength is not null && plan.Materials is { } materials &&
             (!materials.Any(m => m?.Source == "generated") || materials.Any(m => m?.Length is not null)))
             errors.AddError("totalLength", "יש לבחור אורך כולל או אורך לכל טקסט שנוצר, לא את שניהם.");
-        if (controlCount > MaxControls) errors.AddError("controls", $"אפשר להגדיר עד {MaxControls} בחירות בסך הכול.");
         if (errors.Count == 0)
         {
             if (JsonSerializer.Serialize(plan, EngineJson.Options).Length > PlanLimit) errors.AddError("plan", "ההגדרות גדולות מדי.");
-            ValidateFeasibility(plan.Defaults!.QuestionCount, plan.Questions.Formats,
-                plan.Questions.SelectableFormat ? plan.Questions.DefaultFormat : null, plan.Questions.ChoiceCount?.Value,
+            ValidateFeasibility(plan.Settings!.QuestionCount, plan.Questions.Formats,
+                plan.Questions.ChoiceCount,
                 plan.Materials.Select(m => (m.Source, m.Text, ResolveLength(m.Length))).ToArray(),
                 ResolveLength(plan.TotalLength), errors);
         }
@@ -43,7 +40,7 @@ public static class LearningPlanValidator
     }
 
     private static void ValidateMaterials(MaterialDefinition[]? materials, HashSet<string> ids,
-        ref int controlCount, Dictionary<string, string[]> errors)
+        Dictionary<string, string[]> errors)
     {
         if (materials is not { Length: <= MaxMaterials })
         {
@@ -63,17 +60,16 @@ public static class LearningPlanValidator
             if (!HasText(material.Label, NameLength)) errors.AddError(path + ".label", "תווית החומר אינה תקינה.");
             if (material.Guidance is null || material.Guidance.Length > ScopedGuidanceLength)
                 errors.AddError(path + ".guidance", $"ההנחיות מוגבלות ל־{Count(ScopedGuidanceLength)} תווים.");
-            if (material.Source is not ("generated" or "fixed" or "per-task")) errors.AddError(path + ".source", "סוג המקור אינו נתמך.");
-            if (material.Source == "fixed" ? !HasText(material.Text, BodyLimit) : material.Text is not null)
+            if (material.Source is not ("generated" or "supplied")) errors.AddError(path + ".source", "סוג המקור אינו נתמך.");
+            if (material.Source == "supplied" ? !HasText(material.Text, BodyLimit) : material.Text is not null)
                 errors.AddError(path + ".text", $"טקסט משלכם נדרש רק כשבוחרים מקור קבוע, עד {Count(BodyLimit)} תווים.");
             if (material.Source != "generated" && material.Length is not null) errors.AddError(path + ".length", "אורך מבוקש מתאים רק לחומר שנוצר.");
             ValidateLength(material.Length, path + ".length", errors);
-            ValidateControls(material.Controls, path + ".controls", ids, ref controlCount, errors);
         }
     }
 
-    private static void ValidateQuestions(QuestionPlan? questions, int? count, HashSet<string> ids,
-        ref int controlCount, Dictionary<string, string[]> errors)
+    private static void ValidateQuestions(QuestionPlan? questions, int? count,
+        Dictionary<string, string[]> errors)
     {
         if (questions is null)
         {
@@ -85,20 +81,17 @@ public static class LearningPlanValidator
             errors.AddError("questions.formats", "יש לבחור סוגי שאלות שונים ונתמכים.");
         else
         {
-            if (questions.SelectableFormat ? !questions.Formats.Contains(questions.DefaultFormat, StringComparer.Ordinal) : questions.DefaultFormat is not null)
-                errors.AddError("questions.defaultFormat", "ברירת המחדל חייבת להתאים לאפשרות בחירת הסוג.");
-            if (!questions.SelectableFormat && count < questions.Formats.Length) errors.AddError("defaults.questionCount", "אין מספיק שאלות לכל הסוגים המבוקשים.");
+            if (count < questions.Formats.Length) errors.AddError("settings.questionCount", "אין מספיק שאלות לכל הסוגים המבוקשים.");
             if (questions.Formats.Contains("single-choice") != (questions.ChoiceCount is not null)) errors.AddError("questions.choiceCount", "יש להגדיר מספר אפשרויות רק כאשר שאלת בחירה מותרת.");
         }
         if (questions.ChoiceCount is { } choice) ValidateChoice(choice, "questions.choiceCount", errors, MinChoiceCount, MaxChoiceCount);
         if (questions.Guidance is null || questions.Guidance.Length > ScopedGuidanceLength)
             errors.AddError("questions.guidance", $"ההנחיות מוגבלות ל־{Count(ScopedGuidanceLength)} תווים.");
-        ValidateControls(questions.Controls, "questions.controls", ids, ref controlCount, errors);
     }
 
-    private static void ValidateChoice(IntegerChoice choice, string path, Dictionary<string, string[]> errors, int min = 1, int max = int.MaxValue)
+    private static void ValidateChoice(int choice, string path, Dictionary<string, string[]> errors, int min = 1, int max = int.MaxValue)
     {
-        if (choice.Value < min || choice.Value > max) errors.AddError(path, "הערך מחוץ לטווח הנתמך.");
+        if (choice < min || choice > max) errors.AddError(path, "הערך מחוץ לטווח הנתמך.");
     }
 
     // A strict range needs room between its ends; an equal pair would reintroduce exact counts that generation cannot meet reliably.
@@ -111,61 +104,15 @@ public static class LearningPlanValidator
             errors.AddError(path, "יש להגדיר אורך משוער, או טווח שבו המינימום קטן מהמקסימום.");
     }
 
-    private static void ValidateControls(ControlDefinition[]? controls, string path, HashSet<string> ids,
-        ref int count, Dictionary<string, string[]> errors)
-    {
-        if (controls is not { Length: <= MaxControls })
-        {
-            errors.AddError(path, $"יש לציין עד {MaxControls} שדות.");
-            return;
-        }
-        count += controls.Length;
-        for (var i = 0; i < controls.Length; i++)
-        {
-            var control = controls[i];
-            var key = $"{path}[{i}]";
-            if (control is null)
-            {
-                errors.AddError(key, "יש להגדיר שדה תקין.");
-                continue;
-            }
-            ValidateId(control.Id, key, ids, errors);
-            if (!HasText(control.Label, NameLength) || !HasText(control.Meaning, MeaningLength) || control.Unit is { Length: > NameLength })
-                errors.AddError(key, "תווית השדה, המשמעות או היחידה אינן תקינות.");
-            if (control.Type is not ("text" or "integer" or "select" or "boolean") ||
-                (control.Type != "integer" && (control.Min.HasValue || control.Max.HasValue || control.Unit is not null)) ||
-                (control.Type != "text" && control.MaxLength.HasValue) || (control.Type != "select" && control.Options is not null) ||
-                control.Min > control.Max || control.MaxLength is < 1 or > TextValueLength)
-                errors.AddError(key, "סוג השדה וההגבלות אינם תואמים.");
-            if (control.Type == "select" && (control.Options is not { Length: >= 1 and <= MaxSelectOptions } ||
-                control.Options.Any(o => o is null || !HasText(o.Value, SelectOptionLength) || o.Value != o.Value.Trim() || o.Value.Contains('\n') || o.Value.Contains('\r') || o.Meaning is { Length: > SelectOptionMeaningLength }) ||
-                control.Options.Select(o => o.Value).Distinct(StringComparer.Ordinal).Count() != control.Options.Length))
-                errors.AddError(key, $"יש להגדיר עד {MaxSelectOptions} אפשרויות שונות ותקינות.");
-            if (control.Default is { ValueKind: not JsonValueKind.Null } value && ValidateControlValue(control, value) is { } error)
-                errors.AddError(key + ".default", error);
-        }
-    }
-
-    internal static string? ValidateControlValue(ControlDefinition definition, JsonElement value) => definition.Type switch
-    {
-        "text" when value.ValueKind == JsonValueKind.String && value.GetString()!.Length <= (definition.MaxLength ?? TextValueLength) &&
-            (!definition.Required || !string.IsNullOrWhiteSpace(value.GetString())) => null,
-        "integer" when value.ValueKind == JsonValueKind.Number && value.TryGetInt32(out var number) &&
-            !(number < definition.Min) && !(number > definition.Max) => null,
-        "boolean" when value.ValueKind is JsonValueKind.True or JsonValueKind.False => null,
-        "select" when value.ValueKind == JsonValueKind.String && definition.Options?.Any(o => o?.Value == value.GetString()) == true => null,
-        _ => "הערך אינו מתאים לסוג השדה או להגבלותיו."
-    };
-
     internal static ResolvedLength? ResolveLength(LengthExpectation? length) => length is null ? null :
-        new(length.Mode, length.Count?.Value, length.Lower, length.Upper);
+        new(length.Mode, length.Count, length.Lower, length.Upper);
 
-    internal static void ValidateFeasibility(int count, string[] formats, string? selectedFormat, int? choices,
+    private static void ValidateFeasibility(int count, string[] formats, int? choices,
         (string Source, string? Text, ResolvedLength? Length)[] materials, ResolvedLength? total,
         Dictionary<string, string[]> errors)
     {
         // Widen before multiplication: hostile counts cannot overflow or cause count-sized allocations.
-        long minimum = checked(1 + MinimumQuestionLength(count, formats, choices, selectedFormat));
+        long minimum = checked(1 + MinimumQuestionLength(count, formats, choices));
         long generatedMinimum = 0;
         var generatedCount = 0;
         foreach (var material in materials)

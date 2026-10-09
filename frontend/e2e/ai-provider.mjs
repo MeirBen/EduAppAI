@@ -39,13 +39,13 @@ export async function startAiProvider(port = 0) {
       const schema = input.response_format.json_schema.schema;
       assert.equal(schema.additionalProperties, false);
       const stage = input.response_format.json_schema.name.match(
-        /^content_first_(author|material_ideas|materials|material_polish|questions|replace_material|replace_question)_v[1-9]\d*$/,
+        /^content_first_(author|material_ideas|materials|material_polish|questions|replace_material|replace_question|revise|append_questions)_v[1-9]\d*$/,
       )?.[1];
       assert.ok(stage, 'Only supported content-first stages may reach the provider');
       const user = JSON.parse(input.messages[1].content);
       assert.ok(!input.messages[1].content.includes('@example.test'));
-      const effective = user.request ?? user;
-      const scenario = stage === 'author' ? user.message : effective.goal;
+      const effective = user.request ?? user.plan ?? user;
+      const scenario = stage === 'author' || stage === 'revise' ? user.message : effective.goal;
       const id = ++sequence;
       if (scenario.includes('בדיקת מכסה')) {
         response.writeHead(scenario.includes('בגוף התשובה') ? 200 : 429, {
@@ -67,36 +67,68 @@ export async function startAiProvider(port = 0) {
               },
               assumptions: [],
             }
-          : stage === 'material_ideas'
+          : stage === 'revise'
             ? {
-                ideas: Array.from({ length: 5 }, (_, index) => ({
-                  idea: {
-                    premise: 'גילוי מאובנים במסע ' + (index + 1),
-                    structure: 'פתיחה בגילוי, הסבר ושאלה למסע ' + (index + 1),
-                  },
-                  recentOverlap: 0,
-                })),
+                result: user.message.includes('הסברים')
+                  ? {
+                      answer: 'הוספת הסברים למפתח התשובות אינה נתמכת.',
+                      clarification: null,
+                      change: null,
+                    }
+                  : {
+                      answer: null,
+                      clarification: null,
+                      change: {
+                        plan: {
+                          ...user.plan,
+                          name: user.message.includes('שם') ? 'שם מעודכן' : user.plan.name,
+                        },
+                        assumptions: [],
+                        materialEdits: [],
+                        questions: { scope: 'none', instruction: null, items: [] },
+                        questionOrder: null,
+                      },
+                    },
               }
-            : stage === 'materials'
+            : stage === 'append_questions'
               ? {
-                  materials: effective.materials
-                    .filter((/** @type {{source: string}} */ m) => m.source === 'generated')
-                    .map(material),
+                  questions: Array.from({ length: user.additionalCount }, (_, index) =>
+                    question(effective, user.existing.questions.length + index),
+                  ),
                 }
-              : stage === 'material_polish'
-                ? { materials: user.materials }
-                : stage === 'replace_material'
-                  ? material(user.target)
-                  : stage === 'replace_question'
-                    ? question(effective, 0, true)
-                    : {
-                        title: 'לומדים על ' + effective.settings.topic,
-                        instructions: 'קראו ובדקו את תשובותיכם.',
-                        questions: Array.from(
-                          { length: effective.settings.questionCount },
-                          (_, index) => question(effective, index),
-                        ),
-                      };
+              : stage === 'material_ideas'
+                ? {
+                    ideas: Array.from({ length: 5 }, (_, index) => ({
+                      idea: {
+                        premise: 'גילוי מאובנים במסע ' + (index + 1),
+                        structure: 'פתיחה בגילוי, הסבר ושאלה למסע ' + (index + 1),
+                      },
+                      recentOverlap: 0,
+                    })),
+                  }
+                : stage === 'materials'
+                  ? {
+                      materials: effective.materials
+                        .filter(
+                          (/** @type {{source: string, id: string}} */ m) =>
+                            m.source === 'generated' && user.targetIds.includes(m.id),
+                        )
+                        .map(material),
+                    }
+                  : stage === 'material_polish'
+                    ? { materials: user.materials }
+                    : stage === 'replace_material'
+                      ? material(user.target)
+                      : stage === 'replace_question'
+                        ? question(effective, 0, true)
+                        : {
+                            title: 'לומדים על ' + effective.settings.topic,
+                            instructions: 'קראו ובדקו את תשובותיכם.',
+                            questions: Array.from(
+                              { length: effective.settings.questionCount },
+                              (_, index) => question(effective, index),
+                            ),
+                          };
       if (stage === 'material_ideas') {
         assert.equal(schema.properties.ideas.minItems, 5);
         assert.equal(schema.properties.ideas.maxItems, 5);
@@ -165,7 +197,7 @@ function plan(message, schemaVersion) {
     name: numeric ? 'תרגול מספרים' : 'חוקרים וקוראים',
     goal: message,
     guidance: '',
-    defaults: {
+    settings: {
       topic: numeric ? 'חשבון' : 'דינוזאורים',
       audience: 'כיתה ג׳',
       difficulty: 'easy',
@@ -177,7 +209,7 @@ function plan(message, schemaVersion) {
           {
             id: null,
             label: 'קטע קריאה',
-            source: supplied ? 'fixed' : 'generated',
+            source: supplied ? 'supplied' : 'generated',
             text: supplied ? '"שָׁלוֹם" — Hello!\nDon\'t change בעלי־חיים.\n' : null,
             guidance: '',
             length: supplied
@@ -186,41 +218,17 @@ function plan(message, schemaVersion) {
                 ? { mode: 'range', count: null, lower: 100, upper: 120 }
                 : {
                     mode: 'target',
-                    count: { value: 20, adjustable: true },
+                    count: 20,
                     lower: null,
                     upper: null,
                   },
-            controls: [],
           },
         ],
     questions: {
       formats: [numeric ? 'numeric-input' : 'text-input'],
-      selectableFormat: false,
-      defaultFormat: null,
       choiceCount: null,
       guidance: '',
-      controls: [],
     },
-    controls: message.includes('סגנון לבחירה')
-      ? [
-          {
-            id: null,
-            label: 'סגנון',
-            type: 'select',
-            meaning: 'סגנון הקטע',
-            required: true,
-            default: 'מידעי',
-            unit: null,
-            min: null,
-            max: null,
-            maxLength: null,
-            options: [
-              { value: 'מידעי', meaning: null },
-              { value: 'סיפורי', meaning: null },
-            ],
-          },
-        ]
-      : [],
     totalLength: null,
   };
 }

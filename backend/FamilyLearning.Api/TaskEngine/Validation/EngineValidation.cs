@@ -12,9 +12,6 @@ internal static class EngineValidation
     internal const int MaxQuestionCount = 20;
     internal const int MinChoiceCount = 2;
     internal const int MaxChoiceCount = 6;
-    // Stated in the authoring prompt, not as schema bounds: bounded control and option lists exceed provider schema budgets.
-    internal const int MaxControls = 16;
-    internal const int MaxSelectOptions = 20;
     internal const int MaxMaterials = 4;
     internal const int MaxPoints = 100;
     internal const int MaxChildAge = 120;
@@ -23,10 +20,6 @@ internal static class EngineValidation
     internal const int GoalLength = 500;
     internal const int GuidanceLength = 4000;
     internal const int ScopedGuidanceLength = 1000;
-    internal const int MeaningLength = 500;
-    internal const int TextValueLength = 500;
-    internal const int SelectOptionLength = 100;
-    internal const int SelectOptionMeaningLength = 200;
     internal const int SettingTextLength = 200;
     internal const int TitleLength = 100;
     internal const int InstructionsLength = 1000;
@@ -35,6 +28,13 @@ internal static class EngineValidation
     internal const int MessageLength = 4000;
     internal const int MaxContextTurns = 6;
     internal const int ContextLength = 12000;
+    internal const int RevisionReplyLength = 600;
+    internal const int EditInstructionLength = 500;
+    internal const int MaxSelectedEdits = 3;
+    internal const int MaxAssumptions = 8;
+    internal const int AssumptionLength = 200;
+    internal const int MaxChatTurns = 100;
+    internal const int AuthoringReplyLength = 1000;
     internal const int ListLimit = 100;
 
     internal static readonly string ContentLimitError = $"התוכן כולו מוגבל ל־{Count(ContentLimit)} תווים.";
@@ -42,15 +42,10 @@ internal static class EngineValidation
     /// <summary>Formats a limit for Hebrew feedback with invariant digit grouping, independent of server culture.</summary>
     internal static string Count(int value) => value.ToString("N0", CultureInfo.InvariantCulture);
 
-    internal static long MinimumQuestionLength(int count, string[] formats, int? choices, string? selectedFormat = null)
+    internal static long MinimumQuestionLength(int count, string[] formats, int? choices)
     {
-        int choiceQuestions;
-        if (selectedFormat is not null)
-            choiceQuestions = selectedFormat == "single-choice" ? count : 0;
-        else if (formats.Length == 1 && formats[0] == "single-choice")
-            choiceQuestions = count;
-        else
-            choiceQuestions = formats.Contains("single-choice") ? 1 : 0;
+        var choiceQuestions = formats.Length == 1 && formats[0] == "single-choice" ? count :
+            formats.Contains("single-choice") ? 1 : 0;
         return checked(2L * count + (long)choiceQuestions * (choices ?? 0));
     }
 

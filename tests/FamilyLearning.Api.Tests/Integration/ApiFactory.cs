@@ -1,4 +1,5 @@
 using System.Net.Http.Json;
+using System.Runtime.CompilerServices;
 using System.Text.Json;
 using FamilyLearning.Api.Infrastructure.Auth;
 using FamilyLearning.Api.Infrastructure.Persistence;
@@ -16,6 +17,8 @@ namespace FamilyLearning.Api.Tests.Integration;
 public sealed class ApiFactory(Action<IServiceCollection>? configureServices = null, string environment = "Development",
     string? storageDirectory = null) : WebApplicationFactory<Program>
 {
+    private static readonly ConditionalWeakTable<HttpClient, ApiFactory> Owners = new();
+    internal static ApiFactory For(HttpClient client) => Owners.GetValue(client, _ => throw new InvalidOperationException("Unknown test parent."));
     private readonly string dataDirectory = storageDirectory ?? Path.Combine(Path.GetTempPath(), "family-learning-tests", Guid.NewGuid().ToString());
 
     internal string DataDirectory => dataDirectory;
@@ -56,6 +59,7 @@ public sealed class ApiFactory(Action<IServiceCollection>? configureServices = n
         var login = await client.PostAsJsonAsync("/api/auth/login", new { email, password = "Testing!Passphrase123" });
         Assert.True(login.IsSuccessStatusCode, await login.Content.ReadAsStringAsync());
         await RefreshCsrfAsync(client);
+        Owners.Add(client, this);
         return client;
     }
 

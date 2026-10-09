@@ -8,7 +8,7 @@ namespace FamilyLearning.Api.TaskEngine.Ai;
 /// <summary>Application-owned JSON schemas for model output. Files hold structure; engine constants and request counts are applied here.</summary>
 internal static class AiSchemas
 {
-    public static readonly JsonElement Template = LoadTemplate();
+    public static readonly JsonElement Authoring = LoadAuthoring();
     public static readonly JsonElement Ideas = LoadIdeas();
     private static readonly JsonElement Materials = Read("materials.schema.json");
     private static readonly JsonElement Questions = Read("questions.schema.json");
@@ -36,15 +36,16 @@ internal static class AiSchemas
         return JsonSerializer.SerializeToElement(schema);
     }
 
-    public static JsonElement QuestionsFor(ResolvedTaskRequest request, int exactCountLimit, bool replacement = false)
+    public static JsonElement QuestionsFor(ResolvedTaskRequest request, int exactCountLimit, bool replacement = false, int? outputCount = null)
     {
         var schema = JsonSerializer.SerializeToNode(Questions)!;
         var questions = schema["properties"]!["questions"]!;
         // Above the endpoint's limit an exact-count array exceeds its schema budget; the prompt and validator own the count.
-        if (request.Settings.QuestionCount <= exactCountLimit)
+        var countToReturn = outputCount ?? request.Settings.QuestionCount;
+        if (countToReturn <= exactCountLimit)
         {
-            questions["minItems"] = request.Settings.QuestionCount;
-            questions["maxItems"] = request.Settings.QuestionCount;
+            questions["minItems"] = countToReturn;
+            questions["maxItems"] = countToReturn;
         }
         var interaction = questions["items"]!["properties"]!["interaction"]!["properties"]!;
         interaction["type"]!["enum"] = JsonSerializer.SerializeToNode(request.Questions.Formats);
@@ -56,18 +57,53 @@ internal static class AiSchemas
         // ["null"] is the portable null-only form; OpenRouter widens a standalone null type to a nullable string for Gemini.
         else interaction["options"] = new JsonObject { ["type"] = new JsonArray("null") };
         if (request.Questions.Formats is ["single-choice"]) interaction["options"]!["type"] = "array";
+        if (outputCount is not null)
+        {
+            schema["properties"]!.AsObject().Remove("title");
+            schema["properties"]!.AsObject().Remove("instructions");
+            schema["required"] = new JsonArray("questions");
+        }
         return JsonSerializer.SerializeToElement(replacement ? questions["items"] : schema);
     }
 
-    private static JsonElement LoadTemplate()
+    public static JsonElement RevisionFor(ActivityRevisionInput input)
     {
-        var schema = JsonSerializer.SerializeToNode(Read("template.schema.json"))!;
+        var schema = JsonSerializer.SerializeToNode(Read("activity-revision.schema.json"))!;
+        var definitions = schema["$defs"]!;
+        foreach (var definition in JsonSerializer.SerializeToNode(Authoring)!["$defs"]!.AsObject())
+            definitions[definition.Key] = definition.Value!.DeepClone();
+        var branches = schema["properties"]!["result"]!["anyOf"]!;
+        branches[0]!["properties"]!["answer"]!["maxLength"] = EngineValidation.RevisionReplyLength;
+        branches[1]!["properties"]!["clarification"]!["maxLength"] = EngineValidation.RevisionReplyLength;
+        var change = branches[2]!["properties"]!["change"]!["properties"]!;
+        change["assumptions"]!["maxItems"] = EngineValidation.MaxAssumptions;
+        change["assumptions"]!["items"]!["maxLength"] = EngineValidation.AssumptionLength;
+        change["questions"]!["properties"]!["instruction"]!["maxLength"] = EngineValidation.MessageLength;
+        ApplyTargets(change["materialEdits"]!, "materialEdit", input.Plan.Materials.Where(m => m.Source == "generated" && input.Current.Materials.Any(c => c.Id == m.Id)).Select(m => m.Id!).ToArray(), EngineValidation.MaxMaterials);
+        var questionIds = input.Current.Questions.Select(q => q.Id).ToArray();
+        ApplyTargets(change["questions"]!["properties"]!["items"]!, "questionEdit", questionIds, EngineValidation.MaxSelectedEdits);
+        change["questionOrder"]!["maxItems"] = questionIds.Length;
+        if (questionIds.Length > 0) change["questionOrder"]!["items"]!["enum"] = JsonSerializer.SerializeToNode(questionIds);
+        return JsonSerializer.SerializeToElement(schema);
+
+        void ApplyTargets(JsonNode array, string definition, string[] ids, int maximum)
+        {
+            array["maxItems"] = ids.Length == 0 ? 0 : maximum;
+            definitions[definition]!["properties"]!["instruction"]!["minLength"] = 1;
+            definitions[definition]!["properties"]!["instruction"]!["maxLength"] = EngineValidation.EditInstructionLength;
+            if (ids.Length > 0) definitions[definition]!["properties"]!["id"]!["enum"] = JsonSerializer.SerializeToNode(ids);
+        }
+    }
+
+    private static JsonElement LoadAuthoring()
+    {
+        var schema = JsonSerializer.SerializeToNode(Read("activity-authoring.schema.json"))!;
         var definitions = schema["$defs"]!;
         var plan = definitions["plan"]!["properties"]!;
         // Equal bounds pin the version portably; integer enums are not universally supported (OpenRouter erases this plan for Gemini).
         plan["schemaVersion"]!["minimum"] = EngineVersions.SchemaVersion;
         plan["schemaVersion"]!["maximum"] = EngineVersions.SchemaVersion;
-        plan["defaults"]!["properties"]!["questionCount"]!["maximum"] = EngineValidation.MaxQuestionCount;
+        plan["settings"]!["properties"]!["questionCount"]!["maximum"] = EngineValidation.MaxQuestionCount;
         return JsonSerializer.SerializeToElement(schema);
     }
 

@@ -15,6 +15,61 @@ namespace FamilyLearning.Api.Tests.Integration;
 public sealed class GenerationRaceTests
 {
     [Fact]
+    public async Task Undo_and_a_reply_only_operation_never_overwrite_each_others_chat()
+    {
+        var barrier = new UndoBarrier();
+        await using var app = new GenerationHarness(Questions(), """{"result":{"answer":"תשובה חדשה","clarification":null,"change":null}}""");
+        using var parent = await app.ParentAsync(services => services.AddScoped(provider => new LearningDbContext(
+            new DbContextOptionsBuilder<LearningDbContext>(provider.GetRequiredService<DbContextOptions<LearningDbContext>>()).AddInterceptors(barrier).Options)));
+        var draft = await Create(parent, Numeric(1));
+        await Start(parent, draft, "GenerateQuestions");
+        await app.Worker.RunNextAsync(default);
+        var undo = parent.PostAsJsonAsync(Path(draft) + "/undo", new { expectedRevision = 2 });
+        await barrier.Entered.Task.WaitAsync(TimeSpan.FromSeconds(10));
+        var revision = Task.Run(async () =>
+        {
+            using var started = await parent.PostAsJsonAsync(Path(draft) + "/operations", new
+            { operationKey = Guid.NewGuid(), expectedRevision = 2, kind = "Revise", message = "שאלה חדשה" });
+            if (started.StatusCode == HttpStatusCode.Accepted) await app.Worker.RunNextAsync(default);
+            return started.StatusCode;
+        });
+        try
+        {
+            // Allow the intervening exchange to finish if it is not serialized behind undo.
+            await Task.WhenAny(revision, Task.Delay(500));
+        }
+        finally { barrier.Resume.TrySetResult(); }
+        using var undone = await undo.WaitAsync(TimeSpan.FromSeconds(10));
+        Assert.Equal(HttpStatusCode.OK, undone.StatusCode);
+        var status = await revision.WaitAsync(TimeSpan.FromSeconds(10));
+        Assert.Contains(status, new[] { HttpStatusCode.Accepted, HttpStatusCode.Conflict });
+        var saved = (await parent.GetFromJsonAsync<JsonNode>(Path(draft)))!;
+        Assert.Contains(saved["chat"]!.AsArray(), t => t!["text"]!.GetValue<string>() == "השינוי האחרון בוטל והתוכן הקודם שוחזר.");
+        if (status == HttpStatusCode.Accepted)
+        {
+            Assert.Contains(saved["chat"]!.AsArray(), t => t!["text"]!.GetValue<string>() == "שאלה חדשה");
+            Assert.Contains(saved["chat"]!.AsArray(), t => t!["text"]!.GetValue<string>() == "תשובה חדשה");
+        }
+    }
+
+    private sealed class UndoBarrier : SaveChangesInterceptor
+    {
+        internal TaskCompletionSource Entered { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        internal TaskCompletionSource Resume { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public override async ValueTask<InterceptionResult<int>> SavingChangesAsync(DbContextEventData eventData,
+            InterceptionResult<int> result, CancellationToken cancellationToken = default)
+        {
+            if (eventData.Context!.ChangeTracker.Entries<ActivityDraft>().Any(e => e.State == EntityState.Modified &&
+                e.Entity.Chat.LastOrDefault()?.Text == "השינוי האחרון בוטל והתוכן הקודם שוחזר."))
+            {
+                Entered.TrySetResult();
+                await Resume.Task.WaitAsync(cancellationToken);
+            }
+            return result;
+        }
+    }
+
+    [Fact]
     public async Task A_generation_start_fences_a_release_that_already_read_the_draft()
     {
         var barrier = new ReleaseBarrier();
@@ -70,7 +125,7 @@ public sealed class GenerationRaceTests
         app.Chat.BeforeResponse = async token => { entered.SetResult(token); await resume.Task; };
         app.Chat.Usage = new() { InputTokenCount = 10, OutputTokenCount = 20 };
         using var parent = await app.ParentAsync();
-        var draft = await Create(parent, Supplied() with { Defaults = Numeric(1).Defaults });
+        var draft = await Create(parent, Supplied() with { Settings = Numeric(1).Settings });
         var operation = await Start(parent, draft);
         Task<bool>? work = null;
         CancellationToken providerToken = default;
@@ -90,25 +145,21 @@ public sealed class GenerationRaceTests
                 Assert.Equal(HttpStatusCode.OK, (await parent.PostAsync(OperationPath(operation) + "/cancel", null)).StatusCode);
             }
             else if (action == "delete") Assert.Equal(HttpStatusCode.NoContent, (await parent.DeleteAsync(Path(draft))).StatusCode);
-            else if (action == "reset") Assert.Equal(HttpStatusCode.NoContent, (await parent.DeleteAsync("/api/templates")).StatusCode);
+            else if (action == "reset") Assert.Equal(HttpStatusCode.NoContent, (await parent.DeleteAsync("/api/learning-data")).StatusCode);
             else
             {
                 var edit = Edit(draft);
                 if (action == "source") edit["plan"]!["materials"]![0]!["text"] = "מקור אחר — Hello!";
                 else edit["document"]!["title"] = "עריכה מקומית";
-                var saved = await Save(parent, draft, edit);
+                Assert.Equal(HttpStatusCode.Conflict, (await parent.PutAsJsonAsync(Path(draft), edit)).StatusCode);
                 if (action == "undo")
-                {
-                    edit = Edit(draft);
-                    edit["expectedRevision"] = saved["revision"]!.DeepClone();
-                    await Save(parent, saved, edit);
-                }
+                    Assert.Equal(HttpStatusCode.Conflict, (await parent.PostAsJsonAsync(Path(draft) + "/undo", new { expectedRevision = 1 })).StatusCode);
             }
         }
         finally { resume.TrySetResult(); }
         if (work is not null) await work.WaitAsync(TimeSpan.FromSeconds(10));
         else await app.Worker.RunNextAsync(default);
-        Assert.Equal(duringCall ? 1 : 0, app.Chat.Requests.Count);
+        Assert.Equal(duringCall || action is "edit" or "source" or "undo" ? 1 : 0, app.Chat.Requests.Count);
         if (action is "delete" or "reset")
         {
             Assert.Equal(HttpStatusCode.NotFound, (await parent.GetAsync(OperationPath(operation))).StatusCode);
@@ -117,15 +168,15 @@ public sealed class GenerationRaceTests
             return;
         }
         var state = (await parent.GetFromJsonAsync<JsonNode>(OperationPath(operation)))!;
-        Assert.Equal(action == "cancel" ? "cancelled" : "conflict", state["status"]!.GetValue<string>());
+        Assert.Equal(action == "cancel" ? "cancelled" : "completed", state["status"]!.GetValue<string>());
         var current = (await parent.GetFromJsonAsync<JsonNode>(Path(draft)))!;
-        Assert.Empty(current["document"]!["questions"]!.AsArray());
+        Assert.Equal(action == "cancel" ? 0 : 1, current["document"]!["questions"]!.AsArray().Count);
         Assert.Null(current["activeOperationId"]);
         if (duringCall && action == "cancel")
         {
             Assert.Equal(20, state["steps"]![0]!["usage"]!["outputTokens"]!.GetValue<long>());
             Assert.Null(state["artifacts"]!["steps"]![0]!["call"]);
-            Assert.Equal(2, current["revision"]!.GetValue<long>());
+            Assert.Equal(1, current["revision"]!.GetValue<long>());
         }
         else if (duringCall) Assert.NotNull(state["artifacts"]!["steps"]![0]!["candidate"]);
     }

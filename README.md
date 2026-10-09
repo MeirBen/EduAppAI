@@ -9,8 +9,11 @@ versions and never change existing activities. See the
 
 The [target product specification](docs/product-specification.md) simplifies
 this to **activity → saved draft → approval**, with chat beside the activity
-and no standalone templates. That redesign is not implemented yet; the quick
-start below describes the running app.
+and no standalone templates. Slice 1 implements its concrete plan, atomic
+Create/Revise, persistent chat and undo. The current workspace still has the
+staged/template UI; slice 2 replaces it before the coordinated data cutover.
+See the [slice-1 implementation record](docs/superpowers/plans/2026-10-08-activity-only-slice-1.md).
+The quick start below describes that current workspace.
 
 ## Parent and child quick start
 
@@ -200,10 +203,11 @@ full deletion contract.
 Development stores SQLite and Data Protection keys in the ignored
 `backend/FamilyLearning.Api/data/`. Set `Storage__Directory` to an absolute path
 to relocate them, using the same path for provisioning, migrations and runtime,
-and keep keys with the database so cookies survive restarts. Databases from
-before the content-first cutover cannot be upgraded: stop the app, delete
-`family-learning.db` with its `-wal`, `-shm` and `-journal` files, and run
-`./scripts/create-parent.sh` again.
+and keep keys with the database so cookies survive restarts. The activity-only
+redesign requires a coordinated fresh start for learning records; existing plan
+JSON is not converted. Keep parent accounts, families and AI configuration, and
+follow the [cutover contract](docs/product-specification.md#activity-only-cutover).
+Do not reset data as part of ordinary startup.
 
 For model changes, stop `dev.sh` first, since its watcher can apply an
 unfinished migration:

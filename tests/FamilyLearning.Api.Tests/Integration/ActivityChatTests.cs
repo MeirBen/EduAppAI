@@ -1,0 +1,176 @@
+using System.Net;
+using System.Net.Http.Json;
+using System.Text.Json.Nodes;
+using FamilyLearning.Api.TaskEngine.Models;
+using static FamilyLearning.Api.Tests.Integration.ActivityDraftTests;
+using static FamilyLearning.Api.Tests.TaskEngine.ActivityRevisionTests;
+using static FamilyLearning.Api.Tests.TaskEngine.ContentGenerationTests;
+using static FamilyLearning.Api.Tests.TaskEngine.LearningPlanFixture;
+
+namespace FamilyLearning.Api.Tests.Integration;
+
+public sealed class ActivityChatTests
+{
+    [Fact]
+    public async Task Create_checkpoints_are_private_and_failure_applies_nothing()
+    {
+        await using var app = new GenerationHarness(GenerationHarness.Ideas, GenerationHarness.Materials, "{}");
+        using var parent = await app.ParentAsync();
+        var draft = await Create(parent, Reading() with { Settings = Numeric(1).Settings });
+        var operation = await GenerationHarness.Start(parent, draft, "Create");
+        for (var i = 0; i < 3; i++)
+        {
+            await app.Worker.RunNextAsync(default);
+            var stored = (await parent.GetFromJsonAsync<JsonNode>(Path(draft)))!;
+            Assert.True(JsonNode.DeepEquals(draft["document"], stored["document"]));
+            Assert.Equal(1, stored["revision"]!.GetValue<long>());
+        }
+        var state = (await parent.GetFromJsonAsync<JsonNode>(GenerationHarness.OperationPath(operation)))!;
+        Assert.Equal("failed", state["status"]!.GetValue<string>());
+        var saved = (await parent.GetFromJsonAsync<JsonNode>(Path(draft)))!;
+        Assert.False(saved["canUndo"]!.GetValue<bool>());
+        Assert.Single(saved["chat"]!.AsArray());
+    }
+
+    [Fact]
+    public async Task Changing_revision_is_atomic_replay_has_one_parent_turn_and_undo_restores_content()
+    {
+        var plan = Numeric(1);
+        var changed = plan with { Name = "שם חדש" };
+        await using var app = new GenerationHarness(GenerationHarness.Questions(), Serialize(new { result = new RevisionDecision(null, null, Change(changed)) }));
+        using var parent = await app.ParentAsync();
+        var draft = await Create(parent, plan);
+        await GenerationHarness.Start(parent, draft, "Create");
+        await app.Worker.RunNextAsync(default);
+        draft = (await parent.GetFromJsonAsync<JsonNode>(Path(draft)))!;
+        Assert.Equal(2, draft["revision"]!.GetValue<long>());
+        var request = new { operationKey = Guid.NewGuid(), expectedRevision = 2, kind = "Revise", message = "שנה שם" };
+        var path = Path(draft) + "/operations";
+        using var started = await parent.PostAsJsonAsync(path, request);
+        Assert.Equal(HttpStatusCode.Accepted, started.StatusCode);
+        Assert.Equal(HttpStatusCode.Accepted, (await parent.PostAsJsonAsync(path, request)).StatusCode);
+        Assert.Equal(HttpStatusCode.Conflict, (await parent.PostAsJsonAsync(path, request with { message = "אחר" })).StatusCode);
+        Assert.Equal(HttpStatusCode.Conflict, (await parent.PutAsJsonAsync(Path(draft), Edit(draft))).StatusCode);
+        Assert.Equal(HttpStatusCode.Conflict, (await parent.PostAsJsonAsync(Path(draft) + "/undo", new { expectedRevision = 2 })).StatusCode);
+        await app.Worker.RunNextAsync(default);
+        var saved = (await parent.GetFromJsonAsync<JsonNode>(Path(draft)))!;
+        Assert.Equal("שם חדש", saved["plan"]!["name"]!.GetValue<string>());
+        Assert.True(JsonNode.DeepEquals(draft["document"], saved["document"]));
+        Assert.True(saved["canUndo"]!.GetValue<bool>());
+        Assert.Single(saved["chat"]!.AsArray(), t => t!["role"]!.GetValue<string>() == "parent");
+        using var undo = await parent.PostAsJsonAsync(Path(draft) + "/undo", new { expectedRevision = 3 });
+        Assert.Equal(HttpStatusCode.OK, undo.StatusCode);
+        saved = (await undo.Content.ReadFromJsonAsync<JsonNode>())!;
+        Assert.Equal(4, saved["revision"]!.GetValue<long>());
+        Assert.True(JsonNode.DeepEquals(draft["plan"], saved["plan"]));
+        Assert.False(saved["canUndo"]!.GetValue<bool>());
+        Assert.Equal(2, app.Chat.Requests.Count);
+    }
+
+    [Fact]
+    public async Task Refusal_and_cancel_preserve_revision_and_append_one_terminal_notice()
+    {
+        const string reply = "הסברים למפתח התשובות אינם נתמכים.";
+        await using var app = new GenerationHarness(Serialize(new { result = new RevisionDecision(reply, null, null) }));
+        using var parent = await app.ParentAsync();
+        var draft = await Create(parent, Numeric() with { Guidance = "הסברים למפתח התשובות" });
+        using var start = await parent.PostAsJsonAsync(Path(draft) + "/operations", new { operationKey = Guid.NewGuid(), expectedRevision = 1, kind = "Revise", message = "הוסף הסברים למפתח התשובות" });
+        Assert.Equal(HttpStatusCode.Accepted, start.StatusCode);
+        await app.Worker.RunNextAsync(default);
+        var saved = (await parent.GetFromJsonAsync<JsonNode>(Path(draft)))!;
+        Assert.Equal(1, saved["revision"]!.GetValue<long>());
+        Assert.True(JsonNode.DeepEquals(draft["plan"], saved["plan"]));
+        Assert.Equal(reply, saved["chat"]![1]!["text"]!.GetValue<string>());
+        var operation = await GenerationHarness.Start(parent, saved, "Create");
+        for (var i = 0; i < 2; i++) await parent.PostAsync(GenerationHarness.OperationPath(operation) + "/cancel", null);
+        saved = (await parent.GetFromJsonAsync<JsonNode>(Path(draft)))!;
+        Assert.Equal(1, saved["revision"]!.GetValue<long>());
+        Assert.Equal(3, saved["chat"]!.AsArray().Count);
+        Assert.Single(app.Chat.Requests);
+    }
+
+    [Fact]
+    public async Task Noops_refusals_and_failures_keep_undo_while_manual_save_clears_it()
+    {
+        var plan = Numeric(1);
+        await using var app = new GenerationHarness(GenerationHarness.Questions(),
+            Serialize(new { result = new RevisionDecision(null, null, Change(plan)) }),
+            Serialize(new { result = new RevisionDecision("לא נתמך", null, null) }), "{}");
+        using var parent = await app.ParentAsync();
+        var draft = await Create(parent, plan);
+        await GenerationHarness.Start(parent, draft, "GenerateQuestions");
+        await app.Worker.RunNextAsync(default);
+        draft = (await parent.GetFromJsonAsync<JsonNode>(Path(draft)))!;
+        using var other = await app.App.ParentAsync();
+        Assert.Equal(HttpStatusCode.NotFound, (await other.PostAsJsonAsync(Path(draft) + "/undo", new { expectedRevision = 2 })).StatusCode);
+        Assert.Equal(HttpStatusCode.Conflict, (await parent.PostAsJsonAsync(Path(draft) + "/undo", new { expectedRevision = 1 })).StatusCode);
+        for (var attempt = 0; attempt < 3; attempt++)
+        {
+            using var start = await parent.PostAsJsonAsync(Path(draft) + "/operations", new
+            { operationKey = Guid.NewGuid(), expectedRevision = 2, kind = "Revise", message = "בקשה" });
+            Assert.Equal(HttpStatusCode.Accepted, start.StatusCode);
+            await app.Worker.RunNextAsync(default);
+            var saved = (await parent.GetFromJsonAsync<JsonNode>(Path(draft)))!;
+            Assert.Equal(2, saved["revision"]!.GetValue<long>());
+            Assert.True(saved["canUndo"]!.GetValue<bool>());
+            Assert.True(JsonNode.DeepEquals(draft["document"], saved["document"]));
+        }
+        // A deliberate no-op manual save still consumes the previous AI undo checkpoint.
+        using var manual = await parent.PutAsJsonAsync(Path(draft), Edit(draft));
+        Assert.Equal(HttpStatusCode.OK, manual.StatusCode);
+        var after = (await manual.Content.ReadFromJsonAsync<JsonNode>())!;
+        Assert.Equal(2, after["revision"]!.GetValue<long>());
+        Assert.False(after["canUndo"]!.GetValue<bool>());
+    }
+
+    [Fact]
+    public async Task Chat_bounds_drop_the_oldest_completed_exchange_and_snapshots_exclude_parent_conversation()
+    {
+        var plan = Numeric(1);
+        await using var app = new GenerationHarness(GenerationHarness.Questions(), Serialize(new { result = new RevisionDecision("תשובה", null, null) }));
+        using var parent = await app.ParentAsync();
+        var turns = Enumerable.Range(0, 100).Select(i => new
+        { role = i % 2 == 0 ? "parent" : "assistant", text = "turn " + i, atUtc = DateTime.UtcNow }).ToArray();
+        Assert.Equal(HttpStatusCode.BadRequest, (await parent.PostAsJsonAsync("/api/activity-drafts", new { plan, chat = turns.Append(turns[0]) })).StatusCode);
+        using var created = await parent.PostAsJsonAsync("/api/activity-drafts", new { plan, chat = turns });
+        Assert.Equal(HttpStatusCode.Created, created.StatusCode);
+        var draft = (await created.Content.ReadFromJsonAsync<JsonNode>())!;
+        await GenerationHarness.Start(parent, draft, "Create");
+        await app.Worker.RunNextAsync(default);
+        using var start = await parent.PostAsJsonAsync(Path(draft) + "/operations", new
+        { operationKey = Guid.NewGuid(), expectedRevision = 2, kind = "Revise", message = "השאלה הנוכחית" });
+        Assert.Equal(HttpStatusCode.Accepted, start.StatusCode);
+        await app.Worker.RunNextAsync(default);
+        var saved = (await parent.GetFromJsonAsync<JsonNode>(Path(draft)))!;
+        var chat = saved["chat"]!.AsArray();
+        Assert.InRange(chat.Count, 98, 100);
+        Assert.DoesNotContain(chat, t => t!["text"]!.GetValue<string>() is "turn 0" or "turn 1");
+        Assert.Equal("השאלה הנוכחית", chat[^2]!["text"]!.GetValue<string>());
+        Assert.Equal("תשובה", chat[^1]!["text"]!.GetValue<string>());
+        var payload = JsonNode.Parse(app.Chat.Requests[1].Input.Split('\n')[^1])!;
+        Assert.DoesNotContain(payload["context"]!.AsArray(), t => t!["text"]!.GetValue<string>() == "השאלה הנוכחית");
+        Assert.InRange(payload["context"]!.AsArray().Count, 1, 6);
+        using var release = await parent.PostAsJsonAsync(Path(draft) + "/release", new { expectedRevision = 2 });
+        Assert.Equal(HttpStatusCode.Created, release.StatusCode);
+        var snapshot = (await release.Content.ReadFromJsonAsync<JsonNode>())!;
+        Assert.Null(snapshot["chat"]);
+        Assert.Null(snapshot["undo"]);
+        using var copy = await parent.PostAsJsonAsync("/api/activity-drafts", new { snapshotId = snapshot["id"]!.GetValue<Guid>() });
+        Assert.Equal(HttpStatusCode.Created, copy.StatusCode);
+        Assert.Empty((await copy.Content.ReadFromJsonAsync<JsonNode>())!["chat"]!.AsArray());
+    }
+
+    [Fact]
+    public async Task Imported_chat_rejects_forged_operation_references_and_keeps_authoring_reply_bound()
+    {
+        await using var app = new ApiFactory();
+        using var parent = await app.ParentAsync();
+        var turn = new { role = "assistant", text = new string('א', 1000), atUtc = DateTime.UtcNow, target = (object?)null, assumptions = Array.Empty<string>() };
+        using var created = await parent.PostAsJsonAsync("/api/activity-drafts", new { plan = Numeric(), chat = new[] { turn } });
+        Assert.Equal(HttpStatusCode.Created, created.StatusCode);
+        var forged = JsonNode.Parse(Serialize(new { plan = Numeric(), chat = new[] { turn } }))!;
+        forged["chat"]![0]!["operationId"] = Guid.NewGuid();
+        Assert.Equal(HttpStatusCode.BadRequest, (await parent.PostAsJsonAsync("/api/activity-drafts", forged)).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, (await parent.PostAsJsonAsync("/api/activity-drafts", new { plan = Numeric(), chat = new[] { turn with { text = new string('א', 1001) } } })).StatusCode);
+    }
+}

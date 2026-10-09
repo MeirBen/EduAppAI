@@ -70,6 +70,7 @@ public static class ApiConfiguration
         // Successful writes to library content notify the family's open change streams.
         var library = api.MapGroup("").PublishesLibraryChanges();
         library.MapActivityEndpoints();
+        library.MapLearningDataEndpoints();
         library.MapGenerationOperationEndpoints();
         library.MapPlanTemplateEndpoints();
         library.MapSnapshotEndpoints();

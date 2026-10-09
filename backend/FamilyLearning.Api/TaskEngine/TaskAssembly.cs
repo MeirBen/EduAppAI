@@ -10,6 +10,8 @@ namespace FamilyLearning.Api.TaskEngine;
 /// without unsafe-input errors. Repairable draft diagnostics may remain.</remarks>
 public static class TaskAssembly
 {
+    internal static TaskDocument AlignSources(ResolvedTaskRequest request, TaskDocument current) =>
+        current with { Materials = RestoreSources(request, current.Materials) };
     /// <summary>Starts a fresh activity with accepted supplied sources and no generated content.</summary>
     public static TaskDocument CreateDocument(ResolvedTaskRequest request) =>
         new("", null, RestoreSources(request, []), []);
@@ -39,12 +41,14 @@ public static class TaskAssembly
     /// <summary>Applies only a complete valid generated batch, restoring supplied originals and plan order.</summary>
     /// <remarks>Each generated material records the <paramref name="idea"/> it was written from.</remarks>
     public static MaterialAcceptance AcceptMaterials(ResolvedTaskRequest request, TaskDocument current, MaterialCandidateBatch candidate,
-        GenerationMetadata? metadata = null, MaterialIdea? idea = null)
+        GenerationMetadata? metadata = null, MaterialIdea? idea = null, string[]? targets = null)
     {
         var errors = new Dictionary<string, string[]>();
         var fingerprint = TaskRequestResolver.Fingerprint(request);
         var needsMaterials = request.Materials.Any(m => m.Source == "generated" && NeedsMaterial(current, m.Id, fingerprint));
-        var expected = request.Materials.Where(m => m.Source == "generated" && needsMaterials).ToArray();
+        var expected = request.Materials.Where(m => m.Source == "generated" && (targets is null ? needsMaterials : targets.Contains(m.Id))).ToArray();
+        if (targets is not null && (targets.Length == 0 || targets.Length != expected.Length || targets.Distinct(StringComparer.Ordinal).Count() != targets.Length))
+            throw TargetError("materials");
         if (candidate is null)
         {
             errors.AddError("candidate", "יש לציין חומרים שנוצרו.");
@@ -99,7 +103,7 @@ public static class TaskAssembly
     /// <summary>Checks the app-selected target before a material call; supplied originals can never be replaced by AI.</summary>
     public static MaterialContent MaterialTarget(MaterialReplacementInput input)
     {
-        RequireSafe(input.Request, input.Current);
+        RequireSafe(input.Request, input.Current, deferAggregate: input.PendingIds is not null);
         RequireInstruction(input.Instruction);
         var target = input.Current.Materials.FirstOrDefault(m => m.Id == input.MaterialId);
         if (target is null || !input.Request.Materials.Any(m => m.Id == input.MaterialId && m.Source == "generated"))
@@ -134,8 +138,10 @@ public static class TaskAssembly
                 : m with { Acceptance = new(fingerprint, []) }).ToArray(),
             Questions = CopyQuestions(input.Current.Questions)
         };
-        var check = TaskDocumentValidator.ValidateMaterials(input.Request, document);
-        var errors = TaskDocumentValidator.ValidateAdoption(input.Request, document, [target.Id], [], check);
+        // A later sibling rewrite can shrink the total. Enforce combined capacity when all rewritten materials are final.
+        var pending = input.PendingIds is { Length: > 0 };
+        var check = TaskDocumentValidator.ValidateMaterials(input.Request, document, deferCapacity: pending);
+        var errors = TaskDocumentValidator.ValidateAdoption(input.Request, document, [target.Id], [], check, deferAggregate: pending);
         if (errors.Count > 0) throw new TaskValidationException(errors);
         return document;
     }
@@ -158,12 +164,15 @@ public static class TaskAssembly
         return document;
     }
 
-    /// <summary>Checks a polish of every generated material before the call; all materials must be current and strict-valid.</summary>
+    /// <summary>Checks explicit polish targets before the call; all materials must be current and strict-valid.</summary>
     public static MaterialContent[] MaterialPolishTargets(PolishInput input)
     {
         RequireSafe(input.Request, input.Current);
         RequireMaterials(TaskDocumentValidator.ValidateMaterials(input.Request, input.Current));
-        var targets = input.Current.Materials.Where(m => input.Request.Materials.Any(r => r.Id == m.Id && r.Source == "generated")).ToArray();
+        var targets = input.Current.Materials.Where(m => input.Request.Materials.Any(r => r.Id == m.Id && r.Source == "generated") &&
+            (input.TargetIds is null || input.TargetIds.Contains(m.Id))).ToArray();
+        if (input.TargetIds is not null && (targets.Length != input.TargetIds.Length || input.TargetIds.Distinct(StringComparer.Ordinal).Count() != targets.Length))
+            throw TargetError("materials");
         return targets.Length > 0 ? targets : throw TargetError("materials");
     }
 
@@ -240,12 +249,40 @@ public static class TaskAssembly
         return document;
     }
 
+    /// <summary>Validates the combined batch before allocating IDs; original content, identity and task fields are preserved.</summary>
+    public static TaskDocument AppendQuestions(QuestionAdditionInput input, QuestionAdditionBatch candidate, GenerationMetadata? metadata = null)
+    {
+        PrepareQuestions(input.Request, input.Current);
+        var additions = candidate?.Questions;
+        if (input.Count is < 1 or > MaxQuestionCount || additions is null || additions.Length != input.Count ||
+            input.Current.Questions.Length + input.Count != input.Request.Settings.QuestionCount)
+            throw TargetError("questions");
+        var originals = input.Current.Questions.Select(q => new QuestionCandidate(q.Prompt, q.Interaction, q.Answer, q.Points)).ToArray();
+        var combined = new QuestionCandidateBatch(input.Current.Title, input.Current.Instructions, [.. originals, .. additions]);
+        var errors = TaskDocumentValidator.ValidateQuestionBatch(input.Request, input.Current, combined);
+        var existingCheck = TaskDocumentValidator.ValidateDraft(input.Request, input.Current);
+        foreach (var error in existingCheck.Errors) errors.AddError(error.Key, error.Value[0]);
+        foreach (var diagnostic in existingCheck.Diagnostics.Where(d => d.Key != "questions")) errors.AddError(diagnostic.Key, diagnostic.Value[0]);
+        var seen = originals.Select(QuestionPair).ToHashSet(StringComparer.Ordinal);
+        foreach (var addition in additions)
+            if (addition is not null && !seen.Add(QuestionPair(addition))) errors.AddError("questions", "השאלות החדשות חייבות להיות שונות מהשאלות הקיימות וזו מזו.");
+        if (errors.Count > 0) throw new TaskValidationException(errors);
+        var fingerprint = TaskRequestResolver.Fingerprint(input.Request);
+        var sources = input.Current.Materials.Select(m => new MaterialRevision(m.Id, m.Revision)).ToArray();
+        var questions = additions.Select(q => new DocumentQuestion(Guid.NewGuid().ToString("N"), q.Prompt, CopyInteraction(q.Interaction), q.Answer, q.Points,
+            new("generated", input.Request.EngineRevision, fingerprint, metadata), new(fingerprint, sources.ToArray()))).ToArray();
+        return input.Current with { Questions = [.. CopyQuestions(input.Current.Questions), .. questions] };
+    }
+
+    private static string QuestionPair(QuestionCandidate question) => question.Prompt?.Trim() + "\n" +
+        System.Text.Json.JsonSerializer.Serialize(question.Interaction, EngineJson.Options);
+
     private static bool NeedsMaterial(TaskDocument current, string id, string fingerprint) =>
         current.Materials.FirstOrDefault(m => m.Id == id)?.Acceptance?.InputFingerprint != fingerprint;
 
-    private static void RequireSafe(ResolvedTaskRequest request, TaskDocument current)
+    private static void RequireSafe(ResolvedTaskRequest request, TaskDocument current, bool deferAggregate = false)
     {
-        var errors = TaskDocumentValidator.ValidateDraft(request, current).Errors;
+        var errors = TaskDocumentValidator.ValidateDraft(request, current, null, deferAggregate).Errors;
         if (errors.Count > 0) throw new TaskValidationException(errors);
     }
 

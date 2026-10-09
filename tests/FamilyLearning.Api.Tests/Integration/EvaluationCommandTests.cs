@@ -55,13 +55,13 @@ public sealed class EvaluationCommandTests : IDisposable
             {
                 var plan = LearningPlanFixture.Reading() with
                 {
-                    Defaults = new("דינוזאורים", "כיתה ג", "easy", 4),
+                    Settings = new("דינוזאורים", "כיתה ג", "easy", 4),
                     Materials = [LearningPlanFixture.Reading().Materials[0] with
                     {
-                        Id = null, Controls = [],
+                        Id = null,
                         Length = new("range", Lower: 100, Upper: 150)
                     }],
-                    Questions = new(["single-choice"], false, null, new(4, false), "", [])
+                    Questions = new(["single-choice"], 4, "")
                 };
                 output = JsonNode.Parse(StructuredEvaluationTests.Proposal(plan))!;
             }

@@ -20,7 +20,7 @@ internal sealed class GenerationHarness(params string[] responses) : IAsyncDispo
     private ApiFactory? app;
     internal string? StorageDirectory { get; init; }
     internal ApiFactory App => app ?? throw new InvalidOperationException("Create a parent before accessing the test host.");
-    internal AiFixtures.ScriptedChat Chat { get; } = new(responses);
+    internal AiFixtures.ScriptedChat Chat { get; init; } = new(responses);
     internal TestClock Clock { get; } = new();
     internal IConfiguration Configuration { get; } = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
     { ["Ai:Model"] = "isolated", ["Ai:RequestTimeoutSeconds"] = "1" }).Build();

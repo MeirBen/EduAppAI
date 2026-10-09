@@ -89,6 +89,8 @@ public sealed class LearningDbContext(DbContextOptions<LearningDbContext> option
             entity.Property(d => d.Revision).IsConcurrencyToken();
             // Starting work does not advance content revision, but must still fence an already-read release.
             entity.Property(d => d.ActiveOperationId).IsConcurrencyToken();
+            entity.Property(d => d.ReleasedSnapshotId).IsConcurrencyToken();
+            entity.Property(d => d.UndoJson).IsConcurrencyToken();
             entity.Property(d => d.CreatedAtUtc).HasConversion(utcTimestamp);
             entity.Property(d => d.UpdatedAtUtc).HasConversion(utcTimestamp);
             entity.HasIndex(d => new { d.FamilyId, d.UpdatedAtUtc });

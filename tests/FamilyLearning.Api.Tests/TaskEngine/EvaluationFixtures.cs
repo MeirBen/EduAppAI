@@ -10,7 +10,7 @@ internal static class EvaluationFixtures
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
     internal static LearningPlan Plan(int count = 2) => LearningPlanFixture.Numeric(count) with
     {
-        Defaults = new("דינוזאורים", "כיתה ג׳", "easy", count),
+        Settings = new("דינוזאורים", "כיתה ג׳", "easy", count),
         Questions = LearningPlanFixture.Numeric().Questions with { Formats = ["text-input"] }
     };
     internal static JsonNode Definition() => JsonNode.Parse(StructuredEvaluationTests.Proposal(Plan()))!;

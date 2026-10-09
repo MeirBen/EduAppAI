@@ -10,8 +10,8 @@ import {
   PlanTemplateDetail,
   ActivityDetail,
   ActivitySummary,
+  ImportedChatTurn,
   EditableActivity,
-  ActivityInput,
   StartGeneration,
   GenerationOperation,
   SnapshotPreview,
@@ -37,7 +37,7 @@ export class LearningApi {
   authorPlan(request: PlanAuthoringRequest, cancelled: Observable<void>, lifetime: DestroyRef) {
     return requestResult(
       this.http
-        .post<PlanAuthoringReply>('/api/ai/template-drafts', request)
+        .post<PlanAuthoringReply>('/api/ai/activity-plans', request)
         .pipe(takeUntil(cancelled)),
       lifetime,
     );
@@ -59,14 +59,14 @@ export class LearningApi {
   }
   createActivity(
     plan: LearningPlan,
-    input: ActivityInput,
     template: PlanTemplateDetail | undefined,
     lifetime: DestroyRef,
+    chat?: ImportedChatTurn[],
   ) {
     return requestResult(
       this.http.post<ActivityDetail>('/api/activity-drafts', {
         plan,
-        input,
+        ...(chat?.length ? { chat } : {}),
         ...(template ? { templateId: template.id, expectedVersion: template.currentVersion } : {}),
       }),
       lifetime,
@@ -76,16 +76,16 @@ export class LearningApi {
     id: string,
     expectedRevision: number,
     plan: LearningPlan,
-    input: ActivityInput,
     document: EditableActivity,
     lifetime: DestroyRef,
+    sourceReplacements?: { id: string; text: string }[],
   ) {
     return requestResult(
       this.http.put<ActivityDetail>(`/api/activity-drafts/${id}`, {
         expectedRevision,
         plan,
-        input,
         document,
+        ...(sourceReplacements?.length ? { sourceReplacements } : {}),
       }),
       lifetime,
     );
@@ -109,6 +109,12 @@ export class LearningApi {
   releaseActivity(id: string, expectedRevision: number, lifetime: DestroyRef) {
     return requestResult(
       this.http.post<SnapshotPreview>(`/api/activity-drafts/${id}/release`, { expectedRevision }),
+      lifetime,
+    );
+  }
+  undoActivity(id: string, expectedRevision: number, lifetime: DestroyRef) {
+    return requestResult(
+      this.http.post<ActivityDetail>(`/api/activity-drafts/${id}/undo`, { expectedRevision }),
       lifetime,
     );
   }
@@ -174,7 +180,7 @@ export class LearningApi {
   }
   /** Clears all family content, children, device access and assigned work beyond list limits; keeps accounts and AI settings. */
   resetLibrary(lifetime: DestroyRef) {
-    return requestResult(this.http.delete<void>('/api/templates'), lifetime);
+    return requestResult(this.http.delete<void>('/api/learning-data'), lifetime);
   }
   /** Removes a snapshot from the library: archives assigned content, deletes unassigned content; other items remain. */
   deleteSnapshot(id: string, lifetime: DestroyRef) {

@@ -70,7 +70,7 @@ public static class EvaluationRunner
                     report.Results.Add(result);
                     if (scenario.InitialPlan is null && !await AuthorPlanAsync(scenario, result)) continue;
                     var plan = result.Plan!;
-                    var resolution = TaskRequestResolver.Resolve(plan, scenario.InitialInput ?? new(scenario.SettingsOverride ?? plan.Defaults));
+                    var resolution = TaskRequestResolver.Resolve(plan);
                     result.Checks["inputResolution"] = resolution.Value is not null;
                     if (resolution.Value is not { } input)
                     {
@@ -179,7 +179,7 @@ public static class EvaluationRunner
                 {
                     if (index == 0) result.Authoring = step;
                     else result.Refinements[index - 1] = step;
-                }, (evidence, token) => engine.AuthorAsync(new TemplateAuthoringInput(message, result.Plan, context.ToArray()), token, evidence));
+                }, (evidence, token) => engine.AuthorAsync(new ActivityAuthoringInput(message, result.Plan, context.ToArray()), token, evidence));
                 if (reply is null) { result.InterpretationPassed = false; await SaveAsync(); return false; }
                 var call = index == 0 ? result.Authoring! : result.Refinements[index - 1];
                 if (reply.Proposal is { } proposal)
