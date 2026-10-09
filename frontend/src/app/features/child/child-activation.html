@@ -1,6 +1,6 @@
-<section class="panel mx-auto grid max-w-lg gap-6" aria-labelledby="activation-title">
+<section class="panel mx-auto grid max-w-card gap-6" aria-labelledby="activation-title">
   <header class="grid gap-1">
-    <h1 id="activation-title" class="text-2xl">כניסה לפעילויות</h1>
+    <h1 id="activation-title">כניסה לפעילויות</h1>
     <p class="text-muted">כתבו את הקוד שקיבלתם מההורה.</p>
   </header>
   <form class="grid gap-4" (submit)="activate($event)" novalidate>
@@ -9,7 +9,7 @@
       <input
         id="activation-code"
         type="text"
-        class="tracking-widest uppercase"
+        class="code"
         dir="ltr"
         autocomplete="off"
         autocapitalize="characters"

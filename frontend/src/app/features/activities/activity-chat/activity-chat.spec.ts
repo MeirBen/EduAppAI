@@ -6,7 +6,7 @@ import { ActivityChat } from './activity-chat';
 @Component({
   imports: [ActivityChat],
   template:
-    '<app-activity-chat [fields]="fields" [configured]="configured()" [busy]="busy()" [clarification]="question()" [refining]="refining()" (sent)="submitted = raw().message" />',
+    '<app-activity-chat [fields]="fields" [configured]="configured()" [busy]="busy()" [clarification]="question()" [refining]="refining()" [thread]="thread()" (sent)="submitted = raw().message" />',
 })
 class Host {
   readonly raw = signal({ message: '', consolidated: '' });
@@ -15,6 +15,7 @@ class Host {
   readonly question = signal('');
   readonly busy = signal(false);
   readonly refining = signal(false);
+  readonly thread = signal<{ role: 'parent' | 'assistant'; text: string }[]>([]);
   submitted = '';
 }
 describe('ActivityChat presentation', () => {
@@ -107,6 +108,14 @@ describe('ActivityChat presentation', () => {
     host.busy.set(false);
     await fixture.whenStable();
     expect(document.activeElement?.id).toBe('chat-message');
+    // Once there is history, a finished reply leaves focus on it rather than in the field.
+    host.thread.set([{ role: 'assistant', text: 'תשובה' }]);
+    root.querySelector<HTMLButtonElement>('#chat-send')!.focus();
+    host.busy.set(true);
+    await fixture.whenStable();
+    host.busy.set(false);
+    await fixture.whenStable();
+    expect(document.activeElement?.getAttribute('role')).toBe('log');
     const other = document.body.appendChild(document.createElement('input'));
     other.focus();
     host.busy.set(true);

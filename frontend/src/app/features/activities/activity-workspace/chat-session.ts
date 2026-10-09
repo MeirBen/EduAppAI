@@ -1,5 +1,5 @@
-import { afterNextRender, computed, DestroyRef, inject, Injector, signal } from '@angular/core';
-import { applyEach, disabled, form, maxLength, validate } from '@angular/forms/signals';
+import { computed, DestroyRef, inject, signal } from '@angular/core';
+import { disabled, form, maxLength } from '@angular/forms/signals';
 import { Subject } from 'rxjs';
 import { apiError } from '../../../core/api/api-error';
 import { LearningApi } from '../../../core/api/learning-api';
@@ -11,23 +11,22 @@ import {
   LearningPlan,
   RevisionTarget,
 } from '../../../core/api/models';
-import { focusHolder } from '../../../shared/focus-holder';
 import { DocumentForm } from '../activity-document-editor/document-form';
 import { planChangeLabel } from '../activity-presentation';
 import { isRunning } from '../generation-status/operation-state';
 
 /**
- * Local conversation, composer and attached sources for one workspace. Create in its injection
- * context; the workspace owns content/revision fences and the server owns saved chat and operations.
+ * Local conversation and composer for one workspace. Create in its injection context; the
+ * workspace owns content/revision fences and the server owns saved chat and operations.
  */
 export class ChatSession {
   private readonly api = inject(LearningApi);
   private readonly limits = inject(Limits).current;
   private readonly lifetime = inject(DestroyRef);
-  private readonly injector = inject(Injector);
-  private readonly holdFocus = focusHolder();
   private readonly cancelled = new Subject<void>();
   private settledOperation: string | undefined;
+  /** An admitted revision's request; its saved parent turn shows it, so the field it came from is empty. */
+  private admitted?: { text: string; field: 'message' | 'consolidated' };
   private targetPrefix = '';
 
   readonly selectedTarget = signal<RevisionTarget | undefined>(undefined);
@@ -56,12 +55,6 @@ export class ChatSession {
       )
     );
   });
-  readonly addedSources = signal<{ label: string; text: string; confirmedText: string }[]>([]);
-  readonly sourcesReady = computed(
-    () =>
-      this.additionFields().valid() &&
-      this.addedSources().every((source) => source.text === source.confirmedText),
-  );
   readonly chat = signal({ message: '', consolidated: '' });
   /** Unanswered authoring requests return to the composer on failure, Stop or a local edit. */
   private readonly request = signal<{ id: string; text: string; consolidate: boolean } | undefined>(
@@ -87,28 +80,12 @@ export class ChatSession {
         this.limits.contextLength,
   );
   readonly hasComposerWork = computed(
-    () =>
-      !!this.chat().message.trim() ||
-      !!this.chat().consolidated.trim() ||
-      this.addedSources().some((source) => !!source.label || !!source.text),
+    () => !!this.chat().message.trim() || !!this.chat().consolidated.trim(),
   );
   readonly chatFields = form(this.chat, (path) => {
     disabled(path, () => this.locked() || this.authoring());
     maxLength(path.message, this.limits.messageLength);
     maxLength(path.consolidated, this.limits.messageLength);
-  });
-  readonly additionFields = form(this.addedSources, (path) => {
-    disabled(path, () => this.locked());
-    applyEach(path, (source) => {
-      validate(source.label, ({ value }) =>
-        value().trim() ? undefined : { kind: 'required', message: 'יש להזין שם לטקסט.' },
-      );
-      maxLength(source.label, this.limits.nameLength);
-      validate(source.text, ({ value }) =>
-        value().trim() ? undefined : { kind: 'required', message: 'יש להזין טקסט.' },
-      );
-      maxLength(source.text, this.limits.bodyLength);
-    });
   });
 
   constructor(
@@ -148,41 +125,6 @@ export class ChatSession {
     }));
     this.targetPrefix = '';
     this.selectedTarget.set(undefined);
-  }
-
-  addSource() {
-    if (this.locked() || this.addedSources().length >= this.limits.maxMaterials) return;
-    const index = this.addedSources().length;
-    this.addedSources.update((sources) => [...sources, { label: '', text: '', confirmedText: '' }]);
-    afterNextRender(() => this.additionFields[index].label().focusBoundControl(), {
-      injector: this.injector,
-    });
-  }
-
-  confirmAddedSource(index: number) {
-    if (this.locked()) return;
-    const fields = this.additionFields[index]();
-    fields.markAsTouched();
-    if (fields.invalid()) {
-      this.authorError.set('תקנו את השדות המסומנים.');
-      return;
-    }
-    const restoreFocus = this.holdFocus();
-    this.authorError.set('');
-    this.addedSources.update((sources) =>
-      sources.map((source, i) =>
-        i === index ? { ...source, confirmedText: source.text } : source,
-      ),
-    );
-    restoreFocus('chat-message');
-  }
-
-  removeAddedSource(index: number) {
-    if (this.locked()) return;
-    const restoreFocus = this.holdFocus();
-    this.addedSources.update((sources) => sources.filter((_, i) => i !== index));
-    this.authorError.set('');
-    restoreFocus('add-chat-source');
   }
 
   cancelAuthor() {
@@ -276,7 +218,18 @@ export class ChatSession {
     return undefined;
   }
 
-  /** Saved replies consume only incorporated sources; external work never replaces local input. */
+  /** The server now holds the request as a parent turn, so its field clears; a failed run returns it. */
+  admitRevision(text: string) {
+    const field = this.chat().consolidated === text ? 'consolidated' : 'message';
+    if (this.chat()[field] !== text) return;
+    this.admitted = { text, field };
+    this.chat.update((chat) => ({ ...chat, [field]: '' }));
+  }
+
+  /**
+   * A finished own request clears its target; a failed or stopped one returns to the composer for
+   * an explicit new attempt, even after a reload. External work never replaces local input.
+   */
   settleOperation(draft: ActivityDetail, operation: GenerationOperation | undefined, own: boolean) {
     if (
       operation?.kind !== 'Revise' ||
@@ -290,38 +243,19 @@ export class ChatSession {
       (turn) => turn.role === 'parent' && turn.operationId === operation.id,
     );
     if (!turn) return;
-    const completed = operation.status === 'completed';
-    const unconsumed = (source: { text: string }) =>
-      !completed ||
-      !draft.plan.materials.some(
-        (material) => material.source === 'supplied' && material.text === source.text,
-      );
-    if (turn.text === this.chat().message) {
-      if (completed) {
-        this.chat.update((chat) => ({ ...chat, message: '' }));
-        this.targetPrefix = '';
-        this.selectedTarget.set(undefined);
-        this.addedSources.update((sources) => sources.filter(unconsumed));
-      }
-      return;
-    }
-    if (this.chat().message || this.chat().consolidated || this.addedSources().length) return;
-    if (!operation.artifacts) {
-      this.authorError.set(
-        'פרטי הבקשה הקודמת כבר אינם זמינים. כתבו אותה מחדש והוסיפו את הטקסט הדרוש.',
-      );
-      return;
-    }
-    this.addedSources.set(
-      (operation.artifacts.sources ?? [])
-        .filter(unconsumed)
-        .map((source) => ({ ...source, confirmedText: source.text })),
-    );
-    if (!completed) {
-      this.chat.update((chat) => ({ ...chat, message: turn.text }));
+    const admitted = this.admitted?.text === turn.text ? this.admitted : undefined;
+    this.admitted = undefined;
+    if (operation.status === 'completed') {
       this.targetPrefix = '';
-      this.selectedTarget.set(turn.target ?? undefined);
+      this.selectedTarget.set(undefined);
+      return;
     }
+    if (this.chat().message || this.chat().consolidated) return;
+    this.chat.update((chat) => ({ ...chat, [admitted?.field ?? 'message']: turn.text }));
+    // This page still holds the request's target; after a reload it comes back from the saved turn.
+    if (admitted) return;
+    this.targetPrefix = '';
+    this.selectedTarget.set(turn.target ?? undefined);
   }
 
   private appendReply(message: string, reply: string, assumptions: string[], resolved: boolean) {

@@ -10,14 +10,14 @@ namespace FamilyLearning.Api.Features.Activities;
 /// <summary>Original request identity; replay is compared before checking the draft's current revision.</summary>
 public sealed record StartGenerationRequest([property: JsonRequired] Guid OperationKey, [property: JsonRequired] long ExpectedRevision,
     [property: JsonRequired] string Kind,
-    string? Message = null, RevisionTarget? Target = null, ConfirmedSource[]? Sources = null);
+    string? Message = null, RevisionTarget? Target = null);
 
 /// <summary>Pinned requirements and stage inputs. These private parent diagnostics expire after terminal retention.</summary>
 /// <remarks><see cref="SelectedIdea"/> is set by the material-ideas checkpoint and read by material writing.</remarks>
 public sealed record GenerationArtifacts(ResolvedTaskRequest Input, TaskDocument Current, string? Message,
     GenerationStepArtifact[] Steps, GenerationHistory History, MaterialIdea? SelectedIdea,
     LearningPlan Plan, RevisionWork? Scope = null, int RewriteIndex = 0, int QuestionIndex = 0,
-    RevisionTurn[]? Context = null, ConfirmedSource[]? Sources = null, RevisionTarget? Target = null,
+    RevisionTurn[]? Context = null, RevisionTarget? Target = null,
     string? Reply = null, string[]? Assumptions = null);
 
 /// <summary>Recent family ideas and question prompts captured once at admission, without identities or answer keys.</summary>

@@ -33,18 +33,22 @@ public sealed class ActivityDraft(Guid familyId, string name, string planJson, s
 
     internal void AppendTurn(ActivityChatTurn turn) => ChatJson = StoredJson.Write(ActivityChat.Append(Chat, turn));
 
-    internal void CompleteChat(GenerationOperation operation, DateTime now, string? reply = null, string[]? assumptions = null)
+    /// <summary>Records the operation's single reply: the model's own text, else its applied changes, else its outcome.</summary>
+    internal void CompleteChat(GenerationOperation operation, DateTime now, string? reply = null, string[]? assumptions = null,
+        string[]? changes = null)
     {
         if (Chat.Any(t => t.Role == "assistant" && t.OperationId == operation.Id)) return;
-        var text = reply ?? operation.Status switch
+        var summary = reply is null ? changes : null;
+        var text = reply ?? (summary is not null ? "" : operation.Status switch
         {
             "completed" => "הפעולה הושלמה.",
             "cancelled" => "הפעולה נעצרה. התוכן השמור לא השתנה.",
             "unknown" => "הפעולה הופסקה ותוצאת קריאת ה־AI אינה ידועה. התוכן השמור לא השתנה.",
             "conflict" => "הפעולה לא הוחלה כי מצב הטיוטה השתנה.",
             _ => "הפעולה לא הושלמה. התוכן השמור לא השתנה."
-        };
-        AppendTurn(new("assistant", text, now, OperationId: operation.Id, Assumptions: assumptions, Outcome: operation.Status));
+        });
+        AppendTurn(new("assistant", text, now, OperationId: operation.Id, Assumptions: assumptions, Outcome: operation.Status,
+            Changes: summary));
     }
 
     /// <summary>Stages the active reference; its concurrency token fences release without advancing the content revision.</summary>
@@ -71,7 +75,7 @@ public sealed class ActivityDraft(Guid familyId, string name, string planJson, s
     }
 
     /// <summary>Stages the accepted content and its factual notice; a null notice means there was no saved change.</summary>
-    internal string? ApplyOperation(LearningPlan plan, TaskDocument document, string kind)
+    internal string[]? ApplyOperation(LearningPlan plan, TaskDocument document, string kind)
     {
         var planJson = StoredJson.Write(plan);
         var documentJson = StoredJson.Write(document);

@@ -18,11 +18,11 @@
   @if (children.error()) {
     <p class="field-error" role="alert">{{ failure(children.error()) }}</p>
     <button
-      class="text-link justify-self-start"
+      class="text-link"
       [disabledInteractive]="disabled() || children.isLoading()"
       (click)="children.reload()"
     >
-      רענון הפרופילים
+      <span class="icon icon-refresh" aria-hidden="true"></span>רענון הפרופילים
     </button>
   }
   @if (children.hasValue()) {

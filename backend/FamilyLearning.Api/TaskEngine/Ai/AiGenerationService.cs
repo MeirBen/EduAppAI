@@ -42,7 +42,6 @@ public sealed class AiGenerationService(IEnumerable<IChatClient> clients, ILogge
             },
             input.Message,
             input.Target,
-            sources = input.Sources ?? [],
             context = input.Context ?? []
         };
         var result = await RequestAsync<RevisionCandidate>(AiPrompts.ActivityRevision, JsonSerializer.Serialize(payload, Json),

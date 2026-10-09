@@ -14,7 +14,7 @@
       [disabledInteractive]="assignments.isLoading()"
       (click)="assignments.reload()"
     >
-      רענון הפעילויות
+      <span class="icon icon-refresh" aria-hidden="true"></span>רענון הפעילויות
     </button>
   </header>
   <fieldset class="segmented">
@@ -34,10 +34,12 @@
   </fieldset>
   <app-loading-indicator [active]="assignments.isLoading()" label="מביאים את הפעילויות…" />
   @if (assignments.error(); as error) {
-    <p class="error" role="alert">{{ failure(error) }}</p>
-    @if (status(error) === 401) {
-      <a class="button justify-self-start" routerLink="/child/activate">כניסה מחדש</a>
-    }
+    <div class="grid gap-2">
+      <p class="error" role="alert">{{ failure(error) }}</p>
+      @if (status(error) === 401) {
+        <a class="button" routerLink="/child/activate">כניסה מחדש</a>
+      }
+    </div>
   }
   @if (assignments.hasValue()) {
     <div class="grid gap-4">

@@ -6,11 +6,14 @@ parent labels keep their original language and values.
 
 ## Layout and controls
 
-- Use native HTML, document scrolling and accessible controls. The header stays
-  visible on screens at least 64rem wide and 40rem tall; let it scroll away on
-  smaller screens. On phones it keeps one row: nav links show only their icons,
-  and the signed-in brand only its mark. Reserve scroll padding for focus
-  targets and include the skip link.
+- Use native HTML, document scrolling and accessible controls. The header,
+  page and footer share one `app-frame` (`max-w-page`), so their edges line up.
+  The header holds the brand and one primary nav: every signed-in destination
+  plus the quiet sign-out (`nav-link-quiet`). It stays visible on screens at
+  least 64rem wide and 40rem tall and scrolls away on smaller ones. Below tablet
+  width it keeps one row: nav links show only their icons, and on phones the
+  signed-in brand only its mark. The theme picker sits in the footer. Reserve
+  scroll padding for focus targets and include the skip link.
 - Route changes never move the layout: the root keeps a stable scrollbar
   gutter, the footer rests at the window's bottom on short pages, new pages
   open at the top and Back restores the previous position.
@@ -24,15 +27,18 @@ parent labels keep their original language and values.
   guarded by a confirmation. Actions size to their content. Keep one prominent
   action per card, with quieter edit links and `text-link-danger` deletions.
   Native disclosures reveal answers; their summary shares the select's chevron.
-- A page that edits or acts on one item ends with an `action-bar`: its save
-  state and one row of current actions, with their errors and recovery. Forms,
-  such as assignment, stay in their own panel so the bar never hides content.
-  It pins to the window's bottom while the window is at least 40rem tall at the
-  current text size, and scroll padding keeps focus clear of it. Its main row is
-  `action-bar-row`: `action-bar-actions`, then `action-bar-status`, which ends
-  at the far edge. On long working pages (`actionBar` with
-  `app-action-bar-toggle`) the pinned bar can shrink to its status line; an
-  alert always shows it whole.
+- A page that edits or acts on one item ends with an `action-bar`, a tinted
+  dock over the page: one row of current actions and its status, with their
+  errors and recovery above. Forms, such as assignment, stay in their own panel
+  so the bar never hides content. It pins to the window's bottom while the
+  window is at least 40rem tall at the current text size, and scroll padding
+  keeps focus clear of it. Its main row is `action-bar-row`: the actions, then
+  `action-bar-status`, which ends at the far edge. Every action leads with an
+  icon and keeps its label as its accessible name; on phones secondary actions
+  show only the icon, so the row stays one line at normal text sizes. On long
+  working pages (`actionBar` with `app-action-bar-toggle`) the pinned bar can
+  shrink to one row of icons; an alert always shows it whole. The `save-state`
+  is announced on every change and shows only when it needs attention.
 - Pages opened from the library lead back with a link above their heading. A
   `list-row` with a `row-link` opens from anywhere on the row, which shows the
   link's hover and focus; the row's other actions stay separate controls. A
@@ -57,9 +63,11 @@ parent labels keep their original language and values.
   Text areas grow with their text where the browser supports it, so the page
   scrolls once; numeric fields size to a few digits.
   Use the viewport-capped `gutter` spacing for narrow containers so padding does
-  not crowd enlarged text. On phones, buttons take the 44px control height, the
-  page heading steps down one size and list rows drop their decorative tile;
-  body and field text stay 16px. Preserve browser zoom, iOS text scaling and the
+  not crowd enlarged text. Buttons, links, fields, chips and icon buttons take
+  the theme's `--spacing-control` height: 44px for touch and 40px for a mouse.
+  On phones the page heading steps down one size and list rows drop their
+  decorative tile; body and field text stay 16px. Preserve browser zoom, iOS
+  text scaling and the
   production bundle budgets.
 - Label controls; associate errors with fields. Provide keyboard access, visible
   focus, loading status, error alerts and distinguishable repeated
@@ -90,8 +98,14 @@ parent labels keep their original language and values.
 ## Spacing
 
 Containers own `gap`; shared primitives have no outer margin. `main` owns the
-page padding, so page roots add none. Lists span the header width;
-editable/frozen activity documents use `max-w-3xl`.
+page padding, so page roots add none. Lists span the frame and sit on the page
+as
+raised `list-row`s; forms and documents sit in panels. A page with one reading
+column, such as an activity document, uses `max-w-reading` with its header
+inside
+it; a single centered card uses `max-w-card`. A failed read shows its alert
+above
+an `icon-refresh` retry link in a `grid gap-2`.
 
 | Token             | Use                                                     |
 | ----------------- | ------------------------------------------------------- |
@@ -120,17 +134,23 @@ below half-width. Render optional content only when present.
 - `theme.css` owns colors, elevations, corner radii, typography and motion.
   Tailwind's default palettes and scales are cleared, so templates can only use
   theme values.
+- `theme.css` also owns the layout widths (`--container-page`, `-reading`,
+  `-card`) and the control height (`--spacing-control`).
 - `utilities.css` owns project variants: `pinned-header`, `pinned-actions`, and
   `dark` for an explicit dark choice or a dark device without any explicit theme
   choice.
-- `base.css` styles elements, including native form controls and focus.
+- `base.css` styles elements, including native form controls and focus. A plain
+  `ul` reads as bullets; layout lists opt out with `role="list"`.
 - `components.css` holds every shared visual treatment, grouped as actions
-  (buttons, links, `icon-button` with its `tooltip`, `chip`, `segmented`
-  radios, `choice` answer cards), surfaces
-  (`panel`, `well`, `card-section`, `action-bar`, `list-row` with its
-  `row-link`, `empty-state`), conversation (`bubble`, `composer`), marks
-  (`badge`, `icon-tile`, `status-icon`, `ai-mark`), lists (`steps`) and
-  feedback (`loading`, `note`, `error`, `field-error`, `callout`).
+  (buttons, links, `nav-link`, `icon-button` with its `tooltip`, `chip`,
+  `segmented` radios, `choice` answer cards), the shell (`app-frame`,
+  `app-header`, `brand`, `brand-mark`), surfaces
+  (`panel`, `well`, `card-section`, `action-bar` with its
+  `save-state`, `list-row` with its `row-link` and `aria-current` selection,
+  `empty-state`), conversation (`chat-panel`, `chat-title`, `chat-message`,
+  `chat-reply`, `chat-latest`, `chat-target`, `composer`), marks (`badge`,
+  `icon-tile`, `status-icon`, `ai-mark`, `code`), lists (`steps`) and feedback
+  (`loading`, `note`, `error`, `field-error`, `callout`).
   Use `note`, with one icon, for a short fact about how the app behaves, such as
   kept text, costs or limits; help on what to enter stays plain text under its
   field. Use `error` for a failure that replaces a page's content and
@@ -143,23 +163,25 @@ such as `text-muted`. Color tints have one role each: `/15` for brand
 hairlines and focus halos, `/25` for the error edge and `/30` for hover edges.
 Repeated treatments become primitives, with state from `aria-current`,
 `data-done` or `data-problem` rather than alternative class lists. Keep visual
-CSS in these shared layers; components own markup, behavior and layout utilities,
+CSS in these shared layers; components own markup, behavior and layout
+utilities,
 without local stylesheets, inline visual overrides or separate theme branches.
 The shared `chat-panel` bounds desktop conversation history while keeping the
-composer visible.
+composer visible; below desktop width it is a sheet over the page.
 Give `steps`
 `role="list"` to preserve WebKit list semantics.
 
 A theme redefines semantic `--color-*` tokens and, optionally, the corner and
 elevation roles (`--radius-*`, `--shadow-*`) on the root. These stay runtime
 variables, including composed shadows, so templates need no `dark:` utilities.
-Shared styles use `shadow-(--shadow-panel)` and the corresponding roles to retain
+Shared styles use `shadow-(--shadow-panel)` and the corresponding roles to
+retain
 runtime shadow overrides; named shadow utilities inline their geometry at build
 time.
 Keep the contrast contract in `theme.css` for every theme
 and check each token on every surface, tint and translucent layer it meets.
 Forced colors drop backgrounds and rings, so a selected or current state that
-shows only through them adds a `forced-colors:` border. The header's theme
+shows only through them adds a `forced-colors:` border. The footer's theme
 picker follows the device by default. `Theme` stores an explicit choice in
 localStorage, since no server render needs a cookie. The inline script in
 `index.html` applies it before first paint, and CSS follows device changes
@@ -170,8 +192,10 @@ then register the preference in `Theme`, the pre-paint whitelist in `index.html`
 and `ThemePicker`. No feature template or component style needs to change.
 Device preference applies only while `data-theme` is absent. Extend the browser
 theme checks for the new palette: contrast, persisted/system selection and token
-overrides. This uses [Tailwind's theme variables](https://tailwindcss.com/docs/theme)
-and the native CSS cascade, without a theme registry or runtime stylesheet loader.
+overrides. This uses [Tailwind's theme
+variables](https://tailwindcss.com/docs/theme)
+and the native CSS cascade, without a theme registry or runtime stylesheet
+loader.
 
 ## Direction and copy
 
@@ -214,19 +238,23 @@ saved text; the settings summary uses application-owned labels.
 
 ## Parent learning management
 
-Family navigation sits below the main header. Profile/assignment lists use shared
-rows, native controls and `Pager`, which stays hidden while a list fits on one
-page. Empty states name the next step, or say that a filter or later page has
+Family pages are destinations in the header's primary nav. Profile/assignment
+lists use shared rows, native controls and `Pager`, which stays hidden while a
+list fits on one page. On wide screens the profile list sits beside its editor,
+and the row being edited carries `aria-current="true"`. Empty states name the
+next step, or say that a filter or later page has
 nothing more. Separate profile edits from device access; confirmations explain
 disable/revoke effects. Activation codes show large as `XXXX-XXXX`, selectable
 with expiry, never in URLs or persistent browser storage. Withdrawn rows offer
-restore, which needs no confirmation. Lists of children's work and a profile's devices
+restore, which needs no confirmation. Lists of children's work and a profile's
+devices
 refresh when the page becomes visible again (`refreshOnReturn`) and keep a
 refresh link.
 
 Grade (free text) and age (LTR integer, server bounds) are optional; each can
 be cleared, with no age-confirmation checkbox. Keep secondary dates under native
-“פרטי זמנים” disclosures at the end of their card. Follow the [cleanup contract](product-specification.md#profile-and-device-cleanup):
+“פרטי זמנים” disclosures at the end of their card. Follow the [cleanup
+contract](product-specification.md#profile-and-device-cleanup):
 unused profiles offer deletion, profiles with history disabling, active devices
 revocation and inactive devices removal.
 
@@ -242,11 +270,13 @@ logical utilities without separate stylesheets.
 Group creation, opening, last-save, submission and review dates in “פרטי זמנים”.
 Label elapsed time “זמן מהפתיחה עד ההגשה (כולל הפסקות)”, using minutes/hours or
 “פחות מדקה”. Unsubmitted work shows “עוד לא הוגשה”; missing/reversed timestamps
-show unavailable duration. See [timing semantics](product-specification.md#elapsed-activity-time).
+show unavailable duration. See [timing
+semantics](product-specification.md#elapsed-activity-time).
 
 ## Child learning
 
-Use `PageShell`, shared theme/controls and child-only home/disconnect navigation;
+Use `PageShell`, shared theme/controls and child-only home/disconnect
+navigation;
 no parent links or same-browser mode switch. Parent activation instructions give
 a copyable address for a separate browser, without the code. Explain persistent
 access and fresh activation after disconnect/revocation/expiry. An uncertain
@@ -260,10 +290,10 @@ edits and sending no surrounding spaces; text preserves whitespace. Choice
 questions are a fieldset whose legend is the prompt, with every option a
 `choice` card around its native radio, so long answers wrap rather than hide in
 a closed select. An answered question fills its number. The action bar owns
-save, submit, saved-work recovery and one status line whose items wrap only
-whole, with the save state at a fixed width so changing it never reflows the
-bar: save state, how many questions have answers and the time since the first
-start, which ticks only while work is open and the page is visible. The
+save, submit, saved-work recovery and one status line: the save state when it
+is unsaved, how many questions have answers (from tablet width; the filled
+numbers show it on phones) and the time since the first start, which ticks only
+while work is open and the page is visible. The
 saved-work check shows only while recovering or after submission, where it
 fetches the grade. Invalid submit focuses the first problem; missing answers
 need confirmation. Checkpoint reads never overwrite local text implicitly. A
@@ -283,40 +313,50 @@ store parallel page phases or keep a hidden template workspace mode.
 
 Before content exists, emphasize the request, the concrete requirements summary
 and any required source input/confirmation. Show settings read-only and change
-requirements through chat. Clearly distinguish unsaved initial setup from a
-saved draft; incomplete activity content can be saved and resumed later.
+requirements through chat. The first valid plan becomes a draft by itself, and
+incomplete content saves and resumes later.
 Keep each text's guidance and length beside its name, and show the number of
 answer choices. A combined text length is explicitly labelled as a total.
 
 Once content exists, show the activity as a readable document with chat beside
-it on wide screens and below it on phones. **עריכה** opens titles, instructions,
-texts, questions/options, answers and points in the same buffer. Successful
-manual save returns to reading; failure keeps the edits. **סיום עריכה** returns
-to reading with valid local changes retained and still unsaved; invalid fields
-stay open for correction. Structural changes use chat.
-Each text/question offers an accessible “ask about this” action that fills and
-focuses the composer without sending. Keep the selected target visible and
-update only the app-inserted prefix when switching targets, preserving parent
-text. At widths of 64rem and heights of 40rem or more, keep chat beside the
-document with only its history scrolling; expanded source forms and smaller
-screens use normal document flow. Respect enlarged browser text.
+it on wide screens. Below desktop width the chat is a sheet over the page: the
+action bar's AI button and every “ask about this” open it, and its close button
+or Escape returns focus to the control that opened it, with the page unmoved.
+**עריכה** opens titles, instructions, texts, questions/options, answers and
+points in the same buffer. Edits save themselves while editing; **סיום עריכה**
+returns to reading, and invalid fields stay open for correction. Structural
+changes use chat. Each text/question offers an accessible “ask about this”
+action that fills and focuses the composer without sending. Keep the selected
+target visible and update only the app-inserted prefix when switching targets,
+preserving parent text. At widths of 64rem and heights of 40rem or more, keep
+chat beside the document with only its history scrolling; the action bar sits
+under the document column, so it never covers the chat, and the consolidation
+form uses normal flow. Respect enlarged browser text.
 
-Parent turns sit at the end edge; AI replies show `ai-mark`, committed changes
-and assumptions, with a typing bubble while pending. Enter sends; Shift+Enter
-adds a line. Send becomes Stop while retaining focus. Failure/cancellation keeps
-the request available for an explicit new attempt. `SuggestionChips` only fill
-fields and never send. Suggestions appear before the first exchange and apply
-to the current activity; mark AI execution actions with `icon-ai`.
+Parent turns sit at the end edge in a `chat-message`; assistant replies are open
+text beside `ai-mark`, and both chat forms share the action bar's tinted dock.
+What a reply changed lists under “מה השתנה” as `note` rows with a check, and its
+assumptions as `note` rows inside their disclosure. While a request runs, the
+assistant's thinking row (`LoadingIndicator variant="assistant"`) follows the
+turns. The history fades at its ends and, once the parent scrolls away from the
+latest turn, offers `chat-latest` to return. Enter sends; Shift+Enter adds a
+line. Send becomes Stop while retaining focus; when a reply arrives, focus that
+would be lost moves to the history, never into a field. A sent request leaves the
+composer for the history; failure/cancellation returns it for an explicit new
+attempt. `SuggestionChips` only fill fields and never send. Suggestions appear
+before the first exchange and apply to the current activity; mark AI execution
+actions with `icon-ai`.
 
-Use **יצירת הפעילות** for initial generation, **שמירת טיוטה** for a save and
-**אישור הפעילות** for explicit approval of the saved revision. The action bar
-shows the relevant action, save state and available Undo. Save/approval make no
-AI call. Keep source text confirmation separate from activity approval.
-Use “טקסט” for material and “הגדרות” for its requirements summary; source choices
-are “כתבו עבורי תוכן חדש” and “יש לי טקסט משלי”. Describe lengths as approximate
-word counts or strict ranges, without reusable-template terminology.
+Every valid change saves itself about a second after the parent pauses, without
+locking the fields; there is no save action. Use **יצירת הפעילות** for initial
+generation and **אישור הפעילות** for explicit approval of the saved revision.
+The action bar shows the relevant action and available Undo. Saving and approval
+make no AI call. Keep source text confirmation separate from activity approval.
+Use “טקסט” for material and “הגדרות” for its requirements summary; source
+choices are “כתבו עבורי תוכן חדש” and “יש לי טקסט משלי”. Describe lengths as
+approximate word counts or strict ranges, without reusable-template terminology.
 
-Save pending edits before AI starts; while active, keep the canvas readable,
+AI starts after saving any pending edit; while active, keep the canvas readable,
 pause editing and show truthful operation status with Stop. Apply a complete
 validated change at once. Failure/cancellation leaves saved content intact;
 reconcile uncertain responses with saved state. External saves/deletions offer
@@ -325,7 +365,8 @@ usage and raw output under **פרטים טכניים**; successful operations le
 quiet disclosure below the content. Never imply automatic paid retries.
 
 Question cards show prompts/options and disclose parent-only answers. Manual
-fields keep native labels; format is plain read-only text and points can use a disclosure.
+fields keep native labels; format is plain read-only text and points can use a
+disclosure.
 Remove separate scoped AI forms and manual add/remove/reorder controls when chat
 covers them.
 Show server diagnostics and length measurements beside their fields. After a
@@ -344,7 +385,8 @@ fields copy natively. Keep keyboard focus, screen-reader announcements, RTL and
 Keep the shared `LoadingIndicator` mounted outside `aria-busy` containers, with
 `active` bound to the request's pending state, so its empty live region exists
 before the status changes. Use `variant="panel"` for page loads and long AI
-calls and the default inline variant for shorter actions. Every variant fades in
+calls, `variant="assistant"` for the chat's thinking turn and the default inline
+variant for shorter actions. Every variant fades in
 only after a short delay, so quick requests never flash; the shell's
 `variant="bar"` reports navigation from above the page without shifting content.
 Set `label` and an optional `detail`; never invent progress percentages or

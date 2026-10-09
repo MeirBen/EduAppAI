@@ -49,7 +49,9 @@ transformations into a separate text to supplied texts; a requested change to a
 generated text changes it in place. The [everyday-edit run][activity-edits-43]
 then passed all eight chat edits. Revision 44 makes the schema version
 application-owned, which restores the Gemini rollback without a model-specific
-path.
+path. Revision 45 removes chat-attached sources from the revise input and prompt:
+chat never adds the parent's own text and refuses such requests; it has no live
+measurement yet.
 Revision 41 restores the measured authoring omission rule, shares planning
 defaults with revision, and keeps planning permissions out of content stages.
 Verification uses isolated providers and does not establish live-model quality.

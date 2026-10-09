@@ -1,8 +1,8 @@
 # Family Learning
 
-**Describe an activity → save a draft → create → review and edit → approve.**
-The activity opens as a readable document with chat beside it. Save incomplete
-work and return later, ask for changes or edit the content directly, then
+**Describe an activity → it becomes a draft → create → review and edit → approve.**
+The activity opens as a readable document with chat beside it. Incomplete work
+saves itself for later; ask for changes or edit the content directly, then
 approve the saved revision as a frozen snapshot for assignment.
 
 The [product specification](docs/product-specification.md) and
@@ -25,11 +25,11 @@ use the app's [public HTTPS address](#public-https-address), not `localhost`.
 1. Sign in with the parent account created during setup.
 2. Open `/children` and add a child profile; grade and age are optional.
 3. Describe an activity at `/activities/new`, review the settings and confirm
-   any supplied text. **שמירת טיוטה** saves without AI; **יצירת הפעילות** creates
-   the content in one operation. Read it, use chat for changes or **עריכה** for
-   manual edits, and save. **אישור הפעילות** freezes the reviewed revision;
-   open its preview to select a child and assign it. Resume drafts or open
-   approved activities from `/activities`.
+   any supplied text. Every change saves itself as a draft, without AI;
+   **יצירת הפעילות** creates the content in one operation. Read it, then use chat
+   for changes or **עריכה** for manual edits. **אישור הפעילות** freezes the
+   reviewed revision; open its preview to select a child and assign it. Resume
+   drafts or open approved activities from `/activities`.
 4. At `/children`, select that child, name the device and create an activation
    code. Give the child the displayed activation address and code; the code
    works once and expires after ten minutes.

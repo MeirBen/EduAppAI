@@ -13,7 +13,7 @@ converted or supported by the new contracts.
 
 ```text
 Describe an activity → create and refine its draft → approve when ready
-                                               ↘ save and resume later
+                                               ↘ it saves itself; resume later
 ```
 
 ## Activity lifecycle
@@ -21,10 +21,11 @@ Describe an activity → create and refine its draft → approve when ready
 1. **New activity:** describe the goal, audience and requirements in chat. AI
    proposes requirements or asks one focused clarification. Show a concise
    summary, collect required source text and confirm AI-extracted sources.
-2. **Draft:** once requirements and source inputs are valid, save the activity
-   and chat before generation. A draft may have missing texts/questions or
-   unresolved content diagnostics; saving it makes no AI call. Initial setup
-   before this checkpoint remains visibly unsaved and uses the navigation guard.
+2. **Draft:** once requirements and source inputs are valid, the activity and
+   its chat become a draft by themselves, before any generation. A draft may
+   have missing texts/questions or unresolved content diagnostics; saving makes
+   no AI call. Every later valid change saves itself after a short pause.
+   Initial setup before this checkpoint uses the navigation guard.
    While the draft has no questions or generated text, chat can update its
    requirements without generating content; Create remains explicit.
 3. **Create:** one parent-started operation generates the needed texts and
@@ -32,8 +33,10 @@ Describe an activity → create and refine its draft → approve when ready
    cancelled operation keeps the saved draft unchanged. The parent does not
    orchestrate separate writing, polish and question steps.
 4. **Refine or resume:** read the activity with chat alongside it. Chat changes
-   structure and requirements; explicit Edit opens content fields. Save manual
-   edits before starting AI and pause editing while it runs. Saved drafts can
+   structure and requirements; explicit Edit opens content fields, whose edits
+   save themselves. Starting AI first saves any pending edit, and editing pauses
+   while it runs. The parent's own texts come only from setup; chat never adds
+   one. Saved drafts can
    be reopened with their chat, status and available undo.
 5. **Approve:** review the saved content and answer keys, then explicitly mark
    the activity ready. Approval validates and freezes the saved revision; it
@@ -66,8 +69,8 @@ requirements belong to chat. Settings are a summary, not a template form.
   they still fit. Confirmation makes no AI call and must pass validation.
 - Keep one-level undo for the last successful chat change or question update,
   including structure changes, but not initial creation. It restores plan and
-  document together under a new revision; manual save, adoption and approval
-  clear it.
+  document together under a new revision; a saved manual edit, adoption and
+  approval clear it.
 
 The [activity chat design](activity-chat-design.md) owns the execution matrix,
 prompt/schema/context contracts, operation bounds and rollout checks.
@@ -80,10 +83,12 @@ Intermediate AI results stay in operation evidence; only final success changes
 saved content. Stop commits cancellation before stopping transport; a completion
 that already committed remains successful. Unknown outcomes are never retried
 automatically. Reuse the operation key to check a lost start response; check
-saved state after an uncertain save or approval. Conflicts preserve local edits.
+saved state after an uncertain save or approval. Conflicts preserve local edits
+and pause autosave until the saved version is loaded.
 
 The URL identifies the saved draft and operation. Chat and undo are parent-only
-draft state; unsaved field edits stay local. Another device's save/deletion is
+draft state; invalid field edits stay local until fixed. Another device's
+save/deletion is
 announced without silently replacing the current buffer. Draft deletion removes
 its operation history and chat, and late AI output cannot recreate it.
 

@@ -160,19 +160,17 @@ async function isolate(page: Page, format: 'numeric-input' | 'single-choice' = '
   };
 }
 
-test('sign-out respects a cancelled unsaved-work warning and asks only once when accepted', async ({
+test('sign-out asks before dropping unsaved work, and saves a waiting edit without asking', async ({
   page,
 }) => {
   const state = await isolate(page);
   await page.goto('/activities/draft');
-  await page.locator('#edit-activity').click();
-  await page.locator('#document-title').fill('שינוי שלא נשמר');
-  let accept = false;
+  const composer = page.locator('#chat-message');
+  await composer.fill('בקשה שלא נשלחה');
   let prompts = 0;
   page.on('dialog', async (dialog) => {
     prompts++;
-    if (accept) await dialog.accept();
-    else await dialog.dismiss();
+    await dialog.dismiss();
   });
   const signOut = page.getByRole('button', { name: 'יציאה', exact: true });
   await signOut.click();
@@ -180,16 +178,20 @@ test('sign-out respects a cancelled unsaved-work warning and asks only once when
   expect(prompts).toBe(1);
   expect(state.writes.filter((write) => write.path === '/api/auth/logout')).toHaveLength(0);
   await expect(page).toHaveURL(/\/activities\/draft$/);
-  await expect(page.locator('#document-title')).toHaveValue('שינוי שלא נשמר');
-  await page.locator('#save-activity').click();
-  await expect(page.getByText('נשמר', { exact: true })).toBeVisible();
+  await expect(composer).toHaveValue('בקשה שלא נשלחה');
 
+  // A valid edit still waiting for its pause saves on the way out instead of asking.
+  await composer.fill('');
   await page.locator('#edit-activity').click();
-  await page.locator('#document-title').fill('שינוי נוסף');
-  accept = true;
+  await page.locator('#document-title').fill('נשמר ביציאה');
   await signOut.click();
   await expect(page).toHaveURL(/\/login$/);
-  expect(prompts).toBe(2);
+  expect(prompts).toBe(1);
+  expect(
+    state.writes.find((write) => write.path === '/api/activity-drafts/draft')?.body,
+  ).toMatchObject({
+    document: { title: 'נשמר ביציאה' },
+  });
   expect(state.writes.filter((write) => write.path === '/api/auth/logout')).toHaveLength(1);
 });
 
@@ -199,8 +201,8 @@ test('failed sign-out keeps edits and asks again before a later attempt', async 
     route.fulfill({ status: 503, json: { title: 'לא ניתן לצאת כעת' } }),
   );
   await page.goto('/activities/draft');
-  await page.locator('#edit-activity').click();
-  await page.locator('#document-title').fill('שינוי שלא נשמר');
+  const composer = page.locator('#chat-message');
+  await composer.fill('בקשה שלא נשלחה');
   let prompts = 0;
   page.on('dialog', async (dialog) => {
     prompts++;
@@ -212,7 +214,7 @@ test('failed sign-out keeps edits and asks again before a later attempt', async 
   await expect(page.locator('#main-content > [role="alert"]')).toBeVisible();
   expect(prompts).toBe(1);
   await expect(page).toHaveURL(/\/activities\/draft$/);
-  await expect(page.locator('#document-title')).toHaveValue('שינוי שלא נשמר');
+  await expect(composer).toHaveValue('בקשה שלא נשלחה');
   await page.unroute('**/api/auth/logout');
   await signOut.click();
   await expect(signOut).toBeEnabled();
@@ -260,7 +262,6 @@ test('saves before generation, edits manually, reviews the current revision and 
   await expect(page.getByText('תרגול חדש', { exact: true })).toBeVisible();
   await page.locator('#edit-activity').click();
   await page.locator('#question-0-answer').fill('9');
-  await page.locator('#save-activity').click();
   await expect(page.getByText('נשמר', { exact: true })).toBeVisible();
   expect(state.writes.filter((w) => w.path.endsWith('/operations'))).toHaveLength(1);
   page.once('dialog', (dialog) => dialog.accept());
@@ -285,9 +286,13 @@ test('supports keyboard content editing with fixed structure at 360px and 200% t
   await page.setViewportSize({ width: 360, height: 800 });
   await page.goto('/activities/draft');
   await page.locator('#create-activity').click();
+  // On phones the chat is a sheet; its opener shows the running work and leads to Stop.
+  await expect(page.locator('#open-chat')).toHaveAttribute('aria-busy', 'true');
+  await page.locator('#open-chat').click();
   await expect(page.locator('#chat-cancel')).toBeVisible();
   state.complete();
   await expect(page.locator('#chat-cancel')).toBeHidden();
+  await page.keyboard.press('Escape');
   await page.locator('#edit-activity').click();
   await expect(page.locator('#question-0-prompt')).toBeVisible();
   await textSize(page, 32);

@@ -62,21 +62,18 @@ public sealed class ActivityRevisionTests
     }
 
     [Fact]
-    public void Source_addition_requires_exact_confirmed_text_and_retained_sources_cannot_be_rewritten()
+    public void Chat_never_adds_or_rewrites_the_parents_own_text()
     {
         var plan = Supplied();
-        var input = new ActivityRevisionInput(plan, TaskAssembly.CreateDocument(Resolve(plan)), "הוסף מקור", Sources: [new("חדש", Source)]);
-        var proposed = plan with { Materials = [.. plan.Materials, new(null, "חדש", "supplied", "", Source, null)] };
-        var result = ActivityRevisionValidator.Validate(new(null, null, Change(proposed)), input);
-        Assert.NotNull(result.Change!.Plan.Materials[1].Id);
-        Assert.Equal(Source, result.Change.Plan.Materials[1].Text);
-        Assert.Throws<TaskValidationException>(() => ActivityRevisionValidator.Validate(new(null, null, Change(proposed)), input with { Sources = [] }));
-        proposed = plan with { Materials = [plan.Materials[0] with { Text = "edited" }] };
-        Assert.Throws<TaskValidationException>(() => ActivityRevisionValidator.Validate(new(null, null, Change(proposed)), input));
+        var input = new ActivityRevisionInput(plan, TaskAssembly.CreateDocument(Resolve(plan)), "הוסף מקור");
+        var added = plan with { Materials = [.. plan.Materials, new(null, "חדש", "supplied", "", Source, null)] };
+        Assert.Throws<TaskValidationException>(() => ActivityRevisionValidator.Validate(new(null, null, Change(added)), input));
+        var edited = plan with { Materials = [plan.Materials[0] with { Text = "edited" }] };
+        Assert.Throws<TaskValidationException>(() => ActivityRevisionValidator.Validate(new(null, null, Change(edited)), input));
     }
 
     [Fact]
-    public void Retained_generated_identity_cannot_bypass_confirmed_source_addition()
+    public void Retained_generated_identity_cannot_become_the_parents_own_text()
     {
         var plan = Reading();
         var input = new ActivityRevisionInput(plan, TaskAssembly.CreateDocument(Resolve(plan)), "הוסף מקור");

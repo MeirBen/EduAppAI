@@ -168,14 +168,12 @@ export async function startAiProvider(port = 0) {
   return { endpoint: 'http://127.0.0.1:' + address.port, close: () => server.close() };
 }
 
-/** Test-only planner outcomes; supplied bodies stay exact through clarification and application.
- * @param {{ message: string, plan: import('../src/app/core/api/models').LearningPlan, sources: {label: string, text: string}[], target?: {kind: string, id: string} | null }} user
+/** Test-only planner outcomes; supplied bodies stay exact through application.
+ * @param {{ message: string, plan: import('../src/app/core/api/models').LearningPlan, target?: {kind: string, id: string} | null }} user
  */
 function revision(user) {
   if (user.message.includes('הסברים'))
     return { answer: 'הוספת הסברים למפתח התשובות אינה נתמכת.', clarification: null, change: null };
-  if (user.sources.length && user.message === 'שאלות על המקור')
-    return { answer: null, clarification: 'לאיזה גיל להכין שאלות על המקור?', change: null };
   return {
     answer: null,
     clarification: null,
@@ -183,24 +181,12 @@ function revision(user) {
       plan: {
         ...user.plan,
         name: user.message.includes('שם') ? 'שם מעודכן' : user.plan.name,
-        materials: [
-          ...user.plan.materials,
-          ...user.sources.map((source) => ({
-            id: null,
-            label: source.label,
-            source: 'supplied',
-            guidance: '',
-            text: source.text,
-            length: null,
-          })),
-        ],
       },
       assumptions: [],
       materialEdits: [],
       questionOrder: null,
-      questions: user.sources.length
-        ? { scope: 'all', instruction: null, items: [] }
-        : user.target?.kind === 'question'
+      questions:
+        user.target?.kind === 'question'
           ? {
               scope: 'selected',
               instruction: null,

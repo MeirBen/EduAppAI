@@ -4,13 +4,10 @@ namespace FamilyLearning.Api.TaskEngine.Models;
 
 /// <summary>Frozen parent-owned revision context; persistence evidence is projected out before provider access.</summary>
 public sealed record ActivityRevisionInput(LearningPlan Plan, TaskDocument Current, string Message,
-    RevisionTarget? Target = null, ConfirmedSource[]? Sources = null, RevisionTurn[]? Context = null);
+    RevisionTarget? Target = null, RevisionTurn[]? Context = null);
 
 /// <summary>An optional existing material or question selected by the parent.</summary>
 public sealed record RevisionTarget(string Kind, string Id);
-
-/// <summary>Exact source text explicitly confirmed before starting an operation.</summary>
-public sealed record ConfirmedSource([property: JsonRequired] string Label, [property: JsonRequired] string Text);
 
 /// <summary>Bounded conversation for interpretation; outcomes distinguish applied requests from failures.</summary>
 public sealed record RevisionTurn(string Role, string Text, RevisionTarget? Target = null, string? Outcome = null);

@@ -29,3 +29,15 @@
     }
   }
 }
+
+/* An action that keeps only its icon in a round control; its label stays the accessible name. */
+@utility icon-only {
+  @apply size-control grow-0 justify-center rounded-full px-0;
+
+  & > :not(.icon) {
+    @apply sr-only;
+  }
+  & > .icon {
+    @apply self-center [margin-block-start:0];
+  }
+}

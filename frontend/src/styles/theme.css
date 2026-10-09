@@ -44,6 +44,13 @@
 
   /* About 16px on phones and 20px from ~500px up; the viewport cap leaves room for enlarged text in nested panels. */
   --spacing-gutter: min(1.25rem, 4vw);
+  /* One control height for buttons, links, fields and chips: 44px for touch, 40px for a mouse (below). */
+  --spacing-control: 2.75rem;
+
+  /* Layout widths: the app frame, a reading column for documents and a single centered card. */
+  --container-page: 80rem;
+  --container-reading: 48rem;
+  --container-card: 32rem;
   --text-sm--line-height: 1.7;
   --text-base--line-height: 1.7;
   --text-lg--line-height: 1.7;
@@ -70,6 +77,8 @@
   --animate-loading-reveal: fade 0.25s ease-out 0.3s backwards;
   --animate-loading-spin: loading-spin 1.6s linear infinite;
   --animate-loading-sweep: loading-sweep 1.6s var(--ease-smooth) infinite;
+  --animate-thinking: thinking 1.6s ease-in-out infinite;
+  --animate-shimmer: shimmer 2.4s linear infinite;
 
   @keyframes enter {
     from {
@@ -86,6 +95,21 @@
   @keyframes loading-spin {
     to {
       rotate: 1turn;
+    }
+  }
+  @keyframes thinking {
+    50% {
+      scale: 0.86;
+      opacity: 0.7;
+    }
+  }
+  /* On a 200%-wide gradient these positions carry the highlight from the right edge to the left. */
+  @keyframes shimmer {
+    from {
+      background-position: -30% 0;
+    }
+    to {
+      background-position: 130% 0;
     }
   }
   @keyframes loading-sweep {
@@ -105,6 +129,10 @@
 @layer theme {
   :root {
     color-scheme: light;
+
+    @media (pointer: fine) {
+      --spacing-control: 2.5rem;
+    }
 
     @variant dark {
       color-scheme: dark;

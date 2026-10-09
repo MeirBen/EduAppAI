@@ -13,7 +13,7 @@
       [disabledInteractive]="busy() || assignments.isLoading()"
       (click)="assignments.reload()"
     >
-      רענון הפעילויות
+      <span class="icon icon-refresh" aria-hidden="true"></span>רענון הפעילויות
     </button>
   </header>
   <div class="grid gap-4 sm:grid-cols-2">
@@ -55,7 +55,7 @@
                 ><bdi>{{ assignment.title }}</bdi> — <bdi>{{ assignment.childName }}</bdi></a
               >
             </h2>
-            <p>
+            <p class="text-sm">
               {{ statuses[assignment.status]
               }}{{
                 assignment.status === 'assigned' && assignment.hasStarted ? ' · העבודה התחילה' : ''

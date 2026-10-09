@@ -104,10 +104,6 @@ test('the parent keeps their place: pages open at the top, focus follows the act
   await expect.poll(direction).toBe('ltr');
   await composer.fill('');
   await expect.poll(direction).toBe('rtl');
-  await page.locator('#save-activity').focus();
-  await page.keyboard.press('Enter');
-  await expect(page.getByText('נשמר', { exact: true })).toBeVisible();
-  await expect(page.locator('#save-activity')).toBeFocused();
   await page.locator('#create-activity').focus();
   await page.keyboard.press('Enter');
   await expect(page.locator('#chat-cancel')).toBeVisible();
@@ -162,7 +158,6 @@ test('prompt to activity, targeted chat, manual editing and an immutable approve
   await page.locator('#edit-activity').click();
   await page.locator('#question-0-prompt').fill('מה למדתם על הדינוזאורים?');
   await narrow(page, 'editing');
-  await page.locator('#save-activity').click();
   await expect(page.getByText('נשמר', { exact: true })).toBeVisible();
   draft = await (await page.request.get(state.draftPath)).json();
   expect(draft.document.questions[1]).toEqual(secondQuestion);
@@ -184,7 +179,6 @@ test('prompt to activity, targeted chat, manual editing and an immutable approve
   await page.getByRole('link', { name: 'פתיחת הטיוטה החדשה' }).click();
   await page.locator('#edit-activity').click();
   await page.locator('#document-title').fill('עותק לעריכה');
-  await page.locator('#save-activity').click();
   await expect(page.getByText('נשמר', { exact: true })).toBeVisible();
   await page.goto(frozenUrl);
   expect(await (await page.request.get(frozenPath)).json()).toEqual(frozen);
@@ -209,14 +203,11 @@ test('exact bilingual source bypasses material generation and missing answers bl
   );
   await page.locator('#edit-activity').click();
   await page.locator('#question-0-answer').fill('');
-  await page.locator('#save-activity').click();
   await expect(page.getByText('נשמר', { exact: true })).toBeVisible();
   await expect(page.getByText('חסרה תשובה נכונה.', { exact: true })).toBeVisible();
   await expect(page.locator('#release-activity')).toHaveAttribute('aria-disabled', 'true');
   expect(await (await page.request.get('/api/instances')).json()).toEqual([]);
-  await page.locator('#edit-activity').click();
   await page.locator('#question-0-answer').fill('דינוזאורים');
-  await page.locator('#save-activity').click();
   await expect(page.getByText('נשמר', { exact: true })).toBeVisible();
   page.once('dialog', async (dialog) => {
     expect(dialog.message()).toContain('לאשר את הפעילות');
@@ -275,7 +266,6 @@ test('revisions lock editing, support durable Undo and leave saved content intac
   await page.reload();
   await page.locator('#edit-activity').click();
   await page.locator('#document-title').fill('עריכה שחשוב לשמור');
-  await page.locator('#save-activity').click();
   await expect(page.getByText('נשמר', { exact: true })).toBeVisible();
   await expect(page.locator('#plan-undo')).toHaveAttribute('aria-disabled', 'true');
   const saved = await (await page.request.get(state.draftPath)).json();
@@ -671,20 +661,4 @@ test('Create and chat revisions persist across reload without changing content o
     .poll(async () => (await (await page.request.get(path)).json()).plan.name)
     .toBe(plan.name);
   expect((await (await page.request.get(path)).json()).document).toEqual(created.document);
-  const source = '  "שָׁלוֹם" — Hello!\nטקסט מדויק  ';
-  await page.getByText('הוספת טקסט שלכם לבקשה', { exact: true }).click();
-  await page.locator('#add-chat-source').click();
-  await page.locator('#chat-source-0-label').fill('מקור חדש');
-  await page.locator('#chat-source-0-text').fill(source);
-  await page.locator('#confirm-chat-source-0').click();
-  await finish(page, await start(page, 'שאלות על המקור'));
-  await expect(page.getByText('לאיזה גיל להכין שאלות על המקור?', { exact: true })).toBeVisible();
-  page.once('dialog', (dialog) => dialog.accept());
-  await page.reload();
-  await expect(page.locator('#chat-source-0-text')).toHaveValue(source);
-  await expect(page.locator('#confirm-chat-source-0')).toHaveCount(0);
-  const withSource = await finish(page, await start(page, 'לכיתה ג'));
-  expect(withSource.plan.materials[0].text).toBe(source);
-  expect(withSource.document.materials[0].body).toBe(source);
-  await expect(page.locator('#chat-source-0-text')).toHaveCount(0);
 });

@@ -2,7 +2,7 @@
 @let message = fields().message;
 <div class="chat-layout gap-4">
   @if (!start) {
-    <h2 id="change-title" class="flex items-center gap-3">
+    <h2 id="change-title" class="chat-title">
       <span class="ai-mark" aria-hidden="true"></span>רוצים לשנות משהו?
     </h2>
   }
@@ -12,89 +12,103 @@
       יכין הגדרות לבדיקה. אחר כך תוכלו לשמור טיוטה וליצור את הפעילות.
     </p>
   }
-  <div
-    #history
-    class="chat-thread grid gap-4"
-    role="log"
-    aria-live="polite"
-    aria-label="השיחה עם העוזר"
-    [attr.tabindex]="thread().length ? 0 : null"
-    (scroll)="followHistory()"
-  >
-    @for (turn of thread(); track $index; let last = $last) {
-      @if (turn.role === 'parent') {
-        <div class="bubble bubble-own motion-safe:animate-enter">
-          <span class="sr-only">הבקשה שלכם:</span>
-          <p class="whitespace-pre-wrap" dir="auto">{{ turn.text }}</p>
-        </div>
-      } @else {
-        <div class="flex items-start gap-3 motion-safe:animate-enter">
-          <span class="ai-mark" aria-hidden="true"></span>
-          <div class="bubble bubble-reply grid min-w-0 gap-4">
-            <span class="sr-only">העוזר:</span>
-            <p
-              class="whitespace-pre-wrap"
-              dir="auto"
-              [id]="last && clarification() ? 'chat-clarification' : null"
-            >
-              {{ turn.text }}
-            </p>
-            @if (last && changes().length) {
-              <div class="grid gap-1 text-sm">
-                <p class="font-medium">מה השתנה:</p>
-                <ul class="list-disc ps-6">
-                  @for (change of changes(); track $index) {
-                    <li>{{ change }}</li>
-                  }
-                </ul>
+  <div class="chat-history relative">
+    <div
+      #history
+      class="chat-thread"
+      role="log"
+      aria-live="polite"
+      aria-label="השיחה עם העוזר"
+      [attr.tabindex]="thread().length ? 0 : null"
+      (scroll)="followHistory()"
+    >
+      <div #turns class="grid gap-4">
+        @for (turn of thread(); track $index; let last = $last) {
+          @if (turn.role === 'parent') {
+            <div class="chat-message motion-safe:animate-fade">
+              <span class="sr-only">הבקשה שלכם:</span>
+              <p class="whitespace-pre-wrap" dir="auto">{{ turn.text }}</p>
+            </div>
+          } @else {
+            <div class="chat-reply motion-safe:animate-fade">
+              <span class="ai-mark" aria-hidden="true"></span>
+              <div>
+                <span class="sr-only">העוזר:</span>
+                @if (turn.text) {
+                  <p
+                    class="whitespace-pre-wrap"
+                    dir="auto"
+                    [id]="last && clarification() ? 'chat-clarification' : null"
+                  >
+                    {{ turn.text }}
+                  </p>
+                }
+                @let turnChanges = turn.changes ?? (last ? changes() : []);
+                @if (turnChanges.length) {
+                  <div class="grid gap-1">
+                    <p class="text-sm font-medium">מה השתנה</p>
+                    <ul role="list" class="grid gap-1">
+                      @for (change of turnChanges; track $index) {
+                        <li class="note">
+                          <span class="icon icon-check" aria-hidden="true"></span>{{ change }}
+                        </li>
+                      }
+                    </ul>
+                  </div>
+                }
+                @let turnAssumptions = turn.assumptions ?? [];
+                @if (turnAssumptions.length) {
+                  <details class="text-sm">
+                    <summary>הנחות שהעוזר הניח</summary>
+                    <ul role="list" class="grid gap-1">
+                      @for (assumption of turnAssumptions; track $index) {
+                        <li class="note" dir="auto">
+                          <span class="icon icon-info" aria-hidden="true"></span>{{ assumption }}
+                        </li>
+                      }
+                    </ul>
+                  </details>
+                }
               </div>
-            }
-            @let turnAssumptions = turn.assumptions ?? [];
-            @if (turnAssumptions.length) {
-              <details class="text-sm">
-                <summary>הנחות שהעוזר הניח</summary>
-                <ul class="list-disc ps-6">
-                  @for (assumption of turnAssumptions; track $index) {
-                    <li dir="auto">{{ assumption }}</li>
-                  }
-                </ul>
-              </details>
-            }
+            </div>
+          }
+        }
+        @if (pending()) {
+          <div class="chat-message motion-safe:animate-fade">
+            <span class="sr-only">הבקשה שלכם:</span>
+            <p class="whitespace-pre-wrap" dir="auto">{{ pending() }}</p>
           </div>
-        </div>
-      }
-    }
-    @if (pending()) {
-      <div class="bubble bubble-own motion-safe:animate-enter">
-        <span class="sr-only">הבקשה שלכם:</span>
-        <p class="whitespace-pre-wrap" dir="auto">{{ pending() }}</p>
+        }
       </div>
+    </div>
+    @if (moreAfter()) {
+      <button id="chat-latest" type="button" class="icon-button chat-latest" (click)="showLatest()">
+        <span class="icon icon-down" aria-hidden="true"></span
+        ><span class="tooltip">מעבר להודעה האחרונה</span>
+      </button>
     }
   </div>
   <app-loading-indicator
-    [class]="busy() ? 'bubble bubble-reply w-fit max-w-full' : ''"
+    variant="assistant"
     [active]="busy()"
     [label]="start ? 'מכינים את ההגדרות…' : 'בודקים את הבקשה…'"
   />
   @if (targetLabel()) {
-    <div
-      id="chat-target"
-      class="well flex flex-wrap items-center gap-3"
-      [class.field-error]="invalidTarget()"
-    >
-      <span>{{ targetLabel() }}</span>
+    <div id="chat-target" class="chat-target" [attr.data-problem]="invalidTarget() ? '' : null">
+      <span class="min-w-0 flex-1">{{ targetLabel() }}</span>
       <button
         id="clear-chat-target"
         type="button"
-        class="text-link"
+        class="icon-button icon-button-quiet"
         [disabled]="busy()"
         (click)="targetCleared.emit()"
       >
-        ביטול הבחירה
+        <span class="icon icon-close" aria-hidden="true"></span
+        ><span class="tooltip">ביטול הבחירה</span>
       </button>
     </div>
   }
-  <form (submit)="$event.preventDefault(); canSend() && sent.emit()">
+  <form (submit)="$event.preventDefault(); send()">
     @if (!titled()) {
       <label for="chat-message" class="sr-only">{{
         clarification() ? 'התשובה שלכם' : 'רוצים לשנות משהו? תארו את השינוי'
@@ -120,10 +134,12 @@
         [attr.aria-describedby]="(start && !started() ? 'chat-help ' : '') + 'chat-hint'"
         (keydown.enter)="sendOnEnter($event)"
       ></textarea>
-      <div class="flex items-center justify-between gap-3 ps-4 pe-2 pb-2">
-        <p id="chat-hint" class="text-sm text-muted max-sm:sr-only pointer-coarse:sr-only">
-          <kbd dir="ltr" class="font-sans">Enter</kbd> לשליחה ·
-          <kbd dir="ltr" class="font-sans">Shift+Enter</kbd> לשורה חדשה
+      <div class="flex items-center justify-between gap-3 ps-4 pe-1.5 pb-1.5">
+        <p
+          id="chat-hint"
+          class="text-sm text-muted max-sm:sr-only pointer-coarse:sr-only @max-[22rem]:sr-only"
+        >
+          <kbd dir="ltr">Enter</kbd> לשליחה · <kbd dir="ltr">Shift+Enter</kbd> לשורה חדשה
         </p>
         @if (busy()) {
           <button
@@ -168,7 +184,7 @@
     }
   }
   @if (consolidationRequired()) {
-    <form class="callout grid gap-4" (submit)="$event.preventDefault(); consolidated.emit()">
+    <form class="callout grid gap-4" (submit)="$event.preventDefault(); send(true)">
       <div class="grid gap-1">
         <h3>איחוד הבקשה</h3>
         <p id="consolidate-help">

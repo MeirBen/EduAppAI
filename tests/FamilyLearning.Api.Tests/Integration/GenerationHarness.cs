@@ -60,6 +60,11 @@ internal sealed class GenerationHarness(params string[] responses) : IAsyncDispo
         return (await parent.GetFromJsonAsync<JsonNode>(Path(draft)))!;
     }
 
+    /// <summary>An assistant turn as the parent reads it: a summary's change statements, else its text.</summary>
+    internal static string Reply(JsonNode turn) => turn["changes"] is JsonArray changes
+        ? string.Join(" ", changes.Select(change => change!.GetValue<string>()))
+        : turn["text"]!.GetValue<string>();
+
     internal static string OperationPath(JsonNode operation) => $"/api/activity-drafts/{operation["draftId"]!.GetValue<Guid>()}/operations/{operation["id"]!.GetValue<Guid>()}";
     internal static string Questions(string type = "numeric-input") => $$"""{"title":"תרגול","instructions":"ענו","questions":[{"prompt":"כמה הם 1 ועוד 1?","interaction":{"type":"{{type}}","options":null},"answer":{"value":"2"},"points":1}]}""";
     internal const string Ideas = """

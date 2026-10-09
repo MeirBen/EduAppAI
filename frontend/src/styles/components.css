@@ -6,10 +6,10 @@
 @layer components {
   /*
    * Actions and badges size to their content, even in a grid; `w-full` stretches one. `.button` is
-   * primary; add one variant for the other kinds. On phones it takes the 44px control height.
+   * primary; add one variant for the other kinds. Every control takes the theme's control height.
    */
   .button {
-    @apply inline-flex min-h-11 w-fit items-center justify-center gap-2 rounded-button border border-transparent bg-brand px-gutter py-2 text-center leading-normal font-medium text-on-brand no-underline shadow-(--shadow-button) transition-[background-color,border-color,color,box-shadow,translate,scale] actionable:hover:bg-brand-hover actionable:hover:shadow-(--shadow-button-raised) motion-safe:actionable:hover:-translate-y-0.5 motion-safe:actionable:active:translate-y-0 motion-safe:actionable:active:scale-98 sm:min-h-12 sm:py-3;
+    @apply inline-flex min-h-control w-fit items-center justify-center gap-2 rounded-button border border-transparent bg-brand px-gutter py-1.5 text-center leading-normal font-medium text-on-brand no-underline shadow-(--shadow-button) transition-[background-color,border-color,color,box-shadow,translate,scale] actionable:hover:bg-brand-hover actionable:hover:shadow-(--shadow-button-raised) motion-safe:actionable:hover:-translate-y-0.5 motion-safe:actionable:active:translate-y-0 motion-safe:actionable:active:scale-98;
   }
   .button-secondary {
     @apply border-line bg-surface text-brand shadow-(--shadow-control) actionable:hover:border-brand/30 actionable:hover:bg-soft actionable:hover:shadow-(--shadow-panel);
@@ -19,22 +19,30 @@
     @apply border-line bg-surface text-danger shadow-(--shadow-control) actionable:hover:border-danger/30 actionable:hover:bg-danger-soft actionable:hover:shadow-(--shadow-panel);
   }
   .text-link {
-    @apply inline-flex min-h-11 w-fit items-center gap-2 rounded-small py-2 font-medium text-brand underline decoration-transparent decoration-2 transition-[color,text-decoration-color] actionable:hover:decoration-current;
+    @apply inline-flex min-h-control w-fit items-center gap-2 rounded-small py-1.5 font-medium text-brand underline decoration-transparent decoration-2 transition-[color,text-decoration-color] actionable:hover:decoration-current;
   }
   .text-link-danger {
     @apply text-muted actionable:hover:text-danger;
   }
-  /* On phones a nav link keeps only its icon; its label stays the accessible name. */
+  /* Below tablet width a nav link keeps only its icon; its label stays the accessible name. */
   .nav-link {
-    @apply inline-flex min-h-11 items-center gap-2 rounded-button px-4 py-2 font-medium text-brand transition-colors actionable:hover:bg-soft aria-[current=page]:bg-soft forced-colors:aria-[current=page]:border-2 max-sm:px-3;
+    @apply inline-flex min-h-control items-center gap-2 rounded-button px-3.5 py-1.5 font-medium text-brand transition-colors actionable:hover:bg-soft aria-[current=page]:bg-soft forced-colors:aria-[current=page]:border-2 max-md:px-3;
 
     & > :not(.icon) {
-      @apply max-sm:sr-only;
+      @apply max-md:sr-only;
     }
+  }
+  /* A session action beside the destinations, such as signing out. */
+  .nav-link-quiet {
+    @apply text-muted actionable:hover:text-ink;
   }
   /* A round icon-only action, named by its `tooltip`. Quiet ones sit in rows and cards. */
   .icon-button {
-    @apply relative grid size-11 shrink-0 place-items-center rounded-full bg-brand text-base text-on-brand shadow-(--shadow-button) transition-[background-color,box-shadow,color] actionable:hover:bg-brand-hover actionable:hover:shadow-(--shadow-button-raised);
+    @apply relative grid size-control shrink-0 place-items-center rounded-full bg-brand text-base text-on-brand shadow-(--shadow-button) transition-[background-color,box-shadow,color] actionable:hover:bg-brand-hover actionable:hover:shadow-(--shadow-button-raised);
+  }
+  /* A busy action's icon breathes, as the assistant's mark does while it thinks. */
+  .button[aria-busy='true'] > .icon {
+    @apply motion-safe:animate-thinking;
   }
   .icon-button-ink {
     @apply bg-ink text-surface actionable:hover:bg-ink;
@@ -85,7 +93,11 @@
   }
   /* A suggestion that only fills a field; it never submits on its own. */
   .chip {
-    @apply inline-flex min-h-11 items-center gap-2 rounded-full border border-line bg-surface px-4 py-2 text-start text-sm text-balance text-ink shadow-(--shadow-control) transition-colors actionable:hover:border-brand/30 actionable:hover:bg-soft;
+    @apply inline-flex min-h-control items-center gap-2 rounded-full border border-line bg-surface px-3.5 py-1.5 text-start text-sm text-balance text-ink shadow-(--shadow-control) transition-colors actionable:hover:border-brand/30 actionable:hover:bg-soft;
+
+    & > .icon {
+      @apply text-brand;
+    }
   }
   /* One answer among a question's options: a full-width card around its native radio, so long text wraps. */
   .choice {
@@ -105,6 +117,20 @@
     }
   }
 
+  /* Shell. The header, page and footer share one frame, so their edges line up on every screen. */
+  .app-frame {
+    @apply mx-auto w-full max-w-page px-gutter sm:px-8;
+  }
+  .app-header {
+    @apply border-b border-line bg-surface/85 backdrop-blur-md pinned-header:sticky pinned-header:inset-bs-0 pinned-header:z-20;
+  }
+  .brand {
+    @apply flex min-h-control items-center gap-3 rounded-button text-lg font-semibold text-brand;
+  }
+  .brand-mark {
+    @apply grid size-10 shrink-0 place-items-center rounded-inset bg-linear-to-bl from-brand to-brand-hover text-on-brand shadow-(--shadow-button) ltr:bg-linear-to-br;
+  }
+
   /* Surfaces. */
   .panel {
     @apply rounded-card border border-line bg-surface p-gutter shadow-(--shadow-panel) sm:p-6;
@@ -118,42 +144,76 @@
     @apply grid gap-4 border-t border-line pt-6;
   }
   /* The page's save state and current actions, pinned at the window's bottom until the page reaches it. */
+  /* A tinted, raised dock, so it stands apart from the panels it floats over. */
   .action-bar {
-    @apply z-10 grid gap-3 rounded-card border border-line bg-surface p-3 shadow-(--shadow-raised) inset-be-3 pinned-actions:sticky sm:p-4;
+    @apply z-10 grid gap-2 rounded-card border border-brand/15 bg-soft p-2 shadow-(--shadow-raised) inset-be-3 pinned-actions:sticky sm:p-3;
 
-    /* On phones its buttons share the bar's width. */
     & .button {
-      @apply max-sm:grow;
+      @apply px-3.5 text-sm;
     }
-    /* Minimized while pinned, it keeps only its status line at the end edge; an alert shows it whole. */
+    /* On phones the main row's secondary actions keep only their icon, so it stays one line. */
+    & .action-bar-row :is(.button-secondary, .text-link) {
+      @apply max-sm:icon-only;
+    }
+    /*
+     * Minimized while pinned, it is one row of icons at the end edge: every action keeps only its
+     * icon, and labels and status stay for screen readers. An alert shows the bar whole.
+     */
     @variant pinned-actions {
       &[data-minimized]:not(:has([role='alert'])) {
         @apply w-fit justify-self-end;
 
-        & > :not(.action-bar-row),
-        & .action-bar-actions {
+        & > :not(.action-bar-row) {
           @apply hidden;
+        }
+        & :is(.action-bar-row, .action-bar-status) {
+          @apply gap-1;
+        }
+        & .action-bar-status > :not(button, app-action-bar-toggle) {
+          @apply sr-only;
+        }
+        & :is(.button, .text-link) {
+          @apply icon-only;
         }
       }
     }
   }
-  /* The bar's main row: its actions, then its status line, which ends at the far edge. */
+  /*
+   * The bar's main row: its actions, then its status line, which ends at the far edge. Actions sit
+   * directly in the row, so they and the status share lines as space allows.
+   */
   .action-bar-row {
-    @apply flex flex-wrap items-center gap-x-6 gap-y-2;
+    @apply flex flex-wrap items-center gap-2;
   }
   .action-bar-actions {
-    @apply flex grow flex-wrap items-center gap-3 empty:hidden;
+    @apply contents;
   }
   .action-bar-status {
-    @apply ms-auto flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted;
+    @apply ms-auto flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted;
   }
-  /* One item in a panel's list; its link and actions stay native controls. */
-  .list-row {
-    @apply relative flex flex-wrap items-center gap-x-4 gap-y-2 rounded-inset border border-line bg-canvas p-4 transition-colors;
+  /* The save state is announced on every change but shows only when it needs attention. */
+  .save-state {
+    @apply sr-only;
 
+    &[data-attention] {
+      @apply not-sr-only font-medium text-ink;
+    }
+  }
+  /* One item in a page's list; its link and actions stay native controls. */
+  .list-row {
+    @apply relative flex flex-wrap items-center gap-x-4 gap-y-2 rounded-inset border border-line bg-surface px-4 py-3 shadow-(--shadow-control) transition-[border-color,box-shadow,background-color];
+
+    /* Titles share one size whatever their heading level. */
+    & :is(h2, h3, h4) {
+      @apply text-base;
+    }
     /* A row with a main link opens from anywhere on it; its other actions sit above that link. */
     &:has(.row-link) {
-      @apply hover:border-brand/30;
+      @apply hover:border-brand/30 hover:shadow-(--shadow-panel);
+    }
+    /* The item an editor beside the list is showing. */
+    &[aria-current='true'] {
+      @apply border-brand bg-soft forced-colors:border-2;
     }
     &:has(.row-link:focus-visible) {
       @apply outline-2 outline-offset-2 outline-focus;
@@ -167,16 +227,16 @@
     }
   }
   .row-link {
-    @apply font-medium text-brand underline decoration-transparent decoration-2 transition-[text-decoration-color] focus-visible:outline-hidden in-[.list-row:hover]:decoration-current;
+    @apply text-brand underline decoration-transparent decoration-2 transition-[text-decoration-color] focus-visible:outline-hidden in-[.list-row:hover]:decoration-current;
 
     &::after {
       content: '';
       @apply absolute inset-0 rounded-inset;
     }
   }
-  /* An empty list says what will appear here and may offer the next step. */
+  /* An empty list says what will appear here, or that a filter or later page has nothing more. */
   .empty-state {
-    @apply grid gap-1 rounded-inset border border-dashed border-control p-4 text-muted;
+    @apply rounded-inset border border-dashed border-control p-4 text-muted;
   }
 
   /* Conversation. The parent's own messages sit at the end edge, as in common chat layouts. */
@@ -184,39 +244,100 @@
   .chat-layout {
     @apply grid;
   }
-  /* On desktops, including 768px-tall laptops, only history scrolls; expanded source forms use the normal page flow. */
-  @media (min-width: 64rem) and (min-height: 40rem) {
-    .chat-panel[data-document]:not(:has(.chat-attachments[open], #chat-consolidated)) {
-      @apply sticky top-24 flex flex-col;
-      max-block-size: calc(100dvh - 15rem);
+  /* The chat shares the action bar's tinted dock, so the assistant's tools read apart from the document. */
+  .chat-panel {
+    @apply border-brand/15 bg-soft;
+  }
+  /*
+   * A chat beside a document keeps its title and composer in place while only its history scrolls:
+   * pinned beside the document on desktops, including 768px-tall laptops, and in the sheet below
+   * desktop width. Wide but short windows and an expanded form keep the normal flow.
+   */
+  @media (width < 64rem), (height >= 40rem) {
+    .chat-panel[data-document]:not(:has(#chat-consolidated)) {
+      @apply flex flex-col;
 
-      & .chat-layout {
+      & :is(.chat-layout, .chat-history) {
         @apply flex min-h-0 flex-col;
       }
-      & .chat-layout > :not(.chat-thread) {
+      & .chat-layout > :not(.chat-history) {
         @apply shrink-0;
       }
+      /*
+       * A slim scrollbar shows where the parent is; both ends fade over the padding, so turns scroll
+       * out softly. It contains its turns' positioned screen-reader labels, which would otherwise
+       * stretch the sheet.
+       */
       & .chat-thread {
-        @apply min-h-0 overflow-y-auto overscroll-contain;
+        @apply relative min-h-0 overflow-y-auto overscroll-contain py-4 pe-2 focus-visible:-outline-offset-2;
         scrollbar-gutter: stable;
+        mask-image: linear-gradient(transparent, #000 1rem, #000 calc(100% - 1rem), transparent);
+
+        /* A slim thumb without arrow buttons; browsers without these pseudo-elements draw a thin bar. */
+        &::-webkit-scrollbar {
+          inline-size: 0.375rem;
+        }
+        &::-webkit-scrollbar-thumb {
+          @apply rounded-full bg-control/45;
+        }
+        @supports not selector(::-webkit-scrollbar) {
+          scrollbar-width: thin;
+        }
       }
       & .composer > textarea {
         @apply max-h-32;
       }
     }
   }
-  .bubble {
-    @apply rounded-inset px-4 py-3;
+  /* Pinned on desktops, where the action bar sits under the document column, so the chat can reach the window's bottom. */
+  @media (width >= 64rem) and (height >= 40rem) {
+    .chat-panel[data-document]:not(:has(#chat-consolidated)) {
+      @apply sticky top-24;
+      max-block-size: calc(100dvh - 7.5rem);
+    }
   }
-  .bubble-own {
-    @apply max-w-[85%] justify-self-end rounded-ee-small bg-soft ring-1 ring-brand/15 ring-inset;
+  /*
+   * A chat beside a document spans the action bar's row on desktops; below desktop width it is a sheet
+   * over the page, so reading keeps its place, and the action bar's opener and its close control show.
+   */
+  .chat-panel[data-document] {
+    @apply lg:row-span-2 max-lg:fixed max-lg:inset-x-0 max-lg:bottom-0 max-lg:z-40 max-lg:max-h-[85dvh] max-lg:overflow-y-auto max-lg:overscroll-contain max-lg:rounded-b-none max-lg:shadow-(--shadow-raised) max-lg:transition-[translate] max-lg:duration-300;
+
+    /* Only closing delays hiding, so an opening sheet is visible, and focusable, from its first frame. */
+    &:not([data-open]) {
+      @apply max-lg:invisible max-lg:translate-y-full max-lg:transition-[translate,visibility];
+    }
   }
-  .bubble-reply {
-    @apply rounded-ss-small border border-line bg-surface shadow-(--shadow-control);
+  /* A small round control floating in the history's bottom fade once the parent scrolls away from the latest turn. */
+  .chat-latest {
+    @apply absolute inset-x-0 bottom-3 mx-auto size-8 border border-line bg-surface text-sm text-muted shadow-(--shadow-panel) motion-safe:animate-fade actionable:hover:bg-soft actionable:hover:text-ink actionable:hover:shadow-(--shadow-panel);
+  }
+  /* The panel's title beside the assistant's mark. */
+  .chat-title {
+    @apply flex items-center gap-3;
+  }
+  .chat-message {
+    @apply max-w-[85%] justify-self-end rounded-card rounded-ee-small bg-surface px-4 py-2.5 ring-1 ring-brand/15 ring-inset;
+  }
+  /* The assistant answers in open text beside its mark, as AI chats do, so replies stay light. */
+  .chat-reply {
+    @apply flex items-start gap-3;
+
+    & > :not(.ai-mark) {
+      @apply grid min-w-0 flex-1 gap-3;
+    }
+  }
+  /* What the next request is about, held above the composer until it is sent or cleared. */
+  .chat-target {
+    @apply flex items-center gap-2 rounded-inset border border-line bg-surface ps-3 text-sm;
+
+    &[data-problem] {
+      @apply border-danger/25 bg-danger-soft text-danger;
+    }
   }
   /* One bordered box around an unframed, self-sizing field and its send action. */
   .composer {
-    @apply grid rounded-card border border-control bg-surface shadow-(--shadow-control) transition-[border-color,box-shadow];
+    @apply @container grid rounded-card border border-control bg-surface shadow-(--shadow-control) transition-[border-color,box-shadow];
 
     /* Like other fields, only the field's own focus tints the edge; the actions keep their ring.
        The field's native maxlength keeps it valid, so no invalid edge is needed. */
@@ -238,6 +359,10 @@
   .icon-tile {
     @apply grid shrink-0 place-items-center rounded-inset bg-accent text-brand ring-1 ring-brand/15 ring-inset;
   }
+  /* A one-time code, spaced so it reads and copies character by character. */
+  .code {
+    @apply font-semibold tracking-widest uppercase tabular-nums;
+  }
   /* An outcome beside a status title, centered on its first line; `data-problem` marks a failure. */
   .status-icon {
     @apply grid size-9 shrink-0 place-items-center rounded-full bg-soft text-brand;
@@ -249,11 +374,11 @@
   }
   /* The assistant's avatar carries the AI icon, so AI surfaces read as one family. */
   .ai-mark {
-    @apply grid size-9 shrink-0 place-items-center rounded-full bg-linear-to-bl from-brand to-focus text-on-brand shadow-(--shadow-button) ltr:bg-linear-to-br;
+    @apply grid size-7 shrink-0 place-items-center rounded-full bg-linear-to-bl from-brand to-focus text-on-brand shadow-(--shadow-button) ltr:bg-linear-to-br;
 
     &::before {
       content: '';
-      @apply size-1/2 bg-current;
+      @apply size-[55%] bg-current;
       mask: var(--icon-ai) no-repeat center / contain;
     }
   }
@@ -291,6 +416,33 @@
     }
     & .loading-mark {
       @apply size-9;
+    }
+  }
+  .loading-label {
+    @apply font-medium text-ink;
+  }
+  /* The assistant thinking: its mark breathes and the label shimmers in the reading direction. */
+  .loading-assistant {
+    & .ai-mark {
+      @apply motion-safe:animate-thinking;
+    }
+    & .loading-label {
+      @apply font-normal text-muted;
+
+      @media (prefers-reduced-motion: no-preference) {
+        @apply animate-shimmer bg-size-[200%_100%] bg-clip-text text-transparent ltr:[animation-direction:reverse];
+        background-image: linear-gradient(
+          90deg,
+          var(--color-muted) 35%,
+          var(--color-ink) 50%,
+          var(--color-muted) 65%
+        );
+      }
+      /* Forced colors drop the gradient, so the label keeps a system text color. */
+      @media (forced-colors: active) {
+        background-image: none;
+        color: CanvasText;
+      }
     }
   }
   .loading-mark {

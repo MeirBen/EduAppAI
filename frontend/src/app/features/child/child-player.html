@@ -1,37 +1,47 @@
-<section class="mx-auto grid max-w-3xl gap-6" aria-labelledby="player-title">
-  <a class="text-link justify-self-start" routerLink="/child"
-    ><span class="icon icon-back" aria-hidden="true"></span>לפעילויות שלי</a
-  >
+<section class="mx-auto grid max-w-reading gap-6" aria-labelledby="player-title">
+  <header class="grid gap-1">
+    <a class="text-link" routerLink="/child"
+      ><span class="icon icon-back" aria-hidden="true"></span>לפעילויות שלי</a
+    >
+    @if (assignment.error()) {
+      <h1 id="player-title">הפעילות לא זמינה</h1>
+    } @else if (assignment.hasValue()) {
+      <h1 id="player-title" dir="auto">{{ assignment.value().document.title }}</h1>
+      @if (assignment.value().document.instructions) {
+        <p
+          class="whitespace-pre-wrap"
+          dir="auto"
+          [textContent]="assignment.value().document.instructions"
+        ></p>
+      }
+    }
+  </header>
   <app-loading-indicator
     [active]="assignment.isLoading() || (busy() && !session())"
     variant="panel"
     label="פותחים את הפעילות…"
   />
   @if (assignment.error(); as error) {
-    <h1 id="player-title">הפעילות לא זמינה</h1>
-    <p class="error" role="alert">{{ failure(error) }}</p>
-    @if (status(error) === 401) {
-      <a class="button justify-self-start" routerLink="/child/activate">כניסה מחדש</a>
-    } @else if (status(error) !== 404 && status(error) !== 410) {
-      <button
-        class="button button-secondary justify-self-start"
-        [disabledInteractive]="assignment.isLoading()"
-        (click)="assignment.reload()"
-      >
-        ניסיון נוסף
-      </button>
-    }
+    <div class="grid gap-2">
+      <p class="error" role="alert">{{ failure(error) }}</p>
+      @if (status(error) === 401) {
+        <a class="button" routerLink="/child/activate">כניסה מחדש</a>
+      } @else if (status(error) !== 404 && status(error) !== 410) {
+        <button
+          type="button"
+          class="text-link"
+          [disabledInteractive]="assignment.isLoading()"
+          (click)="assignment.reload()"
+        >
+          <span class="icon icon-refresh" aria-hidden="true"></span>ניסיון נוסף
+        </button>
+      }
+    </div>
   }
   @if (assignment.hasValue()) {
     @let document = assignment.value().document;
-    <header class="grid gap-1">
-      <h1 id="player-title" dir="auto">{{ document.title }}</h1>
-      @if (document.instructions) {
-        <p class="whitespace-pre-wrap" dir="auto" [textContent]="document.instructions"></p>
-      }
-    </header>
     @for (material of document.materials; track material.id) {
-      <section class="well grid gap-2">
+      <section class="panel grid gap-2">
         @if (material.title) {
           <h2 dir="auto">{{ material.title }}</h2>
         }
@@ -128,7 +138,7 @@
     }
     @if (terminal()) {
       @let receipt = outcome()!;
-      <section class="well flex items-start gap-3" aria-labelledby="receipt-title">
+      <section class="panel flex items-start gap-3" aria-labelledby="receipt-title">
         <span class="status-icon" aria-hidden="true"><span class="icon icon-check"></span></span>
         <div class="grid min-w-0 gap-1">
           <h2 id="receipt-title">העבודה הוגשה</h2>
@@ -174,7 +184,7 @@
         <p class="field-error" role="alert">{{ errorMessage() }}</p>
       }
       @if (blocked() === 401) {
-        <a class="button justify-self-start" routerLink="/child/activate">כניסה מחדש</a>
+        <a class="button" routerLink="/child/activate">כניסה מחדש</a>
       }
       <div class="action-bar-row">
         <div class="action-bar-actions">
@@ -185,7 +195,7 @@
               form="answer-form"
               [disabledInteractive]="busy() || reading() || recovery() || !!blocked()"
             >
-              הגשה להורה
+              <span class="icon icon-up" aria-hidden="true"></span><span>הגשה להורה</span>
             </button>
             <button
               id="save-answers"
@@ -193,12 +203,12 @@
               [disabledInteractive]="busy() || reading() || recovery() || !!blocked() || !dirty()"
               (click)="write(false)"
             >
-              שמירה
+              <span class="icon icon-save" aria-hidden="true"></span><span>שמירה</span>
             </button>
           }
           @if (!session() && !recovery() && !blocked()) {
             <button class="button" [disabledInteractive]="busy() || reading()" (click)="start()">
-              התחלה
+              <span class="icon icon-play" aria-hidden="true"></span><span>התחלה</span>
             </button>
           }
           @if (savedSession() && !blocked()) {
@@ -208,24 +218,20 @@
               [disabledInteractive]="busy() || reading()"
               (click)="useSaved()"
             >
-              טעינת התשובות השמורות
+              <span class="icon icon-refresh" aria-hidden="true"></span
+              ><span>טעינת התשובות השמורות</span>
             </button>
           }
         </div>
         <div class="action-bar-status whitespace-nowrap">
           @if (statusText(); as text) {
-            <span
-              role="status"
-              class="min-w-16"
-              [class.font-medium]="dirty()"
-              [class.text-ink]="dirty()"
-              >{{ text }}</span
-            >
+            <span role="status" class="save-state" [attr.data-attention]="dirty() ? '' : null">{{
+              text
+            }}</span>
           }
           @if (working()) {
-            <span
-              ><span class="max-sm:sr-only">עניתם על </span>{{ answered() }} מתוך
-              {{ answers().length }}</span
+            <span class="max-sm:sr-only"
+              >עניתם על {{ answered() }} מתוך {{ answers().length }}</span
             >
             @if (elapsed(); as time) {
               <span class="flex items-center gap-2" role="timer">
@@ -242,7 +248,7 @@
               [disabledInteractive]="busy() || reading()"
               (click)="readSaved()"
             >
-              <span class="icon icon-refresh" aria-hidden="true"></span>בדיקת עדכונים
+              <span class="icon icon-refresh" aria-hidden="true"></span><span>בדיקת עדכונים</span>
             </button>
           }
           <app-action-bar-toggle />

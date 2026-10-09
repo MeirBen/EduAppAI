@@ -152,8 +152,8 @@ The revision planner returns exactly one outcome:
   old unsupported requirements; no opportunistic cleanup or content calls.
 - **Change:** the complete updated plan, existing bounded assumptions and
   one-off edits. Preserve untouched fields; put lasting requirements in the
-  plan. The application writes the completion notice from committed changes
-  and displays the assumptions beside it.
+  plan. The application writes the completion notice from committed changes,
+  as statements the chat lists, and displays the assumptions beside it.
 
 Reuse the plan schema definitions. Material edits are `[{ id, instruction }]`.
 Question edits are
@@ -175,11 +175,9 @@ not need to interpret “yes” or earlier chat. Plan name and document title ar
 separate fields. Direct title/instruction requests outside this contract point
 to the editor; do not claim unsupported changes. Supplied sources can be
 explanation targets but never rewrite targets. Preserve their source kind and
-exact text; a transformation creates a separate generated material. For additions,
-collect and confirm source text through the source input before admission;
-otherwise return clarification without content calls. Include confirmed sources
-in the bounded request and require the proposal to match their text exactly.
-Confirmed sources use the existing material-count/body limits.
+exact text; a transformation creates a separate generated material. Chat never
+adds a supplied source: the parent's own texts come from setup, so a request to
+add one is refused without a change, and the validator rejects any new one.
 Replacing a supplied source uses the explicit source-replacement save, makes
 questions stale and offers regeneration/adoption; the model never rewrites it.
 
@@ -299,7 +297,7 @@ model acceptance.
   admission, checkpoints and commits. Keep transactions outside AI calls.
 - **Frontend:** one workspace buffer and existing observer/API client; shared
   chat renders turns and emits actions. A feature-local chat session owns composer,
-  targets, attachments and unsaved authoring; the workspace owns buffer and durable
+  targets and unsaved authoring; the workspace owns buffer and durable
   transitions. Read/edit views use the same state.
   Remove template routing, publication/version state and library queries.
 - **Scaffolding:** simplify existing contracts/storage for the
@@ -351,7 +349,9 @@ exact supplied text. A successful change saves the plan and document together;
 there is no template, default/override reconciliation or legacy normalization.
 
 - `ChatJson`: at most 100 turns with role, text, UTC time, optional target and
-  operation reference; assistant turns may include bounded assumptions.
+  operation reference; assistant turns may include bounded assumptions. A
+  notice is stored once as its `changes` statements with empty text; the model's
+  context receives them joined, exactly as the earlier single-text notice.
   Parent text uses `MessageLength`; imported authoring replies retain their
   existing 1,000-character limit, revision replies/notices use 600. Drop oldest
   completed exchanges. Reuse operation status and append one terminal reply/notice
@@ -423,7 +423,8 @@ Acceptance checks (freeze the AI cases before slice-1 implementation):
 - Prompt/schema/candidate agreement in strict and prompt-schema modes;
   zero/max targets, duplicate/foreign IDs, invalid outcome combinations,
   unknown fields, oversized/truncated replies and activity-oriented authoring.
-- Pre-creation plan edits without generation, confirmed source addition/replacement,
+- Pre-creation plan edits without generation, source replacement, refused source
+  additions,
   rejected model source edits, local authoring correlation and same-key/different-
   payload rejection before calls.
 - Outcomes including no-ops, every failure stage, replay, stale targets,

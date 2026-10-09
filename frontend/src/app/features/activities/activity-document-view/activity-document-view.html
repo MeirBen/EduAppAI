@@ -12,14 +12,31 @@
   <p dir="auto" class="whitespace-pre-wrap">{{ document().instructions }}</p>
 }
 @for (material of document().materials; track material.id) {
-  <section class="well grid gap-1">
-    <div class="flex items-center justify-between gap-3">
-      @if (material.title) {
-        @if (nested()) {
-          <h4 dir="auto">{{ material.title }}</h4>
-        } @else {
-          <h3 dir="auto">{{ material.title }}</h3>
-        }
+  <section class="well grid gap-2">
+    @if (material.title) {
+      @if (nested()) {
+        <h4 dir="auto">{{ material.title }}</h4>
+      } @else {
+        <h3 dir="auto">{{ material.title }}</h3>
+      }
+    }
+    <p dir="auto" class="whitespace-pre-wrap">{{ material.body }}</p>
+    <app-measurement-list [items]="measurements()" [scope]="material.id" />
+    @if (issues().materials.get(material.id); as issue) {
+      <p class="field-error">{{ issue }}</p>
+    }
+    <div class="flex flex-wrap items-center gap-x-4">
+      @if (canAsk()) {
+        <button
+          [id]="'ask-material-' + material.id"
+          class="text-link"
+          type="button"
+          (click)="asked.emit({ kind: 'material', id: material.id })"
+        >
+          <span class="icon icon-ai" aria-hidden="true"></span>בקשה לגבי הטקסט<span class="sr-only">
+            {{ material.title || $index + 1 }}</span
+          >
+        </button>
       }
       <app-copy-button
         class="ms-auto"
@@ -27,21 +44,6 @@
         [label]="'העתקת הטקסט: ' + (material.title || $index + 1)"
       />
     </div>
-    <p dir="auto" class="whitespace-pre-wrap">{{ material.body }}</p>
-    <app-measurement-list [items]="measurements()" [scope]="material.id" />
-    @if (canAsk()) {
-      <button
-        [id]="'ask-material-' + material.id"
-        class="text-link justify-self-start"
-        type="button"
-        (click)="asked.emit({ kind: 'material', id: material.id })"
-      >
-        בקשה לגבי הטקסט<span class="sr-only"> {{ material.title || $index + 1 }}</span>
-      </button>
-    }
-    @if (issues().materials.get(material.id); as issue) {
-      <p class="field-error">{{ issue }}</p>
-    }
   </section>
 }
 @if (document().questions.length) {
@@ -52,7 +54,7 @@
           <bdi>{{ question.prompt }}</bdi>
         </p>
         @if (question.interaction.type === 'single-choice') {
-          <ul class="list-disc ps-6">
+          <ul>
             @for (option of question.interaction.options; track $index) {
               <li>
                 <bdi>{{ option }}</bdi>
@@ -63,17 +65,23 @@
         @for (issue of questionIssues(question.id); track $index) {
           <p class="field-error">{{ issue }}</p>
         }
-        @if (canAsk()) {
-          <button
-            [id]="'ask-question-' + question.id"
-            class="text-link justify-self-start"
-            type="button"
-            (click)="asked.emit({ kind: 'question', id: question.id })"
-          >
-            בקשה לגבי השאלה<span class="sr-only"> — שאלה {{ $index + 1 }}</span>
-          </button>
-        }
-        <p>נקודות: {{ question.points }}</p>
+        <div class="flex flex-wrap items-center gap-x-4">
+          <p class="text-sm text-muted">נקודות: {{ question.points }}</p>
+          @if (canAsk()) {
+            <button
+              [id]="'ask-question-' + question.id"
+              class="text-link"
+              type="button"
+              (click)="asked.emit({ kind: 'question', id: question.id })"
+            >
+              <span class="icon icon-ai" aria-hidden="true"></span>בקשה לגבי השאלה<span
+                class="sr-only"
+              >
+                — שאלה {{ $index + 1 }}</span
+              >
+            </button>
+          }
+        </div>
         <details>
           <summary>תשובה להורים — שאלה {{ $index + 1 }}</summary>
           <p class="whitespace-pre-wrap">

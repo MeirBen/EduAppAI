@@ -69,7 +69,7 @@ public static class GenerationOperationEndpoints
         if (existing is not null)
             return existing.RequestFingerprint == GenerationOperation.Fingerprint(id, body) ? Accepted(existing, diagnostics) : Conflict();
         if (body.OperationKey == Guid.Empty || body.Kind is not ("Create" or "Revise" or "GenerateQuestions") ||
-            body.Kind != "Revise" && (body.Message is not null || body.Target is not null || body.Sources is not null))
+            body.Kind != "Revise" && (body.Message is not null || body.Target is not null))
             return Results.ValidationProblem(new Dictionary<string, string[]> { ["operation"] = ["יש לבחור פעולת יצירה והנחיה תקינות."] });
         if (draft.ReleasedSnapshotId.HasValue || draft.Revision != body.ExpectedRevision || draft.ActiveOperationId.HasValue) return Conflict();
         if (await db.GenerationOperations.CountAsync(o => o.DraftId == id, ct) >= GenerationOperationOptions.DraftLimit ||
@@ -79,7 +79,7 @@ public static class GenerationOperationEndpoints
         var plan = draft.Plan;
         var request = TaskRequestResolver.ResolveOrThrow(plan);
         var document = draft.Document;
-        if (body.Kind == "Revise") ActivityRevisionValidator.ValidateInput(new(plan, document, body.Message!, body.Target, body.Sources));
+        if (body.Kind == "Revise") ActivityRevisionValidator.ValidateInput(new(plan, document, body.Message!, body.Target));
         var stage = SelectStage(body, request, document, plan);
         if (!limiter.TryAcquire(familyId)) return Results.StatusCode(429);
         var history = await GenerationHistoryReader.ReadAsync(db, familyId, draft.Id, document, ct);

@@ -13,9 +13,6 @@ public static class ActivityRevisionValidator
         if (input.Target is { } target && !(target.Kind == "material" && input.Plan.Materials.Any(m => m.Id == target.Id) ||
             target.Kind == "question" && input.Current.Questions.Any(q => q.Id == target.Id)))
             errors.AddError("target", "יש לבחור פריט קיים.");
-        if (input.Sources is { } sources && (sources.Length > MaxMaterials ||
-            sources.Any(s => s is null || !HasText(s.Label, NameLength) || !HasText(s.Text, BodyLimit))))
-            errors.AddError("sources", "יש לציין מקורות מאושרים בגודל נתמך.");
         if (input.Context is { } turns && (turns.Length > MaxContextTurns || turns.Any(t => t is null ||
             t.Role is not ("parent" or "assistant") || !HasText(t.Text, MessageLength)) ||
             turns.Sum(t => (long)t.Text.Length) > ContextLength))
@@ -39,10 +36,9 @@ public static class ActivityRevisionValidator
         if (change.Assumptions is not { Length: <= MaxAssumptions } || change.Assumptions.Any(a => !HasText(a, AssumptionLength)))
             errors.AddError("assumptions", "ההנחות אינן תקינות.");
         var existingIds = input.Plan.Materials.Select(m => m.Id).ToHashSet(StringComparer.Ordinal);
-        foreach (var material in plan.Materials)
-            if (!existingIds.Contains(material.Id) && material.Source == "supplied" &&
-                !(input.Sources ?? []).Any(s => s.Text == material.Text))
-                errors.AddError("sources", "יש לאשר מקור חדש לפני שינוי הפעילות.");
+        // The parent's own texts come only from setup; chat never adds one.
+        if (plan.Materials.Any(m => !existingIds.Contains(m.Id) && m.Source == "supplied"))
+            errors.AddError("materials", "שינוי בשיחה אינו מוסיף טקסט של ההורה.");
         ValidateEdits(change.MaterialEdits, MaxMaterials, id =>
             input.Current.Materials.Any(m => m.Id == id) && input.Plan.Materials.Any(m => m.Id == id && m.Source == "generated") &&
             plan.Materials.Any(m => m.Id == id && m.Source == "generated"), "materialEdits", errors);

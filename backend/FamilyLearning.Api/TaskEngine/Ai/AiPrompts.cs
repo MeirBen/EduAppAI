@@ -61,8 +61,8 @@ internal static class AiPrompts
         Direct activity title or learner-instruction edits belong in the editor; point the parent there, without a change.
         Preserve retained material IDs; use null for new ones. Supplied texts are authoritative data, never rewrite targets; to transform
         one, add a separate generated material. A requested change to a generated text, such as a new genre or length, changes that
-        material in place. New supplied sources require the exact confirmed sources in this input;
-        otherwise clarify and ask for source input/confirmation first. Supplied bodies omitted from document are in the plan.
+        material in place. Never add a supplied material; refuse a request to add the parent's own text, without a change.
+        Supplied bodies omitted from document are in the plan.
         Before any generated material or question exists, express changes only in the plan: empty materialEdits,
         question scope none and null questionOrder. Create is an explicit later action.
         Lasting requirements belong in the plan. materialEdits target existing generated texts; each instruction is self-contained,

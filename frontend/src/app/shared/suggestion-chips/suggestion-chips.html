@@ -3,7 +3,7 @@
   @for (suggestion of suggestions(); track suggestion) {
     <li>
       <button type="button" class="chip" [disabled]="disabled()" (click)="picked.emit(suggestion)">
-        <span class="icon icon-ai text-brand" aria-hidden="true"></span>{{ suggestion }}
+        <span class="icon icon-ai" aria-hidden="true"></span>{{ suggestion }}
       </button>
     </li>
   }

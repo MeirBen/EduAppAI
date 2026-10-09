@@ -8,7 +8,10 @@ namespace FamilyLearning.Api.Features.Activities;
 /// <summary>Describes only the plan and content staged for the same atomic commit, excluding provenance and acceptance changes.</summary>
 internal static class ActivityChangeNotice
 {
-    internal static string Describe(LearningPlan before, TaskDocument previous, LearningPlan after, TaskDocument current)
+    private const string More = "עודכנו גם פרטים נוספים בפעילות.";
+
+    /// <summary>Complete statements whose joined text stays within the reply contract.</summary>
+    internal static string[] Describe(LearningPlan before, TaskDocument previous, LearningPlan after, TaskDocument current)
     {
         var notices = new List<string>();
         if (before.Name != after.Name) notices.Add($"שם הטיוטה שונה ל־„{after.Name}”.");
@@ -49,13 +52,13 @@ internal static class ActivityChangeNotice
         if (notices.Count == 0) notices.Add("הטקסטים והשאלות נשארו ללא שינוי.");
 
         // Keep complete statements within the reply contract, even when several maximum-length names change together.
-        var result = string.Join(" ", notices);
-        while (result.Length > RevisionReplyLength)
+        if (string.Join(" ", notices).Length > RevisionReplyLength)
         {
-            notices.RemoveAt(notices.Count - 1);
-            result = string.Join(" ", notices) + " עודכנו גם פרטים נוספים בפעילות.";
+            do notices.RemoveAt(notices.Count - 1);
+            while (string.Join(" ", notices.Append(More)).Length > RevisionReplyLength);
+            notices.Add(More);
         }
-        return result;
+        return notices.ToArray();
 
         void AddCount(string label, int count)
         {

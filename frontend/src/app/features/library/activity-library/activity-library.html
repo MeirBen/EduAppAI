@@ -4,11 +4,9 @@
       <h1 id="library-heading">המרחב שלנו</h1>
       <p class="text-muted">הטיוטות והפעילויות המוכנות של המשפחה, במקום אחד.</p>
     </div>
-    <div class="flex flex-wrap gap-3">
-      <a class="button" routerLink="/activities/new"
-        ><span class="icon icon-ai" aria-hidden="true"></span>פעילות חדשה</a
-      >
-    </div>
+    <a class="button" routerLink="/activities/new"
+      ><span class="icon icon-ai" aria-hidden="true"></span>פעילות חדשה</a
+    >
   </header>
   @if (updates.state() === 'unavailable') {
     <div class="grid gap-1">
@@ -21,7 +19,7 @@
     </div>
   }
   <p role="status">{{ notice() }}</p>
-  <section class="panel grid gap-4" aria-labelledby="drafts-title">
+  <section class="grid gap-4" aria-labelledby="drafts-title">
     <div class="grid gap-1">
       <h2 id="drafts-title" class="flex items-center gap-3">
         טיוטות לעריכה
@@ -36,7 +34,7 @@
       label="טוענים את הטיוטות…"
     />
     @if (drafts.error()) {
-      <div class="grid gap-1">
+      <div class="grid gap-2">
         <p role="alert" class="field-error">{{ apiError(drafts.error()) }}</p>
         <button type="button" class="text-link" (click)="drafts.reload()">
           <span class="icon icon-refresh" aria-hidden="true"></span>ניסיון נוסף
@@ -48,13 +46,15 @@
           <span class="icon-tile size-10" aria-hidden="true"
             ><span class="icon icon-edit"></span
           ></span>
-          <div class="grid min-w-1/2 flex-1">
-            <a class="row-link" [routerLink]="['/activities', draft.id]"
-              ><bdi>{{ draft.name }}</bdi></a
-            >
-            <span class="text-sm text-muted"
-              >עודכנה ב־<bdi>{{ draft.updatedAtUtc | date }}</bdi></span
-            >
+          <div class="grid min-w-1/2 flex-1 gap-1">
+            <h3>
+              <a class="row-link" [routerLink]="['/activities', draft.id]"
+                ><bdi>{{ draft.name }}</bdi></a
+              >
+            </h3>
+            <p class="text-sm text-muted">
+              עודכנה ב־<bdi>{{ draft.updatedAtUtc | date }}</bdi>
+            </p>
           </div>
           <button
             data-delete-draft
@@ -72,13 +72,13 @@
           <p role="alert" class="field-error">{{ message }}</p>
         }
       } @empty {
-        <div class="empty-state">
-          <p>עוד אין טיוטות. כשתשמרו טיוטה, היא תופיע כאן ותוכלו לחזור לערוך אותה.</p>
-        </div>
+        <p class="empty-state">
+          עוד אין טיוטות. כשתשמרו טיוטה, היא תופיע כאן ותוכלו לחזור לערוך אותה.
+        </p>
       }
     }
   </section>
-  <section class="panel grid gap-4" aria-labelledby="ready-title">
+  <section class="grid gap-4" aria-labelledby="ready-title">
     <div class="grid gap-1">
       <h2 id="ready-title" class="flex items-center gap-3">
         פעילויות מוכנות
@@ -93,7 +93,7 @@
       label="טוענים את הפעילויות המוכנות…"
     />
     @if (snapshots.error()) {
-      <div class="grid gap-1">
+      <div class="grid gap-2">
         <p role="alert" class="field-error">{{ apiError(snapshots.error()) }}</p>
         <button type="button" class="text-link" (click)="snapshots.reload()">
           <span class="icon icon-refresh" aria-hidden="true"></span>ניסיון נוסף
@@ -105,14 +105,16 @@
           <span class="icon-tile size-10" aria-hidden="true"
             ><span class="icon icon-check"></span
           ></span>
-          <div class="grid min-w-1/2 flex-1">
-            <a class="row-link" [routerLink]="['/instances', snapshot.id]"
-              ><bdi>{{ snapshot.title }}</bdi></a
-            >
-            <span class="text-sm text-muted"
-              >סומנה כמוכנה ב־<bdi>{{ snapshot.createdAtUtc | date }}</bdi
-              >{{ snapshot.hasAssignments ? ' · הוקצתה' : '' }}</span
-            >
+          <div class="grid min-w-1/2 flex-1 gap-1">
+            <h3>
+              <a class="row-link" [routerLink]="['/instances', snapshot.id]"
+                ><bdi>{{ snapshot.title }}</bdi></a
+              >
+            </h3>
+            <p class="text-sm text-muted">
+              סומנה כמוכנה ב־<bdi>{{ snapshot.createdAtUtc | date }}</bdi
+              >{{ snapshot.hasAssignments ? ' · הוקצתה' : '' }}
+            </p>
           </div>
           <button
             type="button"
@@ -129,15 +131,13 @@
           <p role="alert" class="field-error">{{ message }}</p>
         }
       } @empty {
-        <div class="empty-state">
-          <p>
-            עוד אין פעילויות מוכנות. פעילות שתסמנו כמוכנה תופיע כאן, ומכאן אפשר להקצות אותה לילדים.
-          </p>
-        </div>
+        <p class="empty-state">
+          עוד אין פעילויות מוכנות. פעילות שתסמנו כמוכנה תופיע כאן, ומכאן אפשר להקצות אותה לילדים.
+        </p>
       }
     }
   </section>
-  <details class="border-t border-line pt-6" [open]="!!failed('all')">
+  <details class="border-t border-line pt-4" [open]="!!failed('all')">
     <summary>ניהול נתונים</summary>
     <div class="grid gap-4">
       <ul role="list" class="grid gap-1">
@@ -152,7 +152,7 @@
       </ul>
       <button
         type="button"
-        class="button button-danger justify-self-start"
+        class="button button-danger"
         [disabledInteractive]="deleting()"
         (click)="remove('all')"
       >

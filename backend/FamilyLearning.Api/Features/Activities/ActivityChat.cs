@@ -9,9 +9,16 @@ namespace FamilyLearning.Api.Features.Activities;
 public sealed record ImportedChatTurn([property: JsonRequired] string Role, [property: JsonRequired] string Text,
     [property: JsonRequired] DateTime AtUtc, RevisionTarget? Target = null, string[]? Assumptions = null);
 
-/// <summary>Parent-only conversation; operation references and outcomes are assigned by the server.</summary>
+/// <summary>
+/// Parent-only conversation; operation references and outcomes are assigned by the server. A reply that
+/// only summarizes applied changes stores them once as <see cref="Changes"/> with empty <see cref="Text"/>.
+/// </summary>
 public sealed record ActivityChatTurn(string Role, string Text, DateTime AtUtc, RevisionTarget? Target = null,
-    Guid? OperationId = null, string[]? Assumptions = null, string? Outcome = null);
+    Guid? OperationId = null, string[]? Assumptions = null, string? Outcome = null, string[]? Changes = null)
+{
+    /// <summary>The turn as conversation text: its message, or the change statements a summary lists.</summary>
+    internal string Message => Text.Length == 0 && Changes is { } changes ? string.Join(" ", changes) : Text;
+}
 
 /// <summary>One prior content checkpoint, valid only at the revision produced by its successful operation.</summary>
 public sealed record ActivityUndo(LearningPlan Plan, TaskDocument Document, long ResultingRevision);
@@ -51,9 +58,10 @@ internal static class ActivityChat
         for (var i = chat.Length - 1; i >= 0 && result.Count < MaxContextTurns; i--)
         {
             var turn = chat[i];
-            if (length + turn.Text.Length > ContextLength) break;
-            result.Add(new(turn.Role, turn.Text, turn.Target, turn.Outcome));
-            length += turn.Text.Length;
+            var message = turn.Message;
+            if (length + message.Length > ContextLength) break;
+            result.Add(new(turn.Role, message, turn.Target, turn.Outcome));
+            length += message.Length;
         }
         result.Reverse();
         return result.ToArray();

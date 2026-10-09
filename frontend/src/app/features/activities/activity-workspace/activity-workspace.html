@@ -1,4 +1,9 @@
-<section class="mx-auto grid max-w-7xl gap-6" aria-labelledby="workspace-title">
+<section
+  class="mx-auto grid gap-6"
+  [class.max-w-reading]="!split()"
+  aria-labelledby="workspace-title"
+  (keydown.escape)="chatOpen() && closeChat()"
+>
   <header class="grid gap-1">
     <a routerLink="/activities" class="text-link"
       ><span class="icon icon-back" aria-hidden="true"></span>המרחב שלנו</a
@@ -12,7 +17,7 @@
       <button
         id="retry-activity"
         type="button"
-        class="text-link justify-self-start"
+        class="text-link"
         [disabledInteractive]="loading()"
         (click)="retryActivity()"
       >
@@ -22,11 +27,7 @@
   } @else if (!loading()) {
     <div
       class="grid min-w-0 items-start gap-6"
-      [class]="
-        hasContent() && !released()
-          ? 'lg:grid-cols-[minmax(0,2fr)_minmax(20rem,1fr)]'
-          : 'mx-auto w-full max-w-3xl'
-      "
+      [class]="split() ? 'lg:grid-cols-[minmax(0,5fr)_minmax(20rem,3fr)]' : ''"
     >
       <div class="grid min-w-0 gap-6">
         @if (hasPlan()) {
@@ -160,131 +161,159 @@
         <section
           class="chat-panel panel min-w-0 gap-4"
           [attr.data-document]="hasContent() ? '' : null"
+          [attr.data-open]="chatOpen() ? '' : null"
+          #chatPanel
+          id="activity-chat"
+          tabindex="-1"
           aria-label="השיחה על הפעילות"
         >
+          @if (hasContent()) {
+            <button
+              #chatClose
+              id="close-chat"
+              type="button"
+              class="icon-button icon-button-quiet absolute inset-e-3 top-3 lg:hidden"
+              (click)="closeChat()"
+            >
+              <span class="icon icon-minus" aria-hidden="true"></span
+              ><span class="tooltip">הסתרת השיחה</span>
+            </button>
+          }
           @if (!hasPlan()) {
-            <h2 id="plan-title">מה תרצו להכין?</h2>
+            <h2 id="plan-title" class="chat-title">
+              <span class="ai-mark" aria-hidden="true"></span>מה תרצו להכין?
+            </h2>
           }
           <ng-container [ngTemplateOutlet]="authorChat" />
         </section>
       }
-    </div>
-    @if (actionBar()) {
-      <section class="action-bar" actionBar aria-labelledby="actions-title">
-        <h2 id="actions-title" class="sr-only">שמירה ופעולות</h2>
-        @if (activityError()?.message || readError()) {
-          <div class="flex flex-wrap items-center gap-x-4">
-            <p role="alert" class="field-error">{{ activityError()?.message || readError() }}</p>
-            @if (reloadPlacement() === 'error') {
-              <ng-container [ngTemplateOutlet]="reload" />
-            }
-            @if (!saved()) {
-              <a routerLink="/activities" class="text-link">בדיקת הטיוטה במרחב שלנו</a>
-            }
-          </div>
-        }
-        <app-field-errors [field]="fields" />
-        @if (startRecovery()) {
-          <p>לא ברור אם הבקשה התקבלה. אפשר לבדוק אותה בלי להתחיל פעולה חדשה.</p>
-        }
-        <div class="action-bar-row">
-          <div class="action-bar-actions">
-            @if (released()) {
-              <a
-                class="button"
-                [routerLink]="['/instances', (available() ?? saved())!.releasedSnapshotId]"
-                ><span class="icon icon-users" aria-hidden="true"></span>הקצאה לילדים</a
-              >
-              <button
-                id="copy-released"
-                type="button"
-                class="button button-secondary"
-                [disabledInteractive]="copying()"
-                (click)="copyReleased()"
-              >
-                <span class="icon icon-copy" aria-hidden="true"></span>עריכה כטיוטה חדשה
-              </button>
-            } @else {
-              @if (startRecovery()) {
-                <button
-                  id="recover-start"
-                  class="button button-secondary"
-                  type="button"
-                  [disabledInteractive]="saving()"
-                  (click)="recoverStart()"
-                >
-                  <span class="icon icon-refresh" aria-hidden="true"></span>בדיקת הבקשה
-                </button>
+      @if (actionBar()) {
+        <section class="action-bar" actionBar aria-labelledby="actions-title">
+          <h2 id="actions-title" class="sr-only">שמירה ופעולות</h2>
+          @if (activityError()?.message || readError()) {
+            <div class="flex flex-wrap items-center gap-x-4">
+              <p role="alert" class="field-error">{{ activityError()?.message || readError() }}</p>
+              @if (reloadPlacement() === 'error') {
+                <ng-container [ngTemplateOutlet]="reload" />
               }
-              @if (createAction(); as create) {
-                <button
-                  id="create-activity"
+              @if (!saved()) {
+                <a routerLink="/activities" class="text-link">בדיקת הטיוטה במרחב שלנו</a>
+              }
+            </div>
+          }
+          <app-field-errors [field]="fields" />
+          @if (startRecovery()) {
+            <p>לא ברור אם הבקשה התקבלה. אפשר לבדוק אותה בלי להתחיל פעולה חדשה.</p>
+          }
+          <div class="action-bar-row">
+            <div class="action-bar-actions">
+              @if (released()) {
+                <a
                   class="button"
-                  type="button"
-                  [disabledInteractive]="!canGenerate()"
-                  (click)="activityAction(create.kind)"
+                  [routerLink]="['/instances', (available() ?? saved())!.releasedSnapshotId]"
+                  ><span class="icon icon-users" aria-hidden="true"></span
+                  ><span>הקצאה לילדים</span></a
                 >
-                  <span class="icon icon-ai" aria-hidden="true"></span>{{ create.label }}
+                <button
+                  id="copy-released"
+                  type="button"
+                  class="button button-secondary"
+                  [disabledInteractive]="copying()"
+                  (click)="copyReleased()"
+                >
+                  <span class="icon icon-copy" aria-hidden="true"></span
+                  ><span>עריכה כטיוטה חדשה</span>
                 </button>
               } @else {
-                <button
-                  id="release-activity"
-                  class="button"
-                  type="button"
-                  [disabledInteractive]="
-                    locked() || dirty() || !!issues().length || approvalBlocked()
-                  "
-                  (click)="activityAction('release')"
+                @if (startRecovery()) {
+                  <button
+                    id="recover-start"
+                    class="button button-secondary"
+                    type="button"
+                    [disabledInteractive]="saving()"
+                    (click)="recoverStart()"
+                  >
+                    <span class="icon icon-refresh" aria-hidden="true"></span
+                    ><span>בדיקת הבקשה</span>
+                  </button>
+                }
+                @if (createAction(); as create) {
+                  <button
+                    id="create-activity"
+                    class="button"
+                    type="button"
+                    [disabledInteractive]="!canGenerate()"
+                    (click)="activityAction(create.kind)"
+                  >
+                    <span class="icon icon-ai" aria-hidden="true"></span
+                    ><span>{{ create.label }}</span>
+                  </button>
+                } @else {
+                  <button
+                    id="release-activity"
+                    class="button"
+                    type="button"
+                    [disabledInteractive]="locked() || !!issues().length || approvalBlocked()"
+                    (click)="activityAction('release')"
+                  >
+                    <span class="icon icon-check" aria-hidden="true"></span
+                    ><span>אישור הפעילות</span>
+                  </button>
+                }
+                @if (hasContent()) {
+                  <button
+                    id="open-chat"
+                    type="button"
+                    class="button button-secondary lg:hidden"
+                    aria-controls="activity-chat"
+                    [attr.aria-expanded]="chatOpen()"
+                    [attr.aria-busy]="chatSession.authoring() || operationActive()"
+                    (click)="chatOpen() ? closeChat() : openChat()"
+                  >
+                    <span class="icon icon-ai" aria-hidden="true"></span><span>העוזר</span>
+                  </button>
+                }
+              }
+            </div>
+            <div class="action-bar-status">
+              <span
+                role="status"
+                class="save-state"
+                [attr.data-attention]="elsewhere() || (unsaved() && blocker()) ? '' : null"
+                >{{ saveState() }}</span
+              >
+              @if (updates.state() === 'unavailable') {
+                <span role="status" class="note"
+                  ><span class="icon icon-alert" aria-hidden="true"></span>העדכונים בזמן אמת
+                  נותקו.</span
                 >
-                  <span class="icon icon-check" aria-hidden="true"></span>אישור הפעילות
+                <button
+                  id="reconnect-draft"
+                  type="button"
+                  class="text-link"
+                  (click)="updates.reconnect()"
+                >
+                  <span class="icon icon-refresh" aria-hidden="true"></span><span>חיבור מחדש</span>
                 </button>
               }
               <button
-                id="save-activity"
-                class="button button-secondary"
+                id="plan-undo"
+                class="icon-button icon-button-quiet"
                 type="button"
-                [disabledInteractive]="locked()"
-                (click)="activityAction('save')"
+                [disabledInteractive]="locked() || !canUndo()"
+                (click)="undo()"
               >
-                שמירת טיוטה
+                <span class="icon icon-undo" aria-hidden="true"></span
+                ><span class="tooltip">ביטול השינוי האחרון</span>
               </button>
-            }
+              <span role="status">{{ notice() }}</span>
+              <app-action-bar-toggle />
+            </div>
           </div>
-          <div class="action-bar-status">
-            <span role="status" [class.font-medium]="unsaved()" [class.text-ink]="unsaved()">{{
-              saveState()
-            }}</span>
-            @if (updates.state() === 'unavailable') {
-              <span role="status" class="note"
-                ><span class="icon icon-alert" aria-hidden="true"></span>העדכונים בזמן אמת
-                נותקו.</span
-              >
-              <button
-                id="reconnect-draft"
-                type="button"
-                class="text-link"
-                (click)="updates.reconnect()"
-              >
-                <span class="icon icon-refresh" aria-hidden="true"></span>חיבור מחדש
-              </button>
-            }
-            <button
-              id="plan-undo"
-              class="icon-button icon-button-quiet"
-              type="button"
-              [disabledInteractive]="locked() || !canUndo()"
-              (click)="undo()"
-            >
-              <span class="icon icon-undo" aria-hidden="true"></span
-              ><span class="tooltip">ביטול השינוי האחרון</span>
-            </button>
-            <span role="status">{{ notice() }}</span>
-            <app-action-bar-toggle />
-          </div>
-        </div>
-        <app-loading-indicator [active]="copying()" label="יוצרים טיוטה חדשה…" />
-      </section>
-    }
+          <app-loading-indicator [active]="copying()" label="יוצרים טיוטה חדשה…" />
+        </section>
+      }
+    </div>
   }
 </section>
 <ng-template #authorChat>
@@ -295,7 +324,7 @@
       <button
         id="retry-ai-status"
         type="button"
-        class="text-link justify-self-start"
+        class="text-link"
         [disabledInteractive]="ai.isLoading()"
         (click)="retryAiStatus()"
       >
@@ -313,7 +342,7 @@
     [configured]="aiConfigured()"
     [busy]="chatSession.authoring() || operationActive()"
     [stopping]="saving()"
-    [locked]="locked() || chatSession.invalidTarget() || !chatSession.sourcesReady()"
+    [locked]="locked() || chatSession.invalidTarget()"
     [targetLabel]="chatSession.targetLabel()"
     [invalidTarget]="chatSession.invalidTarget()"
     (targetCleared)="clearTarget()"
@@ -328,89 +357,6 @@
     (consolidated)="author(true)"
     (cancelled)="operationActive() ? cancelGeneration() : chatSession.cancelAuthor()"
   />
-  @if (saved()) {
-    <details class="chat-attachments border-t border-line pt-3">
-      <summary>
-        @if (chatSession.addedSources().length === 1) {
-          טקסט שצורף לבקשה
-        } @else if (chatSession.addedSources().length > 1) {
-          טקסטים שצורפו לבקשה ({{ chatSession.addedSources().length }})
-        } @else {
-          הוספת טקסט שלכם לבקשה
-        }
-      </summary>
-      <div class="grid gap-4">
-        @for (source of chatSession.addedSources(); track $index; let i = $index) {
-          <div class="well grid gap-4">
-            <div>
-              <label [for]="'chat-source-' + i + '-label'">שם הטקסט</label>
-              <input
-                [id]="'chat-source-' + i + '-label'"
-                dir="auto"
-                [formField]="chatSession.additionFields[i].label"
-                [attr.aria-describedby]="'chat-source-' + i + '-label-errors'"
-              />
-              <app-field-errors
-                [id]="'chat-source-' + i + '-label-errors'"
-                [field]="chatSession.additionFields[i].label"
-              />
-            </div>
-            <div>
-              <label [for]="'chat-source-' + i + '-text'">הטקסט שלכם</label>
-              <textarea
-                [id]="'chat-source-' + i + '-text'"
-                dir="auto"
-                rows="6"
-                [formField]="chatSession.additionFields[i].text"
-                [attr.aria-describedby]="
-                  'chat-source-' + i + '-text-help chat-source-' + i + '-text-errors'
-                "
-              ></textarea>
-              <p [id]="'chat-source-' + i + '-text-help'" class="mt-2 text-sm text-muted">
-                הטקסט יישמר בדיוק כפי שהוזן. אשרו אותו לפני שליחת הבקשה.
-              </p>
-              <app-field-errors
-                [id]="'chat-source-' + i + '-text-errors'"
-                [field]="chatSession.additionFields[i].text"
-              />
-            </div>
-            @if (!source.text.trim() || source.confirmedText !== source.text) {
-              <button
-                [id]="'confirm-chat-source-' + i"
-                type="button"
-                class="button button-secondary"
-                [disabledInteractive]="locked()"
-                (click)="chatSession.confirmAddedSource(i)"
-              >
-                הטקסט הועתק נכון
-              </button>
-            } @else {
-              <p role="status">הטקסט אושר לשליחה.</p>
-            }
-            <button
-              type="button"
-              class="text-link"
-              [disabledInteractive]="locked()"
-              (click)="chatSession.removeAddedSource(i)"
-            >
-              הסרת הטקסט מהבקשה
-            </button>
-          </div>
-        }
-        <button
-          id="add-chat-source"
-          type="button"
-          class="text-link"
-          [disabledInteractive]="
-            locked() || chatSession.addedSources().length >= limits.maxMaterials
-          "
-          (click)="chatSession.addSource()"
-        >
-          הוספת טקסט
-        </button>
-      </div>
-    </details>
-  }
   @if (chatSession.authorError()) {
     <p role="alert" class="field-error">{{ chatSession.authorError() }}</p>
   }

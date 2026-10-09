@@ -33,6 +33,11 @@ describe('ActivityWorkspace plan ownership', () => {
     await Promise.resolve();
     await harness.fixture.whenStable();
   }
+  /** Lets the pause after the last change pass, so a valid buffer saves itself. */
+  async function autosave() {
+    vi.advanceTimersByTime(1000);
+    await settle();
+  }
   async function open() {
     await harness.navigateByUrl('/activities/new', ActivityWorkspace);
     http.expectOne('/api/ai/status').flush({ configured: true });
@@ -82,6 +87,8 @@ describe('ActivityWorkspace plan ownership', () => {
     });
   }
   beforeEach(async () => {
+    // Autosave waits for a pause in typing; tests advance that pause explicitly.
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
     TestBed.configureTestingModule({
       providers: [
         provideLimits(),
@@ -100,7 +107,10 @@ describe('ActivityWorkspace plan ownership', () => {
     http = TestBed.inject(HttpTestingController);
     harness = await RouterTestingHarness.create();
   });
-  afterEach(() => http.verify());
+  afterEach(() => {
+    vi.useRealTimers();
+    http.verify();
+  });
 
   it('retries an unavailable AI status without losing the request being written', async () => {
     await harness.navigateByUrl('/activities/new', ActivityWorkspace);
@@ -171,17 +181,17 @@ describe('ActivityWorkspace plan ownership', () => {
     const workspace = harness.routeDebugElement!.componentInstance as ActivityWorkspace;
     const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
     await type('chat-message', 'בקשה שעדיין לא נשלחה');
-    expect(workspace.canLeave()).toBe(false);
+    expect(await workspace.canLeave()).toBe(false);
     const request = await ask();
-    expect(workspace.canLeave()).toBe(false);
+    expect(await workspace.canLeave()).toBe(false);
     reply(request, null, 'לאיזה גיל?');
     await settle();
-    expect(workspace.canLeave()).toBe(false);
+    expect(await workspace.canLeave()).toBe(false);
     expect(confirm).toHaveBeenCalledTimes(3);
     confirm.mockRestore();
   });
 
-  it('shows a concrete read-only summary after authoring without saving', async () => {
+  it('shows a concrete read-only summary after authoring, before the pause saves it', async () => {
     await open();
     reply(await ask());
     await settle();
@@ -197,16 +207,16 @@ describe('ActivityWorkspace plan ownership', () => {
     await open();
     reply(await ask(), suppliedPlan);
     await settle();
-    await click('save-activity');
+    await autosave();
     http.expectNone('/api/activity-drafts');
-    expect(root().textContent).toContain('אשרו שהטקסט שלכם הועתק נכון');
+    expect(root().textContent).toContain('בדקו שהטקסט הועתק נכון');
     const id = suppliedPlan.materials[0].id;
     await click('confirm-source-' + id);
     await type('source-' + id, sourceText + '!');
-    await click('save-activity');
+    await autosave();
     http.expectNone('/api/activity-drafts');
     await click('confirm-source-' + id);
-    await click('save-activity');
+    await autosave();
     const save = http.expectOne('/api/activity-drafts');
     expect(save.request.body.plan.materials[0].text).toBe(sourceText + '!');
     expect(save.request.body.templateId).toBeUndefined();
@@ -220,7 +230,7 @@ describe('ActivityWorkspace plan ownership', () => {
     reply(await ask('שאלות על הטקסט שלי'), suppliedPlan);
     await settle();
     await click('confirm-source-' + suppliedPlan.materials[0].id);
-    await click('save-activity');
+    await autosave();
     const save = http.expectOne('/api/activity-drafts');
     expect(save.request.body.chat).toHaveLength(2);
     expect(save.request.body.chat[0].text).toBe('שאלות על הטקסט שלי');
@@ -232,7 +242,7 @@ describe('ActivityWorkspace plan ownership', () => {
     await open();
     reply(await ask());
     await settle();
-    await click('save-activity');
+    await autosave();
     const save = http.expectOne('/api/activity-drafts');
     expect(save.request.body.plan).toEqual(numericPlan);
     expect(save.request.body.chat.map((turn: { role: string }) => turn.role)).toEqual([

@@ -90,7 +90,7 @@ test('clarifies, confirms exact source text and saves the draft with its convers
     });
   });
   await page.goto('/activities/new');
-  await expect(page.locator('#save-activity, #create-activity')).toHaveCount(0);
+  await expect(page.locator('#create-activity')).toHaveCount(0);
   await page.getByRole('textbox', { name: 'מה תרצו להכין?' }).fill('תרגול לפי מקור דו לשוני');
   await page.locator('#chat-send').click();
   await expect(page.locator('#chat-clarification')).toHaveText('לאיזה גיל?');
@@ -102,12 +102,11 @@ test('clarifies, confirms exact source text and saves the draft with its convers
     { role: 'assistant', text: 'לאיזה גיל?' },
   ]);
   await expect(page.getByLabel('הטקסט שלכם')).toHaveValue(sourceText);
-  await page.locator('#save-activity').click();
-  await expect(page.getByRole('alert')).toContainText('אשרו שהטקסט שלכם הועתק נכון');
+  // An unconfirmed source keeps the plan from becoming a draft.
+  await expect(page.getByText('בדקו שהטקסט הועתק נכון', { exact: false })).toBeVisible();
   expect(writes).toEqual([]);
   await page.getByRole('button', { name: 'הטקסט הועתק נכון' }).click();
   await expect(page.getByRole('log')).toContainText('לאיזה גיל?');
-  await page.locator('#save-activity').click();
   await expect(page.getByText('נשמר', { exact: true })).toBeVisible();
   expect(writes).toHaveLength(1);
   expect(writes[0]).toMatchObject({
@@ -145,7 +144,6 @@ test('editing a source cancels a pending proposal and a failed checkpoint preser
   await expect(page.locator('#chat-cancel')).toBeHidden();
   release();
   await page.getByRole('button', { name: 'הטקסט הועתק נכון' }).click();
-  await page.locator('#save-activity').click();
   await expect(page.getByRole('alert')).toBeVisible();
   await expect(page.getByLabel('הטקסט שלכם')).toHaveValue('עריכה מקומית — Hello');
 });
@@ -157,7 +155,10 @@ test('a saved draft can be edited without AI at 360px and 200% text using the ke
   await page.setViewportSize({ width: 360, height: 800 });
   await page.goto('/activities/draft');
   await textSize(page, 32);
+  await page.locator('#open-chat').click();
   await expect(page.getByText('העוזר לא זמין כרגע.', { exact: false })).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(page.locator('#open-chat')).toBeFocused();
   await page.locator('#edit-activity').focus();
   await page.keyboard.press('Enter');
   await expect(page.locator('#document-title')).toBeFocused();
@@ -166,9 +167,6 @@ test('a saved draft can be edited without AI at 360px and 200% text using the ke
   await page.keyboard.press('Enter');
   await expect(page.locator('#edit-activity')).toBeFocused();
   await expect(page.getByRole('heading', { name: 'תרגול ידני — Hello', level: 3 })).toBeVisible();
-  expect(writes).toHaveLength(0);
-  await page.locator('#save-activity').focus();
-  await page.keyboard.press('Enter');
   await expect(page.getByText('נשמר', { exact: true })).toBeVisible();
   await expect(page.getByText('תרגול ידני — Hello', { exact: true })).toBeVisible();
   expect(writes).toHaveLength(1);
@@ -176,7 +174,7 @@ test('a saved draft can be edited without AI at 360px and 200% text using the ke
   await page.screenshot({ path: test.info().outputPath('canvas-mobile.png'), fullPage: true });
 });
 
-test('desktop chat stays reachable beside lower questions and returns to page flow for large text and source forms', async ({
+test('desktop chat stays reachable beside lower questions, and becomes a sheet for large text and narrow screens', async ({
   page,
 }) => {
   await isolate(page, true, {
@@ -202,6 +200,7 @@ test('desktop chat stays reachable beside lower questions and returns to page fl
       operationId: null,
       assumptions: null,
       outcome: null,
+      changes: null,
     })),
   });
   await page.setViewportSize({ width: 1440, height: 900 });
@@ -213,9 +212,17 @@ test('desktop chat stays reachable beside lower questions and returns to page fl
   await expect(page.locator('#chat-message')).toBeFocused();
   await expect(page.locator('#chat-message')).toHaveValue('לגבי שאלה 11: ');
   expect(Math.abs((await page.evaluate(() => scrollY)) - before)).toBeLessThan(10);
-  const composer = await page.locator('.composer').boundingBox();
-  expect(composer!.y).toBeGreaterThan(0);
-  expect(composer!.y + composer!.height).toBeLessThan(800);
+  // The pinned composer is fully in view and beside the action bar's column, never under it.
+  const besideBar = async (height: number) => {
+    const composer = (await page.locator('.composer').boundingBox())!;
+    const bar = (await page.locator('.action-bar').boundingBox())!;
+    expect(composer.y).toBeGreaterThan(0);
+    expect(composer.y + composer.height).toBeLessThanOrEqual(height);
+    expect(Math.max(bar.x, composer.x)).toBeGreaterThanOrEqual(
+      Math.min(bar.x + bar.width, composer.x + composer.width),
+    );
+  };
+  await besideBar(900);
   const history = page.getByRole('log');
   expect(await history.evaluate((element) => element.scrollHeight > element.clientHeight)).toBe(
     true,
@@ -232,10 +239,18 @@ test('desktop chat stays reachable beside lower questions and returns to page fl
       ),
     )
     .toBeLessThan(1);
+  await history.evaluate((element) => element.scrollTo({ top: 0 }));
+  await page.locator('#chat-latest').click();
+  await expect(history).toBeFocused();
+  await expect
+    .poll(() =>
+      history.evaluate(
+        (element) => element.scrollHeight - element.clientHeight - element.scrollTop,
+      ),
+    )
+    .toBeLessThan(1);
+  await expect(page.locator('#chat-latest')).toHaveCount(0);
   await page.screenshot({ path: test.info().outputPath('chat-desktop.png') });
-  await chat.locator('.chat-attachments > summary').click();
-  await expect(chat).toHaveCSS('position', 'static');
-  await chat.locator('.chat-attachments > summary').click();
   // A 1366×768 laptop leaves about 650px for the page once the browser's own bars are drawn.
   for (const [width, height] of [
     [1366, 650],
@@ -248,9 +263,7 @@ test('desktop chat stays reachable beside lower questions and returns to page fl
     await page.locator('#ask-question-q10').click();
     await expect(chat).toHaveCSS('position', 'sticky');
     expect(Math.abs((await page.evaluate(() => scrollY)) - position)).toBeLessThan(10);
-    const bounds = await page.locator('.composer').boundingBox();
-    expect(bounds!.y).toBeGreaterThan(0);
-    expect(bounds!.y + bounds!.height).toBeLessThan(height - 100);
+    await besideBar(height);
   }
   for (const [width, font] of [
     [1440, 32],
@@ -260,13 +273,20 @@ test('desktop chat stays reachable beside lower questions and returns to page fl
   ]) {
     await page.setViewportSize({ width, height: 900 });
     await textSize(page, font);
-    await expect(chat).toHaveCSS('position', 'static');
+    await expect(chat).toBeHidden();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
       true,
     );
+    // A minimized action bar still lets a question open the sheet.
+    if (width === 360 && font === 16)
+      await page.locator('.action-bar').getByRole('button', { name: 'הקטנת הסרגל' }).click();
+    // Asking opens the sheet at the composer; Escape returns to the question the parent asked about.
     await page.locator('#ask-question-q11').click();
     await expect(page.locator('#chat-message')).toBeFocused();
     await expect(page.locator('#chat-message')).toBeInViewport();
+    await page.keyboard.press('Escape');
+    await expect(chat).toBeHidden();
+    await expect(page.locator('#ask-question-q11')).toBeFocused();
   }
   await page.screenshot({ path: test.info().outputPath('chat-enlarged.png') });
 });

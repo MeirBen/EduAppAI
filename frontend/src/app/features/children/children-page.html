@@ -3,330 +3,345 @@
     <h1 id="children-heading">הילדים והמכשירים</h1>
     <p class="text-muted">ניהול הפרופילים והגישה לפעילויות של המשפחה.</p>
   </header>
-  <section class="grid gap-4" aria-labelledby="profiles-heading">
-    <div class="flex flex-wrap items-center justify-between gap-3">
-      <h2 id="profiles-heading">פרופילי הילדים</h2>
-      <button
-        id="refresh-children"
-        class="text-link"
-        [disabledInteractive]="busy() || children.isLoading()"
-        (click)="children.reload()"
-      >
-        רענון הרשימה
-      </button>
-    </div>
-    <app-loading-indicator [active]="children.isLoading()" label="טוענים פרופילים…" />
-    @if (children.error()) {
-      <p class="error" role="alert">{{ failure(children.error()) }}</p>
-    }
-    @if (children.hasValue()) {
-      @for (child of children.value().items; track child.id) {
-        <article class="list-row" [attr.aria-labelledby]="'child-' + child.id">
-          <div class="grid min-w-1/2 flex-1 gap-1">
-            <h3 [id]="'child-' + child.id">
-              <bdi>{{ child.name }}</bdi>
-            </h3>
-            <p class="text-muted">{{ child.enabled ? 'פרופיל פעיל' : 'פרופיל מושבת' }}</p>
-            @if (child.grade || child.age !== null) {
-              <p class="text-muted">
-                @if (child.grade) {
-                  <bdi>{{ child.grade }}</bdi>
-                }
-                @if (child.grade && child.age !== null) {
-                  ·
-                }
-                @if (child.age !== null) {
-                  גיל {{ child.age }}
-                }
-              </p>
-            }
-          </div>
-          <button
-            data-edit-child
-            class="button button-secondary"
-            [disabledInteractive]="busy()"
-            [attr.aria-label]="'ניהול הפרופיל: ' + child.name"
-            (click)="select(child)"
-          >
-            ניהול
-          </button>
-        </article>
-      } @empty {
-        <p class="empty-state">עוד אין פרופילים. הוסיפו ילד או ילדה כדי להקצות פעילויות.</p>
-      }
-      <app-pager
-        label="עמודי פרופילים"
-        [(page)]="page"
-        [hasMore]="children.value().hasMore"
-        [busy]="busy() || children.isLoading()"
-      />
-    }
-  </section>
-  <section class="panel grid gap-4" aria-labelledby="profile-heading">
-    <div class="flex flex-wrap items-center justify-between gap-3">
-      <h2 id="profile-heading">{{ selected() ? 'עריכת פרופיל' : 'פרופיל חדש' }}</h2>
-      @if (selected()) {
-        <button id="new-child" class="text-link" [disabledInteractive]="busy()" (click)="select()">
-          הוספת ילד או ילדה
-        </button>
-      }
-    </div>
-    <form id="profile-form" class="grid gap-4" (submit)="save($event)">
-      <div>
-        <label for="child-name">שם הילד או הילדה</label
-        ><input
-          id="child-name"
-          dir="auto"
-          autocomplete="off"
-          [formField]="fields.name"
-          aria-describedby="child-name-errors"
-        />
-        <app-field-errors id="child-name-errors" [field]="fields.name" />
-      </div>
-      <div>
-        <label for="child-grade">כיתה (רשות)</label>
-        <input
-          id="child-grade"
-          dir="auto"
-          autocomplete="off"
-          [formField]="fields.grade"
-          aria-describedby="child-grade-help child-grade-errors"
-        />
-        <p id="child-grade-help" class="mt-2 text-sm text-muted">
-          למשל: גן חובה, כיתה ד׳ או חינוך ביתי.
-        </p>
-        <app-field-errors id="child-grade-errors" [field]="fields.grade" />
-      </div>
-      <div>
-        <label for="child-age">גיל (רשות)</label>
-        <input
-          id="child-age"
-          type="text"
-          inputmode="numeric"
-          dir="ltr"
-          autocomplete="off"
-          [formField]="fields.age"
-          aria-describedby="child-age-help child-age-errors"
-        />
-        <p id="child-age-help" class="mt-2 text-sm text-muted">בשנים שלמות.</p>
-        <app-field-errors id="child-age-errors" [field]="fields.age" />
-      </div>
-      @if (selected()) {
-        <label
-          ><input id="child-enabled" type="checkbox" [formField]="fields.enabled" />פרופיל
-          פעיל</label
-        >
-      }
-      <div class="grid gap-3">
-        <app-loading-indicator [active]="working() === 'profile'" label="שומרים את הפרופיל…" />
-        @if (notice()) {
-          <p role="status" class="note">
-            <span class="icon icon-check" aria-hidden="true"></span>{{ notice() }}
-          </p>
-        }
-        @if (error()) {
-          <p role="alert" class="field-error">{{ error() }}</p>
-        }
-        <button class="button" [disabledInteractive]="busy()">
-          {{ selected() ? 'שמירת הפרופיל' : 'יצירת פרופיל' }}
-        </button>
-      </div>
-    </form>
-    @if (selected(); as child) {
-      @if (child.hasAssignments) {
-        <p class="text-sm text-muted">
-          לפרופיל יש פעילויות, ולכן אפשר רק להשבית אותו. ההיסטוריה תישמר.
-        </p>
-      } @else {
+  <div class="grid items-start gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
+    <section class="grid gap-4" aria-labelledby="profiles-heading">
+      <div class="flex flex-wrap items-center justify-between gap-3">
+        <h2 id="profiles-heading">פרופילי הילדים</h2>
         <button
-          id="delete-child"
-          class="text-link text-link-danger justify-self-start"
-          [disabledInteractive]="busy()"
-          (click)="deleteProfile()"
+          id="refresh-children"
+          class="text-link"
+          [disabledInteractive]="busy() || children.isLoading()"
+          (click)="children.reload()"
         >
-          מחיקת הפרופיל
+          <span class="icon icon-refresh" aria-hidden="true"></span>רענון הרשימה
         </button>
+      </div>
+      <app-loading-indicator [active]="children.isLoading()" label="טוענים פרופילים…" />
+      @if (children.error()) {
+        <p class="error" role="alert">{{ failure(children.error()) }}</p>
       }
-      <details id="profile-dates" class="text-sm text-muted">
-        <summary [attr.aria-label]="'פרטי זמנים של הפרופיל: ' + child.name">פרטי זמנים</summary>
-        <div class="mt-2 grid gap-1">
-          <p>
-            נוצר ב־<bdi>{{ child.createdAtUtc | date }}</bdi>
-          </p>
-          @if (child.updatedAtUtc) {
-            <p>
-              עודכן ב־<bdi>{{ child.updatedAtUtc | date }}</bdi>
-            </p>
-          }
-          @if (child.ageConfirmedAtUtc) {
-            <p>
-              הגיל עודכן ב־<bdi>{{ child.ageConfirmedAtUtc | date }}</bdi>
-            </p>
+      @if (children.hasValue()) {
+        @for (child of children.value().items; track child.id) {
+          <article
+            class="list-row"
+            [attr.aria-labelledby]="'child-' + child.id"
+            [attr.aria-current]="selected()?.id === child.id ? 'true' : null"
+          >
+            <div class="grid min-w-1/2 flex-1 gap-1">
+              <h3 [id]="'child-' + child.id">
+                <bdi>{{ child.name }}</bdi>
+              </h3>
+              <p class="text-sm text-muted">{{ child.enabled ? 'פרופיל פעיל' : 'פרופיל מושבת' }}</p>
+              @if (child.grade || child.age !== null) {
+                <p class="text-sm text-muted">
+                  @if (child.grade) {
+                    <bdi>{{ child.grade }}</bdi>
+                  }
+                  @if (child.grade && child.age !== null) {
+                    ·
+                  }
+                  @if (child.age !== null) {
+                    גיל {{ child.age }}
+                  }
+                </p>
+              }
+            </div>
+            <button
+              data-edit-child
+              class="button button-secondary"
+              [disabledInteractive]="busy()"
+              [attr.aria-label]="'ניהול הפרופיל: ' + child.name"
+              (click)="select(child)"
+            >
+              ניהול
+            </button>
+          </article>
+        } @empty {
+          <p class="empty-state">עוד אין פרופילים. הוסיפו ילד או ילדה כדי להקצות פעילויות.</p>
+        }
+        <app-pager
+          label="עמודי פרופילים"
+          [(page)]="page"
+          [hasMore]="children.value().hasMore"
+          [busy]="busy() || children.isLoading()"
+        />
+      }
+    </section>
+    <div class="grid gap-6">
+      <section class="panel grid gap-4" aria-labelledby="profile-heading">
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <h2 id="profile-heading">{{ selected() ? 'עריכת פרופיל' : 'פרופיל חדש' }}</h2>
+          @if (selected()) {
+            <button
+              id="new-child"
+              class="text-link"
+              [disabledInteractive]="busy()"
+              (click)="select()"
+            >
+              הוספת ילד או ילדה
+            </button>
           }
         </div>
-      </details>
-    }
-  </section>
-  @if (selected(); as child) {
-    <section class="panel grid gap-4" aria-labelledby="access-heading">
-      <h2 id="access-heading">
-        גישה למכשירים — <bdi>{{ child.name }}</bdi>
-      </h2>
-      @if (child.enabled) {
-        <form id="activation-form" class="grid gap-4" (submit)="issue($event)">
+        <form id="profile-form" class="grid gap-4" (submit)="save($event)">
           <div>
-            <label for="device-label">שם המכשיר</label
+            <label for="child-name">שם הילד או הילדה</label
             ><input
-              id="device-label"
+              id="child-name"
               dir="auto"
               autocomplete="off"
-              [formField]="deviceFields.label"
-              aria-describedby="device-label-help device-label-errors"
+              [formField]="fields.name"
+              aria-describedby="child-name-errors"
             />
-            <p id="device-label-help" class="mt-2 text-sm text-muted">למשל: הטאבלט בבית.</p>
-            <app-field-errors id="device-label-errors" [field]="deviceFields.label" />
+            <app-field-errors id="child-name-errors" [field]="fields.name" />
           </div>
-          <p class="note">
-            <span class="icon icon-info" aria-hidden="true"></span>
-            הקוד יוצג פעם אחת בלבד, וקוד חדש מבטל קוד קודם שלא נוצל. השתמשו בו בדפדפן אחר מזה שבו
-            אתם מחוברים.
-          </p>
-          <button class="button button-secondary justify-self-start" [disabledInteractive]="busy()">
-            יצירת קוד הפעלה
-          </button>
-        </form>
-      } @else {
-        <p class="note">
-          <span class="icon icon-info" aria-hidden="true"></span>
-          הפרופיל מושבת. כדי לחבר מכשיר, הפעילו אותו ושמרו.
-        </p>
-      }
-      @if (activation(); as code) {
-        <div class="well grid gap-2" role="status">
-          <p>במכשיר או בדפדפן נפרד של הילד, פתחו את כתובת ההפעלה והזינו את הקוד:</p>
-          <div class="flex flex-wrap items-center gap-3">
-            <bdi class="min-w-0 break-all">{{ activationUrl }}</bdi>
-            <app-copy-button [text]="activationUrl" label="העתקת כתובת ההפעלה" />
+          <div class="grid gap-4 sm:grid-cols-2">
+            <div>
+              <label for="child-grade">כיתה (רשות)</label>
+              <input
+                id="child-grade"
+                dir="auto"
+                autocomplete="off"
+                [formField]="fields.grade"
+                aria-describedby="child-grade-help child-grade-errors"
+              />
+              <p id="child-grade-help" class="mt-2 text-sm text-muted">
+                למשל: גן חובה, כיתה ד׳ או חינוך ביתי.
+              </p>
+              <app-field-errors id="child-grade-errors" [field]="fields.grade" />
+            </div>
+            <div>
+              <label for="child-age">גיל (רשות)</label>
+              <input
+                id="child-age"
+                type="text"
+                inputmode="numeric"
+                dir="ltr"
+                autocomplete="off"
+                [formField]="fields.age"
+                aria-describedby="child-age-help child-age-errors"
+              />
+              <p id="child-age-help" class="mt-2 text-sm text-muted">בשנים שלמות.</p>
+              <app-field-errors id="child-age-errors" [field]="fields.age" />
+            </div>
           </div>
-          <p>קוד הפעלה חד־פעמי:</p>
-          <p
-            class="text-2xl font-semibold tracking-widest select-all"
-            dir="ltr"
-            data-activation-code
-            [textContent]="code.code"
-          ></p>
-          <p>
-            בתוקף עד <bdi>{{ code.expiresAtUtc | date }}</bdi
-            >. הקוד ייעלם ביציאה מהעמוד.
-          </p>
-          <button class="text-link justify-self-start" (click)="activation.set(undefined)">
-            הסתרת הקוד
-          </button>
-        </div>
-      }
-      <app-loading-indicator [active]="working() === 'access'" label="מעדכנים את הגישה…" />
-      @if (accessNotice()) {
-        <p role="status" class="note">
-          <span class="icon icon-check" aria-hidden="true"></span>{{ accessNotice() }}
-        </p>
-      }
-      @if (accessError()) {
-        <p class="field-error" role="alert">{{ accessError() }}</p>
-      }
-      <section class="card-section" aria-labelledby="devices-heading">
-        <div class="flex flex-wrap items-center justify-between gap-3">
-          <h3 id="devices-heading">מכשירים</h3>
-          <button
-            class="text-link"
-            [disabledInteractive]="busy() || devices.isLoading()"
-            (click)="devices.reload()"
-          >
-            רענון המכשירים
-          </button>
-        </div>
-        <app-loading-indicator [active]="devices.isLoading()" label="טוענים מכשירים…" />
-        @if (devices.error()) {
-          <p class="field-error" role="alert">{{ failure(devices.error()) }}</p>
-        }
-        @if (devices.hasValue()) {
-          @for (device of devices.value().items; track device.id) {
-            <article
-              class="flex flex-wrap items-center gap-4"
-              [attr.aria-labelledby]="'device-' + device.id"
+          @if (selected()) {
+            <label
+              ><input id="child-enabled" type="checkbox" [formField]="fields.enabled" />פרופיל
+              פעיל</label
             >
-              <div class="grid min-w-1/2 flex-1 gap-1">
-                <h4 [id]="'device-' + device.id">
-                  <bdi>{{ device.deviceLabel }}</bdi>
-                </h4>
-                <p class="text-sm text-muted">
-                  {{
-                    device.revokedAtUtc
-                      ? 'הגישה בוטלה'
-                      : device.canRemove
-                        ? 'תוקף הגישה פג'
-                        : 'גישה פעילה'
-                  }}
-                </p>
-                <details class="text-sm text-muted">
-                  <summary [attr.aria-label]="'פרטי זמנים של המכשיר: ' + device.deviceLabel">
-                    פרטי זמנים
-                  </summary>
-                  <div class="mt-2 grid gap-1">
-                    <p>
-                      חובר ב־<bdi>{{ device.createdAtUtc | date }}</bdi>
-                    </p>
-                    @if (device.revokedAtUtc) {
-                      <p>
-                        הגישה בוטלה ב־<bdi>{{ device.revokedAtUtc | date }}</bdi>
-                      </p>
-                    }
-                    <p>
-                      {{
-                        device.canRemove && !device.revokedAtUtc ? 'התוקף פג ב־' : 'תוקף הגישה עד '
-                      }}<bdi>{{ device.expiresAtUtc | date }}</bdi>
-                    </p>
-                  </div>
-                </details>
-              </div>
-              @if (device.canRemove) {
-                <button
-                  data-remove-device
-                  class="text-link text-link-danger"
-                  [disabledInteractive]="busy()"
-                  [attr.aria-label]="'הסרת המכשיר מהרשימה: ' + device.deviceLabel"
-                  (click)="changeDeviceAccess(device)"
-                >
-                  הסרה מהרשימה
-                </button>
-              } @else {
-                <button
-                  data-revoke
-                  class="button button-danger"
-                  [disabledInteractive]="busy()"
-                  [attr.aria-label]="'ביטול הגישה: ' + device.deviceLabel"
-                  (click)="changeDeviceAccess(device)"
-                >
-                  ביטול גישה
-                </button>
-              }
-            </article>
-          } @empty {
-            <p class="empty-state">
-              {{
-                devicePage() > 1
-                  ? 'אין מכשירים נוספים.'
-                  : 'עוד לא חוברו מכשירים. צרו קוד הפעלה כדי לחבר מכשיר.'
-              }}
-            </p>
           }
-          <app-pager
-            label="עמודי מכשירים"
-            [(page)]="devicePage"
-            [hasMore]="devices.value().hasMore"
-            [busy]="busy() || devices.isLoading()"
-          />
+          <div class="grid gap-3">
+            <app-loading-indicator [active]="working() === 'profile'" label="שומרים את הפרופיל…" />
+            @if (notice()) {
+              <p role="status" class="note">
+                <span class="icon icon-check" aria-hidden="true"></span>{{ notice() }}
+              </p>
+            }
+            @if (error()) {
+              <p role="alert" class="field-error">{{ error() }}</p>
+            }
+            <button class="button" [disabledInteractive]="busy()">
+              {{ selected() ? 'שמירת הפרופיל' : 'יצירת פרופיל' }}
+            </button>
+          </div>
+        </form>
+        @if (selected(); as child) {
+          @if (child.hasAssignments) {
+            <p class="text-sm text-muted">
+              לפרופיל יש פעילויות, ולכן אפשר רק להשבית אותו. ההיסטוריה תישמר.
+            </p>
+          } @else {
+            <button
+              id="delete-child"
+              class="text-link text-link-danger"
+              [disabledInteractive]="busy()"
+              (click)="deleteProfile()"
+            >
+              מחיקת הפרופיל
+            </button>
+          }
+          <details id="profile-dates" class="text-sm text-muted">
+            <summary [attr.aria-label]="'פרטי זמנים של הפרופיל: ' + child.name">פרטי זמנים</summary>
+            <div class="grid gap-1">
+              <p>
+                נוצר ב־<bdi>{{ child.createdAtUtc | date }}</bdi>
+              </p>
+              @if (child.updatedAtUtc) {
+                <p>
+                  עודכן ב־<bdi>{{ child.updatedAtUtc | date }}</bdi>
+                </p>
+              }
+              @if (child.ageConfirmedAtUtc) {
+                <p>
+                  הגיל עודכן ב־<bdi>{{ child.ageConfirmedAtUtc | date }}</bdi>
+                </p>
+              }
+            </div>
+          </details>
         }
       </section>
-    </section>
-  }
+      @if (selected(); as child) {
+        <section class="panel grid gap-4" aria-labelledby="access-heading">
+          <h2 id="access-heading">
+            גישה למכשירים — <bdi>{{ child.name }}</bdi>
+          </h2>
+          @if (child.enabled) {
+            <form id="activation-form" class="grid gap-4" (submit)="issue($event)">
+              <div>
+                <label for="device-label">שם המכשיר</label
+                ><input
+                  id="device-label"
+                  dir="auto"
+                  autocomplete="off"
+                  [formField]="deviceFields.label"
+                  aria-describedby="device-label-help device-label-errors"
+                />
+                <p id="device-label-help" class="mt-2 text-sm text-muted">למשל: הטאבלט בבית.</p>
+                <app-field-errors id="device-label-errors" [field]="deviceFields.label" />
+              </div>
+              <p class="note">
+                <span class="icon icon-info" aria-hidden="true"></span>
+                הקוד יוצג פעם אחת בלבד, וקוד חדש מבטל קוד קודם שלא נוצל. השתמשו בו בדפדפן אחר מזה
+                שבו אתם מחוברים.
+              </p>
+              <button class="button button-secondary" [disabledInteractive]="busy()">
+                יצירת קוד הפעלה
+              </button>
+            </form>
+          } @else {
+            <p class="note">
+              <span class="icon icon-info" aria-hidden="true"></span>
+              הפרופיל מושבת. כדי לחבר מכשיר, הפעילו אותו ושמרו.
+            </p>
+          }
+          @if (activation(); as code) {
+            <div class="well grid gap-2" role="status">
+              <p>במכשיר או בדפדפן נפרד של הילד, פתחו את כתובת ההפעלה והזינו את הקוד:</p>
+              <div class="flex flex-wrap items-center gap-3">
+                <bdi class="min-w-0 break-all">{{ activationUrl }}</bdi>
+                <app-copy-button [text]="activationUrl" label="העתקת כתובת ההפעלה" />
+              </div>
+              <p>קוד הפעלה חד־פעמי:</p>
+              <p
+                class="code text-2xl select-all"
+                dir="ltr"
+                data-activation-code
+                [textContent]="code.code"
+              ></p>
+              <p>
+                בתוקף עד <bdi>{{ code.expiresAtUtc | date }}</bdi
+                >. הקוד ייעלם ביציאה מהעמוד.
+              </p>
+              <button class="text-link" (click)="activation.set(undefined)">הסתרת הקוד</button>
+            </div>
+          }
+          <app-loading-indicator [active]="working() === 'access'" label="מעדכנים את הגישה…" />
+          @if (accessNotice()) {
+            <p role="status" class="note">
+              <span class="icon icon-check" aria-hidden="true"></span>{{ accessNotice() }}
+            </p>
+          }
+          @if (accessError()) {
+            <p class="field-error" role="alert">{{ accessError() }}</p>
+          }
+          <section class="card-section" aria-labelledby="devices-heading">
+            <div class="flex flex-wrap items-center justify-between gap-3">
+              <h3 id="devices-heading">מכשירים</h3>
+              <button
+                class="text-link"
+                [disabledInteractive]="busy() || devices.isLoading()"
+                (click)="devices.reload()"
+              >
+                <span class="icon icon-refresh" aria-hidden="true"></span>רענון המכשירים
+              </button>
+            </div>
+            <app-loading-indicator [active]="devices.isLoading()" label="טוענים מכשירים…" />
+            @if (devices.error()) {
+              <p class="field-error" role="alert">{{ failure(devices.error()) }}</p>
+            }
+            @if (devices.hasValue()) {
+              @for (device of devices.value().items; track device.id) {
+                <article
+                  class="flex flex-wrap items-center gap-4"
+                  [attr.aria-labelledby]="'device-' + device.id"
+                >
+                  <div class="grid min-w-1/2 flex-1 gap-1">
+                    <h4 [id]="'device-' + device.id">
+                      <bdi>{{ device.deviceLabel }}</bdi>
+                    </h4>
+                    <p class="text-sm text-muted">
+                      {{
+                        device.revokedAtUtc
+                          ? 'הגישה בוטלה'
+                          : device.canRemove
+                            ? 'תוקף הגישה פג'
+                            : 'גישה פעילה'
+                      }}
+                    </p>
+                    <details class="text-sm text-muted">
+                      <summary [attr.aria-label]="'פרטי זמנים של המכשיר: ' + device.deviceLabel">
+                        פרטי זמנים
+                      </summary>
+                      <div class="grid gap-1">
+                        <p>
+                          חובר ב־<bdi>{{ device.createdAtUtc | date }}</bdi>
+                        </p>
+                        @if (device.revokedAtUtc) {
+                          <p>
+                            הגישה בוטלה ב־<bdi>{{ device.revokedAtUtc | date }}</bdi>
+                          </p>
+                        }
+                        <p>
+                          {{
+                            device.canRemove && !device.revokedAtUtc
+                              ? 'התוקף פג ב־'
+                              : 'תוקף הגישה עד '
+                          }}<bdi>{{ device.expiresAtUtc | date }}</bdi>
+                        </p>
+                      </div>
+                    </details>
+                  </div>
+                  @if (device.canRemove) {
+                    <button
+                      data-remove-device
+                      class="text-link text-link-danger"
+                      [disabledInteractive]="busy()"
+                      [attr.aria-label]="'הסרת המכשיר מהרשימה: ' + device.deviceLabel"
+                      (click)="changeDeviceAccess(device)"
+                    >
+                      הסרה מהרשימה
+                    </button>
+                  } @else {
+                    <button
+                      data-revoke
+                      class="button button-danger"
+                      [disabledInteractive]="busy()"
+                      [attr.aria-label]="'ביטול הגישה: ' + device.deviceLabel"
+                      (click)="changeDeviceAccess(device)"
+                    >
+                      ביטול גישה
+                    </button>
+                  }
+                </article>
+              } @empty {
+                <p class="empty-state">
+                  {{
+                    devicePage() > 1
+                      ? 'אין מכשירים נוספים.'
+                      : 'עוד לא חוברו מכשירים. צרו קוד הפעלה כדי לחבר מכשיר.'
+                  }}
+                </p>
+              }
+              <app-pager
+                label="עמודי מכשירים"
+                [(page)]="devicePage"
+                [hasMore]="devices.value().hasMore"
+                [busy]="busy() || devices.isLoading()"
+              />
+            }
+          </section>
+        </section>
+      }
+    </div>
+  </div>
 </section>

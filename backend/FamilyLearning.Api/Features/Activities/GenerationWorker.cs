@@ -141,7 +141,7 @@ public sealed partial class GenerationWorker(IServiceScopeFactory scopes, AiGene
             case "revise":
                 var originalPlan = call.Artifacts.Plan;
                 var revision = await ai.ReviseAsync(new(originalPlan, current, call.Artifacts.Message!, call.Artifacts.Target,
-                    call.Artifacts.Sources, call.Artifacts.Context), ct, evidence);
+                    call.Artifacts.Context), ct, evidence);
                 if (revision.Value.Change is not { } change)
                     return new(current, Candidate(revision.Value), Reply: revision.Value.Answer ?? revision.Value.Clarification);
                 var work = RevisionScope.Derive(originalPlan, current, change);
@@ -218,9 +218,10 @@ public sealed partial class GenerationWorker(IServiceScopeFactory scopes, AiGene
                 if (NextStage(call.Kind, call.Stage, acceptedArtifacts) is { } next) operation.QueueStage(next, draft.Revision);
                 else
                 {
-                    var notice = draft.ApplyOperation(acceptedArtifacts.Plan, acceptedArtifacts.Current, call.Kind);
+                    var changes = draft.ApplyOperation(acceptedArtifacts.Plan, acceptedArtifacts.Current, call.Kind);
                     operation.Finish("completed", null, UtcNow, draft.Revision);
-                    draft.CompleteChat(operation, UtcNow, acceptedArtifacts.Reply ?? notice ?? "הפעולה הסתיימה ללא שינוי בתוכן.", acceptedArtifacts.Assumptions);
+                    draft.CompleteChat(operation, UtcNow, acceptedArtifacts.Reply ?? (changes is null ? "הפעולה הסתיימה ללא שינוי בתוכן." : null),
+                        acceptedArtifacts.Assumptions, changes);
                 }
             }
             if (operation.Status != "queued")

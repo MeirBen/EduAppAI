@@ -1,13 +1,16 @@
 import {
+  afterNextRender,
   afterRenderEffect,
   ChangeDetectionStrategy,
   Component,
   computed,
+  DestroyRef,
   DOCUMENT,
   ElementRef,
   inject,
   input,
   output,
+  signal,
   viewChild,
 } from '@angular/core';
 import { FieldTree, FormField } from '@angular/forms/signals';
@@ -59,14 +62,15 @@ export class ActivityChat {
   readonly clarification = input('');
   /** Bounded authoring history before save; persisted draft turns after save. */
   readonly thread = input<
-    readonly (AuthoringTurn & Partial<Pick<ActivityChatTurn, 'assumptions' | 'target'>>)[]
+    readonly (AuthoringTurn &
+      Partial<Pick<ActivityChatTurn, 'assumptions' | 'target' | 'changes'>>)[]
   >([]);
   /** The parent's message while its request runs; it returns to the composer if the request fails. */
   readonly pending = input('');
   readonly targetLabel = input('');
   readonly invalidTarget = input(false);
   readonly targetCleared = output<void>();
-  /** Computed plan-change labels, shown with the assistant's latest reply. */
+  /** Plan-change labels for the latest unsaved reply; saved summaries carry their own `changes`. */
   readonly changes = input<string[]>([]);
   readonly consolidationRequired = input(false);
   /** A plan exists, so the composer asks for a change instead of the first description. */
@@ -82,8 +86,11 @@ export class ActivityChat {
   private readonly composer = viewChild.required<ElementRef<HTMLTextAreaElement>>('composer');
   private readonly stop = viewChild<ElementRef<HTMLButtonElement>>('stop');
   private readonly history = viewChild.required<ElementRef<HTMLElement>>('history');
+  private readonly turns = viewChild.required<ElementRef<HTMLElement>>('turns');
   private followLatest = true;
   private wasBusy = false;
+  /** The parent scrolled a bounded history away from the latest turn, which a control brings back. */
+  protected readonly moreAfter = signal(false);
   protected focusInside = false;
   /** The owner's heading names the field only for a first description, not an answer or a change. */
   protected readonly titled = computed(
@@ -100,29 +107,62 @@ export class ActivityChat {
   );
 
   constructor() {
-    // Follow new turns inside a bounded history, unless the parent scrolled back to read.
-    afterRenderEffect(() => {
-      this.thread();
-      this.pending();
-      this.targetLabel();
-      this.busy();
+    // The history follows its latest turn unless the parent scrolled back to read. Turns, the
+    // composer and the thinking row resize it without scrolling, so every resize of the history or
+    // its turns keeps following and re-checks what is hidden.
+    const destroyRef = inject(DestroyRef);
+    afterNextRender(() => {
       const history = this.history().nativeElement;
-      if (this.followLatest) history.scrollTop = history.scrollHeight;
+      const resized = new ResizeObserver(() => {
+        if (this.followLatest) history.scrollTop = history.scrollHeight;
+        this.followHistory();
+      });
+      resized.observe(history);
+      resized.observe(this.turns().nativeElement);
+      destroyRef.onDestroy(() => resized.disconnect());
     });
-    // Send and stop swap places and the composer is disabled while a request runs; focus that
-    // fell to the page follows the swap, but never moves away from a control the parent chose.
+    // The composer is disabled while a request runs and Stop leaves when it ends; focus that fell to
+    // the page moves to Stop, then to the history holding the reply. Only a stopped first request,
+    // with no history yet, returns focus to the composer that holds it again.
     afterRenderEffect(() => {
       const busy = this.busy();
       if (busy === this.wasBusy) return;
       this.wasBusy = busy;
       if (!this.focusInside || this.document.activeElement !== this.document.body) return;
-      (busy ? this.stop() : this.composer())?.nativeElement.focus({ preventScroll: true });
+      (busy
+        ? this.stop()
+        : this.thread().length
+          ? this.history()
+          : this.composer()
+      )?.nativeElement.focus({
+        preventScroll: true,
+      });
     });
   }
 
+  /**
+   * Only a bounded, scrolling history can hide turns. At fractional zoom the scroll offset snaps to
+   * device pixels while heights are whole pixels, so the end is anywhere within a pixel of it.
+   */
   protected followHistory() {
     const history = this.history().nativeElement;
-    this.followLatest = history.scrollHeight - history.clientHeight - history.scrollTop < 1;
+    const scrolls = this.document.defaultView?.getComputedStyle(history).overflowY !== 'visible';
+    const after = scrolls && history.scrollHeight - history.clientHeight - history.scrollTop > 1;
+    this.followLatest = !after;
+    this.moreAfter.set(after);
+  }
+
+  /**
+   * Scrolls to the latest turn, smoothly unless motion is reduced. The control then disappears, so
+   * focus moves to the history it scrolled rather than to the page.
+   */
+  protected showLatest() {
+    const reduced = this.document.defaultView?.matchMedia(
+      '(prefers-reduced-motion: reduce)',
+    ).matches;
+    const history = this.history().nativeElement;
+    history.scrollTo({ top: history.scrollHeight, behavior: reduced ? 'instant' : 'smooth' });
+    history.focus({ preventScroll: true });
   }
 
   protected leaveFocus(event: FocusEvent) {
@@ -133,16 +173,29 @@ export class ActivityChat {
       this.focusInside = false;
   }
 
-  /** Explicit canvas targeting brings the composer into view and focuses it. */
+  /**
+   * Explicit canvas targeting focuses the composer, scrolling only when it is out of view: a pinned
+   * chat or the sheet stays in place, even near the scroll padding kept for the action bar.
+   */
   focusComposer(): void {
-    this.composer().nativeElement.focus();
+    const composer = this.composer().nativeElement;
+    const { top, bottom } = composer.getBoundingClientRect();
+    const visible = top >= 0 && bottom <= (this.document.defaultView?.innerHeight ?? 0);
+    composer.focus({ preventScroll: visible });
   }
 
   /** Enter sends; Shift+Enter and IME composition keep editing the message. */
   protected sendOnEnter(event: Event) {
     if (event instanceof KeyboardEvent && (event.isComposing || event.shiftKey)) return;
     event.preventDefault();
-    if (this.canSend()) this.sent.emit();
+    this.send();
+  }
+
+  /** Sending returns the history to the latest turns, so the parent sees their request and its reply. */
+  protected send(consolidate = false) {
+    if (!consolidate && !this.canSend()) return;
+    this.followLatest = true;
+    (consolidate ? this.consolidated : this.sent).emit();
   }
 
   protected suggest(text: string) {

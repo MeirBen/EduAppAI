@@ -1,7 +1,7 @@
 <div class="grid gap-1">
   <p role="status" class="font-medium">{{ summary() }}</p>
   @if (issues().length) {
-    <ul class="list-disc ps-6">
+    <ul>
       @for (issue of issues(); track $index) {
         <li>{{ issue }}</li>
       }

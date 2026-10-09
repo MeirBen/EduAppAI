@@ -157,8 +157,10 @@ export interface ActivityChatTurn {
   operationId: string | null;
   assumptions: string[] | null;
   outcome: string | null;
+  /** What a server summary changed, listed once; its `text` is then empty. */
+  changes: string[] | null;
 }
-export type ImportedChatTurn = Omit<ActivityChatTurn, 'operationId' | 'outcome'>;
+export type ImportedChatTurn = Omit<ActivityChatTurn, 'operationId' | 'outcome' | 'changes'>;
 /** Activity operations exposed by the canvas; structural changes go through Revise. */
 export type GenerationKind = 'Create' | 'Revise' | 'GenerateQuestions';
 /** Keep this exact request for explicit same-key recovery after a lost response. */
@@ -168,7 +170,6 @@ export interface StartGeneration {
   kind: GenerationKind;
   message?: string;
   target?: RevisionTarget;
-  sources?: { label: string; text: string }[];
 }
 /** Polling this parent-only evidence never starts a call. Unknown candidates remain diagnostic text. */
 export interface GenerationOperation {
@@ -189,8 +190,6 @@ export interface GenerationOperation {
     metadata: GenerationMetadata | null;
   }[];
   artifacts: {
-    /** Exact parent-confirmed attachments, retained for request recovery until evidence expires. */
-    sources?: StartGeneration['sources'] | null;
     /** Resolved requirements at the current checkpoint; only the fields the parent UI reads. */
     input?: {
       materials: { id: string; label: string; length: ResolvedLength | null }[];

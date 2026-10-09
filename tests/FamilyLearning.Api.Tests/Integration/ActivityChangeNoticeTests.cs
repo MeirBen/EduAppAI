@@ -10,6 +10,18 @@ namespace FamilyLearning.Api.Tests.Integration;
 public sealed class ActivityChangeNoticeTests
 {
     [Fact]
+    public void A_summary_is_stored_once_and_reaches_the_model_as_its_joined_statements()
+    {
+        ActivityChatTurn[] chat =
+        [
+            new("parent", "בקשה", DateTime.UtcNow),
+            new("assistant", "", DateTime.UtcNow, Outcome: "completed", Changes: ["שאלות שנוספו: 2.", "כותרת התוכן עודכנה."]),
+        ];
+        var context = ActivityChat.Context(chat);
+        Assert.Equal("שאלות שנוספו: 2. כותרת התוכן עודכנה.", context[1].Text);
+    }
+
+    [Fact]
     public void Removal_and_reorder_notices_follow_actual_surviving_content()
     {
         var before = Numeric(3);
@@ -17,7 +29,7 @@ public sealed class ActivityChangeNoticeTests
             new("כותרת", "הוראות", [Question(), Question(), Question()]));
         var after = before with { Settings = before.Settings with { QuestionCount = 2 } };
         var current = previous with { Questions = [previous.Questions[2], previous.Questions[0]] };
-        var notice = ActivityChangeNotice.Describe(before, previous, after, current);
+        var notice = string.Join(" ", ActivityChangeNotice.Describe(before, previous, after, current));
         Assert.Contains("שאלות שהוסרו: 1", notice);
         Assert.Contains("סדר השאלות שונה", notice);
         Assert.DoesNotContain("שאלות שעודכנו", notice);
@@ -37,7 +49,7 @@ public sealed class ActivityChangeNoticeTests
                 Acceptance = q.Acceptance! with { AdoptedAtUtc = DateTime.UtcNow }
             }).ToArray()
         };
-        var notice = ActivityChangeNotice.Describe(plan, previous, plan, current);
+        var notice = string.Join(" ", ActivityChangeNotice.Describe(plan, previous, plan, current));
         Assert.Contains("נשארו ללא שינוי", notice);
         Assert.DoesNotContain("שאלות שעודכנו", notice);
         Assert.DoesNotContain("נוצרו מחדש", notice);
@@ -50,7 +62,7 @@ public sealed class ActivityChangeNoticeTests
         var previous = TaskAssembly.CreateDocument(Resolve(before));
         var after = before with { Materials = Reading().Materials };
         var current = TaskAssembly.AlignSources(Resolve(after), previous);
-        var notice = ActivityChangeNotice.Describe(before, previous, after, current);
+        var notice = string.Join(" ", ActivityChangeNotice.Describe(before, previous, after, current));
         Assert.Contains("דרישות לטקסטים שנוספו: 1", notice);
         Assert.DoesNotContain("טקסטים שעודכנו", notice);
         Assert.DoesNotContain("שאלות", notice);
@@ -80,7 +92,7 @@ public sealed class ActivityChangeNoticeTests
             Materials = [previous.Materials[1] with { Body = "private-material-body" }, previous.Materials[0]],
             Questions = [previous.Questions[1] with { Prompt = "private-question-prompt", Answer = new("private-key") }]
         };
-        var notice = ActivityChangeNotice.Describe(before, previous, after, current);
+        var notice = string.Join(" ", ActivityChangeNotice.Describe(before, previous, after, current));
         Assert.Contains(after.Name, notice);
         Assert.Contains(after.Materials[0].Label, notice);
         Assert.InRange(notice.Length, 1, EngineValidation.RevisionReplyLength);

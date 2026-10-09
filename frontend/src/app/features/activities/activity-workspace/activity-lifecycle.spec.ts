@@ -52,6 +52,11 @@ describe('Activity lifecycle', () => {
     await Promise.resolve();
     await harness.fixture.whenStable();
   }
+  /** Lets the pause after the last change pass, so a valid buffer saves itself. */
+  async function autosave() {
+    advance(1000);
+    await settle();
+  }
   async function click(id: string) {
     const button = root().querySelector<HTMLButtonElement>('#' + id)!;
     // Busy actions stay focusable and ignore activation until they are available again.
@@ -80,6 +85,8 @@ describe('Activity lifecycle', () => {
       ?.textContent?.trim() ??
     '';
   beforeEach(async () => {
+    // Autosave waits for a pause in typing; tests advance that pause explicitly.
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
     // Final and replacing actions confirm; a test that cancels says so itself.
     vi.spyOn(window, 'confirm').mockReturnValue(true);
     vi.stubGlobal('matchMedia', () => ({ matches: true }));
@@ -102,6 +109,7 @@ describe('Activity lifecycle', () => {
   afterEach(() => {
     // Restore first, so a test that fails verification cannot leak its mocks into the next one.
     vi.restoreAllMocks();
+    vi.useRealTimers();
     http.verify();
   });
   it('targetShortcutOnlyFillsComposer and sends the exact target with Revise', async () => {
@@ -161,7 +169,7 @@ describe('Activity lifecycle', () => {
         document: { ...savedActivity.document, questions: [savedQuestion] },
       });
       await type('document-title', 'כותרת חדשה');
-      await click('save-activity');
+      await autosave();
       http.expectOne('/api/activity-drafts/draft').error(new ProgressEvent('error'));
       await settle();
       await vi.waitFor(() => expect(root().querySelector('[role="alert"]')).not.toBeNull());
@@ -208,59 +216,7 @@ describe('Activity lifecycle', () => {
     expect(root().querySelector<HTMLButtonElement>('#chat-send')!.disabled).toBe(false);
   });
 
-  it('sends only explicitly confirmed added sources, exactly as entered', async () => {
-    await open();
-    await click('add-chat-source');
-    await type('chat-source-0-label', 'מקור חדש');
-    await type('chat-source-0-text', '  טקסט מדויק\nביותר  ');
-    await type('chat-message', 'הוסיפו את המקור');
-    expect(root().querySelector<HTMLButtonElement>('#chat-send')!.disabled).toBe(true);
-    await click('confirm-chat-source-0');
-    await type('chat-source-0-text', '  תיקון מדויק\n  ');
-    expect(root().querySelector<HTMLButtonElement>('#chat-send')!.disabled).toBe(true);
-    await click('confirm-chat-source-0');
-    await click('chat-send');
-    const start = http.expectOne('/api/activity-drafts/draft/operations');
-    expect(start.request.body.sources).toEqual([{ label: 'מקור חדש', text: '  תיקון מדויק\n  ' }]);
-    start.flush({ title: 'לא זמין' }, { status: 503, statusText: 'Unavailable' });
-    await settle();
-  });
-
-  it('explains whitespace-only source fields before confirmation and preserves valid text', async () => {
-    await open();
-    await click('add-chat-source');
-    expect(document.activeElement?.id).toBe('chat-source-0-label');
-    await type('chat-source-0-label', '  ');
-    await type('chat-source-0-text', ' \n ');
-    await type('chat-message', 'הוסיפו את המקור');
-    await click('confirm-chat-source-0');
-    for (const id of ['chat-source-0-label', 'chat-source-0-text']) {
-      const input = root().querySelector<HTMLInputElement>('#' + id)!;
-      expect(input.getAttribute('aria-invalid')).toBe('true');
-      const description = input.getAttribute('aria-describedby')!;
-      expect(description).toBeTruthy();
-      expect(description.split(' ')).toContain(id + '-errors');
-      expect(
-        root()
-          .querySelector('#' + id + '-errors')
-          ?.textContent?.trim(),
-      ).toBeTruthy();
-    }
-    expect(root().querySelector<HTMLButtonElement>('#chat-send')!.disabled).toBe(true);
-    expect(root().textContent).not.toContain('הטקסט אושר לשליחה');
-    await type('chat-source-0-label', '  המקור  ');
-    await type('chat-source-0-text', '  טקסט מדויק\n  ');
-    root().querySelector<HTMLButtonElement>('#confirm-chat-source-0')!.focus();
-    await click('confirm-chat-source-0');
-    expect(document.activeElement?.id).toBe('chat-message');
-    await click('chat-send');
-    const start = http.expectOne('/api/activity-drafts/draft/operations');
-    expect(start.request.body.sources).toEqual([{ label: '  המקור  ', text: '  טקסט מדויק\n  ' }]);
-    start.flush({}, { status: 503, statusText: 'Unavailable' });
-    await settle();
-  });
-
-  it('keeps focus in chat when a target or the last source is removed', async () => {
+  it('keeps focus in chat when a target is cleared', async () => {
     await open({
       ...savedActivity,
       document: { ...savedActivity.document, questions: [savedQuestion] },
@@ -269,14 +225,6 @@ describe('Activity lifecycle', () => {
     root().querySelector<HTMLButtonElement>('#clear-chat-target')!.focus();
     await click('clear-chat-target');
     expect(document.activeElement?.id).toBe('chat-message');
-    await click('add-chat-source');
-    const remove = Array.from(root().querySelectorAll<HTMLButtonElement>('button')).find((button) =>
-      button.textContent?.includes('הסרת הטקסט מהבקשה'),
-    )!;
-    remove.focus();
-    remove.click();
-    await settle();
-    expect(document.activeElement?.id).toBe('add-chat-source');
   });
 
   it('focuses source replacement, explains blank text, and returns to its opener', async () => {
@@ -367,18 +315,18 @@ describe('Activity lifecycle', () => {
     expect(root().querySelector('app-activity-review')!.textContent).not.toContain('23 מילים');
   });
 
-  const attachedSource = { label: 'מקור חדש', text: '  "שָׁלוֹם" — Hello!\nטקסט מדויק  ' };
-  const sourceMessage = 'הוסיפו את הטקסט הזה';
-  const sourceTurn = {
+  const requestMessage = 'שאלות קלות יותר';
+  const requestTurn = {
     role: 'parent' as const,
-    text: sourceMessage,
+    text: requestMessage,
     atUtc: '2026-10-09T00:00:00Z',
     target: null,
     assumptions: null,
     operationId: 'op',
     outcome: null,
+    changes: null,
   };
-  const sourceOperation = {
+  const requestOperation = {
     id: 'op',
     draftId: 'draft',
     kind: 'Revise',
@@ -389,116 +337,59 @@ describe('Activity lifecycle', () => {
     failure: null,
     diagnosticsExpired: false,
     steps: [],
-    artifacts: { sources: [attachedSource], steps: [] },
+    artifacts: { steps: [] },
   };
-  async function attachSource() {
-    await click('add-chat-source');
-    await type('chat-source-0-label', attachedSource.label);
-    await type('chat-source-0-text', attachedSource.text);
-    await click('confirm-chat-source-0');
-  }
-  async function observeSourceOutcome(status: string, draft: ActivityDetail, expired = false) {
+  async function observeOutcome(status: string, draft: ActivityDetail) {
     FakeEventSource.opened[0].send();
     await settle();
-    http.expectOne('/api/activity-drafts/draft/operations/op').flush({
-      ...sourceOperation,
-      status,
-      expectedRevision: draft.revision,
-      diagnosticsExpired: expired,
-      artifacts: expired ? null : sourceOperation.artifacts,
-    });
+    http
+      .expectOne('/api/activity-drafts/draft/operations/op')
+      .flush({ ...requestOperation, status, expectedRevision: draft.revision });
     http.expectOne('/api/activity-drafts/draft').flush(draft);
     await settle();
   }
 
   it.each(['failed', 'cancelled', 'completed'])(
-    'recovers unconsumed confirmed sources after reopening a %s request',
+    'returns a %s request to an empty composer only when it did not complete, after reopening',
     async (status) => {
-      const draft = { ...savedActivity, chat: [sourceTurn] };
+      const draft = { ...savedActivity, chat: [requestTurn] };
       await open({ ...draft, activeOperationId: 'op' });
-      await observeSourceOutcome(status, draft);
-      expect(root().querySelector<HTMLTextAreaElement>('#chat-source-0-text')?.value).toBe(
-        attachedSource.text,
+      await observeOutcome(status, draft);
+      expect(root().querySelector<HTMLTextAreaElement>('#chat-message')!.value).toBe(
+        status === 'completed' ? '' : requestMessage,
       );
-      expect(root().querySelector('#confirm-chat-source-0')).toBeNull();
-      if (status === 'completed') await type('chat-message', 'לכיתה ג');
-      else
-        expect(root().querySelector<HTMLTextAreaElement>('#chat-message')!.value).toBe(
-          sourceMessage,
-        );
-      await click('chat-send');
-      const next = http.expectOne('/api/activity-drafts/draft/operations');
-      expect(next.request.body.sources).toEqual([attachedSource]);
-      next.flush({ title: 'לא זמין' }, { status: 503, statusText: 'Unavailable' });
-      await settle();
     },
   );
 
-  it('keeps confirmed sources through clarification and clears them only after incorporation', async () => {
-    await open();
-    await attachSource();
-    await type('chat-message', sourceMessage);
-    await click('chat-send');
-    http.expectOne('/api/activity-drafts/draft/operations').flush(sourceOperation);
-    await settle();
-    await observeSourceOutcome('completed', {
-      ...savedActivity,
-      chat: [
-        sourceTurn,
-        { ...sourceTurn, role: 'assistant', text: 'לאיזה גיל?', outcome: 'completed' },
-      ],
-    });
-    expect(root().querySelector<HTMLTextAreaElement>('#chat-message')!.value).toBe('');
-    await type('chat-message', 'לכיתה ג');
-    await click('chat-send');
-    const next = http.expectOne('/api/activity-drafts/draft/operations');
-    expect(next.request.body.sources).toEqual([attachedSource]);
-    next.flush({ ...sourceOperation, id: 'next' });
-    await settle();
-    FakeEventSource.opened[0].send();
-    await settle();
-    http
-      .expectOne('/api/activity-drafts/draft/operations/next')
-      .flush({ ...sourceOperation, id: 'next', status: 'completed', expectedRevision: 2 });
-    http.expectOne('/api/activity-drafts/draft').flush({
-      ...savedActivity,
-      revision: 2,
-      plan: {
-        ...suppliedPlan,
-        materials: [{ ...suppliedPlan.materials[0], text: attachedSource.text }],
-      },
-      chat: [{ ...sourceTurn, text: 'לכיתה ג', operationId: 'next' }],
-    });
-    await settle();
-    expect(root().querySelector('#chat-source-0-text')).toBeNull();
-  });
+  it.each(['failed', 'cancelled'])(
+    'moves an admitted request into the chat and returns it to the composer when it ends %s',
+    async (status) => {
+      await open();
+      await type('chat-message', requestMessage);
+      await click('chat-send');
+      http.expectOne('/api/activity-drafts/draft/operations').flush(requestOperation);
+      await settle();
+      expect(root().querySelector<HTMLTextAreaElement>('#chat-message')!.value).toBe('');
+      await observeOutcome(status, { ...savedActivity, chat: [requestTurn] });
+      expect(root().querySelector<HTMLTextAreaElement>('#chat-message')!.value).toBe(
+        requestMessage,
+      );
+    },
+  );
 
-  it('asks for re-entry when request evidence expired instead of restoring a source-less retry', async () => {
-    const draft = { ...savedActivity, chat: [sourceTurn] };
-    await open({ ...draft, activeOperationId: 'op' });
-    await observeSourceOutcome('failed', draft, true);
-    expect(root().querySelector<HTMLTextAreaElement>('#chat-message')!.value).toBe('');
-    expect(root().querySelector<HTMLButtonElement>('#chat-send')!.disabled).toBe(true);
-    expect(root().textContent).toContain('הוסיפו את הטקסט');
-    http.expectNone((r) => r.method === 'POST');
-  });
-
-  it('does not replace local source input with a failed request from another device', async () => {
+  it('does not replace local composer text with a failed request from another device', async () => {
     await open();
-    await click('add-chat-source');
-    await type('chat-source-0-text', 'טקסט מקומי שלא נשלח');
+    await type('chat-message', 'בקשה מקומית שלא נשלחה');
     FakeEventSource.opened[0].send();
     await settle();
     http
       .expectOne('/api/activity-drafts/draft')
       .flush({ ...savedActivity, activeOperationId: 'op' });
     await settle();
-    await observeSourceOutcome('failed', { ...savedActivity, chat: [sourceTurn] });
-    expect(root().querySelector<HTMLTextAreaElement>('#chat-message')!.value).toBe('');
-    expect(root().querySelector<HTMLTextAreaElement>('#chat-source-0-text')!.value).toBe(
-      'טקסט מקומי שלא נשלח',
+    await observeOutcome('failed', { ...savedActivity, chat: [requestTurn] });
+    expect(root().querySelector<HTMLTextAreaElement>('#chat-message')!.value).toBe(
+      'בקשה מקומית שלא נשלחה',
     );
-    expect(root().querySelector('#confirm-chat-source-0')).not.toBeNull();
   });
 
   it('locks an open source replacement while another device starts an operation', async () => {
@@ -546,7 +437,7 @@ describe('Activity lifecycle', () => {
     expect(root().textContent).toContain('תרגול');
     await click('edit-activity');
     await type('document-title', 'כותרת שלי');
-    await click('save-activity');
+    await autosave();
     const save = http.expectOne('/api/activity-drafts/draft');
     save.flush({
       ...savedActivity,
@@ -555,6 +446,9 @@ describe('Activity lifecycle', () => {
       document: { ...savedActivity.document, title: 'כותרת שלי', questions: [savedQuestion] },
     });
     await settle();
+    // Saving in the background keeps the editor open; finishing returns to reading.
+    expect(titleValue()).toBe('כותרת שלי');
+    await click('finish-editing');
     expect(root().querySelector('#document-title')).toBeNull();
     expect(root().textContent).toContain('כותרת שלי');
   });
@@ -692,10 +586,94 @@ describe('Activity lifecycle', () => {
     expect(root().querySelector('#question-1-answer-errors')!.textContent!.trim()).toBe('');
     expect(review.textContent).not.toContain('תקנו את המסומן');
   });
+  it('saves an edit by itself once the parent pauses, keeping the field editable', async () => {
+    await open();
+    await type('document-title', 'כותרת חדשה');
+    http.expectNone((r) => r.method === 'PUT');
+    await autosave();
+    const save = http.expectOne('/api/activity-drafts/draft');
+    expect(save.request.body.document.title).toBe('כותרת חדשה');
+    expect(root().querySelector<HTMLInputElement>('#document-title')!.disabled).toBe(false);
+    save.flush({
+      ...savedActivity,
+      revision: 2,
+      document: { ...savedActivity.document, title: 'כותרת חדשה' },
+    });
+    await settle();
+    expect(root().querySelector('.save-state')!.textContent).toBe('נשמר');
+  });
+
+  it('keeps typing made while a save is on its way and saves it next', async () => {
+    await open();
+    await type('document-title', 'א');
+    await autosave();
+    const first = http.expectOne('/api/activity-drafts/draft');
+    await type('document-title', 'אב');
+    first.flush({
+      ...savedActivity,
+      revision: 2,
+      document: { ...savedActivity.document, title: 'א' },
+    });
+    await settle();
+    expect(titleValue()).toBe('אב');
+    await autosave();
+    const next = http.expectOne('/api/activity-drafts/draft');
+    expect(next.request.body).toMatchObject({ expectedRevision: 2, document: { title: 'אב' } });
+    next.flush({
+      ...savedActivity,
+      revision: 3,
+      document: { ...savedActivity.document, title: 'אב' },
+    });
+    await settle();
+  });
+
+  it('never saves invalid content and says so in the action bar', async () => {
+    await open({
+      ...savedActivity,
+      document: { ...savedActivity.document, questions: [savedQuestion] },
+    });
+    await type('question-0-points', 'no');
+    await autosave();
+    http.expectNone((r) => r.method === 'PUT');
+    const state = root().querySelector('.save-state')!;
+    expect(state.textContent).toBe('לא נשמר');
+    expect(state.hasAttribute('data-attention')).toBe(true);
+  });
+
+  it('stops saving after a conflict until a saved version replaces the buffer', async () => {
+    await open();
+    await type('document-title', 'מקומי');
+    await autosave();
+    http
+      .expectOne('/api/activity-drafts/draft')
+      .flush({ title: 'התנגשות' }, { status: 409, statusText: 'Conflict' });
+    await vi.waitFor(() =>
+      expect(root().querySelector('[role="alert"]')!.textContent).toContain('הטיוטה השתנתה'),
+    );
+    await type('document-title', 'מקומי יותר');
+    await autosave();
+    http.expectNone((r) => r.method === 'PUT');
+  });
+
+  it('saves a waiting change before leaving instead of asking', async () => {
+    await open();
+    const workspace = harness.routeDebugElement!.componentInstance as ActivityWorkspace;
+    await type('document-title', 'לפני היציאה');
+    const leaving = workspace.canLeave();
+    const save = await vi.waitFor(() => http.expectOne('/api/activity-drafts/draft'));
+    save.flush({
+      ...savedActivity,
+      revision: 2,
+      document: { ...savedActivity.document, title: 'לפני היציאה' },
+    });
+    expect(await leaving).toBe(true);
+    expect(window.confirm).not.toHaveBeenCalled();
+  });
+
   it('saves incomplete manual content and clears persistent undo', async () => {
     await open();
     await type('document-title', 'תיקון');
-    await click('save-activity');
+    await autosave();
     const save = http.expectOne('/api/activity-drafts/draft');
     expect(save.request.body.document).toEqual({
       title: 'תיקון',
@@ -1020,7 +998,7 @@ describe('Activity lifecycle', () => {
     const adopt = () =>
       Array.from(root().querySelectorAll('button')).find((b) => b.id === 'adopt-questions');
     expect(adopt()).toBeUndefined();
-    await click('save-activity');
+    await autosave();
     const save = http.expectOne('/api/activity-drafts/draft');
     expect(save.request.body.plan.materials[0].text).toBe('New!\nשלום');
     save.flush({
@@ -1054,7 +1032,7 @@ describe('Activity lifecycle', () => {
       document: { ...savedActivity.document, questions: [savedQuestion] },
     });
     await type('document-title', 'לבדיקה');
-    await click('save-activity');
+    await autosave();
     const save = http.expectOne('/api/activity-drafts/draft');
     save.flush({
       ...savedActivity,
@@ -1346,6 +1324,7 @@ describe('Activity lifecycle', () => {
             operationId: 'op',
             assumptions: [],
             outcome: 'completed',
+            changes: null,
           },
         ],
       };

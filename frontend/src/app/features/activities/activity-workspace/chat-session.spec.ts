@@ -26,6 +26,8 @@ describe('Activity chat target composer', () => {
   }
 
   beforeEach(async () => {
+    // Autosave waits for a pause in typing; tests advance that pause explicitly.
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
     TestBed.configureTestingModule({
       providers: [
         provideLimits(),
@@ -72,7 +74,10 @@ describe('Activity chat target composer', () => {
     http.expectOne('/api/activity-drafts/draft').flush(draft);
     await harness.fixture.whenStable();
   });
-  afterEach(() => http.verify());
+  afterEach(() => {
+    vi.useRealTimers();
+    http.verify();
+  });
 
   it('updates its own target prefix while keeping the parent suffix', async () => {
     await click('ask-question-q1');

@@ -1,4 +1,4 @@
-<section class="mx-auto grid max-w-3xl gap-6" aria-labelledby="snapshot-heading">
+<section class="mx-auto grid max-w-reading gap-6" aria-labelledby="snapshot-heading">
   <header class="grid gap-1">
     <a class="text-link" routerLink="/activities"
       ><span class="icon icon-back" aria-hidden="true"></span>המרחב שלנו</a
@@ -11,7 +11,7 @@
     variant="panel"
   />
   @if (snapshot.error()) {
-    <div class="grid gap-1">
+    <div class="grid gap-2">
       <p role="alert" class="error">{{ apiError(snapshot.error()) }}</p>
       <button type="button" class="text-link" (click)="snapshot.reload()">
         <span class="icon icon-refresh" aria-hidden="true"></span>ניסיון נוסף

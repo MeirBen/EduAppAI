@@ -53,7 +53,7 @@
   }
 
   h1 {
-    @apply text-2xl sm:text-4xl;
+    @apply text-2xl sm:text-3xl;
   }
   h2 {
     @apply text-xl;
@@ -63,6 +63,13 @@
   }
   p {
     text-wrap: pretty;
+  }
+  /* A plain list reads as bullets; layout lists opt out with `role="list"`, which WebKit needs anyway. */
+  ul:not([role='list']) {
+    @apply list-disc ps-6;
+  }
+  kbd {
+    font-family: inherit;
   }
   /* A link inside a sentence stays on its line and keeps an underline; standalone actions use `.text-link`. */
   p a:not([class]) {
@@ -104,7 +111,7 @@
   }
   /* A wrapped checkbox sits beside its text. */
   label:has(input[type='checkbox']) {
-    @apply flex min-h-11 cursor-pointer items-center gap-2 font-normal;
+    @apply flex min-h-control cursor-pointer items-center gap-2 font-normal;
   }
   label:has(input[type='checkbox']:disabled) {
     @apply cursor-not-allowed text-muted;
@@ -114,7 +121,7 @@
   input:not([type='checkbox'], [type='radio']),
   select,
   textarea {
-    @apply min-h-11 w-full min-w-0 rounded-control border border-control bg-surface px-3 py-2 text-base text-ink shadow-(--shadow-control) transition-[border-color,box-shadow] enabled:hover:border-muted focus:border-focus focus:inset-ring focus:inset-ring-focus focus:ring-4 focus:ring-focus/15 focus:outline-hidden disabled:cursor-not-allowed disabled:border-line disabled:bg-canvas disabled:text-muted disabled:shadow-none;
+    @apply min-h-control w-full min-w-0 rounded-control border border-control bg-surface px-3 py-1.5 text-base leading-normal text-ink shadow-(--shadow-control) transition-[border-color,box-shadow] enabled:hover:border-muted focus:border-focus focus:inset-ring focus:inset-ring-focus focus:ring-4 focus:ring-focus/15 focus:outline-hidden disabled:cursor-not-allowed disabled:border-line disabled:bg-canvas disabled:text-muted disabled:shadow-none;
   }
 
   /*
@@ -132,7 +139,7 @@
    * text where supported, so the page scrolls once instead of each field; `rows` is the fallback.
    */
   textarea {
-    @apply block min-h-18 field-sizing-content;
+    @apply block min-h-18 py-2 leading-(--text-base--line-height) field-sizing-content;
     resize: vertical;
   }
   /* Numbers are a few digits long; their fields say so instead of spanning the column. */
@@ -171,7 +178,7 @@
       @apply mt-1 max-h-66 overflow-y-auto overscroll-contain rounded-control border border-line bg-surface p-1 text-ink shadow-(--shadow-raised) motion-safe:animate-fade;
     }
     option {
-      @apply flex min-h-11 cursor-pointer items-center rounded-small px-3 py-2 transition-colors hover:bg-canvas focus-visible:inset-ring-2 focus-visible:inset-ring-focus focus-visible:outline-hidden checked:bg-soft checked:font-medium;
+      @apply flex min-h-control cursor-pointer items-center rounded-small px-3 py-1.5 transition-colors hover:bg-canvas focus-visible:inset-ring-2 focus-visible:inset-ring-focus focus-visible:outline-hidden checked:bg-soft checked:font-medium;
 
       &::checkmark {
         display: none;
@@ -225,7 +232,7 @@
    * takes an icon's slot, so disclosure labels line up with icon-led actions.
    */
   summary {
-    @apply relative min-h-11 py-2 ps-7 font-medium text-brand;
+    @apply relative min-h-control py-1.5 ps-7 font-medium text-brand;
     list-style: none;
 
     &::-webkit-details-marker {
@@ -234,7 +241,7 @@
     &::before {
       content: '';
       @apply absolute inset-s-0.5 size-4 rotate-90 bg-current ltr:-rotate-90 motion-safe:transition-[rotate] motion-safe:duration-300;
-      inset-block-start: calc(0.5rem + (1lh - 1rem) / 2);
+      inset-block-start: calc(0.375rem + (1lh - 1rem) / 2);
       mask: var(--icon-chevron) center / contain no-repeat;
     }
     /* Forced colors drop backgrounds; the chevron must stay visible like the native marker. */

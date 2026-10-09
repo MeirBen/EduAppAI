@@ -15,15 +15,7 @@ import {
   signal,
   viewChild,
 } from '@angular/core';
-import {
-  apply,
-  disabled,
-  form,
-  FormField,
-  maxLength,
-  validate,
-  validateTree,
-} from '@angular/forms/signals';
+import { apply, disabled, form, maxLength, validate, validateTree } from '@angular/forms/signals';
 import { Router, RouterLink } from '@angular/router';
 import { apiError, rejected, writeError } from '../../../core/api/api-error';
 import { LearningApi } from '../../../core/api/learning-api';
@@ -72,9 +64,10 @@ import {
 } from './workspace-form';
 import { DisabledInteractive } from '../../../shared/disabled-interactive';
 import { FieldErrors } from '../../../shared/forms/field-errors';
-import { FieldValidity } from '../../../shared/forms/field-validity';
-import { FieldDirection } from '../../../shared/forms/field-direction';
 import { ActionBar, ActionBarToggle } from '../../../shared/action-bar/action-bar';
+
+/** The pause after the last change before it saves itself. */
+const autosaveDelay = 1000;
 
 /**
  * Owns one activity buffer, source confirmation and durable draft transitions.
@@ -83,10 +76,7 @@ import { ActionBar, ActionBarToggle } from '../../../shared/action-bar/action-ba
 @Component({
   selector: 'app-activity-workspace',
   imports: [
-    FormField,
     FieldErrors,
-    FieldValidity,
-    FieldDirection,
     DisabledInteractive,
     ActivityChat,
     LoadingIndicator,
@@ -140,6 +130,13 @@ export class ActivityWorkspace {
 
   protected readonly editing = signal(false);
   protected readonly saving = signal(false);
+  /** A background save of the buffer; unlike `saving`, it never locks the fields. */
+  protected readonly autosaving = signal(false);
+  private autosaveTimer?: ReturnType<typeof setTimeout>;
+  /** A conflicting save stops autosave until a saved version replaces the buffer. */
+  private autosaveHalted = false;
+  /** Every draft write chains here, so two writes never send the same expected revision. */
+  private writes: Promise<unknown> = Promise.resolve();
   protected readonly copying = signal(false);
   protected readonly notice = signal('');
   /** The last action's problem; `reload` marks a request whose outcome the saved version may show. */
@@ -157,6 +154,12 @@ export class ActivityWorkspace {
   protected readonly available = signal<ActivityDetail | undefined>(undefined);
 
   private readonly chatView = viewChild(ActivityChat);
+  private readonly chatPanel = viewChild<ElementRef<HTMLElement>>('chatPanel');
+  private readonly chatClose = viewChild<ElementRef<HTMLButtonElement>>('chatClose');
+  /** Below desktop width, a chat beside content is a sheet that the action bar opens over the page. */
+  protected readonly chatOpen = signal(false);
+  /** The control that opened the sheet; closing returns focus to it. */
+  private chatInvoker?: HTMLElement;
   protected readonly operation = signal<GenerationOperation | undefined>(undefined);
   protected readonly operationId = signal<string | undefined>(undefined);
   /** A start whose response was lost; checking it replays the same key and request. */
@@ -187,7 +190,7 @@ export class ActivityWorkspace {
     draftId: () => this.saved()?.id,
     operationId: () => this.operationId(),
     enabled: () => !this.released() && this.elsewhere() !== 'deleted',
-    busy: () => this.saving() || !!this.startRecovery(),
+    busy: () => this.saving() || this.autosaving() || !!this.startRecovery(),
     changes: this.updates.changes,
     changed: (observation) => this.receiveObservation(observation),
     failed: (error) => {
@@ -234,6 +237,13 @@ export class ActivityWorkspace {
   protected readonly unsaved = computed(() => this.dirty() && !!this.saved());
   /** Schema 0 is empty setup; a server plan exists even when edited source text is invalid. */
   protected readonly hasPlan = computed(() => this.raw().plan.schemaVersion > 0);
+  /**
+   * Content sits beside the chat across the frame; otherwise the page is one reading column. While a
+   * saved activity loads it keeps the full frame, so its heading stays put once content appears.
+   */
+  protected readonly split = computed(() =>
+    this.loading() ? !!this.activityId() : this.hasContent() && !this.released(),
+  );
   protected readonly hasContent = computed(
     () =>
       !!this.raw().document.title.trim() ||
@@ -255,7 +265,7 @@ export class ActivityWorkspace {
     this.saved() ? !!this.saved()?.canUndo && !this.dirty() : !!this.history.entries().length,
   );
   protected readonly saveState = computed(() => {
-    if (this.saving()) return 'שומרים…';
+    if (this.saving() || this.autosaving()) return 'שומרים…';
     if (this.elsewhere() === 'changed') return 'הפעילות עודכנה במכשיר אחר';
     if (this.elsewhere() === 'deleted') return 'הפעילות נמחקה במכשיר אחר';
     return this.dirty() ? 'לא נשמר' : this.saved() ? 'נשמר' : '';
@@ -341,10 +351,30 @@ export class ActivityWorkspace {
   protected selectTarget(target: RevisionTarget): void {
     if (this.locked()) return;
     this.chatSession.selectTarget(target);
-    this.chatView()?.focusComposer();
+    // Asking starts a request, so the composer takes focus.
+    this.openChat(() => this.chatView()?.focusComposer());
+  }
+
+  /**
+   * Opens the chat sheet where the layout has one, then moves focus once it shows: by default into
+   * the sheet itself, which raises no on-screen keyboard.
+   */
+  protected openChat(focus = () => this.chatPanel()?.nativeElement.focus()) {
+    // The sheet's close control renders only where the chat is a sheet; elsewhere it is in view.
+    if (this.chatClose()?.nativeElement.getClientRects().length) {
+      this.chatInvoker = this.document.activeElement as HTMLElement;
+      this.chatOpen.set(true);
+    }
+    afterNextRender(focus, { injector: this.injector });
+  }
+
+  protected closeChat() {
+    this.chatOpen.set(false);
+    this.chatInvoker?.focus();
   }
 
   constructor() {
+    this.lifetime.onDestroy(() => clearTimeout(this.autosaveTimer));
     // Retried reads replace their error controls only after the resource settles.
     effect(() => {
       if (this.activity.isLoading()) return;
@@ -425,12 +455,11 @@ export class ActivityWorkspace {
     const message = consolidate ? session.chat().consolidated : session.chat().message;
     if (!message.trim() || message.length > this.limits.messageLength) return;
     if (this.saved()) {
-      if (session.invalidTarget() || !session.sourcesReady()) return;
+      if (session.invalidTarget()) return;
       session.authorError.set('');
       await this.activityAction('Revise', {
         message,
         target: session.selectedTarget(),
-        sources: session.addedSources().map(({ label, text }) => ({ label, text })),
       });
       return;
     }
@@ -525,18 +554,16 @@ export class ActivityWorkspace {
   }
   /** Every content action flushes one validated checkpoint first; no failed save can start work. */
   protected async activityAction(
-    action: 'save' | 'release' | 'adopt' | GenerationKind,
+    action: 'release' | 'adopt' | GenerationKind,
     target?: {
       materialIds?: string[];
       questionIds?: string[];
       message?: string;
       target?: RevisionTarget;
-      sources?: StartGeneration['sources'];
     },
   ) {
     if (this.locked()) return;
-    if (action !== 'save' && action !== 'release' && action !== 'adopt' && !this.aiConfigured())
-      return;
+    if (action !== 'release' && action !== 'adopt' && !this.aiConfigured()) return;
     // Shows every field's state; fields take touched only while enabled, so before the lock.
     this.fields().markAsTouched();
     await this.runDraftRequest(async () => {
@@ -545,7 +572,6 @@ export class ActivityWorkspace {
       const saved = await this.flushDraft();
       if (!saved || this.lifetime.destroyed) return;
       this.editing.set(false);
-      if (action === 'save') return;
       if (action === 'adopt') {
         this.acceptCheckpoint(
           await this.api.adoptActivity(
@@ -584,7 +610,6 @@ export class ActivityWorkspace {
           kind: action,
           ...(target?.message ? { message: target.message } : {}),
           ...(target?.target ? { target: target.target } : {}),
-          ...(target?.sources?.length ? { sources: target.sources } : {}),
         };
         this.startRecovery.set({ draftId: saved.id, request });
         await this.submitOperation(saved.id, request);
@@ -653,8 +678,14 @@ export class ActivityWorkspace {
     }
   }
 
-  /** Native route guard and browser-close warning protect local-only keystrokes. */
-  canLeave() {
+  /**
+   * The route guard first saves a valid change still waiting for its pause; only work that cannot
+   * save, such as invalid fields or an unsent message, asks before it is lost. Closing the window
+   * cannot wait for a save, so it warns during that pause.
+   */
+  async canLeave() {
+    if (this.dirty() && !this.blocker() && !this.contentBusy() && !this.autosaveHalted)
+      await this.flushDraft().catch(() => undefined);
     return !this.localWork() || window.confirm('יש שינויים שלא נשמרו. לצאת מהעמוד?');
   }
 
@@ -676,6 +707,7 @@ export class ActivityWorkspace {
   protected markLocalChange() {
     this.clientRevision++;
     this.chatSession.resetContext();
+    this.scheduleSave();
   }
 
   private applyProposal(plan: LearningPlan) {
@@ -684,6 +716,29 @@ export class ActivityWorkspace {
     this.confirmed.set(fixedSources(plan, this.confirmed()));
     this.clientRevision++;
     this.history.checkpoint();
+    this.scheduleSave();
+  }
+
+  /** Every change saves itself once the parent pauses; the first valid plan creates the draft. */
+  private scheduleSave() {
+    clearTimeout(this.autosaveTimer);
+    this.autosaveTimer = setTimeout(() => void this.autosave(), autosaveDelay);
+  }
+
+  /** Saves a valid buffer in the background; invalid content waits for its fix, shown at its fields. */
+  private async autosave() {
+    if (!this.dirty() || this.blocker() || this.contentBusy() || this.autosaveHalted) return;
+    this.observer.suspend();
+    this.autosaving.set(true);
+    try {
+      await this.flushDraft();
+    } catch (error) {
+      if (this.lifetime.destroyed) return;
+      this.autosaveHalted = error instanceof HttpErrorResponse && error.status === 409;
+      this.activityError.set({ message: this.activityFailure(error), reload: true });
+    } finally {
+      if (!this.lifetime.destroyed) this.autosaving.set(false);
+    }
   }
 
   /** Runs one draft request under the shared saving lock; a failure keeps local work and says what to check. */
@@ -704,7 +759,16 @@ export class ActivityWorkspace {
     }
   }
 
-  private async flushDraft(): Promise<ActivityDetail | undefined> {
+  /** Saves the valid buffer after any write already on its way; an explicit flush replaces a pending autosave. */
+  private flushDraft(): Promise<ActivityDetail | undefined> {
+    clearTimeout(this.autosaveTimer);
+    const write = this.writes.then(() => this.writeDraft());
+    this.writes = write.catch(() => undefined);
+    return write;
+  }
+
+  private async writeDraft(): Promise<ActivityDetail | undefined> {
+    const sent = this.clientRevision;
     const plan = this.projection().value,
       document = this.documentProjection().value;
     if (!plan || !document || this.blocker()) {
@@ -717,7 +781,7 @@ export class ActivityWorkspace {
       if (this.lifetime.destroyed) return;
       // Keep this workspace and its pending action alive while making reload reopen the durable draft.
       this.location.replaceState('/activities/' + saved.id);
-      this.acceptCheckpoint(saved);
+      this.acceptSave(saved, sent);
       return saved;
     }
     if (!this.dirty()) return saved;
@@ -736,19 +800,38 @@ export class ActivityWorkspace {
         )
         .map((m) => ({ id: m.id, text: m.text! })),
     );
-    if (!this.lifetime.destroyed) this.acceptCheckpoint(saved);
+    if (!this.lifetime.destroyed) this.acceptSave(saved, sent);
     return saved;
   }
 
+  /** A save answers for the buffer it sent; edits made meanwhile stay local and save next. */
+  private acceptSave(saved: ActivityDetail, sent: number) {
+    if (sent === this.clientRevision) {
+      this.adoptCheckpoint(saved);
+      return;
+    }
+    this.saved.set(saved);
+    this.history.clear();
+    this.scheduleSave();
+  }
+
+  /** Content that replaces the buffer, such as a finished operation or a reload, also ends editing. */
   private acceptCheckpoint(saved: ActivityDetail) {
     if (this.lifetime.destroyed) return;
-    this.saved.set(saved);
+    this.adoptCheckpoint(saved);
     this.editing.set(false);
-    this.raw.set(workspaceForm(saved.plan, saved.document));
+  }
+
+  private adoptCheckpoint(saved: ActivityDetail) {
+    this.saved.set(saved);
+    const form = workspaceForm(saved.plan, saved.document);
+    // An unchanged form is not rewritten, so a field being typed in keeps its caret.
+    if (JSON.stringify(form) !== JSON.stringify(this.raw())) this.raw.set(form);
     this.confirmed.set(fixedSources(saved.plan));
     this.history.clear();
     this.available.set(undefined);
     this.elsewhere.set(undefined);
+    this.autosaveHalted = false;
   }
 
   /** Metadata follows the server even without a content revision; only the workspace applies content. */
@@ -824,6 +907,7 @@ export class ActivityWorkspace {
     try {
       const operation = await this.api.startGeneration(id, request, this.lifetime);
       if (this.lifetime.destroyed) return;
+      if (request.message) this.chatSession.admitRevision(request.message);
       this.operation.set(operation);
       this.operationId.set(operation.id);
       this.location.replaceState(

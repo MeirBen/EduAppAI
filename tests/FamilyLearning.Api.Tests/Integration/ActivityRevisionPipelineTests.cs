@@ -132,7 +132,7 @@ public sealed class ActivityRevisionPipelineTests
         Assert.Equal(expectedCalls, app.Chat.Requests.Count);
         var saved = (await parent.GetFromJsonAsync<JsonNode>(Path(draft)))!;
         Assert.Equal(2, saved["chat"]!.AsArray().Count);
-        var notice = saved["chat"]![1]!["text"]!.GetValue<string>();
+        var notice = GenerationHarness.Reply(saved["chat"]![1]!);
         if (failureStage != 0)
         {
             Assert.Contains("התוכן השמור לא השתנה", notice);

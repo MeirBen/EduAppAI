@@ -2,9 +2,9 @@
   <span class="loading-track" aria-hidden="true"></span>
   <span class="sr-only">{{ label() }}</span>
 } @else if (active()) {
-  <span class="loading-mark" aria-hidden="true"></span>
+  <span [class]="variant() === 'assistant' ? 'ai-mark' : 'loading-mark'" aria-hidden="true"></span>
   <div class="loading-copy grid min-w-0 flex-1 gap-1">
-    <p class="font-medium text-ink">{{ label() }}</p>
+    <p class="loading-label">{{ label() }}</p>
     @if (detail()) {
       <p class="text-sm text-muted">{{ detail() }}</p>
     }

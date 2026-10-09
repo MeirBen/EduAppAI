@@ -69,7 +69,6 @@ describe('Workspace routes', () => {
     });
     await harness.fixture.whenStable();
     expect(harness.routeNativeElement!.querySelector('#save-template')).toBeNull();
-    expect(harness.routeNativeElement!.textContent).toContain('שמירת טיוטה');
     http.expectNone((request) => request.method !== 'GET');
   });
 });

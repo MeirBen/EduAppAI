@@ -56,8 +56,10 @@ public sealed class ActivityChatTests
         var saved = (await parent.GetFromJsonAsync<JsonNode>(Path(draft)))!;
         Assert.Equal("שם חדש", saved["plan"]!["name"]!.GetValue<string>());
         Assert.True(JsonNode.DeepEquals(draft["document"], saved["document"]));
-        Assert.Contains("שם חדש", saved["chat"]!.AsArray()[^1]!["text"]!.GetValue<string>());
-        Assert.Contains("שם הטיוטה", saved["chat"]!.AsArray()[^1]!["text"]!.GetValue<string>());
+        var summary = saved["chat"]!.AsArray()[^1]!;
+        Assert.Equal("", summary["text"]!.GetValue<string>());
+        Assert.Contains("שם חדש", GenerationHarness.Reply(summary));
+        Assert.Contains("שם הטיוטה", GenerationHarness.Reply(summary));
         Assert.True(saved["canUndo"]!.GetValue<bool>());
         Assert.Single(saved["chat"]!.AsArray(), t => t!["role"]!.GetValue<string>() == "parent");
         using var undo = await parent.PostAsJsonAsync(Path(draft) + "/undo", new { expectedRevision = 3 });
@@ -90,7 +92,7 @@ public sealed class ActivityChatTests
         Assert.Empty(saved["diagnostics"]!.AsObject());
         Assert.True(saved["canUndo"]!.GetValue<bool>());
         Assert.Equal(5, app.Chat.Requests.Count);
-        var notice = saved["chat"]!.AsArray()[^1]!["text"]!.GetValue<string>();
+        var notice = GenerationHarness.Reply(saved["chat"]!.AsArray()[^1]!);
         Assert.Contains("שם טקסט חדש", notice);
         Assert.DoesNotContain("שוכתב", notice);
         Assert.DoesNotContain("שאלות", notice);

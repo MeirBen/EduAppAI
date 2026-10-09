@@ -1,7 +1,7 @@
 <app-page-shell homeUrl="/" [compactBrand]="auth.signedIn()" [busy]="signingOut()">
   <div shell-navigation>
     @if (auth.signedIn()) {
-      <nav class="flex flex-wrap items-center gap-2" aria-label="ניווט ראשי">
+      <nav class="flex flex-wrap items-center gap-1" aria-label="ניווט ראשי">
         <a
           class="nav-link"
           routerLink="/activities"
@@ -10,7 +10,17 @@
           ariaCurrentWhenActive="page"
           ><span class="icon icon-home" aria-hidden="true"></span><span>המרחב שלנו</span></a
         >
-        <button class="nav-link text-muted" (click)="logout()" [disabledInteractive]="signingOut()">
+        <a class="nav-link" routerLink="/children" routerLinkActive ariaCurrentWhenActive="page"
+          ><span class="icon icon-users" aria-hidden="true"></span><span>הילדים</span></a
+        >
+        <a class="nav-link" routerLink="/assignments" routerLinkActive ariaCurrentWhenActive="page"
+          ><span class="icon icon-tasks" aria-hidden="true"></span><span>פעילויות לילדים</span></a
+        >
+        <button
+          class="nav-link nav-link-quiet"
+          (click)="logout()"
+          [disabledInteractive]="signingOut()"
+        >
           <span class="icon icon-sign-out" aria-hidden="true"></span
           ><span>{{ signingOut() ? 'מתנתקים…' : 'יציאה' }}</span>
         </button>
@@ -19,24 +29,6 @@
       <span class="hidden text-sm text-muted sm:block">קצת תרגול. הרבה סקרנות.</span>
     }
   </div>
-  @if (auth.signedIn()) {
-    <nav class="mb-2 flex flex-wrap gap-x-6 gap-y-1" aria-label="ניהול המשפחה">
-      <a
-        class="text-link aria-[current=page]:font-semibold"
-        routerLink="/children"
-        routerLinkActive
-        ariaCurrentWhenActive="page"
-        ><span class="icon icon-users" aria-hidden="true"></span><span>הילדים</span></a
-      >
-      <a
-        class="text-link aria-[current=page]:font-semibold"
-        routerLink="/assignments"
-        routerLinkActive
-        ariaCurrentWhenActive="page"
-        ><span class="icon icon-book" aria-hidden="true"></span><span>פעילויות לילדים</span></a
-      >
-    </nav>
-  }
   @if (error()) {
     <p class="error mb-6" role="alert">{{ error() }}</p>
   }
