@@ -63,7 +63,8 @@ parent labels keep their original language and values.
   production bundle budgets.
 - Label controls; associate errors with fields. Provide keyboard access, visible
   focus, loading status, error alerts and distinguishable repeated
-  links/disclosures. Focus moves only to keep it from being lost: a button its
+  links/disclosures. Opening or adding an editor focuses its first field.
+  Otherwise, focus moves only to keep it from being lost: a button its
   own action makes unavailable stays focusable through `disabledInteractive`,
   and an action that removes, moves or replaces the focused control hands focus
   through `focusHolder` to the successor its owner names (the same control, a
@@ -116,10 +117,11 @@ below half-width. Render optional content only when present.
 
 `frontend/src/styles.css` imports each layer from `frontend/src/styles/`:
 
-- `theme.css` owns the colors, elevations and corner radii. Tailwind's default
-  palettes and scales are cleared, so templates can only use theme values.
+- `theme.css` owns colors, elevations, corner radii, typography and motion.
+  Tailwind's default palettes and scales are cleared, so templates can only use
+  theme values.
 - `utilities.css` owns project variants: `pinned-header`, `pinned-actions`, and
-  `dark` for an explicit dark choice or a dark device without an explicit light
+  `dark` for an explicit dark choice or a dark device without any explicit theme
   choice.
 - `base.css` styles elements, including native form controls and focus.
 - `components.css` holds every shared visual treatment, grouped as actions
@@ -128,7 +130,7 @@ below half-width. Render optional content only when present.
   (`panel`, `well`, `card-section`, `action-bar`, `list-row` with its
   `row-link`, `empty-state`), conversation (`bubble`, `composer`), marks
   (`badge`, `icon-tile`, `status-icon`, `ai-mark`), lists (`steps`) and
-  feedback (`note`, `error`, `field-error`, `callout`).
+  feedback (`loading`, `note`, `error`, `field-error`, `callout`).
   Use `note`, with one icon, for a short fact about how the app behaves, such as
   kept text, costs or limits; help on what to enter stays plain text under its
   field. Use `error` for a failure that replaces a page's content and
@@ -140,13 +142,19 @@ Primitives read only tokens; templates add layout utilities and token colors
 such as `text-muted`. Color tints have one role each: `/15` for brand
 hairlines and focus halos, `/25` for the error edge and `/30` for hover edges.
 Repeated treatments become primitives, with state from `aria-current`,
-`data-done` or `data-problem` rather than alternative class lists. Component
-stylesheets use theme variables only. Give `steps`
+`data-done` or `data-problem` rather than alternative class lists. Keep visual
+CSS in these shared layers; components own markup, behavior and layout utilities,
+without local stylesheets, inline visual overrides or separate theme branches.
+Give `steps`
 `role="list"` to preserve WebKit list semantics.
 
-A theme redefines only `--color-*` tokens and, optionally, the corner roles
-(`--radius-small`, `control`, `button`, `inset`, `card`), so templates need no
-`dark:` utilities. Keep the contrast contract in `theme.css` for every theme
+A theme redefines semantic `--color-*` tokens and, optionally, the corner and
+elevation roles (`--radius-*`, `--shadow-*`) on the root. These stay runtime
+variables, including composed shadows, so templates need no `dark:` utilities.
+Shared styles use `shadow-(--shadow-panel)` and the corresponding roles to retain
+runtime shadow overrides; named shadow utilities inline their geometry at build
+time.
+Keep the contrast contract in `theme.css` for every theme
 and check each token on every surface, tint and translucent layer it meets.
 Forced colors drop backgrounds and rings, so a selected or current state that
 shows only through them adds a `forced-colors:` border. The header's theme
@@ -154,6 +162,14 @@ picker follows the device by default. `Theme` stores an explicit choice in
 localStorage, since no server render needs a cookie. The inline script in
 `index.html` applies it before first paint, and CSS follows device changes
 live. The brand `theme-color` suits both themes.
+
+To add a theme, add its root token overrides and `color-scheme` in `theme.css`,
+then register the preference in `Theme`, the pre-paint whitelist in `index.html`
+and `ThemePicker`. No feature template or component style needs to change.
+Device preference applies only while `data-theme` is absent. Extend the browser
+theme checks for the new palette: contrast, persisted/system selection and token
+overrides. This uses [Tailwind's theme variables](https://tailwindcss.com/docs/theme)
+and the native CSS cascade, without a theme registry or runtime stylesheet loader.
 
 ## Direction and copy
 
@@ -267,6 +283,8 @@ Before content exists, emphasize the request, the concrete requirements summary
 and any required source input/confirmation. Show settings read-only and change
 requirements through chat. Clearly distinguish unsaved initial setup from a
 saved draft; incomplete activity content can be saved and resumed later.
+Keep each text's guidance and length beside its name, and show the number of
+answer choices. A combined text length is explicitly labelled as a total.
 
 Once content exists, show the activity as a readable document with chat beside
 it on wide screens and below it on phones. **עריכה** opens titles, instructions,
@@ -299,7 +317,7 @@ explicit reload without discarding local edits. Keep stage details, outcomes,
 usage and raw output under **פרטים טכניים**; never imply automatic paid retries.
 
 Question cards show prompts/options and disclose parent-only answers. Manual
-fields keep native labels; format is read-only and points can use a disclosure.
+fields keep native labels; format is plain read-only text and points can use a disclosure.
 Remove separate scoped AI forms and manual add/remove/reorder controls when chat
 covers them.
 Show server diagnostics and length measurements beside their fields. After a
@@ -322,8 +340,8 @@ calls and the default inline variant for shorter actions. Every variant fades in
 only after a short delay, so quick requests never flash; the shell's
 `variant="bar"` reports navigation from above the page without shifting content.
 Set `label` and an optional `detail`; never invent progress percentages or
-stages. Tune it with `--loader-color` (brand), `--loader-size` (1.5rem inline,
-3rem panel) and `--loader-duration` (1.6s):
+stages. `components.css` owns the indicator's variants and `theme.css` owns its
+motion; use the shared sizes and brand color without per-page overrides:
 
 ```html
 <app-loading-indicator
@@ -331,11 +349,12 @@ stages. Tune it with `--loader-color` (brand), `--loader-size` (1.5rem inline,
   variant="panel"
   label="יוצרים את התרגול שלכם…"
   detail="זה עשוי לקחת כמה דקות."
-  style="--loader-size: 3.5rem; --loader-duration: 2s"
 />
 ```
 
-The animation respects reduced motion; the readable status remains.
+The animation respects reduced motion; the readable status remains. Distinguish
+pending availability checks from failed reads and confirmed unavailability.
+Failed reads offer an explicit retry in place; retries never start AI work.
 
 ## Check
 

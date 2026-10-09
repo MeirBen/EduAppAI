@@ -22,7 +22,7 @@ import {
   form,
   FormField,
   maxLength,
-  required,
+  validate,
   validateTree,
 } from '@angular/forms/signals';
 import { Router, RouterLink } from '@angular/router';
@@ -75,6 +75,8 @@ import {
 } from './workspace-form';
 import { DisabledInteractive } from '../../../shared/disabled-interactive';
 import { FieldErrors } from '../../../shared/forms/field-errors';
+import { FieldValidity } from '../../../shared/forms/field-validity';
+import { FieldDirection } from '../../../shared/forms/field-direction';
 import { ActionBar, ActionBarToggle } from '../../../shared/action-bar/action-bar';
 
 /**
@@ -86,6 +88,8 @@ import { ActionBar, ActionBarToggle } from '../../../shared/action-bar/action-ba
   imports: [
     FormField,
     FieldErrors,
+    FieldValidity,
+    FieldDirection,
     DisabledInteractive,
     ActivityChat,
     LoadingIndicator,
@@ -125,11 +129,14 @@ export class ActivityWorkspace {
   protected readonly ai = this.api.aiStatus();
   protected readonly loading = this.activity.isLoading;
   protected readonly loadError = this.activity.error;
+  private activityReadFocus?: () => void;
+  private aiReadFocus?: () => void;
 
   protected readonly raw = signal<WorkspaceForm>(workspaceForm());
   protected readonly confirmed = signal<ConfirmedSources>({});
   protected readonly history = new UndoHistory<WorkspaceSnapshot>(() => this.snapshot());
   protected readonly sourceReplacement = signal({ id: '', text: '' });
+  protected readonly replacementError = signal('');
   /** Counts local changes; authoring replies and operation results apply only to the revision they started from. */
   private clientRevision = 0;
   private initialized = false;
@@ -182,15 +189,10 @@ export class ActivityWorkspace {
   protected readonly addedSources = signal<
     { label: string; text: string; confirmedText: string }[]
   >([]);
-  protected readonly sourcesReady = computed(() =>
-    this.addedSources().every(
-      (source) =>
-        !!source.label.trim() &&
-        source.label.length <= this.limits.nameLength &&
-        !!source.text.trim() &&
-        source.text.length <= this.limits.bodyLength &&
-        source.text === source.confirmedText,
-    ),
+  protected readonly sourcesReady = computed(
+    () =>
+      this.additionFields().valid() &&
+      this.addedSources().every((source) => source.text === source.confirmedText),
   );
   private settledChatOperation: string | undefined;
   protected readonly chat = signal({ message: '', consolidated: '' });
@@ -229,7 +231,9 @@ export class ActivityWorkspace {
   protected readonly locked = computed(
     () => this.saving() || this.released() || this.operationActive() || !!this.startRecovery(),
   );
-  protected readonly aiConfigured = computed(() => this.ai.value()?.configured ?? false);
+  protected readonly aiConfigured = computed(
+    () => this.ai.hasValue() && this.ai.value().configured,
+  );
   /** Content actions wait for a running save or operation and for any unresolved start. */
   protected readonly contentBusy = computed(
     () => this.saving() || this.operationActive() || !!this.startRecovery(),
@@ -364,7 +368,6 @@ export class ActivityWorkspace {
   protected readonly fields = form(this.raw, (path) => {
     disabled(path, () => this.locked() || this.loading());
     disabled(path.plan, () => !!this.saved());
-    applyEach(path.document.questions, (question) => disabled(question.type, () => true));
     apply(path.document, documentSchema(this.limits));
     apply(path.plan, planFormSchema(this.limits));
     // The projections own every rule; each problem shows on the field that can fix it.
@@ -383,33 +386,72 @@ export class ActivityWorkspace {
   protected readonly sourceFields = form(this.sourceReplacement, (path) => {
     disabled(path, () => this.locked());
     maxLength(path.text, this.limits.bodyLength);
+    validate(path.text, ({ value }) =>
+      value().trim() ? undefined : { kind: 'required', message: 'יש להזין טקסט.' },
+    );
   });
 
   protected readonly additionFields = form(this.addedSources, (path) => {
     disabled(path, () => this.locked());
     applyEach(path, (source) => {
-      required(source.label);
+      validate(source.label, ({ value }) =>
+        value().trim() ? undefined : { kind: 'required', message: 'יש להזין שם לטקסט.' },
+      );
       maxLength(source.label, this.limits.nameLength);
-      required(source.text);
+      validate(source.text, ({ value }) =>
+        value().trim() ? undefined : { kind: 'required', message: 'יש להזין טקסט.' },
+      );
       maxLength(source.text, this.limits.bodyLength);
     });
   });
 
   protected addSource() {
     if (this.locked() || this.addedSources().length >= this.limits.maxMaterials) return;
+    const index = this.addedSources().length;
     this.addedSources.update((sources) => [...sources, { label: '', text: '', confirmedText: '' }]);
+    afterNextRender(() => this.additionFields[index].label().focusBoundControl(), {
+      injector: this.injector,
+    });
   }
   protected confirmAddedSource(index: number) {
-    if (this.locked() || this.additionFields[index]().invalid()) return;
+    if (this.locked()) return;
+    const fields = this.additionFields[index]();
+    fields.markAsTouched();
+    if (fields.invalid()) {
+      this.authorError.set('תקנו את השדות המסומנים.');
+      return;
+    }
+    const restoreFocus = this.holdFocus();
+    this.authorError.set('');
     this.addedSources.update((sources) =>
       sources.map((source, i) =>
         i === index ? { ...source, confirmedText: source.text } : source,
       ),
     );
+    restoreFocus('chat-message');
   }
   protected removeAddedSource(index: number) {
-    if (!this.locked())
-      this.addedSources.update((sources) => sources.filter((_, i) => i !== index));
+    if (this.locked()) return;
+    const restoreFocus = this.holdFocus();
+    this.addedSources.update((sources) => sources.filter((_, i) => i !== index));
+    this.authorError.set('');
+    restoreFocus('add-chat-source');
+  }
+  protected clearTarget() {
+    const restoreFocus = this.holdFocus();
+    this.selectedTarget.set(undefined);
+    restoreFocus('chat-message');
+  }
+  protected retryAiStatus() {
+    const restoreFocus = this.holdFocus();
+    this.aiReadFocus = () => restoreFocus(this.ai.error() ? 'retry-ai-status' : 'chat-message');
+    this.ai.reload();
+  }
+  protected retryActivity() {
+    const restoreFocus = this.holdFocus();
+    this.activityReadFocus = () =>
+      restoreFocus(this.activity.error() ? 'retry-activity' : 'workspace-title');
+    this.activity.reload();
   }
   protected selectTarget(target: RevisionTarget): void {
     if (this.locked()) return;
@@ -422,9 +464,20 @@ export class ActivityWorkspace {
   }
 
   constructor() {
+    // Retried reads replace their error controls only after the resource settles.
     effect(() => {
+      if (this.activity.isLoading()) return;
+      this.activityReadFocus?.();
+      this.activityReadFocus = undefined;
+    });
+    effect(() => {
+      if (this.ai.isLoading()) return;
+      this.aiReadFocus?.();
+      this.aiReadFocus = undefined;
+    });
+    effect(() => {
+      if (this.initialized || !this.activity.hasValue()) return;
       const loaded = this.activity.value();
-      if (this.initialized || !loaded) return;
       this.acceptCheckpoint(loaded);
       this.operationId.set(loaded.activeOperationId ?? this.resumeOperation());
       this.operationClientRevision = this.operationId() ? this.clientRevision : undefined;
@@ -444,10 +497,19 @@ export class ActivityWorkspace {
 
   protected confirmSource(id: string) {
     if (this.locked()) return;
-    const source = this.raw().plan.materials.find((material) => material.id === id);
-    if (!source) return;
-    this.confirmed.update((values) => ({ ...values, [id]: source.text }));
+    const index = this.raw().plan.materials.findIndex((material) => material.id === id);
+    if (index < 0) return;
+    const source = this.fields.plan.materials[index].text();
+    source.markAsTouched();
+    if (source.invalid()) {
+      this.activityError.set({ message: 'תקנו את הטקסט המסומן.' });
+      return;
+    }
+    const restoreFocus = this.holdFocus();
+    this.activityError.set(undefined);
+    this.confirmed.update((values) => ({ ...values, [id]: source.value() }));
     this.recordEdit('');
+    restoreFocus('source-' + id);
   }
 
   protected async undo() {
@@ -593,18 +655,40 @@ export class ActivityWorkspace {
   protected replaceSource(id: string) {
     if (this.locked()) return;
     const text = sourceText(this.raw(), id);
-    if (text !== undefined) this.sourceReplacement.set({ id, text });
+    if (text === undefined) return;
+    this.sourceFields().reset({ id, text });
+    this.replacementError.set('');
+    afterNextRender(() => this.sourceFields.text().focusBoundControl(), {
+      injector: this.injector,
+    });
+  }
+
+  protected cancelSourceReplacement() {
+    if (this.locked()) return;
+    const restoreFocus = this.holdFocus();
+    const id = this.sourceReplacement().id;
+    this.sourceFields().reset({ id: '', text: '' });
+    this.replacementError.set('');
+    restoreFocus('replace-source-' + id);
   }
 
   protected acceptSourceReplacement() {
+    if (this.locked()) return;
+    this.sourceFields.text().markAsTouched();
+    if (this.sourceFields.text().invalid()) {
+      this.replacementError.set('תקנו את הטקסט המסומן.');
+      return;
+    }
     const { id, text } = this.sourceReplacement();
-    if (!text.trim() || text.length > this.limits.bodyLength || this.locked()) return;
     const next = replaceSourceText(this.raw(), id, text);
     if (!next) return;
+    const restoreFocus = this.holdFocus();
     this.raw.set(next);
     this.confirmed.update((values) => ({ ...values, [id]: text }));
     this.recordEdit('');
-    this.sourceReplacement.set({ id: '', text: '' });
+    this.sourceFields().reset({ id: '', text: '' });
+    this.replacementError.set('');
+    restoreFocus('replace-source-' + id);
   }
 
   /** Explicit question recovery replaces the existing set after parent confirmation. */

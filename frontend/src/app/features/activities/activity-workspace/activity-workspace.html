@@ -7,7 +7,18 @@
   </header>
   <app-loading-indicator [active]="loading()" label="טוענים…" variant="panel" />
   @if (loadError()) {
-    <p role="alert" class="error">{{ apiError(loadError()) }}</p>
+    <div class="grid gap-2">
+      <p role="alert" class="error">{{ apiError(loadError()) }}</p>
+      <button
+        id="retry-activity"
+        type="button"
+        class="text-link justify-self-start"
+        [disabledInteractive]="loading()"
+        (click)="retryActivity()"
+      >
+        <span class="icon icon-refresh" aria-hidden="true"></span>ניסיון נוסף
+      </button>
+    </div>
   } @else if (!loading()) {
     <div
       class="grid min-w-0 items-start gap-6"
@@ -89,9 +100,10 @@
           <app-source-replacement
             [field]="sourceFields.text"
             [locked]="locked()"
-            (typed)="markLocalChange()"
+            [error]="replacementError()"
+            (typed)="markLocalChange(); replacementError.set('')"
             (accepted)="acceptSourceReplacement()"
-            (cancelled)="sourceReplacement.set({ id: '', text: '' })"
+            (cancelled)="cancelSourceReplacement()"
           />
         }
         @if (hasContent()) {
@@ -267,6 +279,26 @@
   }
 </section>
 <ng-template #authorChat>
+  <app-loading-indicator [active]="ai.isLoading()" label="בודקים את זמינות העוזר…" />
+  @if (ai.error()) {
+    <div class="grid gap-2">
+      <p role="alert" class="field-error">לא הצלחנו לבדוק אם העוזר זמין. נסו שוב.</p>
+      <button
+        id="retry-ai-status"
+        type="button"
+        class="text-link justify-self-start"
+        [disabledInteractive]="ai.isLoading()"
+        (click)="retryAiStatus()"
+      >
+        <span class="icon icon-refresh" aria-hidden="true"></span>ניסיון נוסף
+      </button>
+    </div>
+  } @else if (ai.hasValue() && !aiConfigured()) {
+    <p role="status" class="note">
+      <span class="icon icon-info" aria-hidden="true"></span>העוזר לא זמין כרגע. אפשר להמשיך לקרוא,
+      לערוך ולשמור טיוטות קיימות.
+    </p>
+  }
   <app-activity-chat
     [fields]="chatFields"
     [configured]="aiConfigured()"
@@ -275,7 +307,7 @@
     [locked]="locked() || invalidTarget() || !sourcesReady()"
     [targetLabel]="targetLabel()"
     [invalidTarget]="invalidTarget()"
-    (targetCleared)="selectedTarget.set(undefined)"
+    (targetCleared)="clearTarget()"
     [clarification]="clarification()"
     [thread]="thread()"
     [pending]="pendingMessage()"
@@ -300,30 +332,45 @@
       </summary>
       <div class="grid gap-4">
         @for (source of addedSources(); track $index; let i = $index) {
-          <div class="well grid gap-3">
-            <label [for]="'chat-source-' + i + '-label'">שם הטקסט</label>
-            <input
-              [id]="'chat-source-' + i + '-label'"
-              dir="auto"
-              [formField]="additionFields[i].label"
-            />
-            <label [for]="'chat-source-' + i + '-text'">הטקסט שלכם</label>
-            <textarea
-              [id]="'chat-source-' + i + '-text'"
-              dir="auto"
-              rows="6"
-              [formField]="additionFields[i].text"
-            ></textarea>
-            <app-field-errors [field]="additionFields[i]" />
-            <p class="text-sm text-muted">
-              הטקסט יישמר בדיוק כפי שהוזן. אשרו אותו לפני שליחת הבקשה.
-            </p>
-            @if (!source.text || source.confirmedText !== source.text) {
+          <div class="well grid gap-4">
+            <div>
+              <label [for]="'chat-source-' + i + '-label'">שם הטקסט</label>
+              <input
+                [id]="'chat-source-' + i + '-label'"
+                dir="auto"
+                [formField]="additionFields[i].label"
+                [attr.aria-describedby]="'chat-source-' + i + '-label-errors'"
+              />
+              <app-field-errors
+                [id]="'chat-source-' + i + '-label-errors'"
+                [field]="additionFields[i].label"
+              />
+            </div>
+            <div>
+              <label [for]="'chat-source-' + i + '-text'">הטקסט שלכם</label>
+              <textarea
+                [id]="'chat-source-' + i + '-text'"
+                dir="auto"
+                rows="6"
+                [formField]="additionFields[i].text"
+                [attr.aria-describedby]="
+                  'chat-source-' + i + '-text-help chat-source-' + i + '-text-errors'
+                "
+              ></textarea>
+              <p [id]="'chat-source-' + i + '-text-help'" class="mt-2 text-sm text-muted">
+                הטקסט יישמר בדיוק כפי שהוזן. אשרו אותו לפני שליחת הבקשה.
+              </p>
+              <app-field-errors
+                [id]="'chat-source-' + i + '-text-errors'"
+                [field]="additionFields[i].text"
+              />
+            </div>
+            @if (!source.text.trim() || source.confirmedText !== source.text) {
               <button
                 [id]="'confirm-chat-source-' + i"
                 type="button"
                 class="button button-secondary"
-                [disabledInteractive]="locked() || additionFields[i]().invalid()"
+                [disabledInteractive]="locked()"
                 (click)="confirmAddedSource(i)"
               >
                 הטקסט הועתק נכון

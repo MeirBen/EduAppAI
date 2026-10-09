@@ -9,7 +9,8 @@ import { DocumentForm } from './activity-document-editor/document-form';
 import { lengthText } from './activity-document-view/measurements';
 import { PlanForm } from './activity-workspace/plan-form';
 
-const mixtureNames: Record<QuestionFormat, string> = {
+/** Short labels for read-only requirements and answer formats. */
+export const questionFormatLabels: Record<QuestionFormat, string> = {
   'numeric-input': 'מספר',
   'text-input': 'תשובה קצרה',
   'single-choice': 'בחירה',
@@ -19,14 +20,15 @@ const difficultyNames = { easy: 'קל', medium: 'בינוני', hard: 'קשה' }
 function questionPhrase(count: number, formats: QuestionFormat[]): string {
   const counted = count === 1 ? 'שאלה אחת' : `${count} שאלות`;
   if (formats.length !== 1)
-    return `${counted} (${formats.map((f) => mixtureNames[f]).join(' + ')})`;
+    return `${counted} (${formats.map((f) => questionFormatLabels[f]).join(' + ')})`;
   if (formats[0] === 'text-input') return `${counted} עם תשובה קצרה`;
   const [one, many] =
     formats[0] === 'single-choice' ? ['אמריקאית', 'אמריקאיות'] : ['מספרית', 'מספריות'];
   return count === 1 ? `שאלה ${one} אחת` : `${count} שאלות ${many}`;
 }
 
-function lengthPhrase(length: LengthExpectation | null | undefined): string | undefined {
+/** One plan-owned length, shown beside its material or explicitly labelled as a total. */
+export function lengthPhrase(length: LengthExpectation | null | undefined): string | undefined {
   return length
     ? lengthText({
         mode: length.mode,
@@ -46,17 +48,11 @@ export function activitySummary(plan: PlanForm): string[] {
     difficultyNames[settings.difficulty],
   ];
   parts.push(questionPhrase(settings.questionCount, plan.questions.formats));
+  if (plan.questions.choiceCount)
+    parts.push(`${plan.questions.choiceCount} אפשרויות לכל שאלת בחירה`);
   if (!plan.materials.length) parts.push('ללא טקסט מקדים');
-  for (const material of plan.materials) {
-    parts.push(
-      material.source === 'generated'
-        ? (lengthPhrase(material.length) ?? material.label.trim())
-        : 'טקסט משלכם',
-    );
-  }
-  if (plan.materials.some((material) => material.source === 'generated'))
-    parts.push(lengthPhrase(plan.totalLength) ?? '');
-  return [...new Set(parts.filter(Boolean))];
+  if (plan.totalLength) parts.push(`כל הטקסטים יחד: ${lengthPhrase(plan.totalLength)}`);
+  return parts.filter(Boolean);
 }
 
 /** Saved content whose diagnostics ask for the parent's review because requirements or sources changed. */

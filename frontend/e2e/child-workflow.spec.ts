@@ -113,7 +113,7 @@ async function assignToNewChild(
 }
 
 async function narrow(page: Page, name: string) {
-  await page.setViewportSize({ width: 360, height: 800 });
+  await page.setViewportSize({ width: 320, height: 800 });
   await textSize(page, 32);
   await expect
     .poll(() => page.evaluate(() => getComputedStyle(document.documentElement).fontSize))
@@ -121,6 +121,7 @@ async function narrow(page: Page, name: string) {
   await expect
     .poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth))
     .toBe(true);
+  await page.setViewportSize({ width: 360, height: 800 });
   await page.evaluate(() => window.scrollTo(0, 0));
   await page.screenshot({ animations: 'disabled', path: test.info().outputPath(name + '.png') });
   if (await page.locator('#answer-form').count()) {

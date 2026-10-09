@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, input, output } from '@angular/core';
 import { FieldTree, FormField } from '@angular/forms/signals';
 import { PlanMaterial } from '../../../core/api/models';
-import { ContentIssues } from '../activity-presentation';
+import { ContentIssues, questionFormatLabels } from '../activity-presentation';
 import { DocumentForm } from './document-form';
 import { FieldDirection } from '../../../shared/forms/field-direction';
 import { DisabledInteractive } from '../../../shared/disabled-interactive';
@@ -27,6 +27,7 @@ import { MeasurementList } from '../measurement-list/measurement-list';
   host: { '(input)': 'onEdit($event)', '(change)': 'onEdit($event)' },
 })
 export class ActivityDocumentEditor {
+  protected readonly questionFormatLabels = questionFormatLabels;
   readonly measurements = input<MeasurementItem[]>([]);
   readonly fields = input.required<FieldTree<DocumentForm>>();
   readonly materials = input.required<Pick<PlanMaterial, 'id' | 'source' | 'label'>[]>();

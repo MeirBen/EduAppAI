@@ -1,26 +1,9 @@
 <div class="grid items-center gap-10 py-2 lg:grid-cols-2 lg:gap-20 lg:py-10">
-  <section class="grid max-w-lg gap-6">
-    <div class="grid gap-4">
-      <p class="badge">מרחב קטן ללמידה משותפת</p>
-      <h1 class="text-4xl sm:text-5xl">
-        לומדים משהו חדש.<br /><span
-          class="bg-linear-to-t from-accent from-40% to-transparent to-40% box-decoration-clone text-brand"
-          >צומחים ביחד.</span
-        >
-      </h1>
-    </div>
+  <section class="grid max-w-lg gap-4">
+    <h1>לומדים משהו חדש, ביחד.</h1>
     <p class="max-w-md text-lg text-muted">
-      תרגול שמתאים למשפחה שלכם. מתארים מה לתרגל, מכינים פעילות ומאשרים אותה לפני שהילדים מתחילים.
+      מתארים מה לתרגל, מכינים פעילות ובודקים אותה לפני שהילדים מתחילים.
     </p>
-    <div class="panel flex flex-wrap items-start gap-4 bg-surface/70 shadow-none">
-      <span class="icon-tile size-12 text-xl" aria-hidden="true"
-        ><span class="icon icon-ai"></span
-      ></span>
-      <div class="grid min-w-1/2 flex-1 gap-1">
-        <p class="font-medium">פעילות שמתאימה לכם</p>
-        <p class="text-sm text-muted">אפשר לערוך, לשמור ולחזור כשנוח.</p>
-      </div>
-    </div>
   </section>
   <section
     class="panel grid w-full max-w-lg gap-4 lg:justify-self-end"
@@ -69,8 +52,5 @@
       </button>
     </form>
     <app-loading-indicator [active]="fields().submitting()" label="מתחברים למרחב שלכם…" />
-    <p class="border-t border-line pt-4 text-sm text-muted">
-      מרחב פרטי ליצירת תרגול אישי ולשמירת רעיונות ללמידה.
-    </p>
   </section>
 </div>

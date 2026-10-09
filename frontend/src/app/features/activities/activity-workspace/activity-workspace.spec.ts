@@ -102,6 +102,70 @@ describe('ActivityWorkspace plan ownership', () => {
   });
   afterEach(() => http.verify());
 
+  it('retries an unavailable AI status without losing the request being written', async () => {
+    await harness.navigateByUrl('/activities/new', ActivityWorkspace);
+    const status = http.expectOne('/api/ai/status');
+    expect(root().textContent).not.toContain('העוזר לא זמין כרגע');
+    status.flush({}, { status: 503, statusText: 'Unavailable' });
+    await settle();
+    await type('chat-message', 'בקשה שעדיין לא נשלחה');
+    const retry = root().querySelector<HTMLButtonElement>('#retry-ai-status');
+    expect(retry).not.toBeNull();
+    retry!.focus();
+    retry!.click();
+    TestBed.tick();
+    http.expectOne('/api/ai/status').flush({ configured: true });
+    await settle();
+    expect(field('chat-message').value).toBe('בקשה שעדיין לא נשלחה');
+    expect(document.activeElement?.id).toBe('chat-message');
+    expect(root().querySelector<HTMLButtonElement>('#chat-send')!.disabled).toBe(false);
+    http.expectNone('/api/ai/activity-plans');
+  });
+
+  it('retries an initial draft read after a transient failure', async () => {
+    await harness.navigateByUrl('/activities/draft', ActivityWorkspace);
+    http.expectOne('/api/ai/status').flush({ configured: true });
+    http
+      .expectOne('/api/activity-drafts/draft')
+      .flush({}, { status: 503, statusText: 'Unavailable' });
+    await settle();
+    const retry = root().querySelector<HTMLButtonElement>('#retry-activity');
+    expect(retry).not.toBeNull();
+    retry!.focus();
+    retry!.click();
+    TestBed.tick();
+    http.expectOne('/api/activity-drafts/draft').flush(draft(numericPlan));
+    await settle();
+    expect(root().textContent).toContain(numericPlan.name);
+    expect(document.activeElement?.id).toBe('workspace-title');
+    expect(root().querySelector('#retry-activity')).toBeNull();
+  });
+
+  it('keeps focus beside a source after its confirmation button disappears', async () => {
+    await open();
+    reply(await ask(), suppliedPlan);
+    await settle();
+    const id = suppliedPlan.materials[0].id;
+    root()
+      .querySelector<HTMLButtonElement>('#confirm-source-' + id)!
+      .focus();
+    await click('confirm-source-' + id);
+    expect(document.activeElement?.id).toBe('source-' + id);
+  });
+
+  it('keeps an empty initial source unconfirmed and shows its field error', async () => {
+    await open();
+    reply(await ask(), suppliedPlan);
+    await settle();
+    const id = suppliedPlan.materials[0].id;
+    await type('source-' + id, ' \n ');
+    await click('confirm-source-' + id);
+    expect(root().querySelector('#confirm-source-' + id)).not.toBeNull();
+    expect(field('source-' + id).getAttribute('aria-invalid')).toBe('true');
+    expect(document.getElementById(id + '-source-errors')?.textContent?.trim()).toBeTruthy();
+    http.expectNone((request) => request.method !== 'GET');
+  });
+
   it('warns before leaving an unsent message or an unsaved clarification', async () => {
     await open();
     const workspace = harness.routeDebugElement!.componentInstance as ActivityWorkspace;

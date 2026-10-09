@@ -253,7 +253,7 @@ export class ChildPlayer {
         if (this.lifetime.destroyed) return;
         this.accept(saved);
         // The status line already reports a save; only a submission changes the page enough to announce.
-        this.notice.set(submitting ? 'כל הכבוד, סיימת!' : '');
+        this.notice.set(submitting ? 'כל הכבוד, סיימתם!' : '');
       } catch (error) {
         if (!this.lifetime.destroyed) this.failed(error);
       } finally {

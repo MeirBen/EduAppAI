@@ -18,8 +18,18 @@
       @for (material of materials; track $index; let index = $index) {
         @let m = p.materials[index];
         <div class="well grid min-w-0 gap-4" role="group" [attr.aria-label]="material.label">
-          <h4 dir="auto">{{ material.label }}</h4>
-          <p>{{ material.source === 'supplied' ? 'יש לי טקסט משלי' : 'כתבו עבורי תוכן חדש' }}</p>
+          <div class="grid gap-1">
+            <h4 dir="auto">{{ material.label }}</h4>
+            <p class="text-sm text-muted">
+              {{ material.source === 'supplied' ? 'יש לי טקסט משלי' : 'כתבו עבורי תוכן חדש' }}
+            </p>
+            @if (lengthPhrase(material.length); as length) {
+              <p class="text-sm text-muted">{{ length }}</p>
+            }
+            @if (material.guidance) {
+              <p dir="auto" class="whitespace-pre-wrap">{{ material.guidance }}</p>
+            }
+          </div>
           @if (material.source === 'supplied' && !p().disabled()) {
             <div>
               <label [for]="'source-' + material.id">הטקסט שלכם</label>

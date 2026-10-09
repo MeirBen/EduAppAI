@@ -13,7 +13,11 @@
       @if (material.title) {
         <h3 dir="auto">{{ material.title }}</h3>
       }
-      <app-copy-button class="ms-auto" [text]="material.body" label="העתקת הטקסט" />
+      <app-copy-button
+        class="ms-auto"
+        [text]="material.body"
+        [label]="'העתקת הטקסט: ' + (material.title || $index + 1)"
+      />
     </div>
     <p dir="auto" class="whitespace-pre-wrap">{{ material.body }}</p>
     <app-measurement-list [items]="measurements()" [scope]="material.id" />

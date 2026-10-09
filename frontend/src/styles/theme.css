@@ -2,8 +2,8 @@
  * Design tokens. Only these colors, elevations and corner radii exist: the default
  * palettes and scales are cleared so every value in the app is theme-owned. Utilities
  * read tokens through CSS variables, so a theme only redefines tokens on the root, as
- * the dark theme below does for colors. Composed tokens are inlined and follow
- * automatically.
+ * the dark theme below does for colors. Composed tokens resolve on that same root,
+ * so themes can override elevations as well as their colors.
  *
  * Every theme keeps this contrast on each surface, tint and translucent layer a token
  * meets: ink ≥ 10:1; muted, brand, danger and on-* text ≥ 5.5:1; control edges, focus
@@ -19,9 +19,9 @@
   --color-soft: oklch(95.46% 0.0143 128.63);
   --color-accent: oklch(93.07% 0.0577 93.21);
   --color-ink: oklch(30.5% 0.0381 174.27);
-  --color-muted: oklch(47.5% 0.0269 165.02);
+  --color-muted: oklch(46.5% 0.0269 165.02);
   --color-line: oklch(90.04% 0.0155 145.45);
-  --color-control: oklch(60% 0.0254 161.34);
+  --color-control: oklch(57.5% 0.0254 161.34);
   --color-brand: oklch(43.16% 0.0662 173.46);
   --color-brand-hover: oklch(35.75% 0.0567 170.27);
   --color-on-brand: oklch(100% 0 0);
@@ -36,7 +36,7 @@
   --radius-control: 0.5rem;
   --radius-button: 0.75rem;
   --radius-inset: 1rem;
-  --radius-card: 1.5rem;
+  --radius-card: 1.25rem;
 
   --font-sans: 'Heebo Variable', Arial, sans-serif;
   --ease-smooth: cubic-bezier(0.22, 1, 0.36, 1);
@@ -47,9 +47,6 @@
   --text-sm--line-height: 1.7;
   --text-base--line-height: 1.7;
   --text-lg--line-height: 1.7;
-}
-
-@theme inline {
   --default-transition-timing-function: var(--ease-smooth);
 
   --shadow-control: 0 1px 2px color-mix(in oklab, var(--color-shadow) 6%, transparent);
@@ -70,6 +67,9 @@
 
   --animate-enter: enter 0.4s var(--ease-smooth);
   --animate-fade: fade 0.25s ease-out;
+  --animate-loading-reveal: fade 0.25s ease-out 0.3s backwards;
+  --animate-loading-spin: loading-spin 1.6s linear infinite;
+  --animate-loading-sweep: loading-sweep 1.6s var(--ease-smooth) infinite;
 
   @keyframes enter {
     from {
@@ -80,6 +80,22 @@
 
   @keyframes fade {
     from {
+      opacity: 0;
+    }
+  }
+  @keyframes loading-spin {
+    to {
+      rotate: 1turn;
+    }
+  }
+  @keyframes loading-sweep {
+    from {
+      scale: 0 1;
+    }
+    60% {
+      opacity: 1;
+    }
+    to {
       opacity: 0;
     }
   }
@@ -99,11 +115,11 @@
       --color-ink: oklch(94% 0.012 160);
       --color-muted: oklch(76% 0.02 162);
       --color-line: oklch(33.5% 0.016 168);
-      --color-control: oklch(58% 0.02 165);
+      --color-control: oklch(62% 0.02 165);
       --color-brand: oklch(80% 0.1 170);
       --color-brand-hover: oklch(86% 0.085 170);
       --color-on-brand: oklch(20% 0.03 172);
-      --color-danger: oklch(75% 0.13 25);
+      --color-danger: oklch(76% 0.13 25);
       --color-danger-soft: oklch(26% 0.045 25);
       --color-focus: oklch(76% 0.11 168);
       --color-shadow: oklch(0% 0 0);

@@ -223,18 +223,10 @@
             >
           }
           @if (working()) {
-            <span class="flex items-center gap-2">
-              <span class="h-2 w-12 overflow-hidden rounded-full bg-soft" aria-hidden="true"
-                ><span
-                  class="block h-full rounded-full bg-brand transition-[width] motion-reduce:transition-none"
-                  [style.width.%]="(answered() / answers().length) * 100"
-                ></span
-              ></span>
-              <span
-                ><span class="max-sm:sr-only">ענית על </span>{{ answered() }} מתוך
-                {{ answers().length }}</span
-              >
-            </span>
+            <span
+              ><span class="max-sm:sr-only">עניתם על </span>{{ answered() }} מתוך
+              {{ answers().length }}</span
+            >
             @if (elapsed(); as time) {
               <span class="flex items-center gap-2" role="timer">
                 <span class="icon icon-clock" aria-hidden="true"></span

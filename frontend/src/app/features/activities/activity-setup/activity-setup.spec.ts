@@ -3,7 +3,7 @@ import { TestBed } from '@angular/core/testing';
 import { apply, form } from '@angular/forms/signals';
 import { ActivitySetup } from './activity-setup';
 import { planForm, planFormSchema } from '../activity-workspace/plan-form';
-import { numericPlan, suppliedPlan } from '../learning-plan.fixture';
+import { numericPlan, readingPlan, suppliedPlan } from '../learning-plan.fixture';
 import { LearningPlan } from '../../../core/api/models';
 import { limits, provideLimits } from '../../../core/api/limits.fixture';
 
@@ -52,5 +52,27 @@ describe('Activity setup', () => {
     expect(root.textContent).toContain(numericPlan.name);
     expect(root.textContent).toContain(numericPlan.settings.topic);
     expect(root.textContent).toContain(numericPlan.goal);
+  });
+
+  it('keeps each text requirement with its source and shows the number of answer choices', async () => {
+    const plan = {
+      ...readingPlan,
+      materials: [
+        { ...readingPlan.materials[0], label: 'סיפור', guidance: 'סיפור עם דיאלוג' },
+        {
+          ...readingPlan.materials[0],
+          id: '33333333333333333333333333333333',
+          label: 'מידע',
+          guidance: 'הסבר עובדתי',
+        },
+      ],
+    };
+    const { root } = await render(plan);
+    for (const material of plan.materials) {
+      const group = root.querySelector(`[role="group"][aria-label="${material.label}"]`)!;
+      expect(group.textContent).toContain(material.guidance);
+      expect(group.textContent).toContain('בערך 300 מילים');
+    }
+    expect(root.textContent).toContain('4 אפשרויות לכל שאלת בחירה');
   });
 });

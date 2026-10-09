@@ -17,14 +17,14 @@
 
 /*
  * Dark applies for an explicit `data-theme="dark"`, or when the device prefers dark and
- * no explicit light choice exists. CSS follows device changes live; `Theme` owns the attribute.
+ * no explicit theme exists. CSS follows device changes live; `Theme` owns the root attribute.
  */
 @custom-variant dark {
   &:where([data-theme='dark'], [data-theme='dark'] *) {
     @slot;
   }
   @media (prefers-color-scheme: dark) {
-    &:where(:not([data-theme='light'], [data-theme='light'] *)) {
+    &:where(:root:not([data-theme]), :root:not([data-theme]) *) {
       @slot;
     }
   }

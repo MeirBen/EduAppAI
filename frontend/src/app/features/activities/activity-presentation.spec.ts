@@ -45,11 +45,12 @@ describe('Parent-facing activity presentation', () => {
       'כיתה ג׳',
       'בינוני',
       '5 שאלות אמריקאיות',
-      'בערך 300 מילים',
+      '4 אפשרויות לכל שאלת בחירה',
     ]);
-    plan.materials[0].length = { mode: 'target', count: 450 };
+    plan.totalLength = { mode: 'target', count: 450 };
     plan.questions.formats = ['text-input'];
-    expect(activitySummary(plan)).toContain('בערך 450 מילים');
+    plan.questions.choiceCount = null;
+    expect(activitySummary(plan)).toContain('כל הטקסטים יחד: בערך 450 מילים');
     expect(activitySummary(plan)).toContain('5 שאלות עם תשובה קצרה');
   });
 

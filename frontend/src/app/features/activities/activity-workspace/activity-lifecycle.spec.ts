@@ -162,6 +162,110 @@ describe('Activity lifecycle', () => {
     await settle();
   });
 
+  it('explains whitespace-only source fields before confirmation and preserves valid text', async () => {
+    await open();
+    await click('add-chat-source');
+    expect(document.activeElement?.id).toBe('chat-source-0-label');
+    await type('chat-source-0-label', '  ');
+    await type('chat-source-0-text', ' \n ');
+    await type('chat-message', 'הוסיפו את המקור');
+    await click('confirm-chat-source-0');
+    for (const id of ['chat-source-0-label', 'chat-source-0-text']) {
+      const input = root().querySelector<HTMLInputElement>('#' + id)!;
+      expect(input.getAttribute('aria-invalid')).toBe('true');
+      const description = input.getAttribute('aria-describedby')!;
+      expect(description).toBeTruthy();
+      expect(description.split(' ')).toContain(id + '-errors');
+      expect(
+        root()
+          .querySelector('#' + id + '-errors')
+          ?.textContent?.trim(),
+      ).toBeTruthy();
+    }
+    expect(root().querySelector<HTMLButtonElement>('#chat-send')!.disabled).toBe(true);
+    expect(root().textContent).not.toContain('הטקסט אושר לשליחה');
+    await type('chat-source-0-label', '  המקור  ');
+    await type('chat-source-0-text', '  טקסט מדויק\n  ');
+    root().querySelector<HTMLButtonElement>('#confirm-chat-source-0')!.focus();
+    await click('confirm-chat-source-0');
+    expect(document.activeElement?.id).toBe('chat-message');
+    await click('chat-send');
+    const start = http.expectOne('/api/activity-drafts/draft/operations');
+    expect(start.request.body.sources).toEqual([{ label: '  המקור  ', text: '  טקסט מדויק\n  ' }]);
+    start.flush({}, { status: 503, statusText: 'Unavailable' });
+    await settle();
+  });
+
+  it('keeps focus in chat when a target or the last source is removed', async () => {
+    await open({
+      ...savedActivity,
+      document: { ...savedActivity.document, questions: [savedQuestion] },
+    });
+    await click('ask-question-q');
+    root().querySelector<HTMLButtonElement>('#clear-chat-target')!.focus();
+    await click('clear-chat-target');
+    expect(document.activeElement?.id).toBe('chat-message');
+    await click('add-chat-source');
+    const remove = Array.from(root().querySelectorAll<HTMLButtonElement>('button')).find((button) =>
+      button.textContent?.includes('הסרת הטקסט מהבקשה'),
+    )!;
+    remove.focus();
+    remove.click();
+    await settle();
+    expect(document.activeElement?.id).toBe('add-chat-source');
+  });
+
+  it('focuses source replacement, explains blank text, and returns to its opener', async () => {
+    const id = suppliedPlan.materials[0].id;
+    await open({
+      ...savedActivity,
+      plan: suppliedPlan,
+      document: {
+        ...savedActivity.document,
+        materials: [
+          {
+            id,
+            title: null,
+            body: sourceText,
+            revision: 1,
+            origin: { kind: 'supplied' },
+            acceptance: null,
+          },
+        ],
+      },
+    });
+    await click('edit-activity');
+    const opener = Array.from(root().querySelectorAll<HTMLButtonElement>('button')).find((button) =>
+      button.textContent?.trim().startsWith('החלפת הטקסט'),
+    )!;
+    opener.focus();
+    opener.click();
+    await settle();
+    expect(document.activeElement?.id).toBe('replacement-source');
+    await type('replacement-source', ' \n ');
+    await click('accept-source-replacement');
+    const field = root().querySelector<HTMLTextAreaElement>('#replacement-source')!;
+    expect(field.getAttribute('aria-invalid')).toBe('true');
+    expect(root().querySelector('#replacement-source-errors')?.textContent?.trim()).toBeTruthy();
+    await type('replacement-source', '  מקור חדש\n  ');
+    root().querySelector<HTMLButtonElement>('#accept-source-replacement')!.focus();
+    await click('accept-source-replacement');
+    expect(document.activeElement).toBe(opener);
+    opener.click();
+    await settle();
+    expect(root().querySelector<HTMLTextAreaElement>('#replacement-source')!.value).toBe(
+      '  מקור חדש\n  ',
+    );
+    const cancel = Array.from(
+      root().querySelectorAll<HTMLButtonElement>('app-source-replacement button'),
+    ).find((button) => button.textContent?.trim() === 'ביטול')!;
+    cancel.focus();
+    cancel.click();
+    await settle();
+    expect(document.activeElement).toBe(opener);
+    http.expectNone((request) => request.method !== 'GET');
+  });
+
   it('keeps the saved word count beside its text in reading and editing views', async () => {
     const id = readingPlan.materials[0].id;
     await open({

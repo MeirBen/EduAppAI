@@ -9,14 +9,14 @@
    * primary; add one variant for the other kinds. On phones it takes the 44px control height.
    */
   .button {
-    @apply inline-flex min-h-11 w-fit items-center justify-center gap-2 rounded-button border border-transparent bg-brand px-gutter py-2 text-center leading-normal font-medium text-on-brand no-underline shadow-button transition-[background-color,border-color,color,box-shadow,translate,scale] actionable:hover:bg-brand-hover actionable:hover:shadow-button-raised motion-safe:actionable:hover:-translate-y-0.5 motion-safe:actionable:active:translate-y-0 motion-safe:actionable:active:scale-98 sm:min-h-12 sm:py-3;
+    @apply inline-flex min-h-11 w-fit items-center justify-center gap-2 rounded-button border border-transparent bg-brand px-gutter py-2 text-center leading-normal font-medium text-on-brand no-underline shadow-(--shadow-button) transition-[background-color,border-color,color,box-shadow,translate,scale] actionable:hover:bg-brand-hover actionable:hover:shadow-(--shadow-button-raised) motion-safe:actionable:hover:-translate-y-0.5 motion-safe:actionable:active:translate-y-0 motion-safe:actionable:active:scale-98 sm:min-h-12 sm:py-3;
   }
   .button-secondary {
-    @apply border-line bg-surface text-brand shadow-control actionable:hover:border-brand/30 actionable:hover:bg-soft actionable:hover:shadow-panel;
+    @apply border-line bg-surface text-brand shadow-(--shadow-control) actionable:hover:border-brand/30 actionable:hover:bg-soft actionable:hover:shadow-(--shadow-panel);
   }
   /* Destructive actions stay quiet; the confirmation step guards the request itself. */
   .button-danger {
-    @apply border-line bg-surface text-danger shadow-control actionable:hover:border-danger/30 actionable:hover:bg-danger-soft actionable:hover:shadow-panel;
+    @apply border-line bg-surface text-danger shadow-(--shadow-control) actionable:hover:border-danger/30 actionable:hover:bg-danger-soft actionable:hover:shadow-(--shadow-panel);
   }
   .text-link {
     @apply inline-flex min-h-11 w-fit items-center gap-2 rounded-small py-2 font-medium text-brand underline decoration-transparent decoration-2 transition-[color,text-decoration-color] actionable:hover:decoration-current;
@@ -34,7 +34,7 @@
   }
   /* A round icon-only action, named by its `tooltip`. Quiet ones sit in rows and cards. */
   .icon-button {
-    @apply relative grid size-11 shrink-0 place-items-center rounded-full bg-brand text-base text-on-brand shadow-button transition-[background-color,box-shadow,color] actionable:hover:bg-brand-hover actionable:hover:shadow-button-raised;
+    @apply relative grid size-11 shrink-0 place-items-center rounded-full bg-brand text-base text-on-brand shadow-(--shadow-button) transition-[background-color,box-shadow,color] actionable:hover:bg-brand-hover actionable:hover:shadow-(--shadow-button-raised);
   }
   .icon-button-ink {
     @apply bg-ink text-surface actionable:hover:bg-ink;
@@ -52,7 +52,7 @@
    * the pointer or focus moves on (see `dismissibleTooltips`).
    */
   .tooltip {
-    @apply pointer-events-none absolute inset-e-0 bottom-full z-30 mb-2 w-max max-w-64 rounded-small bg-ink px-2.5 py-1 text-sm font-normal text-surface opacity-0 shadow-raised transition-opacity;
+    @apply pointer-events-none absolute inset-e-0 bottom-full z-30 mb-2 w-max max-w-64 rounded-small bg-ink px-2.5 py-1 text-sm font-normal text-surface opacity-0 shadow-(--shadow-raised) transition-opacity;
     text-wrap: balance;
 
     :root:not([data-tooltips-hidden]) :is(:focus-visible, :has(> :focus-visible)) > & {
@@ -85,7 +85,7 @@
   }
   /* A suggestion that only fills a field; it never submits on its own. */
   .chip {
-    @apply inline-flex min-h-11 items-center gap-2 rounded-full border border-line bg-surface px-4 py-2 text-start text-sm text-balance text-ink shadow-control transition-colors actionable:hover:border-brand/30 actionable:hover:bg-soft;
+    @apply inline-flex min-h-11 items-center gap-2 rounded-full border border-line bg-surface px-4 py-2 text-start text-sm text-balance text-ink shadow-(--shadow-control) transition-colors actionable:hover:border-brand/30 actionable:hover:bg-soft;
   }
   /* One answer among a question's options: a full-width card around its native radio, so long text wraps. */
   .choice {
@@ -107,7 +107,7 @@
 
   /* Surfaces. */
   .panel {
-    @apply rounded-card border border-line bg-surface p-gutter shadow-panel sm:p-6;
+    @apply rounded-card border border-line bg-surface p-gutter shadow-(--shadow-panel) sm:p-6;
   }
   /* Recessed area inside a panel for source text or grouped fields. */
   .well {
@@ -119,7 +119,7 @@
   }
   /* The page's save state and current actions, pinned at the window's bottom until the page reaches it. */
   .action-bar {
-    @apply z-10 grid gap-3 rounded-card border border-line bg-surface p-3 shadow-raised inset-be-3 pinned-actions:sticky sm:p-4;
+    @apply z-10 grid gap-3 rounded-card border border-line bg-surface p-3 shadow-(--shadow-raised) inset-be-3 pinned-actions:sticky sm:p-4;
 
     /* On phones its buttons share the bar's width. */
     & .button {
@@ -187,11 +187,11 @@
     @apply max-w-[85%] justify-self-end rounded-ee-small bg-soft ring-1 ring-brand/15 ring-inset;
   }
   .bubble-reply {
-    @apply rounded-ss-small border border-line bg-surface shadow-control;
+    @apply rounded-ss-small border border-line bg-surface shadow-(--shadow-control);
   }
   /* One bordered box around an unframed, self-sizing field and its send action. */
   .composer {
-    @apply grid rounded-card border border-control bg-surface shadow-control transition-[border-color,box-shadow];
+    @apply grid rounded-card border border-control bg-surface shadow-(--shadow-control) transition-[border-color,box-shadow];
 
     /* Like other fields, only the field's own focus tints the edge; the actions keep their ring.
        The field's native maxlength keeps it valid, so no invalid edge is needed. */
@@ -224,7 +224,7 @@
   }
   /* The assistant's avatar carries the AI icon, so AI surfaces read as one family. */
   .ai-mark {
-    @apply grid size-9 shrink-0 place-items-center rounded-full bg-linear-to-bl from-brand to-focus text-on-brand shadow-button ltr:bg-linear-to-br;
+    @apply grid size-9 shrink-0 place-items-center rounded-full bg-linear-to-bl from-brand to-focus text-on-brand shadow-(--shadow-button) ltr:bg-linear-to-br;
 
     &::before {
       content: '';
@@ -251,6 +251,33 @@
     }
   }
   /* Feedback. */
+  /* Mounted live regions keep request state in Angular and every visual treatment here. */
+  .loading {
+    @apply flex min-w-0 items-center gap-3;
+  }
+  .loading-active {
+    @apply motion-safe:animate-loading-reveal;
+  }
+  .loading-panel {
+    @apply flex-wrap gap-4 rounded-inset border border-line bg-canvas p-gutter;
+
+    & .loading-copy {
+      @apply min-w-[min(100%,12rem)];
+    }
+    & .loading-mark {
+      @apply size-9;
+    }
+  }
+  .loading-mark {
+    @apply block size-6 shrink-0 rounded-full border-2 border-brand/15 border-bs-brand border-e-brand/55 motion-safe:animate-loading-spin;
+  }
+  /* Navigation feedback stays above the page without moving its content. */
+  .loading-bar {
+    @apply pointer-events-none fixed inset-x-0 inset-bs-0 z-30 block;
+  }
+  .loading-track {
+    @apply block h-0.75 bg-brand motion-safe:animate-loading-sweep;
+  }
   /*
    * A short technical fact in muted text. Its icon hangs beside the first line, so wrapped text and
    * inline values stay in place; `data-problem` marks a failure.

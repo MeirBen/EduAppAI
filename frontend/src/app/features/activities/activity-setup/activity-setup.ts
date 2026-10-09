@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, input, output } from '@angular/core';
 import { FieldTree, FormField } from '@angular/forms/signals';
-import { activitySummary } from '../activity-presentation';
+import { activitySummary, lengthPhrase } from '../activity-presentation';
 import { PlanForm } from '../activity-workspace/plan-form';
 import { FieldDirection } from '../../../shared/forms/field-direction';
 import { DisabledInteractive } from '../../../shared/disabled-interactive';
@@ -22,6 +22,7 @@ export class ActivitySetup {
   readonly edited = output<{ key: string }>();
   readonly sourceConfirmed = output<string>();
   protected readonly summary = computed(() => activitySummary(this.plan()().value()));
+  protected readonly lengthPhrase = lengthPhrase;
   protected changed(event: Event) {
     if (this.locked() || !(event.target instanceof HTMLElement)) return;
     this.edited.emit({ key: event.target.id });

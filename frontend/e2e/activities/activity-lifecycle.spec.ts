@@ -295,7 +295,8 @@ test('supports keyboard content editing with fixed structure at 360px and 200% t
   await card.getByLabel('נוסח השאלה', { exact: true }).fill('מה פירוש Hello — שלום?');
   await card.getByText('סוג התשובה והניקוד — שאלה 1').focus();
   await page.keyboard.press('Enter');
-  await expect(card.getByLabel('סוג התשובה', { exact: true })).toBeDisabled();
+  await expect(card.locator('#question-0-type')).toHaveText('סוג התשובה: בחירה');
+  await expect(card.getByLabel('סוג התשובה', { exact: true })).toHaveCount(0);
   await expect(card.getByRole('button', { name: 'הוספת אפשרות', exact: true })).toHaveCount(0);
   await card.getByLabel('תשובה נכונה').selectOption('שלום');
   await card.getByLabel('אפשרות 1', { exact: true }).fill('שלום רב');

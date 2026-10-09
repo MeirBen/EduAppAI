@@ -140,7 +140,7 @@
       } @else {
         <button
           id="delete-child"
-          class="text-link justify-self-start"
+          class="text-link text-link-danger justify-self-start"
           [disabledInteractive]="busy()"
           (click)="deleteProfile()"
         >
@@ -291,7 +291,7 @@
               @if (device.canRemove) {
                 <button
                   data-remove-device
-                  class="text-link"
+                  class="text-link text-link-danger"
                   [disabledInteractive]="busy()"
                   [attr.aria-label]="'הסרת המכשיר מהרשימה: ' + device.deviceLabel"
                   (click)="changeDeviceAccess(device)"

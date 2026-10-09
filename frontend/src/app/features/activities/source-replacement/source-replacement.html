@@ -8,12 +8,16 @@
       rows="8"
       [formField]="field()"
       (input)="typed.emit()"
-      aria-describedby="replacement-source-help"
+      aria-describedby="replacement-source-help replacement-source-errors"
     ></textarea>
+    <app-field-errors id="replacement-source-errors" [field]="field()" />
     <p id="replacement-source-help" class="mt-2 text-sm text-muted">
       עד {{ limits.bodyLength | number }} תווים. אחרי ההחלפה כדאי לבדוק את השאלות שתלויות בטקסט.
     </p>
   </div>
+  @if (error()) {
+    <p class="field-error" role="alert">{{ error() }}</p>
+  }
   <div class="flex flex-wrap items-center gap-3">
     <button
       class="button"

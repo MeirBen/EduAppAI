@@ -39,8 +39,8 @@
               [disabledInteractive]="locked()"
               (click)="adopted.emit({ materialIds: [id], questionIds: [] })"
             >
-              <span class="icon icon-check" aria-hidden="true"></span>בדקתי, אפשר להשתמש בגרסה
-              הזו<span class="sr-only"> — {{ label(id) }}</span>
+              <span class="icon icon-check" aria-hidden="true"></span>אישור הטקסט הקיים
+              <span class="sr-only"> — {{ label(id) }}</span>
             </button>
           </div>
         }
@@ -70,6 +70,7 @@
           <span class="icon icon-lock" aria-hidden="true"></span>הטקסט שלכם נשמר בדיוק כפי שהוזן.
         </p>
         <button
+          [id]="'replace-source-' + id"
           type="button"
           class="text-link"
           [disabledInteractive]="locked()"
@@ -194,17 +195,9 @@
               </summary>
               <div class="grid gap-4">
                 <div>
-                  <label [for]="'question-' + i + '-type'">סוג התשובה</label
-                  ><select
-                    [id]="'question-' + i + '-type'"
-                    [formField]="question.type"
-                    [flagged]="!!issue?.type"
-                    [attr.aria-describedby]="'question-' + i + '-type-errors'"
-                  >
-                    <option value="numeric-input">מספר</option>
-                    <option value="text-input">טקסט קצר</option>
-                    <option value="single-choice">בחירה מתוך אפשרויות</option>
-                  </select>
+                  <p [id]="'question-' + i + '-type'">
+                    סוג התשובה: {{ questionFormatLabels[question.type().value()] }}
+                  </p>
                   <app-field-errors
                     [id]="'question-' + i + '-type-errors'"
                     [field]="question.type"

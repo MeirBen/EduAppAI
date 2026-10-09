@@ -36,7 +36,6 @@ describe('ActivityChat presentation', () => {
     host.configured.set(false);
     await fixture.whenStable();
     expect(root.querySelector<HTMLButtonElement>('#chat-send')!.disabled).toBe(true);
-    expect(root.textContent).toContain('אפשר להמשיך לקרוא, לערוך ולשמור טיוטות קיימות');
   });
 
   it('sends on Enter only, and a suggestion fills the composer without sending', async () => {

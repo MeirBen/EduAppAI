@@ -12,12 +12,6 @@
       יכין הגדרות לבדיקה. אחר כך תוכלו לשמור טיוטה וליצור את הפעילות.
     </p>
   }
-  @if (!configured()) {
-    <p role="status" class="note">
-      <span class="icon icon-info" aria-hidden="true"></span>העוזר לא זמין כרגע. אפשר להמשיך לקרוא,
-      לערוך ולשמור טיוטות קיימות.
-    </p>
-  }
   <div class="grid gap-4" role="log" aria-live="polite" aria-label="השיחה עם העוזר">
     @for (turn of thread(); track $index; let last = $last) {
       @if (turn.role === 'parent') {
