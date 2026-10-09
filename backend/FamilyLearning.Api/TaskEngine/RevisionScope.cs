@@ -26,9 +26,9 @@ public static class RevisionScope
             !Equal(before.Settings! with { QuestionCount = 1 }, after.Settings! with { QuestionCount = 1 }) || !Equal(before.TotalLength, after.TotalLength);
         var newMaterials = after.Materials.Where(m => m.Source == "generated" && !before.Materials.Any(old => old.Id == m.Id)).Select(m => m.Id!).ToArray();
         var rewrites = after.Materials.Where(m => m.Source == "generated" && before.Materials.Any(old => old.Id == m.Id) &&
-                (shared || !Equal(before.Materials.First(old => old.Id == m.Id), m) || change.MaterialEdits.Any(e => e.Id == m.Id)))
+                (shared || !MaterialRequirementsEqual(before.Materials.First(old => old.Id == m.Id), m) || change.MaterialEdits.Any(e => e.Id == m.Id)))
             .Select(m => new MaterialRewrite(m.Id!, change.MaterialEdits.FirstOrDefault(e => e.Id == m.Id)?.Instruction)).ToArray();
-        var materialChange = !Equal(before.Materials, after.Materials) || rewrites.Length > 0;
+        var materialChange = !MaterialRequirementsEqual(before.Materials, after.Materials) || rewrites.Length > 0;
         var questionChange = !Equal(before.Questions with { Formats = before.Questions.Formats.Order(StringComparer.Ordinal).ToArray() },
             after.Questions with { Formats = after.Questions.Formats.Order(StringComparer.Ordinal).ToArray() });
         var countChange = after.Settings!.QuestionCount - before.Settings!.QuestionCount;
@@ -93,6 +93,15 @@ public static class RevisionScope
         var questions = work.Questions == "preserve" ? work.QuestionOrder!.Select(id => document.Questions.First(q => q.Id == id)).ToArray() : document.Questions;
         if (work.Questions is "preserve" or "append" or "selected" && TaskDocumentValidator.ValidateRelease(oldInput, document).Count == 0)
             questions = questions.Select(q => q with { Acceptance = q.Acceptance! with { InputFingerprint = fingerprint } }).ToArray();
+        else if (work.Questions == "none" && before.Settings.QuestionCount == after.Settings.QuestionCount && AppendRequirementsEqual(before, after))
+        {
+            // Labels are metadata, but still appear in stage fingerprints. Preserve each current question without adopting stale siblings.
+            var check = TaskDocumentValidator.ValidateDraft(oldInput, document, oldCheck);
+            if (check.Errors.Count == 0)
+                questions = questions.Select((q, i) => q.Acceptance is { } acceptance &&
+                    !check.Diagnostics.Keys.Any(k => k.StartsWith($"questions[{i}]", StringComparison.Ordinal))
+                    ? q with { Acceptance = acceptance with { InputFingerprint = fingerprint } } : q).ToArray();
+        }
         return aligned with { Materials = materials, Questions = questions };
     }
 
@@ -101,9 +110,22 @@ public static class RevisionScope
         {
             Name = after.Name,
             Settings = before.Settings! with { QuestionCount = after.Settings!.QuestionCount },
+            Materials = after.Materials,
             Questions = before.Questions with { Formats = before.Questions.Formats.Order(StringComparer.Ordinal).ToArray() }
         },
-            after with { Questions = after.Questions with { Formats = after.Questions.Formats.Order(StringComparer.Ordinal).ToArray() } });
+            after with { Questions = after.Questions with { Formats = after.Questions.Formats.Order(StringComparer.Ordinal).ToArray() } }) &&
+        MaterialRequirementsEqual(before.Materials, after.Materials);
+
+    private static bool MaterialRequirementsEqual(MaterialDefinition before, MaterialDefinition after) =>
+        Equal(before with { Label = after.Label }, after);
+
+    private static bool MaterialRequirementsEqual(MaterialDefinition[] before, MaterialDefinition[] after)
+    {
+        if (before.Length != after.Length) return false;
+        for (var i = 0; i < before.Length; i++)
+            if (!MaterialRequirementsEqual(before[i], after[i])) return false;
+        return true;
+    }
 
     private static bool Equal<T>(T left, T right) => JsonSerializer.Serialize(left, EngineJson.Options) == JsonSerializer.Serialize(right, EngineJson.Options);
 

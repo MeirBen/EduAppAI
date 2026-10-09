@@ -1,31 +1,39 @@
 @let current = view();
-<section class="panel grid gap-4" aria-labelledby="operation-heading">
+<section
+  class="grid gap-4"
+  [class.panel]="operation().status !== 'completed'"
+  aria-labelledby="operation-heading"
+>
   <h2 id="operation-heading" class="sr-only">מצב הבקשה</h2>
-  <div>
-    <app-loading-indicator
-      [active]="active()"
-      variant="inline"
-      [label]="current.title"
-      [detail]="current.details[0] ?? ''"
-    />
-    <div role="status" class="flex items-start gap-3">
-      @if (!active()) {
-        <span
-          class="status-icon"
-          [attr.data-problem]="current.problem ? '' : null"
-          aria-hidden="true"
-        >
-          <span class="icon" [class]="current.problem ? 'icon-alert' : 'icon-check'"></span>
-        </span>
-        <div class="grid min-w-0 gap-1">
-          <p class="font-medium" [class.text-danger]="current.problem">{{ current.title }}</p>
-          @for (line of current.details; track $index) {
-            <p>{{ line }}</p>
-          }
-        </div>
-      }
+  @if (operation().status === 'completed') {
+    <p role="status" class="sr-only">{{ current.title }}</p>
+  } @else {
+    <div>
+      <app-loading-indicator
+        [active]="active()"
+        variant="inline"
+        [label]="current.title"
+        [detail]="current.details[0] ?? ''"
+      />
+      <div role="status" class="flex items-start gap-3">
+        @if (!active()) {
+          <span
+            class="status-icon"
+            [attr.data-problem]="current.problem ? '' : null"
+            aria-hidden="true"
+          >
+            <span class="icon" [class]="current.problem ? 'icon-alert' : 'icon-check'"></span>
+          </span>
+          <div class="grid min-w-0 gap-1">
+            <p class="font-medium" [class.text-danger]="current.problem">{{ current.title }}</p>
+            @for (line of current.details; track $index) {
+              <p>{{ line }}</p>
+            }
+          </div>
+        }
+      </div>
     </div>
-  </div>
+  }
   @if (!active() && current.checkSaved) {
     <button
       id="check-saved"

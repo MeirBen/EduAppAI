@@ -41,7 +41,7 @@
             />
           </details>
         }
-        @if (!released()) {
+        @if (!released() && operation()?.status !== 'completed') {
           <ng-container [ngTemplateOutlet]="operationStatus" />
         }
         @if (elsewhere() !== 'deleted' && available(); as result) {
@@ -50,12 +50,12 @@
             <p>לא החלפנו את העבודה שלכם. אפשר לבדוק את התוצאה ולטעון אותה במקום השינויים שלכם.</p>
             <details class="well">
               <summary>בדיקת התוצאה</summary>
-              <app-activity-document-view [document]="result.document" />
+              <app-activity-document-view [document]="result.document" [nested]="true" />
             </details>
             <ng-container [ngTemplateOutlet]="reload" />
           </section>
         }
-        @if (hasContent()) {
+        @if (hasContent() || editing()) {
           @if (editing() && !operationActive()) {
             <app-activity-document-editor
               [fields]="fields.document"
@@ -67,6 +67,7 @@
               (adopted)="activityAction('adopt', $event)"
               (edited)="edited($event)"
               (sourceReplaced)="replaceSource($event)"
+              (finished)="finishEditing()"
             />
           } @else {
             <section class="panel grid gap-4" aria-labelledby="document-heading">
@@ -87,6 +88,7 @@
               @if (documentProjection().value; as document) {
                 <app-activity-document-view
                   [document]="document"
+                  [nested]="true"
                   [issues]="contentIssues()"
                   [measurements]="measurements()"
                   [canAsk]="!locked()"
@@ -147,12 +149,19 @@
             }
           </section>
         }
+        @if (!released() && operation()?.status === 'completed') {
+          <ng-container [ngTemplateOutlet]="operationStatus" />
+        }
         @if (reloadPlacement() === 'more') {
           <ng-container [ngTemplateOutlet]="reload" />
         }
       </div>
       @if (!released()) {
-        <section class="panel grid min-w-0 gap-4" aria-label="השיחה על הפעילות">
+        <section
+          class="chat-panel panel min-w-0 gap-4"
+          [attr.data-document]="hasContent() ? '' : null"
+          aria-label="השיחה על הפעילות"
+        >
           @if (!hasPlan()) {
             <h2 id="plan-title">מה תרצו להכין?</h2>
           }
@@ -300,50 +309,50 @@
     </p>
   }
   <app-activity-chat
-    [fields]="chatFields"
+    [fields]="chatSession.chatFields"
     [configured]="aiConfigured()"
-    [busy]="authoring() || operationActive()"
+    [busy]="chatSession.authoring() || operationActive()"
     [stopping]="saving()"
-    [locked]="locked() || invalidTarget() || !sourcesReady()"
-    [targetLabel]="targetLabel()"
-    [invalidTarget]="invalidTarget()"
+    [locked]="locked() || chatSession.invalidTarget() || !chatSession.sourcesReady()"
+    [targetLabel]="chatSession.targetLabel()"
+    [invalidTarget]="chatSession.invalidTarget()"
     (targetCleared)="clearTarget()"
-    [clarification]="clarification()"
+    [clarification]="chatSession.clarification()"
     [thread]="thread()"
-    [pending]="pendingMessage()"
-    [changes]="changes()"
-    [consolidationRequired]="needsConsolidation()"
+    [pending]="chatSession.pendingMessage()"
+    [changes]="chatSession.changes()"
+    [consolidationRequired]="chatSession.needsConsolidation()"
     [refining]="hasPlan()"
     labelledBy="plan-title"
     (sent)="author()"
     (consolidated)="author(true)"
-    (cancelled)="operationActive() ? cancelGeneration() : cancelAuthor()"
+    (cancelled)="operationActive() ? cancelGeneration() : chatSession.cancelAuthor()"
   />
   @if (saved()) {
-    <details class="border-t border-line pt-3">
+    <details class="chat-attachments border-t border-line pt-3">
       <summary>
-        @if (addedSources().length === 1) {
+        @if (chatSession.addedSources().length === 1) {
           טקסט שצורף לבקשה
-        } @else if (addedSources().length > 1) {
-          טקסטים שצורפו לבקשה ({{ addedSources().length }})
+        } @else if (chatSession.addedSources().length > 1) {
+          טקסטים שצורפו לבקשה ({{ chatSession.addedSources().length }})
         } @else {
           הוספת טקסט שלכם לבקשה
         }
       </summary>
       <div class="grid gap-4">
-        @for (source of addedSources(); track $index; let i = $index) {
+        @for (source of chatSession.addedSources(); track $index; let i = $index) {
           <div class="well grid gap-4">
             <div>
               <label [for]="'chat-source-' + i + '-label'">שם הטקסט</label>
               <input
                 [id]="'chat-source-' + i + '-label'"
                 dir="auto"
-                [formField]="additionFields[i].label"
+                [formField]="chatSession.additionFields[i].label"
                 [attr.aria-describedby]="'chat-source-' + i + '-label-errors'"
               />
               <app-field-errors
                 [id]="'chat-source-' + i + '-label-errors'"
-                [field]="additionFields[i].label"
+                [field]="chatSession.additionFields[i].label"
               />
             </div>
             <div>
@@ -352,7 +361,7 @@
                 [id]="'chat-source-' + i + '-text'"
                 dir="auto"
                 rows="6"
-                [formField]="additionFields[i].text"
+                [formField]="chatSession.additionFields[i].text"
                 [attr.aria-describedby]="
                   'chat-source-' + i + '-text-help chat-source-' + i + '-text-errors'
                 "
@@ -362,7 +371,7 @@
               </p>
               <app-field-errors
                 [id]="'chat-source-' + i + '-text-errors'"
-                [field]="additionFields[i].text"
+                [field]="chatSession.additionFields[i].text"
               />
             </div>
             @if (!source.text.trim() || source.confirmedText !== source.text) {
@@ -371,7 +380,7 @@
                 type="button"
                 class="button button-secondary"
                 [disabledInteractive]="locked()"
-                (click)="confirmAddedSource(i)"
+                (click)="chatSession.confirmAddedSource(i)"
               >
                 הטקסט הועתק נכון
               </button>
@@ -382,7 +391,7 @@
               type="button"
               class="text-link"
               [disabledInteractive]="locked()"
-              (click)="removeAddedSource(i)"
+              (click)="chatSession.removeAddedSource(i)"
             >
               הסרת הטקסט מהבקשה
             </button>
@@ -392,16 +401,18 @@
           id="add-chat-source"
           type="button"
           class="text-link"
-          [disabledInteractive]="locked() || addedSources().length >= limits.maxMaterials"
-          (click)="addSource()"
+          [disabledInteractive]="
+            locked() || chatSession.addedSources().length >= limits.maxMaterials
+          "
+          (click)="chatSession.addSource()"
         >
           הוספת טקסט
         </button>
       </div>
     </details>
   }
-  @if (authorError()) {
-    <p role="alert" class="field-error">{{ authorError() }}</p>
+  @if (chatSession.authorError()) {
+    <p role="alert" class="field-error">{{ chatSession.authorError() }}</p>
   }
 </ng-template>
 <ng-template #operationStatus>

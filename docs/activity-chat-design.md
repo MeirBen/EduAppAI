@@ -83,6 +83,7 @@ Text generation always excludes supplied sources.
 | Change                              | Work                               |
 | ----------------------------------- | ---------------------------------- |
 | Plan name                           | Rename draft/library entry         |
+| Material label                      | Rename setting; preserve content   |
 | Shared requirements or total length | All generated texts and questions  |
 | One material's requirements or edit | That generated text and questions  |
 | Add generated material              | Write/polish new text; questions   |
@@ -118,8 +119,8 @@ absorbs selected replacements while retaining their instructions. Combined
 question-content/structure changes rebuild the full set with explicit removal
 and ordering instructions; do not claim to preserve unchanged questions there.
 
-Give writing and polish explicit new-material targets; today they process the
-whole generated set. Validate each intermediate candidate's identity, source
+Give writing and polish explicit new-material targets; retain existing texts
+as read-only context. Validate each intermediate candidate's identity, source
 fidelity and field bounds, then validate combined length and complete materials
 before questions. A strict total-length change must not fail halfway because
 other texts still await rewriting. Validate the finished document before apply;
@@ -138,7 +139,9 @@ scope, preserving content, revisions and origin after validation. This is not
 parent adoption. Never silently accept already stale content. Missing/invalid
 dependencies outside scope require an explicit creation, repair or adoption
 choice before content calls. Metadata-only changes may retain existing
-diagnostics; they cannot clear them or make a draft ready.
+diagnostics; they cannot clear them or make a draft ready. A supplied-source
+replacement follows the same rule for untouched generated texts; only the
+questions become stale. Label changes do not change content requirements.
 
 ## AI contract and context
 
@@ -285,8 +288,8 @@ Context rules:
   oversized required payload against the configured request/schema byte limits
   before calling the provider.
 
-These are required adaptations to existing payloads, not claims that current
-stage methods already support them. Evaluate the final production form.
+Evaluate the final production payloads; isolated tests do not establish live
+model acceptance.
 
 ## Implementation boundaries
 
@@ -295,7 +298,9 @@ stage methods already support them. Evaluate the final production form.
 - **Persistence:** the existing activity endpoints, worker and DbContext own
   admission, checkpoints and commits. Keep transactions outside AI calls.
 - **Frontend:** one workspace buffer and existing observer/API client; shared
-  chat renders turns and emits actions. Read/edit views use the same state.
+  chat renders turns and emits actions. A feature-local chat session owns composer,
+  targets, attachments and unsaved authoring; the workspace owns buffer and durable
+  transitions. Read/edit views use the same state.
   Remove template routing, publication/version state and library queries.
 - **Scaffolding:** simplify existing contracts/storage for the
   [fresh-start cutover](product-specification.md#activity-only-cutover), adding

@@ -5,11 +5,12 @@ import {
   sourceText,
 } from '../../src/app/features/activities/learning-plan.fixture';
 import limits from '../../src/app/core/api/limits.fixture.json';
+import { ActivityDetail } from '../../src/app/core/api/models';
 import { textSize } from '../text-size';
 
-async function isolate(page: Page, configured = true) {
+async function isolate(page: Page, configured = true, initial: Partial<ActivityDetail> = {}) {
   const writes: { url: string; body: Record<string, unknown> }[] = [];
-  let draft = {
+  let draft: ActivityDetail = {
     id: 'draft',
     revision: 1,
     plan: numericPlan,
@@ -23,6 +24,7 @@ async function isolate(page: Page, configured = true) {
     releasedSourceRevision: null,
     createdAtUtc: '2026-10-01T00:00:00Z',
     updatedAtUtc: '2026-10-01T00:00:00Z',
+    ...initial,
   };
   await page.route('**/api/**', async (route) => {
     const request = route.request(),
@@ -160,6 +162,11 @@ test('a saved draft can be edited without AI at 360px and 200% text using the ke
   await page.keyboard.press('Enter');
   await expect(page.locator('#document-title')).toBeFocused();
   await page.locator('#document-title').fill('תרגול ידני — Hello');
+  await page.locator('#finish-editing').focus();
+  await page.keyboard.press('Enter');
+  await expect(page.locator('#edit-activity')).toBeFocused();
+  await expect(page.getByRole('heading', { name: 'תרגול ידני — Hello', level: 3 })).toBeVisible();
+  expect(writes).toHaveLength(0);
   await page.locator('#save-activity').focus();
   await page.keyboard.press('Enter');
   await expect(page.getByText('נשמר', { exact: true })).toBeVisible();
@@ -167,4 +174,90 @@ test('a saved draft can be edited without AI at 360px and 200% text using the ke
   expect(writes).toHaveLength(1);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await page.screenshot({ path: test.info().outputPath('canvas-mobile.png'), fullPage: true });
+});
+
+test('desktop chat stays reachable beside lower questions and returns to page flow for large text and source forms', async ({
+  page,
+}) => {
+  await isolate(page, true, {
+    document: {
+      title: 'תרגול ארוך',
+      instructions: null,
+      materials: [],
+      questions: Array.from({ length: 12 }, (_, index) => ({
+        id: `q${index}`,
+        prompt: `שאלה ${index + 1}: ${'תוכן לקריאה ולבדיקה. '.repeat(12)}`,
+        interaction: { type: 'numeric-input', options: null },
+        answer: { value: '1' },
+        points: 1,
+        origin: { kind: 'manual' },
+        acceptance: null,
+      })),
+    },
+    chat: Array.from({ length: 12 }, (_, index) => ({
+      role: index % 2 ? 'assistant' : 'parent',
+      text: `הודעה ${index + 1}: ${'תוכן השיחה. '.repeat(12)}`,
+      atUtc: '2026-10-01T00:00:00Z',
+      target: null,
+      operationId: null,
+      assumptions: null,
+      outcome: null,
+    })),
+  });
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto('/activities/draft');
+  const chat = page.locator('.chat-panel');
+  await page.locator('#ask-question-q10').scrollIntoViewIfNeeded();
+  const before = await page.evaluate(() => scrollY);
+  await page.locator('#ask-question-q10').click();
+  await expect(page.locator('#chat-message')).toBeFocused();
+  await expect(page.locator('#chat-message')).toHaveValue('לגבי שאלה 11: ');
+  expect(Math.abs((await page.evaluate(() => scrollY)) - before)).toBeLessThan(10);
+  const composer = await page.locator('.composer').boundingBox();
+  expect(composer!.y).toBeGreaterThan(0);
+  expect(composer!.y + composer!.height).toBeLessThan(800);
+  const history = page.getByRole('log');
+  expect(await history.evaluate((element) => element.scrollHeight > element.clientHeight)).toBe(
+    true,
+  );
+  expect((await history.boundingBox())!.height).toBeGreaterThan(150);
+  await expect(history.getByText('הודעה 12:', { exact: false })).toBeInViewport();
+  await page.locator('#chat-message').fill('לגבי שאלה 11: נסחו בפשטות');
+  await page.locator('#ask-question-q11').click();
+  await expect(page.locator('#chat-message')).toHaveValue('לגבי שאלה 12: נסחו בפשטות');
+  await page.screenshot({ path: test.info().outputPath('chat-desktop.png') });
+  await chat.locator('.chat-attachments > summary').click();
+  await expect(chat).toHaveCSS('position', 'static');
+  await chat.locator('.chat-attachments > summary').click();
+  for (const [width, height] of [
+    [1280, 800],
+    [1920, 1080],
+  ]) {
+    await page.setViewportSize({ width, height });
+    await page.locator('#ask-question-q10').scrollIntoViewIfNeeded();
+    const position = await page.evaluate(() => scrollY);
+    await page.locator('#ask-question-q10').click();
+    await expect(chat).toHaveCSS('position', 'sticky');
+    expect(Math.abs((await page.evaluate(() => scrollY)) - position)).toBeLessThan(10);
+    const bounds = await page.locator('.composer').boundingBox();
+    expect(bounds!.y).toBeGreaterThan(0);
+    expect(bounds!.y + bounds!.height).toBeLessThan(height - 100);
+  }
+  for (const [width, font] of [
+    [1440, 32],
+    [360, 16],
+    [360, 32],
+    [320, 32],
+  ]) {
+    await page.setViewportSize({ width, height: 900 });
+    await textSize(page, font);
+    await expect(chat).toHaveCSS('position', 'static');
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
+      true,
+    );
+    await page.locator('#ask-question-q11').click();
+    await expect(page.locator('#chat-message')).toBeFocused();
+    await expect(page.locator('#chat-message')).toBeInViewport();
+  }
+  await page.screenshot({ path: test.info().outputPath('chat-enlarged.png') });
 });

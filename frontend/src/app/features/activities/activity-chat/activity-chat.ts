@@ -37,13 +37,16 @@ const changeSuggestions = [
 ];
 
 /**
- * The activity conversation: the visible thread, the request in flight and the composer. The
- * route owns message text, unresolved context and all requests; this component only emits.
+ * Shared conversation view; its host supplies thread, composer fields, request state and actions.
  */
 @Component({
   imports: [FormField, FieldDirection, SuggestionChips, LoadingIndicator],
   selector: 'app-activity-chat',
-  host: { '(focusin)': 'focusInside = true', '(focusout)': 'leaveFocus($event)' },
+  host: {
+    class: 'flex min-h-0 flex-col',
+    '(focusin)': 'focusInside = true',
+    '(focusout)': 'leaveFocus($event)',
+  },
   templateUrl: './activity-chat.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
@@ -78,6 +81,8 @@ export class ActivityChat {
   private readonly document = inject(DOCUMENT);
   private readonly composer = viewChild.required<ElementRef<HTMLTextAreaElement>>('composer');
   private readonly stop = viewChild<ElementRef<HTMLButtonElement>>('stop');
+  private readonly history = viewChild.required<ElementRef<HTMLElement>>('history');
+  private followLatest = true;
   private wasBusy = false;
   protected focusInside = false;
   /** The owner's heading names the field only for a first description, not an answer or a change. */
@@ -95,6 +100,13 @@ export class ActivityChat {
   );
 
   constructor() {
+    // Follow new turns inside a bounded history, unless the parent scrolled back to read.
+    afterRenderEffect(() => {
+      this.thread();
+      this.pending();
+      const history = this.history().nativeElement;
+      if (this.followLatest) history.scrollTop = history.scrollHeight;
+    });
     // Send and stop swap places and the composer is disabled while a request runs; focus that
     // fell to the page follows the swap, but never moves away from a control the parent chose.
     afterRenderEffect(() => {
@@ -104,6 +116,11 @@ export class ActivityChat {
       if (!this.focusInside || this.document.activeElement !== this.document.body) return;
       (busy ? this.stop() : this.composer())?.nativeElement.focus({ preventScroll: true });
     });
+  }
+
+  protected followHistory() {
+    const history = this.history().nativeElement;
+    this.followLatest = history.scrollHeight - history.clientHeight - history.scrollTop < 1;
   }
 
   protected leaveFocus(event: FocusEvent) {

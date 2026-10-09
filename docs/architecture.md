@@ -351,11 +351,14 @@ the canonical server shape. Child editors use the owner's
 Signal Forms and emit changes; they do not copy drafts or issue HTTP requests.
 Settings are read-only; chat changes requirements. The canvas starts in reading
 mode, and an explicit edit opens fixed titles, instructions, bodies, questions,
-options, answers and points. Successful saving returns to reading. Field
-problems and server word counts stay beside content.
+options, answers and points. Saving or finishing a valid edit returns to reading;
+finishing alone keeps changes unsaved. Field problems and server word counts
+stay beside content.
 
-Unsaved setup uses correlated authoring and bounded local undo. Its single
-bounded conversation is imported with the first save; subsequent chat and undo
+`ChatSession` owns local authoring, composer, targets and attached sources;
+workspace buffer/revision fences still control whether proposals apply. Unsaved
+setup uses correlated authoring and bounded local undo. Its single bounded
+conversation is imported with the first save; subsequent chat and undo
 come from the saved draft. Source confirmation preserves exact text and must
 be repeated after an edit. Chat shortcuts set an ID-based target and focus the
 composer without sending; removed targets block submission until cleared.

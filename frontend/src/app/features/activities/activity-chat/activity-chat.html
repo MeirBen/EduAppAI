@@ -1,6 +1,6 @@
 @let start = !refining();
 @let message = fields().message;
-<div class="grid gap-4">
+<div class="chat-layout gap-4">
   @if (!start) {
     <h2 id="change-title" class="flex items-center gap-3">
       <span class="ai-mark" aria-hidden="true"></span>רוצים לשנות משהו?
@@ -12,7 +12,15 @@
       יכין הגדרות לבדיקה. אחר כך תוכלו לשמור טיוטה וליצור את הפעילות.
     </p>
   }
-  <div class="grid gap-4" role="log" aria-live="polite" aria-label="השיחה עם העוזר">
+  <div
+    #history
+    class="chat-thread grid gap-4"
+    role="log"
+    aria-live="polite"
+    aria-label="השיחה עם העוזר"
+    [attr.tabindex]="thread().length ? 0 : null"
+    (scroll)="followHistory()"
+  >
     @for (turn of thread(); track $index; let last = $last) {
       @if (turn.role === 'parent') {
         <div class="bubble bubble-own motion-safe:animate-enter">
@@ -113,7 +121,7 @@
         (keydown.enter)="sendOnEnter($event)"
       ></textarea>
       <div class="flex items-center justify-between gap-3 ps-4 pe-2 pb-2">
-        <p id="chat-hint" class="text-sm text-muted pointer-coarse:sr-only">
+        <p id="chat-hint" class="text-sm text-muted max-sm:sr-only pointer-coarse:sr-only">
           <kbd dir="ltr" class="font-sans">Enter</kbd> לשליחה ·
           <kbd dir="ltr" class="font-sans">Shift+Enter</kbd> לשורה חדשה
         </p>
@@ -149,7 +157,7 @@
         [disabled]="busy() || locked()"
         (picked)="suggest($event)"
       />
-    } @else if (!start && !clarification()) {
+    } @else if (!start && !clarification() && !started()) {
       <app-suggestion-chips
         key="chat-change"
         label="רעיונות לשינוי"

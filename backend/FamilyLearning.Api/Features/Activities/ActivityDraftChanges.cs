@@ -39,7 +39,11 @@ internal static class ActivityDraftChanges
     internal static (LearningPlan Plan, TaskDocument Document) Apply(ActivityDraft draft, SaveActivityRequest body)
     {
         var current = draft.Document;
-        var plan = ValidateManualSave(draft.Plan, current, body);
+        var previousPlan = draft.Plan;
+        var plan = ValidateManualSave(previousPlan, current, body);
+        // A confirmed source swap invalidates questions, not untouched generated texts that were already current.
+        if (body.SourceReplacements is { Length: > 0 })
+            current = RevisionScope.PrepareDocument(previousPlan, current, plan, new([], [], "all", [], null, null, false));
         var request = TaskRequestResolver.ResolveOrThrow(plan);
         var edit = body.Document;
         var fingerprint = TaskRequestResolver.Fingerprint(request);

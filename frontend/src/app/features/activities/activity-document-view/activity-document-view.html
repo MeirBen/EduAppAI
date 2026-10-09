@@ -2,7 +2,11 @@
   <p class="field-error">{{ issues().title }}</p>
 }
 @if (document().title) {
-  <h2 dir="auto">{{ document().title }}</h2>
+  @if (nested()) {
+    <h3 dir="auto">{{ document().title }}</h3>
+  } @else {
+    <h2 dir="auto">{{ document().title }}</h2>
+  }
 }
 @if (document().instructions) {
   <p dir="auto" class="whitespace-pre-wrap">{{ document().instructions }}</p>
@@ -11,7 +15,11 @@
   <section class="well grid gap-1">
     <div class="flex items-center justify-between gap-3">
       @if (material.title) {
-        <h3 dir="auto">{{ material.title }}</h3>
+        @if (nested()) {
+          <h4 dir="auto">{{ material.title }}</h4>
+        } @else {
+          <h3 dir="auto">{{ material.title }}</h3>
+        }
       }
       <app-copy-button
         class="ms-auto"
@@ -28,7 +36,7 @@
         type="button"
         (click)="asked.emit({ kind: 'material', id: material.id })"
       >
-        שאלה על הטקסט<span class="sr-only"> {{ material.title || $index + 1 }}</span>
+        בקשה לגבי הטקסט<span class="sr-only"> {{ material.title || $index + 1 }}</span>
       </button>
     }
     @if (issues().materials.get(material.id); as issue) {
@@ -62,7 +70,7 @@
             type="button"
             (click)="asked.emit({ kind: 'question', id: question.id })"
           >
-            שאלה על החלק הזה<span class="sr-only"> — שאלה {{ $index + 1 }}</span>
+            בקשה לגבי השאלה<span class="sr-only"> — שאלה {{ $index + 1 }}</span>
           </button>
         }
         <p>נקודות: {{ question.points }}</p>

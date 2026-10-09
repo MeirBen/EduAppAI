@@ -108,5 +108,52 @@ public sealed class RevisionScopeTests
         Assert.Throws<TaskValidationException>(() => RevisionScope.ForCreate(plan, current));
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Material_labels_preserve_content_and_only_rebase_previously_current_items(bool staleQuestion)
+    {
+        var plan = Reading();
+        var input = Resolve(plan);
+        var current = TaskAssembly.AcceptMaterials(input, TaskAssembly.CreateDocument(input), Materials()).Document!;
+        current = TaskAssembly.AcceptQuestions(input, current, Questions("text-input"));
+        if (staleQuestion) current.Questions[0] = current.Questions[0] with { Acceptance = null };
+        var after = plan with { Materials = [plan.Materials[0] with { Label = "תווית חדשה" }] };
+        var work = RevisionScope.Derive(plan, current, Change(after));
+        Assert.Empty(work.Rewrites);
+        Assert.Equal("none", work.Questions);
+        Assert.False(work.RequiresComplete);
+        Assert.Null(work.Clarification);
+        var prepared = RevisionScope.PrepareDocument(plan, current, after, work);
+        Assert.Equal(Serialize(current.Materials[0] with { Acceptance = prepared.Materials[0].Acceptance }), Serialize(prepared.Materials[0]));
+        for (var i = 0; i < current.Questions.Length; i++)
+            Assert.Equal(Serialize(current.Questions[i] with { Acceptance = prepared.Questions[i].Acceptance }), Serialize(prepared.Questions[i]));
+        var errors = TaskDocumentValidator.ValidateRelease(Resolve(after), prepared);
+        if (staleQuestion)
+        {
+            Assert.Null(prepared.Questions[0].Acceptance);
+            Assert.Equal("questions[0].stale", Assert.Single(errors).Key);
+        }
+        else Assert.Empty(errors);
+    }
+
+    [Fact]
+    public void Material_label_change_can_be_combined_with_appending_questions()
+    {
+        var plan = Supplied();
+        var current = Complete(plan);
+        var after = plan with
+        {
+            Materials = [plan.Materials[0] with { Label = "שם מקור חדש" }],
+            Settings = plan.Settings with { QuestionCount = 3 }
+        };
+        var change = Change(after) with { Questions = new("append", "על המקור", []) };
+        Assert.NotNull(ActivityRevisionValidator.Validate(new(null, null, change), new(plan, current, "שנה את שם המקור והוסף שאלה")).Change);
+        var work = RevisionScope.Derive(plan, current, change);
+        Assert.Equal("append", work.Questions);
+        Assert.Empty(work.Rewrites);
+        Assert.Null(work.Clarification);
+    }
+
     private static TaskDocument Complete(LearningPlan plan) => TaskAssembly.AcceptQuestions(Resolve(plan), TaskAssembly.CreateDocument(Resolve(plan)), Questions());
 }

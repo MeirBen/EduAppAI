@@ -13,6 +13,8 @@ public static class EvaluationCommand
     {
         try
         {
+            if (args.Length > 0 && args[0] == "--activity-contract-probe")
+                return await ActivityProbeCommand.RunAsync(args[1..]);
             if (args.Length > 0 && args[0] == "--ui")
             {
                 await EvaluationDashboard.RunAsync(args);
@@ -74,6 +76,7 @@ public static class EvaluationCommand
                 ? $"Cannot compare reports. Check file paths, format version {EvaluationVersions.ReportFormat} and human scores (0, 1, 2 or null)."
                 : "Evaluation could not start or save its report. Check arguments, AI configuration and output permissions.");
             Console.Error.WriteLine("Usage: evaluate-ai.sh [--live] [--case ID[,ID...]|all] [--repeat 1..5] [--max-calls 1..100] [--call-delay-seconds 0..60] [--judge] [--output DIR]");
+            Console.Error.WriteLine("Activity contract: evaluate-ai.sh --activity-contract-probe [--live --budget-usd AMOUNT] [--output DIR] (0 < AMOUNT <= 6)");
             Console.Error.WriteLine("Dashboard: evaluate-ai.sh --ui [--port PORT] [--output DIR]");
             Console.Error.WriteLine($"Offline comparison: evaluate-ai.sh --compare BASELINE/run.json CANDIDATE/run.json (format version {EvaluationVersions.ReportFormat})");
             return 2;

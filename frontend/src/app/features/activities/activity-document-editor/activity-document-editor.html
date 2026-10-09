@@ -1,5 +1,16 @@
 <section class="panel grid gap-4" aria-labelledby="document-heading">
-  <h2 id="document-heading">עריכת תוכן הפעילות</h2>
+  <div class="flex flex-wrap items-center justify-between gap-3">
+    <h2 id="document-heading">עריכת תוכן הפעילות</h2>
+    <button
+      id="finish-editing"
+      type="button"
+      class="text-link"
+      [disabledInteractive]="locked()"
+      (click)="finished.emit()"
+    >
+      סיום עריכה
+    </button>
+  </div>
   <p class="text-sm text-muted">
     עריכה ושמירת טיוטה אינן משתמשות ב־AI. להוספת שאלות או לשינוי ההגדרות, כתבו לעוזר.
   </p>

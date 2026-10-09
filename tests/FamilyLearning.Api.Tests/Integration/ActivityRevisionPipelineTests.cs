@@ -132,7 +132,17 @@ public sealed class ActivityRevisionPipelineTests
         Assert.Equal(expectedCalls, app.Chat.Requests.Count);
         var saved = (await parent.GetFromJsonAsync<JsonNode>(Path(draft)))!;
         Assert.Equal(2, saved["chat"]!.AsArray().Count);
-        if (failureStage != 0) return;
+        var notice = saved["chat"]![1]!["text"]!.GetValue<string>();
+        if (failureStage != 0)
+        {
+            Assert.Contains("התוכן השמור לא השתנה", notice);
+            Assert.DoesNotContain("נוספו", notice);
+            return;
+        }
+        Assert.Contains("טקסטים שנוספו: 1", notice);
+        Assert.Contains("טקסטים שעודכנו: 3", notice);
+        Assert.Contains("השאלות נוצרו מחדש", notice);
+        Assert.InRange(notice.Length, 1, 600);
         Assert.Equal(3, saved["revision"]!.GetValue<long>());
         Assert.True(saved["canUndo"]!.GetValue<bool>());
         Assert.Equal(4, saved["document"]!["materials"]!.AsArray().Count);

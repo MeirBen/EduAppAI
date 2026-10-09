@@ -31,7 +31,10 @@ The activity canvas uses Create/Revise and explicit question recovery. Template
 publication and staged operation admission are removed. Evaluation still uses
 the shared engine stages directly, without family data or retired API calls.
 The historical live evidence below predates the activity-only prompts/schema
-(revision 39) and the operation-contract retirement (revision 40). Verification
+(revision 39), the operation-contract retirement (revision 40) and the prompt
+contract corrections (revision 41). Revision 41 restores the measured authoring
+omission rule, shares planning defaults with revision, and keeps planning
+permissions out of content stages. Verification
 uses isolated providers and does not establish live-model quality.
 The 1 October comparison did **not** meet its quality threshold: one-shot passed
 9/9 structural trials and split 7/9, with split costing about 3× and taking
@@ -482,6 +485,34 @@ live evaluation.
 ./scripts/evaluate-ai.sh --live --case reading-grade3 --max-calls 3
 ./scripts/evaluate-ai.sh --live --case ants-inference --judge --max-calls 8
 ```
+
+For the final activity-only contract, preview the fixed probe:
+
+```bash
+./scripts/evaluate-ai.sh --activity-contract-probe
+# Only after an explicit dollar budget is approved:
+./scripts/evaluate-ai.sh --activity-contract-probe --live --budget-usd 1
+```
+
+This separate probe runs eight synthetic cases, at most 17 calls, through the
+production engine and native adapter: empty/populated revision targets,
+authoring defaults and unsupported extras, reply/refusal, metadata rename,
+new-only writing/polish beside retained texts, and question append. It does not
+exercise the worker/API or establish content quality. It has no retry, judge,
+fallback or schema downgrade and stops on a failed expectation. Keep the
+production strict schema, medium reasoning and 16,384 output-token profile.
+Probe-only routing selects standard OpenAI and caps prices at $2/M input and
+$10/M output; requests are bounded to 64 KiB, never truncated. Reserve each
+call's wire byte count plus 4,096 input tokens and all allowed output tokens
+before sending; unknown costs retain that reserve. Lower budgets can stop
+incomplete; the modeled maximum for all calls is $5.152768 (accepted budgets
+are at most $6). These local checks are not a provider billing guarantee.
+
+Each probe directory freezes prompts/fixtures in `protocol.json`, engine checks
+and snapshots in `probe.json`, and sanitized wire requests, outputs and the cost
+ledger in `transport.json`. Inspect the retained output for Hebrew, niqqud and
+unsupported-detail behavior; passing structural checks alone is insufficient.
+No production learning records are read or changed.
 
 `--repeat` accepts 1–5 and `--max-calls` 1–100; every attempt consumes the hard
 call limit, which caps calls, not dollars. Calls run sequentially with a

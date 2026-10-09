@@ -1,3 +1,4 @@
+using System.ClientModel.Primitives;
 using FamilyLearning.Api.Infrastructure.Ai;
 using FamilyLearning.Api.TaskEngine.Ai;
 using Microsoft.Extensions.AI;
@@ -39,7 +40,7 @@ public sealed class EvaluationClients : IDisposable
     /// <summary>Null when no API key is configured. Invalid configuration throws; callers must not retain its message.</summary>
     /// <remarks><paramref name="configure"/> applies test overrides to both clients' services after app registration.</remarks>
     public static EvaluationClients? Create(IConfiguration configuration, IHostEnvironment environment,
-        Action<IServiceCollection>? configure = null)
+        Action<IServiceCollection>? configure = null, PipelineTransport? transport = null)
     {
         var judgeValues = SharedKeys.ToDictionary(key => key, key => configuration[key]);
         judgeValues["Ai:Model"] = HebrewJudge.Model;
@@ -69,7 +70,7 @@ public sealed class EvaluationClients : IDisposable
         ServiceProvider Build(IConfiguration source)
         {
             var services = new ServiceCollection().AddLogging();
-            services.AddTaskAi(source, environment);
+            services.AddTaskAi(source, environment, transport);
             configure?.Invoke(services);
             return services.BuildServiceProvider();
         }

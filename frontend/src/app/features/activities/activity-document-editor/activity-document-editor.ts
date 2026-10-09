@@ -39,6 +39,7 @@ export class ActivityDocumentEditor {
   readonly staleMaterials = input<ReadonlySet<string>>(new Set());
   /** Release problems the saved check found, each shown at its field. */
   readonly contentIssues = input<ContentIssues>({ materials: new Map(), questions: new Map() });
+  readonly finished = output<void>();
   readonly edited = output<{ key: string }>();
   readonly adopted = output<{ materialIds: string[]; questionIds: string[] }>();
   readonly sourceReplaced = output<string>();

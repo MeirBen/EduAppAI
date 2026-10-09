@@ -56,6 +56,8 @@ public sealed class ActivityChatTests
         var saved = (await parent.GetFromJsonAsync<JsonNode>(Path(draft)))!;
         Assert.Equal("שם חדש", saved["plan"]!["name"]!.GetValue<string>());
         Assert.True(JsonNode.DeepEquals(draft["document"], saved["document"]));
+        Assert.Contains("שם חדש", saved["chat"]!.AsArray()[^1]!["text"]!.GetValue<string>());
+        Assert.Contains("שם הטיוטה", saved["chat"]!.AsArray()[^1]!["text"]!.GetValue<string>());
         Assert.True(saved["canUndo"]!.GetValue<bool>());
         Assert.Single(saved["chat"]!.AsArray(), t => t!["role"]!.GetValue<string>() == "parent");
         using var undo = await parent.PostAsJsonAsync(Path(draft) + "/undo", new { expectedRevision = 3 });
@@ -65,6 +67,37 @@ public sealed class ActivityChatTests
         Assert.True(JsonNode.DeepEquals(draft["plan"], saved["plan"]));
         Assert.False(saved["canUndo"]!.GetValue<bool>());
         Assert.Equal(2, app.Chat.Requests.Count);
+    }
+
+    [Fact]
+    public async Task Material_label_rename_commits_without_content_calls_and_reports_the_saved_label()
+    {
+        var plan = Reading() with { Settings = Numeric(1).Settings };
+        var changed = plan with { Materials = [plan.Materials[0] with { Label = "שם טקסט חדש" }] };
+        await using var app = new GenerationHarness(GenerationHarness.Ideas, GenerationHarness.Materials,
+            GenerationHarness.UnchangedPolish, GenerationHarness.Questions("text-input"),
+            Serialize(new { result = new RevisionDecision(null, null, Change(changed)) }));
+        using var parent = await app.ParentAsync();
+        var draft = await app.GenerateAsync(parent, await Create(parent, plan));
+        using var started = await parent.PostAsJsonAsync(Path(draft) + "/operations", new
+        { operationKey = Guid.NewGuid(), expectedRevision = draft["revision"]!.GetValue<long>(), kind = "Revise", message = "שנה את תווית הטקסט" });
+        Assert.Equal(HttpStatusCode.Accepted, started.StatusCode);
+        await app.Worker.RunNextAsync(default);
+        var saved = (await parent.GetFromJsonAsync<JsonNode>(Path(draft)))!;
+        Assert.Equal("שם טקסט חדש", saved["plan"]!["materials"]![0]!["label"]!.GetValue<string>());
+        Assert.Equal(draft["revision"]!.GetValue<long>() + 1, saved["revision"]!.GetValue<long>());
+        Assert.Null(saved["activeOperation"]);
+        Assert.Empty(saved["diagnostics"]!.AsObject());
+        Assert.True(saved["canUndo"]!.GetValue<bool>());
+        Assert.Equal(5, app.Chat.Requests.Count);
+        var notice = saved["chat"]!.AsArray()[^1]!["text"]!.GetValue<string>();
+        Assert.Contains("שם טקסט חדש", notice);
+        Assert.DoesNotContain("שוכתב", notice);
+        Assert.DoesNotContain("שאלות", notice);
+        var beforeDocument = draft["document"]!.DeepClone();
+        beforeDocument["materials"]![0]!["acceptance"] = saved["document"]!["materials"]![0]!["acceptance"]!.DeepClone();
+        beforeDocument["questions"]![0]!["acceptance"] = saved["document"]!["questions"]![0]!["acceptance"]!.DeepClone();
+        Assert.True(JsonNode.DeepEquals(beforeDocument, saved["document"]));
     }
 
     [Fact]

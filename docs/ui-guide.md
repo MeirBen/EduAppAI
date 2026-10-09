@@ -145,6 +145,8 @@ Repeated treatments become primitives, with state from `aria-current`,
 `data-done` or `data-problem` rather than alternative class lists. Keep visual
 CSS in these shared layers; components own markup, behavior and layout utilities,
 without local stylesheets, inline visual overrides or separate theme branches.
+The shared `chat-panel` bounds desktop conversation history while keeping the
+composer visible.
 Give `steps`
 `role="list"` to preserve WebKit list semantics.
 
@@ -289,16 +291,21 @@ answer choices. A combined text length is explicitly labelled as a total.
 Once content exists, show the activity as a readable document with chat beside
 it on wide screens and below it on phones. **עריכה** opens titles, instructions,
 texts, questions/options, answers and points in the same buffer. Successful
-manual save returns to reading; failure keeps the edits. Structural changes
-use chat.
+manual save returns to reading; failure keeps the edits. **סיום עריכה** returns
+to reading with valid local changes retained and still unsaved; invalid fields
+stay open for correction. Structural changes use chat.
 Each text/question offers an accessible “ask about this” action that fills and
-focuses the composer without sending. Keep the selected target visible.
+focuses the composer without sending. Keep the selected target visible and
+update only the app-inserted prefix when switching targets, preserving parent
+text. At widths of 64rem and heights of 50rem or more, keep chat beside the
+document with only its history scrolling; expanded source forms and smaller
+screens use normal document flow. Respect enlarged browser text.
 
 Parent turns sit at the end edge; AI replies show `ai-mark`, committed changes
 and assumptions, with a typing bubble while pending. Enter sends; Shift+Enter
 adds a line. Send becomes Stop while retaining focus. Failure/cancellation keeps
 the request available for an explicit new attempt. `SuggestionChips` only fill
-fields and never send. Suggestions apply to the current activity; mark AI
+fields and never send. Suggestions appear before the first exchange and apply to the current activity; mark AI
 execution actions with `icon-ai`.
 
 Use **יצירת הפעילות** for initial generation, **שמירת טיוטה** for a save and
@@ -314,7 +321,8 @@ pause editing and show truthful operation status with Stop. Apply a complete
 validated change at once. Failure/cancellation leaves saved content intact;
 reconcile uncertain responses with saved state. External saves/deletions offer
 explicit reload without discarding local edits. Keep stage details, outcomes,
-usage and raw output under **פרטים טכניים**; never imply automatic paid retries.
+usage and raw output under **פרטים טכניים**; successful operations leave this
+quiet disclosure below the content. Never imply automatic paid retries.
 
 Question cards show prompts/options and disclose parent-only answers. Manual
 fields keep native labels; format is plain read-only text and points can use a disclosure.

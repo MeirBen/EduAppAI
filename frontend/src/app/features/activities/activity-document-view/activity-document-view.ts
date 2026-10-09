@@ -16,6 +16,8 @@ import { MeasurementList } from '../measurement-list/measurement-list';
 export class ActivityDocumentView {
   readonly measurements = input<MeasurementItem[]>([]);
   readonly canAsk = input(false);
+  /** The workspace wraps the document in an already headed section. */
+  readonly nested = input(false);
   readonly asked = output<RevisionTarget>();
   readonly issues = input<ContentIssues>({ materials: new Map(), questions: new Map() });
   protected questionIssues(id: string): string[] {

@@ -76,7 +76,7 @@ describe('Activity lifecycle', () => {
   const titleValue = () =>
     root().querySelector<HTMLInputElement>('#document-title')?.value ??
     root()
-      .querySelector('[aria-labelledby="document-heading"] app-activity-document-view h2')
+      .querySelector('[aria-labelledby="document-heading"] app-activity-document-view h3')
       ?.textContent?.trim() ??
     '';
   beforeEach(async () => {
@@ -129,12 +129,50 @@ describe('Activity lifecycle', () => {
     );
   });
 
+  it('finishes editing without saving and preserves local changes when editing resumes', async () => {
+    await open();
+    await type('document-title', 'כותרת חדשה');
+    root().querySelector<HTMLButtonElement>('#finish-editing')?.focus();
+    await click('finish-editing');
+    expect(root().querySelector('#document-title')).toBeNull();
+    expect(titleValue()).toBe('כותרת חדשה');
+    expect(document.activeElement?.id).toBe('edit-activity');
+    expect(root().textContent).toContain('לא נשמר');
+    http.expectNone((request) => ['POST', 'PUT'].includes(request.method));
+    await click('edit-activity');
+    expect(titleValue()).toBe('כותרת חדשה');
+  });
+
+  it('keeps an empty draft editable while its last content is cleared', async () => {
+    await open();
+    await type('document-title', '');
+    expect(root().querySelector('#document-title')).not.toBeNull();
+    await type('document-title', 'עוד אפשר לערוך');
+    await click('finish-editing');
+    expect(titleValue()).toBe('עוד אפשר לערוך');
+    http.expectNone((request) => ['POST', 'PUT'].includes(request.method));
+  });
+
+  it('keeps invalid edits visible when finishing and marks the fields to fix', async () => {
+    await open({
+      ...savedActivity,
+      document: { ...savedActivity.document, questions: [savedQuestion] },
+    });
+    await type('question-0-points', 'no');
+    await click('finish-editing');
+    expect(root().querySelector('#document-title')).not.toBeNull();
+    expect(root().querySelector('#question-0-points')?.getAttribute('aria-invalid')).toBe('true');
+    expect(root().textContent).toContain('תקנו את השדות המסומנים.');
+    http.expectNone((request) => ['POST', 'PUT'].includes(request.method));
+  });
+
   it('blocks a removed target until the parent clears it', async () => {
     await open({
       ...savedActivity,
       document: { ...savedActivity.document, questions: [savedQuestion] },
     });
     await click('ask-question-q');
+    await type('chat-message', 'בקשה שנשארת');
     await click('reload-activity');
     http.expectOne('/api/activity-drafts/draft').flush({ ...savedActivity, revision: 2 });
     await settle();

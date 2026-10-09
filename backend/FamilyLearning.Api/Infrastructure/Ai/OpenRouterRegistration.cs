@@ -12,7 +12,9 @@ namespace FamilyLearning.Api.Infrastructure.Ai;
 /// <summary>Registers the OpenRouter adapter behind <see cref="IChatClient"/> when a server secret exists; otherwise AI stays unavailable.</summary>
 public static class OpenRouterRegistration
 {
-    public static void AddTaskAi(this IServiceCollection services, IConfiguration configuration, IHostEnvironment environment)
+    /// <summary>An optional transport lets isolated developer probes guard the unchanged production wire contract.</summary>
+    public static void AddTaskAi(this IServiceCollection services, IConfiguration configuration, IHostEnvironment environment,
+        PipelineTransport? transport = null)
     {
         services.AddOptions<AiGenerationOptions>()
             .Bind(configuration.GetSection("Ai"))
@@ -89,6 +91,7 @@ public static class OpenRouterRegistration
                 // Let the application deadline cancel first so timeouts consistently return 504.
                 NetworkTimeout = limits.RequestTimeout + TimeSpan.FromSeconds(5)
             };
+            if (transport is not null) clientOptions.Transport = transport;
             clientOptions.AddPolicy(new OpenRouterRequestLimitPolicy(limits.MaxRequestBytes), PipelinePosition.PerCall);
             clientOptions.AddPolicy(new OpenRouterResponsePolicy(), PipelinePosition.PerCall);
             return new OpenRouterChatClient(new ChatClient(model, new ApiKeyCredential(key), clientOptions),

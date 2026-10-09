@@ -17,7 +17,6 @@ import {
 } from '@angular/core';
 import {
   apply,
-  applyEach,
   disabled,
   form,
   FormField,
@@ -26,13 +25,11 @@ import {
   validateTree,
 } from '@angular/forms/signals';
 import { Router, RouterLink } from '@angular/router';
-import { Subject } from 'rxjs';
 import { apiError, rejected, writeError } from '../../../core/api/api-error';
 import { LearningApi } from '../../../core/api/learning-api';
 import { Limits } from '../../../core/api/limits';
 import {
   ActivityDetail,
-  ImportedChatTurn,
   GenerationKind,
   GenerationOperation,
   LearningPlan,
@@ -48,7 +45,6 @@ import { ActivityDocumentView } from '../activity-document-view/activity-documen
 import { measurementItems } from '../activity-document-view/measurements';
 import {
   fieldPointers,
-  planChangeLabel,
   reviewIssues,
   savedContentIssues,
   staleContent,
@@ -64,6 +60,7 @@ import { ActivityChat } from '../activity-chat/activity-chat';
 import { libraryChanges } from '../../../core/api/library-changes';
 import { DraftObservation, observeDraft } from './draft-observer';
 import { UndoHistory } from './undo-history';
+import { ChatSession } from './chat-session';
 import {
   ConfirmedSources,
   fixedSources,
@@ -80,8 +77,8 @@ import { FieldDirection } from '../../../shared/forms/field-direction';
 import { ActionBar, ActionBarToggle } from '../../../shared/action-bar/action-bar';
 
 /**
- * Owns one activity buffer, source confirmation, chat requests and durable draft transitions.
- * Views share its fields; the observer owns reads and the server owns committed chat and undo.
+ * Owns one activity buffer, source confirmation and durable draft transitions.
+ * Views share its fields; the chat session owns local requests and the observer owns saved reads.
  */
 @Component({
   selector: 'app-activity-workspace',
@@ -160,61 +157,6 @@ export class ActivityWorkspace {
   protected readonly available = signal<ActivityDetail | undefined>(undefined);
 
   private readonly chatView = viewChild(ActivityChat);
-  protected readonly selectedTarget = signal<RevisionTarget | undefined>(undefined);
-  protected readonly targetLabel = computed(() => {
-    const target = this.selectedTarget();
-    if (!target) return '';
-    const document = this.raw().document;
-    if (target.kind === 'material')
-      return (
-        document.materials.find((m) => m.id === target.id)?.title ||
-        (document.materials.some((m) => m.id === target.id)
-          ? 'הטקסט שנבחר'
-          : 'החלק שנבחר אינו קיים עוד. בטלו את הבחירה או בחרו חלק אחר.')
-      );
-    const index = document.questions.findIndex((q) => q.id === target.id);
-    return index < 0
-      ? 'החלק שנבחר אינו קיים עוד. בטלו את הבחירה או בחרו חלק אחר.'
-      : `שאלה ${index + 1}`;
-  });
-  protected readonly invalidTarget = computed(() => {
-    const target = this.selectedTarget();
-    return (
-      !!target &&
-      !(
-        target.kind === 'material' ? this.raw().document.materials : this.raw().document.questions
-      ).some((item) => item.id === target.id)
-    );
-  });
-  protected readonly addedSources = signal<
-    { label: string; text: string; confirmedText: string }[]
-  >([]);
-  protected readonly sourcesReady = computed(
-    () =>
-      this.additionFields().valid() &&
-      this.addedSources().every((source) => source.text === source.confirmedText),
-  );
-  private settledChatOperation: string | undefined;
-  protected readonly chat = signal({ message: '', consolidated: '' });
-  /** The request in flight; its text shows in the thread and returns to the composer unless answered. */
-  private readonly request = signal<{ id: string; text: string; consolidate: boolean } | undefined>(
-    undefined,
-  );
-  protected readonly authoring = computed(() => !!this.request());
-  protected readonly pendingMessage = computed(() => this.request()?.text ?? '');
-  /** Unsaved authoring history; after creation, the server's draft chat is authoritative. */
-  private readonly authorThread = signal<ImportedChatTurn[]>([]);
-  private readonly contextStart = signal(0);
-  protected readonly authorError = signal('');
-  protected readonly clarification = signal('');
-  private readonly conversation = computed(() =>
-    this.authorThread()
-      .slice(this.contextStart())
-      .map(({ role, text }) => ({ role, text })),
-  );
-  protected readonly changes = signal<string[]>([]);
-  private readonly cancelled = new Subject<void>();
-
   protected readonly operation = signal<GenerationOperation | undefined>(undefined);
   protected readonly operationId = signal<string | undefined>(undefined);
   /** A start whose response was lost; checking it replays the same key and request. */
@@ -275,13 +217,7 @@ export class ActivityWorkspace {
     return valid ? '' : 'תקנו את השדות המסומנים.';
   });
   protected readonly thread = computed(
-    () => (this.available() ?? this.saved())?.chat ?? this.authorThread(),
-  );
-  protected readonly needsConsolidation = computed(
-    () =>
-      this.conversation().length > this.limits.maxContextTurns ||
-      this.conversation().reduce((sum, turn) => sum + turn.text.length, 0) >
-        this.limits.contextLength,
+    () => (this.available() ?? this.saved())?.chat ?? this.chatSession.authorThread(),
   );
   protected readonly dirty = computed(
     () =>
@@ -291,13 +227,9 @@ export class ActivityWorkspace {
   private readonly localWork = computed(
     () =>
       this.dirty() ||
-      this.authoring() ||
-      (!this.saved() && !!this.authorThread().length) ||
-      (!this.operationActive() &&
-        !this.startRecovery() &&
-        (!!this.chat().message.trim() ||
-          !!this.chat().consolidated.trim() ||
-          this.addedSources().some((source) => !!source.label || !!source.text))),
+      this.chatSession.authoring() ||
+      (!this.saved() && !!this.chatSession.authorThread().length) ||
+      (!this.operationActive() && !this.startRecovery() && this.chatSession.hasComposerWork()),
   );
   protected readonly unsaved = computed(() => this.dirty() && !!this.saved());
   /** Schema 0 is empty setup; a server plan exists even when edited source text is invalid. */
@@ -378,11 +310,10 @@ export class ActivityWorkspace {
       ]),
     );
   });
-  protected readonly chatFields = form(this.chat, (path) => {
-    disabled(path, () => this.locked() || this.authoring());
-    maxLength(path.message, this.limits.messageLength);
-    maxLength(path.consolidated, this.limits.messageLength);
-  });
+  protected readonly chatSession = new ChatSession(
+    () => this.raw().document,
+    () => this.locked(),
+  );
   protected readonly sourceFields = form(this.sourceReplacement, (path) => {
     disabled(path, () => this.locked());
     maxLength(path.text, this.limits.bodyLength);
@@ -391,55 +322,9 @@ export class ActivityWorkspace {
     );
   });
 
-  protected readonly additionFields = form(this.addedSources, (path) => {
-    disabled(path, () => this.locked());
-    applyEach(path, (source) => {
-      validate(source.label, ({ value }) =>
-        value().trim() ? undefined : { kind: 'required', message: 'יש להזין שם לטקסט.' },
-      );
-      maxLength(source.label, this.limits.nameLength);
-      validate(source.text, ({ value }) =>
-        value().trim() ? undefined : { kind: 'required', message: 'יש להזין טקסט.' },
-      );
-      maxLength(source.text, this.limits.bodyLength);
-    });
-  });
-
-  protected addSource() {
-    if (this.locked() || this.addedSources().length >= this.limits.maxMaterials) return;
-    const index = this.addedSources().length;
-    this.addedSources.update((sources) => [...sources, { label: '', text: '', confirmedText: '' }]);
-    afterNextRender(() => this.additionFields[index].label().focusBoundControl(), {
-      injector: this.injector,
-    });
-  }
-  protected confirmAddedSource(index: number) {
-    if (this.locked()) return;
-    const fields = this.additionFields[index]();
-    fields.markAsTouched();
-    if (fields.invalid()) {
-      this.authorError.set('תקנו את השדות המסומנים.');
-      return;
-    }
-    const restoreFocus = this.holdFocus();
-    this.authorError.set('');
-    this.addedSources.update((sources) =>
-      sources.map((source, i) =>
-        i === index ? { ...source, confirmedText: source.text } : source,
-      ),
-    );
-    restoreFocus('chat-message');
-  }
-  protected removeAddedSource(index: number) {
-    if (this.locked()) return;
-    const restoreFocus = this.holdFocus();
-    this.addedSources.update((sources) => sources.filter((_, i) => i !== index));
-    this.authorError.set('');
-    restoreFocus('add-chat-source');
-  }
   protected clearTarget() {
     const restoreFocus = this.holdFocus();
-    this.selectedTarget.set(undefined);
+    this.chatSession.clearTarget();
     restoreFocus('chat-message');
   }
   protected retryAiStatus() {
@@ -455,11 +340,7 @@ export class ActivityWorkspace {
   }
   protected selectTarget(target: RevisionTarget): void {
     if (this.locked()) return;
-    this.selectedTarget.set(target);
-    this.chat.update((chat) => ({
-      ...chat,
-      message: chat.message || `לגבי ${this.targetLabel()}: `,
-    }));
+    this.chatSession.selectTarget(target);
     this.chatView()?.focusComposer();
   }
 
@@ -482,11 +363,6 @@ export class ActivityWorkspace {
       this.operationId.set(loaded.activeOperationId ?? this.resumeOperation());
       this.operationClientRevision = this.operationId() ? this.clientRevision : undefined;
       this.initialized = true;
-    });
-    this.lifetime.onDestroy(() => {
-      this.request.set(undefined);
-      this.cancelled.next();
-      this.cancelled.complete();
     });
   }
 
@@ -531,114 +407,63 @@ export class ActivityWorkspace {
     this.confirmed.set({ ...previous.confirmed });
     this.history.checkpoint();
     this.markLocalChange();
-    this.clearPlanFeedback();
+    this.chatSession.clearFeedback();
     this.notice.set('השינוי האחרון בוטל.');
   }
 
-  protected cancelAuthor() {
-    const pending = this.request();
-    this.request.set(undefined); // Invalidate identity before unsubscribing from transport.
-    this.cancelled.next();
-    // An unanswered request returns to the composer for editing or sending again.
-    if (pending)
-      this.chat.update((chat) =>
-        pending.consolidate
-          ? { ...chat, consolidated: pending.text }
-          : { ...chat, message: pending.text },
-      );
-  }
-
-  /** Sends one correlated authoring request; any local change before the reply discards it. */
+  /** Authoring keeps local correlation in the session; saved revisions use durable operations. */
   protected async author(consolidate = false) {
+    const session = this.chatSession;
     if (
       this.locked() ||
-      this.authoring() ||
+      session.authoring() ||
       !!this.sourceReplacement().id ||
       !this.aiConfigured() ||
-      (!consolidate && this.needsConsolidation())
+      (!consolidate && session.needsConsolidation())
     )
       return;
-    const message = consolidate ? this.chat().consolidated : this.chat().message;
+    const message = consolidate ? session.chat().consolidated : session.chat().message;
     if (!message.trim() || message.length > this.limits.messageLength) return;
     if (this.saved()) {
-      if (this.invalidTarget() || !this.sourcesReady()) return;
-      this.authorError.set('');
+      if (session.invalidTarget() || !session.sourcesReady()) return;
+      session.authorError.set('');
       await this.activityAction('Revise', {
         message,
-        target: this.selectedTarget(),
-        sources: this.addedSources().map(({ label, text }) => ({ label, text })),
+        target: session.selectedTarget(),
+        sources: session.addedSources().map(({ label, text }) => ({ label, text })),
       });
       return;
     }
     const baseDefinition = this.projection().value;
     if (!baseDefinition && this.hasPlan()) {
       this.fields().markAsTouched();
-      this.authorError.set('תקנו את ההגדרות המסומנות לפני שליחת בקשה נוספת.');
+      session.authorError.set('תקנו את ההגדרות המסומנות לפני שליחת בקשה נוספת.');
       return;
     }
-    const requestId = crypto.randomUUID(),
-      baseRevision = this.clientRevision;
-    const basis = JSON.stringify(this.raw()),
-      context = consolidate ? [] : this.conversation();
+    const baseRevision = this.clientRevision,
+      basis = JSON.stringify(this.raw());
+    const isCurrent = () =>
+      this.clientRevision === baseRevision && JSON.stringify(this.raw()) === basis;
     const restoreFocus = this.holdFocus();
-    this.request.set({ id: requestId, text: message, consolidate });
-    this.chat.update((chat) =>
-      consolidate ? { ...chat, consolidated: '' } : { ...chat, message: '' },
-    );
-    this.authorError.set('');
-    try {
-      const reply = await this.api.authorPlan(
-        { message, baseDefinition, context, requestId, baseRevision },
-        this.cancelled,
-        this.lifetime,
-      );
-      if (
-        this.lifetime.destroyed ||
-        this.request()?.id !== requestId ||
-        reply.requestId !== requestId ||
-        reply.baseRevision !== baseRevision ||
-        this.clientRevision !== baseRevision ||
-        JSON.stringify(this.raw()) !== basis
-      )
-        return;
-      this.request.set(undefined);
-      if (consolidate) this.contextStart.set(this.authorThread().length);
-      if (reply.proposal) {
-        this.clarification.set('');
-        // A first plan has no earlier version to compare; the setup itself shows what was proposed.
-        this.changes.set(
-          baseDefinition
-            ? reply.changes.map((change) =>
-                planChangeLabel(change, baseDefinition, reply.proposal!),
-              )
-            : [],
-        );
-        this.appendAuthorReply(
-          message,
-          !reply.changes.length
-            ? 'ההגדרות כבר תואמות לבקשה.'
-            : baseDefinition
-              ? 'ההגדרות עודכנו. אפשר לבקש שינוי או לבטל אותו.'
-              : 'הכנו הגדרות לפי הבקשה. בדקו אותן וצרו את הפעילות.',
-          reply.assumptions,
-          true,
-        );
-        if (reply.changes.length) {
-          this.applyProposal(reply.proposal);
-          // The first plan replaces the request with settings; reading starts at their heading.
-          if (!baseDefinition) restoreFocus('plan-title');
-        }
-      } else if (reply.clarification) {
-        this.appendAuthorReply(message, reply.clarification, reply.assumptions, false);
-        this.clarification.set(reply.clarification);
-      }
-      this.chat.set({ message: '', consolidated: '' });
-    } catch (error) {
-      if (!this.lifetime.destroyed && this.request()?.id === requestId)
-        this.authorError.set(apiError(error));
-    } finally {
-      if (this.request()?.id === requestId) this.cancelAuthor();
+    const proposal = await session.author(baseDefinition, baseRevision, isCurrent, consolidate);
+    if (proposal && !this.lifetime.destroyed && isCurrent()) {
+      this.applyProposal(proposal);
+      // The first plan replaces the request with settings; reading starts at their heading.
+      if (!baseDefinition) restoreFocus('plan-title');
     }
+  }
+
+  protected finishEditing() {
+    if (this.locked()) return;
+    if (this.blocker()) {
+      this.fields().markAsTouched();
+      this.activityError.set({ message: this.blocker() });
+      return;
+    }
+    const restoreFocus = this.holdFocus();
+    this.editing.set(false);
+    this.activityError.set(undefined);
+    restoreFocus('edit-activity');
   }
 
   protected editContent() {
@@ -714,7 +539,7 @@ export class ActivityWorkspace {
     // Shows every field's state; fields take touched only while enabled, so before the lock.
     this.fields().markAsTouched();
     await this.runDraftRequest(async () => {
-      this.cancelAuthor();
+      this.chatSession.cancelAuthor();
       this.activityError.set(undefined);
       const saved = await this.flushDraft();
       if (!saved || this.lifetime.destroyed) return;
@@ -842,40 +667,14 @@ export class ActivityWorkspace {
       if (!this.history.record(key)) return;
     }
     this.markLocalChange();
-    this.clearPlanFeedback();
+    this.chatSession.clearFeedback();
     this.notice.set('');
   }
 
   /** A local change: a pending authoring reply and the clarification thread no longer apply. */
   protected markLocalChange() {
     this.clientRevision++;
-    this.cancelAuthor();
-    this.contextStart.set(this.authorThread().length);
-    this.clarification.set('');
-  }
-
-  private clearPlanFeedback() {
-    this.changes.set([]);
-    this.authorError.set('');
-  }
-
-  private appendAuthorReply(
-    message: string,
-    reply: string,
-    assumptions: string[],
-    resolved: boolean,
-  ) {
-    const atUtc = new Date().toISOString();
-    const turns: ImportedChatTurn[] = [
-      ...this.authorThread(),
-      { role: 'parent', text: message, atUtc, target: null, assumptions: null },
-      { role: 'assistant', text: reply, atUtc, target: null, assumptions },
-    ];
-    const dropped = Math.max(0, turns.length - this.limits.maxChatTurns);
-    this.authorThread.set(turns.slice(dropped));
-    this.contextStart.set(
-      resolved ? this.authorThread().length : Math.max(0, this.contextStart() - dropped),
-    );
+    this.chatSession.resetContext();
   }
 
   private applyProposal(plan: LearningPlan) {
@@ -913,7 +712,7 @@ export class ActivityWorkspace {
     }
     let saved = this.saved();
     if (!saved) {
-      saved = await this.api.createActivity(plan, this.lifetime, this.authorThread());
+      saved = await this.api.createActivity(plan, this.lifetime, this.chatSession.authorThread());
       if (this.lifetime.destroyed) return;
       // Keep this workspace and its pending action alive while making reload reopen the durable draft.
       this.location.replaceState('/activities/' + saved.id);
@@ -962,54 +761,7 @@ export class ActivityWorkspace {
     } else if (operation) this.operation.set(operation);
     if (apply) this.acceptCheckpoint(draft);
     else this.receiveCheckpoint(draft);
-    this.settleChatRequest(draft, operation);
-  }
-
-  /** A completed reply need not consume its sources; retain them until they enter the saved plan. */
-  private settleChatRequest(draft: ActivityDetail, operation?: GenerationOperation) {
-    if (
-      operation?.kind !== 'Revise' ||
-      isRunning(operation) ||
-      this.settledChatOperation === operation.id
-    )
-      return;
-    this.settledChatOperation = operation.id;
-    // Other devices update the thread, never the parent's local composer or attachments.
-    if (this.operationClientRevision === undefined) return;
-    const turn = draft.chat.find(
-      (turn) => turn.role === 'parent' && turn.operationId === operation.id,
-    );
-    if (!turn) return;
-    const completed = operation.status === 'completed';
-    const unconsumed = (source: { text: string }) =>
-      !completed ||
-      !draft.plan.materials.some(
-        (material) => material.source === 'supplied' && material.text === source.text,
-      );
-    if (turn.text === this.chat().message) {
-      if (completed) {
-        this.chat.update((chat) => ({ ...chat, message: '' }));
-        this.selectedTarget.set(undefined);
-        this.addedSources.update((sources) => sources.filter(unconsumed));
-      }
-      return;
-    }
-    if (this.chat().message || this.chat().consolidated || this.addedSources().length) return;
-    if (!operation.artifacts) {
-      this.authorError.set(
-        'פרטי הבקשה הקודמת כבר אינם זמינים. כתבו אותה מחדש והוסיפו את הטקסט הדרוש.',
-      );
-      return;
-    }
-    this.addedSources.set(
-      (operation.artifacts.sources ?? [])
-        .filter(unconsumed)
-        .map((source) => ({ ...source, confirmedText: source.text })),
-    );
-    if (!completed) {
-      this.chat.update((chat) => ({ ...chat, message: turn.text }));
-      this.selectedTarget.set(turn.target ?? undefined);
-    }
+    this.chatSession.settleOperation(draft, operation, this.operationClientRevision !== undefined);
   }
 
   /** Only an operation-owned checkpoint may replace its unchanged local buffer; ambiguous reads wait for confirmation. */

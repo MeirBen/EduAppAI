@@ -38,7 +38,7 @@ public sealed class ActivityDraft(Guid familyId, string name, string planJson, s
         if (Chat.Any(t => t.Role == "assistant" && t.OperationId == operation.Id)) return;
         var text = reply ?? operation.Status switch
         {
-            "completed" => "הפעילות עודכנה. אפשר לעיין בתוצאה לפני אישור.",
+            "completed" => "הפעולה הושלמה.",
             "cancelled" => "הפעולה נעצרה. התוכן השמור לא השתנה.",
             "unknown" => "הפעולה הופסקה ותוצאת קריאת ה־AI אינה ידועה. התוכן השמור לא השתנה.",
             "conflict" => "הפעולה לא הוחלה כי מצב הטיוטה השתנה.",
@@ -70,16 +70,20 @@ public sealed class ActivityDraft(Guid familyId, string name, string planJson, s
         UpdatedAtUtc = DateTime.UtcNow;
     }
 
-    internal bool ApplyOperation(LearningPlan plan, TaskDocument document, string kind)
+    /// <summary>Stages the accepted content and its factual notice; a null notice means there was no saved change.</summary>
+    internal string? ApplyOperation(LearningPlan plan, TaskDocument document, string kind)
     {
         var planJson = StoredJson.Write(plan);
         var documentJson = StoredJson.Write(document);
-        if (PlanJson == planJson && DocumentJson == documentJson) return false;
+        if (PlanJson == planJson && DocumentJson == documentJson) return null;
+        var previousPlan = Plan;
+        var previousDocument = Document;
+        var notice = ActivityChangeNotice.Describe(previousPlan, previousDocument, plan, document);
         var undo = kind is "Revise" or "GenerateQuestions"
-            ? StoredJson.Write(new ActivityUndo(Plan, Document, checked(Revision + 1))) : null;
+            ? StoredJson.Write(new ActivityUndo(previousPlan, previousDocument, checked(Revision + 1))) : null;
         Save(plan.Name, planJson, documentJson);
         UndoJson = undo;
-        return true;
+        return notice;
     }
 
     internal void RestoreUndo(DateTime now)

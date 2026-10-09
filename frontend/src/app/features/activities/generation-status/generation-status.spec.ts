@@ -59,6 +59,14 @@ describe('GenerationStatus', () => {
     expect(root.querySelector('[data-edit-candidate]')).toBeNull();
   });
 
+  it('announces completion quietly and retains its technical disclosure', async () => {
+    const { root } = await render({ ...unknownOperation, status: 'completed' });
+    expect(root.querySelector('.panel')).toBeNull();
+    expect(root.querySelector('[role="status"]')?.classList.contains('sr-only')).toBe(true);
+    expect(root.querySelector('[role="status"]')?.textContent).toContain('הבקשה הושלמה.');
+    expect(root.querySelector('details')?.textContent).toContain('0.25');
+  });
+
   it('reports failure without a second retry control', async () => {
     const { visible, root } = await render({
       ...unknownOperation,
