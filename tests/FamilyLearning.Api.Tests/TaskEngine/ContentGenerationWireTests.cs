@@ -17,7 +17,7 @@ namespace FamilyLearning.Api.Tests.TaskEngine;
 public sealed class ContentGenerationWireTests
 {
     [Fact]
-    public async Task Strict_wire_schemas_use_portable_forms()
+    public async Task Strict_wire_schemas_preserve_validated_constraints()
     {
         await using var local = await LocalAiProvider.StartAsync();
         local.Respond = body => body.GetProperty("response_format").GetProperty("json_schema").GetProperty("name").GetString()!.Contains("author")
@@ -34,23 +34,23 @@ public sealed class ContentGenerationWireTests
             return body.RootElement.GetProperty("response_format").GetProperty("json_schema").GetProperty("schema").Clone();
         }).ToArray();
         Assert.Equal(2, schemas.Length);
-        // OpenRouter's Gemini conversion erases an object holding an integer enum and widens a standalone "null"
-        // type to a nullable string; equal bounds and ["null"] are equivalent forms that survive it.
+        // Null-only branches must stay null-only through the provider's schema conversion.
         foreach (var schema in schemas)
         {
             var types = Types(schema).ToArray();
             Assert.DoesNotContain(types, type => type.ValueKind == JsonValueKind.String && type.GetString() == "null");
             Assert.Contains(types, type => type.ValueKind == JsonValueKind.Array && type.EnumerateArray().Select(t => t.GetString()).SequenceEqual(["null"]));
             // OpenAI strict mode rejects the whole schema (invalid_json_schema) for a nullable array whose items are a
-            // $ref; anyOf with a ["null"] branch is the equivalent form both providers accept.
+            // $ref; anyOf with a ["null"] branch preserves the same allowed values.
             Assert.DoesNotContain(Nodes(schema), node => node.TryGetProperty("type", out var type) && type.ValueKind == JsonValueKind.Array &&
                 type.EnumerateArray().Any(t => t.GetString() == "array") && node.TryGetProperty("items", out var items) && items.TryGetProperty("$ref", out _));
         }
         var definitions = schemas[0].GetProperty("$defs");
         var version = definitions.GetProperty("plan").GetProperty("properties").GetProperty("schemaVersion");
-        Assert.False(version.TryGetProperty("enum", out _));
-        Assert.Equal(EngineVersions.SchemaVersion, version.GetProperty("minimum").GetInt32());
-        Assert.Equal(EngineVersions.SchemaVersion, version.GetProperty("maximum").GetInt32());
+        Assert.True(version.TryGetProperty("enum", out var allowedVersions));
+        Assert.Equal(EngineVersions.SchemaVersion, Assert.Single(allowedVersions.EnumerateArray()).GetInt32());
+        Assert.False(version.TryGetProperty("minimum", out _));
+        Assert.False(version.TryGetProperty("maximum", out _));
         static IEnumerable<JsonElement> Nodes(JsonElement node) => node.ValueKind switch
         {
             JsonValueKind.Object => [node, .. node.EnumerateObject().SelectMany(p => Nodes(p.Value))],

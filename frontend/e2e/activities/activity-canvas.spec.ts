@@ -225,6 +225,13 @@ test('desktop chat stays reachable beside lower questions and returns to page fl
   await page.locator('#chat-message').fill('לגבי שאלה 11: נסחו בפשטות');
   await page.locator('#ask-question-q11').click();
   await expect(page.locator('#chat-message')).toHaveValue('לגבי שאלה 12: נסחו בפשטות');
+  await expect
+    .poll(() =>
+      history.evaluate(
+        (element) => element.scrollHeight - element.clientHeight - element.scrollTop,
+      ),
+    )
+    .toBeLessThan(1);
   await page.screenshot({ path: test.info().outputPath('chat-desktop.png') });
   await chat.locator('.chat-attachments > summary').click();
   await expect(chat).toHaveCSS('position', 'static');

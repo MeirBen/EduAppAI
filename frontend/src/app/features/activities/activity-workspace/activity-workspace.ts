@@ -455,14 +455,15 @@ export class ActivityWorkspace {
 
   protected finishEditing() {
     if (this.locked()) return;
-    if (this.blocker()) {
+    const blocker = this.blocker();
+    if (!this.activityError()?.reload)
+      this.activityError.set(blocker ? { message: blocker } : undefined);
+    if (blocker) {
       this.fields().markAsTouched();
-      this.activityError.set({ message: this.blocker() });
       return;
     }
     const restoreFocus = this.holdFocus();
     this.editing.set(false);
-    this.activityError.set(undefined);
     restoreFocus('edit-activity');
   }
 

@@ -25,8 +25,9 @@ internal static class ActivityContractProbe
     {
         var numeric = Numeric();
         var (mixedPlan, mixedDocument) = Mixed();
+        var (unsupportedPlan, unsupportedDocument) = Mixed("יש להוסיף הסבר לכל תשובה במפתח התשובות.");
         var numericDocument = Questions(numeric, TaskAssembly.CreateDocument(Resolve(numeric)));
-        report.Fixtures = JsonSerializer.SerializeToElement(new { numeric, numericDocument, mixedPlan, mixedDocument }, EvaluationFiles.Json);
+        report.Fixtures = JsonSerializer.SerializeToElement(new { numeric, numericDocument, mixedPlan, mixedDocument, unsupportedPlan, unsupportedDocument }, EvaluationFiles.Json);
         var current = Begin("empty-clarification", numeric, TaskAssembly.CreateDocument(Resolve(numeric)));
         var decision = await Revise();
         Require(decision.Clarification is not null && decision.Change is null, "empty-clarification");
@@ -46,10 +47,11 @@ internal static class ActivityContractProbe
 
         foreach (var id in new[] { "answer", "unsupported-refusal" })
         {
-            current = Begin(id, mixedPlan, mixedDocument);
+            current = id == "unsupported-refusal" ? Begin(id, unsupportedPlan, unsupportedDocument) : Begin(id, mixedPlan, mixedDocument);
             decision = await Revise();
-            Require(decision.Answer is not null && decision.Change is null, id);
-            await Finish(mixedPlan, mixedDocument);
+            Require(decision.Change is null && (decision.Answer is not null ||
+                id == "unsupported-refusal" && decision.Clarification is not null), id);
+            await Finish(current.BeforePlan!, current.BeforeDocument);
         }
 
         current = Begin("label-only", mixedPlan, mixedDocument);
@@ -68,7 +70,13 @@ internal static class ActivityContractProbe
         change = RequireChange(decision);
         work = RevisionScope.Derive(mixedPlan, mixedDocument, change);
         Require(work.NewMaterials.Length == 1 && work.Rewrites.Length == 0 && work.Questions == "all" && work.Clarification is null, "new-text-only-scope");
-        Require(Equal(mixedPlan, change.Plan with { Materials = change.Plan.Materials.Where(m => !work.NewMaterials.Contains(m.Id)).ToArray() }), "retained-plan");
+        // The requested coverage of all texts may become lasting question guidance.
+        var retainedPlan = change.Plan with
+        {
+            Materials = change.Plan.Materials.Where(m => !work.NewMaterials.Contains(m.Id)).ToArray(),
+            Questions = change.Plan.Questions with { Guidance = mixedPlan.Questions.Guidance }
+        };
+        Require(Equal(mixedPlan, retainedPlan), "retained-plan");
         document = RevisionScope.PrepareDocument(mixedPlan, mixedDocument, change.Plan, work);
         document = await Generate(change.Plan, document, work);
         Require(mixedDocument.Materials.All(before => document.Materials.Any(after =>
@@ -170,12 +178,13 @@ internal static class ActivityContractProbe
         plan.Materials.Length == 0
             ? new("תרגול חיבור", "ענו על השאלות", [new("כמה הם אחת ועוד אחת?", new("numeric-input"), new("2"), 1), new("כמה הם אחת ועוד שתיים?", new("numeric-input"), new("3"), 1)])
             : new("הגינה", "קראו וענו", [new("מי שתל פרח בגינה?", new("text-input"), new("דני"), 1), new("כמה פרחים יש בגינה של נועה?", new("text-input"), new("שלושה"), 1)]));
-    private static (LearningPlan, TaskDocument) Mixed()
+    private static (LearningPlan, TaskDocument) Mixed(string guidance = "")
     {
         var plan = Numeric() with
         {
             Name = "הגינה",
             Goal = "הבנת הנקרא",
+            Guidance = guidance,
             Settings = new("גינה", "כיתה ג׳", "hard", 2),
             Questions = new(["text-input"], null, ""),
             Materials = [new("11111111111111111111111111111111", "סיפור", "generated", "סיפור על גינה", null, null),

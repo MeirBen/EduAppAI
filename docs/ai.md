@@ -8,11 +8,10 @@ live in [architecture](architecture.md).
 ## Current status
 
 GPT-6.1 Sol (since 8 October, revision 35) uses native strict `json_schema`,
-medium reasoning and provider-default sampling; Gemini 3.8 Flash is the measured
-rollback, a one-line `Model` change. **Structural acceptance does not establish
-educational quality or superiority to the old one-shot flow.** Keep parent
-review, server validation and explicit recovery. Generated text gets one
-measured automatic polish; there is no production retry or model-specific code
+medium reasoning and provider-default sampling. **Structural acceptance does
+not establish educational quality or superiority to the old one-shot flow.**
+Keep parent review, server validation and explicit recovery. Generated text gets
+one measured automatic polish; there is no production retry or model-specific code
 path. Six acceptance cases passed three historical rounds (42 calls, no
 retry/repair), before later prompt changes. Do not treat that sample as a
 current reliability rate. The switch rests on small 8 October comparisons; see
@@ -30,12 +29,17 @@ and [chat design](activity-chat-design.md#ai-contract-and-context) for stage con
 The activity canvas uses Create/Revise and explicit question recovery. Template
 publication and staged operation admission are removed. Evaluation still uses
 the shared engine stages directly, without family data or retired API calls.
-The historical live evidence below predates the activity-only prompts/schema
+The historical quality experiments below predate the activity-only prompts/schema
 (revision 39), the operation-contract retirement (revision 40) and the prompt
-contract corrections (revision 41). Revision 41 restores the measured authoring
-omission rule, shares planning defaults with revision, and keeps planning
-permissions out of content stages. Verification
-uses isolated providers and does not establish live-model quality.
+contract corrections (revision 41). Revision 42 replaces equal version bounds
+with a singleton enum after the [live diagnostic][activity-schema-diagnostic].
+The final [revision-42 contract run][activity-contract-42-complete] passed all
+eight scenarios through the production engine and native adapter: 17 calls,
+including new-only generation and question append. This is contract evidence,
+not a content-quality benchmark or worker/API test.
+Revision 41 restores the measured authoring omission rule, shares planning
+defaults with revision, and keeps planning permissions out of content stages.
+Verification uses isolated providers and does not establish live-model quality.
 The 1 October comparison did **not** meet its quality threshold: one-shot passed
 9/9 structural trials and split 7/9, with split costing about 3× and taking
 3.4× median provider latency. The one-shot implementation was removed; do not
@@ -310,34 +314,23 @@ so a generation profile change needs no judge recalibration.
 
 ### Strict schema contract
 
-Each rule was verified live with OpenRouter's [upstream debug
-echo][upstream-debug]: the app's schemas reach Google unchanged apart from an
-added `propertyOrdering` matching the declared key order.
+The current strict profile targets GPT-6.1 Sol. Authoring and revision reuse one
+plan schema; the native adapter sends it unchanged. The server validates every
+response independently of provider enforcement.
 
-- **No prompt copy in strict mode** unless `SchemaInPrompt` is set, following
-  [Google's guidance][vertex-schema] that a copy can lower quality. Gemini
-  counts the native schema as input; removing the copy and schema noise cut
-  authoring input from about 7,100 to 5,000 tokens.
-- **Stay inside the complexity budget.** Gemini expands bounded arrays while
-  compiling the schema and returns a bare HTTP 400 `INVALID_ARGUMENT` past an
-  undisclosed budget ([long array length limits][vertex-schema]). Keep schemas
-  within the measured shape and enforce all product bounds in validators.
-  Materials (up to 4) and questions up to `StrictQuestionCountLimit` stay exact.
-  Gemini accepts 20 questions in the heaviest shape (all formats, six choices)
-  and rejects 25.
-- **Only meaningful constraints.** Numeric bounds are the validator's real
-  ones, with the version and question cap applied from engine constants.
-  `minLength`, `maxLength` and `pattern` are outside
-  [Gemini's subset][gemini-schema] and ignored there; they still inform the
-  model, and the validator enforces them.
-- **OpenRouter-safe spellings.** Its [Gemini conversion][structured-output]
-  erases an object holding an integer `enum`, widens `"type": "null"` to a
-  nullable string and drops a `description` beside `anyOf`. So the version uses
-  `minimum` = `maximum` ([string enums only][vertex-schema]), null-only branches
-  use `["null"]`, nullable arrays use type arrays, and cross-field rules such as
-  `choiceCount` live in the prompt. All are equivalent JSON Schema. OpenAI strict
-  mode rejects a nullable array of `$ref` items, so that one uses `anyOf` with a
-  `["null"]` branch.
+- **No duplicate schema in the prompt** unless an explicitly configured endpoint
+  needs `SchemaInPrompt`.
+- **Only meaningful constraints.** Numeric bounds, field lengths and patterns
+  reflect validator limits. Engine constants supply the fixed version and
+  question cap; request-owned schemas supply exact counts and allowed IDs.
+- **An exact version enum.** Revision 42 uses `enum: [2]`. Equal numeric bounds
+  stalled authoring twice; the equivalent enum completed twice in the
+  [diagnostic][activity-schema-diagnostic]. The historical Gemini portability
+  rule is removed; another model needs its own acceptance run.
+- **Explicit nullable shapes.** Null-only branches use `["null"]`. A nullable
+  array of `$ref` items uses `anyOf` with a null branch because the alternative
+  type-array shape was rejected by OpenAI strict mode. Cross-field rules such
+  as `choiceCount` remain in the prompt and server validator.
 - **Descriptions carry validator semantics.** Activity schemas describe concrete
   settings and generated/supplied source roles. Reusable controls, adjustable
   fields and per-use overrides are absent.
@@ -465,7 +458,39 @@ schema reviews are in `claude-strict-schema-2026-10-02/` and
   with no unknown costs. The probes support deriving question work from guidance
   changes and show limited empty-target schema acceptance. They do not validate
   execution or the final append/no-mutation refusal contracts in the
-  [activity chat design](activity-chat-design.md); those still need evaluation.
+  [activity chat design](activity-chat-design.md); the revision-42 run below
+  covers those engine contracts.
+
+- [Activity contract probe][activity-contract-41]: revision 41 on 9 October,
+  4 calls across two explicitly authorized runs under a $1 budget. Both returned
+  a valid empty-target clarification, then authoring timed out at 180 seconds.
+  The first authoring completion contained whitespace after `schemaVersion`;
+  user-supplied provider details show cancellation with status 499. Known cost
+  $0.0348154 plus a $0.194908 reserve for the second timeout. These runs stopped
+  before the remaining cases, with no automatic retry or timeout increase.
+
+- [Fixed-version diagnostic][activity-schema-diagnostic]: the same authoring
+  request with only `schemaVersion` changed from equal bounds to `enum: [2]`
+  returned valid proposals twice, in 15.67 and 13.65 seconds; cost $0.0161616.
+  This supports the shared enum constraint applied in revision 42, not full
+  live acceptance. The diagnostic used direct HTTP; the final run below uses
+  the native adapter.
+
+- [Revision-42 contract run][activity-contract-42]: 11 native-adapter calls,
+  $0.0757476, six scenarios passed. Authoring no longer stalled. The probe then
+  incorrectly rejected requested question guidance in the new-text scenario;
+  its comparison is corrected and unrelated-field rejection is tested. The
+  remaining new-only generation and append calls did not run. This run stopped
+  without a retry.
+
+- [Final revision-42 contract run][activity-contract-42-complete]: all eight
+  scenarios passed, 17 native-adapter calls, $0.126366 with no unknown costs.
+  Existing text and questions retained their content and IDs; new text alone
+  received writing/polish, and append preserved the original questions and keys.
+  Manual review found grounded reading keys and correct arithmetic in this
+  sample. Across the five authorized runs, known cost is $0.2530906 plus the
+  unresolved $0.194908 timeout reserve: **$0.4479986 accounted against $1**.
+  The remaining allowance does not authorize further calls.
 
 Retired design documents: `documentation-history-2026-10-01.zip`.
 
@@ -579,14 +604,14 @@ individual holdouts, and keep claims proportional to the evidence. Maintain
 this guide in place; keep experimental evidence in artifacts.
 
 [gpt6]: https://developers.openai.com/api/docs/guides/latest-model
-[gemini-schema]: https://ai.google.dev/gemini-api/docs/structured-output
-[vertex-schema]: https://docs.cloud.google.com/vertex-ai/generative-ai/docs/multimodal/control-generated-output
 [reasoning]: https://openrouter.ai/docs/guides/best-practices/reasoning-tokens
 [metadata]: https://openrouter.ai/api/v1/models
 [fallback]: https://openrouter.ai/docs/guides/routing/model-fallbacks
-[upstream-debug]: https://openrouter.ai/docs/api_reference/errors-and-debugging
-[structured-output]: https://openrouter.ai/docs/guides/features/structured-outputs
 [usage]: https://openrouter.ai/docs/cookbook/administration/usage-accounting
 [judge]: https://arxiv.org/abs/2306.05685
 [judge-controls]: ../tools/FamilyLearning.Evaluation/hebrew-review-samples.json
 [grade3]: https://meyda.education.gov.il/files/Mazkirut_Pedagogit/math/primary-school/math2023/Newprogramgrade3.pdf
+[activity-contract-41]: ../artifacts/evaluations/activity-contract-20261009T151649Z-f75c37bfb13c41a4964795151db832e9/review.md
+[activity-schema-diagnostic]: ../artifacts/evaluations/activity-schema-diagnostic-20261009/review.md
+[activity-contract-42]: ../artifacts/evaluations/activity-contract-20261009T160621Z-80857ab3351a4f918cf4a0fed289af8d/review.md
+[activity-contract-42-complete]: ../artifacts/evaluations/activity-contract-20261009T181523Z-78987c34b464423e8c16be451b165222/review.md

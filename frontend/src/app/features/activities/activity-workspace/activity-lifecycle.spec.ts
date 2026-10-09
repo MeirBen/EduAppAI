@@ -153,6 +153,32 @@ describe('Activity lifecycle', () => {
     http.expectNone((request) => ['POST', 'PUT'].includes(request.method));
   });
 
+  it.each([false, true])(
+    'keeps an uncertain save visible after finishing edits (invalid first: %s)',
+    async (invalidFirst) => {
+      await open({
+        ...savedActivity,
+        document: { ...savedActivity.document, questions: [savedQuestion] },
+      });
+      await type('document-title', 'כותרת חדשה');
+      await click('save-activity');
+      http.expectOne('/api/activity-drafts/draft').error(new ProgressEvent('error'));
+      await settle();
+      await vi.waitFor(() => expect(root().querySelector('[role="alert"]')).not.toBeNull());
+      const warning = root().querySelector('[role="alert"]')!.textContent;
+      if (invalidFirst) {
+        await type('question-0-points', 'no');
+        await click('finish-editing');
+        await type('question-0-points', '1');
+      }
+      await click('finish-editing');
+      expect(root().querySelector('#document-title')).toBeNull();
+      expect(root().querySelector('[role="alert"]')?.textContent).toBe(warning);
+      expect(root().querySelector('#reload-activity')?.closest('.action-bar')).not.toBeNull();
+      http.expectNone((request) => ['POST', 'PUT'].includes(request.method));
+    },
+  );
+
   it('keeps invalid edits visible when finishing and marks the fields to fix', async () => {
     await open({
       ...savedActivity,

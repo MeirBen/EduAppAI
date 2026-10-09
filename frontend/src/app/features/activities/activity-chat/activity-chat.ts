@@ -104,6 +104,8 @@ export class ActivityChat {
     afterRenderEffect(() => {
       this.thread();
       this.pending();
+      this.targetLabel();
+      this.busy();
       const history = this.history().nativeElement;
       if (this.followLatest) history.scrollTop = history.scrollHeight;
     });

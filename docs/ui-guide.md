@@ -305,8 +305,8 @@ Parent turns sit at the end edge; AI replies show `ai-mark`, committed changes
 and assumptions, with a typing bubble while pending. Enter sends; Shift+Enter
 adds a line. Send becomes Stop while retaining focus. Failure/cancellation keeps
 the request available for an explicit new attempt. `SuggestionChips` only fill
-fields and never send. Suggestions appear before the first exchange and apply to the current activity; mark AI
-execution actions with `icon-ai`.
+fields and never send. Suggestions appear before the first exchange and apply
+to the current activity; mark AI execution actions with `icon-ai`.
 
 Use **יצירת הפעילות** for initial generation, **שמירת טיוטה** for a save and
 **אישור הפעילות** for explicit approval of the saved revision. The action bar

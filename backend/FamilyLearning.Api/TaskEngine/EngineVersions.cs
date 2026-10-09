@@ -4,5 +4,5 @@ namespace FamilyLearning.Api.TaskEngine;
 public static class EngineVersions
 {
     public const int SchemaVersion = 2;
-    public const int Revision = 41;
+    public const int Revision = 42;
 }

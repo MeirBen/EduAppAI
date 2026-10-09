@@ -217,7 +217,7 @@ content schemas.
 Compose the revision schema from the shared concrete plan definitions; do not fork
 the plan schema. Keep required fields, null branches and closed objects aligned
 with typed deserialization. Derive bounds from engine constants and retain the
-[existing schema compatibility rules](ai.md#strict-schema-contract). Use an
+[validated schema forms](ai.md#strict-schema-contract). Use an
 empty edit list when no valid targets exist, never an empty ID enum.
 
 Validate outcome exclusivity, lengths, IDs, source fidelity and cross-field
