@@ -10,30 +10,30 @@ public sealed record PlanChange(string Kind, string Path, string? Id = null, str
 /// <summary>Normalizes proposal identity against the submitted base and computes actual ordered changes.</summary>
 public static class PlanChanges
 {
-    /// <summary>Assigns only new null IDs, preserves existing categories and supplied sources, then applies canonical validation.</summary>
+    /// <summary>Assigns only new null material IDs, preserves supplied sources, then applies canonical validation.</summary>
     public static LearningPlan AssignNewIds(LearningPlan proposal, LearningPlan? previous)
     {
         var errors = new Dictionary<string, string[]>();
-        var prior = previous is null ? [] : Entities(previous).ToDictionary(e => e.Id, StringComparer.Ordinal);
+        var prior = previous is null ? [] : previous.Materials.ToDictionary(m => m.Id!, StringComparer.Ordinal);
         var used = new HashSet<string>(StringComparer.Ordinal);
-        string Assign(string? id, string category)
+        string Assign(string? id)
         {
             if (id is null)
             {
                 do { id = Guid.NewGuid().ToString("N"); } while (prior.ContainsKey(id) || used.Contains(id));
             }
-            else if (!prior.TryGetValue(id, out var entity) || entity.Category != category)
-                errors.AddError("identity", "מזהה מוצע חייב להשתייך לאותו סוג פריט בתכנית המקורית.");
+            else if (!prior.ContainsKey(id))
+                errors.AddError("identity", "מזהה מוצע חייב להשתייך לחומר בתכנית המקורית.");
             if (!used.Add(id)) errors.AddError("identity", "מזהי התכנית חייבים להיות ייחודיים.");
             return id;
         }
         var materials = proposal.Materials?.Select(material =>
         {
             if (material is null) return null!;
-            var old = previous?.Materials.FirstOrDefault(m => m.Id == material.Id);
+            var old = material.Id is null ? null : prior.GetValueOrDefault(material.Id);
             if (old is not null && (old.Source != material.Source || old.Source == "supplied" && old.Text != material.Text))
                 errors.AddError("materials", "לא ניתן לשכתב מקור קבוע דרך הצעת AI.");
-            return material with { Id = Assign(material.Id, "material") };
+            return material with { Id = Assign(material.Id) };
         }).ToArray();
         var copy = proposal with
         {
@@ -88,14 +88,14 @@ public static class PlanChanges
     // Records compare arrays by reference; compact JSON compares this bounded contract by value.
     private static bool Equal(object? left, object? right) => JsonSerializer.Serialize(left, EngineJson.Options) == JsonSerializer.Serialize(right, EngineJson.Options);
 
-    private sealed record Entity(string Id, string Category, string Path, object Value);
+    private sealed record Entity(string Id, string Path, object Value);
 
     private static IEnumerable<Entity> Entities(LearningPlan plan)
     {
         for (var i = 0; i < plan.Materials.Length; i++)
         {
             var material = plan.Materials[i];
-            yield return new(material.Id!, "material", $"materials[{i}]", material);
+            yield return new(material.Id!, $"materials[{i}]", material);
         }
     }
 }

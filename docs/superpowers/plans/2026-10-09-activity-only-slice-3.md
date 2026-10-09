@@ -105,6 +105,13 @@ format-label export and retired operation-stage/outcome labels. Existing test
 callers use their canonical plan fixtures. Canonical plan/schema validation and
 queue version fences remain intact.
 
+A second stability pass derives the workspace baseline from its accepted draft
+with Angular `computed`, removes the obsolete second-save branch and duplicate
+empty-buffer helper, and reuses authoring limits in validation and output schemas.
+Material identity checks no longer carry unused categories. Operation admission
+reuses each owner's parsed plan, and Create no longer builds an unused undo
+checkpoint. Existing ownership and concurrency boundaries remain unchanged.
+
 Aligned TypeScript and XML comments with current plan ownership, operation
 checkpoints, source acceptance, question identity and collection-sharing rules.
 Consolidated historical evaluation evidence under `artifacts/evaluations/`,

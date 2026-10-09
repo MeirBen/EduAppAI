@@ -98,6 +98,10 @@ internal static class AiSchemas
     private static JsonElement LoadAuthoring()
     {
         var schema = JsonSerializer.SerializeToNode(Read("activity-authoring.schema.json"))!;
+        var properties = schema["properties"]!;
+        properties["result"]!["anyOf"]![1]!["properties"]!["clarification"]!["maxLength"] = EngineValidation.AuthoringReplyLength;
+        properties["assumptions"]!["maxItems"] = EngineValidation.MaxAssumptions;
+        properties["assumptions"]!["items"]!["maxLength"] = EngineValidation.AssumptionLength;
         var definitions = schema["$defs"]!;
         var plan = definitions["plan"]!["properties"]!;
         // Equal bounds pin the version portably; integer enums are not universally supported (OpenRouter erases this plan for Gemini).

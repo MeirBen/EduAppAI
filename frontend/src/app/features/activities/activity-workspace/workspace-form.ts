@@ -17,16 +17,8 @@ export interface WorkspaceSnapshot {
   confirmed: ConfirmedSources;
 }
 
-/** Empty setup until the server returns a proposal or saved draft. */
-export function emptyWorkspace(): WorkspaceForm {
-  return {
-    plan: planForm(),
-    document: documentForm(),
-  };
-}
-
-/** The buffer for a saved draft or an unsaved authoring proposal. */
-export function workspaceForm(plan: LearningPlan, document?: ActivityDocument): WorkspaceForm {
+/** A detached buffer for a saved draft or authoring proposal; omitted values create empty setup. */
+export function workspaceForm(plan?: LearningPlan, document?: ActivityDocument): WorkspaceForm {
   return { plan: planForm(plan), document: documentForm(document) };
 }
 

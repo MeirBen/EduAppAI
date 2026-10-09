@@ -75,9 +75,10 @@ public sealed class ActivityDraft(Guid familyId, string name, string planJson, s
         var planJson = StoredJson.Write(plan);
         var documentJson = StoredJson.Write(document);
         if (PlanJson == planJson && DocumentJson == documentJson) return false;
-        var previous = new ActivityUndo(Plan, Document, checked(Revision + 1));
+        var undo = kind is "Revise" or "GenerateQuestions"
+            ? StoredJson.Write(new ActivityUndo(Plan, Document, checked(Revision + 1))) : null;
         Save(plan.Name, planJson, documentJson);
-        if (kind is "Revise" or "GenerateQuestions") UndoJson = StoredJson.Write(previous);
+        UndoJson = undo;
         return true;
     }
 

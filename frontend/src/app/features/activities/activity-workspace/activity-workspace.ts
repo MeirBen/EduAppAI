@@ -43,11 +43,7 @@ import { focusHolder } from '../../../shared/focus-holder';
 import { validationErrors } from '../../../shared/forms/projection';
 import { LoadingIndicator } from '../../../shared/loading-indicator/loading-indicator';
 import { ActivityDocumentEditor } from '../activity-document-editor/activity-document-editor';
-import {
-  documentForm,
-  documentSchema,
-  documentValue,
-} from '../activity-document-editor/document-form';
+import { documentSchema, documentValue } from '../activity-document-editor/document-form';
 import { ActivityDocumentView } from '../activity-document-view/activity-document-view';
 import { measurementItems } from '../activity-document-view/measurements';
 import {
@@ -70,7 +66,6 @@ import { DraftObservation, observeDraft } from './draft-observer';
 import { UndoHistory } from './undo-history';
 import {
   ConfirmedSources,
-  emptyWorkspace,
   fixedSources,
   replaceSourceText,
   sourceText,
@@ -131,11 +126,9 @@ export class ActivityWorkspace {
   protected readonly loading = this.activity.isLoading;
   protected readonly loadError = this.activity.error;
 
-  protected readonly raw = signal<WorkspaceForm>(emptyWorkspace());
+  protected readonly raw = signal<WorkspaceForm>(workspaceForm());
   protected readonly confirmed = signal<ConfirmedSources>({});
   protected readonly history = new UndoHistory<WorkspaceSnapshot>(() => this.snapshot());
-  /** The buffer as last loaded or saved; any difference is an unsaved local edit. */
-  private readonly baseline = signal(structuredClone(this.raw()));
   protected readonly sourceReplacement = signal({ id: '', text: '' });
   /** Counts local changes; authoring replies and operation results apply only to the revision they started from. */
   private clientRevision = 0;
@@ -151,6 +144,11 @@ export class ActivityWorkspace {
   );
   protected readonly readError = signal('');
   protected readonly saved = signal<ActivityDetail | undefined>(undefined);
+  /** Derived only from the accepted checkpoint; newer remote content cannot erase local edits. */
+  private readonly baseline = computed(() => {
+    const saved = this.saved();
+    return workspaceForm(saved?.plan, saved?.document);
+  });
   /** A newer server checkpoint held back because applying it would replace local edits. */
   protected readonly available = signal<ActivityDetail | undefined>(undefined);
 
@@ -833,14 +831,12 @@ export class ActivityWorkspace {
     if (!saved) {
       saved = await this.api.createActivity(plan, this.lifetime, this.authorThread());
       if (this.lifetime.destroyed) return;
-      this.saved.set(saved);
       // Keep this workspace and its pending action alive while making reload reopen the durable draft.
       this.location.replaceState('/activities/' + saved.id);
-      if (JSON.stringify(this.raw().document) === JSON.stringify(documentForm())) {
-        this.acceptCheckpoint(saved);
-        return saved;
-      }
-    } else if (!this.dirty()) return saved;
+      this.acceptCheckpoint(saved);
+      return saved;
+    }
+    if (!this.dirty()) return saved;
     const previousPlan = saved.plan;
     saved = await this.api.saveActivity(
       saved.id,
@@ -866,7 +862,6 @@ export class ActivityWorkspace {
     this.editing.set(false);
     this.raw.set(workspaceForm(saved.plan, saved.document));
     this.confirmed.set(fixedSources(saved.plan));
-    this.baseline.set(structuredClone(this.raw()));
     this.history.clear();
     this.available.set(undefined);
     this.elsewhere.set(undefined);

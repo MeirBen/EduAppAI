@@ -61,8 +61,8 @@ public sealed class AiGenerationService(IEnumerable<IChatClient> clients, ILogge
         var reply = result.Value.Result;
         var assumptions = result.Value.Assumptions;
         if (reply is null || (reply.Proposal is null) == (reply.Clarification is null) ||
-            reply.Clarification is not null && (string.IsNullOrWhiteSpace(reply.Clarification) || reply.Clarification.Length > 1000) ||
-            assumptions is not { Length: <= 8 } || assumptions.Any(a => string.IsNullOrWhiteSpace(a) || a.Length > 200))
+            reply.Clarification is not null && !EngineValidation.HasText(reply.Clarification, EngineValidation.AuthoringReplyLength) ||
+            assumptions is not { Length: <= EngineValidation.MaxAssumptions } || assumptions.Any(a => !EngineValidation.HasText(a, EngineValidation.AssumptionLength)))
             throw InvalidOutput("authoring-envelope", AiPrompts.Version(stage));
         try
         {

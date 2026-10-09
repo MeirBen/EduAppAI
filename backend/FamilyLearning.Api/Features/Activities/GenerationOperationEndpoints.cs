@@ -76,10 +76,11 @@ public static class GenerationOperationEndpoints
             await db.GenerationOperations.CountAsync(o => o.Status == "queued" || o.Status == "calling", ct) >= GenerationOperationOptions.GlobalLimit ||
             await db.GenerationOperations.CountAsync(o => o.FamilyId == familyId && (o.Status == "queued" || o.Status == "calling"), ct) >= GenerationOperationOptions.FamilyLimit)
             return Results.Problem(statusCode: 429, title: "מכסת פעולות ה־AI מלאה. אפשר להמשיך לשמור עריכות ידניות ולעיין בפעילות לפני אישור.");
-        var request = TaskRequestResolver.ResolveOrThrow(draft.Plan);
+        var plan = draft.Plan;
+        var request = TaskRequestResolver.ResolveOrThrow(plan);
         var document = draft.Document;
-        if (body.Kind == "Revise") ActivityRevisionValidator.ValidateInput(new(draft.Plan, document, body.Message!, body.Target, body.Sources));
-        var stage = SelectStage(body, request, document, draft.Plan);
+        if (body.Kind == "Revise") ActivityRevisionValidator.ValidateInput(new(plan, document, body.Message!, body.Target, body.Sources));
+        var stage = SelectStage(body, request, document, plan);
         if (!limiter.TryAcquire(familyId)) return Results.StatusCode(429);
         var history = await GenerationHistoryReader.ReadAsync(db, familyId, draft.Id, document, ct);
         var operation = new GenerationOperation(draft, body, request, document, history, stage, worker.ProfileFingerprint, clock.GetUtcNow().UtcDateTime);
