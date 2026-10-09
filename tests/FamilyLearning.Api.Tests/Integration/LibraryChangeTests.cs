@@ -101,7 +101,7 @@ public sealed class LibraryChangeTests
             Assert.False(stream.Reader.TryRead(out _));
             Assert.False(other.Reader.TryRead(out _));
 
-            var operation = await GenerationHarness.Start(owner, draft);
+            var operation = await GenerationHarness.Start(owner, draft, "GenerateQuestions");
             Notified();
             using (var cancel = await owner.PostAsync(GenerationHarness.OperationPath(operation) + "/cancel", null))
                 Assert.Equal(HttpStatusCode.OK, cancel.StatusCode);
@@ -117,16 +117,6 @@ public sealed class LibraryChangeTests
             using (var deleted = await owner.DeleteAsync(Path(draft))) Assert.Equal(HttpStatusCode.NoContent, deleted.StatusCode);
             Notified();
 
-            using var published = await owner.PostAsJsonAsync("/api/templates", Numeric(1));
-            Assert.Equal(HttpStatusCode.Created, published.StatusCode);
-            var template = (await published.Content.ReadFromJsonAsync<JsonNode>())!;
-            var templatePath = $"/api/templates/{template["id"]!.GetValue<Guid>()}";
-            Notified();
-            using (var version = await owner.PostAsJsonAsync(templatePath + "/versions", new { expectedVersion = 1, definition = Numeric(1) }))
-                Assert.True(version.IsSuccessStatusCode);
-            Notified();
-            using (var deleted = await owner.DeleteAsync(templatePath)) Assert.Equal(HttpStatusCode.NoContent, deleted.StatusCode);
-            Notified();
             await Create(owner, Numeric(1));
             Notified();
             using (var reset = await owner.DeleteAsync("/api/learning-data")) Assert.Equal(HttpStatusCode.NoContent, reset.StatusCode);
@@ -158,12 +148,12 @@ public sealed class LibraryChangeTests
         var stream = changes.Subscribe(familyId)!;
         Assert.True(stream.Reader.TryRead(out _));
 
-        using (await stranger.PostAsJsonAsync("/api/templates", Numeric(1))) { }
+        await Create(stranger, Numeric(1));
         using (var missing = await owner.DeleteAsync($"/api/instances/{Guid.NewGuid()}"))
             Assert.Equal(HttpStatusCode.NotFound, missing.StatusCode);
         // A write publishes before its response, so a wrong note would already be pending.
         Assert.False(stream.Reader.TryRead(out _));
-        using (await owner.PostAsJsonAsync("/api/templates", Numeric(1))) { }
+        await Create(owner, Numeric(1));
         Assert.True(stream.Reader.TryRead(out _));
         Assert.True(await app.Worker.RunNextAsync(default));
         Assert.True(stream.Reader.TryRead(out _));
@@ -178,7 +168,7 @@ public sealed class LibraryChangeTests
         using var stranger = await app.ParentAsync();
         var streams = new List<ChangeStream>();
         for (var index = 0; index < LibraryChanges.FamilyStreamLimit; index++) streams.Add(await ChangeStream.OpenAsync(owner));
-        using (await owner.PostAsJsonAsync("/api/templates", Numeric(1))) { }
+        await Create(owner, Numeric(1));
         await streams[0].NextAsync();
         using (var refused = await owner.GetAsync(StreamPath, HttpCompletionOption.ResponseHeadersRead))
             Assert.Equal(HttpStatusCode.TooManyRequests, refused.StatusCode);

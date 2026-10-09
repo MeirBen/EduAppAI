@@ -1,9 +1,10 @@
 # Product specification
 
 **Target redesign, 8 October 2026:** the parent product centers on activities,
-saved drafts and explicit approval. The engine/API and canvas/chat are
-implemented in slices 1–2; backend/evaluation
-retirement and the coordinated data cutover remain slice 3. The
+saved drafts and explicit approval. The engine/API, canvas/chat and backend
+retirement are implemented in slices 1–3. The
+[slice-3 record](superpowers/plans/2026-10-09-activity-only-slice-3.md) tracks
+verification and the separately coordinated data cutover. The
 [architecture](architecture.md) describes current code.
 The implemented child flow remains in force. Every subject uses the same generic
 AI path; there are no subject-specific generators or seeded educational records.
@@ -254,12 +255,11 @@ for setup, [UI guide](ui-guide.md) for presentation and the
 
 ## Next steps
 
-Implement the activity-only redesign in the slices defined by the
-[chat design](activity-chat-design.md#delivery-and-verification). The existing
-parent/child [acceptance record](child-flow-plan.md) is baseline evidence, not
-verification of this redesign. Repeat the affected lifecycle, fresh-start and
-isolation checks, then review representative generated activities with the
-family before giving them to children.
+For an existing installation, coordinate its data cutover using the
+[slice-3 verification record](superpowers/plans/2026-10-09-activity-only-slice-3.md).
+The existing parent/child [acceptance record](child-flow-plan.md) remains baseline
+evidence. Isolated redesign checks do not establish live-model quality; review
+representative generated activities with the family before giving them to children.
 
 Before inviting other families, add account recovery and tested backup/restore.
 Shared-parent onboarding, dashboards, broad library pagination, update notices,

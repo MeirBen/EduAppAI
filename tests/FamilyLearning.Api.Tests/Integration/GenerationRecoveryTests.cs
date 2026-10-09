@@ -117,7 +117,7 @@ public sealed class GenerationRecoveryTests
     [InlineData(true)]
     public async Task Recovery_resumes_only_the_queued_stage_after_the_last_accepted_checkpoint(bool acceptedMaterial)
     {
-        await using var app = new GenerationHarness(Ideas, Materials, UnchangedPolish);
+        await using var app = new GenerationHarness(Ideas, Materials, UnchangedPolish, Questions("text-input"));
         using var parent = await app.ParentAsync(services => services.AddScoped(provider => new LearningDbContext(
             new DbContextOptionsBuilder<LearningDbContext>(provider.GetRequiredService<DbContextOptions<LearningDbContext>>())
                 .ConfigureWarnings(warnings => warnings.Throw(CoreEventId.RowLimitingOperationWithoutOrderByWarning)).Options)));
@@ -132,7 +132,7 @@ public sealed class GenerationRecoveryTests
         for (var i = 0; i < 3; i++) await parent.GetAsync(OperationPath(operation));
         Assert.Equal(acceptedMaterial ? 2 : 0, app.Chat.Requests.Count);
         while (await app.Worker.RunNextAsync(default)) { }
-        Assert.Equal(3, app.Chat.Requests.Count);
+        Assert.Equal(4, app.Chat.Requests.Count);
         Assert.Equal("completed", (await parent.GetFromJsonAsync<JsonNode>(OperationPath(operation)))!["status"]!.GetValue<string>());
     }
 

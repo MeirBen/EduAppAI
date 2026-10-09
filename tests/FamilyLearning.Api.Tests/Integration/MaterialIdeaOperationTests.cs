@@ -32,7 +32,7 @@ public sealed class MaterialIdeaOperationTests
     [Fact]
     public async Task Idea_checkpoint_resumes_writing_without_repeating_the_call_and_the_idea_stays_through_edits()
     {
-        await using var app = new GenerationHarness(Ideas, Materials, UnchangedPolish);
+        await using var app = new GenerationHarness(Ideas, Materials, UnchangedPolish, Questions("text-input"));
         using var parent = await app.ParentAsync();
         var draft = await Create(parent, Reading() with { Settings = Numeric(1).Settings });
         var operation = await Start(parent, draft);
@@ -48,10 +48,11 @@ public sealed class MaterialIdeaOperationTests
         using var writing = JsonDocument.Parse(app.Chat.Requests[1].Input.Split('\n')[^1]);
         Assert.Equal(selected["premise"]!.GetValue<string>(), writing.RootElement.GetProperty("idea").GetProperty("premise").GetString());
         await app.Worker.RunNextAsync(default);
+        Assert.True(await app.Worker.RunNextAsync(default));
         Assert.False(await app.Worker.RunNextAsync(default));
         var saved = (await parent.GetFromJsonAsync<JsonNode>(Path(draft)))!;
         Assert.Equal(2, saved["revision"]!.GetValue<long>());
-        Assert.Equal(3, app.Chat.Requests.Count);
+        Assert.Equal(4, app.Chat.Requests.Count);
         Assert.True(JsonNode.DeepEquals(selected, saved["document"]!["materials"]![0]!["idea"]));
         var edit = Edit(saved);
         edit["document"]!["materials"]![0]!["body"] = "תוכן חדש";
@@ -89,7 +90,7 @@ public sealed class MaterialIdeaOperationTests
         await AddDraftWithIdea(app, family, "owned", (paddedPrompt ? new string(' ', 300) : "") + "owned-question");
         await AddDraftWithIdea(app, await FamilyId(stranger), "foreign");
         var draft = await Create(parent, Reading() with { Settings = Numeric(1).Settings });
-        var request = new { operationKey = Guid.NewGuid(), expectedRevision = 1, kind = "GenerateMaterials" };
+        var request = new { operationKey = Guid.NewGuid(), expectedRevision = 1, kind = "Create" };
         using var started = await parent.PostAsJsonAsync(Path(draft) + "/operations", request);
         var frozen = (await started.Content.ReadFromJsonAsync<JsonNode>())!["artifacts"]!["history"]!.DeepClone();
         Assert.Equal("owned-premise", frozen["ideas"]![0]!["premise"]!.GetValue<string>());
@@ -97,9 +98,6 @@ public sealed class MaterialIdeaOperationTests
         await AddDraftWithIdea(app, family, "after-admission");
         using var replay = await parent.PostAsJsonAsync(Path(draft) + "/operations", request);
         Assert.True(JsonNode.DeepEquals(frozen, (await replay.Content.ReadFromJsonAsync<JsonNode>())!["artifacts"]!["history"]));
-        while (await app.Worker.RunNextAsync(default)) { }
-        var questionOperation = await Start(parent, (await parent.GetFromJsonAsync<JsonNode>(Path(draft)))!, "GenerateQuestions");
-        await AddDraftWithIdea(app, family, "after-questions");
         while (await app.Worker.RunNextAsync(default)) { }
         Assert.Equal(4, app.Chat.Requests.Count);
         var ideas = SentHistory(app.Chat.Requests[0].Input);
@@ -109,7 +107,7 @@ public sealed class MaterialIdeaOperationTests
         Assert.DoesNotContain("after-admission", ideas);
         Assert.Contains("owned-question", questions);
         Assert.DoesNotContain("owned-premise", questions);
-        Assert.DoesNotContain("after-questions", questions);
+        Assert.DoesNotContain("after-admission", questions);
         // Writing and polishing receive no history.
         Assert.All(app.Chat.Requests.Skip(1).Take(2), call => Assert.DoesNotContain("\"history\"", call.Input));
         Assert.All(new[] { ideas, questions }, history =>
@@ -117,7 +115,7 @@ public sealed class MaterialIdeaOperationTests
             Assert.DoesNotContain("secret-answer", history);
             Assert.DoesNotContain("foreign", history);
         });
-        Assert.Equal("completed", (await parent.GetFromJsonAsync<JsonNode>(OperationPath(questionOperation)))!["status"]!.GetValue<string>());
+        Assert.Equal("completed", (await parent.GetFromJsonAsync<JsonNode>(started.Headers.Location))!["status"]!.GetValue<string>());
 
         static string SentHistory(string input)
         {
@@ -229,7 +227,7 @@ public sealed class MaterialIdeaOperationTests
             [new("question", prompt ?? marker + "-question", new("text-input"), new(marker + "-secret-answer"), 1, new("manual"), new("accepted", []))]);
         using var scope = app.App.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<LearningDbContext>();
-        db.ActivityDrafts.Add(new(family, marker, "{}", StoredJson.Write(document), null, null, "test-parent"));
+        db.ActivityDrafts.Add(new(family, marker, "{}", StoredJson.Write(document), null, "test-parent"));
         await db.SaveChangesAsync();
     }
 

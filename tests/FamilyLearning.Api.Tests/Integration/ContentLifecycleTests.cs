@@ -13,7 +13,7 @@ namespace FamilyLearning.Api.Tests.Integration;
 public sealed class ContentLifecycleTests
 {
     [Fact]
-    public async Task Application_host_generates_without_publication_and_freezes_an_owned_snapshot()
+    public async Task Application_host_creates_and_freezes_an_owned_activity()
     {
         var chat = new AiFixtures.ScriptedChat(Questions());
         using var app = new ApiFactory(services => services.AddSingleton<IChatClient>(chat));
@@ -30,7 +30,7 @@ public sealed class ContentLifecycleTests
         Assert.Equal("completed", operation["status"]!.GetValue<string>());
         draft = (await parent.GetFromJsonAsync<JsonNode>(Path(draft)))!;
         Assert.Equal("2", draft["document"]!["questions"]![0]!["answer"]!["value"]!.GetValue<string>());
-        Assert.Empty((await parent.GetFromJsonAsync<JsonArray>("/api/templates"))!);
+        Assert.Equal(draft["id"]!.GetValue<Guid>(), Assert.Single((await parent.GetFromJsonAsync<JsonArray>("/api/activity-drafts"))!)!["id"]!.GetValue<Guid>());
         using var release = await parent.PostAsJsonAsync(Path(draft) + "/release",
             new { expectedRevision = draft["revision"]!.GetValue<long>() });
         Assert.Equal(HttpStatusCode.Created, release.StatusCode);

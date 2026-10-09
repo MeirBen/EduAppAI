@@ -43,22 +43,19 @@ internal sealed class GenerationHarness(params string[] responses) : IAsyncDispo
         return App.ParentAsync();
     }
 
-    /// <summary>Starts <paramref name="kind"/>, by default the next part as the workspace offers it: text when the plan writes any, else questions.</summary>
-    internal static async Task<JsonNode> Start(HttpClient parent, JsonNode draft, string? kind = null, string? targetId = null)
+    /// <summary>Starts an explicit activity operation, defaulting to atomic Create.</summary>
+    internal static async Task<JsonNode> Start(HttpClient parent, JsonNode draft, string kind = "Create")
     {
-        kind ??= draft["plan"]!["materials"]!.AsArray().Any(m => m!["source"]!.GetValue<string>() == "generated") ? "GenerateMaterials" : "GenerateQuestions";
         using var response = await parent.PostAsJsonAsync(Path(draft) + "/operations", new
-        { operationKey = Guid.NewGuid(), expectedRevision = draft["revision"]!.GetValue<long>(), kind, targetId });
+        { operationKey = Guid.NewGuid(), expectedRevision = draft["revision"]!.GetValue<long>(), kind });
         Assert.True(response.StatusCode == HttpStatusCode.Accepted, await response.Content.ReadAsStringAsync());
         return (await response.Content.ReadFromJsonAsync<JsonNode>())!;
     }
 
-    /// <summary>Creates the text (idea, writing and polish) and then its questions: the two parts a parent starts in turn.</summary>
+    /// <summary>Creates all missing activity content in one operation.</summary>
     internal async Task<JsonNode> GenerateAsync(HttpClient parent, JsonNode draft)
     {
-        await Start(parent, draft, "GenerateMaterials");
-        while (await Worker.RunNextAsync(default)) { }
-        await Start(parent, (await parent.GetFromJsonAsync<JsonNode>(Path(draft)))!, "GenerateQuestions");
+        await Start(parent, draft);
         while (await Worker.RunNextAsync(default)) { }
         return (await parent.GetFromJsonAsync<JsonNode>(Path(draft)))!;
     }

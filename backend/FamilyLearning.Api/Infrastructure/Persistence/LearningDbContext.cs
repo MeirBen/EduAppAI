@@ -2,7 +2,6 @@ using FamilyLearning.Api.Features.Activities;
 using FamilyLearning.Api.Features.Assignments;
 using FamilyLearning.Api.Features.Children;
 using FamilyLearning.Api.Features.Instances;
-using FamilyLearning.Api.Features.Templates;
 using FamilyLearning.Api.Infrastructure.Auth;
 using FamilyLearning.Api.TaskEngine.Validation;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
@@ -22,8 +21,6 @@ public sealed class LearningDbContext(DbContextOptions<LearningDbContext> option
     public DbSet<ChildActivation> ChildActivations => Set<ChildActivation>();
     public DbSet<ChildDeviceGrant> ChildDeviceGrants => Set<ChildDeviceGrant>();
     public DbSet<Family> Families => Set<Family>();
-    public DbSet<TaskTemplate> TaskTemplates => Set<TaskTemplate>();
-    public DbSet<TaskTemplateVersion> TaskTemplateVersions => Set<TaskTemplateVersion>();
     public DbSet<ActivityDraft> ActivityDrafts => Set<ActivityDraft>();
     public DbSet<TaskSnapshot> TaskSnapshots => Set<TaskSnapshot>();
     public DbSet<GenerationOperation> GenerationOperations => Set<GenerationOperation>();
@@ -66,22 +63,6 @@ public sealed class LearningDbContext(DbContextOptions<LearningDbContext> option
             entity.Property(g => g.RevokedAtUtc).HasConversion(utcTimestamp);
             entity.HasIndex(g => new { g.ChildId, g.CreatedAtUtc, g.Id });
             entity.HasOne<Child>().WithMany().HasForeignKey(g => g.ChildId).OnDelete(DeleteBehavior.Restrict);
-        });
-        model.Entity<TaskTemplate>(entity =>
-        {
-            entity.Property(t => t.Name).HasMaxLength(EngineValidation.NameLength);
-            entity.Property(t => t.CreatedAtUtc).HasConversion(utcTimestamp);
-            entity.Property(t => t.UpdatedAtUtc).HasConversion(utcTimestamp);
-            // Reject a stale writer even when both requests passed the initial revision check.
-            entity.Property(t => t.CurrentVersion).IsConcurrencyToken();
-            entity.HasIndex(t => new { t.FamilyId, t.CreatedAtUtc });
-            entity.HasOne<Family>().WithMany().HasForeignKey(t => t.FamilyId).OnDelete(DeleteBehavior.Restrict);
-        });
-        model.Entity<TaskTemplateVersion>(entity =>
-        {
-            entity.Property(v => v.CreatedAtUtc).HasConversion(utcTimestamp);
-            entity.HasIndex(v => new { v.TemplateId, v.Version }).IsUnique();
-            entity.HasOne<TaskTemplate>().WithMany().HasForeignKey(v => v.TemplateId).OnDelete(DeleteBehavior.Restrict);
         });
         model.Entity<ActivityDraft>(entity =>
         {

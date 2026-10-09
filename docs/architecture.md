@@ -1,10 +1,9 @@
 # Architecture
 
-This guide describes the slice-1 engine/API and slice-2 activity canvas/chat.
-The [product specification](product-specification.md) and
-[chat design](activity-chat-design.md) define the remaining slice-3 backend/
-evaluation template retirement and coordinated data cutover. The slices ship
-together.
+This guide describes the activity-only engine/API, canvas/chat and guarded
+fresh-start migration. The [product specification](product-specification.md) and
+[chat design](activity-chat-design.md) own the contracts. Deploy the matching
+frontend/backend together and coordinate the [data cutover](../README.md#activity-only-cutover).
 
 ## Structure
 
@@ -36,8 +35,8 @@ resolution, assembly, validation and measurement; behavior-preserving refactors
 do not bump it. A revision change alone never stales accepted content, but
 current validation applies and queued work keeps its compatibility guard.
 [EvaluationVersions](../tools/FamilyLearning.Evaluation/EvaluationVersions.cs)
-independently owns report, check and judge versions. Template versions and draft
-revisions are separate concurrency counters.
+independently owns report, check and judge versions. Draft revisions are separate
+concurrency counters.
 
 ## AI and persistence
 
@@ -47,8 +46,6 @@ All routes are under `/api`; writes enforce CSRF.
 | ----------------------------------------- | -------------------------- |
 | `GET limits`                              | Server content limits      |
 | `POST ai/activity-plans`                  | Unsaved proposal           |
-| `POST templates`                          | Template version 1         |
-| `POST templates/{id}/versions`            | Publish a version          |
 | `POST activity-drafts`                    | New editable draft         |
 | `PUT activity-drafts/{id}`                | Save a revision            |
 | `POST activity-drafts/{id}/operations`    | Idempotent start           |
@@ -58,7 +55,6 @@ All routes are under `/api`; writes enforce CSRF.
 | `GET instances/{id}`                      | Frozen parent preview      |
 | `DELETE activity-drafts/{id}`             | Draft and operations       |
 | `DELETE instances/{id}`                   | Archive or delete snapshot |
-| `DELETE templates/{id}`                   | Template and versions      |
 | `DELETE learning-data`                    | Family learning reset      |
 | `GET library/changes`                     | Change notes (SSE)         |
 
@@ -129,18 +125,22 @@ operation admission/completion even when a reply leaves content revision alone.
 An EF concurrency token guards each draft write. One `SaveChanges` creates the
 snapshot and marks the draft terminal, and a unique source-draft index prevents
 duplicate releases; replay returns the original snapshot, or 410 if it was
-deleted. Template and draft IDs are detached provenance, so deletions never
-erase snapshots, and family reset deletes learning records atomically while
-keeping accounts. Publication saves a version and its current pointer atomically
-under a concurrency token and unique index.
+deleted. Source draft/snapshot IDs are detached provenance, so draft deletion
+never erases snapshots. Family reset deletes learning records atomically while
+keeping accounts.
 
-Checked-in migrations add conversation storage and remove unused draft/snapshot
-input columns and the unread operation fingerprint. They do not convert old
-learning plans. The activity-only fresh start remains a coordinated cutover;
-no startup reset or legacy reader exists. Development applies migrations;
-Production requires the explicit management command. Tests use disposable
-storage, real `Program` composition and isolated providers; worker tests disable
-automatic polling to drive transitions deterministically.
+Checked-in migrations add conversation storage and remove unused input columns,
+the unread operation fingerprint and template tables/provenance. The activity-only
+migration requires empty learning records before any schema change. Ordinary
+migration, including development startup, rejects populated old data without
+deleting it. The explicit
+`--activity-only-cutover` command runs without the server/worker, transactionally
+clears learning records at the predecessor schema, then migrates; it is a no-op
+once applied. It never reads/converts old plan or operation JSON. Accounts,
+families, external AI configuration and keys stay intact. Historical migrations
+remain unchanged. Development applies safe migrations; Production requires a
+management command. Tests use disposable storage, real `Program` composition
+and isolated providers; worker tests disable polling to drive transitions.
 
 ## Change notes
 
@@ -178,10 +178,9 @@ terminal status in one transaction under the active-operation/revision fences.
 Failures and cancellation leave saved content unchanged. Only applied content
 changes advance the draft revision; replies and status transitions do not.
 
-The canvas uses Create, Revise and the explicit GenerateQuestions recovery
-action. Backend/evaluation callers still support GenerateMaterials and
-single-item replacement actions. They use the same worker/engine and remain
-only for slice-3 caller retirement.
+Create, Revise and the explicit GenerateQuestions recovery action are the only
+public operation kinds. Writing/replacement methods remain engine stages shared
+by these operations and isolated evaluation, never separate admission paths.
 
 On restart, engine/schema/profile-matching queued stages resume; uncheckpointed
 calling steps become unknown and are never retried. Profile fingerprints exclude
@@ -327,7 +326,7 @@ from replay. Result pages read frozen answers/evaluation without starting work;
 pending grades start blank, use frozen integer bounds and finalize together.
 Failed writes preserve grades and block resubmission until an explicit saved
 read; loading completed grades requires confirmation. Route/browser-close guards
-protect edits. Conflict copy belongs to its feature, not template/AI errors.
+protect edits. Conflict copy belongs to its feature.
 
 `ChildAuth` supplies learner identity and answer-length limit. Cancellable guards
 route 401 to activation and availability errors to retry. Activation sends a code

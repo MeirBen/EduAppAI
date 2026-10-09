@@ -8,7 +8,6 @@ using FamilyLearning.Api.Features.Auth;
 using FamilyLearning.Api.Features.Children;
 using FamilyLearning.Api.Features.Instances;
 using FamilyLearning.Api.Features.Library;
-using FamilyLearning.Api.Features.Templates;
 using FamilyLearning.Api.Infrastructure.Auth;
 using FamilyLearning.Api.TaskEngine.Ai;
 using FamilyLearning.Api.TaskEngine.Validation;
@@ -72,7 +71,6 @@ public static class ApiConfiguration
         library.MapActivityEndpoints();
         library.MapLearningDataEndpoints();
         library.MapGenerationOperationEndpoints();
-        library.MapPlanTemplateEndpoints();
         library.MapSnapshotEndpoints();
         library.MapAssignmentEndpoints();
     }

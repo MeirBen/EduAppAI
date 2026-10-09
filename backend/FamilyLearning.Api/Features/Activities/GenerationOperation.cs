@@ -23,7 +23,7 @@ public sealed class GenerationOperation
         OriginalRevision = ExpectedRevision = draft.Revision;
         Kind = request.Kind;
         Stage = stage;
-        ArtifactsJson = StoredJson.Write(new GenerationArtifacts(input, document, request.TargetId, request.Message ?? request.Instruction, [], history, null,
+        ArtifactsJson = StoredJson.Write(new GenerationArtifacts(input, document, request.Message, [], history, null,
             draft.Plan, request.Kind == "Create" ? RevisionScope.ForCreate(draft.Plan, document) : null,
             Context: ActivityChat.Context(draft.Chat), Sources: request.Sources, Target: request.Target));
         CreatedAtUtc = now;
@@ -109,8 +109,6 @@ public sealed class GenerationOperation
             draftId,
             request.ExpectedRevision,
             request.Kind,
-            request.TargetId,
-            request.Instruction,
             request.Message,
             request.Target,
             request.Sources

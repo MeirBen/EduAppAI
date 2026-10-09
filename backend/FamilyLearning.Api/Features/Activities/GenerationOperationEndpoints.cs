@@ -68,10 +68,8 @@ public static class GenerationOperationEndpoints
         var existing = await db.GenerationOperations.SingleOrDefaultAsync(o => o.FamilyId == familyId && o.OperationKey == body.OperationKey, ct);
         if (existing is not null)
             return existing.RequestFingerprint == GenerationOperation.Fingerprint(id, body) ? Accepted(existing, diagnostics) : Conflict();
-        if (body.OperationKey == Guid.Empty || body.Kind is not ("Create" or "Revise" or "GenerateMaterials" or "GenerateQuestions" or "ReplaceMaterial" or "ReplaceQuestion") ||
-            body.Kind != "Revise" && (body.Message is not null || body.Target is not null || body.Sources is not null) ||
-            body.Kind == "Revise" && (body.TargetId is not null || body.Instruction is not null) ||
-            (body.Kind is "Create" or "GenerateMaterials" or "GenerateQuestions" && (body.TargetId is not null || body.Instruction is not null)))
+        if (body.OperationKey == Guid.Empty || body.Kind is not ("Create" or "Revise" or "GenerateQuestions") ||
+            body.Kind != "Revise" && (body.Message is not null || body.Target is not null || body.Sources is not null))
             return Results.ValidationProblem(new Dictionary<string, string[]> { ["operation"] = ["יש לבחור פעולת יצירה והנחיה תקינות."] });
         if (draft.ReleasedSnapshotId.HasValue || draft.Revision != body.ExpectedRevision || draft.ActiveOperationId.HasValue) return Conflict();
         if (await db.GenerationOperations.CountAsync(o => o.DraftId == id, ct) >= GenerationOperationOptions.DraftLimit ||
@@ -99,10 +97,7 @@ public static class GenerationOperationEndpoints
         {
             case "Revise": return "revise";
             case "Create": return RevisionScope.ForCreate(plan, document).NewMaterials.Length > 0 ? "material-ideas" : "questions";
-            case "GenerateMaterials": TaskAssembly.RequireMaterialWork(input, document); return "material-ideas";
             case "GenerateQuestions": TaskAssembly.PrepareQuestions(input, document); return "questions";
-            case "ReplaceMaterial": TaskAssembly.MaterialTarget(new(input, document, body.TargetId!, body.Instruction)); return "replace-material";
-            case "ReplaceQuestion": TaskAssembly.QuestionTarget(new(input, document, body.TargetId!, body.Instruction)); return "replace-question";
             default: throw new InvalidOperationException("Unsupported stored generation kind.");
         }
     }

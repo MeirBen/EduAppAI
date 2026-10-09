@@ -6,9 +6,9 @@ using FamilyLearning.Api.TaskEngine.Validation;
 
 namespace FamilyLearning.Api.Features.Activities;
 
-/// <summary>Presence-preserving create envelope: plan with optional template provenance, or snapshotId exclusively.</summary>
+/// <summary>Presence-preserving create envelope: plan with optional imported chat, or snapshotId exclusively.</summary>
 public sealed record CreateActivityRequest(JsonElement Plan = default,
-    JsonElement TemplateId = default, JsonElement ExpectedVersion = default, JsonElement SnapshotId = default, ImportedChatTurn[]? Chat = null);
+    JsonElement SnapshotId = default, ImportedChatTurn[]? Chat = null);
 
 /// <summary>Complete editable checkpoint; metadata, material revisions and acceptance evidence cannot be submitted.</summary>
 public sealed record SaveActivityRequest([property: JsonRequired] long ExpectedRevision,
@@ -41,7 +41,7 @@ public sealed record ActivitySummary(Guid Id, string Name, long Revision, DateTi
 
 /// <summary>Saved parent-only state. Diagnostics are derived from authoritative data, never an independent readiness cache.</summary>
 public sealed record ActivityDetail(Guid Id, long Revision, LearningPlan Plan, TaskDocument Document,
-    IReadOnlyDictionary<string, string[]> Diagnostics, LengthMeasurement[] Measurements, Guid? ActiveOperationId, Guid? TemplateVersionId,
+    IReadOnlyDictionary<string, string[]> Diagnostics, LengthMeasurement[] Measurements, Guid? ActiveOperationId,
     Guid? ReleasedSnapshotId, long? ReleasedSourceRevision, DateTime CreatedAtUtc, DateTime UpdatedAtUtc,
     ActivityChatTurn[] Chat, bool CanUndo)
 {
@@ -51,6 +51,6 @@ public sealed record ActivityDetail(Guid Id, long Revision, LearningPlan Plan, T
         var resolved = TaskRequestResolver.Resolve(plan).Value ?? throw new InvalidOperationException("Invalid stored activity input.");
         var check = TaskDocumentValidator.ValidateDraft(resolved, document);
         return new(draft.Id, draft.Revision, plan, document, check.Diagnostics, TextLength.Measure(resolved, document), draft.ActiveOperationId,
-            draft.TemplateVersionId, draft.ReleasedSnapshotId, draft.ReleasedSourceRevision, draft.CreatedAtUtc, draft.UpdatedAtUtc, draft.Chat, draft.CanUndo);
+            draft.ReleasedSnapshotId, draft.ReleasedSourceRevision, draft.CreatedAtUtc, draft.UpdatedAtUtc, draft.Chat, draft.CanUndo);
     }
 }

@@ -3,7 +3,6 @@ using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
-using FamilyLearning.Api.TaskEngine.Models;
 using FamilyLearning.Api.TaskEngine.Validation;
 using FamilyLearning.Api.Tests.Fixtures;
 using static FamilyLearning.Api.Tests.TaskEngine.LearningPlanFixture;
@@ -41,11 +40,8 @@ public sealed class RequestValidationTests
     }
 
 
-
-
-
     [Fact]
-    public async Task Missing_or_null_template_members_remain_client_errors()
+    public async Task Missing_or_null_plan_members_remain_client_errors()
     {
         using var app = new ApiFactory();
         using var parent = await app.ParentAsync();
@@ -53,56 +49,20 @@ public sealed class RequestValidationTests
         {
             var definition = AiFixtures.PlanJson().AsObject();
             definition.Remove(member);
-            await AssertBadRequestAsync(parent, "/api/templates", definition.ToJsonString());
+            await AssertBadRequestAsync(parent, "/api/activity-drafts", new JsonObject { ["plan"] = definition.DeepClone() }.ToJsonString());
             definition[member] = null;
-            await AssertBadRequestAsync(parent, "/api/templates", definition.ToJsonString());
+            await AssertBadRequestAsync(parent, "/api/activity-drafts", new JsonObject { ["plan"] = definition.DeepClone() }.ToJsonString());
         }
         foreach (var member in new[] { "topic", "audience", "difficulty", "questionCount" })
         {
             var definition = AiFixtures.PlanJson();
-            var defaults = definition["settings"]!.AsObject();
-            defaults.Remove(member);
-            await AssertBadRequestAsync(parent, "/api/templates", definition.ToJsonString());
-            defaults[member] = null;
-            await AssertBadRequestAsync(parent, "/api/templates", definition.ToJsonString());
+            var settings = definition["settings"]!.AsObject();
+            settings.Remove(member);
+            await AssertBadRequestAsync(parent, "/api/activity-drafts", new JsonObject { ["plan"] = definition.DeepClone() }.ToJsonString());
+            settings[member] = null;
+            await AssertBadRequestAsync(parent, "/api/activity-drafts", new JsonObject { ["plan"] = definition.DeepClone() }.ToJsonString());
         }
-        Assert.Equal(0, (await parent.GetFromJsonAsync<JsonElement>("/api/templates")).GetArrayLength());
-    }
-
-    [Fact]
-    public async Task Missing_or_null_version_members_do_not_change_data()
-    {
-        using var app = new ApiFactory();
-        using var parent = await app.ParentAsync();
-        var created = await parent.PostAsJsonAsync("/api/templates", AiFixtures.PlanJson());
-        var template = await created.Content.ReadFromJsonAsync<JsonElement>();
-        var id = template.GetProperty("id").GetGuid();
-        foreach (var body in new[] { "{}", """{"expectedVersion":1}""", """{"expectedVersion":1,"definition":null}""" })
-            await AssertBadRequestAsync(parent, $"/api/templates/{id}/versions", body);
-        var missingExpectedVersion = new JsonObject
-        {
-            ["definition"] = AiFixtures.PlanJson()
-        };
-        await AssertBadRequestAsync(parent, $"/api/templates/{id}/versions", missingExpectedVersion.ToJsonString());
-        Assert.Equal(0, (await parent.GetFromJsonAsync<JsonElement>("/api/instances")).GetArrayLength());
-        var unchanged = await parent.GetFromJsonAsync<JsonElement>($"/api/templates/{id}");
-        Assert.Equal(1, unchanged.GetProperty("currentVersion").GetInt32());
-    }
-
-    [Theory]
-    [InlineData("settings")]
-    [InlineData("questionCount")]
-    public async Task Missing_or_null_task_input_is_rejected_without_creating_a_draft(string member)
-    {
-        using var app = new ApiFactory();
-        using var parent = await app.ParentAsync();
-        var input = AiFixtures.PlanJson();
-        var section = (member == "settings" ? input : input["settings"]!).AsObject();
-        section.Remove(member);
-        await AssertBadRequestAsync(parent, "/api/activity-drafts", new JsonObject { ["plan"] = input.DeepClone() }.ToJsonString());
-        section[member] = null;
-        await AssertBadRequestAsync(parent, "/api/activity-drafts", new JsonObject { ["plan"] = input.DeepClone() }.ToJsonString());
-        Assert.Equal(0, (await parent.GetFromJsonAsync<JsonElement>("/api/instances")).GetArrayLength());
+        Assert.Equal(0, (await parent.GetFromJsonAsync<JsonElement>("/api/activity-drafts")).GetArrayLength());
     }
 
     private static async Task AssertBadRequestAsync(HttpClient client, string path, string json)

@@ -1,12 +1,12 @@
 # Activity-only slice 2 implementation record
 
-**Status:** complete and verified, 9 October 2026. Ready for slice 3.
+**Status:** complete and verified, 9 October 2026.
 
 **Scope:** the activity canvas/chat built on the verified slice-1 engine/API.
 The [product specification](../../product-specification.md) and
-[chat design](../../activity-chat-design.md) remain authoritative. Backend and
-evaluation retirement, schema cutover and the coordinated real data reset stay
-in slice 3. The slices ship together.
+[chat design](../../activity-chat-design.md) remain authoritative. Backend
+retirement and the coordinated data cutover are covered by the
+[slice-3 record](2026-10-09-activity-only-slice-3.md). The slices ship together.
 
 ## Implemented
 
@@ -99,15 +99,11 @@ checks were removed; useful lifecycle coverage was migrated to the canvas.
 
 ## Slice 3
 
-Migrate remaining evaluation callers before retiring backend template endpoints,
-entities, DbSets/provenance and replaced operation kinds. Keep Create, Revise and
-GenerateQuestions for explicit manual-edit recovery. Retain queue version/profile
-fences, server ownership and immutable assignment/child contracts.
-
-Plan and coordinate the fresh learning-data/schema cutover, preserving parent
-accounts, families and AI configuration. Check an empty queue and verify fresh
-create/resume/approve/assign/reset flows before restart. There is no old-plan
-conversion, compatibility reader or automatic startup reset.
+Backend retirement and the guarded cutover command are implemented; see the
+[slice-3 record](2026-10-09-activity-only-slice-3.md) for verification and the
+separately coordinated learning-data reset. Shared engine stages remain in use
+by Create, Revise and isolated evaluation. No old-plan conversion, compatibility
+reader or automatic startup reset was added.
 
 Coordinate any dev-server interruption or real reset separately. Ask for an
 explicit budget before any live AI evaluation; isolated verification does not

@@ -79,7 +79,7 @@ public sealed class GenerationRaceTests
         var draft = await ActivityReleaseTests.ReadyDraft(parent);
         var release = parent.PostAsJsonAsync(Path(draft) + "/release", new { expectedRevision = 2 });
         await barrier.Entered.Task.WaitAsync(TimeSpan.FromSeconds(10));
-        try { await Start(parent, draft); }
+        try { await Start(parent, draft, "GenerateQuestions"); }
         finally { barrier.Resume.TrySetResult(); }
         Assert.Equal(HttpStatusCode.Conflict, (await release).StatusCode);
         using var scope = app.App.Services.CreateScope();

@@ -21,9 +21,6 @@ public static class LearningDataEndpoints
             await db.Children.Where(c => c.FamilyId == familyId).ExecuteDeleteAsync(ct);
             await db.ActivityDrafts.Where(d => d.FamilyId == familyId).ExecuteDeleteAsync(ct);
             await db.TaskSnapshots.Where(s => s.FamilyId == familyId).ExecuteDeleteAsync(ct);
-            var templates = db.TaskTemplates.Where(t => t.FamilyId == familyId);
-            await db.TaskTemplateVersions.Where(v => templates.Select(t => t.Id).Contains(v.TemplateId)).ExecuteDeleteAsync(ct);
-            await templates.ExecuteDeleteAsync(ct);
             await transaction.CommitAsync(ct);
             return Results.NoContent();
         });

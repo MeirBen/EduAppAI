@@ -222,7 +222,7 @@ public sealed class ChildAccessTests
         Assert.Equal("נועה", profile["name"]!.GetValue<string>());
         using var child = await h.Activate(parent, profile);
         Assert.Equal(HttpStatusCode.Unauthorized, (await parent.GetAsync("/api/child/auth/me")).StatusCode);
-        foreach (var path in new[] { "/api/auth/me", "/api/templates", "/api/instances", "/api/limits" })
+        foreach (var path in new[] { "/api/auth/me", "/api/activity-drafts", "/api/instances", "/api/limits" })
         {
             var denied = await child.GetAsync(path);
             Assert.Equal(HttpStatusCode.Unauthorized, denied.StatusCode);

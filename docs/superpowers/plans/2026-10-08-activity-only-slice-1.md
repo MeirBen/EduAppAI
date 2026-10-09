@@ -93,17 +93,15 @@ remaining editing/evidence checks and cleanup regressions pass. No identified
 slice-1 cleanup blocker remains for starting slice 2. Live-model quality was
 not reevaluated; future paid calls require an explicit agreed budget.
 
-## Remaining work
+## Later slices
 
 **Slice 2:** the canvas/chat and frontend retirement are implemented; see the
 [slice-2 record](2026-10-09-activity-only-slice-2.md) for its verification status
 and cleanup details.
 
-**Slice 3:** retire template endpoints/entities/DbSets/provenance and the replaced
-operation kinds after all callers migrate. Keep GenerateQuestions for explicit
-manual-edit recovery. Perform the coordinated learning-data reset and schema
-cutover, retaining parent accounts, families and AI configuration. Verify an
-empty queue and fresh create/resume/approve/assign/reset flows before restart.
+**Slice 3:** backend retirement and the guarded cutover command are implemented;
+see the [slice-3 record](2026-10-09-activity-only-slice-3.md) for verification and
+the separately coordinated learning-data reset.
 
 No Git mutations are authorized. Coordinate any dev-server interruption or real
 data reset separately. This implementation does not provide old-plan readers,

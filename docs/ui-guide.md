@@ -256,8 +256,7 @@ has no final score, and zero possible points has no percentage.
 
 **Implemented in slice 2.** Follow the activity-only lifecycle in the
 [product specification](product-specification.md#activity-lifecycle) and the
-execution details in the [chat design](activity-chat-design.md). Backend and
-evaluation cutover remains slice 3.
+execution details in the [chat design](activity-chat-design.md).
 
 The library shows **טיוטות** and **פעילויות מוכנות**, with **פעילות חדשה** as
 its creation entry. Remove template links, publication/version controls and the

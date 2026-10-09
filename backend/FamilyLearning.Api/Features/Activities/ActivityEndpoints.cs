@@ -39,47 +39,26 @@ public static class ActivityEndpoints
     {
         LearningPlan plan;
         TaskDocument? document = null;
-        Guid? templateVersionId = null;
         Guid? sourceSnapshotId = null;
         if (body.SnapshotId.ValueKind != JsonValueKind.Undefined)
         {
-            if (body.Chat is not null || new[] { body.Plan, body.TemplateId, body.ExpectedVersion }.Any(p => p.ValueKind != JsonValueKind.Undefined))
+            if (body.Chat is not null || body.Plan.ValueKind != JsonValueKind.Undefined)
                 return Invalid("snapshotId", "יש לבחור מקור אחד ליצירת הטיוטה.");
             var snapshotId = Read<Guid>(body.SnapshotId);
             var snapshot = await db.TaskSnapshots.AsNoTracking().SingleOrDefaultAsync(s => s.Id == snapshotId && s.FamilyId == user.FamilyId(), ct);
             if (snapshot is null) return Results.NotFound();
             plan = StoredJson.Read<LearningPlan>(snapshot.PlanJson);
             document = StoredJson.Read<TaskDocument>(snapshot.DocumentJson);
-            templateVersionId = snapshot.TemplateVersionId;
             sourceSnapshotId = snapshot.Id;
         }
-        else
-        {
-            if (body.TemplateId.ValueKind != JsonValueKind.Undefined)
-            {
-                var templateId = Read<Guid>(body.TemplateId);
-                var version = await (from template in db.TaskTemplates
-                                     join revision in db.TaskTemplateVersions on template.Id equals revision.TemplateId
-                                     where template.Id == templateId && template.FamilyId == user.FamilyId() && revision.Version == template.CurrentVersion
-                                     select revision).AsNoTracking().SingleOrDefaultAsync(ct);
-                if (version is null) return Results.NotFound();
-                if (Read<int>(body.ExpectedVersion) != version.Version) return Conflict();
-                templateVersionId = version.Id;
-                plan = body.Plan.ValueKind == JsonValueKind.Undefined ? StoredJson.Read<LearningPlan>(version.DefinitionJson) : Read<LearningPlan>(body.Plan);
-            }
-            else
-            {
-                if (body.ExpectedVersion.ValueKind != JsonValueKind.Undefined) return Invalid("expectedVersion", "יש לציין תבנית מקור.");
-                plan = Read<LearningPlan>(body.Plan);
-            }
-        }
+        else plan = Read<LearningPlan>(body.Plan);
         // Copying a snapshot keeps content/provenance, but never copies its parent review or terminal state.
         var resolved = TaskRequestResolver.ResolveOrThrow(plan);
         document ??= TaskAssembly.CreateDocument(resolved);
         var errors = TaskDocumentValidator.ValidateDraft(resolved, document).Errors;
         if (errors.Count > 0) return Results.ValidationProblem(errors);
         var draft = new ActivityDraft(user.FamilyId(), plan.Name, StoredJson.Write(plan),
-            StoredJson.Write(document), templateVersionId, sourceSnapshotId, user.FindFirstValue(ClaimTypes.NameIdentifier)!);
+            StoredJson.Write(document), sourceSnapshotId, user.FindFirstValue(ClaimTypes.NameIdentifier)!);
         draft.ImportChat(body.Chat);
         db.ActivityDrafts.Add(draft);
         await db.SaveChangesAsync(ct);
@@ -145,7 +124,7 @@ public static class ActivityEndpoints
         if (errors.Count > 0) return Results.ValidationProblem(errors);
         var reviewedAt = DateTime.UtcNow;
         var snapshot = new TaskSnapshot(draft.FamilyId, draft.Id, draft.Revision, document.Title, draft.PlanJson, draft.DocumentJson, StoredJson.Write(TextLength.Measure(input, document)), EngineVersions.Revision,
-            draft.TemplateVersionId, draft.SourceSnapshotId, draft.CreatedByParentId, draft.CreatedAtUtc,
+            draft.SourceSnapshotId, draft.CreatedByParentId, draft.CreatedAtUtc,
             user.FindFirstValue(ClaimTypes.NameIdentifier)!, reviewedAt);
         draft.Release(snapshot.Id, reviewedAt);
         db.TaskSnapshots.Add(snapshot);

@@ -1,6 +1,6 @@
 namespace FamilyLearning.Api.Infrastructure.Persistence;
 
-/// <summary>The ownership boundary shared by a parent's templates and task instances.</summary>
+/// <summary>The ownership boundary shared by parents, children and their learning records.</summary>
 public sealed class Family
 {
     public Guid Id { get; init; } = Guid.NewGuid();

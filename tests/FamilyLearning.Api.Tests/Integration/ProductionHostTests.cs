@@ -80,6 +80,7 @@ public sealed class ProductionHostTests
 
     [Theory]
     [InlineData("--migrate")]
+    [InlineData("--activity-only-cutover")]
     [InlineData("--create-parent")]
     public async Task Management_commands_do_not_depend_on_AI_configuration(string command)
     {

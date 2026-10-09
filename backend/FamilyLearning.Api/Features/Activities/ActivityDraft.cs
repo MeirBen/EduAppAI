@@ -5,7 +5,7 @@ namespace FamilyLearning.Api.Features.Activities;
 
 /// <summary>Family-owned editable checkpoint. Revisions fence concurrent writes; release metadata remains after snapshot deletion.</summary>
 public sealed class ActivityDraft(Guid familyId, string name, string planJson, string documentJson,
-    Guid? templateVersionId, Guid? sourceSnapshotId, string createdByParentId)
+    Guid? sourceSnapshotId, string createdByParentId)
 {
     public Guid Id { get; private set; } = Guid.NewGuid();
     public Guid FamilyId { get; private set; } = familyId;
@@ -16,7 +16,6 @@ public sealed class ActivityDraft(Guid familyId, string name, string planJson, s
     public string? UndoJson { get; private set; }
     public long Revision { get; private set; } = 1;
     public Guid? ActiveOperationId { get; private set; }
-    public Guid? TemplateVersionId { get; private set; } = templateVersionId;
     public Guid? SourceSnapshotId { get; private set; } = sourceSnapshotId;
     public string CreatedByParentId { get; private set; } = createdByParentId;
     public DateTime CreatedAtUtc { get; private set; } = DateTime.UtcNow;

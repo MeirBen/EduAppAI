@@ -10,7 +10,7 @@ using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.EntityFrameworkCore;
 using Serilog;
 
-var management = args.Length > 0 && args[0] is "--migrate" or "--create-parent";
+var management = args.Length > 0 && args[0] is "--migrate" or "--activity-only-cutover" or "--create-parent";
 using var bootstrapLogger = new LoggerConfiguration().WriteTo.Console().CreateLogger();
 WebApplication? app = null;
 try
@@ -42,7 +42,7 @@ try
     builder.Services.AddTaskAi(builder.Configuration, builder.Environment);
     builder.Services.AddApplicationApi();
     builder.Services.AddActivityGeneration(builder.Configuration);
-    // Allow all bounded template fields even when Hebrew characters use six-byte JSON escapes.
+    // Allow bounded activity plans and imported chat even when Hebrew characters use six-byte JSON escapes.
     builder.WebHost.ConfigureKestrel(options => options.Limits.MaxRequestBodySize = 3 * 1024 * 1024);
     app = builder.Build();
     app.Logger.LogInformation("Starting API host with AI configured: {AiConfigured}", app.Services.GetRequiredService<AiGenerationService>().Configured);

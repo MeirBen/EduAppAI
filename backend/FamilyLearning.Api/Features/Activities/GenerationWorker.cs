@@ -140,7 +140,7 @@ public sealed partial class GenerationWorker(IServiceScopeFactory scopes, AiGene
         {
             case "revise":
                 var originalPlan = call.Artifacts.Plan;
-                var revision = await ai.ReviseAsync(new(originalPlan, current, call.Artifacts.Instruction!, call.Artifacts.Target,
+                var revision = await ai.ReviseAsync(new(originalPlan, current, call.Artifacts.Message!, call.Artifacts.Target,
                     call.Artifacts.Sources, call.Artifacts.Context), ct, evidence);
                 if (revision.Value.Change is not { } change)
                     return new(current, Candidate(revision.Value), Reply: revision.Value.Answer ?? revision.Value.Clarification);
@@ -149,12 +149,12 @@ public sealed partial class GenerationWorker(IServiceScopeFactory scopes, AiGene
                 var working = RevisionScope.PrepareDocument(originalPlan, current, change.Plan, work);
                 return new(working, Candidate(revision.Value), Plan: change.Plan, Scope: work, Assumptions: change.Assumptions);
             case "material-ideas":
-                var ideas = await ai.GenerateMaterialIdeasAsync(materialInput ?? TaskAssembly.PrepareMaterials(input, current)!, call.Artifacts.History.Ideas, ct, evidence);
+                var ideas = await ai.GenerateMaterialIdeasAsync(materialInput!, call.Artifacts.History.Ideas, ct, evidence);
                 // The operation ID is the draw: an operation always selects the same idea, while operations vary.
                 return new(current, Candidate(ideas.Value), MaterialIdeas.Select(ideas.Value, call.Id.GetHashCode()));
             case "materials":
                 var idea = call.Artifacts.SelectedIdea ?? throw new InvalidOperationException("Materials are written only after an idea checkpoint.");
-                var materials = await ai.GenerateMaterialsAsync(materialInput ?? TaskAssembly.PrepareMaterials(input, current)!, idea, ct, evidence);
+                var materials = await ai.GenerateMaterialsAsync(materialInput!, idea, ct, evidence);
                 var accepted = TaskAssembly.AcceptMaterials(input, materialCurrent, materials.Value, materials.Metadata, idea, scope?.NewMaterials);
                 return new(PreserveReference(accepted.Document ?? throw new TaskValidationException(accepted.Diagnostics)), Candidate(materials.Value));
             case "material-polish":
@@ -180,14 +180,6 @@ public sealed partial class GenerationWorker(IServiceScopeFactory scopes, AiGene
                 var replacement = new QuestionReplacementInput(input, current, edit.Id, edit.Instruction);
                 var replaced = await ai.ReplaceQuestionAsync(replacement, ct, evidence);
                 return new(TaskAssembly.ReplaceQuestion(replacement, replaced.Value, replaced.Metadata), Candidate(replaced.Value));
-            case "replace-material":
-                var replacementInput = new MaterialReplacementInput(input, current, call.Artifacts.TargetId!, call.Artifacts.Instruction);
-                var material = await ai.ReplaceMaterialAsync(replacementInput, ct, evidence);
-                return new(TaskAssembly.ReplaceMaterial(replacementInput, material.Value, material.Metadata), Candidate(material.Value));
-            case "replace-question":
-                var questionInput = new QuestionReplacementInput(input, current, call.Artifacts.TargetId!, call.Artifacts.Instruction);
-                var question = await ai.ReplaceQuestionAsync(questionInput, ct, evidence);
-                return new(TaskAssembly.ReplaceQuestion(questionInput, question.Value, question.Metadata), Candidate(question.Value));
             default: throw new InvalidOperationException("Unsupported stored generation stage.");
         }
     }

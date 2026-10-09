@@ -124,7 +124,7 @@ public sealed class AssignmentRetentionTests
             {
                 var copy = new TaskSnapshot(source.FamilyId, Guid.NewGuid(), source.SourceDraftRevision, source.Title,
                     source.PlanJson, source.DocumentJson, source.MeasurementsJson,
-                    source.EngineRevision, null, null, source.CreatedByParentId, source.DraftCreatedAtUtc, source.ReviewedByParentId, source.ReviewedAtUtc);
+                    source.EngineRevision, null, source.CreatedByParentId, source.DraftCreatedAtUtc, source.ReviewedByParentId, source.ReviewedAtUtc);
                 db.Add(copy);
                 ids.Add(copy.Id);
             }

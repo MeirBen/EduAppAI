@@ -27,10 +27,12 @@ produces a reply, clarification or validated change without repairing invalid
 output. See [architecture](architecture.md#durable-generation) for ownership
 and [chat design](activity-chat-design.md#ai-contract-and-context) for stage context.
 
-The current UI still exposes staged generation and template publication until
-slice 2. The historical live evidence below predates the activity-only prompts
-and schema (engine revision 39); slice-1 verification uses isolated providers
-and does not establish live-model quality.
+The activity canvas uses Create/Revise and explicit question recovery. Template
+publication and staged operation admission are removed. Evaluation still uses
+the shared engine stages directly, without family data or retired API calls.
+The historical live evidence below predates the activity-only prompts/schema
+(revision 39) and the operation-contract retirement (revision 40). Verification
+uses isolated providers and does not establish live-model quality.
 The 1 October comparison did **not** meet its quality threshold: one-shot passed
 9/9 structural trials and split 7/9, with split costing about 3× and taking
 3.4× median provider latency. The one-shot implementation was removed; do not

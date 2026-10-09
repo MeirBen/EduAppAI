@@ -11,7 +11,7 @@ namespace FamilyLearning.Api.Tests.Integration;
 public sealed class AiAuthoringTests
 {
     [Fact]
-    public async Task Plan_chat_returns_correlated_clarifications_then_a_proposal_without_publishing()
+    public async Task Plan_chat_returns_correlated_clarifications_then_a_proposal_without_saving()
     {
         var plan = Numeric();
         var clarification = """{"result":{"proposal":null,"clarification":"לאיזה גיל?"},"assumptions":[]}""";
@@ -40,7 +40,7 @@ public sealed class AiAuthoringTests
         Assert.Contains("תרגול חשבון", app.Chat.Requests[2].Input);
         Assert.DoesNotContain("requestId", app.Chat.Requests[2].Input);
         Assert.DoesNotContain("baseRevision", app.Chat.Requests[2].Input);
-        Assert.Empty(await parent.GetFromJsonAsync<JsonElement[]>("/api/templates") ?? []);
+        Assert.Empty(await parent.GetFromJsonAsync<JsonElement[]>("/api/activity-drafts") ?? []);
         var status = await parent.GetFromJsonAsync<JsonElement>("/api/ai/status");
         Assert.Equal(EngineVersions.SchemaVersion, status.GetProperty("schemaVersion").GetInt32());
     }
