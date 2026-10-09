@@ -24,9 +24,7 @@ describe('Workspace routes', () => {
     });
     (await vi.waitFor(() => http.expectOne('/api/auth/csrf'))).flush({});
     await navigation;
-    http
-      .expectOne('/api/ai/status')
-      .flush({ configured: false, schemaVersion: numericPlan.schemaVersion });
+    http.expectOne('/api/ai/status').flush({ configured: false });
   }
 
   it('preserves the unsent request when only the query or fragment changes', async () => {

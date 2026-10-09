@@ -69,7 +69,7 @@ describe('Activity lifecycle', () => {
   }
   async function open(draft = savedActivity) {
     await harness.navigateByUrl('/activities/draft', ActivityWorkspace);
-    http.expectOne('/api/ai/status').flush({ configured: true, schemaVersion: 2 });
+    http.expectOne('/api/ai/status').flush({ configured: true });
     http.expectOne('/api/activity-drafts/draft').flush(structuredClone(draft));
     await settle();
   }
@@ -813,7 +813,7 @@ describe('Activity lifecycle', () => {
   });
   it('saves canonical replacement source, then offers adoption only for the question it made stale', async () => {
     await harness.navigateByUrl('/activities/draft', ActivityWorkspace);
-    http.expectOne('/api/ai/status').flush({ configured: false, schemaVersion: 1 });
+    http.expectOne('/api/ai/status').flush({ configured: false });
     const source = {
       id: suppliedPlan.materials[0].id,
       title: null,
@@ -1280,7 +1280,7 @@ describe('Activity lifecycle', () => {
     expect(copy.request.body).toEqual({ snapshotId: 'ready' });
     copy.flush({ ...savedActivity, id: 'copy' });
     await vi.waitFor(() => expect(TestBed.inject(Router).url).toBe('/activities/copy'));
-    http.expectOne('/api/ai/status').flush({ configured: true, schemaVersion: 1 });
+    http.expectOne('/api/ai/status').flush({ configured: true });
     http.expectOne('/api/activity-drafts/copy').flush({ ...savedActivity, id: 'copy' });
     await settle();
   });

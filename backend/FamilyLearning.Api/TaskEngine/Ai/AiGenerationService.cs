@@ -146,7 +146,7 @@ public sealed class AiGenerationService(IEnumerable<IChatClient> clients, ILogge
         return result;
     }
 
-    /// <summary>One complete question replacement; the rest of the activity is read-only context and app-owned identities never enter the provider request.</summary>
+    /// <summary>One complete question replacement; the rest of the activity is read-only context and question identities never enter the provider request.</summary>
     public async Task<AiResult<QuestionCandidate>> ReplaceQuestionAsync(QuestionReplacementInput input, CancellationToken ct, AiCallEvidence? evidence = null)
     {
         var target = TaskAssembly.QuestionTarget(input);

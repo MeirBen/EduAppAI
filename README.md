@@ -11,7 +11,7 @@ The [product specification](docs/product-specification.md) and
 the engine/API; [slice 2](docs/superpowers/plans/2026-10-09-activity-only-slice-2.md)
 implements the canvas/chat and removes template UI.
 [Slice 3](docs/superpowers/plans/2026-10-09-activity-only-slice-3.md) retires the
-backend template contracts and prepares the explicit data cutover below. Deploy
+backend template contracts and records the verified local cutover. Deploy
 the matching frontend/backend together; see the [architecture](docs/architecture.md).
 
 ## Parent and child quick start

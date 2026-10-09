@@ -12,10 +12,8 @@ test.use({ actionTimeout: 10_000 });
 
 /** Three real interaction types with immutable, manually reviewed test content; isolated generation followed by manual review. */
 async function createSnapshot(parent: APIRequestContext, headers: Record<string, string>) {
-  const { schemaVersion } = await (await parent.get('/api/ai/status')).json();
   const plan = {
     ...suppliedPlan,
-    schemaVersion,
     settings: { ...suppliedPlan.settings, questionCount: 3 },
     materials: [
       { ...suppliedPlan.materials[0], text: story },

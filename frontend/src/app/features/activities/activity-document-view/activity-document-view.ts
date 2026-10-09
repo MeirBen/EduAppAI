@@ -5,7 +5,7 @@ import { CopyButton } from '../../../shared/copy-button/copy-button';
 import { MeasurementItem } from '../activity-document-view/measurements';
 import { MeasurementList } from '../measurement-list/measurement-list';
 
-/** Read-only parent content shared by reconciliation and immutable preview. Answers render only as text. */
+/** Read-only parent content shared by the workspace and frozen preview. Answers render only as text. */
 @Component({
   selector: 'app-activity-document-view',
   imports: [MeasurementList, CopyButton],

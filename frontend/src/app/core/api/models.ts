@@ -191,7 +191,7 @@ export interface GenerationOperation {
   artifacts: {
     /** Exact parent-confirmed attachments, retained for request recovery until evidence expires. */
     sources?: StartGeneration['sources'] | null;
-    /** Requirements pinned when the operation started; only the parts the parent UI reads. */
+    /** Resolved requirements at the current checkpoint; only the fields the parent UI reads. */
     input?: {
       materials: { id: string; label: string; length: ResolvedLength | null }[];
       totalLength: ResolvedLength | null;

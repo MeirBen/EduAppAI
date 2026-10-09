@@ -12,10 +12,7 @@ test('Kestrel accepts bounded Hebrew activity chat and rejects oversized bodies'
   expect(login.status()).toBe(204);
   csrf = await (await request.get('/api/auth/csrf')).json();
   const headers = { 'X-XSRF-TOKEN': csrf.token, 'Content-Type': 'application/json' };
-  const plan = {
-    ...numericPlan,
-    schemaVersion: (await (await request.get('/api/ai/status')).json()).schemaVersion,
-  };
+  const plan = numericPlan;
   const body = {
     plan,
     chat: Array.from({ length: 100 }, (_, index) => ({

@@ -29,7 +29,7 @@ export class LearningApi {
 
   /** Reports server configuration without exposing credentials or contacting the provider. */
   aiStatus() {
-    return httpResource<{ configured: boolean; schemaVersion: number }>(() => '/api/ai/status');
+    return httpResource<{ configured: boolean }>(() => '/api/ai/status');
   }
   /** One cancellable proposal call; cancellation never causes a retry. */
   authorPlan(request: PlanAuthoringRequest, cancelled: Observable<void>, lifetime: DestroyRef) {

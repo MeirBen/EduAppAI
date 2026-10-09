@@ -3,16 +3,14 @@ import { expect, type APIRequestContext, type Page } from '@playwright/test';
 import { expectChildResponse } from './child-responses';
 import { sourceText, suppliedPlan } from '../src/app/features/activities/learning-plan.fixture';
 
-/** Publishes isolated mixed-interaction content through real parent APIs using the suite's isolated provider. */
+/** Approves isolated mixed-interaction content through real parent APIs using the suite's isolated provider. */
 export async function createReviewSnapshot(
   parent: APIRequestContext,
   headers: Record<string, string>,
   title = 'בדיקת תשובות',
 ) {
-  const { schemaVersion } = await (await parent.get('/api/ai/status')).json();
   const plan = {
     ...suppliedPlan,
-    schemaVersion,
     questions: { ...suppliedPlan.questions, formats: ['numeric-input', 'text-input'] },
   };
   const created = await parent.post('/api/activity-drafts', {

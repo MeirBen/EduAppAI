@@ -357,10 +357,7 @@ test('library deletion confirms intent, preserves independent items, recovers fr
   const independent = await page.request.post('/api/activity-drafts', {
     headers: parentHeaders,
     data: {
-      plan: {
-        ...numericPlan,
-        schemaVersion: (await (await page.request.get('/api/ai/status')).json()).schemaVersion,
-      },
+      plan: numericPlan,
     },
   });
   expect(independent.status()).toBe(201);
@@ -514,8 +511,7 @@ test('library deletion confirms intent, preserves independent items, recovers fr
   const headers = {
     'X-XSRF-TOKEN': (await (await page.request.get('/api/auth/csrf')).json()).token,
   };
-  const { schemaVersion } = await (await page.request.get('/api/ai/status')).json();
-  const plan = { ...numericPlan, schemaVersion };
+  const plan = numericPlan;
   const created = await page.request.post('/api/activity-drafts', {
     headers,
     data: { plan },
@@ -551,8 +547,7 @@ test('two pages follow generation, cancellation and release while preserving edi
   const headers = {
     'X-XSRF-TOKEN': (await (await page.request.get('/api/auth/csrf')).json()).token,
   };
-  const { schemaVersion } = await (await page.request.get('/api/ai/status')).json();
-  const plan = { ...numericPlan, schemaVersion };
+  const plan = numericPlan;
   const created = await page.request.post('/api/activity-drafts', {
     headers,
     data: { plan },
@@ -645,10 +640,7 @@ test('Create and chat revisions persist across reload without changing content o
   const headers = {
     'X-XSRF-TOKEN': (await (await page.request.get('/api/auth/csrf')).json()).token,
   };
-  const plan = {
-    ...numericPlan,
-    schemaVersion: (await (await page.request.get('/api/ai/status')).json()).schemaVersion,
-  };
+  const plan = numericPlan;
   const response = await page.request.post('/api/activity-drafts', { headers, data: { plan } });
   expect(response.status()).toBe(201);
   const created = await generateDraft(page.request, headers, await response.json());

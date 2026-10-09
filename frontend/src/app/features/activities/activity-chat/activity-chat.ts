@@ -28,7 +28,7 @@ const starterSuggestions = [
   'סיפור קצר עם מספרים לכיתה ג׳ ו־4 בעיות מילוליות עליו',
   '5 שאלות הבנה על טקסט שאדביק, לכיתה ה׳',
 ];
-/** Changes that suit any plan, so none can contradict its settings. */
+/** General refinement prompts; the server validates requested changes against supported limits. */
 const changeSuggestions = [
   'שאלות קלות יותר',
   'שאלות מאתגרות יותר',
@@ -63,7 +63,7 @@ export class ActivityChat {
   readonly targetLabel = input('');
   readonly invalidTarget = input(false);
   readonly targetCleared = output<void>();
-  /** Computed plan changes and stated assumptions, shown with the assistant's latest reply. */
+  /** Computed plan-change labels, shown with the assistant's latest reply. */
   readonly changes = input<string[]>([]);
   readonly consolidationRequired = input(false);
   /** A plan exists, so the composer asks for a change instead of the first description. */

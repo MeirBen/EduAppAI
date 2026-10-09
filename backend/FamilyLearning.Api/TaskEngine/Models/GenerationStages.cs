@@ -11,7 +11,7 @@ public sealed record QuestionGenerationInput(ResolvedTaskRequest Request, Materi
 /// <summary>An application-selected generated material. Current content supports aggregate safety checks, not unrestricted model edits.</summary>
 public sealed record MaterialReplacementInput(ResolvedTaskRequest Request, TaskDocument Current, string MaterialId, string? Instruction = null, string[]? PendingIds = null);
 
-/// <summary>An application-selected question; the rest of the activity is read-only context and app-owned identities never enter the provider request.</summary>
+/// <summary>An application-selected question; the rest of the activity is read-only context and question identities never enter the provider request.</summary>
 public sealed record QuestionReplacementInput(ResolvedTaskRequest Request, TaskDocument Current, string QuestionId, string? Instruction = null);
 
 /// <summary>Freshly accepted content for one minimal-edit polish pass; the application decides what the pass may change.</summary>

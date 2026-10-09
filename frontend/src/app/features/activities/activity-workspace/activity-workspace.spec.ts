@@ -35,7 +35,7 @@ describe('ActivityWorkspace plan ownership', () => {
   }
   async function open() {
     await harness.navigateByUrl('/activities/new', ActivityWorkspace);
-    http.expectOne('/api/ai/status').flush({ configured: true, schemaVersion: 2 });
+    http.expectOne('/api/ai/status').flush({ configured: true });
     await settle();
   }
   function draft(plan: LearningPlan): ActivityDetail {
@@ -214,7 +214,7 @@ describe('ActivityWorkspace plan ownership', () => {
     await open();
     const request = await ask();
     await harness.navigateByUrl('/activities/other', ActivityWorkspace);
-    http.expectOne('/api/ai/status').flush({ configured: true, schemaVersion: 2 });
+    http.expectOne('/api/ai/status').flush({ configured: true });
     http.expectOne('/api/activity-drafts/other').flush({ ...draft(numericPlan), id: 'other' });
     await settle();
     expect(request.cancelled).toBe(true);

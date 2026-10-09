@@ -43,8 +43,6 @@ export class GenerationStatus {
   protected readonly outcomes: Partial<Record<string, { label: string; icon: string }>> = {
     calling: { label: 'בפנייה לשירות', icon: 'icon-refresh' },
     accepted: { label: 'תוכן התקבל', icon: 'icon-check' },
-    applied: { label: 'תוכן התקבל', icon: 'icon-check' },
-    completed: { label: 'הושלם', icon: 'icon-check' },
     failed: { label: 'נכשל', icon: 'icon-alert' },
     conflict: { label: 'לא הוחל בגלל שינוי בטיוטה', icon: 'icon-alert' },
     cancelled: { label: 'בוטל', icon: 'icon-close' },

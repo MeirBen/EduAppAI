@@ -72,10 +72,8 @@ import {
   ConfirmedSources,
   emptyWorkspace,
   fixedSources,
-  hasPlanContent,
   replaceSourceText,
   sourceText,
-  withSchemaVersion,
   WorkspaceForm,
   workspaceForm,
   WorkspaceSnapshot,
@@ -300,8 +298,8 @@ export class ActivityWorkspace {
           this.addedSources().some((source) => !!source.label || !!source.text))),
   );
   protected readonly unsaved = computed(() => this.dirty() && !!this.saved());
-  /** Any proposed, loaded or typed plan; an invalid edit keeps the setup visible for correction. */
-  protected readonly hasPlan = computed(() => hasPlanContent(this.raw().plan));
+  /** Schema 0 is empty setup; a server plan exists even when edited source text is invalid. */
+  protected readonly hasPlan = computed(() => this.raw().plan.schemaVersion > 0);
   protected readonly hasContent = computed(
     () =>
       !!this.raw().document.title.trim() ||
@@ -433,14 +431,6 @@ export class ActivityWorkspace {
       this.operationId.set(loaded.activeOperationId ?? this.resumeOperation());
       this.operationClientRevision = this.operationId() ? this.clientRevision : undefined;
       this.initialized = true;
-    });
-    effect(() => {
-      const version = this.ai.value()?.schemaVersion;
-      if (!version || this.raw().plan.schemaVersion) return;
-      this.raw.update((raw) => withSchemaVersion(raw, version));
-      // Late configuration is not a save acknowledgement for anything typed while it loaded.
-      this.baseline.update((raw) => withSchemaVersion(raw, version));
-      this.history.amend((state) => ({ ...state, raw: withSchemaVersion(state.raw, version) }));
     });
     this.lifetime.onDestroy(() => {
       this.request.set(undefined);

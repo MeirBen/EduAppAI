@@ -34,8 +34,7 @@ async function isolate(page: Page, configured = true) {
     if (path === '/api/auth/csrf') return route.fulfill({ json: { token: 'isolated' } });
     if (path === '/api/library/changes') return route.fulfill({ status: 204 });
     if (path === '/api/limits') return route.fulfill({ json: limits });
-    if (path === '/api/ai/status')
-      return route.fulfill({ json: { configured, schemaVersion: numericPlan.schemaVersion } });
+    if (path === '/api/ai/status') return route.fulfill({ json: { configured } });
     if (path === '/api/activity-drafts' && request.method() === 'POST') {
       draft = { ...draft, ...request.postDataJSON() };
       return route.fulfill({ status: 201, json: draft });

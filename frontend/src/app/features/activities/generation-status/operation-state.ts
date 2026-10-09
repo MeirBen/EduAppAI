@@ -10,8 +10,6 @@ export const stageNames: Record<string, string> = {
   materials: 'טקסט שנוצר',
   'material-polish': 'טקסט בניסוח משופר',
   questions: 'שאלות שנוצרו',
-  'replace-material': 'טקסט חלופי',
-  'replace-question': 'שאלה חלופית',
 };
 
 /** Whether the operation can still change the draft; every other status is terminal. */

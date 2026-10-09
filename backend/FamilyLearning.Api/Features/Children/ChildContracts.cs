@@ -3,7 +3,7 @@ using FamilyLearning.Api.TaskEngine.Validation;
 
 namespace FamilyLearning.Api.Features.Children;
 
-/// <summary>Explicit replacement of optional details; omitting the object preserves them for older clients.</summary>
+/// <summary>Explicit replacement of optional details; omitting the object on update preserves the saved values.</summary>
 public sealed record ChildProfileDetails([property: JsonRequired] string? Grade,
     [property: JsonRequired] int? Age);
 public sealed record CreateChildRequest([property: JsonRequired] string Name, ChildProfileDetails? Details = null);

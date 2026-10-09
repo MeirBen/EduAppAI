@@ -17,9 +17,7 @@ export interface WorkspaceSnapshot {
   confirmed: ConfirmedSources;
 }
 
-const blankPlan = JSON.stringify(planForm());
-
-/** The buffer for a new activity; the server's schema version arrives separately. */
+/** Empty setup until the server returns a proposal or saved draft. */
 export function emptyWorkspace(): WorkspaceForm {
   return {
     plan: planForm(),
@@ -31,15 +29,6 @@ export function emptyWorkspace(): WorkspaceForm {
 export function workspaceForm(plan: LearningPlan, document?: ActivityDocument): WorkspaceForm {
   return { plan: planForm(plan), document: documentForm(document) };
 }
-
-/** Whether the plan holds anything; the server-supplied schema version alone does not make a plan. */
-export const hasPlanContent = (plan: PlanForm) =>
-  JSON.stringify({ ...plan, schemaVersion: 0 }) !== blankPlan;
-
-export const withSchemaVersion = (raw: WorkspaceForm, schemaVersion: number): WorkspaceForm => ({
-  ...raw,
-  plan: { ...raw.plan, schemaVersion },
-});
 
 /** Supplied source text in a plan; with `confirmed`, only the text the parent already confirmed. */
 export function fixedSources(plan: LearningPlan, confirmed?: ConfirmedSources): ConfirmedSources {

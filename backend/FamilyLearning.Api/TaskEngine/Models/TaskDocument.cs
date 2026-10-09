@@ -4,7 +4,7 @@ using FamilyLearning.Api.TaskEngine.Ai;
 namespace FamilyLearning.Api.TaskEngine.Models;
 
 /// <summary>Shared parent-only editable/frozen content. Child DTOs must never expose these answer keys.</summary>
-/// <remarks>Collections are mutable; engine boundaries return detached copies. Features own persistence and authorization.</remarks>
+/// <remarks>Treat collections as immutable; engine results may share unchanged arrays. Features own persistence and authorization.</remarks>
 public sealed record TaskDocument(
     [property: JsonRequired] string Title,
     string? Instructions,
@@ -12,7 +12,7 @@ public sealed record TaskDocument(
     [property: JsonRequired] DocumentQuestion[] Questions);
 
 /// <summary>Accepted material with an app-owned revision; supplied bodies must match the resolved source exactly.</summary>
-/// <remarks><see cref="Idea"/> is generation provenance, like <see cref="Origin"/>: manual edits keep it, and an AI rewrite clears it.</remarks>
+/// <remarks><see cref="Idea"/> is generation provenance: manual edits and polish retain it; an AI rewrite clears it only when the title or body changes.</remarks>
 public sealed record MaterialContent(string Id, long Revision, string? Title, string Body, ContentOrigin Origin,
     ContentAcceptance? Acceptance, MaterialIdea? Idea = null);
 
@@ -33,7 +33,7 @@ public sealed record ContentOrigin(string Kind, int? EngineRevision = null, stri
 /// <summary>Current acceptance basis, independent of original provenance. No persisted stale/readiness flag is needed.</summary>
 public sealed record ContentAcceptance(string InputFingerprint, MaterialRevision[] Sources, DateTime? AdoptedAtUtc = null);
 
-/// <summary>An actual material included by the application in a question call.</summary>
+/// <summary>A material revision used as a question's source or current acceptance basis.</summary>
 public sealed record MaterialRevision(string Id, long Revision);
 
 /// <summary>Unsafe shape errors prevent saving; repairable diagnostics permit a draft but prevent release.</summary>

@@ -46,11 +46,6 @@ export class UndoHistory<T> {
     this.key = '';
   }
 
-  /** Rewrites the recorded state for a change that is not an edit, such as late configuration. */
-  amend(update: (state: T) => T) {
-    this.last = update(this.last);
-  }
-
   clear() {
     this.stack.set([]);
   }

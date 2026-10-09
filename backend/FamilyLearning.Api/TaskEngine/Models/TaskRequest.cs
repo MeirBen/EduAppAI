@@ -3,7 +3,7 @@ namespace FamilyLearning.Api.TaskEngine.Models;
 /// <summary>Either a complete effective request or field errors. A failed resolution never exposes partial values.</summary>
 public sealed record TaskResolution(ResolvedTaskRequest? Value, Dictionary<string, string[]> Errors);
 
-/// <summary>Effective requirements derived only from the saved plan. Treat collections as immutable after resolution.</summary>
+/// <summary>Effective requirements derived from a validated activity plan. Treat collections as immutable after resolution.</summary>
 public sealed record ResolvedTaskRequest(int SchemaVersion, int EngineRevision, string Goal, string Guidance,
     TaskSettings Settings, ResolvedMaterial[] Materials, ResolvedQuestions Questions,
     ResolvedLength? TotalLength);

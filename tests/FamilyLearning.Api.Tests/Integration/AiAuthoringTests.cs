@@ -41,8 +41,6 @@ public sealed class AiAuthoringTests
         Assert.DoesNotContain("requestId", app.Chat.Requests[2].Input);
         Assert.DoesNotContain("baseRevision", app.Chat.Requests[2].Input);
         Assert.Empty(await parent.GetFromJsonAsync<JsonElement[]>("/api/activity-drafts") ?? []);
-        var status = await parent.GetFromJsonAsync<JsonElement>("/api/ai/status");
-        Assert.Equal(EngineVersions.SchemaVersion, status.GetProperty("schemaVersion").GetInt32());
     }
 
     [Fact]

@@ -9,12 +9,6 @@ import { DocumentForm } from './activity-document-editor/document-form';
 import { lengthText } from './activity-document-view/measurements';
 import { PlanForm } from './activity-workspace/plan-form';
 
-/** Parent wording for app-owned question formats; raw enum values never reach the page. */
-export const formatNames: Record<QuestionFormat, string> = {
-  'numeric-input': 'תשובה מספרית',
-  'text-input': 'תשובה קצרה',
-  'single-choice': 'בחירה מתוך אפשרויות',
-};
 const mixtureNames: Record<QuestionFormat, string> = {
   'numeric-input': 'מספר',
   'text-input': 'תשובה קצרה',
@@ -159,7 +153,7 @@ export function fieldPointers(
   ];
 }
 
-/** Acceptance records the material revisions a question was written against. */
+/** Acceptance records the material revisions a question is currently validated against. */
 function sourceChanged(saved: ActivityDetail, indexes: number[]) {
   const materials = saved.document.materials;
   return (

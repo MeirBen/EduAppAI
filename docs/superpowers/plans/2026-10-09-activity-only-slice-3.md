@@ -96,3 +96,28 @@ reset coordination before running the matching frontend/backend release.
 
 No old-plan conversion, compatibility reader or automatic startup reset is
 needed. Further live AI evaluation requires an explicitly agreed budget.
+
+## Final cleanup
+
+The follow-up audit removed the unused manual-setup schema propagation and its
+undo/form helpers, schema discovery from AI configuration status, an unused
+format-label export and retired operation-stage/outcome labels. Existing test
+callers use their canonical plan fixtures. Canonical plan/schema validation and
+queue version fences remain intact.
+
+Aligned TypeScript and XML comments with current plan ownership, operation
+checkpoints, source acceptance, question identity and collection-sharing rules.
+Consolidated historical evaluation evidence under `artifacts/evaluations/`,
+preserving raw files by checksum and extracting unique frozen inputs before
+removing old builds. Removed slice scratch files and superseded verification
+logs; [evidence retention](../../ai.md#costs-and-retained-evidence) owns the policy.
+
+Final verification passed again: 668 backend, 249 Angular, 23 evaluation UI and
+30 browser tests, plus publishing and documentation checks. Independent review
+has no unresolved findings. A read-only check reconfirmed the completed local
+cutover and database integrity; no real data changed during cleanup.
+
+Artifacts decreased from about 1.29 GiB to 32 MiB. All 2,106 retained original
+evidence files matched their checksums; 112 embedded input copies became 51
+unique preserved fixtures/schemas. The generated app was removed after browser
+verification; publishing regenerates it. No paid calls or Git mutations occurred.
