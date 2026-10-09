@@ -1,8 +1,13 @@
-import { ActivityDetail, LearningPlan, PlanChange, QuestionFormat } from '../../core/api/models';
-import { isIntegerInput } from '../../shared/forms/integer-input';
+import {
+  ActivityDetail,
+  LearningPlan,
+  LengthExpectation,
+  PlanChange,
+  QuestionFormat,
+} from '../../core/api/models';
 import { DocumentForm } from './activity-document-editor/document-form';
 import { lengthText } from './activity-document-view/measurements';
-import { formFormats, LengthForm, PlanForm } from './plan-editor/plan-form';
+import { PlanForm } from './activity-workspace/plan-form';
 
 /** Parent wording for app-owned question formats; raw enum values never reach the page. */
 export const formatNames: Record<QuestionFormat, string> = {
@@ -27,10 +32,15 @@ function questionPhrase(count: number, formats: QuestionFormat[]): string {
   return count === 1 ? `שאלה ${one} אחת` : `${count} שאלות ${many}`;
 }
 
-function lengthPhrase(length: LengthForm): string | undefined {
-  const { mode, value, lower, upper } = length;
-  if (!mode) return undefined;
-  return lengthText({ mode, value, lower, upper });
+function lengthPhrase(length: LengthExpectation | null | undefined): string | undefined {
+  return length
+    ? lengthText({
+        mode: length.mode,
+        value: length.mode === 'target' ? length.count : null,
+        lower: length.mode === 'range' ? length.lower : null,
+        upper: length.mode === 'range' ? length.upper : null,
+      })
+    : undefined;
 }
 
 /** One-line reading of the current local plan and choices; derived on every change, never stored. */
@@ -41,8 +51,7 @@ export function activitySummary(plan: PlanForm): string[] {
     settings.audience.trim(),
     difficultyNames[settings.difficulty],
   ];
-  if (isIntegerInput(settings.questionCount) && Number(settings.questionCount) > 0)
-    parts.push(questionPhrase(Number(settings.questionCount), formFormats(plan.questions)));
+  parts.push(questionPhrase(settings.questionCount, plan.questions.formats));
   if (!plan.materials.length) parts.push('ללא טקסט מקדים');
   for (const material of plan.materials) {
     parts.push(

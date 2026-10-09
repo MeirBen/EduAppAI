@@ -1,16 +1,10 @@
 @let current = view();
-<section
-  [class]="inCard() ? 'card-section' : 'panel grid gap-4'"
-  [attr.aria-labelledby]="inCard() ? null : 'operation-heading'"
-  [attr.aria-label]="inCard() ? current.title : null"
->
-  @if (!inCard()) {
-    <h2 id="operation-heading" class="sr-only">מצב היצירה</h2>
-  }
+<section class="panel grid gap-4" aria-labelledby="operation-heading">
+  <h2 id="operation-heading" class="sr-only">מצב הבקשה</h2>
   <div>
     <app-loading-indicator
       [active]="active()"
-      [variant]="inCard() ? 'inline' : 'panel'"
+      variant="inline"
       [label]="current.title"
       [detail]="current.details[0] ?? ''"
     />
@@ -32,39 +26,6 @@
       }
     </div>
   </div>
-  @if (active()) {
-    <div class="flex flex-wrap items-center gap-x-4 gap-y-1">
-      <button
-        id="cancel-generation"
-        type="button"
-        class="text-link"
-        [disabledInteractive]="locked()"
-        (click)="cancelled.emit()"
-      >
-        <span class="icon icon-close" aria-hidden="true"></span>ביטול
-      </button>
-      <p class="note">
-        <span class="icon icon-info" aria-hidden="true"></span>בקשה שכבר נשלחה עשויה להיות מחויבת גם
-        אחרי ביטול.
-      </p>
-    </div>
-  }
-  @if (!active() && configured() && current.retry; as retry) {
-    <div class="flex flex-wrap items-center gap-x-4 gap-y-1">
-      <button
-        id="retry-generation"
-        type="button"
-        class="button"
-        [disabledInteractive]="locked()"
-        (click)="retried.emit(retry.kind)"
-      >
-        <span class="icon icon-refresh" aria-hidden="true"></span>{{ retry.label }}
-      </button>
-      <p class="note">
-        <span class="icon icon-ai" aria-hidden="true"></span>ניסיון נוסף שולח בקשה חדשה לשירות ה־AI.
-      </p>
-    </div>
-  }
   @if (!active() && current.checkSaved) {
     <button
       id="check-saved"

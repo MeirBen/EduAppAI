@@ -2,6 +2,7 @@ import { LearningPlan, LengthMeasurement, ResolvedLength } from '../../../core/a
 
 /** One saved measurement in parent terms; advisory targets never read as failures. */
 export interface MeasurementItem {
+  scope: string;
   label: string;
   /** Words in the saved text, as the server counted them. */
   actual: number;
@@ -9,12 +10,8 @@ export interface MeasurementItem {
   state: 'advisory' | 'met' | 'blocking';
 }
 
-/** A requirement from the server, or one typed in the editable plan before it is canonical. */
-type WordRequirement = Pick<ResolvedLength, 'mode'> &
-  Record<'value' | 'lower' | 'upper', number | string | null>;
-
 /** Reads a generated-body requirement as parents say it. Input bounds are a separate permitted range. */
-export function lengthText(expected: WordRequirement): string {
+export function lengthText(expected: ResolvedLength): string {
   return expected.mode === 'range'
     ? `${expected.lower}–${expected.upper} מילים`
     : `בערך ${expected.value} מילים`;
@@ -26,6 +23,7 @@ export function measurementItems(
   plan?: LearningPlan,
 ): MeasurementItem[] {
   return measurements.map((measurement) => ({
+    scope: measurement.scope,
     label:
       measurement.scope === 'total'
         ? 'כל הטקסטים יחד'

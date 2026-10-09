@@ -1,6 +1,7 @@
 # Activity chat design
 
-**Status:** target design, 8 October 2026; not implemented. The
+**Status:** target design, 8 October 2026; engine/API and canvas/chat implemented
+in slices 1–2. Backend/evaluation retirement and data cutover remain slice 3. The
 [product specification](product-specification.md#activity-lifecycle) owns the
 activity-only lifecycle and template retirement. This document details the
 canvas/chat flow and AI execution. Update current implementation documentation

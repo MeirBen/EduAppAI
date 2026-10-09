@@ -1,8 +1,10 @@
 # Product specification
 
 **Target redesign, 8 October 2026:** the parent product centers on activities,
-saved drafts and explicit approval. The activity-only/chat workflow below is
-not yet implemented; the [architecture](architecture.md) describes current code.
+saved drafts and explicit approval. The engine/API and canvas/chat are
+implemented in slices 1–2; backend/evaluation
+retirement and the coordinated data cutover remain slice 3. The
+[architecture](architecture.md) describes current code.
 The implemented child flow remains in force. Every subject uses the same generic
 AI path; there are no subject-specific generators or seeded educational records.
 This is a fresh-start cutover: existing learning data need not be exported,

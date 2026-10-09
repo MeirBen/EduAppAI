@@ -1,11 +1,11 @@
 import { TestBed } from '@angular/core/testing';
 import { GenerationStatus } from './generation-status';
-import { GenerationKind, GenerationOperation } from '../../../core/api/models';
+import { GenerationOperation } from '../../../core/api/models';
 
 const unknownOperation: GenerationOperation = {
   id: 'op',
   draftId: 'draft',
-  kind: 'GenerateMaterials',
+  kind: 'Create',
   status: 'unknown',
   stage: 'materials',
   originalRevision: 1,
@@ -17,7 +17,6 @@ const unknownOperation: GenerationOperation = {
     { stage: 'materials', outcome: 'unknown', usage: null, metadata: null },
   ],
   artifacts: {
-    targetId: null,
     steps: [
       {
         stage: 'materials',
@@ -31,10 +30,7 @@ const unknownOperation: GenerationOperation = {
 async function render(operation: GenerationOperation) {
   const fixture = TestBed.createComponent(GenerationStatus);
   fixture.componentRef.setInput('operation', operation);
-  fixture.componentRef.setInput('configured', true);
-  const retried: GenerationKind[] = [];
   let checked = 0;
-  fixture.componentInstance.retried.subscribe((kind) => retried.push(kind));
   fixture.componentInstance.checked.subscribe(() => checked++);
   await fixture.whenStable();
   const root = fixture.nativeElement as HTMLElement;
@@ -43,17 +39,16 @@ async function render(operation: GenerationOperation) {
     Array.from(root.querySelectorAll('[role="status"], button'))
       .map((element) => element.textContent)
       .join(' ');
-  return { root, visible, retried, checked: () => checked };
+  return { root, visible, checked: () => checked };
 }
 describe('GenerationStatus', () => {
   it('explains an unknown outcome without a retry and keeps technical evidence behind a disclosure', async () => {
-    const { root, visible, retried, checked } = await render(unknownOperation);
+    const { root, visible, checked } = await render(unknownOperation);
     expect(visible()).toContain('לא ידוע אם שירות ה־AI סיים את הבקשה.');
     expect(visible()).toContain('לא הפעלנו ניסיון נוסף אוטומטית כדי למנוע חיוב כפול.');
     expect(root.querySelector('#retry-generation')).toBeNull();
     root.querySelector<HTMLButtonElement>('#check-saved')!.click();
     expect(checked()).toBe(1);
-    expect(retried).toEqual([]);
     expect(visible()).not.toContain('0.25');
     const technical = root.querySelector('details')!;
     expect(technical.querySelector('summary')!.textContent).toContain('פרטים טכניים');
@@ -64,8 +59,8 @@ describe('GenerationStatus', () => {
     expect(root.querySelector('[data-edit-candidate]')).toBeNull();
   });
 
-  it('offers only an explicit retry of the failed part', async () => {
-    const { visible, root, retried } = await render({
+  it('reports failure without a second retry control', async () => {
+    const { visible, root } = await render({
       ...unknownOperation,
       kind: 'GenerateQuestions',
       status: 'failed',
@@ -73,11 +68,9 @@ describe('GenerationStatus', () => {
       failure: 'invalid-output',
       steps: [{ stage: 'questions', outcome: 'failed', usage: null, metadata: null }],
     });
-    expect(visible()).toContain('יצירת השאלות נכשלה.');
-    expect(visible()).toContain('התוצאה לא החליפה את התוכן הקיים.');
-    expect(retried).toEqual([]);
-    root.querySelector<HTMLButtonElement>('#retry-generation')!.click();
-    expect(retried).toEqual(['GenerateQuestions']);
+    expect(visible()).toContain('לא הצלחנו להשלים את הבקשה.');
+    expect(visible()).toContain('התוכן השמור לא השתנה.');
+    expect(root.querySelector('#retry-generation')).toBeNull();
   });
 
   it('does not claim that intermediate text was saved after a failed polish', async () => {
@@ -91,7 +84,6 @@ describe('GenerationStatus', () => {
         { stage: 'material-polish', outcome: 'failed', usage: null, metadata: null },
       ],
       artifacts: {
-        targetId: null,
         steps: [
           {
             stage: 'material-polish',
@@ -101,7 +93,7 @@ describe('GenerationStatus', () => {
         ],
       },
     });
-    expect(visible()).toContain('התוצאה לא החליפה את התוכן הקיים.');
+    expect(visible()).toContain('התוכן השמור לא השתנה.');
     expect(visible()).not.toContain('הטקסט נשמר');
     expect(root.querySelector('#retry-generation')).toBeNull();
     expect(root.querySelector('details')!.textContent).toContain('טקסט בניסוח משופר · נכשל');
@@ -114,7 +106,6 @@ describe('GenerationStatus', () => {
       stage: 'materials',
       steps: [{ stage: 'materials', outcome: 'failed', usage: null, metadata: null }],
       artifacts: {
-        targetId: null,
         input: {
           materials: [
             {
@@ -134,9 +125,9 @@ describe('GenerationStatus', () => {
         ],
       },
     });
-    expect(visible()).toContain('הטקסט שנוצר לא עמד בדרישת האורך.');
-    expect(visible()).toContain('נדרש: 100–150 מילים');
-    expect(visible()).toContain('התוצאה לא החליפה את התוכן הקיים.');
+    expect(visible()).toContain('הטקסט שנוצר לא התאים לאורך המבוקש.');
+    expect(visible()).toContain('האורך המבוקש: 100–150 מילים');
+    expect(visible()).toContain('התוכן השמור לא השתנה.');
     expect(visible()).not.toContain('הטקסט נוצר');
   });
 
@@ -146,10 +137,10 @@ describe('GenerationStatus', () => {
       status: 'calling',
       stage: 'materials',
     });
-    expect(visible()).toContain('יוצרים את הטקסט…');
+    expect(visible()).toContain('מכינים את הפעילות…');
     expect(visible()).toContain('כותבים את הטקסט');
     expect(visible()).not.toMatch(/%|עלות/);
-    expect(root.querySelector('#cancel-generation')).not.toBeNull();
+    expect(root.querySelector('#cancel-generation')).toBeNull();
     expect(root.querySelector('#retry-generation')).toBeNull();
   });
 

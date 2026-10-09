@@ -1,19 +1,8 @@
-<section
-  class="grid gap-4"
-  [class.panel]="!empty()"
-  [class.well]="empty()"
-  aria-labelledby="document-heading"
->
-  <div class="grid gap-1">
-    <h2 id="document-heading">תוכן הפעילות</h2>
-    <p class="text-sm text-muted">
-      {{
-        empty()
-          ? 'התוכן יופיע כאן אחרי היצירה. לאחר מכן אפשר לערוך אותו.'
-          : 'בדקו וערכו כל חלק. עריכה ושמירת טיוטה אינן משתמשות ב־AI.'
-      }}
-    </p>
-  </div>
+<section class="panel grid gap-4" aria-labelledby="document-heading">
+  <h2 id="document-heading">עריכת תוכן הפעילות</h2>
+  <p class="text-sm text-muted">
+    עריכה ושמירת טיוטה אינן משתמשות ב־AI. להוספת שאלות או לשינוי ההגדרות, כתבו לעוזר.
+  </p>
   <div>
     <label for="document-title">כותרת הפעילות</label
     ><input
@@ -47,7 +36,7 @@
             <button
               type="button"
               class="button button-secondary"
-              [disabledInteractive]="locked() || operationActive()"
+              [disabledInteractive]="locked()"
               (click)="adopted.emit({ materialIds: [id], questionIds: [] })"
             >
               <span class="icon icon-check" aria-hidden="true"></span>בדקתי, אפשר להשתמש בגרסה
@@ -75,23 +64,6 @@
             [problem]="contentIssues().materials.get(id)"
           />
         </div>
-        <app-scoped-repair
-          [key]="'material-' + i"
-          [name]="label(id)"
-          prompt="מה תרצו לשנות בטקסט?"
-          submitLabel="שיפור הטקסט"
-          [suggestions]="materialSuggestions"
-          [disabled]="locked() || operationActive() || !aiAvailable()"
-          (requested)="
-            replaced.emit({ kind: 'ReplaceMaterial', targetId: id, instruction: $event })
-          "
-        />
-        @if (statusTarget() === id) {
-          <ng-container
-            [ngTemplateOutlet]="status()"
-            [ngTemplateOutletContext]="{ inCard: true }"
-          />
-        }
       } @else {
         <p dir="auto" class="whitespace-pre-wrap">{{ material.body().value() }}</p>
         <p class="note">
@@ -108,6 +80,7 @@
           >
         </button>
       }
+      <app-measurement-list [items]="measurements()" [scope]="id" />
     </section>
   }
   @let count = fields().questions().value().length;
@@ -119,20 +92,6 @@
         @let issue = contentIssues().questions.get(id);
         <li class="well grid gap-4" [attr.aria-labelledby]="'question-' + i + '-heading'">
           <h3 [id]="'question-' + i + '-heading'">שאלה {{ i + 1 }}</h3>
-          @if (id && staleQuestions().has(id)) {
-            <div class="callout grid gap-4">
-              <p>השאלה נכתבה לפני שהטקסט או ההגדרות השתנו. בדקו שהיא עדיין מתאימה.</p>
-              <button
-                type="button"
-                class="button button-secondary"
-                [disabledInteractive]="locked() || operationActive()"
-                (click)="adopted.emit({ materialIds: [], questionIds: [id] })"
-              >
-                <span class="icon icon-check" aria-hidden="true"></span>בדקתי, אפשר להשתמש בגרסה
-                הזו<span class="sr-only"> — שאלה {{ i + 1 }}</span>
-              </button>
-            </div>
-          }
           <div class="grid gap-4 sm:grid-cols-2">
             <div class="sm:only:col-span-2">
               <label [for]="'question-' + i + '-prompt'">נוסח השאלה</label
@@ -226,19 +185,6 @@
             </div>
           }
           <div class="grid gap-1">
-            @if (id) {
-              <app-scoped-repair
-                [key]="'question-' + i"
-                [name]="'שאלה ' + (i + 1)"
-                prompt="מה תרצו לשנות בשאלה הזו?"
-                submitLabel="שיפור השאלה"
-                [suggestions]="questionSuggestions"
-                [disabled]="locked() || operationActive() || !aiAvailable()"
-                (requested)="
-                  replaced.emit({ kind: 'ReplaceQuestion', targetId: id, instruction: $event })
-                "
-              />
-            }
             <details class="group">
               <summary [id]="'question-' + i + '-more'">
                 סוג התשובה והניקוד<span class="sr-only"> — שאלה {{ i + 1 }}</span>
@@ -282,12 +228,6 @@
               </div>
             </details>
           </div>
-          @if (statusTarget() === id) {
-            <ng-container
-              [ngTemplateOutlet]="status()"
-              [ngTemplateOutletContext]="{ inCard: true }"
-            />
-          }
         </li>
       }
     </ol>

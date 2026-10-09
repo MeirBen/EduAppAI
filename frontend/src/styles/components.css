@@ -250,40 +250,6 @@
       @apply bg-brand text-on-brand ring-brand;
     }
   }
-  /* Derived phases: mark the current item aria-current="step" and finished items data-done. */
-  .progress-steps {
-    @apply flex flex-wrap items-center gap-2 text-sm text-muted;
-
-    & > li {
-      @apply flex items-center gap-2;
-    }
-    & > li + li::before {
-      content: '';
-      @apply h-px w-3 bg-control sm:w-8;
-    }
-    & > [data-done],
-    & > [aria-current='step'] {
-      @apply text-ink;
-    }
-    & > [aria-current='step'] {
-      @apply font-semibold;
-    }
-    /* Narrow screens keep only the current step's label visible. */
-    & > :not([aria-current='step']) .step-label {
-      @apply max-sm:sr-only;
-    }
-  }
-  .step-marker {
-    @apply grid size-6 shrink-0 place-items-center rounded-full text-xs font-semibold ring-1 ring-control;
-
-    [data-done] > & {
-      @apply bg-brand text-on-brand ring-0;
-    }
-    [aria-current='step'] > & {
-      @apply bg-soft text-brand ring-2 ring-brand forced-colors:border-2;
-    }
-  }
-
   /* Feedback. */
   /*
    * A short technical fact in muted text. Its icon hangs beside the first line, so wrapped text and

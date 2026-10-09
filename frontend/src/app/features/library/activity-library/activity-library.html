@@ -2,13 +2,11 @@
   <header class="flex flex-wrap items-end justify-between gap-4">
     <div class="grid gap-1">
       <h1 id="library-heading">המרחב שלנו</h1>
-      <p class="text-muted">הפעילויות והתבניות של המשפחה, במקום אחד.</p>
+      <p class="text-muted">הטיוטות והפעילויות המוכנות של המשפחה, במקום אחד.</p>
     </div>
     <div class="flex flex-wrap gap-3">
       <a class="button" routerLink="/activities/new"
         ><span class="icon icon-ai" aria-hidden="true"></span>פעילות חדשה</a
-      ><a class="button button-secondary" routerLink="/templates/new"
-        ><span class="icon icon-template" aria-hidden="true"></span>תבנית חדשה</a
       >
     </div>
   </header>
@@ -76,9 +74,6 @@
       } @empty {
         <div class="empty-state">
           <p>עוד אין טיוטות. כל פעילות שתתחילו נשמרת כאן עד שתסמנו אותה כמוכנה.</p>
-          <a class="text-link" routerLink="/activities/new"
-            ><span class="icon icon-ai" aria-hidden="true"></span>התחלת פעילות חדשה</a
-          >
         </div>
       }
     }
@@ -142,74 +137,6 @@
       }
     }
   </section>
-  <section class="panel grid gap-4" aria-labelledby="templates-title">
-    <div class="grid gap-1">
-      <h2 id="templates-title" class="flex items-center gap-3">
-        תבניות לשימוש חוזר
-        @if (templates.hasValue() && templates.value().length) {
-          <span class="badge">{{ templates.value().length }}</span>
-        }
-      </h2>
-      <p class="text-sm text-muted">הגדרות שמורות ליצירה מהירה של פעילויות דומות.</p>
-    </div>
-    <app-loading-indicator
-      [active]="templates.isLoading() && !templates.hasValue()"
-      label="טוענים את התבניות…"
-    />
-    @if (templates.error()) {
-      <div class="grid gap-1">
-        <p role="alert" class="field-error">{{ apiError(templates.error()) }}</p>
-        <button type="button" class="text-link" (click)="templates.reload()">
-          <span class="icon icon-refresh" aria-hidden="true"></span>ניסיון נוסף
-        </button>
-      </div>
-    } @else if (templates.hasValue()) {
-      @for (template of templates.value(); track template.id) {
-        <article class="list-row">
-          <span class="icon-tile size-10" aria-hidden="true"
-            ><span class="icon icon-template"></span
-          ></span>
-          <h3 class="min-w-1/2 flex-1 text-base">
-            <bdi>{{ template.name }}</bdi>
-          </h3>
-          <div class="flex flex-wrap items-center gap-x-4">
-            <a
-              class="text-link"
-              [routerLink]="['/templates', template.id, 'create']"
-              [attr.aria-label]="'פעילות מהתבנית: ' + template.name"
-              ><span class="icon icon-add" aria-hidden="true"></span>פעילות מהתבנית</a
-            >
-            <div class="flex">
-              <a
-                class="icon-button icon-button-quiet"
-                [attr.aria-label]="'עריכת התבנית: ' + template.name"
-                [routerLink]="['/templates', template.id, 'edit']"
-                ><span class="icon icon-edit" aria-hidden="true"></span
-                ><span class="tooltip" aria-hidden="true">עריכת התבנית</span></a
-              >
-              <button
-                type="button"
-                class="icon-button icon-button-danger"
-                [attr.aria-label]="'מחיקת התבנית: ' + template.name"
-                [disabledInteractive]="deleting()"
-                (click)="remove('template', template.id, template.name)"
-              >
-                <span class="icon icon-remove" aria-hidden="true"></span
-                ><span class="tooltip" aria-hidden="true">מחיקת התבנית</span>
-              </button>
-            </div>
-          </div>
-        </article>
-        @if (failed(template.id); as message) {
-          <p role="alert" class="field-error">{{ message }}</p>
-        }
-      } @empty {
-        <div class="empty-state">
-          <p>עוד אין תבניות. שמרו הגדרות של פעילות כתבנית, כדי ליצור בקלות פעילויות דומות בהמשך.</p>
-        </div>
-      }
-    }
-  </section>
   <details class="border-t border-line pt-6" [open]="!!failed('all')">
     <summary>ניהול נתונים</summary>
     <div class="grid gap-4">
@@ -217,10 +144,6 @@
         <li class="note">
           <span class="icon icon-info" aria-hidden="true"></span>מוצגים עד
           {{ limits.listLimit }} הפריטים האחרונים בכל רשימה.
-        </li>
-        <li class="note">
-          <span class="icon icon-template" aria-hidden="true"></span>מחיקת תבנית אינה מוחקת פעילויות
-          שנוצרו ממנה.
         </li>
         <li class="note">
           <span class="icon icon-alert" aria-hidden="true"></span>איפוס מוחק את הילדים, הגישה

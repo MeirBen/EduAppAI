@@ -1,7 +1,6 @@
-import { ActivityDocument, ContentLimits, LearningPlan } from '../../../core/api/models';
+import { ActivityDocument, LearningPlan } from '../../../core/api/models';
 import { DocumentForm, documentForm } from '../activity-document-editor/document-form';
-import { PlanStructureEdit } from '../plan-editor/plan-editor';
-import { materialForm, PlanForm, planForm } from '../plan-editor/plan-form';
+import { PlanForm, planForm } from './plan-form';
 
 /** One editable buffer; canonical plan and document values are derived projections, never a second draft. */
 export interface WorkspaceForm {
@@ -28,7 +27,7 @@ export function emptyWorkspace(): WorkspaceForm {
   };
 }
 
-/** The buffer for a saved draft, or for a template's plan when there is no draft yet. */
+/** The buffer for a saved draft or an unsaved authoring proposal. */
 export function workspaceForm(plan: LearningPlan, document?: ActivityDocument): WorkspaceForm {
   return { plan: planForm(plan), document: documentForm(document) };
 }
@@ -53,48 +52,6 @@ export function fixedSources(plan: LearningPlan, confirmed?: ConfirmedSources): 
       )
       .map((material) => [material.id, material.text!]),
   );
-}
-
-/** Keeps only document materials still referenced by an unsaved plan edit. */
-export function reconcile(raw: WorkspaceForm): WorkspaceForm {
-  return {
-    ...raw,
-    document: {
-      ...raw.document,
-      materials: raw.document.materials.filter((m) =>
-        raw.plan.materials.some((p) => p.id === m.id),
-      ),
-    },
-  };
-}
-
-/** Applies an unsaved plan proposal while retaining content still referenced by the plan. */
-export function proposedWorkspace(raw: WorkspaceForm, plan: LearningPlan): WorkspaceForm {
-  return {
-    ...raw,
-    plan: planForm(plan),
-    document: {
-      ...raw.document,
-      materials: raw.document.materials.filter((material) =>
-        plan.materials.some((item) => item.id === material.id),
-      ),
-    },
-  };
-}
-
-/** Adds or removes a material within the limits. */
-export function editPlanStructure(
-  raw: WorkspaceForm,
-  edit: PlanStructureEdit,
-  limits: ContentLimits,
-): WorkspaceForm {
-  const next = structuredClone(raw),
-    plan = next.plan;
-  if (edit.kind === 'add-material' && plan.materials.length < limits.maxMaterials)
-    plan.materials.push(materialForm());
-  if (edit.kind === 'remove-material')
-    plan.materials = plan.materials.filter((material) => material.id !== edit.id);
-  return next;
 }
 
 /** The current text of a supplied source; undefined for generated materials. */

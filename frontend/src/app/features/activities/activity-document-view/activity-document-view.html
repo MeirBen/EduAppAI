@@ -1,3 +1,6 @@
+@if (issues().title) {
+  <p class="field-error">{{ issues().title }}</p>
+}
 @if (document().title) {
   <h2 dir="auto">{{ document().title }}</h2>
 }
@@ -13,6 +16,20 @@
       <app-copy-button class="ms-auto" [text]="material.body" label="העתקת הטקסט" />
     </div>
     <p dir="auto" class="whitespace-pre-wrap">{{ material.body }}</p>
+    <app-measurement-list [items]="measurements()" [scope]="material.id" />
+    @if (canAsk()) {
+      <button
+        [id]="'ask-material-' + material.id"
+        class="text-link justify-self-start"
+        type="button"
+        (click)="asked.emit({ kind: 'material', id: material.id })"
+      >
+        שאלה על הטקסט<span class="sr-only"> {{ material.title || $index + 1 }}</span>
+      </button>
+    }
+    @if (issues().materials.get(material.id); as issue) {
+      <p class="field-error">{{ issue }}</p>
+    }
   </section>
 }
 @if (document().questions.length) {
@@ -30,6 +47,19 @@
               </li>
             }
           </ul>
+        }
+        @for (issue of questionIssues(question.id); track $index) {
+          <p class="field-error">{{ issue }}</p>
+        }
+        @if (canAsk()) {
+          <button
+            [id]="'ask-question-' + question.id"
+            class="text-link justify-self-start"
+            type="button"
+            (click)="asked.emit({ kind: 'question', id: question.id })"
+          >
+            שאלה על החלק הזה<span class="sr-only"> — שאלה {{ $index + 1 }}</span>
+          </button>
         }
         <p>נקודות: {{ question.points }}</p>
         <details>

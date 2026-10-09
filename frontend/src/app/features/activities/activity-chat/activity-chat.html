@@ -9,13 +9,13 @@
   @if (start && !started()) {
     <p id="chat-help" class="text-muted">
       ספרו במילים פשוטות מה הילד או הילדה צריכים ללמוד או לתרגל: כיתה, נושא, אורך וסוג השאלות. העוזר
-      יכין הגדרות לבדיקה, ומהן תיצרו את הפעילות: קודם הטקסט, אם יש, ואז השאלות.
+      יכין הגדרות לבדיקה. אחר כך תוכלו לשמור טיוטה וליצור את הפעילות.
     </p>
   }
   @if (!configured()) {
     <p role="status" class="note">
-      <span class="icon icon-info" aria-hidden="true"></span>יצירה בעזרת AI לא זמינה כרגע. אפשר למלא
-      את הפרטים ידנית.
+      <span class="icon icon-info" aria-hidden="true"></span>העוזר לא זמין כרגע. אפשר להמשיך לקרוא,
+      לערוך ולשמור טיוטות קיימות.
     </p>
   }
   <div class="grid gap-4" role="log" aria-live="polite" aria-label="השיחה עם העוזר">
@@ -47,11 +47,12 @@
                 </ul>
               </div>
             }
-            @if (last && assumptions().length) {
+            @let turnAssumptions = turn.assumptions ?? [];
+            @if (turnAssumptions.length) {
               <details class="text-sm">
                 <summary>הנחות שהעוזר הניח</summary>
                 <ul class="list-disc ps-6">
-                  @for (assumption of assumptions(); track $index) {
+                  @for (assumption of turnAssumptions; track $index) {
                     <li dir="auto">{{ assumption }}</li>
                   }
                 </ul>
@@ -71,10 +72,27 @@
   <app-loading-indicator
     [class]="busy() ? 'bubble bubble-reply w-fit max-w-full' : ''"
     [active]="busy()"
-    [label]="start ? 'מכינים את ההגדרות…' : 'מעדכנים את ההגדרות…'"
-    [detail]="start ? '' : 'אפשר להמשיך לערוך את ההגדרות, אבל עריכה תבטל את הבקשה.'"
+    [label]="start ? 'מכינים את ההגדרות…' : 'בודקים את הבקשה…'"
   />
-  <form (submit)="$event.preventDefault(); sent.emit()">
+  @if (targetLabel()) {
+    <div
+      id="chat-target"
+      class="well flex flex-wrap items-center gap-3"
+      [class.field-error]="invalidTarget()"
+    >
+      <span>{{ targetLabel() }}</span>
+      <button
+        id="clear-chat-target"
+        type="button"
+        class="text-link"
+        [disabled]="busy()"
+        (click)="targetCleared.emit()"
+      >
+        ביטול הבחירה
+      </button>
+    </div>
+  }
+  <form (submit)="$event.preventDefault(); canSend() && sent.emit()">
     @if (!titled()) {
       <label for="chat-message" class="sr-only">{{
         clarification() ? 'התשובה שלכם' : 'רוצים לשנות משהו? תארו את השינוי'
@@ -111,16 +129,17 @@
             id="chat-cancel"
             type="button"
             class="icon-button icon-button-ink ms-auto"
+            [disabled]="stopping()"
             (click)="cancelled.emit()"
           >
             <span class="icon icon-stop" aria-hidden="true"></span
-            ><span class="tooltip">ביטול הבקשה</span>
+            ><span class="tooltip">עצירה</span>
           </button>
         } @else {
           <button id="chat-send" type="submit" class="icon-button ms-auto" [disabled]="!canSend()">
             <span class="icon icon-up" aria-hidden="true"></span
             ><span class="tooltip">{{
-              clarification() ? 'שליחת התשובה' : start ? 'שליחה' : 'עדכון ההגדרות'
+              clarification() ? 'שליחת התשובה' : start ? 'שליחה' : 'שליחת הבקשה'
             }}</span>
           </button>
         }

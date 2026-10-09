@@ -1,40 +1,93 @@
-# Activity-only slice 2 implementation plan
+# Activity-only slice 2 implementation record
 
-> **For agentic workers:** Use `superpowers:executing-plans` to implement this
-> plan task by task. Track completion with the checkboxes below.
+**Status:** complete and verified, 9 October 2026. Ready for slice 3.
 
-**Goal:** replace the staged/template workspace with the activity canvas and
-chat, including saved drafts, explicit creation and approval.
+**Scope:** the activity canvas/chat built on the verified slice-1 engine/API.
+The [product specification](../../product-specification.md) and
+[chat design](../../activity-chat-design.md) remain authoritative. Backend and
+evaluation retirement, schema cutover and the coordinated real data reset stay
+in slice 3. The slices ship together.
 
-**Architecture:** build on the verified slice-1 engine/API. Keep one workspace
-buffer and the existing API client/observer; read/edit views share that buffer,
-and chat renders state and emits actions. Remove replaced UI and its exclusive
-helpers instead of retaining a second flow.
+## Implemented
 
-**Tech stack:** installed Angular 22, standalone components, signals/Signal
-Forms, Tailwind 4, Vitest and Playwright; existing .NET 8 API.
+- Prompt-first authoring with clarification, a read-only settings summary and
+  exact source confirmation. Editing source text requires confirmation again.
+  Saving persists the plan and bounded conversation without starting AI;
+  incomplete drafts reopen at `/activities/:activityId`.
+- One explicit Create saves first and completes missing content atomically.
+  Content opens for reading; Edit uses the same fixed-structure buffer.
+  Successful manual saving returns to reading. Failed/conflicting saves keep
+  all edits and prevent dependent AI.
+- Chat beside the canvas on wide screens and below it on phones. Text/question
+  shortcuts select stable IDs, fill and focus the composer without sending.
+  Removed targets block sending until cleared. Added sources require explicit
+  confirmation and retain exact text through clarification, failure and reload,
+  until incorporated or removed. Expired operation evidence requires re-entry;
+  recovery never overwrites unsent local work. Persisted turns include committed
+  notices and assumptions; suggestions only fill the request.
+- One Stop action, readable content while work runs, durable Undo and exact
+  operation-key recovery. Active work pauses editing, save, adoption and
+  approval, including open source replacement fields. Failure/Stop retains the
+  request; uncertain outcomes never trigger automatic calls. External changes
+  preserve local edits and offer reload.
+- Saved diagnostics and word counts beside content. Source/text edits offer
+  question regeneration or validated adoption, including after reload.
+  Explicit approval freezes a valid saved revision without AI or assignment.
+  Editing approved content creates a new draft from its immutable snapshot.
+- An activity-only library at `/activities`, with drafts, approved snapshots
+  and one new-activity entry. Independent loading/errors, confirmed deletion,
+  family change notifications and reset remain intact.
 
-**Spec:**
-[product lifecycle](../../product-specification.md#activity-lifecycle),
-[chat design](../../activity-chat-design.md),
-[UI guide](../../ui-guide.md#workspace-actions), and
-[slice-1 record](2026-10-08-activity-only-slice-1.md).
+## Ownership and cleanup
 
-## Global constraints
+`ActivityWorkspace` owns one plan/document buffer and all requests; the existing
+observer owns reads and reconciliation. Reading, editing and chat components
+render input and emit actions. Server-validated settings retain their canonical
+shape; only editable sources need local plan validation. No new dependency,
+backend project, store, repository or workflow abstraction was introduced.
 
-- No Git mutations or live paid AI calls. Any future live evaluation requires an
-  agreed budget first; use isolated providers for this slice.
-- Coordinate any dev-server interruption before execution, including
-  verification that runs `npm ci`. No real data reset in slice 2.
-- Hebrew/RTL, native accessible controls, theme tokens, 360px layout and 200%
-  text; read limits from the existing server contract.
-- Keep server ownership, revision checks, immutable snapshots and child
-  answer-key isolation. Do not change engine prompts, operation semantics or
-  dependencies.
-- No legacy routes/adapters, new workflow framework, second chat store or
-  parallel page phases. An edit-mode flag controls presentation only.
-- Backend template APIs/storage, evaluation-caller retirement and coordinated
-  learning-data cutover remain slice 3. The slices ship together.
+Removed:
+
+- Template routes, publication/version/provenance UI state, library queries,
+  frontend template DTOs and API methods; no legacy redirects or adapters.
+- The plan editor, length/settings controls, scoped-repair forms, staged
+  generation actions, four-step progress and their exclusive tests/styles.
+- Checkbox/count conversion state for read-only settings, old reconciliation,
+  single-target operation projection and unused helpers/imports. Remaining
+  plan buffer helpers live with the workspace that owns them.
+- Duplicate cancellation controls and the source-confirmation path that cleared
+  unsaved chat history. One bounded authoring thread becomes server-owned after
+  saving. Navigation warnings also protect unsent text and clarification work.
+
+Hebrew copy uses simple action names: **יצירת הפעילות**, **שמירת טיוטה**,
+**עריכה**, **אישור הפעילות**. Settings collapse once content exists; technical
+operation evidence stays under its disclosure. Focus follows the action that
+owned it, and chat cannot steal focus from newly created content.
+
+## Verification
+
+The suite uses disposable databases and a local provider; no paid calls or real
+learning-data reset. The user stopped their development server before full
+verification; it remains stopped. No Git mutations were performed.
+
+- `scripts/verify.sh`: 671 backend, 249 Angular and 23 dashboard tests,
+  formatting, Markdown, TypeScript and production builds passed.
+- `scripts/publish.sh` and all 30 isolated browser tests passed.
+- Fresh independent code review found two source-lifecycle issues, a missing
+  source-replacement lock and an unused Undo helper. All four are fixed, with
+  seven regression cases; no review findings were deferred.
+- Strict unused-local/parameter compilation, obsolete UI/route searches, icon
+  usage and `git diff --check` passed.
+
+Dependencies are unchanged. `npm audit` still reports 10 development-dependency
+findings (6 high, 1 moderate, 3 low); dependency remediation is outside this
+slice's scope. These are separate from the four resolved code-review findings.
+
+Coverage includes source fidelity/confirmation, saved conversation, read/edit
+switching, failed saves, target identity, reload-persistent recovery, Stop and
+lost-response races, external edits/deletion, immutable previews/copies,
+family/child isolation, keyboard focus, RTL and 360px/200% text. Retired feature
+checks were removed; useful lifecycle coverage was migrated to the canvas.
 
 ## Review focus
 
@@ -44,163 +97,18 @@ Forms, Tailwind 4, Vitest and Playwright; existing .NET 8 API.
 - Lost responses and Stop races reconcile without another AI call (task 3).
 - Reload preserves recovery offers; snapshots stay immutable (tasks 2–5).
 
-## Tasks
+## Slice 3
 
-Paths below are relative to `frontend/src/app/` unless stated otherwise. For
-tasks 1–4, add the named behavior checks to the listed specs, run them to
-confirm the expected failure, implement the change, then rerun to green:
-`npm --prefix frontend test -- --watch=false --include='<spec path relative to frontend>'`.
+Migrate remaining evaluation callers before retiring backend template endpoints,
+entities, DbSets/provenance and replaced operation kinds. Keep Create, Revise and
+GenerateQuestions for explicit manual-edit recovery. Retain queue version/profile
+fences, server ownership and immutable assignment/child contracts.
 
-### 1. Prompt-first setup and an explicit saved checkpoint
+Plan and coordinate the fresh learning-data/schema cutover, preserving parent
+accounts, families and AI configuration. Check an empty queue and verify fresh
+create/resume/approve/assign/reset flows before restart. There is no old-plan
+conversion, compatibility reader or automatic startup reset.
 
-**Files:**
-`features/activities/activity-workspace/{activity-workspace.ts, activity-workspace.html,workspace-form.ts,activity-workspace.spec.ts}`
-and
-`features/activities/activity-setup/{activity-setup.ts,activity-setup.html, activity-setup.spec.ts}`.
-
-**Interfaces:** reuse `LearningApi.authorPlan`, `LearningPlan`,
-`ImportedChatTurn[]` and `WorkspaceForm`. Authoring owns only unsaved proposals;
-the saved draft's chat becomes authoritative after creation.
-
-- [ ] Test `requiresSourceConfirmationBeforeSaving`: missing/changed extracted
-      text blocks the checkpoint; confirmed text round-trips exactly. Test
-      `savesIncompleteDraftWithoutGeneration`: plan/chat persist, content may be
-      incomplete, and saving makes no operation request.
-- [ ] Replace editable requirement controls with a concise read-only summary.
-      Keep bounded source input/confirmation in `ActivitySetup`;
-      requirement/source kind changes use chat. Preserve local request/revision
-      correlation, cancellation and the unsaved-navigation guard.
-- [ ] Make **שמירת טיוטה** save the valid plan and imported conversation. Make
-      **יצירת הפעילות** save first when necessary, then start one `Create`
-      operation. Resume at `/activities/:activityId`; pre-content `Revise` does
-      not implicitly create content. Test late authoring replies after changed
-      input/Stop and a reload between saving and creation.
-
-### 2. Reading canvas, fixed content editing and recovery
-
-**Files:** workspace files above and `activity-lifecycle.spec.ts` beside them;
-`features/activities/activity-document-view/{activity-document-view.ts, activity-document-view.html}`;
-existing `activity-document-editor`, `activity-review`, `source-replacement` and
-their affected specs.
-
-**Interfaces:** `ActivityDocumentView.document: EditableActivity` is a
-projection of the same `WorkspaceForm` used by the editor. Keep existing
-save/adopt/release methods and the server's diagnostics/measurements as
-authorities.
-
-- [ ] Test `failedSaveKeepsEditingAndPreventsAi`: failed/409 saves retain every
-      field and edit mode; success returns to reading. Invalid edits prevent AI;
-      valid pending edits save before its operation starts.
-- [ ] Render the document read-first; **עריכה** opens existing fixed-structure
-      fields. Keep answer disclosures, diagnostics/lengths beside content and
-      exact confirmed-source replacement. Settings and formats stay read-only.
-- [ ] Test `questionRecoveryOfferSurvivesReload`: saved source/text diagnostics
-      offer explicit `GenerateQuestions` or validated adoption without AI. Undo
-      is unavailable with unsaved edits; retain server rules for
-      clearing/consuming it.
-- [ ] Keep **אישור הפעילות** explicit against a valid saved revision, with no AI
-      or automatic assignment. Test frozen preview → snapshot copy → editable
-      draft, preserving the original snapshot and assignments.
-
-### 3. Adjacent activity chat, targeting and durable recovery
-
-**Files:** rename
-`features/activities/template-chat/{template-chat.ts, template-chat.html,template-chat.spec.ts}`
-to matching `activity-chat` paths; workspace/reader files above;
-`features/activities/activity-workspace/ {draft-observer.ts,draft-observer.spec.ts}`
-and existing `generation-status`.
-
-**Interfaces:** use `ActivityChatTurn`, `RevisionTarget` and
-`StartGeneration.target/sources`. Add opt-in reader input `canAsk: boolean` and
-output `asked: RevisionTarget`; snapshot previews leave it off. Workspace
-`selectTarget(target: RevisionTarget): void` fills the request and calls
-`ActivityChat.focusComposer(): void`; only the existing `sent` event starts
-work.
-
-- [ ] Test `targetShortcutOnlyFillsComposer`: each text/question sets the exact
-      visible target, fills/focuses chat and sends nothing. Removing a target
-      blocks submission until the parent clears/reselects it; never retarget by
-      position.
-- [ ] Rename/adapt the existing chat to show persisted turns, assumptions and
-      committed notices. Pass message, optional target and explicitly confirmed
-      added sources through `StartGeneration`; collect label/text in the chat's
-      source input before admission. Source replacement stays the confirmed save
-      from task 2. Test exact added-source payload and no unconfirmed
-      submission.
-- [ ] Put chat beside the readable canvas on wide screens and below it on
-      phones. Retain suggestions that only fill, Enter/Shift+Enter/IME handling,
-      typing status and Send/Stop focus. Preserve the request after
-      failure/Stop.
-- [ ] Test `unknownStartReusesIdenticalRequest` and
-      `stopAfterCompletionShowsCommittedResult`: use the existing observer/key
-      recovery; no automatic retry, duplicate turn or partial content
-      application. While active, keep content readable and pause
-      editing/save/adopt/undo/approval.
-- [ ] Test dirty-buffer external save/deletion and chat-only updates: announce
-      saved-state changes without discarding local edits. Uncertain
-      create/save/undo/ approval responses offer a saved-state check, never
-      blind resubmission. Keep truthful status, Stop and technical evidence;
-      show the operation-capacity limit without disabling available manual
-      save/review.
-
-### 4. Activity-only routes/library and complete UI retirement
-
-**Files:** `app.routes.ts`, `features/activities/activity.routes.ts`,
-`features/library/activity-library/{activity-library.ts,activity-library.html, activity-library.spec.ts}`,
-`core/api/{learning-api.ts,models.ts}`, `features/auth/parent-shell.html`,
-`features/assignments/assignment-list.html`,
-`features/instances/snapshot-preview/snapshot-preview.html`, workspace and
-affected navigation tests/styles.
-
-**Interfaces:** library `/activities`, new `/activities/new`, draft
-`/activities/:activityId`; keep `/instances/:instanceId` for frozen previews.
-Simplify `LearningApi.createActivity` to accept `plan: LearningPlan`,
-`lifetime: DestroyRef` and optional `chat: ImportedChatTurn[]`, returning
-`Promise<ActivityDetail>`; retain `copySnapshot`.
-
-- [ ] Test library drafts/ready loading, independent errors, deletion and reset;
-      assert no template request/action. Preserve reset confirmation and family
-      SSE refresh. Update every app link and navigation test to `/activities`.
-- [ ] Remove template routes, mode/provenance/publication state, library queries
-      and frontend template DTO/API methods. Do not add redirects or
-      compatibility readers. Keep the default new-activity route.
-- [ ] After tasks 1–3 work, delete `plan-editor` UI/`length-fields`,
-      `scoped-repair` and their exclusive tests; remove staged text/question
-      buttons, four-step progress and old target-card actions. Remove frontend
-      callers/types for `GenerateMaterials`, `ReplaceMaterial` and
-      `ReplaceQuestion`, along with `ActivityReview.questionsNext` and its
-      staged workflow copy.
-- [ ] Remove abandoned form/projection helpers, settings controls, styles,
-      imports and comments after checking remaining uses. Retain only form
-      validation and projections required by the single buffer; do not replace
-      them with a new store. Remove superseded tests while preserving useful
-      behavioral coverage.
-
-### 5. Verify the complete flow and update implementation docs
-
-**Files:** rename `frontend/e2e/activities/plan-workspace.spec.ts` to
-`activity-canvas.spec.ts`; update existing activity lifecycle, parent workflow,
-navigation/assignment browser tests and `frontend/e2e/generate-draft.ts`;
-`README.md`, `docs/architecture.md`, `docs/ui-guide.md` and this plan.
-
-- [ ] Add isolated browser coverage for prompt/clarification → confirm sources →
-      save/reopen → one Create → read/edit → targeted Revise → undo → approve →
-      assign/copy. Exercise failure/recovery, keyboard announcements/focus, RTL
-      and 360px/200% text. Keep family/child isolation and frozen-content
-      regressions.
-- [ ] Check running dev processes and coordinate any interruption before
-      `scripts/verify.sh`. Then run `scripts/publish.sh` and
-      `npm --prefix frontend run e2e` against disposable data/local providers.
-      Require all commands to exit 0; fix failures before declaring the slice
-      done.
-- [ ] Review unused imports/helpers and `git diff --check`; search application
-      code for retired template routes/actions and explain any legitimate
-      remaining backend/evaluation references reserved for slice 3.
-- [ ] Update current implementation/setup docs with the working activity-only
-      flow, and replace this checklist with scope/results/remaining cutover
-      work. Keep target specs authoritative; do not claim slice-3
-      retirement/reset is done.
-
-**Done:** the complete activity-only UI passes isolated verification, obsolete
-UI is removed, and only the documented slice-3 cutover remains. No dev-server
-interruption, real reset or live spend is implicit in finishing this plan.
+Coordinate any dev-server interruption or real reset separately. Ask for an
+explicit budget before any live AI evaluation; isolated verification does not
+establish live-model quality.

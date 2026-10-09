@@ -1,248 +1,153 @@
-@let isTemplate = context() === 'template';
-<section class="mx-auto grid max-w-3xl gap-6" aria-labelledby="workspace-title">
-  <header class="grid gap-4">
-    <div class="grid gap-1">
-      <a routerLink="/templates" class="text-link"
-        ><span class="icon icon-back" aria-hidden="true"></span>המרחב שלנו</a
-      >
-      <h1 id="workspace-title">{{ heading() }}</h1>
-    </div>
-    @if (!isTemplate && !loading() && !loadError()) {
-      <ol role="list" aria-label="שלבי הכנת הפעילות" class="progress-steps">
-        @for (step of steps; track step; let index = $index) {
-          @let done = index < stage();
-          <li
-            [attr.data-done]="done ? '' : null"
-            [attr.aria-current]="index === stage() ? 'step' : null"
-          >
-            <span class="step-marker" aria-hidden="true">
-              @if (done) {
-                <span class="icon icon-check"></span>
-              } @else {
-                {{ index + 1 }}
-              }
-            </span>
-            <span class="step-label"
-              >{{ step }}
-              @if (done) {
-                <span class="sr-only">(הושלם)</span>
-              }
-            </span>
-          </li>
-        }
-      </ol>
-    }
+<section class="mx-auto grid max-w-7xl gap-6" aria-labelledby="workspace-title">
+  <header class="grid gap-1">
+    <a routerLink="/activities" class="text-link"
+      ><span class="icon icon-back" aria-hidden="true"></span>המרחב שלנו</a
+    >
+    <h1 id="workspace-title">{{ heading() }}</h1>
   </header>
   <app-loading-indicator [active]="loading()" label="טוענים…" variant="panel" />
   @if (loadError()) {
     <p role="alert" class="error">{{ apiError(loadError()) }}</p>
   } @else if (!loading()) {
-    <section class="panel grid gap-4" aria-labelledby="plan-title">
-      @if (hasPlan()) {
-        <div class="flex flex-wrap items-start justify-between gap-x-4 gap-y-1">
-          <div class="grid min-w-0 gap-1">
-            <h2 id="plan-title">{{ isTemplate ? 'הגדרות התבנית' : 'הגדרות הפעילות' }}</h2>
-            @if (!setupOpen()) {
-              <p class="text-muted">
-                @for (part of summary(); track $index) {
-                  <bdi>{{ part }}</bdi>
-                  @if (!$last) {
-                    <span aria-hidden="true"> · </span>
-                  }
-                }
-              </p>
-            }
-          </div>
-          @if (hasContent() && !released()) {
-            <button
-              type="button"
-              class="text-link"
-              aria-controls="setup-body change-panel"
-              [attr.aria-expanded]="setupOpen()"
-              (click)="setupOpen.set(!setupOpen())"
-            >
-              <span
-                class="icon"
-                [class]="setupOpen() ? 'icon-close' : 'icon-edit'"
-                aria-hidden="true"
-              ></span
-              >{{ setupOpen() ? 'הסתרת ההגדרות' : 'שינוי' }}
-            </button>
-          }
-        </div>
-      } @else {
-        <div class="flex items-center gap-3">
-          <span class="ai-mark size-11" aria-hidden="true"></span>
-          <h2 id="plan-title">{{ isTemplate ? 'איזו תבנית תרצו להכין?' : 'מה תרצו להכין?' }}</h2>
-        </div>
-      }
-      <div id="setup-body" class="grid gap-6" [hidden]="!setupOpen()">
+    <div
+      class="grid min-w-0 items-start gap-6"
+      [class]="
+        hasContent() && !released()
+          ? 'lg:grid-cols-[minmax(0,2fr)_minmax(20rem,1fr)]'
+          : 'mx-auto w-full max-w-3xl'
+      "
+    >
+      <div class="grid min-w-0 gap-6">
         @if (hasPlan()) {
-          <app-activity-setup
-            class="motion-safe:animate-enter"
-            [plan]="fields.plan"
-            [pendingSources]="pendingSources()"
-            [locked]="locked()"
-            (edited)="edited($event)"
-            (sourceConfirmed)="confirmSource($event)"
-          />
-        } @else {
-          <ng-container [ngTemplateOutlet]="authorChat" />
-        }
-        <details
-          class="group/advanced border-t border-line pt-2"
-          [open]="isTemplate || ai.value()?.configured === false"
-        >
-          <summary>
-            {{ hasPlan() ? 'אפשרויות מתקדמות' : 'מילוי הפרטים ידנית' }}
-            @if (advancedInvalid()) {
-              <span class="text-danger group-open/advanced:hidden">· יש לתקן שדות</span>
-            }
-          </summary>
-          <app-plan-editor
-            [fields]="fields.plan"
-            [locked]="locked() || !!saved()"
-            (edited)="edited($event)"
-            (structureChanged)="changeStructure($event)"
-          />
-        </details>
-      </div>
-    </section>
-    @if (hasPlan()) {
-      <section
-        id="change-panel"
-        class="panel grid gap-4"
-        aria-labelledby="change-title"
-        [hidden]="!setupOpen()"
-      >
-        <ng-container [ngTemplateOutlet]="authorChat" />
-      </section>
-    }
-    @if (!operationTarget() && !released()) {
-      <ng-container [ngTemplateOutlet]="operationStatus" />
-    }
-    @if (elsewhere() !== 'deleted' && available(); as result) {
-      <section class="panel grid gap-4" aria-labelledby="available-title">
-        <div class="grid gap-1">
-          <h2 id="available-title">
-            {{ elsewhere() === 'changed' ? 'גרסה שמורה חדשה' : 'נוצרה תוצאה בזמן שהמשכתם לערוך' }}
-          </h2>
-          <p>לא החלפנו את העבודה שלכם. אפשר לבדוק את התוצאה ולטעון אותה במקום השינויים שלכם.</p>
-        </div>
-        <details class="well">
-          <summary>בדיקת התוצאה</summary>
-          <app-activity-document-view [document]="result.document" />
-        </details>
-        <ng-container [ngTemplateOutlet]="reload" />
-      </section>
-    }
-    @if (released() && !dirty()) {
-      <div class="panel"><app-activity-document-view [document]="saved()!.document" /></div>
-    } @else if (saved() || hasContent()) {
-      <app-activity-document-editor
-        [fields]="fields.document"
-        [materials]="raw().plan.materials"
-        [locked]="locked()"
-        [aiAvailable]="aiConfigured()"
-        [operationActive]="operationActive()"
-        [empty]="!hasContent()"
-        [staleMaterials]="stale().materials"
-        [staleQuestions]="stale().questions"
-        [contentIssues]="contentIssues()"
-        [status]="operationStatus"
-        [statusTarget]="operationTarget()"
-        (edited)="edited($event)"
-        (replaced)="activityAction($event.kind, $event)"
-        (adopted)="activityAction('adopt', $event)"
-        (sourceReplaced)="replaceSource($event)"
-      />
-    }
-    @if (sourceReplacement().id) {
-      <app-source-replacement
-        [field]="sourceFields.text"
-        [locked]="saving()"
-        (typed)="markLocalChange()"
-        (accepted)="acceptSourceReplacement()"
-        (cancelled)="sourceReplacement.set({ id: '', text: '' })"
-      />
-    }
-    @if (!isTemplate && hasContent()) {
-      <section class="panel grid gap-4" aria-labelledby="review-title">
-        @if (released()) {
-          <div class="grid gap-1">
-            <h2 id="review-title">הפעילות מוכנה</h2>
-            <p>
-              הפעילות נשמרה כעותק קבוע, ואפשר להקצות אותה לילדים. כדי לשנות אותה, ערכו אותה כטיוטה
-              חדשה.
-            </p>
-          </div>
-        } @else {
-          <h2 id="review-title">{{ questionsNext() ? 'בדיקת הטקסט' : 'בדיקה וסימון כמוכנה' }}</h2>
-          <app-activity-review
-            [questionsNext]="questionsNext()"
-            [issues]="issues()"
-            [measurements]="measurements()"
-            [saved]="!!saved()"
-            [outdated]="dirty() || operationActive()"
-          />
-          <details>
-            <summary>פעולות נוספות</summary>
-            <div class="grid gap-1">
-              @if (!createAction()) {
-                <button
-                  id="regenerate-questions"
-                  class="text-link"
-                  type="button"
-                  [disabledInteractive]="!canGenerate()"
-                  (click)="regenerate('GenerateQuestions')"
-                >
-                  <span class="icon icon-ai" aria-hidden="true"></span>יצירת כל השאלות מחדש
-                </button>
-                @if (textNeeded()) {
-                  <button
-                    id="regenerate-text"
-                    class="text-link"
-                    type="button"
-                    [disabledInteractive]="!canGenerate()"
-                    (click)="regenerate('GenerateMaterials')"
-                  >
-                    <span class="icon icon-ai" aria-hidden="true"></span>יצירת טקסט חדש במקום טקסט
-                    שאינו עדכני
-                  </button>
-                }
-              }
-              <button
-                type="button"
-                id="new-activity"
-                class="text-link"
-                [disabledInteractive]="saving()"
-                (click)="newActivity()"
-              >
-                <span class="icon icon-add" aria-hidden="true"></span>פעילות חדשה עם אותן הגדרות,
-                בלי התוכן הנוכחי
-              </button>
-              @if (reloadPlacement() === 'more') {
-                <ng-container [ngTemplateOutlet]="reload" />
-              }
-            </div>
+          <details class="panel" [open]="!hasContent()">
+            <summary id="plan-title">הגדרות הפעילות</summary>
+            <app-activity-setup
+              [plan]="fields.plan"
+              [pendingSources]="pendingSources()"
+              [locked]="locked()"
+              (edited)="edited($event)"
+              (sourceConfirmed)="confirmSource($event)"
+            />
           </details>
         }
-      </section>
-    }
-    @if (!isTemplate && hasPlan()) {
-      <details class="well">
-        <summary>שמירה כתבנית לשימוש חוזר</summary>
-        <div class="grid gap-4">
-          <p>
-            התבנית שומרת את ההגדרות בלי התוכן, כדי ליצור בקלות פעילויות דומות. שם התבנית:
-            <bdi>{{ raw().plan.name }}</bdi>
-            <span class="text-sm text-muted"> (אפשר לשנות באפשרויות המתקדמות)</span>
-          </p>
-          <ng-container [ngTemplateOutlet]="publishAction" />
-          <ng-container [ngTemplateOutlet]="publishFeedback" />
-        </div>
-      </details>
-    }
+        @if (!released()) {
+          <ng-container [ngTemplateOutlet]="operationStatus" />
+        }
+        @if (elsewhere() !== 'deleted' && available(); as result) {
+          <section class="panel grid gap-4" aria-labelledby="available-title">
+            <h2 id="available-title">גרסה שמורה חדשה</h2>
+            <p>לא החלפנו את העבודה שלכם. אפשר לבדוק את התוצאה ולטעון אותה במקום השינויים שלכם.</p>
+            <details class="well">
+              <summary>בדיקת התוצאה</summary>
+              <app-activity-document-view [document]="result.document" />
+            </details>
+            <ng-container [ngTemplateOutlet]="reload" />
+          </section>
+        }
+        @if (hasContent()) {
+          @if (editing() && !operationActive()) {
+            <app-activity-document-editor
+              [fields]="fields.document"
+              [materials]="raw().plan.materials"
+              [locked]="locked()"
+              [contentIssues]="contentIssues()"
+              [measurements]="measurements()"
+              [staleMaterials]="stale().materials"
+              (adopted)="activityAction('adopt', $event)"
+              (edited)="edited($event)"
+              (sourceReplaced)="replaceSource($event)"
+            />
+          } @else {
+            <section class="panel grid gap-4" aria-labelledby="document-heading">
+              <div class="flex flex-wrap items-center justify-between gap-3">
+                <h2 id="document-heading">תוכן הפעילות</h2>
+                @if (!released()) {
+                  <button
+                    id="edit-activity"
+                    type="button"
+                    class="text-link"
+                    [disabledInteractive]="locked()"
+                    (click)="editContent()"
+                  >
+                    <span class="icon icon-edit" aria-hidden="true"></span>עריכה
+                  </button>
+                }
+              </div>
+              @if (documentProjection().value; as document) {
+                <app-activity-document-view
+                  [document]="document"
+                  [issues]="contentIssues()"
+                  [measurements]="measurements()"
+                  [canAsk]="!locked()"
+                  (asked)="selectTarget($event)"
+                />
+              }
+            </section>
+          }
+        }
+        @if (sourceReplacement().id) {
+          <app-source-replacement
+            [field]="sourceFields.text"
+            [locked]="locked()"
+            (typed)="markLocalChange()"
+            (accepted)="acceptSourceReplacement()"
+            (cancelled)="sourceReplacement.set({ id: '', text: '' })"
+          />
+        }
+        @if (hasContent()) {
+          <section class="panel grid gap-4" aria-labelledby="review-title">
+            @if (released()) {
+              <h2 id="review-title">הפעילות מוכנה</h2>
+              <p>הפעילות נשמרה כעותק קבוע. אפשר להקצות אותה לילדים או לערוך עותק כטיוטה חדשה.</p>
+            } @else {
+              <h2 id="review-title">בדיקת הפעילות</h2>
+              <app-activity-review
+                [issues]="issues()"
+                [measurements]="totalMeasurements()"
+                [saved]="!!saved()"
+                [outdated]="dirty() || operationActive()"
+              />
+              @if (stale().questions.size) {
+                <div id="question-recovery" class="callout grid gap-3">
+                  <p>בדקו אם השאלות עדיין מתאימות לטקסט ולהגדרות השמורים.</p>
+                  <div class="flex flex-wrap gap-3">
+                    <button
+                      id="regenerate-questions"
+                      class="button button-secondary"
+                      type="button"
+                      [disabledInteractive]="!canGenerate()"
+                      (click)="regenerateQuestions()"
+                    >
+                      <span class="icon icon-ai" aria-hidden="true"></span>עדכון השאלות
+                    </button>
+                    <button
+                      id="adopt-questions"
+                      class="button button-secondary"
+                      type="button"
+                      [disabledInteractive]="locked() || dirty()"
+                      (click)="adoptQuestions()"
+                    >
+                      <span class="icon icon-check" aria-hidden="true"></span>השאלות עדיין מתאימות
+                    </button>
+                  </div>
+                </div>
+              }
+            }
+          </section>
+        }
+        @if (reloadPlacement() === 'more') {
+          <ng-container [ngTemplateOutlet]="reload" />
+        }
+      </div>
+      @if (!released()) {
+        <section class="panel grid min-w-0 gap-4" aria-label="השיחה על הפעילות">
+          @if (!hasPlan()) {
+            <h2 id="plan-title">מה תרצו להכין?</h2>
+          }
+          <ng-container [ngTemplateOutlet]="authorChat" />
+        </section>
+      }
+    </div>
     @if (actionBar()) {
       <section class="action-bar" actionBar aria-labelledby="actions-title">
         <h2 id="actions-title" class="sr-only">שמירה ופעולות</h2>
@@ -252,30 +157,18 @@
             @if (reloadPlacement() === 'error') {
               <ng-container [ngTemplateOutlet]="reload" />
             }
+            @if (!saved()) {
+              <a routerLink="/activities" class="text-link">בדיקת הטיוטה במרחב שלנו</a>
+            }
           </div>
         }
         <app-field-errors [field]="fields" />
         @if (startRecovery()) {
-          <p>
-            לא ברור אם בקשת היצירה התקבלה. הבדיקה שולחת שוב את אותה בקשה, בלי להתחיל יצירה חדשה.
-          </p>
-        }
-        @if (isTemplate) {
-          <ng-container [ngTemplateOutlet]="publishFeedback" />
+          <p>לא ברור אם הבקשה התקבלה. אפשר לבדוק אותה בלי להתחיל פעולה חדשה.</p>
         }
         <div class="action-bar-row">
           <div class="action-bar-actions">
-            @if (isTemplate) {
-              <ng-container [ngTemplateOutlet]="publishAction" />
-              @if (publication(); as current) {
-                <a
-                  id="create-from-template"
-                  class="text-link"
-                  [routerLink]="['/templates', current.id, 'create']"
-                  ><span class="icon icon-add" aria-hidden="true"></span>פעילות מהתבנית</a
-                >
-              }
-            } @else if (released()) {
+            @if (released()) {
               <a
                 class="button"
                 [routerLink]="['/instances', (available() ?? saved())!.releasedSnapshotId]"
@@ -299,14 +192,12 @@
                   [disabledInteractive]="saving()"
                   (click)="recoverStart()"
                 >
-                  <span class="icon icon-refresh" aria-hidden="true"></span>בדיקת בקשת היצירה
+                  <span class="icon icon-refresh" aria-hidden="true"></span>בדיקת הבקשה
                 </button>
               }
               @if (createAction(); as create) {
                 <button
-                  [id]="
-                    create.kind === 'GenerateMaterials' ? 'generate-text' : 'generate-questions'
-                  "
+                  id="create-activity"
                   class="button"
                   type="button"
                   [disabledInteractive]="!canGenerate()"
@@ -319,17 +210,19 @@
                   id="release-activity"
                   class="button"
                   type="button"
-                  [disabledInteractive]="contentBusy()"
+                  [disabledInteractive]="
+                    locked() || dirty() || !!issues().length || approvalBlocked()
+                  "
                   (click)="activityAction('release')"
                 >
-                  <span class="icon icon-check" aria-hidden="true"></span>סימון כמוכנה
+                  <span class="icon icon-check" aria-hidden="true"></span>אישור הפעילות
                 </button>
               }
               <button
                 id="save-activity"
                 class="button button-secondary"
                 type="button"
-                [disabledInteractive]="saving()"
+                [disabledInteractive]="locked()"
                 (click)="activityAction('save')"
               >
                 שמירת טיוטה
@@ -368,82 +261,111 @@
             <app-action-bar-toggle />
           </div>
         </div>
-        @if (isTemplate) {
-          <p class="note">
-            <span class="icon icon-info" aria-hidden="true"></span>השמירה מעדכנת את התבנית במרחב
-            שלנו ולא יוצרת פעילות.
-          </p>
-        }
         <app-loading-indicator [active]="copying()" label="יוצרים טיוטה חדשה…" />
       </section>
     }
   }
 </section>
-
 <ng-template #authorChat>
-  <app-template-chat
+  <app-activity-chat
     [fields]="chatFields"
     [configured]="aiConfigured()"
-    [busy]="authoring()"
-    [locked]="locked()"
+    [busy]="authoring() || operationActive()"
+    [stopping]="saving()"
+    [locked]="locked() || invalidTarget() || !sourcesReady()"
+    [targetLabel]="targetLabel()"
+    [invalidTarget]="invalidTarget()"
+    (targetCleared)="selectedTarget.set(undefined)"
     [clarification]="clarification()"
     [thread]="thread()"
     [pending]="pendingMessage()"
     [changes]="changes()"
-    [assumptions]="assumptions()"
     [consolidationRequired]="needsConsolidation()"
     [refining]="hasPlan()"
     labelledBy="plan-title"
     (sent)="author()"
     (consolidated)="author(true)"
-    (cancelled)="cancelAuthor()"
+    (cancelled)="operationActive() ? cancelGeneration() : cancelAuthor()"
   />
+  @if (saved()) {
+    <details class="border-t border-line pt-3">
+      <summary>
+        @if (addedSources().length === 1) {
+          טקסט שצורף לבקשה
+        } @else if (addedSources().length > 1) {
+          טקסטים שצורפו לבקשה ({{ addedSources().length }})
+        } @else {
+          הוספת טקסט שלכם לבקשה
+        }
+      </summary>
+      <div class="grid gap-4">
+        @for (source of addedSources(); track $index; let i = $index) {
+          <div class="well grid gap-3">
+            <label [for]="'chat-source-' + i + '-label'">שם הטקסט</label>
+            <input
+              [id]="'chat-source-' + i + '-label'"
+              dir="auto"
+              [formField]="additionFields[i].label"
+            />
+            <label [for]="'chat-source-' + i + '-text'">הטקסט שלכם</label>
+            <textarea
+              [id]="'chat-source-' + i + '-text'"
+              dir="auto"
+              rows="6"
+              [formField]="additionFields[i].text"
+            ></textarea>
+            <app-field-errors [field]="additionFields[i]" />
+            <p class="text-sm text-muted">
+              הטקסט יישמר בדיוק כפי שהוזן. אשרו אותו לפני שליחת הבקשה.
+            </p>
+            @if (!source.text || source.confirmedText !== source.text) {
+              <button
+                [id]="'confirm-chat-source-' + i"
+                type="button"
+                class="button button-secondary"
+                [disabledInteractive]="locked() || additionFields[i]().invalid()"
+                (click)="confirmAddedSource(i)"
+              >
+                הטקסט הועתק נכון
+              </button>
+            } @else {
+              <p role="status">הטקסט אושר לשליחה.</p>
+            }
+            <button
+              type="button"
+              class="text-link"
+              [disabledInteractive]="locked()"
+              (click)="removeAddedSource(i)"
+            >
+              הסרת הטקסט מהבקשה
+            </button>
+          </div>
+        }
+        <button
+          id="add-chat-source"
+          type="button"
+          class="text-link"
+          [disabledInteractive]="locked() || addedSources().length >= limits.maxMaterials"
+          (click)="addSource()"
+        >
+          הוספת טקסט
+        </button>
+      </div>
+    </details>
+  }
   @if (authorError()) {
     <p role="alert" class="field-error">{{ authorError() }}</p>
   }
 </ng-template>
-
-<ng-template #operationStatus let-inCard="inCard">
+<ng-template #operationStatus>
   @if (operation(); as current) {
     <app-generation-status
       [operation]="current"
-      [inCard]="!!inCard"
       [locked]="saving() || released()"
-      [configured]="aiConfigured()"
-      (cancelled)="cancelGeneration()"
-      (retried)="activityAction($event)"
       (checked)="reloadActivity()"
     />
   }
 </ng-template>
-
-<ng-template #publishAction>
-  <button
-    id="save-template"
-    type="button"
-    class="button"
-    [class.button-secondary]="context() !== 'template'"
-    [disabledInteractive]="saving() || !templateChanged()"
-    (click)="saveTemplate()"
-  >
-    <span class="icon icon-template" aria-hidden="true"></span
-    >{{ publication() ? 'עדכון התבנית' : 'שמירה כתבנית' }}
-  </button>
-</ng-template>
-
-<ng-template #publishFeedback>
-  <app-loading-indicator [active]="publishing()" label="שומרים את התבנית…" />
-  @if (error(); as problem) {
-    <div class="flex flex-wrap items-center gap-x-4">
-      <p role="alert" class="field-error">{{ problem.message }}</p>
-      @if (problem.checkLibrary) {
-        <a id="check-library" routerLink="/templates" class="text-link">בדיקת התבנית במרחב שלנו</a>
-      }
-    </div>
-  }
-  <p role="status">{{ templateNotice() }}</p>
-</ng-template>
-
 <ng-template #reload>
   <button
     id="reload-activity"

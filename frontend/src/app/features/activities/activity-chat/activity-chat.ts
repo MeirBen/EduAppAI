@@ -11,7 +11,7 @@ import {
   viewChild,
 } from '@angular/core';
 import { FieldTree, FormField } from '@angular/forms/signals';
-import { AuthoringTurn } from '../../../core/api/models';
+import { ActivityChatTurn, AuthoringTurn } from '../../../core/api/models';
 import { LoadingIndicator } from '../../../shared/loading-indicator/loading-indicator';
 import { FieldDirection } from '../../../shared/forms/field-direction';
 import { SuggestionChips } from '../../../shared/suggestion-chips/suggestion-chips';
@@ -37,28 +37,34 @@ const changeSuggestions = [
 ];
 
 /**
- * The authoring conversation: the visible thread, the request in flight and the composer. The
+ * The activity conversation: the visible thread, the request in flight and the composer. The
  * route owns message text, unresolved context and all requests; this component only emits.
  */
 @Component({
   imports: [FormField, FieldDirection, SuggestionChips, LoadingIndicator],
-  selector: 'app-template-chat',
-  templateUrl: './template-chat.html',
+  selector: 'app-activity-chat',
+  host: { '(focusin)': 'focusInside = true', '(focusout)': 'leaveFocus($event)' },
+  templateUrl: './activity-chat.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class TemplateChat {
+export class ActivityChat {
   readonly fields = input.required<FieldTree<{ message: string; consolidated: string }>>();
   readonly configured = input(false);
   readonly busy = input(false);
+  readonly stopping = input(false);
   readonly locked = input(false);
   readonly clarification = input('');
-  /** Turns shown in order: the last answered request, then any unresolved clarification turns. */
-  readonly thread = input<AuthoringTurn[]>([]);
+  /** Bounded authoring history before save; persisted draft turns after save. */
+  readonly thread = input<
+    readonly (AuthoringTurn & Partial<Pick<ActivityChatTurn, 'assumptions' | 'target'>>)[]
+  >([]);
   /** The parent's message while its request runs; it returns to the composer if the request fails. */
   readonly pending = input('');
+  readonly targetLabel = input('');
+  readonly invalidTarget = input(false);
+  readonly targetCleared = output<void>();
   /** Computed plan changes and stated assumptions, shown with the assistant's latest reply. */
   readonly changes = input<string[]>([]);
-  readonly assumptions = input<string[]>([]);
   readonly consolidationRequired = input(false);
   /** A plan exists, so the composer asks for a change instead of the first description. */
   readonly refining = input(false);
@@ -73,6 +79,7 @@ export class TemplateChat {
   private readonly composer = viewChild.required<ElementRef<HTMLTextAreaElement>>('composer');
   private readonly stop = viewChild<ElementRef<HTMLButtonElement>>('stop');
   private wasBusy = false;
+  protected focusInside = false;
   /** The owner's heading names the field only for a first description, not an answer or a change. */
   protected readonly titled = computed(
     () => !this.refining() && !this.clarification() && !!this.labelledBy(),
@@ -94,14 +101,27 @@ export class TemplateChat {
       const busy = this.busy();
       if (busy === this.wasBusy) return;
       this.wasBusy = busy;
-      if (this.document.activeElement !== this.document.body) return;
+      if (!this.focusInside || this.document.activeElement !== this.document.body) return;
       (busy ? this.stop() : this.composer())?.nativeElement.focus({ preventScroll: true });
     });
   }
 
-  /** Enter sends; the `keydown.enter` binding already leaves Shift+Enter for a new line. */
+  protected leaveFocus(event: FocusEvent) {
+    if (
+      event.relatedTarget instanceof Node &&
+      !(event.currentTarget as HTMLElement).contains(event.relatedTarget)
+    )
+      this.focusInside = false;
+  }
+
+  /** Explicit canvas targeting brings the composer into view and focuses it. */
+  focusComposer(): void {
+    this.composer().nativeElement.focus();
+  }
+
+  /** Enter sends; Shift+Enter and IME composition keep editing the message. */
   protected sendOnEnter(event: Event) {
-    if (event instanceof KeyboardEvent && event.isComposing) return;
+    if (event instanceof KeyboardEvent && (event.isComposing || event.shiftKey)) return;
     event.preventDefault();
     if (this.canSend()) this.sent.emit();
   }

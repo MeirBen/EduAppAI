@@ -3,7 +3,7 @@ import { MeasurementItem } from '../activity-document-view/measurements';
 import { MeasurementList } from '../measurement-list/measurement-list';
 
 /**
- * Readiness of the saved revision in parent language: what still blocks Mark Ready, and the saved
+ * Readiness of the saved revision in parent language: what still blocks approval, and the saved
  * length evidence. Technical checks never replace the parent's own educational review.
  */
 @Component({
@@ -20,15 +20,9 @@ export class ActivityReview {
   readonly saved = input(false);
   /** Local edits or a running generation may still change the checks. */
   readonly outdated = input(false);
-  /** Only the text exists so far; its questions are the next step. */
-  readonly questionsNext = input(false);
   protected readonly summary = computed(() => {
-    if (this.questionsNext())
-      return this.issues().length
-        ? 'כדי ליצור את השאלות, טפלו בדברים הבאים:'
-        : 'קראו את הטקסט ותקנו אותו לפי הצורך. כשהוא מוכן, צרו את השאלות.';
     return this.issues().length
-      ? 'כדי לסמן את הפעילות כמוכנה, טפלו בדברים הבאים:'
+      ? 'לפני אישור הפעילות, תקנו את הדברים הבאים:'
       : this.saved() && !this.outdated()
         ? 'הפעילות מוכנה לבדיקה שלכם.'
         : '';

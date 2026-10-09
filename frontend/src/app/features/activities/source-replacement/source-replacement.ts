@@ -6,7 +6,7 @@ import { FieldDirection } from '../../../shared/forms/field-direction';
 import { DisabledInteractive } from '../../../shared/disabled-interactive';
 
 /**
- * New text for a fixed or per-activity source, kept exactly as typed. Edits the owner's field and
+ * New text for a supplied source, kept exactly as typed. Edits the owner's field and
  * emits explicit actions; the workspace applies the text and confirms the source.
  */
 @Component({

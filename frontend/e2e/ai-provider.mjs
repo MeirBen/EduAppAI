@@ -68,28 +68,7 @@ export async function startAiProvider(port = 0) {
               assumptions: [],
             }
           : stage === 'revise'
-            ? {
-                result: user.message.includes('הסברים')
-                  ? {
-                      answer: 'הוספת הסברים למפתח התשובות אינה נתמכת.',
-                      clarification: null,
-                      change: null,
-                    }
-                  : {
-                      answer: null,
-                      clarification: null,
-                      change: {
-                        plan: {
-                          ...user.plan,
-                          name: user.message.includes('שם') ? 'שם מעודכן' : user.plan.name,
-                        },
-                        assumptions: [],
-                        materialEdits: [],
-                        questions: { scope: 'none', instruction: null, items: [] },
-                        questionOrder: null,
-                      },
-                    },
-              }
+            ? { result: revision(user) }
             : stage === 'append_questions'
               ? {
                   questions: Array.from({ length: user.additionalCount }, (_, index) =>
@@ -186,6 +165,49 @@ export async function startAiProvider(port = 0) {
   const address = server.address();
   assert.ok(address && typeof address !== 'string');
   return { endpoint: 'http://127.0.0.1:' + address.port, close: () => server.close() };
+}
+
+/** Test-only planner outcomes; supplied bodies stay exact through clarification and application.
+ * @param {{ message: string, plan: import('../src/app/core/api/models').LearningPlan, sources: {label: string, text: string}[], target?: {kind: string, id: string} | null }} user
+ */
+function revision(user) {
+  if (user.message.includes('הסברים'))
+    return { answer: 'הוספת הסברים למפתח התשובות אינה נתמכת.', clarification: null, change: null };
+  if (user.sources.length && user.message === 'שאלות על המקור')
+    return { answer: null, clarification: 'לאיזה גיל להכין שאלות על המקור?', change: null };
+  return {
+    answer: null,
+    clarification: null,
+    change: {
+      plan: {
+        ...user.plan,
+        name: user.message.includes('שם') ? 'שם מעודכן' : user.plan.name,
+        materials: [
+          ...user.plan.materials,
+          ...user.sources.map((source) => ({
+            id: null,
+            label: source.label,
+            source: 'supplied',
+            guidance: '',
+            text: source.text,
+            length: null,
+          })),
+        ],
+      },
+      assumptions: [],
+      materialEdits: [],
+      questionOrder: null,
+      questions: user.sources.length
+        ? { scope: 'all', instruction: null, items: [] }
+        : user.target?.kind === 'question'
+          ? {
+              scope: 'selected',
+              instruction: null,
+              items: [{ id: user.target.id, instruction: user.message }],
+            }
+          : { scope: 'none', instruction: null, items: [] },
+    },
+  };
 }
 
 /** @param {string} message @param {number} schemaVersion */

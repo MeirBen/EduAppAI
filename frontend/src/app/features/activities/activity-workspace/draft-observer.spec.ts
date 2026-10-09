@@ -16,7 +16,6 @@ const draft: ActivityDetail = {
   diagnostics: {},
   measurements: [],
   activeOperationId: null,
-  templateVersionId: null,
   releasedSnapshotId: null,
   releasedSourceRevision: null,
   createdAtUtc: '2026-10-01T00:00:00Z',
@@ -27,7 +26,7 @@ const draft: ActivityDetail = {
 const operation: GenerationOperation = {
   id: 'op',
   draftId: 'draft',
-  kind: 'GenerateMaterials',
+  kind: 'Create',
   status: 'calling',
   stage: 'materials',
   originalRevision: 1,

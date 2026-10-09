@@ -1,41 +1,16 @@
 import { ChangeDetectionStrategy, Component, computed, input, output } from '@angular/core';
-import { GenerationKind, GenerationOperation } from '../../../core/api/models';
+import { GenerationOperation } from '../../../core/api/models';
 import { LoadingIndicator } from '../../../shared/loading-indicator/loading-indicator';
 import { lengthText } from '../activity-document-view/measurements';
 import { isRunning, stageNames } from './operation-state';
 import { DisabledInteractive } from '../../../shared/disabled-interactive';
 import { CopyButton } from '../../../shared/copy-button/copy-button';
 
-type Scope = 'activity' | 'text' | 'questions' | 'material' | 'question';
-const scopes: Record<GenerationKind, Scope> = {
-  Create: 'activity',
-  Revise: 'activity',
-  GenerateMaterials: 'text',
-  GenerateQuestions: 'questions',
-  ReplaceMaterial: 'material',
-  ReplaceQuestion: 'question',
-};
-const runningTitles: Record<Scope, string> = {
-  activity: 'עובדים על הפעילות…',
-  text: 'יוצרים את הטקסט…',
-  questions: 'יוצרים את השאלות…',
-  material: 'משפרים את הטקסט…',
-  question: 'משפרים את השאלה…',
-};
-const completedTitles: Record<Scope, string> = {
-  activity: 'הפעולה הושלמה.',
-  text: 'הטקסט נוצר.',
-  questions: 'השאלות נוצרו.',
-  material: 'הטקסט עודכן.',
-  question: 'השאלה עודכנה.',
-};
-
-/** A parent-facing reading of one operation; `retry` is an explicit new request, never automatic. */
+/** A parent-facing reading of one operation. New attempts belong to the activity/chat actions. */
 interface StatusView {
   title: string;
   details: string[];
   problem: boolean;
-  retry?: { kind: GenerationKind; label: string };
   checkSaved?: boolean;
 }
 
@@ -51,13 +26,7 @@ interface StatusView {
 })
 export class GenerationStatus {
   readonly operation = input.required<GenerationOperation>();
-  /** Shown inside the card of the material or question it changes, under that card's heading. */
-  readonly inCard = input(false);
   readonly locked = input(false);
-  /** Whether AI is configured; a retry is offered only when it could start. */
-  readonly configured = input(false);
-  readonly cancelled = output<void>();
-  readonly retried = output<GenerationKind>();
   readonly checked = output<void>();
   protected readonly active = computed(() => isRunning(this.operation()));
   protected readonly stages: Record<string, string> = {
@@ -69,8 +38,6 @@ export class GenerationStatus {
     materials: 'כותבים את הטקסט',
     'material-polish': 'משפרים את ניסוח הטקסט',
     questions: 'מכינים את השאלות',
-    'replace-material': 'כותבים גרסה חדשה לטקסט',
-    'replace-question': 'מכינים גרסה חדשה לשאלה',
   };
   protected readonly stageNames = stageNames;
   protected readonly outcomes: Partial<Record<string, { label: string; icon: string }>> = {
@@ -85,25 +52,22 @@ export class GenerationStatus {
   };
   protected readonly view = computed((): StatusView => {
     const operation = this.operation();
-    const scope = scopes[operation.kind];
     switch (operation.status) {
       case 'queued':
       case 'calling':
         return {
-          title: runningTitles[scope],
+          title: 'מכינים את הפעילות…',
           details: [this.stages[operation.stage] ?? ''],
           problem: false,
         };
       case 'completed':
         return {
-          title: completedTitles[scope],
-          // The review panel below guides the next step; only a rewritten text adds a check.
-          details:
-            scope === 'material' ? ['בדקו את הטקסט ואת השאלות שתלויות בו לפני סימון כמוכנה.'] : [],
+          title: 'הבקשה הושלמה.',
+          details: [],
           problem: false,
         };
       case 'failed':
-        return this.failure(operation, scope);
+        return this.failure(operation);
       case 'conflict':
         return {
           title: 'הטיוטה השתנתה בזמן היצירה, ולכן התוצאה לא הוחלה.',
@@ -112,11 +76,11 @@ export class GenerationStatus {
         };
       case 'cancelled':
         return {
-          title: 'היצירה בוטלה.',
+          title: 'הבקשה בוטלה.',
           details: ['התוכן השמור לא השתנה.'],
           problem: false,
         };
-      default:
+      case 'unknown':
         return {
           title: 'לא ידוע אם שירות ה־AI סיים את הבקשה.',
           details: ['לא הפעלנו ניסיון נוסף אוטומטית כדי למנוע חיוב כפול.'],
@@ -125,57 +89,24 @@ export class GenerationStatus {
         };
     }
   });
-  private failure(operation: GenerationOperation, scope: Scope): StatusView {
-    if (scope === 'activity')
-      return {
-        title: 'הפעולה לא הושלמה.',
-        details: ['התוכן השמור לא השתנה. אפשר לעיין בפרטים ולשלוח בקשה חדשה.'],
-        problem: true,
-      };
-    const unchanged = 'התוצאה לא החליפה את התוכן הקיים.';
+  private failure(operation: GenerationOperation): StatusView {
     const lengths = (operation.artifacts?.steps ?? []).flatMap((step) =>
       Object.keys(step.diagnostics ?? {}).filter((key) => key.startsWith('length.')),
     );
-    if (lengths.length) {
-      const input = operation.artifacts?.input;
-      const required = [...new Set(lengths)].flatMap((key) => {
-        const scopeId = key.slice('length.'.length);
-        const expected =
-          scopeId === 'total'
-            ? input?.totalLength
-            : input?.materials.find((material) => material.id === scopeId)?.length;
-        return expected ? [`נדרש: ${lengthText(expected)}`] : [];
-      });
-      return {
-        title: 'הטקסט שנוצר לא עמד בדרישת האורך.',
-        details: [...required, unchanged],
-        problem: true,
-        retry:
-          operation.stage === 'materials'
-            ? { kind: 'GenerateMaterials', label: 'ניסיון נוסף' }
-            : undefined,
-      };
-    }
-    if (scope === 'material' || scope === 'question')
-      return {
-        title: 'השיפור לא הצליח.',
-        details: [unchanged, 'נסו שוב מהחלק עצמו.'],
-        problem: true,
-      };
-    // The failed stage, not the kind that started it, names the part that needs another try.
-    return operation.stage === 'questions'
-      ? {
-          title: 'יצירת השאלות נכשלה.',
-          details: [unchanged],
-          problem: true,
-          retry: { kind: 'GenerateQuestions', label: 'ניסיון נוסף' },
-        }
-      : {
-          title: 'יצירת הטקסט נכשלה.',
-          details: [unchanged],
-          problem: true,
-          retry: { kind: 'GenerateMaterials', label: 'ניסיון נוסף' },
-        };
+    const required = [...new Set(lengths)].flatMap((key) => {
+      const scope = key.slice('length.'.length),
+        input = operation.artifacts?.input;
+      const length =
+        scope === 'total'
+          ? input?.totalLength
+          : input?.materials.find((m) => m.id === scope)?.length;
+      return length ? [`האורך המבוקש: ${lengthText(length)}`] : [];
+    });
+    return {
+      title: lengths.length ? 'הטקסט שנוצר לא התאים לאורך המבוקש.' : 'לא הצלחנו להשלים את הבקשה.',
+      details: [...required, 'התוכן השמור לא השתנה.'],
+      problem: true,
+    };
   }
   protected messages(diagnostics: Record<string, string[]> | null) {
     return Object.values(diagnostics ?? {}).flat();

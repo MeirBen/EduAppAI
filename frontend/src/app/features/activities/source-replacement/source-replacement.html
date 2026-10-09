@@ -12,7 +12,6 @@
     ></textarea>
     <p id="replacement-source-help" class="mt-2 text-sm text-muted">
       עד {{ limits.bodyLength | number }} תווים. אחרי ההחלפה כדאי לבדוק את השאלות שתלויות בטקסט.
-      התבנית לא תשתנה.
     </p>
   </div>
   <div class="flex flex-wrap items-center gap-3">
@@ -25,7 +24,12 @@
     >
       <span class="icon icon-check" aria-hidden="true"></span>אישור הטקסט החדש
     </button>
-    <button class="text-link" type="button" (click)="cancelled.emit()">
+    <button
+      class="text-link"
+      type="button"
+      [disabledInteractive]="locked()"
+      (click)="cancelled.emit()"
+    >
       <span class="icon icon-close" aria-hidden="true"></span>ביטול
     </button>
   </div>

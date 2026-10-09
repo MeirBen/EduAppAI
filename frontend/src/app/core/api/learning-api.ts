@@ -3,11 +3,9 @@ import { Observable, takeUntil } from 'rxjs';
 import { DestroyRef, inject, Injectable } from '@angular/core';
 import { requestResult } from './request-result';
 import {
-  TemplateSummary,
   LearningPlan,
   PlanAuthoringRequest,
   PlanAuthoringReply,
-  PlanTemplateDetail,
   ActivityDetail,
   ActivitySummary,
   ImportedChatTurn,
@@ -42,10 +40,6 @@ export class LearningApi {
       lifetime,
     );
   }
-  /** Loads the current canonical template; missing and foreign IDs both return 404. */
-  planTemplate(id: () => string | undefined) {
-    return httpResource<PlanTemplateDetail>(() => (id() ? `/api/templates/${id()}` : undefined));
-  }
   /** Loads the saved activity checkpoint without starting generation or saving local changes. */
   activity(id: () => string | undefined) {
     return httpResource<ActivityDetail>(() => (id() ? `/api/activity-drafts/${id()}` : undefined));
@@ -57,17 +51,11 @@ export class LearningApi {
   activities() {
     return httpResource<ActivitySummary[]>(() => '/api/activity-drafts');
   }
-  createActivity(
-    plan: LearningPlan,
-    template: PlanTemplateDetail | undefined,
-    lifetime: DestroyRef,
-    chat?: ImportedChatTurn[],
-  ) {
+  createActivity(plan: LearningPlan, lifetime: DestroyRef, chat?: ImportedChatTurn[]) {
     return requestResult(
       this.http.post<ActivityDetail>('/api/activity-drafts', {
         plan,
         ...(chat?.length ? { chat } : {}),
-        ...(template ? { templateId: template.id, expectedVersion: template.currentVersion } : {}),
       }),
       lifetime,
     );
@@ -153,30 +141,6 @@ export class LearningApi {
       this.http.post<ActivityDetail>('/api/activity-drafts', { snapshotId: id }),
       lifetime,
     );
-  }
-  /** Independent template publication; never writes an activity or starts generation. */
-  savePlanTemplate(
-    plan: LearningPlan,
-    previous: PlanTemplateDetail | undefined,
-    lifetime: DestroyRef,
-  ) {
-    return requestResult(
-      previous
-        ? this.http.post<PlanTemplateDetail>(`/api/templates/${previous.id}/versions`, {
-            expectedVersion: previous.currentVersion,
-            definition: plan,
-          })
-        : this.http.post<PlanTemplateDetail>('/api/templates', plan),
-      lifetime,
-    );
-  }
-  /** Returns the family's most recently created templates, up to the server's list limit. */
-  templates() {
-    return httpResource<TemplateSummary[]>(() => '/api/templates');
-  }
-  /** Permanently deletes the family's template and its revisions. */
-  deleteTemplate(id: string, lifetime: DestroyRef) {
-    return requestResult(this.http.delete<void>(`/api/templates/${id}`), lifetime);
   }
   /** Clears all family content, children, device access and assigned work beyond list limits; keeps accounts and AI settings. */
   resetLibrary(lifetime: DestroyRef) {

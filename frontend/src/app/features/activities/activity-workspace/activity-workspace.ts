@@ -12,11 +12,19 @@ import {
   inject,
   Injector,
   input,
-  linkedSignal,
   signal,
   viewChild,
 } from '@angular/core';
-import { apply, applyEach, disabled, form, maxLength, validateTree } from '@angular/forms/signals';
+import {
+  apply,
+  applyEach,
+  disabled,
+  form,
+  FormField,
+  maxLength,
+  required,
+  validateTree,
+} from '@angular/forms/signals';
 import { Router, RouterLink } from '@angular/router';
 import { Subject } from 'rxjs';
 import { apiError, rejected, writeError } from '../../../core/api/api-error';
@@ -24,12 +32,12 @@ import { LearningApi } from '../../../core/api/learning-api';
 import { Limits } from '../../../core/api/limits';
 import {
   ActivityDetail,
-  AuthoringTurn,
+  ImportedChatTurn,
   GenerationKind,
   GenerationOperation,
   LearningPlan,
-  PlanTemplateDetail,
   StartGeneration,
+  RevisionTarget,
 } from '../../../core/api/models';
 import { focusHolder } from '../../../shared/focus-holder';
 import { validationErrors } from '../../../shared/forms/projection';
@@ -43,7 +51,6 @@ import {
 import { ActivityDocumentView } from '../activity-document-view/activity-document-view';
 import { measurementItems } from '../activity-document-view/measurements';
 import {
-  activitySummary,
   fieldPointers,
   planChangeLabel,
   reviewIssues,
@@ -54,22 +61,18 @@ import { ActivityReview } from '../activity-review/activity-review';
 import { ActivitySetup } from '../activity-setup/activity-setup';
 import { GenerationStatus } from '../generation-status/generation-status';
 import { isRunning } from '../generation-status/operation-state';
-import { PlanEditor, PlanStructureEdit } from '../plan-editor/plan-editor';
-import { planFormSchema } from '../plan-editor/plan-form';
-import { planValue } from '../plan-editor/plan-projection';
+import { planFormSchema } from './plan-form';
+import { planValue } from './plan-projection';
 import { SourceReplacement } from '../source-replacement/source-replacement';
-import { TemplateChat } from '../template-chat/template-chat';
+import { ActivityChat } from '../activity-chat/activity-chat';
 import { libraryChanges } from '../../../core/api/library-changes';
 import { DraftObservation, observeDraft } from './draft-observer';
 import { UndoHistory } from './undo-history';
 import {
   ConfirmedSources,
-  editPlanStructure,
   emptyWorkspace,
   fixedSources,
   hasPlanContent,
-  proposedWorkspace,
-  reconcile,
   replaceSourceText,
   sourceText,
   withSchemaVersion,
@@ -81,22 +84,17 @@ import { DisabledInteractive } from '../../../shared/disabled-interactive';
 import { FieldErrors } from '../../../shared/forms/field-errors';
 import { ActionBar, ActionBarToggle } from '../../../shared/action-bar/action-bar';
 
-/** Release checks that only the questions step can satisfy: the title it writes and its questions. */
-const questionChecks = new Set(['title', 'questions', 'questions.formats']);
-
 /**
- * Route owner for one template or activity: the editable buffer, chat correlation, source
- * confirmation, bounded Undo, independent template publication, draft checkpoints and generation.
- * Buffer transitions live in `workspace-form`; presentation phases (describe, set up, review) are
- * derived from this state, never stored.
+ * Owns one activity buffer, source confirmation, chat requests and durable draft transitions.
+ * Views share its fields; the observer owns reads and the server owns committed chat and undo.
  */
 @Component({
   selector: 'app-activity-workspace',
   imports: [
+    FormField,
     FieldErrors,
     DisabledInteractive,
-    PlanEditor,
-    TemplateChat,
+    ActivityChat,
     LoadingIndicator,
     RouterLink,
     ActivityDocumentEditor,
@@ -126,54 +124,79 @@ export class ActivityWorkspace {
   protected readonly limits = inject(Limits).current;
   protected readonly apiError = apiError;
 
-  readonly templateId = input<string>();
   readonly activityId = input<string>();
-  readonly context = input<'template' | 'activity'>('activity');
   /** Operation named in the URL; shown after a reload when the draft has no active operation. */
   readonly resumeOperation = input<string | undefined>(undefined, { alias: 'operation' });
 
-  protected readonly template = this.api.planTemplate(this.templateId);
   protected readonly activity = this.api.activity(this.activityId);
   protected readonly ai = this.api.aiStatus();
-  protected readonly loading = computed(
-    () => this.template.isLoading() || this.activity.isLoading(),
-  );
-  protected readonly loadError = computed(() => this.template.error() || this.activity.error());
+  protected readonly loading = this.activity.isLoading;
+  protected readonly loadError = this.activity.error;
 
   protected readonly raw = signal<WorkspaceForm>(emptyWorkspace());
   protected readonly confirmed = signal<ConfirmedSources>({});
   protected readonly history = new UndoHistory<WorkspaceSnapshot>(() => this.snapshot());
   /** The buffer as last loaded or saved; any difference is an unsaved local edit. */
   private readonly baseline = signal(structuredClone(this.raw()));
-  /** The current template version's canonical plan, serialized to detect unpublished changes. */
-  private readonly publishedPlan = signal('');
   protected readonly sourceReplacement = signal({ id: '', text: '' });
   /** Counts local changes; authoring replies and operation results apply only to the revision they started from. */
   private clientRevision = 0;
   private initialized = false;
 
+  protected readonly editing = signal(false);
   protected readonly saving = signal(false);
-  protected readonly publishing = signal(false);
   protected readonly copying = signal(false);
-  /**
-   * Template publication failure; a failed request also offers the library to check what was saved.
-   * Authoring failures use their own channel beside the request.
-   */
-  protected readonly error = signal<{ message: string; checkLibrary: boolean } | undefined>(
-    undefined,
-  );
   protected readonly notice = signal('');
-  protected readonly templateNotice = signal('');
   /** The last action's problem; `reload` marks a request whose outcome the saved version may show. */
   protected readonly activityError = signal<{ message: string; reload?: boolean } | undefined>(
     undefined,
   );
   protected readonly readError = signal('');
-  protected readonly publication = signal<PlanTemplateDetail | undefined>(undefined);
   protected readonly saved = signal<ActivityDetail | undefined>(undefined);
   /** A newer server checkpoint held back because applying it would replace local edits. */
   protected readonly available = signal<ActivityDetail | undefined>(undefined);
 
+  private readonly chatView = viewChild(ActivityChat);
+  protected readonly selectedTarget = signal<RevisionTarget | undefined>(undefined);
+  protected readonly targetLabel = computed(() => {
+    const target = this.selectedTarget();
+    if (!target) return '';
+    const document = this.raw().document;
+    if (target.kind === 'material')
+      return (
+        document.materials.find((m) => m.id === target.id)?.title ||
+        (document.materials.some((m) => m.id === target.id)
+          ? 'הטקסט שנבחר'
+          : 'החלק שנבחר אינו קיים עוד. בטלו את הבחירה או בחרו חלק אחר.')
+      );
+    const index = document.questions.findIndex((q) => q.id === target.id);
+    return index < 0
+      ? 'החלק שנבחר אינו קיים עוד. בטלו את הבחירה או בחרו חלק אחר.'
+      : `שאלה ${index + 1}`;
+  });
+  protected readonly invalidTarget = computed(() => {
+    const target = this.selectedTarget();
+    return (
+      !!target &&
+      !(
+        target.kind === 'material' ? this.raw().document.materials : this.raw().document.questions
+      ).some((item) => item.id === target.id)
+    );
+  });
+  protected readonly addedSources = signal<
+    { label: string; text: string; confirmedText: string }[]
+  >([]);
+  protected readonly sourcesReady = computed(() =>
+    this.addedSources().every(
+      (source) =>
+        !!source.label.trim() &&
+        source.label.length <= this.limits.nameLength &&
+        !!source.text.trim() &&
+        source.text.length <= this.limits.bodyLength &&
+        source.text === source.confirmedText,
+    ),
+  );
+  private settledChatOperation: string | undefined;
   protected readonly chat = signal({ message: '', consolidated: '' });
   /** The request in flight; its text shows in the thread and returns to the composer unless answered. */
   private readonly request = signal<{ id: string; text: string; consolidate: boolean } | undefined>(
@@ -181,12 +204,16 @@ export class ActivityWorkspace {
   );
   protected readonly authoring = computed(() => !!this.request());
   protected readonly pendingMessage = computed(() => this.request()?.text ?? '');
-  /** The conversation behind the latest answer, shown until a local edit makes it stale. */
-  private readonly answered = signal<AuthoringTurn[]>([]);
+  /** Unsaved authoring history; after creation, the server's draft chat is authoritative. */
+  private readonly authorThread = signal<ImportedChatTurn[]>([]);
+  private readonly contextStart = signal(0);
   protected readonly authorError = signal('');
   protected readonly clarification = signal('');
-  protected readonly conversation = signal<AuthoringTurn[]>([]);
-  protected readonly assumptions = signal<string[]>([]);
+  private readonly conversation = computed(() =>
+    this.authorThread()
+      .slice(this.contextStart())
+      .map(({ role, text }) => ({ role, text })),
+  );
   protected readonly changes = signal<string[]>([]);
   private readonly cancelled = new Subject<void>();
 
@@ -248,7 +275,7 @@ export class ActivityWorkspace {
     return valid ? '' : 'תקנו את השדות המסומנים.';
   });
   protected readonly thread = computed(
-    () => (this.available() ?? this.saved())?.chat ?? [...this.answered(), ...this.conversation()],
+    () => (this.available() ?? this.saved())?.chat ?? this.authorThread(),
   );
   protected readonly needsConsolidation = computed(
     () =>
@@ -261,56 +288,40 @@ export class ActivityWorkspace {
       JSON.stringify(this.raw()) !== JSON.stringify(this.baseline()) ||
       !!this.sourceReplacement().id,
   );
-  protected readonly unsaved = computed(() => this.dirty() && !!this.saved());
-  protected readonly templateChanged = computed(
-    () => JSON.stringify(this.projection().value) !== this.publishedPlan(),
+  private readonly localWork = computed(
+    () =>
+      this.dirty() ||
+      this.authoring() ||
+      (!this.saved() && !!this.authorThread().length) ||
+      (!this.operationActive() &&
+        !this.startRecovery() &&
+        (!!this.chat().message.trim() ||
+          !!this.chat().consolidated.trim() ||
+          this.addedSources().some((source) => !!source.label || !!source.text))),
   );
+  protected readonly unsaved = computed(() => this.dirty() && !!this.saved());
   /** Any proposed, loaded or typed plan; an invalid edit keeps the setup visible for correction. */
   protected readonly hasPlan = computed(() => hasPlanContent(this.raw().plan));
   protected readonly hasContent = computed(
-    () => !!this.raw().document.materials.length || !!this.raw().document.questions.length,
+    () =>
+      !!this.raw().document.title.trim() ||
+      !!this.raw().document.instructions.trim() ||
+      !!this.raw().document.materials.length ||
+      !!this.raw().document.questions.length,
   );
-  /** Generated texts the plan asks for that are missing or saved as stale; text is created before its questions. */
-  protected readonly textNeeded = computed(() => {
-    const { plan, document } = this.raw(),
-      stale = this.stale().materials;
-    return plan.materials.some(
-      ({ id, source }) =>
-        source === 'generated' && (stale.has(id) || !document.materials.some((m) => m.id === id)),
-    );
-  });
-  /** The primary action until questions exist: create the text first, then its questions. */
+  /** Create completes missing content in one atomic operation. */
   protected readonly createAction = computed(() =>
     this.raw().document.questions.length
       ? undefined
-      : this.textNeeded()
-        ? { kind: 'GenerateMaterials' as const, label: 'יצירת הטקסט' }
-        : { kind: 'GenerateQuestions' as const, label: 'יצירת השאלות' },
+      : { kind: 'Create' as const, label: 'יצירת הפעילות' },
   );
-  /** Problems the closed advanced options name; source texts sit with the settings instead. */
-  protected readonly advancedInvalid = computed(() => {
-    const plan = this.fields.plan;
-    const materials = plan.materials().value();
-    const texts = new Set<unknown>(materials.map((_, i) => plan.materials[i].text));
-    const problems = plan().errorSummary();
-    return this.hasPlan() && problems.some(({ fieldTree }) => !texts.has(fieldTree));
-  });
   /** The pinned save state and current actions, once there is anything to save, undo or open. */
   protected readonly actionBar = computed(
-    () =>
-      this.hasPlan() || !!this.saved() || !!this.publication() || !!this.history.entries().length,
+    () => this.hasPlan() || !!this.saved() || !!this.history.entries().length,
   );
   protected readonly canUndo = computed(() =>
     this.saved() ? !!this.saved()?.canUndo && !this.dirty() : !!this.history.entries().length,
   );
-  protected readonly steps = ['תיאור', 'הגדרות', 'בדיקה', 'מוכנה'];
-  /** The step indicator's phase: describe, set up, review, ready. */
-  protected readonly stage = computed(() =>
-    this.released() ? 3 : this.hasContent() ? 2 : this.hasPlan() ? 1 : 0,
-  );
-  /** Setup collapses to its summary once content exists; the parent can reopen it at any time. */
-  protected readonly setupOpen = linkedSignal(() => !this.hasContent());
-  protected readonly summary = computed(() => activitySummary(this.raw().plan));
   protected readonly saveState = computed(() => {
     if (this.saving()) return 'שומרים…';
     if (this.elsewhere() === 'changed') return 'הפעילות עודכנה במכשיר אחר';
@@ -318,10 +329,9 @@ export class ActivityWorkspace {
     return this.dirty() ? 'לא נשמר' : this.saved() ? 'נשמר' : '';
   });
   protected readonly heading = computed(() => {
-    if (this.context() === 'template') return this.templateId() ? 'עריכת תבנית' : 'תבנית חדשה';
     if (this.released()) return 'פעילות מוכנה';
-    if (this.saved() || this.activityId()) return 'עריכת פעילות';
-    return this.templateId() ? 'פעילות חדשה מתבנית' : 'פעילות חדשה';
+    if (this.saved() || this.activityId()) return 'טיוטת פעילות';
+    return 'פעילות חדשה';
   });
   /** One reload control: beside a newer server result or error, otherwise with the other actions. */
   protected readonly reloadPlacement = computed(() => {
@@ -333,58 +343,28 @@ export class ActivityWorkspace {
   protected readonly measurements = computed(() =>
     measurementItems(this.saved()?.measurements ?? [], this.saved()?.plan),
   );
-  /** The text is ready and its questions come next. */
-  protected readonly questionsNext = computed(
-    () => this.createAction()?.kind === 'GenerateQuestions',
+  protected readonly totalMeasurements = computed(() =>
+    this.measurements().filter((item) => item.scope === 'total'),
   );
-  /** The saved checks the parent can act on now; creating the questions resolves their own. */
-  private readonly checks = computed(() => {
-    const saved = this.saved();
-    return saved && this.questionsNext()
-      ? {
-          ...saved,
-          diagnostics: Object.fromEntries(
-            Object.entries(saved.diagnostics).filter(([key]) => !questionChecks.has(key)),
-          ),
-        }
-      : saved;
-  });
   /** Release problems matter once content is ready to review: present, and no generation writing it. */
   protected readonly contentIssues = computed(() =>
     savedContentIssues(
-      this.hasContent() && !this.operationActive() ? this.checks() : undefined,
+      this.hasContent() && !this.operationActive() ? this.saved() : undefined,
       this.raw().document,
       this.baseline().document,
     ),
   );
   protected readonly issues = computed(() => [
-    ...reviewIssues(this.checks()),
+    ...reviewIssues(this.saved()),
     ...fieldPointers(this.contentIssues(), this.raw().document, this.saved()?.plan),
   ]);
+  protected readonly approvalBlocked = computed(
+    () => !this.saved() || !!Object.keys(this.saved()!.diagnostics).length,
+  );
   protected readonly stale = computed(() => staleContent(this.saved()));
   protected readonly operationActive = computed(
     () => !!this.operationId() && (!this.operation() || isRunning(this.operation()!)),
   );
-  /**
-   * The scoped target whose card can display status. Removing it or changing its source keeps
-   * progress and cancellation above the content instead; restoring the card moves them back.
-   */
-  protected readonly operationTarget = computed(() => {
-    const operation = this.operation(),
-      target = operation?.artifacts?.targetId;
-    if (!target) return null;
-    const { document, plan } = this.raw();
-    const hasCard =
-      operation.kind === 'ReplaceQuestion'
-        ? document.questions.some((question) => question.id === target)
-        : operation.kind === 'ReplaceMaterial' &&
-          document.materials.some((material) => material.id === target) &&
-          plan.materials.some(
-            (material) => material.id === target && material.source === 'generated',
-          );
-    return hasCard ? target : null;
-  });
-
   protected readonly fields = form(this.raw, (path) => {
     disabled(path, () => this.locked() || this.loading());
     disabled(path.plan, () => !!this.saved());
@@ -404,29 +384,54 @@ export class ActivityWorkspace {
     maxLength(path.message, this.limits.messageLength);
     maxLength(path.consolidated, this.limits.messageLength);
   });
-  protected readonly sourceFields = form(this.sourceReplacement, (path) =>
-    maxLength(path.text, this.limits.bodyLength),
-  );
+  protected readonly sourceFields = form(this.sourceReplacement, (path) => {
+    disabled(path, () => this.locked());
+    maxLength(path.text, this.limits.bodyLength);
+  });
+
+  protected readonly additionFields = form(this.addedSources, (path) => {
+    disabled(path, () => this.locked());
+    applyEach(path, (source) => {
+      required(source.label);
+      maxLength(source.label, this.limits.nameLength);
+      required(source.text);
+      maxLength(source.text, this.limits.bodyLength);
+    });
+  });
+
+  protected addSource() {
+    if (this.locked() || this.addedSources().length >= this.limits.maxMaterials) return;
+    this.addedSources.update((sources) => [...sources, { label: '', text: '', confirmedText: '' }]);
+  }
+  protected confirmAddedSource(index: number) {
+    if (this.locked() || this.additionFields[index]().invalid()) return;
+    this.addedSources.update((sources) =>
+      sources.map((source, i) =>
+        i === index ? { ...source, confirmedText: source.text } : source,
+      ),
+    );
+  }
+  protected removeAddedSource(index: number) {
+    if (!this.locked())
+      this.addedSources.update((sources) => sources.filter((_, i) => i !== index));
+  }
+  protected selectTarget(target: RevisionTarget): void {
+    if (this.locked()) return;
+    this.selectedTarget.set(target);
+    this.chat.update((chat) => ({
+      ...chat,
+      message: chat.message || `לגבי ${this.targetLabel()}: `,
+    }));
+    this.chatView()?.focusComposer();
+  }
 
   constructor() {
     effect(() => {
       const loaded = this.activity.value();
-      const template = this.template.value();
-      if (this.initialized || !(loaded || template)) return;
-      const plan = loaded?.plan ?? template!.definition;
-      this.raw.set(workspaceForm(plan, loaded?.document));
-      if (loaded) {
-        this.saved.set(loaded);
-        this.operationId.set(loaded.activeOperationId ?? this.resumeOperation());
-        this.operationClientRevision = this.operationId() ? this.clientRevision : undefined;
-      }
-      this.confirmed.set(fixedSources(plan));
-      if (template) {
-        this.publication.set(template);
-        this.publishedPlan.set(JSON.stringify(this.projection().value));
-      }
-      this.baseline.set(structuredClone(this.raw()));
-      if (!loaded) this.history.checkpoint();
+      if (this.initialized || !loaded) return;
+      this.acceptCheckpoint(loaded);
+      this.operationId.set(loaded.activeOperationId ?? this.resumeOperation());
+      this.operationClientRevision = this.operationId() ? this.clientRevision : undefined;
       this.initialized = true;
     });
     effect(() => {
@@ -444,19 +449,9 @@ export class ActivityWorkspace {
     });
   }
 
-  protected edited(edit: { key: string; sourceId?: string }) {
+  protected edited(edit: { key: string }) {
     if (this.locked()) return;
-    if (edit.sourceId) {
-      const source = this.raw().plan.materials.find((material) => material.id === edit.sourceId);
-      if (source) this.confirmed.update((values) => ({ ...values, [source.id]: source.text }));
-    }
     this.recordEdit(edit.key);
-  }
-
-  protected changeStructure(edit: PlanStructureEdit) {
-    if (this.locked() || this.saved()) return;
-    this.raw.set(editPlanStructure(this.raw(), edit, this.limits));
-    this.recordEdit('');
   }
 
   protected confirmSource(id: string) {
@@ -516,9 +511,13 @@ export class ActivityWorkspace {
     const message = consolidate ? this.chat().consolidated : this.chat().message;
     if (!message.trim() || message.length > this.limits.messageLength) return;
     if (this.saved()) {
-      await this.activityAction('Revise', { message });
-      if (this.operationActive() || this.startRecovery())
-        this.chat.update((chat) => ({ ...chat, message: '' }));
+      if (this.invalidTarget() || !this.sourcesReady()) return;
+      this.authorError.set('');
+      await this.activityAction('Revise', {
+        message,
+        target: this.selectedTarget(),
+        sources: this.addedSources().map(({ label, text }) => ({ label, text })),
+      });
       return;
     }
     const baseDefinition = this.projection().value;
@@ -553,9 +552,8 @@ export class ActivityWorkspace {
       )
         return;
       this.request.set(undefined);
-      this.assumptions.set(reply.assumptions);
+      if (consolidate) this.contextStart.set(this.authorThread().length);
       if (reply.proposal) {
-        this.conversation.set([]);
         this.clarification.set('');
         // A first plan has no earlier version to compare; the setup itself shows what was proposed.
         this.changes.set(
@@ -565,32 +563,23 @@ export class ActivityWorkspace {
               )
             : [],
         );
-        this.answered.set([
-          ...context,
-          { role: 'parent', text: message },
-          {
-            role: 'assistant',
-            text: !reply.changes.length
-              ? 'ההגדרות כבר תואמות לבקשה.'
-              : baseDefinition
-                ? 'ההגדרות עודכנו. אפשר לערוך אותן או לבטל את השינוי.'
-                : this.context() === 'template'
-                  ? 'הכנו הגדרות לפי הבקשה. בדקו אותן ושמרו את התבנית.'
-                  : 'הכנו הגדרות לפי הבקשה. בדקו אותן וצרו את הפעילות.',
-          },
-        ]);
+        this.appendAuthorReply(
+          message,
+          !reply.changes.length
+            ? 'ההגדרות כבר תואמות לבקשה.'
+            : baseDefinition
+              ? 'ההגדרות עודכנו. אפשר לבקש שינוי או לבטל אותו.'
+              : 'הכנו הגדרות לפי הבקשה. בדקו אותן וצרו את הפעילות.',
+          reply.assumptions,
+          true,
+        );
         if (reply.changes.length) {
           this.applyProposal(reply.proposal);
           // The first plan replaces the request with settings; reading starts at their heading.
           if (!baseDefinition) restoreFocus('plan-title');
         }
       } else if (reply.clarification) {
-        this.answered.set([]);
-        this.conversation.set([
-          ...context,
-          { role: 'parent', text: message },
-          { role: 'assistant', text: reply.clarification },
-        ]);
+        this.appendAuthorReply(message, reply.clarification, reply.assumptions, false);
         this.clarification.set(reply.clarification);
       }
       this.chat.set({ message: '', consolidated: '' });
@@ -602,62 +591,26 @@ export class ActivityWorkspace {
     }
   }
 
-  protected async saveTemplate() {
-    if (this.saving() || !this.templateChanged()) return;
-    this.fields().markAsTouched();
-    this.error.set(undefined);
-    this.templateNotice.set('');
-    const plan = this.projection().value;
-    if (!plan || this.pendingSources().length || this.sourceReplacement().id) {
-      this.error.set({ message: this.blocker(), checkLibrary: false });
-      return;
-    }
-    this.cancelAuthor();
+  protected editContent() {
+    if (this.locked()) return;
     const restoreFocus = this.holdFocus();
-    this.saving.set(true);
-    this.publishing.set(true);
-    try {
-      const saved = await this.api.savePlanTemplate(plan, this.publication(), this.lifetime);
-      if (this.lifetime.destroyed) return;
-      this.publication.set(saved);
-      this.publishedPlan.set(JSON.stringify(plan));
-      this.history.endCoalescing();
-      if (this.context() === 'template') {
-        // Template publication saves the complete plan buffer.
-        this.baseline.set(structuredClone(this.raw()));
-        this.templateNotice.set('התבנית נשמרה במרחב שלנו.');
-      } else {
-        // Publication from an activity cannot claim that its edits or per-task input were saved.
-        if (!this.saved())
-          this.baseline.update((raw) => ({ ...raw, plan: structuredClone(this.raw().plan) }));
-        this.templateNotice.set('התבנית נשמרה במרחב שלנו. הפעילות לא השתנתה.');
-      }
-    } catch (error) {
-      if (!this.lifetime.destroyed)
-        this.error.set({
-          message:
-            error instanceof HttpErrorResponse && error.status === 409
-              ? 'התבנית השתנתה בינתיים. השינויים שלכם נשארו כאן. בדקו את הגרסה השמורה במרחב שלנו.'
-              : `${apiError(error)} לא ידוע אם התבנית נשמרה. בדקו במרחב שלנו לפני ניסיון נוסף.`,
-          checkLibrary: true,
-        });
-    } finally {
-      if (!this.lifetime.destroyed) {
-        this.saving.set(false);
-        this.publishing.set(false);
-        restoreFocus();
-      }
-    }
+    this.editing.set(true);
+    restoreFocus('document-title');
+  }
+
+  protected adoptQuestions() {
+    return this.activityAction('adopt', { questionIds: [...this.stale().questions] });
   }
 
   protected replaceSource(id: string) {
+    if (this.locked()) return;
     const text = sourceText(this.raw(), id);
     if (text !== undefined) this.sourceReplacement.set({ id, text });
   }
 
   protected acceptSourceReplacement() {
     const { id, text } = this.sourceReplacement();
-    if (!text.trim() || text.length > this.limits.bodyLength || this.saving()) return;
+    if (!text.trim() || text.length > this.limits.bodyLength || this.locked()) return;
     const next = replaceSourceText(this.raw(), id, text);
     if (!next) return;
     this.raw.set(next);
@@ -666,23 +619,21 @@ export class ActivityWorkspace {
     this.sourceReplacement.set({ id: '', text: '' });
   }
 
-  /** Regeneration replaces content the parent may have reviewed or edited, so it asks first. */
-  protected regenerate(kind: GenerationKind) {
-    const prompt =
-      kind === 'GenerateQuestions'
-        ? 'ליצור את כל השאלות מחדש? השאלות הנוכחיות יוחלפו.'
-        : 'ליצור טקסט חדש? הטקסט שאינו עדכני יוחלף, והשאלות שתלויות בו יסומנו לבדיקה.';
-    return window.confirm(prompt) ? this.activityAction(kind) : undefined;
+  /** Explicit question recovery replaces the existing set after parent confirmation. */
+  protected regenerateQuestions() {
+    return window.confirm('ליצור את כל השאלות מחדש? השאלות הנוכחיות יוחלפו.')
+      ? this.activityAction('GenerateQuestions')
+      : undefined;
   }
   /** Every content action flushes one validated checkpoint first; no failed save can start work. */
   protected async activityAction(
     action: 'save' | 'release' | 'adopt' | GenerationKind,
     target?: {
-      targetId?: string;
-      instruction?: string;
       materialIds?: string[];
       questionIds?: string[];
       message?: string;
+      target?: RevisionTarget;
+      sources?: StartGeneration['sources'];
     },
   ) {
     if (this.locked()) return;
@@ -694,7 +645,9 @@ export class ActivityWorkspace {
       this.cancelAuthor();
       this.activityError.set(undefined);
       const saved = await this.flushDraft();
-      if (!saved || this.lifetime.destroyed || action === 'save') return;
+      if (!saved || this.lifetime.destroyed) return;
+      this.editing.set(false);
+      if (action === 'save') return;
       if (action === 'adopt') {
         this.acceptCheckpoint(
           await this.api.adoptActivity(
@@ -708,13 +661,13 @@ export class ActivityWorkspace {
       } else if (action === 'release') {
         // Every saved diagnostic blocks release, and each already shows at its content or review.
         if (Object.keys(saved.diagnostics).length) {
-          this.activityError.set({ message: 'תקנו את המסומן לפני סימון כמוכנה.' });
+          this.activityError.set({ message: 'תקנו את המסומן לפני אישור הפעילות.' });
           return;
         }
         // Asked only once release can succeed: it freezes this version for assignment.
         if (
           !window.confirm(
-            'לסמן את הפעילות כמוכנה? היא תישמר כעותק קבוע שאפשר להקצות, ושינויים ייעשו בטיוטה חדשה.',
+            'לאשר את הפעילות? היא תישמר כעותק קבוע שאפשר להקצות, ושינויים ייעשו בטיוטה חדשה.',
           )
         )
           return;
@@ -731,13 +684,13 @@ export class ActivityWorkspace {
           operationKey: crypto.randomUUID(),
           expectedRevision: saved.revision,
           kind: action,
-          ...(target?.targetId ? { targetId: target.targetId } : {}),
-          ...(target?.instruction ? { instruction: target.instruction } : {}),
           ...(target?.message ? { message: target.message } : {}),
+          ...(target?.target ? { target: target.target } : {}),
+          ...(target?.sources?.length ? { sources: target.sources } : {}),
         };
         this.startRecovery.set({ draftId: saved.id, request });
         await this.submitOperation(saved.id, request);
-        if (action === 'GenerateMaterials' || action === 'GenerateQuestions') this.revealProgress();
+        if (action === 'Create' || action === 'GenerateQuestions') this.revealProgress();
       }
     });
   }
@@ -802,74 +755,60 @@ export class ActivityWorkspace {
     }
   }
 
-  protected async newActivity() {
-    if (this.saving()) return;
-    const plan = this.projection().value;
-    if (!plan || this.pendingSources().length) {
-      this.activityError.set({ message: this.blocker() });
-      return;
-    }
-    if (
-      this.dirty() &&
-      !window.confirm(
-        'פעילות חדשה תיפתח בלי התוכן של הפעילות הזאת, ושינויים שלא נשמרו יאבדו. להמשיך?',
-      )
-    )
-      return;
-    await this.runDraftRequest(async () => {
-      const created = await this.api.createActivity(plan, undefined, this.lifetime);
-      if (this.lifetime.destroyed) return;
-      this.markLocalChange();
-      this.history.clear();
-      this.operationId.set(undefined);
-      this.operation.set(undefined);
-      this.startRecovery.set(undefined);
-      this.sourceReplacement.set({ id: '', text: '' });
-      this.acceptCheckpoint(created);
-      this.location.replaceState('/activities/' + created.id);
-    });
-  }
-
   /** Native route guard and browser-close warning protect local-only keystrokes. */
   canLeave() {
-    return !this.dirty() || window.confirm('יש שינויים שלא נשמרו. לצאת מהעמוד?');
+    return !this.localWork() || window.confirm('יש שינויים שלא נשמרו. לצאת מהעמוד?');
   }
 
   protected beforeUnload(event: BeforeUnloadEvent) {
-    if (this.dirty()) event.preventDefault();
+    if (this.localWork()) event.preventDefault();
   }
 
   /** Local setup edits coalesce for Undo; every edit clears replies about the earlier plan. */
   private recordEdit(key: string) {
     if (!this.saved()) {
-      this.raw.set(reconcile(this.raw()));
       if (!this.history.record(key)) return;
     }
     this.markLocalChange();
     this.clearPlanFeedback();
     this.notice.set('');
-    this.templateNotice.set('');
   }
 
   /** A local change: a pending authoring reply and the clarification thread no longer apply. */
   protected markLocalChange() {
     this.clientRevision++;
     this.cancelAuthor();
-    this.conversation.set([]);
+    this.contextStart.set(this.authorThread().length);
     this.clarification.set('');
   }
 
   private clearPlanFeedback() {
-    this.answered.set([]);
     this.changes.set([]);
-    this.assumptions.set([]);
-    this.error.set(undefined);
     this.authorError.set('');
+  }
+
+  private appendAuthorReply(
+    message: string,
+    reply: string,
+    assumptions: string[],
+    resolved: boolean,
+  ) {
+    const atUtc = new Date().toISOString();
+    const turns: ImportedChatTurn[] = [
+      ...this.authorThread(),
+      { role: 'parent', text: message, atUtc, target: null, assumptions: null },
+      { role: 'assistant', text: reply, atUtc, target: null, assumptions },
+    ];
+    const dropped = Math.max(0, turns.length - this.limits.maxChatTurns);
+    this.authorThread.set(turns.slice(dropped));
+    this.contextStart.set(
+      resolved ? this.authorThread().length : Math.max(0, this.contextStart() - dropped),
+    );
   }
 
   private applyProposal(plan: LearningPlan) {
     this.history.push();
-    this.raw.set(proposedWorkspace(this.raw(), plan));
+    this.raw.set(workspaceForm(plan));
     this.confirmed.set(fixedSources(plan, this.confirmed()));
     this.clientRevision++;
     this.history.checkpoint();
@@ -902,17 +841,7 @@ export class ActivityWorkspace {
     }
     let saved = this.saved();
     if (!saved) {
-      saved = await this.api.createActivity(
-        plan,
-        this.template.value(),
-        this.lifetime,
-        this.thread().map((turn) => ({
-          ...turn,
-          atUtc: new Date().toISOString(),
-          target: null,
-          assumptions: null,
-        })),
-      );
+      saved = await this.api.createActivity(plan, this.lifetime, this.authorThread());
       if (this.lifetime.destroyed) return;
       this.saved.set(saved);
       // Keep this workspace and its pending action alive while making reload reopen the durable draft.
@@ -944,6 +873,7 @@ export class ActivityWorkspace {
   private acceptCheckpoint(saved: ActivityDetail) {
     if (this.lifetime.destroyed) return;
     this.saved.set(saved);
+    this.editing.set(false);
     this.raw.set(workspaceForm(saved.plan, saved.document));
     this.confirmed.set(fixedSources(saved.plan));
     this.baseline.set(structuredClone(this.raw()));
@@ -963,6 +893,54 @@ export class ActivityWorkspace {
     } else if (operation) this.operation.set(operation);
     if (apply) this.acceptCheckpoint(draft);
     else this.receiveCheckpoint(draft);
+    this.settleChatRequest(draft, operation);
+  }
+
+  /** A completed reply need not consume its sources; retain them until they enter the saved plan. */
+  private settleChatRequest(draft: ActivityDetail, operation?: GenerationOperation) {
+    if (
+      operation?.kind !== 'Revise' ||
+      isRunning(operation) ||
+      this.settledChatOperation === operation.id
+    )
+      return;
+    this.settledChatOperation = operation.id;
+    // Other devices update the thread, never the parent's local composer or attachments.
+    if (this.operationClientRevision === undefined) return;
+    const turn = draft.chat.find(
+      (turn) => turn.role === 'parent' && turn.operationId === operation.id,
+    );
+    if (!turn) return;
+    const completed = operation.status === 'completed';
+    const unconsumed = (source: { text: string }) =>
+      !completed ||
+      !draft.plan.materials.some(
+        (material) => material.source === 'supplied' && material.text === source.text,
+      );
+    if (turn.text === this.chat().message) {
+      if (completed) {
+        this.chat.update((chat) => ({ ...chat, message: '' }));
+        this.selectedTarget.set(undefined);
+        this.addedSources.update((sources) => sources.filter(unconsumed));
+      }
+      return;
+    }
+    if (this.chat().message || this.chat().consolidated || this.addedSources().length) return;
+    if (!operation.artifacts) {
+      this.authorError.set(
+        'פרטי הבקשה הקודמת כבר אינם זמינים. כתבו אותה מחדש והוסיפו את הטקסט הדרוש.',
+      );
+      return;
+    }
+    this.addedSources.set(
+      (operation.artifacts.sources ?? [])
+        .filter(unconsumed)
+        .map((source) => ({ ...source, confirmedText: source.text })),
+    );
+    if (!completed) {
+      this.chat.update((chat) => ({ ...chat, message: turn.text }));
+      this.selectedTarget.set(turn.target ?? undefined);
+    }
   }
 
   /** Only an operation-owned checkpoint may replace its unchanged local buffer; ambiguous reads wait for confirmation. */

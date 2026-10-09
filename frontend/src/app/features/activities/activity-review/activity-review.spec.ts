@@ -57,9 +57,7 @@ describe('ActivityReview', () => {
       outdated: true,
       issues: ['בשאלה 2 חסרה תשובה נכונה.'],
     });
-    expect(root.querySelector('[role="status"]')!.textContent).toContain(
-      'כדי לסמן את הפעילות כמוכנה',
-    );
+    expect(root.querySelector('[role="status"]')!.textContent).toContain('לפני אישור הפעילות');
     expect(root.textContent).toContain('בשאלה 2 חסרה תשובה נכונה.');
     expect(root.textContent).toContain('מתעדכנת אחרי שמירה');
   });

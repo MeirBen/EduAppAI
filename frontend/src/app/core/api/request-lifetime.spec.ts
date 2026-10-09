@@ -24,16 +24,16 @@ describe('Page HTTP lifetime', () => {
     vi.restoreAllMocks();
   });
 
-  it('cancels old template and status reads when the workspace changes route or is destroyed', () => {
+  it('cancels old activity and status reads when the workspace changes route or is destroyed', () => {
     const fixture = TestBed.createComponent(ActivityWorkspace);
-    fixture.componentRef.setInput('templateId', 'first');
+    fixture.componentRef.setInput('activityId', 'first');
     TestBed.tick();
     const http = TestBed.inject(HttpTestingController);
-    const first = http.expectOne('/api/templates/first');
+    const first = http.expectOne('/api/activity-drafts/first');
     const status = http.expectOne('/api/ai/status');
-    fixture.componentRef.setInput('templateId', 'second');
+    fixture.componentRef.setInput('activityId', 'second');
     TestBed.tick();
-    const second = http.expectOne('/api/templates/second');
+    const second = http.expectOne('/api/activity-drafts/second');
     fixture.destroy();
     expect(first.cancelled).toBe(true);
     expect(second.cancelled).toBe(true);
@@ -53,9 +53,7 @@ describe('Page HTTP lifetime', () => {
     const fixture = TestBed.createComponent(ActivityLibrary);
     TestBed.tick();
     const http = TestBed.inject(HttpTestingController);
-    const requests = ['/api/templates', '/api/instances', '/api/activity-drafts'].map((path) =>
-      http.expectOne(path),
-    );
+    const requests = ['/api/instances', '/api/activity-drafts'].map((path) => http.expectOne(path));
     fixture.destroy();
     for (const request of requests) expect(request.cancelled).toBe(true);
     expect(FakeEventSource.opened.map((source) => source.readyState)).toEqual([
@@ -67,7 +65,6 @@ describe('Page HTTP lifetime', () => {
     const fixture = TestBed.createComponent(ActivityLibrary);
     TestBed.tick();
     const http = TestBed.inject(HttpTestingController);
-    http.expectOne('/api/templates').flush([]);
     http.expectOne('/api/instances').flush([]);
     http.expectOne('/api/activity-drafts').flush([{ id: 'draft', name: 'Saved', revision: 1 }]);
     await fixture.whenStable();

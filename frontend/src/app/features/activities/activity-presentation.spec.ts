@@ -8,7 +8,7 @@ import {
   staleContent,
 } from './activity-presentation';
 import { numericPlan, readingPlan } from './learning-plan.fixture';
-import { planForm } from './plan-editor/plan-form';
+import { planForm } from './activity-workspace/plan-form';
 
 const question = (id: string, options: string[] | null, answer: string) => ({
   id,
@@ -28,7 +28,6 @@ const draft = (overrides: Partial<ActivityDetail>): ActivityDetail => ({
   diagnostics: {},
   measurements: [],
   activeOperationId: null,
-  templateVersionId: null,
   releasedSnapshotId: null,
   releasedSourceRevision: null,
   createdAtUtc: '2026-10-01T00:00:00Z',
@@ -48,9 +47,8 @@ describe('Parent-facing activity presentation', () => {
       '5 שאלות אמריקאיות',
       'בערך 300 מילים',
     ]);
-    plan.materials[0].length.value = '450';
-    plan.questions.choice = false;
-    plan.questions.text = true;
+    plan.materials[0].length = { mode: 'target', count: 450 };
+    plan.questions.formats = ['text-input'];
     expect(activitySummary(plan)).toContain('בערך 450 מילים');
     expect(activitySummary(plan)).toContain('5 שאלות עם תשובה קצרה');
   });

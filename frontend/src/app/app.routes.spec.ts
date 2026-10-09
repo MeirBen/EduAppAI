@@ -29,23 +29,15 @@ describe('Workspace routes', () => {
       .flush({ configured: false, schemaVersion: numericPlan.schemaVersion });
   }
 
-  it('preserves entered choices when only the query or fragment changes', async () => {
+  it('preserves the unsent request when only the query or fragment changes', async () => {
     const harness = await RouterTestingHarness.create();
-    await open(harness, '/templates/first/create');
-    http.expectOne('/api/templates/first').flush({
-      id: 'first',
-      currentVersion: 1,
-      versionId: 'first-version',
-      definition: numericPlan,
-    });
+    await open(harness, '/activities/new');
     await harness.fixture.whenStable();
-    const field = harness.routeNativeElement!.querySelector<HTMLInputElement>('#activity-topic')!;
+    const field = harness.routeNativeElement!.querySelector<HTMLInputElement>('#chat-message')!;
     field.value = 'החלל';
     field.dispatchEvent(new Event('input'));
 
-    const navigation = harness.navigateByUrl(
-      '/templates/first/create?source=library#practice-title',
-    );
+    const navigation = harness.navigateByUrl('/activities/new?source=library#practice-title');
     (await vi.waitFor(() => http.expectOne('/api/auth/me'))).flush({
       email: 'parent@example.test',
       familyId: 'family',
@@ -54,39 +46,32 @@ describe('Workspace routes', () => {
     await harness.fixture.whenStable();
 
     expect(
-      harness.routeNativeElement!.querySelector<HTMLInputElement>('#activity-topic')!.value,
+      harness.routeNativeElement!.querySelector<HTMLInputElement>('#chat-message')!.value,
     ).toBe('החלל');
-    http.expectNone('/api/templates/first');
+    http.expectNone('/api/ai/activity-plans');
   });
 
-  it('opens a saved activity and publishes a separate template without writing the activity', async () => {
+  it('opens saved activities without template publication or automatic writes', async () => {
     const harness = await RouterTestingHarness.create();
     await open(harness, '/activities/saved');
     http.expectOne('/api/activity-drafts/saved').flush({
       id: 'saved',
       revision: 4,
       plan: numericPlan,
-
       document: { title: '', instructions: null, materials: [], questions: [] },
       diagnostics: {},
+      measurements: [],
       activeOperationId: null,
-      templateVersionId: null,
       releasedSnapshotId: null,
       releasedSourceRevision: null,
+      chat: [],
+      canUndo: false,
       createdAtUtc: '2026-10-01T00:00:00Z',
       updatedAtUtc: '2026-10-01T00:00:00Z',
     });
     await harness.fixture.whenStable();
-    harness.routeNativeElement!.querySelector<HTMLButtonElement>('#save-template')!.click();
-    const publication = http.expectOne('/api/templates');
-    expect(publication.request.body.name).toBe('מספרים');
-    publication.flush({ id: 'new', currentVersion: 1, versionId: 'v1', definition: numericPlan });
-    await vi.waitFor(() =>
-      expect(harness.routeNativeElement!.textContent).toContain('התבנית נשמרה'),
-    );
-    http.expectNone(
-      (request) => request.url.includes('/activity-drafts') && request.method !== 'GET',
-    );
-    http.expectNone('/api/ai/activity-plans');
+    expect(harness.routeNativeElement!.querySelector('#save-template')).toBeNull();
+    expect(harness.routeNativeElement!.textContent).toContain('שמירת טיוטה');
+    http.expectNone((request) => request.method !== 'GET');
   });
 });

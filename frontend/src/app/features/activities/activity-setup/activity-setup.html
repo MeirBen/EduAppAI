@@ -1,8 +1,16 @@
 @let p = plan();
 @let materials = p.materials().value();
 <div class="grid gap-6">
-  <div class="grid gap-4 sm:grid-cols-2">
-    <app-task-settings-fields [fields]="p.settings" prefix="activity" />
+  <div class="grid gap-2">
+    <h3 dir="auto">{{ p.name().value() }}</h3>
+    <p class="text-muted">{{ summary().join(' · ') }}</p>
+    <p dir="auto" class="whitespace-pre-wrap">{{ p.goal().value() }}</p>
+    @if (p.guidance().value()) {
+      <p dir="auto" class="whitespace-pre-wrap">{{ p.guidance().value() }}</p>
+    }
+    @if (p.questions.guidance().value()) {
+      <p dir="auto" class="whitespace-pre-wrap">{{ p.questions.guidance().value() }}</p>
+    }
   </div>
   @if (materials.length) {
     <section class="card-section" aria-labelledby="setup-content-title">
@@ -10,19 +18,9 @@
       @for (material of materials; track $index; let index = $index) {
         @let m = p.materials[index];
         <div class="well grid min-w-0 gap-4" role="group" [attr.aria-label]="material.label">
-          <div>
-            <label [for]="material.id + '-source'">
-              @if (severalTexts()) {
-                <bdi>{{ material.label }}</bdi> —
-              }
-              מאיפה יגיע הטקסט?</label
-            >
-            <select [id]="material.id + '-source'" [formField]="m.source">
-              <option value="generated">כתבו עבורי תוכן חדש</option>
-              <option value="supplied">יש לי טקסט משלי</option>
-            </select>
-          </div>
-          @if (material.source === 'supplied') {
+          <h4 dir="auto">{{ material.label }}</h4>
+          <p>{{ material.source === 'supplied' ? 'יש לי טקסט משלי' : 'כתבו עבורי תוכן חדש' }}</p>
+          @if (material.source === 'supplied' && !p().disabled()) {
             <div>
               <label [for]="'source-' + material.id">הטקסט שלכם</label>
               <textarea

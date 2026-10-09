@@ -8,7 +8,7 @@ import { TestBed } from '@angular/core/testing';
 import { provideRouter, RouteReuseStrategy, withComponentInputBinding } from '@angular/router';
 import { RouterTestingHarness } from '@angular/router/testing';
 import { PageReuseStrategy } from '../../../core/page-reuse-strategy';
-import { LearningPlan } from '../../../core/api/models';
+import { ActivityDetail, LearningPlan } from '../../../core/api/models';
 import { ActivityWorkspace } from './activity-workspace';
 import { numericPlan, suppliedPlan, sourceText } from '../learning-plan.fixture';
 import { provideLimits } from '../../../core/api/limits.fixture';
@@ -33,14 +33,27 @@ describe('ActivityWorkspace plan ownership', () => {
     await Promise.resolve();
     await harness.fixture.whenStable();
   }
-  async function open(path = '/activities/new', plan?: LearningPlan) {
-    await harness.navigateByUrl(path, ActivityWorkspace);
-    http.expectOne('/api/ai/status').flush({ configured: true, schemaVersion: 1 });
-    if (plan)
-      http
-        .expectOne('/api/templates/example')
-        .flush({ id: 'example', currentVersion: 3, versionId: 'v3', definition: plan });
+  async function open() {
+    await harness.navigateByUrl('/activities/new', ActivityWorkspace);
+    http.expectOne('/api/ai/status').flush({ configured: true, schemaVersion: 2 });
     await settle();
+  }
+  function draft(plan: LearningPlan): ActivityDetail {
+    return {
+      id: 'draft',
+      revision: 1,
+      plan,
+      document: { title: '', instructions: null, materials: [], questions: [] },
+      diagnostics: { questions: ['נדרשות שאלות'] },
+      measurements: [],
+      activeOperationId: null,
+      releasedSnapshotId: null,
+      releasedSourceRevision: null,
+      createdAtUtc: '2026-10-09T00:00:00Z',
+      updatedAtUtc: '2026-10-09T00:00:00Z',
+      chat: [],
+      canUndo: false,
+    };
   }
   async function ask(message = 'תרגול חשבון') {
     await type('chat-message', message);
@@ -77,12 +90,7 @@ describe('ActivityWorkspace plan ownership', () => {
         provideRouter(
           [
             { path: 'activities/new', component: ActivityWorkspace },
-            {
-              path: 'templates/:templateId/edit',
-              component: ActivityWorkspace,
-              data: { context: 'template' },
-            },
-            { path: 'templates/:templateId/create', component: ActivityWorkspace },
+            { path: 'activities/:activityId', component: ActivityWorkspace },
           ],
           withComponentInputBinding(),
         ),
@@ -94,201 +102,123 @@ describe('ActivityWorkspace plan ownership', () => {
   });
   afterEach(() => http.verify());
 
-  it('edits a template definition and its defaults without creating activities', async () => {
-    await open('/templates/example/edit', numericPlan);
-    expect(root().querySelector('#workspace-title')!.textContent).toContain('עריכת תבנית');
-    expect(field('plan-name').closest('details')!.open).toBe(true);
-    expect(root().querySelector('#choices-title')).toBeNull();
-    expect(field('activity-topic').closest('details')).toBeNull();
-    expect(root().querySelector('#plan-topic')).toBeNull();
-    expect(root().querySelector('#generate-text, #generate-questions')).toBeNull();
-    expect(root().querySelector('#save-activity')).toBeNull();
-    expect(root().querySelector('#save-template')!.closest('details')).toBeNull();
-    expect(
-      root().querySelector<HTMLAnchorElement>('#create-from-template')!.getAttribute('href'),
-    ).toBe('/templates/example/create');
-    await type('activity-topic', 'נושא חדש');
-    await click('save-template');
-    const save = http.expectOne('/api/templates/example/versions');
-    expect(save.request.body.definition.settings.topic).toBe('נושא חדש');
-    save.flush({
-      id: 'example',
-      currentVersion: 4,
-      versionId: 'v4',
-      definition: save.request.body.definition,
-    });
+  it('warns before leaving an unsent message or an unsaved clarification', async () => {
+    await open();
+    const workspace = harness.routeDebugElement!.componentInstance as ActivityWorkspace;
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
+    await type('chat-message', 'בקשה שעדיין לא נשלחה');
+    expect(workspace.canLeave()).toBe(false);
+    const request = await ask();
+    expect(workspace.canLeave()).toBe(false);
+    reply(request, null, 'לאיזה גיל?');
     await settle();
-    expect(root().textContent).toContain('התבנית נשמרה במרחב שלנו.');
-    expect(root().textContent).not.toContain('הפעילות לא השתנתה');
-    expect(root().textContent).not.toContain('לא נשמר');
-    http.expectNone('/api/activity-drafts');
+    expect(workspace.canLeave()).toBe(false);
+    expect(confirm).toHaveBeenCalledTimes(3);
+    confirm.mockRestore();
   });
 
-  it('keeps ordinary choices visible and template internals quiet for a new activity', async () => {
+  it('shows a concrete read-only summary after authoring without saving', async () => {
     await open();
     reply(await ask());
     await settle();
-    expect(field('activity-topic').closest('details')).toBeNull();
-    expect(field('activity-questionCount').value).toBe('2');
-    expect(field('plan-name').closest('details')!.open).toBe(false);
-    // A new activity authors its own plan, so it may define choices that a template keeps.
-    expect(root().querySelector('#choices-title')).toBeNull();
-    expect(root().querySelector('#save-template')!.closest('details')!.open).toBe(false);
-    expect(
-      root().querySelector('#generate-text, #generate-questions')!.closest('details'),
-    ).toBeNull();
-    expect(root().querySelector('#release-activity')).toBeNull();
-  });
-
-  it('ends typing coalescence at successful publication so Undo restores the saved content', async () => {
-    await open('/templates/example/edit', numericPlan);
-    await type('plan-name', 'השם שנשמר');
-    await click('save-template');
-    const save = http.expectOne('/api/templates/example/versions');
-    save.flush({
-      id: 'example',
-      currentVersion: 4,
-      versionId: 'v4',
-      definition: save.request.body.definition,
-    });
-    await settle();
-    await type('plan-name', 'עריכה אחרי שמירה');
-    await click('plan-undo');
-    expect(field('plan-name').value).toBe('השם שנשמר');
-    http.expectNone('/api/templates/example/versions');
-  });
-
-  it('coalesces typing and retains only the most recent twenty editable states', async () => {
-    await open('/templates/example/edit', numericPlan);
-    await type('plan-name', 'מ');
-    await type('plan-name', 'מספרים חדשים');
-    await click('plan-undo');
-    expect(field('plan-name').value).toBe('מספרים');
-    for (let index = 0; index < 22; index++)
-      await type(index % 2 === 0 ? 'plan-name' : 'plan-goal', `עריכה ${index}`);
-    for (let index = 0; index < 20; index++) await click('plan-undo');
-    expect(root().querySelector('#plan-undo')!.getAttribute('aria-disabled')).toBe('true');
-    expect(field('plan-name').value).toBe('עריכה 0');
-    expect(field('plan-goal').value).toBe('עריכה 1');
-    http.expectNone('/api/ai/activity-plans');
-  });
-
-  it.each(['/activities/new', '/templates/example/edit'])(
-    'uses the visible settings as the plan defaults at %s, including in AI changes',
-    async (path) => {
-      if (path === '/activities/new') {
-        await open();
-        reply(await ask());
-        await settle();
-      } else await open(path, numericPlan);
-      expect(root().querySelector('#plan-questionCount')).toBeNull();
-      await type('activity-questionCount', '7');
-      const refine = await ask('שאלות קשות יותר');
-      expect(refine.request.body.baseDefinition.settings.questionCount).toBe(7);
-      reply(
-        refine,
-        { ...numericPlan, settings: { ...numericPlan.settings, questionCount: 9 } },
-        null,
-        [{ kind: 'changed', path: 'settings' }],
-      );
-      await settle();
-      expect(field('activity-questionCount').value).toBe('9');
-    },
-  );
-
-  it('keeps invalid initial edits instead of sending a request without their context', async () => {
-    await open();
-    await type('plan-name', 'תכנית חלקית');
-    await type('chat-message', 'תרגול חשבון');
-    await click('chat-send');
-    http.expectNone('/api/ai/activity-plans');
-    expect(field('plan-name').value).toBe('תכנית חלקית');
-    expect(root().textContent).toContain('תקנו את ההגדרות המסומנות');
-    // The marked field explains itself instead of a list elsewhere.
-    expect(field('plan-goal').getAttribute('aria-invalid')).toBe('true');
-    expect(root().querySelector('#plan-goal-errors')!.textContent).toContain('זהו שדה חובה');
-    expect(field('plan-name').getAttribute('aria-invalid')).toBeNull();
-  });
-
-  it('does not mark early local typing saved when the status version arrives later', async () => {
-    await harness.navigateByUrl('/activities/new', ActivityWorkspace);
-    const status = http.expectOne('/api/ai/status');
-    field('plan-name').value = 'טיוטה מקומית';
-    field('plan-name').dispatchEvent(new Event('input', { bubbles: true }));
-    status.flush({ configured: false, schemaVersion: 1 });
-    await settle();
-    expect(root().textContent).toContain('לא נשמר');
-    await click('plan-undo');
-    expect(field('plan-name').value).toBe('');
-  });
-
-  it('applies a clean proposal locally without publication and moves from the request to settings', async () => {
-    await open();
-    const chatFollowsSettings = () =>
-      !!(
-        field('plan-name').compareDocumentPosition(field('chat-message')) &
-        Node.DOCUMENT_POSITION_FOLLOWING
-      );
-    expect(root().querySelector('#plan-title')!.textContent).toContain('מה תרצו להכין?');
-    expect(field('chat-message').getAttribute('aria-labelledby')).toBe('plan-title');
-    expect(chatFollowsSettings()).toBe(false);
-    expect(root().querySelector('#save-template')).toBeNull();
-    expect(root().querySelector('#generate-text, #generate-questions')).toBeNull();
-    field('chat-message').focus();
-    const request = await ask();
-    reply(request);
-    await settle();
-    expect(field('plan-name').value).toBe('מספרים');
     expect(root().querySelector('#plan-title')!.textContent).toContain('הגדרות הפעילות');
-    expect(chatFollowsSettings()).toBe(true);
-    expect(document.activeElement?.id).toBe('plan-title');
-    expect(root().textContent).toContain('הכנו הגדרות לפי הבקשה');
-    expect(root().textContent).not.toContain('נוספו הגדרות');
-    http.expectNone('/api/templates');
+    expect(root().querySelector('#activity-topic, #plan-name, app-plan-editor')).toBeNull();
+    expect(root().textContent).toContain(numericPlan.name);
+    expect(root().textContent).toContain('לא נשמר');
+    expect(root().querySelector('#create-activity')?.textContent).toContain('יצירת הפעילות');
     http.expectNone('/api/activity-drafts');
-    await click('plan-undo');
-    expect(field('plan-name').value).toBe('');
   });
 
-  it.each(['typing', 'invalid', 'undo', 'cancel'])(
-    'does not apply a late proposal after %s',
-    async (action) => {
-      await open('/templates/example/edit', numericPlan);
-      if (action === 'undo') await type('plan-name', 'שלי');
-      const request = await ask('לשנות את השם');
-      if (action === 'typing') await type('plan-name', 'עריכה מקומית');
-      if (action === 'invalid') await type('activity-questionCount', '');
-      if (action === 'undo') await click('plan-undo');
-      if (action === 'cancel') await click('chat-cancel');
-      if (!request.cancelled) reply(request, { ...numericPlan, name: 'ישן' });
-      await settle();
-      expect(field('plan-name').value).not.toBe('ישן');
-      if (action === 'invalid') expect(field('activity-questionCount').value).toBe('');
-    },
-  );
+  it('requiresSourceConfirmationBeforeSaving, including after the text changes', async () => {
+    await open();
+    reply(await ask(), suppliedPlan);
+    await settle();
+    await click('save-activity');
+    http.expectNone('/api/activity-drafts');
+    expect(root().textContent).toContain('אשרו שהטקסט שלכם הועתק נכון');
+    const id = suppliedPlan.materials[0].id;
+    await click('confirm-source-' + id);
+    await type('source-' + id, sourceText + '!');
+    await click('save-activity');
+    http.expectNone('/api/activity-drafts');
+    await click('confirm-source-' + id);
+    await click('save-activity');
+    const save = http.expectOne('/api/activity-drafts');
+    expect(save.request.body.plan.materials[0].text).toBe(sourceText + '!');
+    expect(save.request.body.templateId).toBeUndefined();
+    save.flush(draft(save.request.body.plan));
+    await settle();
+    http.expectNone((r) => r.url.endsWith('/operations'));
+  });
 
-  it('drops pending responses when leaving the route', async () => {
+  it('keeps the authoring conversation when confirming sources before saving', async () => {
+    await open();
+    reply(await ask('שאלות על הטקסט שלי'), suppliedPlan);
+    await settle();
+    await click('confirm-source-' + suppliedPlan.materials[0].id);
+    await click('save-activity');
+    const save = http.expectOne('/api/activity-drafts');
+    expect(save.request.body.chat).toHaveLength(2);
+    expect(save.request.body.chat[0].text).toBe('שאלות על הטקסט שלי');
+    save.flush(draft(suppliedPlan));
+    await settle();
+  });
+
+  it('savesIncompleteDraftWithoutGeneration and imports its conversation', async () => {
+    await open();
+    reply(await ask());
+    await settle();
+    await click('save-activity');
+    const save = http.expectOne('/api/activity-drafts');
+    expect(save.request.body.plan).toEqual(numericPlan);
+    expect(save.request.body.chat.map((turn: { role: string }) => turn.role)).toEqual([
+      'parent',
+      'assistant',
+    ]);
+    save.flush(draft(numericPlan));
+    await settle();
+    http.expectNone((r) => r.url.endsWith('/operations'));
+    expect(root().textContent).toContain('נשמר');
+  });
+
+  it('saves before starting one complete Create operation', async () => {
+    await open();
+    reply(await ask());
+    await settle();
+    await click('create-activity');
+    const save = http.expectOne('/api/activity-drafts');
+    http.expectNone((r) => r.url.endsWith('/operations'));
+    save.flush(draft(numericPlan));
+    await settle();
+    const operation = http.expectOne('/api/activity-drafts/draft/operations');
+    expect(operation.request.body).toMatchObject({ kind: 'Create', expectedRevision: 1 });
+    operation.flush({ title: 'לא זמין' }, { status: 503, statusText: 'Unavailable' });
+    await settle();
+  });
+
+  it.each(['source edit', 'undo', 'cancel'])('ignores late authoring after %s', async (action) => {
+    await open();
+    reply(await ask(), suppliedPlan);
+    await settle();
+    const request = await ask('לשנות את השם');
+    if (action === 'source edit')
+      await type('source-' + suppliedPlan.materials[0].id, 'עריכה מקומית');
+    if (action === 'undo') await click('plan-undo');
+    if (action === 'cancel') await click('chat-cancel');
+    if (!request.cancelled) reply(request, { ...suppliedPlan, name: 'תגובה ישנה' });
+    await settle();
+    expect(root().textContent).not.toContain('תגובה ישנה');
+  });
+
+  it('cancels unsaved authoring on navigation', async () => {
     await open();
     const request = await ask();
-    await open('/templates/example/edit', numericPlan);
+    await harness.navigateByUrl('/activities/other', ActivityWorkspace);
+    http.expectOne('/api/ai/status').flush({ configured: true, schemaVersion: 2 });
+    http.expectOne('/api/activity-drafts/other').flush({ ...draft(numericPlan), id: 'other' });
+    await settle();
     expect(request.cancelled).toBe(true);
-    expect(field('plan-name').value).toBe('מספרים');
   });
-
-  it('treats identical proposals as no-ops and expires clarification on local edits', async () => {
-    await open('/templates/example/edit', numericPlan);
-    const identical = await ask();
-    reply(identical, numericPlan, null, []);
-    await settle();
-    expect(root().querySelector('#plan-undo')!.getAttribute('aria-disabled')).toBe('true');
-    const pending = await ask('לשנות');
-    reply(pending, null, 'איזה נושא?');
-    await settle();
-    expect(root().textContent).toContain('איזה נושא?');
-    await type('plan-goal', 'מטרה אחרת');
-    expect(root().querySelector('#chat-clarification')).toBeNull();
-  });
-
   it('retains successive clarification context and explicitly consolidates before continuing', async () => {
     await open();
     for (let index = 0; index < 4; index++) {
@@ -330,75 +260,5 @@ describe('ActivityWorkspace plan ownership', () => {
     expect(root().textContent).toContain(clarification);
     await click('chat-send');
     http.expectNone('/api/ai/activity-plans');
-  });
-
-  it('requires source confirmation, tracks it in Undo and publishes exact canonical text only', async () => {
-    await open();
-    const request = await ask();
-    reply(request, suppliedPlan);
-    await settle();
-    await click('save-template');
-    http.expectNone('/api/templates');
-    // A blocked save says what to do; nothing was sent, so there is nothing to check in the library.
-    expect(root().textContent).toContain('אשרו שהטקסט שלכם הועתק נכון');
-    expect(root().querySelector('#check-library')).toBeNull();
-    await click('confirm-source-11111111111111111111111111111111');
-    await click('plan-undo');
-    await click('save-template');
-    http.expectNone('/api/templates');
-    await type('source-11111111111111111111111111111111', sourceText + '!');
-    await click('save-template');
-    const save = http.expectOne('/api/templates');
-    expect(save.request.body.materials[0].text).toBe(sourceText + '!');
-    expect(JSON.stringify(save.request.body)).not.toContain('confirmed');
-    save.flush({ id: 'saved', currentVersion: 1, versionId: 'v1', definition: save.request.body });
-    await settle();
-    http.expectNone('/api/activity-drafts');
-    // Closed advanced options name only their own problems; the source text sits with the settings.
-    const advanced = () => root().querySelector('#setup-body details > summary')!.textContent;
-    await type('source-11111111111111111111111111111111', '');
-    expect(advanced()).not.toContain('יש לתקן');
-    await type('plan-name', '');
-    expect(advanced()).toContain('יש לתקן');
-  });
-
-  it('accepts reloaded sources and locks publication until one success updates expectedVersion', async () => {
-    await open('/templates/example/edit', suppliedPlan);
-    await type('plan-name', 'חדש');
-    await click('save-template');
-    const save = http.expectOne('/api/templates/example/versions');
-    expect(save.request.body.expectedVersion).toBe(3);
-    expect(field('plan-name').disabled).toBe(true);
-    await click('save-template');
-    http.expectNone('/api/templates/example/versions');
-    save.flush({
-      id: 'example',
-      currentVersion: 4,
-      versionId: 'v4',
-      definition: save.request.body.definition,
-    });
-    await settle();
-    await click('save-template');
-    http.expectNone('/api/templates/example/versions');
-    await type('plan-name', 'נוסף');
-    await click('save-template');
-    const next = http.expectOne('/api/templates/example/versions');
-    expect(next.request.body.expectedVersion).toBe(4);
-    next.flush({ title: 'התבנית השתנתה' }, { status: 409, statusText: 'Conflict' });
-    await settle();
-    expect(field('plan-name').value).toBe('נוסף');
-  });
-
-  it('keeps local input after a lost publication response and offers the library without retrying', async () => {
-    await open('/templates/example/edit', numericPlan);
-    await type('plan-name', 'נשמר אולי');
-    await click('save-template');
-    http.expectOne('/api/templates/example/versions').error(new ProgressEvent('error'));
-    await settle();
-    expect(field('plan-name').value).toBe('נשמר אולי');
-    expect(root().querySelector<HTMLAnchorElement>('#check-library')!.getAttribute('href')).toBe(
-      '/templates',
-    );
-    http.expectNone('/api/templates/example/versions');
   });
 });

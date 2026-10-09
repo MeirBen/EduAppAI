@@ -95,11 +95,9 @@ not reevaluated; future paid calls require an explicit agreed budget.
 
 ## Remaining work
 
-**Slice 2:** implement the reading/editing canvas and adjacent activity chat,
-initial source confirmation, targeting and manual-edit recovery offer. Retire
-still-used `/templates` navigation/routes/library/publication state, the
-standalone scoped-repair forms, four-step progress and staged text/question
-controls as their replacements become usable. Keep status/Stop and evidence.
+**Slice 2:** the canvas/chat and frontend retirement are implemented; see the
+[slice-2 record](2026-10-09-activity-only-slice-2.md) for its verification status
+and cleanup details.
 
 **Slice 3:** retire template endpoints/entities/DbSets/provenance and the replaced
 operation kinds after all callers migrate. Keep GenerateQuestions for explicit

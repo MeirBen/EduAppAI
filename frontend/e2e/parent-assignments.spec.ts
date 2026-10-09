@@ -204,7 +204,7 @@ test('parent manages access, assigns frozen work, recovers final grades and rese
     expect((await childApi.get(`${base}/api/assignments/${assignment.id}/result`)).status()).toBe(
       401,
     );
-    await page.goto('/templates');
+    await page.goto('/activities');
     page.once('dialog', (dialog) => dialog.accept());
     await page.getByRole('button', { name: 'הסרת הפעילות: פעילות ללא הקצאה', exact: true }).click();
     await expect(
@@ -287,7 +287,7 @@ test('parent manages access, assigns frozen work, recovers final grades and rese
     await page.getByRole('button', { name: 'שמירת הפרופיל', exact: true }).click();
     await expect(page.getByText('הפרופיל מושבת.', { exact: false })).toBeVisible();
     await expect(page.getByRole('button', { name: 'יצירת קוד הפעלה', exact: true })).toHaveCount(0);
-    await page.goto('/templates');
+    await page.goto('/activities');
     await page.getByText('ניהול נתונים', { exact: true }).click();
     page.once('dialog', async (dialog) => {
       for (const scope of ['פרופילי הילדים', 'המכשירים', 'ההקצאות', 'התשובות', 'הציונים'])

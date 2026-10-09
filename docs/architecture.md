@@ -1,9 +1,10 @@
 # Architecture
 
-This guide describes the implemented slice-1 engine/API and its current Angular
-workspace. The [product specification](product-specification.md) and
-[chat design](activity-chat-design.md) define the remaining canvas, template
-retirement and coordinated data cutover. The slices are not separate releases.
+This guide describes the slice-1 engine/API and slice-2 activity canvas/chat.
+The [product specification](product-specification.md) and
+[chat design](activity-chat-design.md) define the remaining slice-3 backend/
+evaluation template retirement and coordinated data cutover. The slices ship
+together.
 
 ## Structure
 
@@ -177,10 +178,10 @@ terminal status in one transaction under the active-operation/revision fences.
 Failures and cancellation leave saved content unchanged. Only applied content
 changes advance the draft revision; replies and status transitions do not.
 
-Current workspace callers also use GenerateMaterials, GenerateQuestions and
-single-item replacement actions. They use the same worker/engine; slice 2
-retires the replaced UI actions. GenerateQuestions remains the explicit recovery
-for manual text edits.
+The canvas uses Create, Revise and the explicit GenerateQuestions recovery
+action. Backend/evaluation callers still support GenerateMaterials and
+single-item replacement actions. They use the same worker/engine and remain
+only for slice-3 caller retirement.
 
 On restart, engine/schema/profile-matching queued stages resume; uncheckpointed
 calling steps become unknown and are never retried. Profile fingerprints exclude
@@ -344,27 +345,45 @@ and lost access also lock writes with child-specific feedback. Navigation/close
 warnings and lifetime cancellation protect work; answers are never persisted
 in a browser cache.
 
-`ActivityWorkspace` owns the current template/activity routes and one editable
-plan/document buffer. `workspace-form` owns buffer transitions and
-`plan-projection` owns canonical form rules. Child editors use the owner's
+`ActivityWorkspace` owns `/activities/new`, `/activities/:activityId` and one
+plan/document buffer. Its `workspace-form` owns buffer transitions and
+`plan-projection` validates editable source input; read-only settings retain
+the canonical server shape. Child editors use the owner's
 Signal Forms and emit changes; they do not copy drafts or issue HTTP requests.
-Unsaved setup has bounded local undo and correlated authoring requests. Saved
-plans use durable Revise/chat/undo; the fixed-structure content editor permits
-manual text, answer and point edits only. Active operations lock edits while
-status, cancellation and technical evidence remain accessible.
+Settings are read-only; chat changes requirements. The canvas starts in reading
+mode, and an explicit edit opens fixed titles, instructions, bodies, questions,
+options, answers and points. Successful saving returns to reading. Field
+problems and server word counts stay beside content.
 
-Generation, adoption and release first flush a valid checkpoint. Supplied
-sources require explicit confirmation. Template publication uses
-`expectedVersion` and never writes an activity. Polling reads operation status
-before its draft, and only a confirmed revision with an unchanged local-edit
-fence applies automatically; other content is offered for explicit reload.
-Lost start responses retain the original key for reconciliation. Failed
-candidates remain technical evidence and cannot replace the edit buffer.
+Unsaved setup uses correlated authoring and bounded local undo. Its single
+bounded conversation is imported with the first save; subsequent chat and undo
+come from the saved draft. Source confirmation preserves exact text and must
+be repeated after an edit. Chat shortcuts set an ID-based target and focus the
+composer without sending; removed targets block submission until cleared.
+Added sources need explicit confirmation before Revise admission. Confirmed
+sources survive clarification, failure and reload until incorporated or removed;
+recovery uses saved operation evidence and requires re-entry if it has expired.
+Native navigation warnings protect draft edits, unsent messages and source input.
+
+Creation, chat, adoption and approval flush one valid checkpoint; failed saves
+preserve edits and prevent dependent AI. One Create completes missing content
+atomically. During work the canvas stays readable, editing pauses and chat
+provides Stop. Failed or cancelled requests remain available for an explicit
+new attempt. The saved source/text diagnostics offer question regeneration or
+validated adoption, including after reload. Approval requires a complete,
+valid, clean saved revision, freezes it without AI and never assigns it.
+
+Polling reads operation status before its draft. Only a confirmed revision
+with an unchanged local-edit fence applies automatically; other content is
+offered for explicit reload. Lost start responses retain the exact key/payload
+for reconciliation. Failed candidates remain technical evidence and cannot
+replace the buffer. Chat restores focus only for actions taken within it;
+creation transfers focus to the new content when its button disappears.
 
 `core/api/library-changes` owns each page's native change stream, pauses it while
-hidden and exposes a refused connection for explicit retry. The library's three
+hidden and exposes a refused connection for explicit retry. The library's two
 resources refresh once running reads settle; one failed list does not hide the
-others. Confirmed deletion updates only its list, while reset clears all three.
+others. Confirmed deletion updates only its list, while reset clears both.
 
 `draft-observer` owns one read lifecycle for SSE hints, active-operation polling
 and explicit reloads. Hints during a read coalesce into one trailing read. Writes
@@ -373,13 +392,12 @@ background suspension. Identity changes and page destruction cancel all reads.
 Operation metadata follows even when content revision is unchanged. External
 content is offered for explicit reload; locally followed generation retains its
 edit fence and Undo behavior. Terminal operations stop polling but remain
-readable on later hints for diagnostics and late usage. Template editing relies
-on its publication conflict check.
+readable on later hints for diagnostics and late usage.
 
-The library separates drafts, templates and snapshots; a snapshot copy creates
-a new draft without AI. The PWA caches assets only. One Playwright suite tests
-the published app against a local provider, with service workers blocked so
-routing observes every request. See the [UI guide](ui-guide.md) and
+The `/activities` library separates drafts and approved snapshots; a snapshot
+copy creates a new draft without AI. The PWA caches assets only. One Playwright
+suite tests the published app against a local provider, with service workers
+blocked so routing observes every request. See the [UI guide](ui-guide.md) and
 [verification](../README.md#verify). References: [IChatClient][chat],
 [structured output][output], [Signal Forms][forms].
 

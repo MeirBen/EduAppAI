@@ -33,12 +33,24 @@ describe('Activity library', () => {
   async function render() {
     const fixture = TestBed.createComponent(ActivityLibrary);
     fixture.detectChanges();
-    http.expectOne('/api/templates').flush([]);
     http.expectOne('/api/instances').flush([snapshot]);
     http.expectOne('/api/activity-drafts').flush([draft]);
     await fixture.whenStable();
     return fixture;
   }
+
+  it('loads only drafts and ready activities, with one creation entry', async () => {
+    const fixture = TestBed.createComponent(ActivityLibrary);
+    TestBed.tick();
+    http.expectNone('/api/templates');
+    http.expectOne('/api/activity-drafts').flush([]);
+    http.expectOne('/api/instances').flush([]);
+    await fixture.whenStable();
+    const root = fixture.nativeElement as HTMLElement;
+    expect(root.querySelectorAll('a[href="/activities/new"]')).toHaveLength(1);
+    expect(root.textContent).not.toContain('תבני');
+    http.verify();
+  });
 
   it('describes both snapshot removal outcomes and acknowledges removal without claiming permanent deletion', async () => {
     const fixture = await render();
@@ -82,22 +94,18 @@ describe('Activity library', () => {
     expect(stream.url).toBe('/api/library/changes?ngsw-bypass');
     stream.send();
     TestBed.tick();
-    const running = ['/api/templates', '/api/instances', '/api/activity-drafts'].map((path) =>
-      http.expectOne(path),
-    );
+    const running = ['/api/instances', '/api/activity-drafts'].map((path) => http.expectOne(path));
     // This change may postdate the running reads, so the lists reload again once they settle.
     stream.send();
     TestBed.tick();
     http.expectNone('/api/activity-drafts');
     expect(root.querySelector('a[href="/activities/draft"]')).not.toBeNull();
-    running[0].flush([]);
-    running[1].flush([snapshot]);
-    running[2].flush([draft]);
+    running[0].flush([snapshot]);
+    running[1].flush([draft]);
     await vi.waitFor(() => {
       TestBed.tick();
       http.expectOne('/api/activity-drafts').flush([{ ...draft, id: 'phone' }, draft]);
     });
-    http.expectOne('/api/templates').flush([]);
     http.expectOne('/api/instances').flush([snapshot]);
     await fixture.whenStable();
     expect(root.querySelector('a[href="/activities/phone"]')).not.toBeNull();
@@ -127,20 +135,17 @@ describe('Activity library', () => {
     FakeEventSource.opened[0].send();
     TestBed.tick();
     http.expectOne('/api/activity-drafts').flush([draft]);
-    http.expectOne('/api/instances').flush([snapshot]);
-    http.expectOne('/api/templates').flush(null, { status: 503, statusText: 'Unavailable' });
+    http.expectOne('/api/instances').flush(null, { status: 503, statusText: 'Unavailable' });
     await fixture.whenStable();
     expect(root.querySelector('a[href="/activities/draft"]')).not.toBeNull();
-    expect(root.querySelector('a[href="/instances/ready"]')).not.toBeNull();
-    const templates = root.querySelector('[aria-labelledby="templates-title"]')!;
-    expect(templates.textContent).not.toContain('עוד אין תבניות');
-    templates.querySelector<HTMLButtonElement>('button')!.click();
+    const ready = root.querySelector('[aria-labelledby="ready-title"]')!;
+    expect(ready.textContent).not.toContain('עוד אין פעילויות מוכנות');
+    ready.querySelector<HTMLButtonElement>('button')!.click();
     TestBed.tick();
-    http.expectOne('/api/templates').flush([]);
+    http.expectOne('/api/instances').flush([]);
     http.expectNone('/api/activity-drafts');
-    http.expectNone('/api/instances');
     await fixture.whenStable();
-    expect(templates.textContent).toContain('עוד אין תבניות');
+    expect(ready.textContent).toContain('עוד אין פעילויות מוכנות');
     http.verify();
   });
 
@@ -150,8 +155,7 @@ describe('Activity library', () => {
     FakeEventSource.opened[0].send();
     TestBed.tick();
     http.expectOne('/api/activity-drafts').flush([draft]);
-    http.expectOne('/api/instances').flush([snapshot]);
-    http.expectOne('/api/templates').flush(null, { status: 503, statusText: 'Unavailable' });
+    http.expectOne('/api/instances').flush(null, { status: 503, statusText: 'Unavailable' });
     await fixture.whenStable();
     vi.spyOn(window, 'confirm').mockReturnValue(true);
     root.querySelector<HTMLButtonElement>('details .button-danger')!.click();
@@ -172,7 +176,6 @@ describe('Activity library', () => {
     FakeEventSource.opened[0].send();
     TestBed.tick();
     const stale = http.expectOne('/api/activity-drafts');
-    http.expectOne('/api/templates').flush([]);
     http.expectOne('/api/instances').flush([snapshot]);
     vi.spyOn(window, 'confirm').mockReturnValue(true);
     root.querySelector<HTMLButtonElement>('[data-delete-draft]')!.click();
@@ -183,7 +186,6 @@ describe('Activity library', () => {
     FakeEventSource.opened[0].send();
     TestBed.tick();
     http.expectOne('/api/activity-drafts').flush([]);
-    http.expectOne('/api/templates').flush([]);
     http.expectOne('/api/instances').flush([snapshot]);
     await fixture.whenStable();
     expect(root.querySelector('a[href="/activities/draft"]')).toBeNull();
@@ -204,7 +206,6 @@ describe('Activity library', () => {
     retry!.click();
     TestBed.tick();
     expect(FakeEventSource.opened).toHaveLength(2);
-    http.expectOne('/api/templates').flush([]);
     http.expectOne('/api/instances').flush([snapshot]);
     http.expectOne('/api/activity-drafts').flush([draft]);
     await fixture.whenStable();

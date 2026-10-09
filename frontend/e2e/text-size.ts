@@ -1,4 +1,4 @@
-import type { Page } from '@playwright/test';
+import { expect, type Page } from '@playwright/test';
 
 /**
  * Sets the browser's default text size, as a parent's browser setting does. Unlike a page style,
@@ -7,4 +7,7 @@ import type { Page } from '@playwright/test';
 export async function textSize(page: Page, pixels: number) {
   const browser = await page.context().newCDPSession(page);
   await browser.send('Page.setFontSizes', { fontSizes: { standard: pixels } });
+  await expect
+    .poll(() => page.evaluate(() => getComputedStyle(document.documentElement).fontSize))
+    .toBe(`${pixels}px`);
 }

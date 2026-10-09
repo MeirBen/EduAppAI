@@ -2,17 +2,14 @@ import { Component, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { apply, form } from '@angular/forms/signals';
 import { ActivitySetup } from './activity-setup';
-import { PlanEditor } from '../plan-editor/plan-editor';
-import { planForm, planFormSchema } from '../plan-editor/plan-form';
-import { planValue } from '../plan-editor/plan-projection';
+import { planForm, planFormSchema } from '../activity-workspace/plan-form';
 import { numericPlan, suppliedPlan } from '../learning-plan.fixture';
 import { LearningPlan } from '../../../core/api/models';
 import { limits, provideLimits } from '../../../core/api/limits.fixture';
 
 @Component({
-  imports: [ActivitySetup, PlanEditor],
-  template: `<app-activity-setup [plan]="fields.plan" [pendingSources]="pending()" />
-    <app-plan-editor [fields]="fields.plan" />`,
+  imports: [ActivitySetup],
+  template: `<app-activity-setup [plan]="fields.plan" [pendingSources]="pending()" />`,
 })
 class Host {
   readonly raw = signal({ plan: planForm(numericPlan) });
@@ -44,25 +41,16 @@ describe('Activity setup', () => {
     expect(root.textContent).not.toContain('סוג סיפור');
     expect(root.textContent).toContain('בדקו שהטקסט הועתק נכון');
     expect(root.textContent).toContain('הטקסט יישמר בדיוק כפי שהוזן.');
-    const source = root.querySelector<HTMLSelectElement>(
-      `[id="${suppliedPlan.materials[0].id}-source"]`,
-    )!;
-    expect(source.selectedOptions[0].textContent?.trim()).toBe('יש לי טקסט משלי');
-    // The per-activity source mode is template vocabulary; it is offered only where it applies.
-    expect(Array.from(source.options).map((option) => option.value)).toEqual([
-      'generated',
-      'supplied',
-    ]);
+    expect(root.querySelector('select')).toBeNull();
+    expect(root.textContent).toContain('יש לי טקסט משלי');
     expect(visibleText(root)).not.toMatch(/\b(fixed|per-task|generated|target|exact|range)\b/);
   });
 
-  it('edits the concrete settings in the same plan buffer', async () => {
-    const { root, host, fixture } = await render(numericPlan);
-    const field = root.querySelector<HTMLInputElement>('#activity-topic')!;
-    field.value = 'נושא חדש';
-    field.dispatchEvent(new Event('input', { bubbles: true }));
-    await fixture.whenStable();
-    expect(planValue(host.raw().plan, limits).value?.settings.topic).toBe('נושא חדש');
-    expect(root.querySelector('#input-format')).toBeNull();
+  it('shows settings as a read-only summary', async () => {
+    const { root } = await render(numericPlan);
+    expect(root.querySelector('input, select')).toBeNull();
+    expect(root.textContent).toContain(numericPlan.name);
+    expect(root.textContent).toContain(numericPlan.settings.topic);
+    expect(root.textContent).toContain(numericPlan.goal);
   });
 });

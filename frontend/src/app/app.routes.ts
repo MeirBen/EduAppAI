@@ -58,7 +58,7 @@ export const parentRoutes: Routes = [
           ),
       },
       {
-        path: 'templates',
+        path: 'activities',
         title: 'המרחב שלנו · לומדים ביחד',
         loadComponent: () =>
           import('./features/library/activity-library/activity-library').then(

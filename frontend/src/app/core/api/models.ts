@@ -17,12 +17,9 @@ export interface GenerationMetadata {
 /** Supported application-owned question interactions. */
 export type QuestionFormat = 'numeric-input' | 'text-input' | 'single-choice';
 /** Generated-body words: an advisory target count or a strict range; supplied sources have none. */
-export interface LengthExpectation {
-  mode: 'target' | 'range';
-  count?: number | null;
-  lower?: number | null;
-  upper?: number | null;
-}
+export type LengthExpectation =
+  | { mode: 'target'; count: number; lower?: null; upper?: null }
+  | { mode: 'range'; count?: null; lower: number; upper: number };
 /** A generated material or a source copied verbatim from the parent. */
 export interface PlanMaterial {
   id: string;
@@ -67,7 +64,7 @@ export interface PlanChange {
   id?: string | null;
   previousPath?: string | null;
 }
-/** A complete proposal or one clarification; neither publishes a template. */
+/** A complete proposal or one clarification; neither saves a draft. */
 export interface PlanAuthoringReply {
   proposal: LearningPlan | null;
   clarification: string | null;
@@ -76,13 +73,6 @@ export interface PlanAuthoringReply {
   requestId: string;
   baseRevision: number;
   generationMetadata: GenerationMetadata;
-}
-/** Immutable canonical template version. */
-export interface PlanTemplateDetail {
-  id: string;
-  currentVersion: number;
-  versionId: string;
-  definition: LearningPlan;
 }
 /** Parent-editable checkpoint. No revisions, acceptance or generation provenance can be submitted. */
 export interface EditableActivity {
@@ -142,7 +132,6 @@ export interface ActivityDetail {
   diagnostics: Record<string, string[]>;
   measurements: LengthMeasurement[];
   activeOperationId: string | null;
-  templateVersionId: string | null;
   releasedSnapshotId: string | null;
   releasedSourceRevision: number | null;
   createdAtUtc: string;
@@ -170,21 +159,13 @@ export interface ActivityChatTurn {
   outcome: string | null;
 }
 export type ImportedChatTurn = Omit<ActivityChatTurn, 'operationId' | 'outcome'>;
-/** New atomic operations coexist with the old workspace actions until the canvas cutover. */
-export type GenerationKind =
-  | 'Create'
-  | 'Revise'
-  | 'GenerateMaterials'
-  | 'GenerateQuestions'
-  | 'ReplaceMaterial'
-  | 'ReplaceQuestion';
+/** Activity operations exposed by the canvas; structural changes go through Revise. */
+export type GenerationKind = 'Create' | 'Revise' | 'GenerateQuestions';
 /** Keep this exact request for explicit same-key recovery after a lost response. */
 export interface StartGeneration {
   operationKey: string;
   expectedRevision: number;
   kind: GenerationKind;
-  targetId?: string;
-  instruction?: string;
   message?: string;
   target?: RevisionTarget;
   sources?: { label: string; text: string }[];
@@ -208,7 +189,8 @@ export interface GenerationOperation {
     metadata: GenerationMetadata | null;
   }[];
   artifacts: {
-    targetId: string | null;
+    /** Exact parent-confirmed attachments, retained for request recovery until evidence expires. */
+    sources?: StartGeneration['sources'] | null;
     /** Requirements pinned when the operation started; only the parts the parent UI reads. */
     input?: {
       materials: { id: string; label: string; length: ResolvedLength | null }[];
@@ -239,14 +221,6 @@ export interface SnapshotSummary {
   status: 'Ready';
   createdAtUtc: string;
   hasAssignments: boolean;
-}
-
-/** Template list projection; fetch PlanTemplateDetail when the definition is needed. */
-export interface TemplateSummary {
-  id: string;
-  name: string;
-  currentVersion: number;
-  createdAtUtc: string;
 }
 
 /** Server-enforced limits. The client mirrors them for native validation, caps and copy; the API stays authoritative. */

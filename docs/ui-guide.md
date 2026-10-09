@@ -80,29 +80,42 @@ parent labels keep their original language and values.
   an answer that another field's edit left unmatched, or one the saved check
   found. Field messages state their rule ("יש להזין…"); the attempt line says
   what to do ("תקנו את השדות המסומנים."). Length rules rely on the native
-  `maxlength` and add no message. ## Spacing Containers own `gap`; shared
-  primitives have no outer margin. `main` owns the page padding, so page roots
-  add none. Lists span the header width; editable/frozen activity documents use
-  `max-w-3xl`. | Token | Use | | ----------------- |
-  ------------------------------------------------------- | | `gap-1` |
-  Heading/description, status/content, stacked text links | | `gap-2` | Control
-  and revealed content | | `gap-3` | Buttons in an action row | | `gap-4` |
-  Fields and blocks, including field/action rows | | `gap-6` | Page sections and
-  headed groups | | `gap-x-6 gap-y-2` | A wrapping row of actions and links | |
-  `gap-x-4` | An inline row of links or status text | | `mb-2` | Label above its
-  control, set once in `base.css` | | `mt-2` | Hint/help/error below its control
-  | Keep each label/control in one field block, not separate gapped children.
-  Disclosures own summary/content spacing; empty live regions occupy no slot.
-  Use `role="group"` with an inset heading for grouped card fields, not a
-  `.well` fieldset legend; later headed groups use `card-section`. Related
-  fields share rows: two-column settings, sibling numbers and list-item remove
-  controls. Content beside a tile/actions uses `min-w-1/2 flex-1`, wrapping
-  below half-width. Render optional content only when present. ## Styles and
-  theming `frontend/src/styles.css` imports each layer from
-  `frontend/src/styles/`: Final or replacing actions ask first with the native
+  `maxlength` and add no message.
+- Final or replacing actions ask first with the native
   confirm, naming the effect: deleting, reset, withdrawal, disabling, revoking,
   marking ready, regenerating and submitting. Reversible edits rely on Undo
   instead.
+
+## Spacing
+
+Containers own `gap`; shared primitives have no outer margin. `main` owns the
+page padding, so page roots add none. Lists span the header width;
+editable/frozen activity documents use `max-w-3xl`.
+
+| Token             | Use                                                     |
+| ----------------- | ------------------------------------------------------- |
+| `gap-1`           | Heading/description, status/content, stacked text links |
+| `gap-2`           | Control and revealed content                            |
+| `gap-3`           | Buttons in an action row                                |
+| `gap-4`           | Fields and blocks, including field/action rows          |
+| `gap-6`           | Page sections and headed groups                         |
+| `gap-x-6 gap-y-2` | A wrapping row of actions and links                     |
+| `gap-x-4`         | An inline row of links or status text                   |
+| `mb-2`            | Label above its control, set once in `base.css`         |
+| `mt-2`            | Hint/help/error below its control                       |
+
+Keep each label/control in one field block, not separate gapped children.
+Disclosures own summary/content spacing; empty live regions occupy no slot.
+Use `role="group"` with an inset heading for grouped card fields, not a
+`.well` fieldset legend; later headed groups use `card-section`. Related
+fields share rows: two-column settings, sibling numbers and list-item remove
+controls. Content beside a tile/actions uses `min-w-1/2 flex-1`, wrapping
+below half-width. Render optional content only when present.
+
+## Styles and theming
+
+`frontend/src/styles.css` imports each layer from `frontend/src/styles/`:
+
 - `theme.css` owns the colors, elevations and corner radii. Tailwind's default
   palettes and scales are cleared, so templates can only use theme values.
 - `utilities.css` owns project variants: `pinned-header`, `pinned-actions`, and
@@ -114,8 +127,8 @@ parent labels keep their original language and values.
   radios, `choice` answer cards), surfaces
   (`panel`, `well`, `card-section`, `action-bar`, `list-row` with its
   `row-link`, `empty-state`), conversation (`bubble`, `composer`), marks
-  (`badge`, `icon-tile`, `status-icon`, `ai-mark`), lists (`steps`,
-  `progress-steps`) and feedback (`note`, `error`, `field-error`, `callout`).
+  (`badge`, `icon-tile`, `status-icon`, `ai-mark`), lists (`steps`) and
+  feedback (`note`, `error`, `field-error`, `callout`).
   Use `note`, with one icon, for a short fact about how the app behaves, such as
   kept text, costs or limits; help on what to enter stays plain text under its
   field. Use `error` for a failure that replaces a page's content and
@@ -128,7 +141,7 @@ such as `text-muted`. Color tints have one role each: `/15` for brand
 hairlines and focus halos, `/25` for the error edge and `/30` for hover edges.
 Repeated treatments become primitives, with state from `aria-current`,
 `data-done` or `data-problem` rather than alternative class lists. Component
-stylesheets use theme variables only. Give `steps` and `progress-steps`
+stylesheets use theme variables only. Give `steps`
 `role="list"` to preserve WebKit list semantics.
 
 A theme redefines only `--color-*` tokens and, optionally, the corner roles
@@ -241,10 +254,10 @@ has no final score, and zero possible points has no percentage.
 
 ## Workspace actions
 
-**Target redesign; not implemented yet.** Follow the activity-only lifecycle
-in the [product specification](product-specification.md#activity-lifecycle)
-and the execution details in the [chat design](activity-chat-design.md).
-Shared layout, language and accessibility rules remain applicable throughout.
+**Implemented in slice 2.** Follow the activity-only lifecycle in the
+[product specification](product-specification.md#activity-lifecycle) and the
+execution details in the [chat design](activity-chat-design.md). Backend and
+evaluation cutover remains slice 3.
 
 The library shows **טיוטות** and **פעילויות מוכנות**, with **פעילות חדשה** as
 its creation entry. Remove template links, publication/version controls and the

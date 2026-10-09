@@ -1,19 +1,17 @@
 # Family Learning
 
-**Parent prompt → editable plan → generated text → its questions → parent
-review → frozen snapshot.** Generate without saving a template, edit the content
-or replace one question, then save the draft and mark the reviewed revision
-ready. Saving a reusable template is separate; template edits publish immutable
-versions and never change existing activities. See the
-[architecture](docs/architecture.md) for the current implementation.
+**Describe an activity → save a draft → create → review and edit → approve.**
+The activity opens as a readable document with chat beside it. Save incomplete
+work and return later, ask for changes or edit the content directly, then
+approve the saved revision as a frozen snapshot for assignment.
 
-The [target product specification](docs/product-specification.md) simplifies
-this to **activity → saved draft → approval**, with chat beside the activity
-and no standalone templates. Slice 1 implements its concrete plan, atomic
-Create/Revise, persistent chat and undo. The current workspace still has the
-staged/template UI; slice 2 replaces it before the coordinated data cutover.
-See the [slice-1 implementation record](docs/superpowers/plans/2026-10-08-activity-only-slice-1.md).
-The quick start below describes that current workspace.
+The [product specification](docs/product-specification.md) and
+[chat design](docs/activity-chat-design.md) define the activity-only flow.
+[Slice 1](docs/superpowers/plans/2026-10-08-activity-only-slice-1.md) implements
+the engine/API; [slice 2](docs/superpowers/plans/2026-10-09-activity-only-slice-2.md)
+implements the canvas/chat and removes template UI. Backend/evaluation template
+retirement and the coordinated data cutover remain slice 3; the slices ship
+together. See the [architecture](docs/architecture.md) for current boundaries.
 
 ## Parent and child quick start
 
@@ -25,9 +23,12 @@ use the app's [public HTTPS address](#public-https-address), not `localhost`.
 
 1. Sign in with the parent account created during setup.
 2. Open `/children` and add a child profile; grade and age are optional.
-3. Create an activity at `/activities/new`. Create and review the text, then
-   create and review its questions and answer keys, and mark it ready. From the
-   ready activity's preview, select the child and assign it.
+3. Describe an activity at `/activities/new`, review the settings and confirm
+   any supplied text. **שמירת טיוטה** saves without AI; **יצירת הפעילות** creates
+   the content in one operation. Read it, use chat for changes or **עריכה** for
+   manual edits, and save. **אישור הפעילות** freezes the reviewed revision;
+   open its preview to select a child and assign it. Resume drafts or open
+   approved activities from `/activities`.
 4. At `/children`, select that child, name the device and create an activation
    code. Give the child the displayed activation address and code; the code
    works once and expires after ten minutes.

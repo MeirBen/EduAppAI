@@ -6,20 +6,18 @@
         <li>{{ issue }}</li>
       }
     </ul>
-    @if (outdated()) {
-      <p class="note">
-        <span class="icon icon-info" aria-hidden="true"></span>הבדיקה מתייחסת לגרסה השמורה ומתעדכנת
-        אחרי שמירה.
-      </p>
-    }
+  }
+  @if (outdated()) {
+    <p class="note">
+      <span class="icon icon-info" aria-hidden="true"></span>הבדיקה מתייחסת לגרסה השמורה ומתעדכנת
+      אחרי שמירה.
+    </p>
   }
 </div>
 @if (measurements().length) {
   <app-measurement-list [items]="measurements()" />
 }
-@if (!questionsNext()) {
-  <p class="note">
-    <span class="icon icon-info" aria-hidden="true"></span>בדקו את השפה, העובדות והתשובות. סימון
-    כמוכנה שומר עותק קבוע שאפשר להקצות לילדים.
-  </p>
-}
+<p class="note">
+  <span class="icon icon-info" aria-hidden="true"></span>בדקו את השפה, העובדות והתשובות. אישור
+  הפעילות שומר עותק קבוע שאפשר להקצות לילדים.
+</p>

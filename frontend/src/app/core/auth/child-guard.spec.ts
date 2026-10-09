@@ -38,7 +38,7 @@ describe('Child route boundary', () => {
     await fixture.whenStable();
     const root = fixture.nativeElement as HTMLElement;
     expect(root.querySelector('a[href="/child"]')).not.toBeNull();
-    expect(root.querySelector('a[href="/templates"]')).toBeNull();
+    expect(root.querySelector('a[href="/activities"]')).toBeNull();
     expect(root.querySelector('[aria-label="ניהול המשפחה"]')).toBeNull();
     expect(root.querySelector('#main-content')).not.toBeNull();
     expect(root.querySelector('app-theme-picker')).not.toBeNull();

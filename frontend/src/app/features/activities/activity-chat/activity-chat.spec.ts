@@ -1,12 +1,12 @@
 import { Component, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { form } from '@angular/forms/signals';
-import { TemplateChat } from './template-chat';
+import { ActivityChat } from './activity-chat';
 
 @Component({
-  imports: [TemplateChat],
+  imports: [ActivityChat],
   template:
-    '<app-template-chat [fields]="fields" [configured]="configured()" [busy]="busy()" [clarification]="question()" [refining]="refining()" (sent)="submitted = raw().message" />',
+    '<app-activity-chat [fields]="fields" [configured]="configured()" [busy]="busy()" [clarification]="question()" [refining]="refining()" (sent)="submitted = raw().message" />',
 })
 class Host {
   readonly raw = signal({ message: '', consolidated: '' });
@@ -17,7 +17,7 @@ class Host {
   readonly refining = signal(false);
   submitted = '';
 }
-describe('TemplateChat presentation', () => {
+describe('ActivityChat presentation', () => {
   it('renders clarification as text and waits for an explicit submitted answer', async () => {
     const fixture = TestBed.createComponent(Host),
       host = fixture.componentInstance;
@@ -36,7 +36,7 @@ describe('TemplateChat presentation', () => {
     host.configured.set(false);
     await fixture.whenStable();
     expect(root.querySelector<HTMLButtonElement>('#chat-send')!.disabled).toBe(true);
-    expect(root.textContent).toContain('אפשר למלא את הפרטים ידנית');
+    expect(root.textContent).toContain('אפשר להמשיך לקרוא, לערוך ולשמור טיוטות קיימות');
   });
 
   it('sends on Enter only, and a suggestion fills the composer without sending', async () => {
@@ -76,6 +76,23 @@ describe('TemplateChat presentation', () => {
     host.question.set('לאיזה גיל?');
     await fixture.whenStable();
     expect(root.querySelector('app-suggestion-chips')).toBeNull();
+  });
+
+  it('does not take focus when an action outside chat disappears after creation', async () => {
+    const fixture = TestBed.createComponent(Host),
+      host = fixture.componentInstance;
+    host.raw.set({ message: 'בקשה', consolidated: '' });
+    await fixture.whenStable();
+    const root: HTMLElement = fixture.nativeElement;
+    root.querySelector<HTMLButtonElement>('#chat-send')!.focus();
+    const create = document.body.appendChild(document.createElement('button'));
+    create.focus();
+    host.busy.set(true);
+    await fixture.whenStable();
+    create.remove();
+    host.busy.set(false);
+    await fixture.whenStable();
+    expect(document.activeElement).toBe(document.body);
   });
 
   it('keeps keyboard focus on the swapped send and stop controls without taking it elsewhere', async () => {

@@ -27,7 +27,6 @@ async function isolate(page: Page, format: 'numeric-input' | 'single-choice' = '
     diagnostics: { questions: ['נדרשות שתי שאלות'] },
     measurements: [],
     activeOperationId: null,
-    templateVersionId: null,
     releasedSnapshotId: null,
     releasedSourceRevision: null,
     createdAtUtc: '2026-10-01T00:00:00Z',
@@ -56,10 +55,6 @@ async function isolate(page: Page, format: 'numeric-input' | 'single-choice' = '
     if (path === '/api/library/changes') return route.fulfill({ status: 204 });
     if (path === '/api/ai/status')
       return route.fulfill({ json: { configured: true, schemaVersion: 2 } });
-    if (path === '/api/templates/example')
-      return route.fulfill({
-        json: { id: 'example', currentVersion: 3, versionId: 'v3', definition: numericPlan },
-      });
     if (path === '/api/activity-drafts' && method === 'POST') {
       const body = request.postDataJSON();
       draft = { ...draft, id: body.snapshotId ? 'copy' : 'draft', releasedSnapshotId: null };
@@ -89,7 +84,7 @@ async function isolate(page: Page, format: 'numeric-input' | 'single-choice' = '
         failure: null,
         diagnosticsExpired: false,
         steps: [],
-        artifacts: body.targetId ? { targetId: body.targetId, steps: [] } : null,
+        artifacts: null,
       };
       draft = { ...draft, activeOperationId: 'op' };
       return route.fulfill({ status: 202, json: operation });
@@ -171,6 +166,7 @@ test('sign-out respects a cancelled unsaved-work warning and asks only once when
 }) => {
   const state = await isolate(page);
   await page.goto('/activities/draft');
+  await page.locator('#edit-activity').click();
   await page.locator('#document-title').fill('שינוי שלא נשמר');
   let accept = false;
   let prompts = 0;
@@ -189,6 +185,7 @@ test('sign-out respects a cancelled unsaved-work warning and asks only once when
   await page.locator('#save-activity').click();
   await expect(page.getByText('נשמר', { exact: true })).toBeVisible();
 
+  await page.locator('#edit-activity').click();
   await page.locator('#document-title').fill('שינוי נוסף');
   accept = true;
   await signOut.click();
@@ -203,6 +200,7 @@ test('failed sign-out keeps edits and asks again before a later attempt', async 
     route.fulfill({ status: 503, json: { title: 'לא ניתן לצאת כעת' } }),
   );
   await page.goto('/activities/draft');
+  await page.locator('#edit-activity').click();
   await page.locator('#document-title').fill('שינוי שלא נשמר');
   let prompts = 0;
   page.on('dialog', async (dialog) => {
@@ -227,39 +225,41 @@ test('active work locks content while keeping progress and cancellation accessib
   page,
 }) => {
   const state = await isolate(page);
-  await page.goto('/templates/example/create');
-  await page.locator('#generate-questions').click();
-  await expect(page.locator('#cancel-generation')).toBeVisible();
+  await page.goto('/activities/draft');
+  await page.locator('#create-activity').click();
+  await expect(page.locator('#chat-cancel')).toBeVisible();
   state.complete();
-  await expect(page.locator('#question-0-answer')).toHaveValue('2');
-  await page.locator('#question-0-improve').click();
-  await page.locator('#question-0-improve-submit').click();
-  await expect(page.locator('#cancel-generation')).toBeVisible();
-  await expect(page.getByRole('button', { name: 'הסרת שאלה 1', exact: true })).toHaveCount(0);
-  await expect(page.locator('#question-0-prompt')).toBeDisabled();
-  await expect(page.locator('#cancel-generation')).toBeVisible();
+  await expect(page.getByText('כמה הם 1+1?', { exact: true })).toBeVisible();
+  await page.locator('#ask-question-q1').click();
+  await page.locator('#chat-send').click();
+  await expect(page.locator('#chat-cancel')).toBeVisible();
+  await expect(page.locator('#edit-activity')).toHaveAttribute('aria-disabled', 'true');
+  await expect(page.locator('#question-0-prompt')).toHaveCount(0);
   await expect(page.locator('app-generation-status')).toHaveCount(1);
-  await expect(page.locator('#regenerate-questions')).toHaveAttribute('aria-disabled', 'true');
-  await page.locator('#cancel-generation').click();
-  await expect(page.locator('#cancel-generation')).toHaveCount(0);
+  await expect(page.getByText('כמה הם 1+1?', { exact: true })).toBeVisible();
+  await page.locator('#chat-cancel').click();
+  await expect(page.locator('#chat-cancel')).toHaveCount(0);
   expect(state.writes.filter((write) => write.path.endsWith('/cancel'))).toHaveLength(1);
-  await expect(page.locator('#question-0-prompt')).toHaveValue('כמה הם 1+1?');
+  await expect(page.getByText('כמה הם 1+1?', { exact: true })).toBeVisible();
 });
 
 test('saves before generation, edits manually, reviews the current revision and opens an immutable copy', async ({
   page,
 }) => {
   const state = await isolate(page);
-  await page.goto('/templates/example/create');
-  await page.locator('#generate-questions').click();
-  await expect(page.getByText('יוצרים את השאלות…', { exact: true })).toBeVisible();
+  await page.goto('/activities/draft');
+  await page.locator('#edit-activity').click();
+  await page.locator('#document-title').fill('לפני היצירה');
+  await page.locator('#create-activity').click();
+  await expect(page.locator('#chat-cancel')).toBeVisible();
   expect(state.writes.map((w) => w.path)).toEqual([
-    '/api/activity-drafts',
+    '/api/activity-drafts/draft',
     '/api/activity-drafts/draft/operations',
   ]);
   await expect(page).toHaveURL(/\/activities\/draft\?operation=op$/);
   state.complete();
-  await expect(page.locator('#document-title')).toHaveValue('תרגול חדש');
+  await expect(page.getByText('תרגול חדש', { exact: true })).toBeVisible();
+  await page.locator('#edit-activity').click();
   await page.locator('#question-0-answer').fill('9');
   await page.locator('#save-activity').click();
   await expect(page.getByText('נשמר', { exact: true })).toBeVisible();
@@ -285,9 +285,11 @@ test('supports keyboard content editing with fixed structure at 360px and 200% t
   const state = await isolate(page, 'single-choice');
   await page.setViewportSize({ width: 360, height: 800 });
   await page.goto('/activities/draft');
-  await page.locator('#generate-questions').click();
-  await expect(page.locator('#cancel-generation')).toBeVisible();
+  await page.locator('#create-activity').click();
+  await expect(page.locator('#chat-cancel')).toBeVisible();
   state.complete();
+  await expect(page.locator('#chat-cancel')).toBeHidden();
+  await page.locator('#edit-activity').click();
   await expect(page.locator('#question-0-prompt')).toBeVisible();
   await textSize(page, 32);
   const card = page.locator('li[aria-labelledby="question-0-heading"]');
@@ -318,16 +320,17 @@ test('unknown outcomes retain local work and do not automatically start another 
   page,
 }) => {
   const state = await isolate(page);
-  await page.goto('/templates/example/create');
-  await page.locator('#generate-questions').click();
-  await expect(page.locator('#cancel-generation')).toBeVisible();
-  await expect(page.locator('#document-title')).toBeDisabled();
+  await page.goto('/activities/draft');
+  await page.locator('#create-activity').click();
+  await expect(page.locator('#chat-cancel')).toBeVisible();
+  await expect(page.locator('#edit-activity')).toHaveAttribute('aria-disabled', 'true');
   state.unknown();
   await expect(
     page.getByText('לא הפעלנו ניסיון נוסף אוטומטית כדי למנוע חיוב כפול.', { exact: true }),
   ).toBeVisible();
   await expect(page.locator('#check-saved')).toBeVisible();
-  await expect(page.locator('#cancel-generation')).toBeHidden();
+  await expect(page.locator('#chat-cancel')).toBeHidden();
+  await page.locator('#edit-activity').click();
   await expect(page.locator('#document-title')).toBeEnabled();
   await page.locator('#document-title').fill('העבודה שלי נשמרת מקומית');
   await expect(page.locator('#document-title')).toHaveValue('העבודה שלי נשמרת מקומית');
