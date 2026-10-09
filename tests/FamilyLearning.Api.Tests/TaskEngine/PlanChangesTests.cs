@@ -34,6 +34,18 @@ public sealed class PlanChangesTests
         Assert.Throws<TaskValidationException>(() => PlanChanges.AssignNewIds(Reading(), null));
     }
 
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1)]
+    [InlineData(7)]
+    public void Proposals_receive_the_application_schema_version(int providerVersion)
+    {
+        var previous = Reading();
+        var canonical = PlanChanges.AssignNewIds(previous with { SchemaVersion = providerVersion }, previous);
+        Assert.Equal(EngineVersions.SchemaVersion, canonical.SchemaVersion);
+        Assert.Empty(PlanChanges.Compare(previous, canonical));
+    }
+
     [Fact]
     public void Renaming_retain_identity_and_report_actual_ordered_changes()
     {

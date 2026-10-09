@@ -70,6 +70,23 @@ public sealed class ActivityProbeTransportTests : IDisposable
     }
 
     [Fact]
+    public async Task Gemini_profile_routes_only_to_google_at_its_own_price_caps_and_rejects_other_models()
+    {
+        var upstream = new StubHandler("""{"choices":[],"usage":{"cost":0.001}}""");
+        using var guard = new ActivityProbeTransport(1m, directory, upstream, ActivityProbeModel.Gemini);
+        using var client = new HttpClient(guard);
+        using var response = await client.SendAsync(Request("google/gemini-3.8-flash"));
+        var provider = upstream.Body!["provider"]!;
+        Assert.Equal(["google-ai-studio", "google-vertex"], provider["only"]!.AsArray().Select(p => p!.GetValue<string>()));
+        Assert.Equal(0.75m, provider["max_price"]!["prompt"]!.GetValue<decimal>());
+        Assert.Equal(3.75m, provider["max_price"]!["completion"]!.GetValue<decimal>());
+        Assert.True(guard.Calls[0].ReservedUsd < ActivityProbeModel.Sol.Reserve(1));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => client.SendAsync(Request()));
+        Assert.Equal("profile-mismatch", guard.StopReason);
+        Assert.Equal(1, upstream.Calls);
+    }
+
+    [Fact]
     public async Task Provider_error_stops_future_calls_without_retry_or_recording_raw_error()
     {
         var upstream = new StubHandler("""{"error":{"message":"PRIVATE PROVIDER ERROR","code":"invalid_json_schema"}}""", HttpStatusCode.BadRequest);
@@ -110,11 +127,11 @@ public sealed class ActivityProbeTransportTests : IDisposable
         Assert.True(guard.AccountedUsd > 0);
     }
 
-    private static HttpRequestMessage Request()
+    private static HttpRequestMessage Request(string model = "openai/gpt-6.1-sol")
     {
         var request = new HttpRequestMessage(HttpMethod.Post, "https://openrouter.ai/api/v1/chat/completions")
         {
-            Content = new StringContent("""{"model":"openai/gpt-6.1-sol","max_tokens":16384,"reasoning":{"effort":"medium","exclude":true},"messages":[],"provider":{"require_parameters":true},"response_format":{"type":"json_schema","json_schema":{"strict":true,"name":"probe","schema":{"type":"object"}}}}""", Encoding.UTF8, "application/json")
+            Content = new StringContent("""{"model":"MODEL","max_tokens":16384,"reasoning":{"effort":"medium","exclude":true},"messages":[],"provider":{"require_parameters":true},"response_format":{"type":"json_schema","json_schema":{"strict":true,"name":"probe","schema":{"type":"object"}}}}""".Replace("MODEL", model), Encoding.UTF8, "application/json")
         };
         request.Headers.TryAddWithoutValidation("Authorization", "Bearer TEST API KEY");
         return request;

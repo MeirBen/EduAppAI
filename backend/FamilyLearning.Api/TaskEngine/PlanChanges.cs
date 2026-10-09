@@ -10,7 +10,7 @@ public sealed record PlanChange(string Kind, string Path, string? Id = null, str
 /// <summary>Normalizes proposal identity against the submitted base and computes actual ordered changes.</summary>
 public static class PlanChanges
 {
-    /// <summary>Assigns only new null material IDs, preserves supplied sources, then applies canonical validation.</summary>
+    /// <summary>Assigns new null material IDs and the application-owned schema version, preserves supplied sources, then validates.</summary>
     public static LearningPlan AssignNewIds(LearningPlan proposal, LearningPlan? previous)
     {
         var errors = new Dictionary<string, string[]>();
@@ -37,6 +37,8 @@ public static class PlanChanges
         }).ToArray();
         var copy = proposal with
         {
+            // Like IDs, the version is the application's; providers may echo any integer.
+            SchemaVersion = EngineVersions.SchemaVersion,
             Materials = materials!,
             Questions = proposal.Questions is null ? null! : proposal.Questions with
             {

@@ -46,11 +46,9 @@ public sealed class ContentGenerationWireTests
                 type.EnumerateArray().Any(t => t.GetString() == "array") && node.TryGetProperty("items", out var items) && items.TryGetProperty("$ref", out _));
         }
         var definitions = schemas[0].GetProperty("$defs");
+        // The server owns the version. Integer enums break Gemini response schemas and equal bounds stalled Sol, so it stays a plain integer.
         var version = definitions.GetProperty("plan").GetProperty("properties").GetProperty("schemaVersion");
-        Assert.True(version.TryGetProperty("enum", out var allowedVersions));
-        Assert.Equal(EngineVersions.SchemaVersion, Assert.Single(allowedVersions.EnumerateArray()).GetInt32());
-        Assert.False(version.TryGetProperty("minimum", out _));
-        Assert.False(version.TryGetProperty("maximum", out _));
+        Assert.Equal("""{"type":"integer"}""", version.GetRawText().Replace(" ", ""));
         static IEnumerable<JsonElement> Nodes(JsonElement node) => node.ValueKind switch
         {
             JsonValueKind.Object => [node, .. node.EnumerateObject().SelectMany(p => Nodes(p.Value))],

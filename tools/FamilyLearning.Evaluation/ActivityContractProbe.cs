@@ -148,7 +148,8 @@ internal static class ActivityContractProbe
             // Wording checks run last, so a scope miss is never hidden behind a phrasing miss.
             Require(id switch
             {
-                "topic-pirates" => body.Contains("פיראט"),
+                // The new topic may be told without its literal name; the replaced garden story must be gone.
+                "topic-pirates" => !body.Contains("חמנייה"),
                 "poem-same-plot" => body.Contains("נועה") && body.Split('\n', StringSplitOptions.RemoveEmptyEntries).Length >= 4,
                 _ => TextLength.CountWords(body) <= TextLength.CountWords(story.Body) * 0.7
             }, id + "-text");

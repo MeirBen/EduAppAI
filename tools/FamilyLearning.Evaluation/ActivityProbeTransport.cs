@@ -1,13 +1,14 @@
 using System.Security.Cryptography;
-using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 
 namespace FamilyLearning.Evaluation;
 
 /// <summary>Opt-in probe transport; production never registers this handler.</summary>
-internal sealed class ActivityProbeTransport(decimal budgetUsd, string directory, HttpMessageHandler inner) : DelegatingHandler(inner)
+internal sealed class ActivityProbeTransport(decimal budgetUsd, string directory, HttpMessageHandler inner, ActivityProbeModel? profile = null)
+    : DelegatingHandler(inner)
 {
+    private readonly ActivityProbeModel model = profile ?? ActivityProbeModel.Sol;
     internal const int MaxCalls = 17;
     internal const int MaxRequestBytes = 65_536;
     internal const int MaxOutputTokens = 16_384;
@@ -25,7 +26,7 @@ internal sealed class ActivityProbeTransport(decimal budgetUsd, string directory
         var original = await request.Content!.ReadAsByteArrayAsync(ct);
         if (original.Length > MaxRequestBytes) throw Reject("request-limit");
         var body = JsonNode.Parse(original)!;
-        if (body["model"]?.GetValue<string>() != "openai/gpt-6.1-sol" ||
+        if (body["model"]?.GetValue<string>() != model.Model ||
             (body["max_completion_tokens"] ?? body["max_tokens"])?.GetValue<int>() != MaxOutputTokens ||
             body["max_completion_tokens"] is not null && body["max_tokens"] is not null ||
             body["response_format"]?["type"]?.GetValue<string>() != "json_schema" ||
@@ -35,15 +36,14 @@ internal sealed class ActivityProbeTransport(decimal budgetUsd, string directory
             throw Reject("profile-mismatch");
         body["provider"] = new JsonObject
         {
-            ["only"] = new JsonArray("openai"),
+            ["only"] = new JsonArray(model.Providers.Select(provider => (JsonNode)JsonValue.Create(provider)!).ToArray()),
             ["allow_fallbacks"] = false,
             ["require_parameters"] = true,
-            ["max_price"] = new JsonObject { ["prompt"] = 2, ["completion"] = 10 }
+            ["max_price"] = new JsonObject { ["prompt"] = model.PromptPerMillion, ["completion"] = model.CompletionPerMillion }
         };
         var bytes = JsonSerializer.SerializeToUtf8Bytes(body);
         if (bytes.Length > MaxRequestBytes) throw Reject("request-limit");
-        // UTF-8 bytes conservatively bound text tokens; include schema/envelope overhead and all reasoning/output.
-        var reserve = (bytes.Length + 4096) * 0.000002m + MaxOutputTokens * 0.00001m;
+        var reserve = model.Reserve(bytes.Length);
         if (AccountedUsd + reserve > budgetUsd) throw Reject("budget-limit");
         var call = new ActivityProbeCall(reserve, body, Convert.ToHexString(SHA256.HashData(original)), Convert.ToHexString(SHA256.HashData(bytes)));
         Calls.Add(call);
@@ -100,6 +100,25 @@ internal sealed class ActivityProbeTransport(decimal budgetUsd, string directory
     private static string? Text(JsonElement element, string name, int limit) => element.TryGetProperty(name, out var value) &&
         value.ValueKind == JsonValueKind.String && value.GetString() is { } text && text.Length <= limit ? text : null;
     private static long? Number(JsonElement element, string name) => element.TryGetProperty(name, out var value) && value.TryGetInt64(out var number) && number >= 0 ? number : null;
+}
+
+/// <summary>A fixed probe model: exact ID, allowed providers and per-million price caps used for routing and reservations.</summary>
+internal sealed record ActivityProbeModel(string Name, string Model, string[] Providers, decimal PromptPerMillion, decimal CompletionPerMillion)
+{
+    internal static readonly ActivityProbeModel Sol = new("sol", "openai/gpt-6.1-sol", ["openai"], 2m, 10m);
+    // Standard Google tiers on OpenRouter; priority tiers exceed these caps.
+    internal static readonly ActivityProbeModel Gemini = new("gemini", "google/gemini-3.8-flash", ["google-ai-studio", "google-vertex"], 0.75m, 3.75m);
+
+    internal static ActivityProbeModel Select(string name) => name switch
+    {
+        "sol" => Sol,
+        "gemini" => Gemini,
+        _ => throw new ArgumentException("Unknown probe model.")
+    };
+
+    /// <summary>UTF-8 bytes conservatively bound text tokens; include schema/envelope overhead and all reasoning/output.</summary>
+    internal decimal Reserve(int requestBytes) =>
+        ((requestBytes + 4096) * PromptPerMillion + ActivityProbeTransport.MaxOutputTokens * CompletionPerMillion) / 1_000_000m;
 }
 
 internal sealed record ActivityProbeCall(decimal ReservedUsd, JsonNode Request, string OriginalRequestSha256, string RequestSha256)

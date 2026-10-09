@@ -17,6 +17,14 @@ retry/repair), before later prompt changes. Do not treat that sample as a
 current reliability rate. The switch rests on small 8 October comparisons; see
 [model comparison](#model-comparison).
 
+Gemini 3.8 Flash is the measured rollback: change only `Ai:Model` to
+`google/gemini-3.8-flash`. At revision 44 the same contract and everyday-edit
+probes passed on both models ([Sol][activity-contract-44],
+[Gemini contract][activity-contract-44-gemini],
+[Gemini edits][activity-edits-44-gemini]). Gemini keeps every contract and
+preservation rule but writes somewhat less faithful rewrites, so a rollback
+trades quality for availability. Any other model needs its own probe run.
+
 ## Design and cutover decision
 
 The engine/API uses concrete activity plans and atomic Create/Revise operations.
@@ -39,7 +47,9 @@ including new-only generation and question append. This is contract evidence,
 not a content-quality benchmark or worker/API test. Revision 43 limits
 transformations into a separate text to supplied texts; a requested change to a
 generated text changes it in place. The [everyday-edit run][activity-edits-43]
-then passed all eight chat edits.
+then passed all eight chat edits. Revision 44 makes the schema version
+application-owned, which restores the Gemini rollback without a model-specific
+path.
 Revision 41 restores the measured authoring omission rule, shares planning
 defaults with revision, and keeps planning permissions out of content stages.
 Verification uses isolated providers and does not establish live-model quality.
@@ -326,10 +336,12 @@ response independently of provider enforcement.
 - **Only meaningful constraints.** Numeric bounds, field lengths and patterns
   reflect validator limits. Engine constants supply the fixed version and
   question cap; request-owned schemas supply exact counts and allowed IDs.
-- **An exact version enum.** Revision 42 uses `enum: [2]`. Equal numeric bounds
-  stalled authoring twice; the equivalent enum completed twice in the
-  [diagnostic][activity-schema-diagnostic]. The historical Gemini portability
-  rule is removed; another model needs its own acceptance run.
+- **An application-owned version.** The plan's `schemaVersion` is a plain
+  integer in provider schemas, and the server sets the current version while
+  assigning IDs. Equal numeric bounds stalled Sol authoring twice
+  ([diagnostic][activity-schema-diagnostic]). An integer enum works on Sol but
+  is outside Gemini's response-schema subset, which accepts enums only on
+  strings. Without a base plan, Sol returns version 1, so the server must own it.
 - **Explicit nullable shapes.** Null-only branches use `["null"]`. A nullable
   array of `$ref` items uses `anyOf` with a null branch because the alternative
   type-array shape was rejected by OpenAI strict mode. Cross-field rules such
@@ -509,6 +521,15 @@ schema reviews are in `claude-strict-schema-2026-10-02/` and
   unpolished poem, and the activity name kept its old topic while the document
   title followed the new one.
 
+- Revision 44 on both models: [Sol contract][activity-contract-44] 17 calls,
+  $0.1271124; [Gemini contract][activity-contract-44-gemini] 17 calls,
+  $0.1312425; Gemini everyday edits [stopped][activity-edits-44-gemini-stopped]
+  after 3 calls, $0.0189675, on a literal "פיראט" wording check that a correct
+  pirate story did not meet (the check now requires the replaced story to be
+  gone), then [passed][activity-edits-44-gemini] in 17 calls, $0.12969825. No
+  unknown costs; **$0.4070202 in total** against an estimate of about $0.30.
+  Gemini cost about as much as Sol because it wrote more output tokens.
+
 Retired design documents: `documentation-history-2026-10-01.zip`.
 
 ## Using the evaluation harness
@@ -546,9 +567,12 @@ plot, a half-length story, an easier replacement for a targeted question,
 removing a named question, a focused added question, a vocabulary focus and a
 decrease that names no question. Each case checks the scope the server derives,
 then runs the worker's stages and checks that untouched content keeps its IDs
-and text; wording checks run last. The guard reserves about $0.21 per call, so
-a budget must exceed the expected spend by one reservation for the last call to
-start. Neither protocol exercises the worker/API or establishes content quality.
+and text; wording checks run last. `--model gemini` runs either protocol on
+Gemini 3.8 Flash, routed only to Google AI Studio or Vertex at standard-tier
+caps ($0.75/M input, $3.75/M output); only the model changes. The guard reserves
+about $0.21 per Sol call and $0.08 per Gemini call, so a budget must exceed the
+expected spend by one reservation for the last call to start. Neither protocol
+exercises the worker/API or establishes content quality.
 They have no retry, judge, fallback or schema downgrade and stop on a failed
 expectation. Keep the production strict schema, medium reasoning and 16,384
 output-token profile.
@@ -643,3 +667,7 @@ this guide in place; keep experimental evidence in artifacts.
 [activity-contract-42-complete]: ../artifacts/evaluations/activity-contract-20261009T181523Z-78987c34b464423e8c16be451b165222/review.md
 [activity-edits-42]: ../artifacts/evaluations/activity-edits-20261009T195734Z-1edb04ddc70444a499e77f8d8665cbd0/review.md
 [activity-edits-43]: ../artifacts/evaluations/activity-edits-20261009T200011Z-67b459e1ef7b43b4abdd9f1165267b57/review.md
+[activity-contract-44]: ../artifacts/evaluations/activity-contract-20261009T201752Z-f6a6adc9c62e4c77b87f986406579d45/review.md
+[activity-contract-44-gemini]: ../artifacts/evaluations/activity-contract-gemini-20261009T202112Z-68eb07f91d33447f94da0ac692eb5b19/review.md
+[activity-edits-44-gemini-stopped]: ../artifacts/evaluations/activity-edits-gemini-20261009T202519Z-e0255017593a4f28aaa5e26e6c001203/review.md
+[activity-edits-44-gemini]: ../artifacts/evaluations/activity-edits-gemini-20261009T202635Z-114e168c065b47049560c60764d86254/review.md

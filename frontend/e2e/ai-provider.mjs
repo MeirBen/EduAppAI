@@ -62,7 +62,8 @@ export async function startAiProvider(port = 0) {
         stage === 'author'
           ? {
               result: {
-                proposal: plan(user.message, schema.$defs.plan.properties.schemaVersion.enum[0]),
+                // Providers may echo any version; the server replaces it with its own.
+                proposal: plan(user.message, 1),
                 clarification: null,
               },
               assumptions: [],

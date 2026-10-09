@@ -18,6 +18,7 @@ internal static class ActivityProbeCommand
         decimal? budget = null;
         var output = "artifacts/evaluations";
         var name = "contract";
+        var model = ActivityProbeModel.Sol;
         var seen = new HashSet<string>(StringComparer.Ordinal);
         for (var index = 0; index < args.Length; index++)
         {
@@ -29,6 +30,7 @@ internal static class ActivityProbeCommand
                 budget = amount;
             else if (flag == "--output" && !string.IsNullOrWhiteSpace(args[index])) output = args[index];
             else if (flag == "--protocol" && args[index] is "contract" or "edits") name = args[index];
+            else if (flag == "--model" && args[index] is "sol" or "gemini") model = ActivityProbeModel.Select(args[index]);
             else throw new ArgumentException("Invalid probe flag or value.");
         }
         if (live && budget is null) throw new ArgumentException("Live probe requires an explicit budget.");
@@ -37,14 +39,19 @@ internal static class ActivityProbeCommand
         if (maxCalls > ActivityProbeTransport.MaxCalls) throw new InvalidOperationException("Probe protocol exceeds the transport call limit.");
         Console.WriteLine($"Activity {name} probe: {protocol.Length} synthetic cases, at most {maxCalls} calls, one repetition; no retries or judge.");
         foreach (var item in protocol) Console.WriteLine($"  {item.Id}: {string.Join(", ", item.Stages)} ({item.Stages.Length})\n    {item.Message}");
-        Console.WriteLine("Strict Sol / medium / 16,384 output tokens; standard OpenAI only, no provider fallback, $2/M input and $10/M output routing caps.");
-        Console.WriteLine("64 KiB request limit; reserve before each call, retaining unknown costs. Maximum calculated reserve: $5.152768; lower budgets may stop early.");
+        Console.WriteLine($"Strict {model.Model} / medium / 16,384 output tokens; only {string.Join(", ", model.Providers)}, no provider fallback, " +
+            $"${model.PromptPerMillion.ToString(CultureInfo.InvariantCulture)}/M input and ${model.CompletionPerMillion.ToString(CultureInfo.InvariantCulture)}/M output routing caps.");
+        Console.WriteLine("64 KiB request limit; reserve before each call, retaining unknown costs. Maximum calculated reserve: $" +
+            (maxCalls * model.Reserve(ActivityProbeTransport.MaxRequestBytes)).ToString(CultureInfo.InvariantCulture) + "; lower budgets may stop early.");
         if (!live) { Console.WriteLine("Preview only. Add --live --budget-usd AMOUNT (0 < AMOUNT <= 6) after explicit authorization."); return 0; }
 
         var builder = Host.CreateApplicationBuilder(new HostApplicationBuilderSettings { Args = [], ContentRootPath = AppContext.BaseDirectory });
         builder.Logging.ClearProviders();
-        var directory = Path.GetFullPath(Path.Combine(output, $"activity-{name}-" + EvaluationRunStore.NewId()));
-        using var handler = new ActivityProbeTransport(budget!.Value, directory, new HttpClientHandler { AllowAutoRedirect = false });
+        // Only the model changes between profiles; every other production setting stays as configured.
+        builder.Configuration["Ai:Model"] = model.Model;
+        var suffix = model == ActivityProbeModel.Sol ? "" : model.Name + "-";
+        var directory = Path.GetFullPath(Path.Combine(output, $"activity-{name}-{suffix}" + EvaluationRunStore.NewId()));
+        using var handler = new ActivityProbeTransport(budget!.Value, directory, new HttpClientHandler { AllowAutoRedirect = false }, model);
         using var http = new HttpClient(handler) { Timeout = Timeout.InfiniteTimeSpan };
         using var clients = EvaluationClients.Create(builder.Configuration, builder.Environment, transport: new HttpClientPipelineTransport(http)) ??
             throw new ArgumentException("Configure the app's provider key before an authorized live probe.");
@@ -88,9 +95,10 @@ internal static class ActivityProbeCommand
                     budgetUsd = budget,
                     maxOutputTokens = 16384,
                     maxRequestBytes = 65536,
-                    routing = new { only = new[] { "openai" }, allow_fallbacks = false, require_parameters = true, max_price = new { prompt = 2, completion = 10 } },
+                    model = model.Model,
+                    routing = new { only = model.Providers, allow_fallbacks = false, require_parameters = true, max_price = new { prompt = model.PromptPerMillion, completion = model.CompletionPerMillion } },
                     inputTokenReserve = "wire UTF-8 byte count + 4096",
-                    pricingSource = "https://openrouter.ai/api/v1/models/openai/gpt-6.1-sol/endpoints"
+                    pricingSource = $"https://openrouter.ai/api/v1/models/{model.Model}/endpoints"
                 }, EvaluationFiles.Json));
                 protocolSaved = true;
             }

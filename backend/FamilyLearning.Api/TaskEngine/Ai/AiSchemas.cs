@@ -103,8 +103,6 @@ internal static class AiSchemas
         properties["assumptions"]!["items"]!["maxLength"] = EngineValidation.AssumptionLength;
         var definitions = schema["$defs"]!;
         var plan = definitions["plan"]!["properties"]!;
-        // Equal numeric bounds stalled Sol output at this field; the singleton enum keeps the exact same contract.
-        plan["schemaVersion"]!["enum"] = new JsonArray(EngineVersions.SchemaVersion);
         plan["settings"]!["properties"]!["questionCount"]!["maximum"] = EngineValidation.MaxQuestionCount;
         return JsonSerializer.SerializeToElement(schema);
     }

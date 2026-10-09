@@ -146,7 +146,7 @@ public sealed class ActivityContractProbeTests
         ]));
         string Material(string body) => Serialize(new MaterialCandidate(input["target"]!["id"]!.GetValue<string>(), "הסיפור", body));
         if (call is 3 or 6 or 9 or 16) return Rebuilt();
-        if (call == 2) return Material("נועה ושני פיראטים מצאו מפה ישנה על החוף. הם הפליגו אל אי קטן וחפרו ליד עץ גבוה. בתוך התיבה מצאו זרעי חמנייה, ונועה שתלה אותם בבית.");
+        if (call == 2) return Material("נועה ושני פיראטים מצאו מפה ישנה על החוף. הם הפליגו אל אי קטן וחפרו ליד עץ גבוה. בתוך התיבה מצאו מטבעות זהב.");
         if (call == 5) return Material("נועה קיבלה זרעים מסבתא,\nשתלה שלושה בגינה ממש כמו בחלומה.\nהשקתה כל יום אחרי הלימודים,\nועד סוף הקיץ צמחה חמנייה בצבעים צהובים.");
         if (call == 8) return Material("נועה שתלה שלושה זרעי חמנייה מסבתא. היא השקתה אותם כל יום, ובסוף הקיץ צמחה חמנייה גבוהה.");
         if (call == 11) return Serialize(new QuestionCandidate("מה שתלה נועה בגינה?", new("text-input"), new("זרעי חמנייה"), 1));
