@@ -283,3 +283,17 @@ fly ssh console # Then provision the parent as in Container
 Open `https://<app>.fly.dev`. Later releases need only `fly deploy`; `fly logs`
 streams console output. Fly snapshots the volume daily and keeps snapshots for
 five days. To use another host, delete `fly.toml` and follow [Container](#container).
+
+Cost estimates must use Frankfurt pricing. As checked on 10 October 2026,
+[Fly's pricing table](https://docs.fly.io/about/pricing) lists $3.69/month for a
+`shared-cpu-1x` machine with 512 MB in Ashburn/Secaucus, assuming 30 days of
+continuous runtime. That is not a Frankfurt quote or the total app bill.
+Add storage, outbound data and [AI usage](docs/ai.md#costs-and-retained-evidence).
+
+Keeping the same machine size, count and runtime keeps compute cost unchanged;
+more requests can still increase bandwidth and AI charges or require more
+capacity. At Europe's listed $0.02/GB, one million responses of 100 KB each
+transfer about 100 GB ($2); at 1 MB each, about 1,000 GB ($20), before AI costs.
+These examples use decimal units and bytes actually transferred after
+compression; browser cache hits avoid those transfers. Use Fly's invoice for
+actual charges rather than treating these estimates as a fixed monthly price.

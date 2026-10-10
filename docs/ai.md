@@ -146,8 +146,9 @@ Retained:
   factual claim, a construct-state error, number agreement, two wrong words) and
   no introduced error; 14 came back unchanged. Validation rejected 0 of 51
   polishes. It left the ant-brood misconception in 6/6 texts and barely changed
-  formal words. Cost is about $0.010 per text, median 15 seconds (35 at p90);
-  later runs measured a 26–27 second median.
+  formal words. This historical polish-only measurement was about $0.010 per
+  text, with a 15-second median (35 at p90); later runs measured a 26–27 second
+  median. It excludes the other calls needed to generate a text or activity.
 
 - **Question thinking level (revision 36):** GPT-6.1 Sol pushed inference too
   far for young readers; one owner grade-3 easy set had 6 of 10 questions with
@@ -432,6 +433,11 @@ Preserve failures and never edit old reports to match new code. These records
 may be absent in a fresh checkout; the decisions above remain the maintained
 summary. Costs below are USD; reserves are allowances, not confirmed charges.
 Historical caps do not authorize new paid runs.
+
+Estimate an activity's AI cost by summing all calls used for that operation:
+planning, ideas, writing, polish and questions, as applicable. The historical
+stage and activity measurements above are not a fixed current price per text
+or activity; cost depends on the model, token usage and stages actually run.
 
 Keep each experiment together: original requests/results (including failures),
 prompts, fixtures, calibration, comparisons, reviews and cost ledgers. Historical
