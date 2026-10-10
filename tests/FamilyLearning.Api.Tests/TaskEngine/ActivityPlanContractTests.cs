@@ -16,6 +16,7 @@ public sealed class ActivityPlanContractTests
         ["name"] = "פעילות",
         ["goal"] = "למידה",
         ["guidance"] = "",
+        ["documentGuidance"] = "",
         ["settings"] = new JsonObject { ["topic"] = "שפה", ["audience"] = "כיתה ג", ["difficulty"] = "easy", ["questionCount"] = 3 },
         ["materials"] = new JsonArray(new JsonObject
         {

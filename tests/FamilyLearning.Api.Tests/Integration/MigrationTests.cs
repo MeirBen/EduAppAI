@@ -3,6 +3,7 @@ using System.Net.Http.Json;
 using System.Text.Json.Nodes;
 using FamilyLearning.Api.Features.Assignments;
 using FamilyLearning.Api.Infrastructure.Persistence;
+using FamilyLearning.Api.TaskEngine;
 using FamilyLearning.Api.Tests.Fixtures;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
@@ -32,6 +33,33 @@ public sealed class MigrationTests
         Assert.DoesNotContain("InputJson", draftColumns);
         Assert.DoesNotContain("InputJson", snapshotColumns);
         Assert.DoesNotContain("ResolvedInputJson", snapshotColumns);
+    }
+
+    [Fact]
+    public async Task Plan_schema_migration_upgrades_stored_draft_and_snapshot_plans()
+    {
+        using var app = new ApiFactory();
+        using var parent = await app.ParentAsync();
+        var draft = await ActivityDraftTests.Create(parent, Numeric());
+        var ready = await ActivityReleaseTests.ReadyDraft(parent);
+        using var release = await parent.PostAsJsonAsync(ActivityDraftTests.Path(ready) + "/release", new { expectedRevision = ready["revision"]!.GetValue<long>() });
+        var snapshot = (await release.Content.ReadFromJsonAsync<JsonNode>())!;
+        using var scope = app.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<LearningDbContext>();
+        await db.GetService<IMigrator>().MigrateAsync("20261010155024_LibraryPageOrder");
+        // Schema-2 plans had no title/instruction guidance.
+        const string Downgrade = "json_set(json_remove(PlanJson, '$.documentGuidance'), '$.schemaVersion', 2)";
+        await db.Database.ExecuteSqlRawAsync($"UPDATE ActivityDrafts SET PlanJson = {Downgrade}; UPDATE TaskSnapshots SET PlanJson = {Downgrade};");
+        await db.Database.MigrateAsync();
+        foreach (var plan in new[]
+        {
+            (await parent.GetFromJsonAsync<JsonNode>(ActivityDraftTests.Path(draft)))!["plan"]!,
+            (await parent.GetFromJsonAsync<JsonNode>($"/api/instances/{snapshot["id"]}"))!["plan"]!
+        })
+        {
+            Assert.Equal(EngineVersions.SchemaVersion, plan["schemaVersion"]!.GetValue<int>());
+            Assert.Equal("", plan["documentGuidance"]!.GetValue<string>());
+        }
     }
 
     [Fact]

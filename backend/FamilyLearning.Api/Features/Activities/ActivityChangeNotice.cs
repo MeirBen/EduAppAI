@@ -23,6 +23,7 @@ internal static class ActivityChangeNotice
         if (changes.Any(c => c.Path is "goal" or "guidance" or "settings" or "totalLength"))
             notices.Add("עודכנו דרישות הפעילות.");
         if (changes.Any(c => c.Path == "questions")) notices.Add("עודכנו דרישות השאלות.");
+        if (changes.Any(c => c.Path == "documentGuidance")) notices.Add("עודכנו ההנחיות לכותרת ולהוראות.");
         if (after.Materials.Any(m => before.Materials.FirstOrDefault(old => old.Id == m.Id) is { } old &&
             !Equal(old with { Label = m.Label }, m))) notices.Add("עודכנו דרישות הטקסטים.");
         AddCount("דרישות לטקסטים שנוספו", after.Materials.Count(m => !before.Materials.Any(old => old.Id == m.Id) && !current.Materials.Any(c => c.Id == m.Id)));

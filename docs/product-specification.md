@@ -50,8 +50,9 @@ sheet over it on phones, in Hebrew/RTL with accessible native controls and one
 state for reading and editing. Titles, instructions, wording, options, answers
 and points stay manually editable; adding, removing or reordering content and
 changing requirements belong to chat, which can also rewrite the title or the
-learner instructions on request, such as removing their vowel marks. Settings
-are a summary, not a form.
+learner instructions on request, such as removing their vowel marks; a lasting
+rule for those two fields regenerates no content. Settings are a summary, not a
+form.
 
 - Answers, clarifications, refusals and no-ops change no activity content.
 - Adding questions, optionally with a focused instruction, generates only the
@@ -113,7 +114,12 @@ adjustable defaults.
 
 `settings` hold concrete values; materials hold their source, guidance and
 length; questions hold formats, choice count and guidance. Extra subject
-requirements belong to scoped guidance. The plan has no controls, selectable
+requirements belong to scoped guidance. `documentGuidance` holds lasting rules
+for only the learner title and instructions, such as niqqud or tone: changing it
+rewrites those two fields and regenerates nothing, while a rule about texts,
+questions or answers belongs in their guidance and rebuilds what depends on it.
+The AI chooses where a request belongs; the server derives what each field
+rebuilds. The plan has no controls, selectable
 defaults, flags or override maps, and no separately stored input: the server
 derives typed stage inputs and fingerprints from the saved plan.
 

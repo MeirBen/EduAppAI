@@ -210,6 +210,7 @@ function plan(message, schemaVersion) {
     name: numeric ? 'תרגול מספרים' : 'חוקרים וקוראים',
     goal: message,
     guidance: '',
+    documentGuidance: '',
     settings: {
       topic: numeric ? 'חשבון' : 'דינוזאורים',
       audience: 'כיתה ג׳',

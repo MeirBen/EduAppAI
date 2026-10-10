@@ -8,6 +8,9 @@
     @if (p.guidance().value()) {
       <p dir="auto" class="whitespace-pre-wrap">{{ p.guidance().value() }}</p>
     }
+    @if (p.documentGuidance().value()) {
+      <p dir="auto" class="whitespace-pre-wrap">{{ p.documentGuidance().value() }}</p>
+    }
     @if (p.questions.guidance().value()) {
       <p dir="auto" class="whitespace-pre-wrap">{{ p.questions.guidance().value() }}</p>
     }

@@ -1,7 +1,7 @@
 # AI guide
 
 The maintained reference for AI configuration, evaluation and tuning at engine
-revision 47. Product contracts live in the
+revision 48. Product contracts live in the
 [product specification](product-specification.md); implementation boundaries
 live in [architecture](architecture.md).
 
@@ -65,6 +65,12 @@ The [prompt decisions](#prompt-decisions) below predate revision 39. Since then:
   place and an unrelated change left it alone. The planner also recorded "no
   vowel marks" as lasting guidance, rebuilding the questions; a prompt line
   against that changed nothing and was dropped.
+- **48:** the plan gains `documentGuidance` (schema 3) for lasting
+  title/instruction rules, outside content fingerprints, so the planner's
+  choice of field decides whether questions rebuild. In the owner's own session
+  on 10 October, three title/instruction niqqud requests each ran only the
+  planner, recorded the rule there and rewrote the title or instructions with no
+  question stage, and an answer explained the grade-2 niqqud default correctly.
 
 The 1 October comparison did **not** meet its quality threshold: one-shot passed
 9/9 structural trials and split 7/9, with split costing about 3× and taking

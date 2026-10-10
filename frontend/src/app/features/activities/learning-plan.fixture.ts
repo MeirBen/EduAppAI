@@ -2,10 +2,11 @@ import { LearningPlan } from '../../core/api/models';
 
 /** Canonical synthetic plans for isolated tests; never seeded into the application. */
 export const numericPlan: LearningPlan = {
-  schemaVersion: 2,
+  schemaVersion: 3,
   name: 'מספרים',
   goal: 'תרגול חשבון',
   guidance: '',
+  documentGuidance: '',
   settings: { topic: 'חשבון', audience: 'כיתה ג', difficulty: 'medium', questionCount: 2 },
   materials: [],
 

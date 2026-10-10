@@ -219,6 +219,7 @@ const planFieldNames: Record<string, string> = {
   name: 'שם הפעילות',
   goal: 'מטרת הפעילות',
   guidance: 'ההנחיות',
+  documentGuidance: 'ההנחיות לכותרת ולהוראות',
   settings: 'הגדרות הפעילות',
   totalLength: 'האורך הכולל',
   questions: 'הגדרות השאלות',

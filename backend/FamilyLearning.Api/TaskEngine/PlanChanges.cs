@@ -66,6 +66,7 @@ public static class PlanChanges
         CompareField("name", previous.Name, current.Name);
         CompareField("goal", previous.Goal, current.Goal);
         CompareField("guidance", previous.Guidance, current.Guidance);
+        CompareField("documentGuidance", previous.DocumentGuidance, current.DocumentGuidance);
         CompareField("settings", previous.Settings, current.Settings);
         CompareField("totalLength", previous.TotalLength, current.TotalLength);
         CompareField("questions", previous.Questions, current.Questions);

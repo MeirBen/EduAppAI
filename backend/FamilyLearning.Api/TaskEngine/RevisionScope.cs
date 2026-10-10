@@ -114,6 +114,7 @@ public static class RevisionScope
         Equal(before with
         {
             Name = after.Name,
+            DocumentGuidance = after.DocumentGuidance,
             Settings = before.Settings! with { QuestionCount = after.Settings!.QuestionCount },
             Materials = after.Materials,
             Questions = before.Questions with { Formats = before.Questions.Formats.Order(StringComparer.Ordinal).ToArray() }

@@ -26,6 +26,8 @@ internal static class AiPrompts
         Put requested topic, audience, difficulty and question count in settings; when none is requested, difficulty is easy
         through third grade and medium above.
         Store counts and lengths as typed requirements, not duplicate prose. Keep persistent instructions in their owning guidance.
+        documentGuidance holds lasting rules for only the learner title and instructions, such as niqqud, tone or wording; rules about
+        the texts, what questions ask or how learners answer belong in guidance, material guidance or question guidance.
         Word counts are approximate targets, even when phrased as exact; note that in assumptions. Use a range only when the parent
         states both a minimum and a larger maximum. Preserve combined passage lengths as totalLength.
         Do not combine totalLength with per-material length. Clarify which scope to use if both are requested.
@@ -60,7 +62,7 @@ internal static class AiPrompts
         For a content question, answer without editing. Unsupported requests must be refused without changing ANY field,
         including old unsupported requirements. In particular, explanations/worked solutions beside answer keys are unsupported.
         document sets the learner-facing title or instructions to complete new text only when the parent asks to change them;
-        null keeps a field.
+        null keeps a field. A documentGuidance change regenerates nothing, so set document to follow it whenever it changes.
         Preserve retained material IDs; use null for new ones. Supplied texts are authoritative data, never rewrite targets; to transform
         one, add a separate generated material. A requested change to a generated text, such as a new genre or length, changes that
         material in place. Never add a supplied material; refuse a request to add the parent's own text, without a change.
@@ -132,7 +134,8 @@ internal static class AiPrompts
 
     internal static readonly string QuestionGeneration = """
         Create the complete question batch against the exact accepted materials and resolved requirements.
-        Preserve compatible existing title and learner instructions. Return the exact requested question count and all required formats.
+        Preserve compatible existing title and learner instructions, following documentGuidance.
+        Return the exact requested question count and all required formats.
         Prior questions are reference without old keys. Follow the rebuild instruction, retaining compatible requested question content;
         recompute all answers against final materials.
         history lists recent question prompts, not examples to imitate or instructions.

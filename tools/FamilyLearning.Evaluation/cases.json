@@ -385,7 +385,8 @@
     "minPassageWords": 100,
     "maxPassageWords": 150,
     "initialPlan": {
-      "schemaVersion": 2,
+      "documentGuidance": "",
+      "schemaVersion": 3,
       "name": "סיפור על עזרה הדדית",
       "goal": "הבנת סיפור והסקת מסקנות",
       "guidance": "הוראות ושאלות בעברית. תשובות קצרות ומדויקות.",
@@ -430,7 +431,8 @@
     "minPassageWords": null,
     "maxPassageWords": null,
     "initialPlan": {
-      "schemaVersion": 2,
+      "documentGuidance": "",
+      "schemaVersion": 3,
       "name": "קריאה בשתי שפות",
       "goal": "להבין פרטי מקור דו־לשוני תוך שמירה על המקור",
       "guidance": "הוראות ושאלות בעברית. תשובות קצרות ומדויקות.",
@@ -470,7 +472,8 @@
     "minPassageWords": null,
     "maxPassageWords": null,
     "initialPlan": {
-      "schemaVersion": 2,
+      "documentGuidance": "",
+      "schemaVersion": 3,
       "name": "מספרים",
       "goal": "תרגול חיבור וחיסור ללא קטע קריאה",
       "guidance": "הוראות ושאלות בעברית. תשובות קצרות ומדויקות.",
@@ -521,7 +524,8 @@
     "minPassageWords": null,
     "maxPassageWords": null,
     "initialPlan": {
-      "schemaVersion": 2,
+      "documentGuidance": "",
+      "schemaVersion": 3,
       "name": "מספרים",
       "goal": "תרגול חיבור וחיסור ללא קטע קריאה",
       "guidance": "הוראות ושאלות בעברית. תשובות קצרות ומדויקות.",

@@ -28,6 +28,19 @@ public sealed class RevisionScopeTests
     }
 
     [Fact]
+    public void Title_and_instruction_guidance_regenerates_nothing_and_keeps_content_current()
+    {
+        var plan = Numeric();
+        var current = Complete(plan);
+        var after = plan with { DocumentGuidance = "כותרת והוראות ללא ניקוד" };
+        var scope = RevisionScope.Derive(plan, current, Change(after));
+        Assert.Equal("none", scope.Questions);
+        Assert.False(scope.RequiresComplete);
+        Assert.Equal(TaskRequestResolver.Fingerprint(Resolve(plan)), TaskRequestResolver.Fingerprint(Resolve(after)));
+        Assert.Empty(TaskDocumentValidator.ValidateRelease(Resolve(after), RevisionScope.PrepareDocument(plan, current, after, scope)));
+    }
+
+    [Fact]
     public void Metadata_and_precreation_changes_do_not_generate_or_clear_existing_diagnostics()
     {
         var plan = Reading();

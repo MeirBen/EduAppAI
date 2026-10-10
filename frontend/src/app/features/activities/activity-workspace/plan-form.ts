@@ -25,6 +25,7 @@ export function planForm(plan?: LearningPlan): PlanForm {
     name: '',
     goal: '',
     guidance: '',
+    documentGuidance: '',
     settings: { topic: '', audience: '', difficulty: 'medium', questionCount: 1 },
     materials: [],
     totalLength: null,

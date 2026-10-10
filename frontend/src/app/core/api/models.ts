@@ -35,6 +35,8 @@ export interface LearningPlan {
   name: string;
   goal: string;
   guidance: string;
+  /** Lasting rules for only the learner title and instructions; changing it regenerates nothing. */
+  documentGuidance: string;
   settings: TaskSettings;
   materials: PlanMaterial[];
   totalLength?: LengthExpectation | null;

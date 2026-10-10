@@ -65,7 +65,9 @@ constants, so the client never hard-codes a limit.
 `LearningPlan` is the sole authority for concrete settings, material sources,
 question formats and lengths. `TaskRequestResolver` derives typed stage
 requirements and effective-value fingerprints; no defaults, controls or input
-overrides are stored. IDs and provenance belong to the application.
+overrides are stored. `DocumentGuidance`, the title/instruction rules, reaches
+only full question generation and never the fingerprints, so changing it stales
+no content. IDs and provenance belong to the application.
 
 `AiGenerationService` uses `IChatClient` without identity/database access.
 Authoring, revision planning, ideas, material writing, polish, questions, append

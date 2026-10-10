@@ -70,24 +70,26 @@ drafts that keep incomplete-content diagnostics; content-producing operations
 require complete validated output, and neither grants approval.
 
 Shared requirements are goal, global guidance, topic, audience and difficulty.
-Question requirements are count, formats, choice count and guidance. Length
+Question requirements are count, formats, choice count and guidance.
+`documentGuidance` is neither: it governs only the title and instructions and
+stays out of content fingerprints, so changing it stales nothing. Length
 measurement excludes supplied sources.
 
-| Change                              | Work                               |
-| ----------------------------------- | ---------------------------------- |
-| Plan name                           | Rename draft/library entry         |
-| Material label                      | Rename setting; preserve content   |
-| Shared requirements or total length | All generated texts and questions  |
-| One material's requirements or edit | That generated text and questions  |
-| Add generated material              | Write/polish new text; questions   |
-| Remove/reorder materials            | Apply structure; questions         |
-| Other question requirements         | All questions                      |
-| Add questions, optionally focused   | Generate additions; keep originals |
-| One-off question edits              | Replace up to three; else all      |
-| Pure question removal/reorder       | Keep listed IDs and their content  |
-| Title or learner instructions       | Replace that text; keep the rest   |
-| Supplied-source replacement         | Stale every generated text and all |
-|                                     | questions until rewritten/adopted  |
+| Change                              | Work                                |
+| ----------------------------------- | ----------------------------------- |
+| Plan name                           | Rename draft/library entry          |
+| Material label                      | Rename setting; preserve content    |
+| Shared requirements or total length | All generated texts and questions   |
+| One material's requirements or edit | That generated text and questions   |
+| Add generated material              | Write/polish new text; questions    |
+| Remove/reorder materials            | Apply structure; questions          |
+| Other question requirements         | All questions                       |
+| Add questions, optionally focused   | Generate additions; keep originals  |
+| One-off question edits              | Replace up to three; else all       |
+| Pure question removal/reorder       | Keep listed IDs and their content   |
+| Title or learner instructions       | Replace that text; keep the rest    |
+| Title/instruction rules             | Rewrite title/instructions only     |
+| Supplied-source replacement         | Stale generated texts and questions |
 
 For removal/reorder, `questionOrder` lists the surviving IDs in their new order;
 omitted IDs are removed and the plan's count equals the list's length.
@@ -158,7 +160,10 @@ existing content; each field is bounded at validation, and the document the
 whole change produces passes the manual-edit checks, including the total content
 limit, so a change that also removes questions gains their room. It applies
 after every stage of its operation, so a rebuild in the same change keeps it;
-like a manual edit, a later rebuild may rewrite it.
+like a manual edit, a later rebuild may rewrite it, following
+`documentGuidance`. A request is either a lasting title/instruction rule,
+recorded in `documentGuidance` with `document` rewritten to follow it, or a
+content requirement in the plan's other guidance; only the latter rebuilds.
 
 Instructions are self-contained after clarification: later calls never need to
 interpret “yes” or earlier chat. Supplied sources can be explanation targets but
@@ -221,8 +226,9 @@ the materials must support, never questions or answer keys.
   instruction and retained/supplied context → minimal edits to new targets.
 - **Text rewrite:** old title/body, updated material requirements and length,
   sibling texts and instruction → one same-ID text.
-- **Questions:** question requirements, final materials, bounded prompt history
-  and rebuild instruction → title, instructions and the ordered batch.
+- **Questions:** question requirements, `documentGuidance`, final materials,
+  bounded prompt history and rebuild instruction → title, instructions and the
+  ordered batch.
 - **Question additions:** question requirements, final materials, existing
   title/instructions and prompts/options without keys, bounded prompt history,
   the additional count and an optional instruction → only new questions.

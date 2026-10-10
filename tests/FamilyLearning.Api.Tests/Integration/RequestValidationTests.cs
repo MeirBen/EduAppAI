@@ -45,7 +45,7 @@ public sealed class RequestValidationTests
     {
         using var app = new ApiFactory();
         using var parent = await app.ParentAsync();
-        foreach (var member in new[] { "schemaVersion", "name", "goal", "guidance", "settings", "materials", "questions" })
+        foreach (var member in new[] { "schemaVersion", "name", "goal", "guidance", "documentGuidance", "settings", "materials", "questions" })
         {
             var definition = AiFixtures.PlanJson().AsObject();
             definition.Remove(member);

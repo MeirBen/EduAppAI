@@ -37,6 +37,17 @@ public sealed class ActivityChangeNoticeTests
     }
 
     [Fact]
+    public void Title_and_instruction_rules_report_only_their_own_change()
+    {
+        var before = Numeric(2);
+        var previous = TaskAssembly.AcceptQuestions(Resolve(before), TaskAssembly.CreateDocument(Resolve(before)),
+            new("כותרת", "הוראות", [Question(), Question()]));
+        var after = before with { DocumentGuidance = "כותרת והוראות ללא ניקוד" };
+        Assert.Equal(["עודכנו ההנחיות לכותרת ולהוראות.", "ההוראות לילדים עודכנו."],
+            ActivityChangeNotice.Describe(before, previous, after, previous with { Instructions = "פתרו את התרגילים" }));
+    }
+
+    [Fact]
     public void Acceptance_and_origin_updates_do_not_claim_question_text_changed()
     {
         var plan = Numeric();

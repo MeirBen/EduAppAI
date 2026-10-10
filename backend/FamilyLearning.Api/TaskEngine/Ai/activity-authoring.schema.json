@@ -77,6 +77,11 @@
           "type": "string",
           "maxLength": 4000
         },
+        "documentGuidance": {
+          "type": "string",
+          "maxLength": 1000,
+          "description": "Lasting rules for only the learner title and instructions, such as niqqud or tone. Never text or question requirements; changing it regenerates nothing."
+        },
         "materials": {
           "description": "Reading passages and other source content presented before questions, including shared mathematical scenarios or data. Keep requested sources separate even for one question. Short self-contained problems may keep their givens in the question prompt; they need no material.",
           "type": "array",
@@ -141,6 +146,7 @@
         "name",
         "goal",
         "guidance",
+        "documentGuidance",
         "settings",
         "materials",
         "questions",

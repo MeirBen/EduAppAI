@@ -20,6 +20,8 @@ public static class LearningPlanValidator
         if (!HasText(plan.Name, NameLength)) errors.AddError("name", $"יש להזין שם באורך של 1 עד {NameLength} תווים.");
         if (!HasText(plan.Goal, GoalLength)) errors.AddError("goal", $"יש להזין מטרה באורך של 1 עד {GoalLength} תווים.");
         if (plan.Guidance is null || plan.Guidance.Length > GuidanceLength) errors.AddError("guidance", $"ההנחיות מוגבלות ל־{Count(GuidanceLength)} תווים.");
+        if (plan.DocumentGuidance is null || plan.DocumentGuidance.Length > ScopedGuidanceLength)
+            errors.AddError("documentGuidance", $"ההנחיות לכותרת ולהוראות מוגבלות ל־{Count(ScopedGuidanceLength)} תווים.");
         foreach (var error in TaskSettingsValidator.Validate(plan.Settings, "settings")) errors.AddError(error.Key, error.Value[0]);
         var ids = new HashSet<string>(StringComparer.Ordinal);
         ValidateMaterials(plan.Materials, ids, errors);

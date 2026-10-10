@@ -4,9 +4,10 @@ namespace FamilyLearning.Api.TaskEngine.Models;
 public sealed record TaskResolution(ResolvedTaskRequest? Value, Dictionary<string, string[]> Errors);
 
 /// <summary>Effective requirements derived from a validated activity plan. Treat collections as immutable after resolution.</summary>
+/// <remarks><see cref="DocumentGuidance"/> reaches only the stage that writes the title and instructions.</remarks>
 public sealed record ResolvedTaskRequest(int SchemaVersion, int EngineRevision, string Goal, string Guidance,
     TaskSettings Settings, ResolvedMaterial[] Materials, ResolvedQuestions Questions,
-    ResolvedLength? TotalLength);
+    ResolvedLength? TotalLength, string DocumentGuidance = "");
 
 /// <summary>One material's effective instructions and exact accepted source, where supplied.</summary>
 public sealed record ResolvedMaterial(string Id, string Label, string Source, string Guidance, string? Text,

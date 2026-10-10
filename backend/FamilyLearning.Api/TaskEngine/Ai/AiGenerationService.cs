@@ -110,6 +110,7 @@ public sealed class AiGenerationService(IEnumerable<IChatClient> clients, ILogge
             JsonSerializer.Serialize(new
             {
                 request = EffectiveInput(input.Request),
+                input.Request.DocumentGuidance,
                 materials = SourceContext(prepared.Materials),
                 history,
                 previous = input.Current is null ? null : QuestionReference(input.Current),

@@ -29,6 +29,7 @@ public sealed class LearningPlanTests
             plan with { Materials = [material with { Length = new("range", Lower: 150, Upper: 100) }] },
             LearningPlanFixture.Mixed() with { Settings = plan.Settings },
             LearningPlanFixture.Mixed() with { Questions = LearningPlanFixture.Mixed().Questions with { ChoiceCount = 7 } },
+            plan with { DocumentGuidance = new string('א', 1001) },
         ];
         foreach (var value in invalid) Assert.NotEmpty(LearningPlanValidator.Validate(value));
     }
