@@ -103,7 +103,8 @@ public static class EvaluationFiles
                 step.Role is not ("authoring" or "refinement" or "material-ideas" or "materials" or "material-polish" or "questions" or "replace-material" or "replace-question" or "review" or "calibration") ||
                 step.Applied && !step.ContractValid || step.Outcome == "skipped" && (step.RequestSent || string.IsNullOrWhiteSpace(step.SkipReason)) ||
                 !double.IsFinite(step.ElapsedMilliseconds) || step.ElapsedMilliseconds < 0 ||
-                step.InputTokens < 0 || step.OutputTokens < 0 || step.ReasoningTokens < 0 || step.CostCredits < 0))
+                step.InputTokens < 0 || step.OutputTokens < 0 || step.ReasoningTokens < 0 ||
+                step.CacheReadTokens < 0 || step.CacheWriteTokens < 0 || step.CostCredits < 0))
             throw new InvalidDataException("Invalid findings or measurements.");
         return report;
     }

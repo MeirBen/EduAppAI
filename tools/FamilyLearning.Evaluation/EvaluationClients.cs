@@ -42,7 +42,7 @@ public sealed class EvaluationClients : IDisposable
     public static EvaluationClients? Create(IConfiguration configuration, IHostEnvironment environment,
         Action<IServiceCollection>? configure = null, PipelineTransport? transport = null)
     {
-        var judgeValues = SharedKeys.ToDictionary(key => key, key => configuration[key]);
+        var judgeValues = SharedKeys.Where(key => configuration[key] is not null).ToDictionary(key => key, key => configuration[key]);
         judgeValues["Ai:Model"] = HebrewJudge.Model;
         judgeValues["Ai:ResponseFormat"] = "json_schema";
         judgeValues["Ai:ReasoningEffort"] = HebrewJudge.ReasoningEffort;

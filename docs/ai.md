@@ -591,6 +591,18 @@ recorded as written and as polished, in separate steps of the same run.
 `summary.json` is derived; unknown costs are null with coverage counts
 ([usage accounting][usage]).
 
+Provider-reported `cached_tokens` and `cache_write_tokens`
+([OpenRouter caching][prompt-caching]) become `cacheReadTokens` and
+`cacheWriteTokens` in operation summaries, evaluation steps and response logs.
+Missing or negative counts remain unknown; zero means explicitly reported zero.
+Malformed responses still follow SDK error handling. Older records have unknown
+cache counts. Evaluation summaries track known/missing calls and only compare
+totals with complete coverage.
+
+Cache reads are included in input tokens. Compare read/write counts alongside
+reported cost for the same workload; neither count implies a dollar saving.
+Collection makes no extra calls and does not change prompts or enable caching.
+
 Judge findings are advisory: each must quote a supplied field and never edits
 output or scores. `HebrewJudge` pins its model, reasoning and strict schema
 separately from generation; changing it needs a new judge version and
@@ -628,6 +640,7 @@ this guide in place; keep experimental evidence in artifacts.
 [metadata]: https://openrouter.ai/api/v1/models
 [fallback]: https://openrouter.ai/docs/guides/routing/model-fallbacks
 [usage]: https://openrouter.ai/docs/cookbook/administration/usage-accounting
+[prompt-caching]: https://openrouter.ai/docs/guides/best-practices/prompt-caching
 [judge]: https://arxiv.org/abs/2306.05685
 [judge-controls]: ../tools/FamilyLearning.Evaluation/hebrew-review-samples.json
 [grade3]: https://meyda.education.gov.il/files/Mazkirut_Pedagogit/math/primary-school/math2023/Newprogramgrade3.pdf

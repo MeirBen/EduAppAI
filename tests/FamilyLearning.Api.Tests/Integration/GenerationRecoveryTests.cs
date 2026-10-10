@@ -204,7 +204,12 @@ public sealed class GenerationRecoveryTests
     public async Task Seven_day_expiration_retains_replay_and_usage_but_never_starts_work()
     {
         await using var app = new GenerationHarness(Questions());
-        app.Chat.Usage = new() { OutputTokenCount = 42 };
+        app.Chat.Usage = new()
+        {
+            OutputTokenCount = 42,
+            CachedInputTokenCount = 120,
+            AdditionalCounts = new() { [AiCallUsage.CacheWriteTokensKey] = 0 }
+        };
         using var parent = await app.ParentAsync();
         var draft = await Create(parent, Numeric(1));
         var request = new { operationKey = Guid.NewGuid(), expectedRevision = 1, kind = "GenerateQuestions" };
@@ -229,6 +234,10 @@ public sealed class GenerationRecoveryTests
         Assert.True(expired["diagnosticsExpired"]!.GetValue<bool>());
         Assert.Null(expired["artifacts"]);
         Assert.Equal(42, expired["steps"]![0]!["usage"]!["outputTokens"]!.GetValue<long>());
+        Assert.Equal(120, expired["steps"]![0]!["usage"]!["cacheReadTokens"]!.GetValue<long>());
+        Assert.Equal(0, expired["steps"]![0]!["usage"]!["cacheWriteTokens"]!.GetValue<long>());
+        using var stranger = await app.ParentAsync();
+        Assert.Equal(HttpStatusCode.NotFound, (await stranger.GetAsync(OperationPath(operation))).StatusCode);
         Assert.False(await app.Worker.RunNextAsync(default));
         Assert.Single(app.Chat.Requests);
         await parent.DeleteAsync(Path(draft));

@@ -69,7 +69,7 @@ public sealed class EvaluationReportsTests : IDisposable
         var comparison = EvaluationComparison.Compare(baseline, candidate);
         Assert.True(comparison.DirectlyComparable);
         Assert.NotNull(comparison.Deltas["scenarioAutomaticPasses"]);
-        foreach (var key in new[] { "attemptedCalls", "averageLatencyMilliseconds", "inputTokens", "outputTokens", "reasoningTokens", "costCredits" })
+        foreach (var key in new[] { "attemptedCalls", "averageLatencyMilliseconds", "inputTokens", "outputTokens", "reasoningTokens", "cacheReadTokens", "cacheWriteTokens", "costCredits" })
             Assert.Null(comparison.Deltas[key]);
     }
 
@@ -174,9 +174,69 @@ public sealed class EvaluationReportsTests : IDisposable
         var summary = EvaluationSummary.Create(report);
         Assert.Equal(new ReportedTotal(null, 0, 2), summary.CostCredits);
         Assert.Equal(new ReportedTotal(null, 0, 2), summary.InputTokens);
+        Assert.Equal(new ReportedTotal(null, 0, 2), summary.CacheReadTokens);
+        Assert.Equal(new ReportedTotal(null, 0, 2), summary.CacheWriteTokens);
         Assert.Null(report.ReportedCostCredits);
         report.Results[0].Generation!.CostCredits = 0;
+        report.Results[0].Generation!.CacheReadTokens = 0;
+        report.Results[0].Generation!.CacheWriteTokens = 12;
         Assert.Equal(new ReportedTotal(0, 1, 1), EvaluationSummary.Create(report).CostCredits);
+        Assert.Equal(new ReportedTotal(0, 1, 1), EvaluationSummary.Create(report).CacheReadTokens);
+        Assert.Equal(new ReportedTotal(12, 1, 1), EvaluationSummary.Create(report).CacheWriteTokens);
+    }
+
+    [Fact]
+    public void Cache_deltas_require_reported_counts_for_every_attempted_call()
+    {
+        var before = CreateReport();
+        var after = CreateReport();
+        before.Results.Add(ReadingResult());
+        after.Results.Add(ReadingResult());
+        foreach (var step in before.Steps.Where(step => step.RequestSent))
+        {
+            step.CacheReadTokens = 8;
+            step.CacheWriteTokens = 2;
+        }
+        foreach (var step in after.Steps.Where(step => step.RequestSent))
+        {
+            step.CacheReadTokens = 10;
+            step.CacheWriteTokens = 0;
+        }
+        var complete = EvaluationComparison.Compare(before, after);
+        Assert.True(complete.DirectlyComparable);
+        Assert.Equal(4, complete.Deltas["cacheReadTokens"]);
+        Assert.Equal(-4, complete.Deltas["cacheWriteTokens"]);
+        after.Results[0].Generation!.CacheReadTokens = null;
+        after.Results[0].Generation!.CacheWriteTokens = null;
+        var partial = EvaluationComparison.Compare(before, after);
+        Assert.Null(partial.Deltas["cacheReadTokens"]);
+        Assert.Null(partial.Deltas["cacheWriteTokens"]);
+        Assert.Equal(new ReportedTotal(10, 1, 1), partial.Candidate.CacheReadTokens);
+        Assert.Equal(new ReportedTotal(0, 1, 1), partial.Candidate.CacheWriteTokens);
+    }
+
+    [Theory]
+    [InlineData("cacheReadTokens")]
+    [InlineData("cacheWriteTokens")]
+    public async Task Old_reports_keep_cache_usage_unknown_and_negative_measurements_are_rejected(string field)
+    {
+        var report = CreateReport();
+        report.Results.Add(ReadingResult());
+        var path = await SaveAsync("cache-usage", report);
+        var json = JsonNode.Parse(await File.ReadAllTextAsync(path))!;
+        foreach (var role in new[] { "authoring", "generation" })
+        {
+            var step = json["results"]![0]![role]!.AsObject();
+            step.Remove("cacheReadTokens");
+            step.Remove("cacheWriteTokens");
+        }
+        await File.WriteAllTextAsync(path, json.ToJsonString());
+        var old = EvaluationSummary.Create(await EvaluationFiles.ReadReportAsync(path));
+        Assert.Equal(new ReportedTotal(null, 0, 2), old.CacheReadTokens);
+        Assert.Equal(new ReportedTotal(null, 0, 2), old.CacheWriteTokens);
+        json["results"]![0]!["generation"]![field] = -1;
+        await File.WriteAllTextAsync(path, json.ToJsonString());
+        await Assert.ThrowsAsync<InvalidDataException>(() => EvaluationFiles.ReadReportAsync(path));
     }
 
     [Fact]

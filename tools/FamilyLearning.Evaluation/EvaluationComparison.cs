@@ -71,6 +71,8 @@ public sealed record EvaluationComparison(
             ["inputTokens"] = CompleteDelta(before.InputTokens, after.InputTokens),
             ["outputTokens"] = CompleteDelta(before.OutputTokens, after.OutputTokens),
             ["reasoningTokens"] = CompleteDelta(before.ReasoningTokens, after.ReasoningTokens),
+            ["cacheReadTokens"] = CompleteDelta(before.CacheReadTokens, after.CacheReadTokens),
+            ["cacheWriteTokens"] = CompleteDelta(before.CacheWriteTokens, after.CacheWriteTokens),
             ["costCredits"] = CompleteDelta(before.CostCredits, after.CostCredits)
         };
         var humanComparable = new Dictionary<string, bool>();
@@ -90,7 +92,7 @@ public sealed record EvaluationComparison(
         }
         // These totals include calibration/reviews, so a changed judge workload cannot measure a workflow delta.
         if ((baseline.JudgeEnabled || candidate.JudgeEnabled) && !hebrewComparable)
-            foreach (var key in new[] { "attemptedCalls", "averageLatencyMilliseconds", "inputTokens", "outputTokens", "reasoningTokens", "costCredits" })
+            foreach (var key in new[] { "attemptedCalls", "averageLatencyMilliseconds", "inputTokens", "outputTokens", "reasoningTokens", "cacheReadTokens", "cacheWriteTokens", "costCredits" })
                 deltas[key] = null;
         if (incompatible.Count > 0)
             foreach (var key in deltas.Keys) deltas[key] = null;

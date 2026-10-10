@@ -3,6 +3,7 @@ using System.Net.Http.Headers;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using FamilyLearning.Api.TaskEngine.Ai;
 using Microsoft.Extensions.AI;
 using ChatMessage = Microsoft.Extensions.AI.ChatMessage;
 
@@ -49,11 +50,13 @@ internal sealed class EvaluationCapture(IChatClient innerClient, EvaluationCalls
         current.Model = response.ModelId;
         current.ResponseId = response.ResponseId;
         current.FinishReason = response.FinishReason?.Value;
-        current.InputTokens = response.Usage?.InputTokenCount;
-        current.OutputTokens = response.Usage?.OutputTokenCount;
-        current.ReasoningTokens = response.Usage?.ReasoningTokenCount;
-        if (response.AdditionalProperties?.TryGetValue("costCredits", out var cost) == true && cost is decimal costCredits)
-            current.CostCredits = costCredits;
+        var usage = AiCallUsage.FromResponse(response);
+        current.InputTokens = usage.InputTokens;
+        current.OutputTokens = usage.OutputTokens;
+        current.ReasoningTokens = usage.ReasoningTokens;
+        current.CacheReadTokens = usage.CacheReadTokens;
+        current.CacheWriteTokens = usage.CacheWriteTokens;
+        current.CostCredits = usage.CostCredits;
         return response;
     }
 }

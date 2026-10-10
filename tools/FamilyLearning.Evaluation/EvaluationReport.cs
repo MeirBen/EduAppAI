@@ -151,6 +151,8 @@ public sealed class EvaluationStep
     public long? InputTokens { get; set; }
     public long? OutputTokens { get; set; }
     public long? ReasoningTokens { get; set; }
+    public long? CacheReadTokens { get; set; }
+    public long? CacheWriteTokens { get; set; }
     public decimal? CostCredits { get; set; }
     public GenerationMetadata? Metadata { get; set; }
     [JsonRequired] public bool ContractValid { get; set; }

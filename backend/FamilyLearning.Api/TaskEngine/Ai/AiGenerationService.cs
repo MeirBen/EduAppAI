@@ -302,15 +302,17 @@ public sealed class AiGenerationService(IEnumerable<IChatClient> clients, ILogge
             var text = response.Text;
             var metadata = new GenerationMetadata("OpenRouter", response.ModelId is { Length: <= AiCallEvidence.IdentifierLimit } model ? model : "unknown", promptVersion, DateTime.UtcNow,
                 EngineVersions.Revision, EngineVersions.SchemaVersion);
-            evidence?.Capture(response, metadata);
+            var usage = AiCallUsage.FromResponse(response);
+            evidence?.Capture(response, metadata, usage);
             // Record metadata before parsing so truncated and invalid responses remain diagnosable.
             logger.LogInformation(
                 "AI response: provider {Provider}, model {Model}, prompt version {PromptVersion}, generated {GeneratedAtUtc}, " +
                 "finish {FinishReason}, characters {CharacterCount}, elapsed {ElapsedMilliseconds} ms, " +
-                "input tokens {InputTokens}, output tokens {OutputTokens}, reasoning tokens {ReasoningTokens}",
+                "input tokens {InputTokens}, output tokens {OutputTokens}, reasoning tokens {ReasoningTokens}, " +
+                "cache read tokens {CacheReadTokens}, cache write tokens {CacheWriteTokens}, cost credits {CostCredits}",
                 metadata.Provider, metadata.Model, metadata.PromptVersion, metadata.GeneratedAtUtc,
-                response.FinishReason, text.Length, Stopwatch.GetElapsedTime(started).TotalMilliseconds, response.Usage?.InputTokenCount,
-                response.Usage?.OutputTokenCount, response.Usage?.ReasoningTokenCount);
+                response.FinishReason, text.Length, Stopwatch.GetElapsedTime(started).TotalMilliseconds, usage.InputTokens,
+                usage.OutputTokens, usage.ReasoningTokens, usage.CacheReadTokens, usage.CacheWriteTokens, usage.CostCredits);
             if (response.FinishReason != ChatFinishReason.Stop)
                 throw InvalidOutput(response.FinishReason == ChatFinishReason.Length ? "output-limit" : "incomplete-response", promptVersion);
             if (text.Length is 0 or > AiGenerationOptions.OutputCharacterLimit)

@@ -55,6 +55,8 @@ public sealed record EvaluationSummary
     public required ReportedTotal InputTokens { get; init; }
     public required ReportedTotal OutputTokens { get; init; }
     public required ReportedTotal ReasoningTokens { get; init; }
+    public required ReportedTotal CacheReadTokens { get; init; }
+    public required ReportedTotal CacheWriteTokens { get; init; }
     public required ReportedTotal CostCredits { get; init; }
     public int CallsWithResponse { get; init; }
     public double? AverageLatencyMilliseconds { get; init; }
@@ -110,6 +112,8 @@ public sealed record EvaluationSummary
             InputTokens = ReportedTotal.From(calls, step => step.InputTokens),
             OutputTokens = ReportedTotal.From(calls, step => step.OutputTokens),
             ReasoningTokens = ReportedTotal.From(calls, step => step.ReasoningTokens),
+            CacheReadTokens = ReportedTotal.From(calls, step => step.CacheReadTokens),
+            CacheWriteTokens = ReportedTotal.From(calls, step => step.CacheWriteTokens),
             CostCredits = ReportedTotal.From(calls, step => step.CostCredits),
             CallsWithResponse = responses.Length,
             AverageLatencyMilliseconds = responses.Length == 0 ? null : responses.Average(step => step.ElapsedMilliseconds),

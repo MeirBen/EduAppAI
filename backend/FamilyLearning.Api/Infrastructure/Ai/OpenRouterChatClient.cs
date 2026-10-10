@@ -1,3 +1,4 @@
+using System.Buffers.Text;
 using System.Net;
 using System.Text;
 using FamilyLearning.Api.TaskEngine.Ai;
@@ -49,11 +50,17 @@ internal sealed class OpenRouterChatClient(ChatClient client, ChatOptions sampli
         try
         {
             var response = await base.GetResponseAsync(messages, options, cancellationToken);
-            // Keep provider-specific cost extraction at the adapter; absence remains unknown for every caller.
 #pragma warning disable SCME0001 // OpenRouter's usage extension is exposed through the SDK JSON patch.
-            if (response.RawRepresentation is ChatCompletion { Usage: { } usage } &&
-                usage.Patch.TryGetValue("$.cost"u8, out decimal cost) && cost >= 0)
-                (response.AdditionalProperties ??= new())["costCredits"] = cost;
+            if (response.RawRepresentation is ChatCompletion { Usage: { } usage })
+            {
+                if (usage.Patch.TryGetValue("$.cost"u8, out decimal cost) && cost >= 0)
+                    (response.AdditionalProperties ??= new())["costCredits"] = cost;
+                var counts = response.Usage ??= new();
+                // The SDK's non-nullable cached count defaults to zero even when the provider omits it.
+                counts.CachedInputTokenCount = ReadTokenCount(usage, "$.prompt_tokens_details.cached_tokens"u8);
+                if (ReadTokenCount(usage, "$.prompt_tokens_details.cache_write_tokens"u8) is { } written)
+                    (counts.AdditionalCounts ??= new())[AiCallUsage.CacheWriteTokensKey] = written;
+            }
 #pragma warning restore SCME0001
             return response;
         }
@@ -64,5 +71,14 @@ internal sealed class OpenRouterChatClient(ChatClient client, ChatOptions sampli
             // Do not retain the exception: even its message can contain provider-controlled content.
             throw new HttpRequestException("OpenRouter returned a malformed completion.", null, HttpStatusCode.BadGateway);
         }
+    }
+
+    private static long? ReadTokenCount(ChatTokenUsage usage, ReadOnlySpan<byte> path)
+    {
+        // SDK numeric getters can truncate fractions; accept only complete nonnegative integers.
+#pragma warning disable SCME0001 // Read the original optional measurement without SDK defaults or numeric coercion.
+        return usage.Patch.TryGetJson(path, out var json) &&
+            Utf8Parser.TryParse(json.Span, out long count, out var consumed) && consumed == json.Length && count >= 0 ? count : null;
+#pragma warning restore SCME0001
     }
 }

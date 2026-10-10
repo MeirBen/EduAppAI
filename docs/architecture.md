@@ -192,6 +192,10 @@ artifacts in bounded batches until none remain, retaining keys, outcomes and
 known usage until draft deletion. `GenerationOperationOptions` owns these
 bounds.
 
+The OpenRouter adapter normalizes optional cache measurements into shared chat
+usage. `AiCallUsage` carries them through logs, evaluation and family-owned step
+summaries under the same retention rules; see [AI usage accounting](ai.md).
+
 ## Evaluation
 
 `tools/FamilyLearning.Evaluation` is a developer executable referencing the

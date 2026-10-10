@@ -460,6 +460,8 @@ export function renderComparison(document, comparison) {
           ['inputTokens', 'Input tokens'],
           ['outputTokens', 'Output tokens'],
           ['reasoningTokens', 'Reasoning tokens'],
+          ['cacheReadTokens', 'Cache read tokens (included in input)'],
+          ['cacheWriteTokens', 'Cache write tokens'],
         ].map(([key, label]) => [
           label,
           measured(before[key]),

@@ -56,7 +56,7 @@ public sealed class EvaluationTests : IDisposable
         var (material, polished) = (Material("שלום עולם"), Material("שלום לכולם"));
         using var chat = new AiFixtures.ScriptedChat(EvaluationFixtures.MaterialIdeas(), material, polished,
             StructuredEvaluationTests.Questions("text-input"))
-        { Usage = new() { InputTokenCount = 12 } };
+        { Usage = new() { InputTokenCount = 12, CachedInputTokenCount = 8, AdditionalCounts = new() { [AiCallUsage.CacheWriteTokensKey] = 4 } } };
         var report = await RunAsync(chat, StructuredEvaluationTests.Fixed(plan));
         var result = Assert.Single(report.Results);
         var saved = JsonSerializer.SerializeToElement(result, new JsonSerializerOptions(JsonSerializerDefaults.Web));
@@ -80,6 +80,10 @@ public sealed class EvaluationTests : IDisposable
         Assert.Equal(new StageCounts(1, 1, 0, 0), summary.MaterialIdeas);
         Assert.Equal(new StageCounts(1, 1, 0, 0), summary.MaterialPolish);
         Assert.Equal(4, summary.InputTokens.KnownCalls);
+        Assert.Equal(new ReportedTotal(32, 4, 0), summary.CacheReadTokens);
+        Assert.Equal(new ReportedTotal(16, 4, 0), summary.CacheWriteTokens);
+        Assert.Equal(8, ideas.GetProperty("cacheReadTokens").GetInt64());
+        Assert.Equal(4, ideas.GetProperty("cacheWriteTokens").GetInt64());
         Assert.True(result.EndToEndReady);
         await EvaluationFiles.ReadReportAsync(Path.Combine(directory, "run.json"));
     }

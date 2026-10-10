@@ -72,7 +72,7 @@ public sealed class OpenRouterConfigurationTests
             ["Ai:TopP"] = topP?.ToString(CultureInfo.InvariantCulture),
             ["Ai:TopK"] = topK?.ToString(CultureInfo.InvariantCulture),
             ["Ai:MaxOutputTokens"] = (maxOutputTokens ?? 8192).ToString(CultureInfo.InvariantCulture)
-        }).Build();
+        }.Where(setting => setting.Value is not null)).Build();
         if (constrainRouting)
         {
             configuration["Ai:IgnoredProviders:0"] = "test-provider";
