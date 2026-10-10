@@ -157,7 +157,8 @@ export class ActivityWorkspace {
   private readonly chatView = viewChild(ActivityChat);
   private readonly chatPanel = viewChild<ElementRef<HTMLElement>>('chatPanel');
   private readonly chatClose = viewChild<ElementRef<HTMLButtonElement>>('chatClose');
-  /** Below desktop width, a chat beside content is a sheet that the action bar opens over the page. */
+  private readonly chatOpener = viewChild<ElementRef<HTMLButtonElement>>('chatOpener');
+  /** Below desktop width, a chat beside the activity is a sheet that opens over the page. */
   protected readonly chatOpen = signal(false);
   /** The control that opened the sheet; closing returns focus to it. */
   private chatInvoker?: HTMLElement;
@@ -238,12 +239,14 @@ export class ActivityWorkspace {
   protected readonly unsaved = computed(() => this.dirty() && !!this.saved());
   /** Schema 0 is empty setup; a server plan exists even when edited source text is invalid. */
   protected readonly hasPlan = computed(() => this.raw().plan.schemaVersion > 0);
+  /** From the first plan on, the chat sits beside the activity: pinned on desktops, a sheet below. */
+  protected readonly chatBeside = computed(() => this.hasPlan() && !this.released());
   /**
-   * Content sits beside the chat across the frame; otherwise the page is one reading column. While a
-   * saved activity loads it keeps the full frame, so its heading stays put once content appears.
+   * The activity and its chat share the frame; otherwise the page is one reading column. While a
+   * saved activity loads it keeps the full frame, so its heading stays put once it appears.
    */
   protected readonly split = computed(() =>
-    this.loading() ? !!this.activityId() : this.hasContent() && !this.released(),
+    this.loading() ? !!this.activityId() : this.chatBeside(),
   );
   protected readonly hasContent = computed(
     () =>
@@ -309,8 +312,8 @@ export class ActivityWorkspace {
     () => !!this.operationId() && (!this.operation() || isRunning(this.operation()!)),
   );
   protected readonly fields = form(this.raw, (path) => {
-    disabled(path, () => this.locked() || this.loading());
-    disabled(path.plan, () => !!this.saved());
+    disabled(path, { when: () => this.locked() || this.loading() });
+    disabled(path.plan, { when: () => !!this.saved() });
     apply(path.document, documentSchema(this.limits));
     apply(path.plan, planFormSchema(this.limits));
     // The projections own every rule; each problem shows on the field that can fix it.
@@ -326,7 +329,7 @@ export class ActivityWorkspace {
     () => this.locked(),
   );
   protected readonly sourceFields = form(this.sourceReplacement, (path) => {
-    disabled(path, () => this.locked());
+    disabled(path, { when: () => this.locked() });
     maxLength(path.text, this.limits.bodyLength);
     validate(path.text, ({ value }) =>
       value().trim() ? undefined : { kind: 'required', message: 'יש להזין טקסט.' },
@@ -361,17 +364,21 @@ export class ActivityWorkspace {
    * the sheet itself, which raises no on-screen keyboard.
    */
   protected openChat(focus = () => this.chatPanel()?.nativeElement.focus()) {
-    // The sheet's close control renders only where the chat is a sheet; elsewhere it is in view.
-    if (this.chatClose()?.nativeElement.getClientRects().length) {
-      this.chatInvoker = this.document.activeElement as HTMLElement;
-      this.chatOpen.set(true);
-    }
+    this.showSheet(this.document.activeElement as HTMLElement);
     afterNextRender(focus, { injector: this.injector });
   }
 
+  /** Closing returns focus to the control that opened the sheet, or to the AI button when it opened itself. */
   protected closeChat() {
     this.chatOpen.set(false);
-    this.chatInvoker?.focus();
+    (this.chatInvoker ?? this.chatOpener()?.nativeElement)?.focus();
+  }
+
+  /** The sheet's close control renders only where the chat is a sheet; elsewhere the chat is in view. */
+  private showSheet(invoker?: HTMLElement) {
+    if (!this.chatClose()?.nativeElement.getClientRects().length) return;
+    this.chatInvoker = invoker;
+    this.chatOpen.set(true);
   }
 
   constructor() {
@@ -443,17 +450,16 @@ export class ActivityWorkspace {
   }
 
   /** Authoring keeps local correlation in the session; saved revisions use durable operations. */
-  protected async author(consolidate = false) {
+  protected async author() {
     const session = this.chatSession;
     if (
       this.locked() ||
       session.authoring() ||
       !!this.sourceReplacement().id ||
-      !this.aiConfigured() ||
-      (!consolidate && session.needsConsolidation())
+      !this.aiConfigured()
     )
       return;
-    const message = session.chat()[consolidate ? 'consolidated' : 'message'];
+    const message = session.chat().message;
     if (!message.trim() || message.length > this.limits.messageLength) return;
     if (this.saved()) {
       if (session.invalidTarget()) return;
@@ -471,12 +477,11 @@ export class ActivityWorkspace {
       basis = JSON.stringify(this.raw());
     const isCurrent = () =>
       this.clientRevision === baseRevision && JSON.stringify(this.raw()) === basis;
-    const restoreFocus = this.holdFocus();
-    const proposal = await session.author(baseDefinition, baseRevision, isCurrent, consolidate);
+    const proposal = await session.author(baseDefinition, baseRevision, isCurrent);
     if (proposal && !this.lifetime.destroyed && isCurrent()) {
       this.applyProposal(proposal);
-      // The first plan replaces the request with settings; reading starts at their heading.
-      if (!baseDefinition) restoreFocus('plan-title');
+      // The first plan moves the chat beside the activity; a sheet stays open where the parent is talking.
+      if (!baseDefinition) afterNextRender(() => this.showSheet(), { injector: this.injector });
     }
   }
 
@@ -700,10 +705,10 @@ export class ActivityWorkspace {
     this.notice.set('');
   }
 
-  /** A local change: a pending authoring reply and the clarification thread no longer apply. */
+  /** A local change: a pending authoring reply and an open clarification no longer apply. */
   protected markLocalChange() {
     this.clientRevision++;
-    this.chatSession.resetContext();
+    this.chatSession.invalidateRequest();
     this.scheduleSave();
   }
 

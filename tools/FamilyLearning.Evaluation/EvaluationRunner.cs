@@ -169,7 +169,9 @@ public static class EvaluationRunner
 
         async Task<bool> AuthorPlanAsync(EvaluationCase scenario, EvaluationResult result)
         {
-            var context = new List<AuthoringTurn>();
+            // The whole conversation goes with every call, as the app sends it; the engine picks the window.
+            var conversation = new List<AuthoringTurn>();
+            var clarifying = false;
             var messages = new[] { scenario.Prompt }.Concat(scenario.Refinements).ToArray();
             for (var index = 0; index < messages.Length; index++)
             {
@@ -179,24 +181,21 @@ public static class EvaluationRunner
                 {
                     if (index == 0) result.Authoring = step;
                     else result.Refinements[index - 1] = step;
-                }, (evidence, token) => engine.AuthorAsync(new ActivityAuthoringInput(message, result.Plan, context.ToArray()), token, evidence));
+                }, (evidence, token) => engine.AuthorAsync(new ActivityAuthoringInput(message, result.Plan, conversation.ToArray()), token, evidence));
                 if (reply is null) { result.InterpretationPassed = false; await SaveAsync(); return false; }
                 var call = index == 0 ? result.Authoring! : result.Refinements[index - 1];
+                conversation.Add(new("parent", message));
+                conversation.Add(new("assistant", reply.Reply));
+                clarifying = reply.Proposal is null;
                 if (reply.Proposal is { } proposal)
                 {
                     result.Plan = proposal;
                     call.Applied = true;
-                    context.Clear();
                 }
-                else
-                {
-                    call.Outcome = "clarification";
-                    context.Add(new("parent", message));
-                    context.Add(new("assistant", reply.Clarification!));
-                }
+                else call.Outcome = "clarification";
                 await SaveAsync();
             }
-            if (context.Count == 0 && result.Plan is not null) return true;
+            if (!clarifying && result.Plan is not null) return true;
             result.InterpretationPassed = false;
             await SaveAsync();
             return false;

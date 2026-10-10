@@ -15,9 +15,6 @@ import { DocumentForm } from '../activity-document-editor/document-form';
 import { planChangeLabel } from '../activity-presentation';
 import { isRunning } from '../generation-status/operation-state';
 
-/** The composer field a request comes from: the message, or the request that consolidates the chat. */
-type ComposerField = 'message' | 'consolidated';
-
 /**
  * Local conversation and composer for one workspace. Create in its injection context; the
  * workspace owns content/revision fences and the server owns saved chat and operations.
@@ -28,8 +25,8 @@ export class ChatSession {
   private readonly lifetime = inject(DestroyRef);
   private readonly cancelled = new Subject<void>();
   private settledOperation: string | undefined;
-  /** An admitted revision's request; its saved parent turn shows it, so the field it came from is empty. */
-  private admitted?: { text: string; field: ComposerField };
+  /** An admitted revision's request; its saved parent turn shows it, so the composer is empty. */
+  private admitted?: string;
   private targetPrefix = '';
 
   readonly selectedTarget = signal<RevisionTarget | undefined>(undefined);
@@ -51,37 +48,20 @@ export class ChatSession {
       ? materials.find((material) => material.id === target.id)!.title || 'הטקסט שנבחר'
       : `שאלה ${questions.findIndex((question) => question.id === target.id) + 1}`;
   });
-  readonly chat = signal({ message: '', consolidated: '' });
+  readonly chat = signal({ message: '' });
   /** Unanswered authoring requests return to the composer on failure, Stop or a local edit. */
-  private readonly request = signal<{ id: string; text: string; field: ComposerField } | undefined>(
-    undefined,
-  );
+  private readonly request = signal<{ id: string; text: string } | undefined>(undefined);
   readonly authoring = computed(() => !!this.request());
   readonly pendingMessage = computed(() => this.request()?.text ?? '');
-  /** Imported on first save; the saved draft's chat then becomes authoritative. */
+  /** Sent whole with every request and imported on first save; the saved draft's chat then becomes authoritative. */
   readonly authorThread = signal<ImportedChatTurn[]>([]);
-  private readonly contextStart = signal(0);
   readonly authorError = signal('');
   readonly clarification = signal('');
   readonly changes = signal<string[]>([]);
-  private readonly conversation = computed(() =>
-    this.authorThread()
-      .slice(this.contextStart())
-      .map(({ role, text }) => ({ role, text })),
-  );
-  readonly needsConsolidation = computed(
-    () =>
-      this.conversation().length > this.limits.maxContextTurns ||
-      this.conversation().reduce((sum, turn) => sum + turn.text.length, 0) >
-        this.limits.contextLength,
-  );
-  readonly hasComposerWork = computed(
-    () => !!this.chat().message.trim() || !!this.chat().consolidated.trim(),
-  );
+  readonly hasComposerWork = computed(() => !!this.chat().message.trim());
   readonly chatFields = form(this.chat, (path) => {
-    disabled(path, () => this.locked() || this.authoring());
+    disabled(path, { when: () => this.locked() || this.authoring() });
     maxLength(path.message, this.limits.messageLength);
-    maxLength(path.consolidated, this.limits.messageLength);
   });
 
   constructor(
@@ -127,13 +107,12 @@ export class ChatSession {
     const pending = this.request();
     this.request.set(undefined); // Invalidate identity before unsubscribing from transport.
     this.cancelled.next();
-    if (pending) this.chat.update((chat) => ({ ...chat, [pending.field]: pending.text }));
+    if (pending) this.chat.set({ message: pending.text });
   }
 
-  /** Local content edits invalidate both the pending request and unresolved context. */
-  resetContext() {
+  /** A local content edit outdates a pending reply and an open clarification; the conversation stays. */
+  invalidateRequest() {
     this.cancelAuthor();
-    this.contextStart.set(this.authorThread().length);
     this.clarification.set('');
   }
 
@@ -147,14 +126,12 @@ export class ChatSession {
     baseDefinition: LearningPlan | undefined,
     baseRevision: number,
     isCurrent: () => boolean,
-    consolidate = false,
   ): Promise<LearningPlan | undefined> {
-    const field = consolidate ? 'consolidated' : 'message';
-    const message = this.chat()[field];
+    const message = this.chat().message;
     const requestId = crypto.randomUUID();
-    const context = consolidate ? [] : this.conversation();
-    this.request.set({ id: requestId, text: message, field });
-    this.chat.update((chat) => ({ ...chat, [field]: '' }));
+    const context = this.authorThread().map(({ role, text }) => ({ role, text }));
+    this.request.set({ id: requestId, text: message });
+    this.chat.set({ message: '' });
     this.authorError.set('');
     try {
       const reply = await this.api.authorPlan(
@@ -171,34 +148,17 @@ export class ChatSession {
       )
         return;
       this.request.set(undefined);
-      if (consolidate) this.contextStart.set(this.authorThread().length);
-      if (reply.proposal) {
-        this.clarification.set('');
-        // A first plan has no earlier version to compare; the setup shows the proposal itself.
-        this.changes.set(
-          baseDefinition
-            ? reply.changes.map((change) =>
-                planChangeLabel(change, baseDefinition, reply.proposal!),
-              )
-            : [],
-        );
-        this.appendReply(
-          message,
-          !reply.changes.length
-            ? 'ההגדרות כבר תואמות לבקשה.'
-            : baseDefinition
-              ? 'ההגדרות עודכנו. אפשר לבקש שינוי או לבטל אותו.'
-              : 'הכנו הגדרות לפי הבקשה. בדקו אותן וצרו את הפעילות.',
-          reply.assumptions,
-          true,
-        );
-      } else if (reply.clarification) {
-        this.appendReply(message, reply.clarification, reply.assumptions, false);
-        this.clarification.set(reply.clarification);
-      }
-      this.chat.set({ message: '', consolidated: '' });
+      const { proposal } = reply;
+      this.appendReply(message, reply.reply, reply.assumptions);
+      this.clarification.set(proposal ? '' : reply.reply);
+      // A first plan has no earlier version to compare; the setup shows the proposal itself.
+      this.changes.set(
+        proposal && baseDefinition
+          ? reply.changes.map((change) => planChangeLabel(change, baseDefinition, proposal))
+          : [],
+      );
       this.targetPrefix = '';
-      return reply.changes.length ? (reply.proposal ?? undefined) : undefined;
+      return reply.changes.length ? (proposal ?? undefined) : undefined;
     } catch (error) {
       if (!this.lifetime.destroyed && this.request()?.id === requestId)
         this.authorError.set(apiError(error));
@@ -210,10 +170,9 @@ export class ChatSession {
 
   /** The server now holds the request as a parent turn, so its field clears; a failed run returns it. */
   admitRevision(text: string) {
-    const field = this.chat().consolidated === text ? 'consolidated' : 'message';
-    if (this.chat()[field] !== text) return;
-    this.admitted = { text, field };
-    this.chat.update((chat) => ({ ...chat, [field]: '' }));
+    if (this.chat().message !== text) return;
+    this.admitted = text;
+    this.chat.set({ message: '' });
   }
 
   /**
@@ -233,32 +192,28 @@ export class ChatSession {
       (turn) => turn.role === 'parent' && turn.operationId === operation.id,
     );
     if (!turn) return;
-    const admitted = this.admitted?.text === turn.text ? this.admitted : undefined;
+    const admitted = this.admitted === turn.text;
     this.admitted = undefined;
     if (operation.status === 'completed') {
       this.targetPrefix = '';
       this.selectedTarget.set(undefined);
       return;
     }
-    if (this.chat().message || this.chat().consolidated) return;
-    this.chat.update((chat) => ({ ...chat, [admitted?.field ?? 'message']: turn.text }));
+    if (this.chat().message) return;
+    this.chat.set({ message: turn.text });
     // This page still holds the request's target; after a reload it comes back from the saved turn.
     if (admitted) return;
     this.targetPrefix = '';
     this.selectedTarget.set(turn.target ?? undefined);
   }
 
-  private appendReply(message: string, reply: string, assumptions: string[], resolved: boolean) {
+  private appendReply(message: string, reply: string, assumptions: string[]) {
     const atUtc = new Date().toISOString();
     const turns: ImportedChatTurn[] = [
       ...this.authorThread(),
       { role: 'parent', text: message, atUtc, target: null, assumptions: null },
       { role: 'assistant', text: reply, atUtc, target: null, assumptions },
     ];
-    const dropped = Math.max(0, turns.length - this.limits.maxChatTurns);
-    this.authorThread.set(turns.slice(dropped));
-    this.contextStart.set(
-      resolved ? this.authorThread().length : Math.max(0, this.contextStart() - dropped),
-    );
+    this.authorThread.set(turns.slice(-this.limits.maxChatTurns));
   }
 }

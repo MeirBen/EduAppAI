@@ -25,7 +25,7 @@ export class ChildActivation {
   protected readonly recovery = signal(false);
   protected readonly error = signal('');
   protected readonly fields = form(this.model, (path) => {
-    disabled(path, () => this.busy() || this.recovery());
+    disabled(path, { when: () => this.busy() || this.recovery() });
     // The server owns the code's alphabet; this only catches a code that is not yet complete.
     validate(path.code, ({ value }) =>
       /^[a-z]{8}$/i.test(value().replace(/[\s-]/g, ''))

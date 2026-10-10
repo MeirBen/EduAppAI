@@ -73,7 +73,7 @@ describe('ActivityWorkspace plan ownership', () => {
   ) {
     request.flush({
       proposal: plan,
-      clarification,
+      reply: clarification ?? 'ההגדרות מוכנות.',
       changes,
       assumptions: [],
       requestId: request.request.body.requestId,
@@ -293,46 +293,29 @@ describe('ActivityWorkspace plan ownership', () => {
     await settle();
     expect(request.cancelled).toBe(true);
   });
-  it('retains successive clarification context and explicitly consolidates before continuing', async () => {
+
+  it('sends the whole conversation with every request, past the model window and after an applied plan', async () => {
     await open();
-    for (let index = 0; index < 4; index++) {
-      const request = await ask(index === 0 ? 'הבקשה המקורית' : `תשובה ${index}`);
+    const messages = ['הבקשה המקורית', 'תשובה 1', 'תשובה 2', 'תשובה 3'];
+    for (const [index, message] of messages.entries()) {
+      const request = await ask(message);
       expect(request.request.body.context).toHaveLength(index * 2);
-      if (index > 0) expect(request.request.body.context[0].text).toBe('הבקשה המקורית');
       reply(request, null, `שאלה ${index}?`);
       await settle();
     }
-    expect(root().textContent).toContain('איחוד הבקשה');
-    expect(root().querySelector<HTMLButtonElement>('#chat-send')!.disabled).toBe(true);
-    await type('chat-consolidated', 'בקשה מאוחדת שכוללת את כל התשובות');
-    await click('chat-consolidate');
-    const consolidated = http.expectOne('/api/ai/activity-plans');
-    expect(consolidated.request.body.context).toEqual([]);
-    expect(consolidated.request.body.message).toContain('כל התשובות');
-    reply(consolidated);
+    // Eight turns exceed the model's six-turn window; the server windows them, so sending stays open.
+    const answered = await ask('תשובה 4');
+    expect(answered.request.body.context).toHaveLength(8);
+    expect(answered.request.body.context[0].text).toBe('הבקשה המקורית');
+    reply(answered);
     await settle();
     const next = await ask('עוד שינוי');
-    expect(next.request.body.context).toEqual([]);
-    expect(next.request.body.baseDefinition.name).toBe('מספרים');
+    expect(next.request.body.context.slice(-2)).toEqual([
+      { role: 'parent', text: 'תשובה 4' },
+      { role: 'assistant', text: 'ההגדרות מוכנות.' },
+    ]);
+    expect(next.request.body.baseDefinition.name).toBe(numericPlan.name);
     reply(next, numericPlan, null, []);
     await settle();
-  });
-
-  it('requires explicit consolidation at the character cap before the turn cap is exceeded', async () => {
-    await open();
-    const message = 'א'.repeat(4000);
-    const clarification = 'ב'.repeat(1000);
-    for (let index = 0; index < 3; index++) {
-      const request = await ask(message);
-      expect(request.request.body.context).toHaveLength(index * 2);
-      reply(request, null, clarification);
-      await settle();
-    }
-    expect(root().querySelector<HTMLButtonElement>('#chat-send')!.disabled).toBe(true);
-    expect(root().textContent).toContain('איחוד הבקשה');
-    expect(root().textContent).toContain(message);
-    expect(root().textContent).toContain(clarification);
-    await click('chat-send');
-    http.expectNone('/api/ai/activity-plans');
   });
 });

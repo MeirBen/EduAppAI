@@ -21,7 +21,7 @@ export class Login {
   private readonly lifetime = inject(DestroyRef);
   protected readonly model = signal({ email: '', password: '' });
   protected readonly fields = form(this.model, (path) => {
-    disabled(path, ({ state }) => state.submitting());
+    disabled(path, { when: ({ state }) => state.submitting() });
     const invalidEmail = { message: 'יש להזין כתובת דוא״ל תקינה.' };
     required(path.email, invalidEmail);
     email(path.email, invalidEmail);

@@ -84,7 +84,7 @@ public sealed class StructuredEvaluationTests : IDisposable
     }
 
     [Fact]
-    public async Task Clarification_retains_original_context_and_refinement_uses_the_accepted_plan()
+    public async Task Refinement_uses_the_accepted_plan_and_the_whole_conversation_with_server_replies()
     {
         var scenario = new EvaluationCase("author", "ליצור תרגול", "שימור הבקשה", 2, "numeric-input", null, null, 0)
         { Refinements = ["חשבון לכיתה ג", "לשנות את הנושא"] };
@@ -97,7 +97,8 @@ public sealed class StructuredEvaluationTests : IDisposable
         Assert.Contains("איזה נושא?", chat.Requests[1].Input);
         using var refinement = JsonDocument.Parse(report.Results[0].Refinements[1].Request[^1].Text);
         Assert.Equal("מספרים", refinement.RootElement.GetProperty("baseDefinition").GetProperty("name").GetString());
-        Assert.Empty(refinement.RootElement.GetProperty("context").EnumerateArray());
+        Assert.Equal(["ליצור תרגול", "איזה נושא?", "חשבון לכיתה ג", "הכנו הגדרות לפי הבקשה. בדקו אותן וצרו את הפעילות."],
+            refinement.RootElement.GetProperty("context").EnumerateArray().Select(turn => turn.GetProperty("text").GetString()));
         Assert.Equal("מעודכן", Assert.Single(report.Results).Plan!.Name);
         Assert.True(report.Results[0].EndToEndReady);
     }

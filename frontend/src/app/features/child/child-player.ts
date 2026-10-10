@@ -99,7 +99,9 @@ export class ChildPlayer {
     return this.answers().some((answer) => answer.value !== (saved.get(answer.questionId) ?? ''));
   });
   protected readonly fields = form(this.answers, (path) => {
-    disabled(path, () => this.busy() || this.reading() || this.terminal() || !!this.blocked());
+    disabled(path, {
+      when: () => this.busy() || this.reading() || this.terminal() || !!this.blocked(),
+    });
     applyEach(path, (row) => {
       maxLength(row.value, this.answerLength);
       validate(row.value, ({ value, valueOf }) => {

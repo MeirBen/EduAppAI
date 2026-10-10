@@ -182,10 +182,16 @@ Surrounding whitespace in generated question text is removed before validation;
 nothing else in a response is repaired.
 
 Authoring gives one proposal or one focused clarification per parent message,
-with assumptions reflected in the plan. A request carries up to 4,000
-characters plus six unresolved turns or 12,000 characters. Drop only old,
-completed exchanges when bounding history; clarify references that remain
-unresolved and never truncate required sources or constraints. The app computes
+with assumptions reflected in the plan. The chat is one conversation from the
+first message: before and after the draft is saved, a request carries up to
+4,000 characters plus the newest turns that fit six turns and 12,000
+characters. Older turns stay visible but leave the context, so a lasting
+requirement belongs in the plan, which every request sends whole. Before the
+first plan exists the conversation is the only record: after four
+clarifications without a plan, or sooner when long texts fill the 12,000
+characters, the next request no longer carries the first one. One window rule
+for every request is the accepted trade-off. Never truncate required
+sources or constraints. The server writes every assistant reply and computes
 the actual plan changes.
 
 For math, explicit operand/result ranges, operations, fractions, remainders and

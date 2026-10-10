@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using FamilyLearning.Api.TaskEngine;
 using FamilyLearning.Api.TaskEngine.Models;
 using FamilyLearning.Api.TaskEngine.Validation;
 using static FamilyLearning.Api.TaskEngine.Validation.EngineValidation;
@@ -28,8 +29,7 @@ internal static class ActivityChat
     internal static ActivityChatTurn[] Import(ImportedChatTurn[]? turns, LearningPlan plan)
     {
         if (turns is null) return [];
-        if (turns.Length > MaxChatTurns || turns.Any(t => t is null || t.Role is not ("parent" or "assistant") ||
-            !HasText(t.Text, t.Role == "parent" ? MessageLength : AuthoringReplyLength) || t.AtUtc.Kind != DateTimeKind.Utc ||
+        if (turns.Length > MaxChatTurns || turns.Any(t => t is null || !IsTurn(t.Role, t.Text) || t.AtUtc.Kind != DateTimeKind.Utc ||
             t.Assumptions is { } assumptions && (t.Role != "assistant" || assumptions.Length > MaxAssumptions || assumptions.Any(a => !HasText(a, AssumptionLength))) ||
             t.Target is { } target && !(target.Kind == "material" && plan.Materials.Any(m => m.Id == target.Id))))
             throw new TaskValidationException("chat", "השיחה המיובאת אינה תקינה או ארוכה מדי.");
@@ -51,19 +51,6 @@ internal static class ActivityChat
         return turns.ToArray();
     }
 
-    internal static RevisionTurn[] Context(ActivityChatTurn[] chat)
-    {
-        var result = new List<RevisionTurn>();
-        var length = 0;
-        for (var i = chat.Length - 1; i >= 0 && result.Count < MaxContextTurns; i--)
-        {
-            var turn = chat[i];
-            var message = turn.Message;
-            if (length + message.Length > ContextLength) break;
-            result.Add(new(turn.Role, message, turn.Target, turn.Outcome));
-            length += message.Length;
-        }
-        result.Reverse();
-        return result.ToArray();
-    }
+    internal static RevisionTurn[] Context(ActivityChatTurn[] chat) =>
+        [.. ConversationWindow.Latest(chat, turn => turn.Message).Select(turn => new RevisionTurn(turn.Role, turn.Message, turn.Target, turn.Outcome))];
 }

@@ -51,7 +51,13 @@ then passed all eight chat edits. Revision 44 makes the schema version
 application-owned, which restores the Gemini rollback without a model-specific
 path. Revision 45 removes chat-attached sources from the revise input and prompt:
 chat never adds the parent's own text and refuses such requests; it has no live
-measurement yet.
+measurement yet. Revision 46 gives authoring the same conversation window as
+revision: the newest six turns within 12,000 characters, including requests
+already applied to the plan, and the planner reads them as conversation behind
+the current plan rather than as unresolved requests. A live check on 10 October
+(six authoring calls, $0.024) returned to "the previous topic" from the
+conversation, where revision 45 had to ask which topic, and kept six questions
+when "harder questions" followed "two more questions", re-applying nothing.
 Revision 41 restores the measured authoring omission rule, shares planning
 defaults with revision, and keeps planning permissions out of content stages.
 Verification uses isolated providers and does not establish live-model quality.

@@ -160,9 +160,11 @@ public sealed class ContentGenerationWireTests
         local.Respond = _ => """{"result":{"proposal":null,"clarification":"מה לשנות?"},"assumptions":[]}""";
         using var services = local.Services(mode);
         var service = services.GetRequiredService<AiGenerationService>();
+        // A full conversation still sends at most the window: here the six newest turns, exactly 12,000 characters.
         await service.AuthorAsync(new ActivityAuthoringInput(new string('ו', 4000), plan,
-            Enumerable.Range(0, 6).Select(_ => new AuthoringTurn("parent", new string('ז', 2000))).ToArray()), default);
+            [.. Enumerable.Repeat(new AuthoringTurn("parent", "stale-turn"), 94), .. Enumerable.Range(0, 6).Select(_ => new AuthoringTurn("parent", new string('ז', 2000)))]), default);
         Assert.True(Assert.Single(local.Bodies).Length < AiGenerationOptions.RequestByteLimit);
+        Assert.DoesNotContain("stale-turn", Encoding.UTF8.GetString(local.Bodies[0]));
         var error = await Assert.ThrowsAsync<TaskValidationException>(() => service.AuthorAsync(new ActivityAuthoringInput("רעיון", plan with { Guidance = plan.Guidance + "ה" }), default));
         Assert.NotEmpty(error.Errors);
         Assert.Single(local.Bodies);

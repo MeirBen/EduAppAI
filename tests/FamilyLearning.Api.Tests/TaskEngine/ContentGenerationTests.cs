@@ -26,21 +26,28 @@ public sealed class ContentGenerationTests
         var result = await service.AuthorAsync(new ActivityAuthoringInput("רעיון", RequestId: "client-only", BaseRevision: 42), default);
         Assert.Empty(LearningPlanValidator.Validate(result.Value.Proposal));
         Assert.NotEmpty(result.Value.Changes);
+        Assert.Equal("הכנו הגדרות לפי הבקשה. בדקו אותן וצרו את הפעילות.", result.Value.Reply);
         Assert.DoesNotContain("client-only", chat.Requests[0].Input);
         AssertVersion(result.Metadata, chat.Requests[0].Options!, "author");
     }
 
     [Fact]
-    public async Task Clarification_is_one_call_and_pending_context_is_bounded_before_AI()
+    public async Task Clarification_is_one_call_and_the_model_sees_only_the_conversation_window()
     {
         using var chat = new AiFixtures.ScriptedChat("""{"result":{"proposal":null,"clarification":"לאיזה גיל?"},"assumptions":[]}""");
         using var service = Service(chat);
-        var result = await service.AuthorAsync(new ActivityAuthoringInput("רעיון", Context: [new("parent", "בקשה קודמת")]), default);
+        AuthoringTurn[] conversation = [new("parent", "בקשה ראשונה"),
+            .. Enumerable.Range(1, 6).Select(i => new AuthoringTurn(i % 2 == 0 ? "parent" : "assistant", "תור " + i))];
+        var result = await service.AuthorAsync(new ActivityAuthoringInput("רעיון", Context: conversation), default);
         Assert.Null(result.Value.Proposal);
-        Assert.Equal("לאיזה גיל?", result.Value.Clarification);
-        Assert.Single(chat.Requests);
+        Assert.Equal("לאיזה גיל?", result.Value.Reply);
+        var context = JsonNode.Parse(Assert.Single(chat.Requests).Input.Split('\n')[^1])!["context"]!.AsArray();
+        Assert.Equal(conversation[1..].Select(turn => turn.Text), context.Select(turn => turn!["text"]!.GetValue<string>()));
+        // A conversation that the draft's chat import would reject never reaches the model.
         await Assert.ThrowsAsync<TaskValidationException>(() => service.AuthorAsync(
-            new ActivityAuthoringInput("רעיון", Context: Enumerable.Repeat(new AuthoringTurn("parent", "a"), 7).ToArray()), default));
+            new ActivityAuthoringInput("רעיון", Context: Enumerable.Repeat(new AuthoringTurn("parent", "a"), 101).ToArray()), default));
+        await Assert.ThrowsAsync<TaskValidationException>(() => service.AuthorAsync(
+            new ActivityAuthoringInput("רעיון", Context: [new("assistant", new string('a', 1001))]), default));
         Assert.Single(chat.Requests);
     }
 

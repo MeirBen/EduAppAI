@@ -244,18 +244,18 @@
   /* Conversation. The parent's own messages sit at the end edge, as in common chat layouts. */
   /* The chat shares the action bar's tinted dock, so the assistant's tools read apart from the document. */
   .chat-panel {
-    @apply grid border-brand/15 bg-soft;
+    @apply grid border-brand/15 bg-soft sm:p-gutter;
   }
   .chat-layout {
     @apply grid;
   }
   /*
-   * A chat beside a document keeps its title and composer in place while only its history scrolls:
-   * pinned beside the document on desktops, including 768px-tall laptops, and in the sheet below
-   * desktop width. Wide but short windows and an expanded form keep the normal flow.
+   * A chat beside the activity keeps its title and composer in place while only its history scrolls:
+   * pinned beside the activity on desktops, including 768px-tall laptops, and in the sheet below
+   * desktop width. Wide but short windows keep the normal flow.
    */
   @media (width < 64rem), (height >= 40rem) {
-    .chat-panel[data-document]:not(:has(#chat-consolidated)) {
+    .chat-panel[data-beside] {
       @apply flex flex-col;
 
       /* Desktops pin it, since the action bar sits under the document column. */
@@ -272,13 +272,18 @@
       }
       /*
        * A slim scrollbar shows where the parent is; both ends fade over the padding, so turns scroll
-       * out softly. It contains its turns' positioned screen-reader labels, which would otherwise
-       * stretch the sheet.
+       * out softly, and the inline padding keeps bubbles and marks clear of its inset focus ring. It
+       * contains its turns' positioned screen-reader labels, which would otherwise stretch the sheet.
        */
       & .chat-thread {
-        @apply relative min-h-0 overflow-y-auto overscroll-contain py-4 pe-2 focus-visible:-outline-offset-2;
+        @apply relative min-h-0 overflow-y-auto overscroll-contain px-2 py-3 focus-visible:-outline-offset-2;
         scrollbar-gutter: stable;
-        mask-image: linear-gradient(transparent, #000 1rem, #000 calc(100% - 1rem), transparent);
+        mask-image: linear-gradient(
+          transparent,
+          #000 --spacing(3),
+          #000 calc(100% - --spacing(3)),
+          transparent
+        );
 
         /* A slim thumb without arrow buttons; browsers without these pseudo-elements draw a thin bar. */
         &::-webkit-scrollbar {
@@ -297,10 +302,10 @@
     }
   }
   /*
-   * A chat beside a document spans the action bar's row on desktops; below desktop width it is a sheet
+   * A chat beside the activity spans the action bar's row on desktops; below desktop width it is a sheet
    * over the page, so reading keeps its place, and the action bar's opener and its close control show.
    */
-  .chat-panel[data-document] {
+  .chat-panel[data-beside] {
     @apply lg:row-span-2 max-lg:fixed max-lg:inset-x-0 max-lg:bottom-0 max-lg:z-40 max-lg:max-h-[85dvh] max-lg:overflow-y-auto max-lg:overscroll-contain max-lg:rounded-b-none max-lg:shadow-(--shadow-raised) max-lg:transition-[translate] max-lg:duration-300;
 
     /* Only closing delays hiding, so an opening sheet is visible, and focusable, from its first frame. */
@@ -314,17 +319,23 @@
   }
   /* The panel's title beside the assistant's mark. */
   .chat-title {
-    @apply flex items-center gap-3;
+    @apply flex items-center gap-2;
   }
+  /* Every turn is a bubble that fits its text; the small corner is its tail toward the sender. */
+  .chat-message,
+  .chat-reply > :not(.ai-mark) {
+    @apply max-w-[85%] rounded-card px-3.5 py-2 ring-1 ring-brand/15 ring-inset;
+  }
+  /* The parent's own turns take the brand tint, as messaging apps color your own bubbles. */
   .chat-message {
-    @apply max-w-[85%] justify-self-end rounded-card rounded-ee-small bg-surface px-4 py-2.5 ring-1 ring-brand/15 ring-inset;
+    @apply justify-self-end rounded-ee-small bg-brand/8;
   }
-  /* The assistant answers in open text beside its mark, as AI chats do, so replies stay light. */
+  /* The assistant's bubble stays on the surface at the start edge, its mark beside the tail as avatars sit. */
   .chat-reply {
-    @apply flex items-start gap-3;
+    @apply flex items-end gap-2;
 
     & > :not(.ai-mark) {
-      @apply grid min-w-0 flex-1 gap-3;
+      @apply grid min-w-0 gap-2 rounded-es-small bg-surface;
     }
   }
   /* What the next request is about, held above the composer until it is sent or cleared. */
@@ -348,7 +359,7 @@
       @apply border-line bg-canvas;
     }
     & > textarea {
-      @apply max-h-60 resize-none rounded-card border-0 bg-transparent px-4 pt-3 pb-1 shadow-none field-sizing-content focus:ring-0 focus:inset-ring-0 disabled:bg-transparent;
+      @apply max-h-60 resize-none rounded-card border-0 bg-transparent px-3.5 pt-2.5 pb-1 shadow-none field-sizing-content focus:ring-0 focus:inset-ring-0 disabled:bg-transparent;
     }
   }
 
@@ -423,6 +434,8 @@
   }
   /* The assistant thinking: its mark breathes and the label shimmers in the reading direction. */
   .loading-assistant {
+    @apply gap-2;
+
     & .ai-mark {
       @apply motion-safe:animate-thinking;
     }

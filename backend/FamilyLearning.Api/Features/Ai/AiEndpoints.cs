@@ -20,7 +20,7 @@ public static class AiEndpoints
             return Results.Ok(new
             {
                 result.Value.Proposal,
-                result.Value.Clarification,
+                result.Value.Reply,
                 result.Value.Assumptions,
                 result.Value.Changes,
                 request.RequestId,

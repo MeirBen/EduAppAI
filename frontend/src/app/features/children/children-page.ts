@@ -80,7 +80,7 @@ export class ChildrenPage {
     age: '',
   });
   protected readonly fields = form(this.model, (path) => {
-    disabled(path, () => this.busy());
+    disabled(path, { when: () => this.busy() });
     maxLength(path.name, this.limits.nameLength);
     maxLength(path.grade, this.limits.nameLength);
     validate(path.age, ({ value }) => {
@@ -96,7 +96,7 @@ export class ChildrenPage {
   });
   protected readonly deviceModel = signal({ label: '' });
   protected readonly deviceFields = form(this.deviceModel, (path) => {
-    disabled(path, () => this.busy() || !this.selected()?.enabled);
+    disabled(path, { when: () => this.busy() || !this.selected()?.enabled });
     maxLength(path.label, this.limits.nameLength);
     validate(path.label, ({ value }) =>
       value().trim() ? undefined : { kind: 'required', message: 'יש להזין שם למכשיר.' },

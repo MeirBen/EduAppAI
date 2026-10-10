@@ -53,6 +53,10 @@ internal static class EngineValidation
     internal static bool IsId(string? id) => id is { Length: 32 } && id.All(c => c is >= '0' and <= '9' or >= 'a' and <= 'f');
     internal static bool IsFormat(string? format) => format is "numeric-input" or "text-input" or "single-choice";
 
+    /// <summary>A conversation turn as the parent sees it: a parent message or an assistant reply, each within its own length.</summary>
+    internal static bool IsTurn(string? role, string? text) =>
+        role is "parent" or "assistant" && HasText(text, role == "parent" ? MessageLength : AuthoringReplyLength);
+
     internal static void ValidateId(string? id, string path, HashSet<string> ids, Dictionary<string, string[]> errors)
     {
         if (!IsId(id) || !ids.Add(id!)) errors.AddError(path + ".id", "מזהה חייב להיות ייחודי ובמבנה נתמך.");

@@ -54,7 +54,8 @@ public sealed class AiGenerationService(IEnumerable<IChatClient> clients, ILogge
     public async Task<AiResult<AuthoringReply>> AuthorAsync(ActivityAuthoringInput input, CancellationToken ct, AiCallEvidence? evidence = null)
     {
         ValidateAuthoring(input);
-        var request = JsonSerializer.Serialize(new { input.Message, input.BaseDefinition, context = input.Context ?? [] }, Json);
+        var context = ConversationWindow.Latest(input.Context ?? [], turn => turn.Text);
+        var request = JsonSerializer.Serialize(new { input.Message, input.BaseDefinition, context }, Json);
         const string stage = "author";
         var result = await RequestAsync<AuthoringCandidate>(AiPrompts.PlanAuthoring, request, AiSchemas.Authoring, AiPrompts.Version(stage), ct, evidence: evidence);
         var reply = result.Value.Result;
@@ -66,8 +67,8 @@ public sealed class AiGenerationService(IEnumerable<IChatClient> clients, ILogge
         try
         {
             var plan = reply.Proposal is null ? null : PlanChanges.AssignNewIds(reply.Proposal, input.BaseDefinition);
-            return new(new(plan, reply.Clarification, assumptions,
-                plan is null ? [] : PlanChanges.Compare(input.BaseDefinition, plan)), result.Metadata);
+            var changes = plan is null ? [] : PlanChanges.Compare(input.BaseDefinition, plan);
+            return new(new(plan, reply.Clarification ?? ProposalReply(input.BaseDefinition, changes), assumptions, changes), result.Metadata);
         }
         catch (TaskValidationException exception) { throw InvalidOutput("plan-validation", AiPrompts.Version(stage), exception.Errors); }
     }
@@ -238,6 +239,11 @@ public sealed class AiGenerationService(IEnumerable<IChatClient> clients, ILogge
         questions = current.Questions.Select(q => new { q.Id, q.Prompt, q.Interaction, q.Points })
     };
 
+    /// <summary>The assistant's turn beside a proposal; the client shows it and sends it back as conversation.</summary>
+    private static string ProposalReply(LearningPlan? basis, PlanChange[] changes) =>
+        changes.Length == 0 ? "ההגדרות כבר תואמות לבקשה." :
+        basis is null ? "הכנו הגדרות לפי הבקשה. בדקו אותן וצרו את הפעילות." : "ההגדרות עודכנו. אפשר לבקש שינוי או לבטל אותו.";
+
     private static object QuestionContext(DocumentQuestion question) =>
         new { question.Prompt, question.Interaction, question.Answer, question.Points };
 
@@ -246,9 +252,10 @@ public sealed class AiGenerationService(IEnumerable<IChatClient> clients, ILogge
         var errors = input.BaseDefinition is null ? new Dictionary<string, string[]>() : LearningPlanValidator.Validate(input.BaseDefinition);
         if (string.IsNullOrWhiteSpace(input.Message) || input.Message.Length > EngineValidation.MessageLength)
             errors["message"] = [$"יש לכתוב בקשה באורך של עד {EngineValidation.Count(EngineValidation.MessageLength)} תווים."];
-        if (input.Context is { } context && (context.Length > EngineValidation.MaxContextTurns || context.Any(t => t is null ||
-            t.Role is not ("parent" or "assistant") || string.IsNullOrWhiteSpace(t.Text)) || context.Sum(t => (long)t.Text.Length) > EngineValidation.ContextLength))
-            errors["context"] = [$"יש לאחד את הבקשה לפני שממשיכים: עד {EngineValidation.MaxContextTurns} תורים ו־{EngineValidation.Count(EngineValidation.ContextLength)} תווים."];
+        // The same bounds as an imported chat, so any conversation planning accepts can become the draft's chat.
+        if (input.Context is { } context && (context.Length > EngineValidation.MaxChatTurns ||
+            context.Any(t => t is null || !EngineValidation.IsTurn(t.Role, t.Text))))
+            errors["context"] = ["השיחה אינה תקינה או ארוכה מדי."];
         if (errors.Count > 0) throw new TaskValidationException(errors);
     }
 

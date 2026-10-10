@@ -55,7 +55,7 @@ const changeSuggestions = [
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ActivityChat {
-  readonly fields = input.required<FieldTree<{ message: string; consolidated: string }>>();
+  readonly fields = input.required<FieldTree<{ message: string }>>();
   readonly configured = input(false);
   readonly busy = input(false);
   readonly stopping = input(false);
@@ -73,13 +73,11 @@ export class ActivityChat {
   readonly targetCleared = output<void>();
   /** Plan-change labels for the latest unsaved reply; saved summaries carry their own `changes`. */
   readonly changes = input<string[]>([]);
-  readonly consolidationRequired = input(false);
   /** A plan exists, so the composer asks for a change instead of the first description. */
   readonly refining = input(false);
   /** ID of the owner's visible heading that names the first-description field. */
   readonly labelledBy = input('');
   readonly sent = output<void>();
-  readonly consolidated = output<void>();
   readonly cancelled = output<void>();
   protected readonly starterSuggestions = starterSuggestions;
   protected readonly changeSuggestions = changeSuggestions;
@@ -103,7 +101,6 @@ export class ActivityChat {
       this.configured() &&
       !this.busy() &&
       !this.locked() &&
-      !this.consolidationRequired() &&
       !!this.fields().message().value().trim(),
   );
 
@@ -188,10 +185,10 @@ export class ActivityChat {
   }
 
   /** Sending returns the history to the latest turns, so the parent sees their request and its reply. */
-  protected send(consolidate = false) {
-    if (!consolidate && !this.canSend()) return;
+  protected send() {
+    if (!this.canSend()) return;
     this.followLatest = true;
-    (consolidate ? this.consolidated : this.sent).emit();
+    this.sent.emit();
   }
 
   protected suggest(text: string) {

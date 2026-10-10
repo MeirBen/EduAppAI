@@ -9,7 +9,7 @@ import { ActivityChat } from './activity-chat';
     '<app-activity-chat [fields]="fields" [configured]="configured()" [busy]="busy()" [clarification]="question()" [refining]="refining()" [thread]="thread()" (sent)="submitted = raw().message" />',
 })
 class Host {
-  readonly raw = signal({ message: '', consolidated: '' });
+  readonly raw = signal({ message: '' });
   readonly fields = form(this.raw);
   readonly configured = signal(true);
   readonly question = signal('');
@@ -81,7 +81,7 @@ describe('ActivityChat presentation', () => {
   it('does not take focus when an action outside chat disappears after creation', async () => {
     const fixture = TestBed.createComponent(Host),
       host = fixture.componentInstance;
-    host.raw.set({ message: 'בקשה', consolidated: '' });
+    host.raw.set({ message: 'בקשה' });
     await fixture.whenStable();
     const root: HTMLElement = fixture.nativeElement;
     root.querySelector<HTMLButtonElement>('#chat-send')!.focus();
@@ -98,7 +98,7 @@ describe('ActivityChat presentation', () => {
   it('keeps keyboard focus on the swapped send and stop controls without taking it elsewhere', async () => {
     const fixture = TestBed.createComponent(Host),
       host = fixture.componentInstance;
-    host.raw.set({ message: 'כיתה ג', consolidated: '' });
+    host.raw.set({ message: 'כיתה ג' });
     await fixture.whenStable();
     const root: HTMLElement = fixture.nativeElement;
     root.querySelector<HTMLButtonElement>('#chat-send')!.focus();

@@ -1,6 +1,6 @@
 @let start = !refining();
 @let message = fields().message;
-<div class="chat-layout gap-4">
+<div class="chat-layout gap-3">
   @if (!start) {
     <h2 id="change-title" class="chat-title">
       <span class="ai-mark" aria-hidden="true"></span>רוצים לשנות משהו?
@@ -22,7 +22,7 @@
       [attr.tabindex]="thread().length ? 0 : null"
       (scroll)="followHistory()"
     >
-      <div #turns class="grid gap-4">
+      <div #turns class="grid gap-3">
         @for (turn of thread(); track $index; let last = $last) {
           @if (turn.role === 'parent') {
             <div class="chat-message motion-safe:animate-fade">
@@ -134,7 +134,7 @@
         [attr.aria-describedby]="(start && !started() ? 'chat-help ' : '') + 'chat-hint'"
         (keydown.enter)="sendOnEnter($event)"
       ></textarea>
-      <div class="flex items-center justify-between gap-3 ps-4 pe-1.5 pb-1.5">
+      <div class="flex items-center justify-between gap-3 ps-3.5 pe-1.5 pb-1.5">
         <p
           id="chat-hint"
           class="text-sm text-muted max-sm:sr-only pointer-coarse:sr-only @max-[22rem]:sr-only"
@@ -182,33 +182,5 @@
         (picked)="suggest($event)"
       />
     }
-  }
-  @if (consolidationRequired()) {
-    <form class="callout grid gap-4" (submit)="$event.preventDefault(); send(true)">
-      <div class="grid gap-1">
-        <h3>איחוד הבקשה</h3>
-        <p id="consolidate-help">
-          השיחה הגיעה לאורך המרבי. כתבו בקשה אחת שמסכמת את מה שחשוב לשמור; היא תחליף את השיחה.
-        </p>
-      </div>
-      <div>
-        <label for="chat-consolidated">הבקשה המאוחדת</label>
-        <textarea
-          id="chat-consolidated"
-          dir="auto"
-          rows="5"
-          [formField]="fields().consolidated"
-          aria-describedby="consolidate-help"
-        ></textarea>
-      </div>
-      <button
-        id="chat-consolidate"
-        type="submit"
-        class="button"
-        [disabled]="!configured() || busy() || locked() || !fields().consolidated().value().trim()"
-      >
-        שליחת הבקשה המאוחדת
-      </button>
-    </form>
   }
 </div>

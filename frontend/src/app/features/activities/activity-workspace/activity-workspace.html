@@ -159,15 +159,15 @@
       </div>
       @if (!released()) {
         <section
-          class="chat-panel panel min-w-0 gap-4"
-          [attr.data-document]="hasContent() ? '' : null"
+          class="chat-panel panel min-w-0 gap-3"
+          [attr.data-beside]="chatBeside() ? '' : null"
           [attr.data-open]="chatOpen() ? '' : null"
           #chatPanel
           id="activity-chat"
           tabindex="-1"
           aria-label="השיחה על הפעילות"
         >
-          @if (hasContent()) {
+          @if (chatBeside()) {
             <button
               #chatClose
               id="close-chat"
@@ -260,8 +260,9 @@
                     ><span>אישור הפעילות</span>
                   </button>
                 }
-                @if (hasContent()) {
+                @if (chatBeside()) {
                   <button
+                    #chatOpener
                     id="open-chat"
                     type="button"
                     class="button button-secondary lg:hidden"
@@ -350,11 +351,9 @@
     [thread]="thread()"
     [pending]="chatSession.pendingMessage()"
     [changes]="chatSession.changes()"
-    [consolidationRequired]="chatSession.needsConsolidation()"
     [refining]="hasPlan()"
     labelledBy="plan-title"
     (sent)="author()"
-    (consolidated)="author(true)"
     (cancelled)="operationActive() ? cancelGeneration() : chatSession.cancelAuthor()"
   />
   @if (chatSession.authorError()) {

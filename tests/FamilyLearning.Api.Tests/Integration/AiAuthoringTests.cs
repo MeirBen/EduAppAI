@@ -18,21 +18,20 @@ public sealed class AiAuthoringTests
         var proposal = JsonSerializer.Serialize(new { result = new { proposal = plan, clarification = (string?)null }, assumptions = Array.Empty<string>() }, EngineJson.Options);
         await using var app = new GenerationHarness(clarification, clarification, proposal);
         using var parent = await app.ParentAsync();
-        AuthoringTurn[] context = [];
+        AuthoringTurn[] conversation = [];
         foreach (var message in new[] { "תרגול חשבון", "כיתה ג", "מספרים קטנים" })
         {
             var requestId = Guid.NewGuid().ToString();
-            using var response = await parent.PostAsJsonAsync("/api/ai/activity-plans", new ActivityAuthoringInput(message, Context: context, RequestId: requestId, BaseRevision: 7));
+            using var response = await parent.PostAsJsonAsync("/api/ai/activity-plans", new ActivityAuthoringInput(message, Context: conversation, RequestId: requestId, BaseRevision: 7));
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
             var reply = (await response.Content.ReadFromJsonAsync<JsonNode>())!;
             Assert.Equal(requestId, reply["requestId"]!.GetValue<string>());
             Assert.Equal(7, reply["baseRevision"]!.GetValue<int>());
             Assert.NotNull(reply["generationMetadata"]);
-            if (reply["clarification"] is { } question)
-                context = [.. context, new("parent", message), new("assistant", question.GetValue<string>())];
-            else
+            conversation = [.. conversation, new("parent", message), new("assistant", reply["reply"]!.GetValue<string>())];
+            if (reply["proposal"] is { } proposed)
             {
-                Assert.Equal("מספרים", reply["proposal"]!["name"]!.GetValue<string>());
+                Assert.Equal("מספרים", proposed["name"]!.GetValue<string>());
                 Assert.Equal("added", reply["changes"]![0]!["kind"]!.GetValue<string>());
             }
         }
@@ -60,14 +59,16 @@ public sealed class AiAuthoringTests
     }
 
     [Theory]
-    [InlineData(7, 1)]
-    [InlineData(6, 2001)]
-    public async Task Plan_chat_rejects_oversized_unresolved_context_before_the_provider(int turns, int length)
+    [InlineData(101, "parent", 1)]
+    [InlineData(1, "parent", 4001)]
+    [InlineData(1, "assistant", 1001)]
+    [InlineData(1, "system", 1)]
+    public async Task Plan_chat_rejects_a_conversation_the_chat_import_would_reject_before_the_provider(int turns, string role, int length)
     {
         await using var app = new GenerationHarness();
         using var parent = await app.ParentAsync();
-        var context = Enumerable.Range(0, turns).Select(_ => new AuthoringTurn("parent", new string('x', length))).ToArray();
-        using var response = await parent.PostAsJsonAsync("/api/ai/activity-plans", new ActivityAuthoringInput("עוד", Context: context));
+        var conversation = Enumerable.Range(0, turns).Select(_ => new AuthoringTurn(role, new string('x', length))).ToArray();
+        using var response = await parent.PostAsJsonAsync("/api/ai/activity-plans", new ActivityAuthoringInput("עוד", Context: conversation));
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
         Assert.Empty(app.Chat.Requests);
     }

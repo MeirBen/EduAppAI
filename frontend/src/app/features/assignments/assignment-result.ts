@@ -97,7 +97,7 @@ export class AssignmentResult {
       'ההגשה השתנתה או שכבר נבדקה. קראו את התוצאה השמורה לפני המשך הבדיקה. הציונים שהקלדתם נשמרו כאן.',
     );
   protected readonly fields = form(this.grades, (path) => {
-    disabled(path, () => this.busy() || this.reading() || this.recovery());
+    disabled(path, { when: () => this.busy() || this.reading() || this.recovery() });
     applyEach(path, (row) =>
       validate(row.points, ({ value, valueOf }) => {
         const max = valueOf(row.possiblePoints);

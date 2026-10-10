@@ -242,10 +242,10 @@ global guidance, topic, audience and difficulty, plus the context below.
 Text/idea calls also receive the question requirements the materials must
 support, without generated questions or answer keys.
 
-- **Authoring:** message, optional base plan, bounded unresolved turns and
+- **Authoring:** message, optional base plan, the conversation window and
   parent-supplied text → plan or clarification.
-- **Revision:** concrete plan, current document including answers, confirmed
-  sources, message/target and bounded recent turns with outcomes → one planner outcome.
+- **Revision:** concrete plan, current document including answers,
+  message/target and the conversation window with outcomes → one planner outcome.
 - **Ideas:** new-material requirements, lengths, retained/supplied
   texts and bounded family idea history → ideas for the new batch.
 - **Writing:** material requirements/context, new target IDs, selected idea
@@ -266,10 +266,16 @@ support, without generated questions or answer keys.
 
 Context rules:
 
-- Only authoring/revision receive conversation, bounded by `MaxContextTurns`
-  and `ContextLength`. Include target/outcome context; failed requests are not
-  applied edits. Send the current message once, excluding it from history.
-  Current state takes precedence; clarify unresolved references rather than guess.
+- Only authoring/revision receive conversation, and both receive the same
+  window: the newest turns, oldest first, up to `MaxContextTurns` and
+  `ContextLength`, stopping at the first turn that would exceed the length.
+  `ConversationWindow` is that one rule. Before a draft exists, the client sends
+  its whole local conversation and authoring applies the window; a saved draft's
+  operation captures the window from its stored chat at admission. Older turns
+  stay visible but leave the context. Include target/outcome context; failed
+  requests are not applied edits. Send the current message once, excluding it
+  from history. Current state takes precedence; clarify unresolved references
+  rather than guess.
 - Only ideas receive family idea history; full question generation and additions
   receive family prompt history. Writing receives only the selected idea.
   Text calls receive no question answers. Keep database identity, credentials,

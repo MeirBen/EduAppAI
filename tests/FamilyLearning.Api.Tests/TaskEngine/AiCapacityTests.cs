@@ -31,7 +31,7 @@ public sealed class AiCapacityTests
         chat.Response = new(TaskCreationOptions.RunContinuationsAsynchronously);
         var next = service.AuthorAsync(new ActivityAuthoringInput("שוב"), default);
         chat.Response.SetResult(Response("""{"result":{"proposal":null,"clarification":"איזה גיל?"},"assumptions":[]}"""));
-        Assert.Equal("איזה גיל?", (await next).Value.Clarification);
+        Assert.Equal("איזה גיל?", (await next).Value.Reply);
     }
 
     [Theory]
@@ -85,7 +85,7 @@ public sealed class AiCapacityTests
         Assert.False(another.IsCompleted);
         chat.Response.SetResult(Response("""{"result":{"proposal":null,"clarification":"איזה גיל?"},"assumptions":[]}"""));
         var results = await Task.WhenAll(next, another);
-        Assert.All(results, result => Assert.Equal("איזה גיל?", result.Value.Clarification));
+        Assert.All(results, result => Assert.Equal("איזה גיל?", result.Value.Reply));
     }
 
     [Theory]

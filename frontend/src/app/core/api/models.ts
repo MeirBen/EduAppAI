@@ -44,7 +44,7 @@ export interface LearningPlan {
     guidance: string;
   };
 }
-/** Unresolved conversation only. Accepted requirements live in the current plan. */
+/** One conversation turn. Accepted requirements live in the current plan. */
 export interface AuthoringTurn {
   role: 'parent' | 'assistant';
   text: string;
@@ -53,6 +53,7 @@ export interface AuthoringTurn {
 export interface PlanAuthoringRequest {
   message: string;
   baseDefinition?: LearningPlan;
+  /** The whole local conversation; the server picks the window the model sees. */
   context: AuthoringTurn[];
   requestId: string;
   baseRevision: number;
@@ -64,10 +65,10 @@ export interface PlanChange {
   id?: string | null;
   previousPath?: string | null;
 }
-/** A complete proposal or one clarification; neither saves a draft. */
+/** The assistant's reply, a clarification exactly when there is no proposal; neither saves a draft. */
 export interface PlanAuthoringReply {
   proposal: LearningPlan | null;
-  clarification: string | null;
+  reply: string;
   assumptions: string[];
   changes: PlanChange[];
   requestId: string;
@@ -241,8 +242,6 @@ export interface ContentLimits {
   answerLength: number;
   contentLength: number;
   messageLength: number;
-  maxContextTurns: number;
-  contextLength: number;
   listLimit: number;
   maxChildAge: number;
   revisionReplyLength: number;

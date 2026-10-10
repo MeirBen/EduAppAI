@@ -30,7 +30,7 @@ public sealed class ActivityProbeTransportTests : IDisposable
         using var clients = EvaluationClients.Create(configuration, new HostingEnvironment(), transport: new HttpClientPipelineTransport(http))!;
         using var service = ContentGenerationTests.Service(clients.Client, clients.Options);
         var reply = await service.AuthorAsync(new("פעילות"), default);
-        Assert.Equal("לאיזה גיל?", reply.Value.Clarification);
+        Assert.Equal("לאיזה גיל?", reply.Value.Reply);
         Assert.Equal(16384, upstream.Body!["max_completion_tokens"]!.GetValue<int>());
         Assert.Single(guard.Calls);
     }

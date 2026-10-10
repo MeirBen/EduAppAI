@@ -366,8 +366,10 @@ change.
 `ChatSession` owns local authoring, composer and targets; workspace
 buffer/revision fences still control whether proposals apply. Unsaved setup
 uses correlated authoring and bounded local undo. Its single bounded
-conversation is imported when the draft is created; subsequent chat and undo
-come from the saved draft. Setup source confirmation preserves exact text and
+conversation goes whole with each planning request, where the engine's
+`ConversationWindow` picks what the model sees, and is imported when the draft
+is created; subsequent chat and undo come from the saved draft, windowed by the
+same rule. Setup source confirmation preserves exact text and
 must be repeated after an edit. Chat shortcuts set an ID-based target and focus
 the composer without sending; removed targets block submission until cleared.
 An admitted request leaves the composer; a failed or stopped one returns to it,

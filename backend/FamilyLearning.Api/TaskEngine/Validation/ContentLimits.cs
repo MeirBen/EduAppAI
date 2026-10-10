@@ -7,7 +7,7 @@ public sealed record ContentLimits(
     int MaxPoints, int NameLength, int GoalLength, int GuidanceLength, int ScopedGuidanceLength,
     int SettingTextLength, int TitleLength,
     int InstructionsLength, int BodyLength, int PromptLength, int AnswerLength, int ContentLength, int MessageLength,
-    int MaxContextTurns, int ContextLength, int ListLimit, int MaxChildAge, int RevisionReplyLength, int EditInstructionLength, int MaxSelectedEdits, int MaxAssumptions, int AssumptionLength, int MaxChatTurns, int AuthoringReplyLength)
+    int ListLimit, int MaxChildAge, int RevisionReplyLength, int EditInstructionLength, int MaxSelectedEdits, int MaxAssumptions, int AssumptionLength, int MaxChatTurns, int AuthoringReplyLength)
 {
     public static ContentLimits Current { get; } = new(
         EngineValidation.MaxQuestionCount, EngineValidation.MinChoiceCount, EngineValidation.MaxChoiceCount,
@@ -15,6 +15,6 @@ public sealed record ContentLimits(
         EngineValidation.NameLength, EngineValidation.GoalLength, EngineValidation.GuidanceLength, EngineValidation.ScopedGuidanceLength,
         EngineValidation.SettingTextLength, EngineValidation.TitleLength,
         EngineValidation.InstructionsLength, EngineValidation.BodyLimit, EngineValidation.PromptLength, EngineValidation.AnswerLength,
-        EngineValidation.ContentLimit, EngineValidation.MessageLength, EngineValidation.MaxContextTurns, EngineValidation.ContextLength,
+        EngineValidation.ContentLimit, EngineValidation.MessageLength,
         EngineValidation.ListLimit, EngineValidation.MaxChildAge, EngineValidation.RevisionReplyLength, EngineValidation.EditInstructionLength, EngineValidation.MaxSelectedEdits, EngineValidation.MaxAssumptions, EngineValidation.AssumptionLength, EngineValidation.MaxChatTurns, EngineValidation.AuthoringReplyLength);
 }

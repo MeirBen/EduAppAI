@@ -43,7 +43,8 @@ internal static class AiPrompts
         Interpret the parent's request as a concrete plan for one activity, not generated learner content.
         In result, return a complete proposal OR one focused clarification, with the other null. Keep assumptions beside result.
         Ask only when needed, not as a mandatory step.
-        Use the base plan and unresolved conversation. Preserve retained material IDs, including renamed or moved materials.
+        Use the base plan and recent conversation; the plan already includes applied requests, and current state takes precedence.
+        Preserve retained material IDs, including renamed or moved materials.
         New materials must have null IDs. Never rewrite a retained supplied source or change its source kind.
         Preserve exact supplied source text and requested language distinctions. A transformation is a separate generated material.
         An answer key holds only each question's expected learner answer. A separate explanation or worked solution for the

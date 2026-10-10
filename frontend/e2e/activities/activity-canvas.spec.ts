@@ -56,7 +56,7 @@ function reply(body: { requestId: string; baseRevision: number }, proposal = sup
     requestId: body.requestId,
     baseRevision: body.baseRevision,
     proposal,
-    clarification: null,
+    reply: 'הכנו הגדרות לפי הבקשה. בדקו אותן וצרו את הפעילות.',
     changes: [{ kind: 'added', path: 'plan' }],
     assumptions: ['כיתה ג׳'],
     generationMetadata: {
@@ -68,10 +68,11 @@ function reply(body: { requestId: string; baseRevision: number }, proposal = sup
   };
 }
 
-test('clarifies, confirms exact source text and saves the draft with its conversation without starting AI', async ({
+test('clarifies on a phone, keeps the conversation open as a sheet and saves the draft with it without starting AI', async ({
   page,
 }) => {
   const writes = await isolate(page);
+  await page.setViewportSize({ width: 360, height: 800 });
   const authoring: Record<string, unknown>[] = [];
   await page.route('**/api/ai/activity-plans', async (route) => {
     const body = route.request().postDataJSON();
@@ -82,7 +83,7 @@ test('clarifies, confirms exact source text and saves the draft with its convers
           ? {
               ...reply(body),
               proposal: null,
-              clarification: 'לאיזה גיל?',
+              reply: 'לאיזה גיל?',
               changes: [],
               assumptions: [],
             }
@@ -97,6 +98,12 @@ test('clarifies, confirms exact source text and saves the draft with its convers
   await page.getByLabel('התשובה שלכם').fill('כיתה ג');
   await page.locator('#chat-send').click();
   await expect(page.locator('#plan-title')).toHaveText('הגדרות הפעילות');
+  // The first plan moves the chat into its sheet, still open on the reply; closing it returns to the AI button.
+  await expect(page.locator('#activity-chat')).toBeInViewport();
+  await expect(page.getByRole('log')).toBeFocused();
+  await page.keyboard.press('Escape');
+  await expect(page.locator('#activity-chat')).toBeHidden();
+  await expect(page.locator('#open-chat')).toBeFocused();
   expect(authoring[1]['context']).toEqual([
     { role: 'parent', text: 'תרגול לפי מקור דו לשוני' },
     { role: 'assistant', text: 'לאיזה גיל?' },

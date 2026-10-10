@@ -114,6 +114,7 @@ an `icon-refresh` retry link in a `grid gap-2`.
 | `gap-3`           | Buttons in an action row                                |
 | `gap-4`           | Fields and blocks, including field/action rows          |
 | `gap-6`           | Page sections and headed groups                         |
+| `gap-3`           | The denser chat's turns and blocks                      |
 | `gap-x-6 gap-y-2` | A wrapping row of actions and links                     |
 | `gap-x-4`         | An inline row of links or status text                   |
 | `mb-2`            | Label above its control, set once in `base.css`         |
@@ -318,10 +319,15 @@ incomplete content saves and resumes later.
 Keep each text's guidance and length beside its name, and show the number of
 answer choices. A combined text length is explicitly labelled as a total.
 
-Once content exists, show the activity as a readable document with chat beside
-it on wide screens. Below desktop width the chat is a sheet over the page: the
-action bar's AI button and every “ask about this” open it, and its close button
-or Escape returns focus to the control that opened it, with the page unmoved.
+Before the first plan, the chat is the page: one reading column around the
+first request. From the first plan on, the chat keeps one layout, `data-beside`:
+beside the activity on wide screens, and below desktop width a sheet over the
+page. The sheet opens with the first plan, so the conversation stays where the
+parent is talking; afterwards the action bar's AI button and every “ask about
+this” open it. Its close button or Escape returns focus to the control that
+opened it, or to the AI button when the sheet opened itself, with the page
+unmoved. After every reply, focus that fell to the page moves to the history
+holding it.
 **עריכה** opens titles, instructions, texts, questions/options, answers and
 points in the same buffer. Edits save themselves while editing; **סיום עריכה**
 returns to reading, and invalid fields stay open for correction. Structural
@@ -329,12 +335,14 @@ changes use chat. Each text/question offers an accessible “ask about this”
 action that fills and focuses the composer without sending. Keep the selected
 target visible and update only the app-inserted prefix when switching targets,
 preserving parent text. At widths of 64rem and heights of 40rem or more, keep
-chat beside the document with only its history scrolling; the action bar sits
-under the document column, so it never covers the chat, and the consolidation
-form uses normal flow. Respect enlarged browser text.
+chat beside the activity with only its history scrolling; the action bar sits
+under the document column, so it never covers the chat. Respect enlarged
+browser text.
 
-Parent turns sit at the end edge in a `chat-message`; assistant replies are open
-text beside `ai-mark`, and both chat forms share the action bar's tinted dock.
+Every turn is a bubble on the action bar's tinted dock. As in messaging apps,
+the parent's own `chat-message` takes the brand tint at the end edge, and the
+assistant's `chat-reply` stays on the surface at the start edge beside
+`ai-mark`, which sits by the bubble's tail.
 What a reply changed lists under “מה השתנה” as `note` rows with a check, and its
 assumptions as `note` rows inside their disclosure. While a request runs, the
 assistant's thinking row (`LoadingIndicator variant="assistant"`) follows the
