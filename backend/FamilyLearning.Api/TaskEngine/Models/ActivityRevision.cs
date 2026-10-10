@@ -19,7 +19,11 @@ public sealed record RevisionDecision([property: JsonRequired] string? Answer,
 /// <summary>Concrete requirements and bounded one-off edits, never an execution queue or completion claim.</summary>
 public sealed record RevisionChange([property: JsonRequired] LearningPlan Plan,
     [property: JsonRequired] string[] Assumptions, [property: JsonRequired] ContentEdit[] MaterialEdits,
-    [property: JsonRequired] QuestionEdits Questions, [property: JsonRequired] string[]? QuestionOrder);
+    [property: JsonRequired] QuestionEdits Questions, [property: JsonRequired] string[]? QuestionOrder,
+    [property: JsonRequired] DocumentEdit? Document = null);
+
+/// <summary>Complete new learner-facing text for the activity title or instructions; a null field stays as it is.</summary>
+public sealed record DocumentEdit([property: JsonRequired] string? Title, [property: JsonRequired] string? Instructions);
 
 /// <summary>One existing target and a self-contained instruction.</summary>
 public sealed record ContentEdit([property: JsonRequired] string Id, [property: JsonRequired] string Instruction);

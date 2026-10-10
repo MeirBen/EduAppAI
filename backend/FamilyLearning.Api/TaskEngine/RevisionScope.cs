@@ -6,7 +6,8 @@ namespace FamilyLearning.Api.TaskEngine;
 
 /// <summary>A bounded deterministic scope. A clarification never authorizes working content to be applied.</summary>
 public sealed record RevisionWork(string[] NewMaterials, MaterialRewrite[] Rewrites, string Questions,
-    ContentEdit[] QuestionEdits, string? Instruction, string[]? QuestionOrder, bool RequiresComplete, string? Clarification = null);
+    ContentEdit[] QuestionEdits, string? Instruction, string[]? QuestionOrder, bool RequiresComplete, string? Clarification = null,
+    DocumentEdit? Document = null);
 
 /// <summary>One existing generated text, in plan order, with an optional self-contained edit.</summary>
 public sealed record MaterialRewrite(string Id, string? Instruction);
@@ -37,7 +38,7 @@ public static class RevisionScope
         var questions = full ? "all" : change.QuestionOrder is not null ? "preserve" : countChange > 0 ? "append" :
             change.Questions.Scope == "selected" ? "selected" : "none";
         var work = new RevisionWork(newMaterials, rewrites, questions, change.Questions.Items,
-            RebuildInstruction(change, full, document), change.QuestionOrder, full || questions != "none");
+            RebuildInstruction(change, full, document), change.QuestionOrder, full || questions != "none", Document: change.Document);
         if (!work.RequiresComplete) return countChange < 0 ? work with { Clarification = "יש לבחור אילו שאלות להסיר או באיזה סדר להשאיר אותן." } : work;
 
         if (after.TotalLength is { Mode: "range" } && (rewrites.Length > 1 ||
@@ -104,6 +105,10 @@ public static class RevisionScope
         }
         return aligned with { Materials = materials, Questions = questions };
     }
+
+    /// <summary>The parent's explicit title and instructions; reapplied after every stage, so a question rebuild never replaces them.</summary>
+    public static TaskDocument ApplyDocument(TaskDocument document, DocumentEdit? edit) => edit is null ? document :
+        document with { Title = edit.Title ?? document.Title, Instructions = edit.Instructions ?? document.Instructions };
 
     internal static bool AppendRequirementsEqual(LearningPlan before, LearningPlan after) =>
         Equal(before with

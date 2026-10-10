@@ -310,7 +310,7 @@ public sealed partial class GenerationWorker(IServiceScopeFactory scopes, AiGene
         {
             Plan = generated.Plan ?? artifacts.Plan,
             Input = generated.Plan is null ? artifacts.Input : TaskRequestResolver.ResolveOrThrow(generated.Plan),
-            Current = generated.Document,
+            Current = RevisionScope.ApplyDocument(generated.Document, (generated.Scope ?? artifacts.Scope)?.Document),
             Scope = generated.Scope ?? artifacts.Scope,
             Reply = generated.Reply ?? artifacts.Reply,
             Assumptions = generated.Assumptions ?? artifacts.Assumptions,

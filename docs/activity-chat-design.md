@@ -71,7 +71,8 @@ workflow engine, dependency graph or automatic paid retry.
 Before a draft contains questions or generated text, Revise updates only its
 plan and confirmed supplied sources; Create starts generation. Derive this from
 content, without another stored phase. Express the request in the plan; content
-edit lists stay empty, question scope is `none` and `questionOrder` is null.
+edit lists stay empty, question scope is `none`, and `questionOrder` and
+`document` are null.
 Validate these changes and metadata-only
 edits as safe drafts, retaining incomplete-content diagnostics. Content-producing
 operations require complete validated output; neither path grants parent approval.
@@ -92,6 +93,7 @@ Text generation always excludes supplied sources.
 | Add questions, optionally focused   | Generate additions; keep originals |
 | One-off question edits              | Replace up to three; else all      |
 | Pure question removal/reorder       | Keep listed IDs and their content  |
+| Title or learner instructions       | Replace that text; keep the rest   |
 
 For removal/reorder, `questionOrder` lists surviving IDs in their desired order;
 omitted IDs are removed. Set the plan's count to that list's length. Preserve
@@ -170,10 +172,16 @@ scope `none` and a proposed count matching its length. Validate combinations,
 duplicate IDs and targets against the base and proposed state. Use request-owned
 ID enums where applicable.
 
+A nullable `document` holds `{ title, instructions }`: the complete new text
+for the field the parent asked to change, and null for one that stays. It needs
+existing content and passes the same document checks as a manual edit,
+including the total content limit. The edit is applied after every stage of its
+operation, so a question rebuild in the same change keeps it; like a manual edit,
+a later rebuild may rewrite it. The notice and Undo cover it as any change.
+
 Instructions must be self-contained after clarification: downstream calls must
 not need to interpret “yes” or earlier chat. Plan name and document title are
-separate fields. Direct title/instruction requests outside this contract point
-to the editor; do not claim unsupported changes. Supplied sources can be
+separate fields. Do not claim unsupported changes. Supplied sources can be
 explanation targets but never rewrite targets. Preserve their source kind and
 exact text; a transformation creates a separate generated material. Chat never
 adds a supplied source: the parent's own texts come from setup, so a request to

@@ -72,6 +72,54 @@ public sealed class ActivityChatTests
     }
 
     [Fact]
+    public async Task Chat_edits_the_title_and_instructions_in_one_step_that_undo_restores()
+    {
+        var plan = Numeric(1);
+        var edit = Change(plan) with { Document = new("תרגול בלי ניקוד", "ענו במספר") };
+        await using var app = new GenerationHarness(GenerationHarness.Questions(), Serialize(new { result = new RevisionDecision(null, null, edit) }));
+        using var parent = await app.ParentAsync();
+        var draft = await Created(app, parent, plan);
+        await GenerationHarness.Start(parent, draft, "Revise", "בלי ניקוד");
+        await app.Worker.RunNextAsync(default);
+        var saved = (await parent.GetFromJsonAsync<JsonNode>(Path(draft)))!;
+        Assert.Equal("תרגול בלי ניקוד", saved["document"]!["title"]!.GetValue<string>());
+        Assert.Equal("ענו במספר", saved["document"]!["instructions"]!.GetValue<string>());
+        Assert.True(JsonNode.DeepEquals(draft["document"]!["questions"], saved["document"]!["questions"]));
+        var reply = GenerationHarness.Reply(saved["chat"]!.AsArray()[^1]!);
+        Assert.Contains("כותרת התוכן עודכנה", reply);
+        Assert.Contains("ההוראות לילדים עודכנו", reply);
+        Assert.Equal(2, app.Chat.Requests.Count);
+        using var undo = await parent.PostAsJsonAsync(Path(draft) + "/undo", new { expectedRevision = 3 });
+        Assert.True(JsonNode.DeepEquals(draft["document"], (await undo.Content.ReadFromJsonAsync<JsonNode>())!["document"]));
+    }
+
+    [Fact]
+    public async Task An_explicit_title_survives_the_question_rebuild_of_the_same_change()
+    {
+        var plan = Numeric(1);
+        var rebuild = Change(plan with { Guidance = "שאלות מאתגרות" }) with { Document = new("שם שבחרתם", null) };
+        await using var app = new GenerationHarness(GenerationHarness.Questions(),
+            Serialize(new { result = new RevisionDecision(null, null, rebuild) }), GenerationHarness.Questions());
+        using var parent = await app.ParentAsync();
+        var draft = await Created(app, parent, plan);
+        await GenerationHarness.Start(parent, draft, "Revise", "שאלות מאתגרות ושם חדש");
+        await app.Worker.RunNextAsync(default);
+        await app.Worker.RunNextAsync(default);
+        var saved = (await parent.GetFromJsonAsync<JsonNode>(Path(draft)))!;
+        Assert.Equal(3, app.Chat.Requests.Count);
+        Assert.Equal("שם שבחרתם", saved["document"]!["title"]!.GetValue<string>());
+        Assert.Equal("ענו", saved["document"]!["instructions"]!.GetValue<string>());
+    }
+
+    private static async Task<JsonNode> Created(GenerationHarness app, HttpClient parent, LearningPlan plan)
+    {
+        var draft = await Create(parent, plan);
+        await GenerationHarness.Start(parent, draft);
+        await app.Worker.RunNextAsync(default);
+        return (await parent.GetFromJsonAsync<JsonNode>(Path(draft)))!;
+    }
+
+    [Fact]
     public async Task Material_label_rename_commits_without_content_calls_and_reports_the_saved_label()
     {
         var plan = Reading() with { Settings = Numeric(1).Settings };

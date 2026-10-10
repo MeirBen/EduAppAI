@@ -111,5 +111,28 @@ public sealed class ActivityRevisionTests
         Assert.NotNull(ActivityRevisionValidator.Validate(new(null, null, Change(plan with { Guidance = "new" })), input).Change);
     }
 
+    [Fact]
+    public void Title_and_instruction_edits_are_bounded_document_text_once_content_exists()
+    {
+        // Sixteen long prompts bring the document near the content limit, so the total check alone rejects longer instructions.
+        var plan = Numeric(16);
+        var batch = new QuestionCandidateBatch("כותרת", "ענו", Enumerable.Range(0, 16)
+            .Select(i => new QuestionCandidate($"{new string('ש', 490)} {i}?", new("numeric-input"), new("2"), 1)).ToArray());
+        var document = TaskAssembly.AcceptQuestions(Resolve(plan), TaskAssembly.CreateDocument(Resolve(plan)), batch);
+        var input = new ActivityRevisionInput(plan, document, "בלי ניקוד");
+        RevisionDecision Edit(DocumentEdit edit) => new(null, null, Change(plan) with { Document = edit });
+        Assert.Equal("כותרת חדשה", ActivityRevisionValidator.Validate(Edit(new("כותרת חדשה", null)), input).Change!.Document!.Title);
+        foreach (var edit in new DocumentEdit[] { new(null, null), new(" ", null), new(null, new string('ה', EngineValidation.InstructionsLength + 1)),
+            new(null, new string('ה', 400)) })
+            Assert.Throws<TaskValidationException>(() => ActivityRevisionValidator.Validate(Edit(edit), input));
+        var empty = new ActivityRevisionInput(plan, TaskAssembly.CreateDocument(Resolve(plan)), "בלי ניקוד");
+        Assert.Throws<TaskValidationException>(() => ActivityRevisionValidator.Validate(Edit(new("כותרת", null)), empty));
+        // The provider schema offers the edit with the same bounds, and only once there is a title to edit.
+        JsonElement Schema(ActivityRevisionInput revision) => AiSchemas.RevisionFor(revision).GetProperty("properties").GetProperty("result")
+            .GetProperty("anyOf")[2].GetProperty("properties").GetProperty("change").GetProperty("properties").GetProperty("document");
+        Assert.Equal(EngineValidation.TitleLength, Schema(input).GetProperty("properties").GetProperty("title").GetProperty("maxLength").GetInt32());
+        Assert.Equal("null", Schema(empty).GetProperty("type").GetString());
+    }
+
     internal static RevisionChange Change(LearningPlan plan) => new(plan, [], [], new("none", null, []), null);
 }

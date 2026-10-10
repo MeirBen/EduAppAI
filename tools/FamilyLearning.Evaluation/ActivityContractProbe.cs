@@ -267,8 +267,14 @@ internal static class ActivityContractProbe
             return TaskAssembly.AcceptQuestions(request, working, questions.Value, questions.Metadata);
         }
 
-        /// <summary>Mirrors <c>GenerationWorker</c>: preparation, existing-text rewrites in plan order, then one question stage.</summary>
-        internal async Task<TaskDocument> Execute(LearningPlan before, TaskDocument document, RevisionChange change, RevisionWork work)
+        /// <summary>
+        /// Mirrors <c>GenerationWorker</c>: preparation, existing-text rewrites in plan order, then one question stage, with the
+        /// parent's explicit title and instructions holding over them.
+        /// </summary>
+        internal async Task<TaskDocument> Execute(LearningPlan before, TaskDocument document, RevisionChange change, RevisionWork work) =>
+            RevisionScope.ApplyDocument(await Stages(before, document, change, work), work.Document);
+
+        private async Task<TaskDocument> Stages(LearningPlan before, TaskDocument document, RevisionChange change, RevisionWork work)
         {
             if (work.NewMaterials.Length > 0) throw new InvalidOperationException("The edit protocol does not add texts.");
             var input = Resolve(change.Plan);

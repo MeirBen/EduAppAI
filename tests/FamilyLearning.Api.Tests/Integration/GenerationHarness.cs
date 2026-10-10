@@ -44,10 +44,10 @@ internal sealed class GenerationHarness(params string[] responses) : IAsyncDispo
     }
 
     /// <summary>Starts an explicit activity operation, defaulting to atomic Create.</summary>
-    internal static async Task<JsonNode> Start(HttpClient parent, JsonNode draft, string kind = "Create")
+    internal static async Task<JsonNode> Start(HttpClient parent, JsonNode draft, string kind = "Create", string? message = null)
     {
         using var response = await parent.PostAsJsonAsync(Path(draft) + "/operations", new
-        { operationKey = Guid.NewGuid(), expectedRevision = draft["revision"]!.GetValue<long>(), kind });
+        { operationKey = Guid.NewGuid(), expectedRevision = draft["revision"]!.GetValue<long>(), kind, message });
         Assert.True(response.StatusCode == HttpStatusCode.Accepted, await response.Content.ReadAsStringAsync());
         return (await response.Content.ReadFromJsonAsync<JsonNode>())!;
     }

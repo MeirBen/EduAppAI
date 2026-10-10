@@ -122,6 +122,33 @@
                   "items": {
                     "type": "string"
                   }
+                },
+                "document": {
+                  "type": [
+                    "object",
+                    "null"
+                  ],
+                  "additionalProperties": false,
+                  "required": [
+                    "title",
+                    "instructions"
+                  ],
+                  "properties": {
+                    "title": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "minLength": 1
+                    },
+                    "instructions": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "minLength": 1
+                    }
+                  }
                 }
               },
               "required": [
@@ -129,7 +156,8 @@
                 "assumptions",
                 "materialEdits",
                 "questions",
-                "questionOrder"
+                "questionOrder",
+                "document"
               ],
               "additionalProperties": false
             }

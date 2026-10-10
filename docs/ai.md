@@ -61,7 +61,13 @@ when "harder questions" followed "two more questions", re-applying nothing. A
 wider run (20 calls) passed all six scenarios: both repeats, undoing the last
 request, a change after saving that refers to the unsaved conversation, and a
 long chain where, past the window, the planner asked for the first message's
-topic instead of guessing.
+topic instead of guessing. Revision 47 lets a chat change replace the learner
+title or instructions with complete new text (`document`), where the planner
+previously sent the parent to the editor. Live, "remove the vowel marks" on a
+first-grade title rewrote the title in place, and an unrelated "two more
+questions" left it untouched. The planner also recorded "no vowel marks" as
+lasting guidance, so the questions were rebuilt to match; a prompt line asking
+it to leave the plan unchanged did not change that and was dropped.
 Revision 41 restores the measured authoring omission rule, shares planning
 defaults with revision, and keeps planning permissions out of content stages.
 Verification uses isolated providers and does not establish live-model quality.

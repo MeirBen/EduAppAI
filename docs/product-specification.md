@@ -52,10 +52,12 @@ plan belongs to its activity; it is not a separately saved reusable product.
 ### Workspace and changes
 
 The activity is a readable canvas by default, with chat beside it on desktop
-and below it on phones. Use Hebrew/RTL, accessible native controls and the same
-state for read/edit views. Titles, instructions, wording, options, answers and
-points remain manually editable; adding/removing/reordering content and changing
-requirements belong to chat. Settings are a summary, not a template form.
+and as a sheet over it on phones. Use Hebrew/RTL, accessible native controls and
+the same state for read/edit views. Titles, instructions, wording, options,
+answers and points remain manually editable; adding/removing/reordering content
+and changing requirements belong to chat, which can also rewrite the title or
+the learner instructions on request, such as removing their vowel marks.
+Settings are a summary, not a template form.
 
 - Answers, clarifications, refusals and no-ops change no activity content.
 - Add questions with an optional focused instruction: generate only additions,

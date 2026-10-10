@@ -185,6 +185,7 @@ function revision(user) {
       assumptions: [],
       materialEdits: [],
       questionOrder: null,
+      document: null,
       questions:
         user.target?.kind === 'question'
           ? {

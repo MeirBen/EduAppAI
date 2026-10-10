@@ -83,6 +83,13 @@ internal static class AiSchemas
         ApplyTargets(change["questions"]!["properties"]!["items"]!, "questionEdit", questionIds, EngineValidation.MaxSelectedEdits);
         change["questionOrder"]!["maxItems"] = questionIds.Length;
         if (questionIds.Length > 0) change["questionOrder"]!["items"]!["enum"] = JsonSerializer.SerializeToNode(questionIds);
+        // Title and instructions exist only once content does.
+        if (ActivityRevisionValidator.HasGeneratedContent(input.Plan, input.Current))
+        {
+            change["document"]!["properties"]!["title"]!["maxLength"] = EngineValidation.TitleLength;
+            change["document"]!["properties"]!["instructions"]!["maxLength"] = EngineValidation.InstructionsLength;
+        }
+        else change["document"] = new JsonObject { ["type"] = "null" };
         return JsonSerializer.SerializeToElement(schema);
 
         void ApplyTargets(JsonNode array, string definition, string[] ids, int maximum)
