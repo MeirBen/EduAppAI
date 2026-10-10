@@ -181,11 +181,14 @@ a later rebuild may rewrite it. The notice and Undo cover it as any change.
 
 Instructions must be self-contained after clarification: downstream calls must
 not need to interpret “yes” or earlier chat. Plan name and document title are
-separate fields. Do not claim unsupported changes. Supplied sources can be
-explanation targets but never rewrite targets. Preserve their source kind and
-exact text; a transformation creates a separate generated material. Chat never
-adds a supplied source: the parent's own texts come from setup, so a request to
-add one is refused without a change, and the validator rejects any new one.
+separate fields: the plan name heads the settings, and the library lists a
+draft by its learner title once content has one, by its plan name before, as it
+lists ready activities by their title. Do not claim unsupported changes.
+Supplied sources can be explanation targets but never rewrite targets. Preserve
+their source kind and exact text; a transformation creates a separate generated
+material. Chat never adds a supplied source: the parent's own texts come from
+setup, so a request to add one is refused without a change, and the validator
+rejects any new one.
 Replacing a supplied source uses the explicit source-replacement save, makes
 questions stale and offers regeneration/adoption; the model never rewrites it.
 

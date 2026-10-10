@@ -61,41 +61,48 @@ public sealed class ActivityDraft(Guid familyId, string name, string planJson, s
         UpdatedAtUtc = now;
     }
 
-    /// <summary>Stages a validated edit or adoption. The caller must persist using the loaded EF concurrency token.</summary>
-    internal void Save(string name, string plan, string document)
+    /// <summary>The library lists a draft by its learner title once content has one, and by its plan name before.</summary>
+    internal static string LibraryName(LearningPlan plan, TaskDocument document) =>
+        string.IsNullOrWhiteSpace(document.Title) ? plan.Name : document.Title;
+
+    /// <summary>Stages a validated edit or adoption and ends any undo. The caller must persist using the loaded EF concurrency token.</summary>
+    internal void Save(LearningPlan plan, TaskDocument document)
     {
-        if (ReleasedSnapshotId.HasValue) throw new InvalidOperationException("Released drafts are terminal.");
         UndoJson = null;
-        if (PlanJson == plan && DocumentJson == document) return;
-        Name = name;
-        PlanJson = plan;
-        DocumentJson = document;
-        Revision = checked(Revision + 1);
-        UpdatedAtUtc = DateTime.UtcNow;
+        Stage(plan, document);
     }
 
     /// <summary>Stages the accepted content and returns its factual change statements; null means there was no saved change.</summary>
     internal string[]? ApplyOperation(LearningPlan plan, TaskDocument document, string kind)
     {
-        var planJson = StoredJson.Write(plan);
-        var documentJson = StoredJson.Write(document);
-        if (PlanJson == planJson && DocumentJson == documentJson) return null;
         var previousPlan = Plan;
         var previousDocument = Document;
-        var changes = ActivityChangeNotice.Describe(previousPlan, previousDocument, plan, document);
-        var undo = kind is "Revise" or "GenerateQuestions"
-            ? StoredJson.Write(new ActivityUndo(previousPlan, previousDocument, checked(Revision + 1))) : null;
-        Save(plan.Name, planJson, documentJson);
-        UndoJson = undo;
-        return changes;
+        if (!Stage(plan, document)) return null;
+        UndoJson = kind is "Revise" or "GenerateQuestions" ? StoredJson.Write(new ActivityUndo(previousPlan, previousDocument, Revision)) : null;
+        return ActivityChangeNotice.Describe(previousPlan, previousDocument, plan, document);
     }
 
     internal void RestoreUndo(DateTime now)
     {
         if (!CanUndo) throw new InvalidOperationException("Undo is not available at this revision.");
         var undo = Undo!;
-        Save(undo.Plan.Name, StoredJson.Write(undo.Plan), StoredJson.Write(undo.Document));
+        Save(undo.Plan, undo.Document);
         AppendTurn(new("assistant", "השינוי האחרון בוטל והתוכן הקודם שוחזר.", now));
+    }
+
+    /// <summary>Writes changed content under a new revision; false means nothing changed and nothing was written.</summary>
+    private bool Stage(LearningPlan plan, TaskDocument document)
+    {
+        if (ReleasedSnapshotId.HasValue) throw new InvalidOperationException("Released drafts are terminal.");
+        var planJson = StoredJson.Write(plan);
+        var documentJson = StoredJson.Write(document);
+        if (PlanJson == planJson && DocumentJson == documentJson) return false;
+        Name = LibraryName(plan, document);
+        PlanJson = planJson;
+        DocumentJson = documentJson;
+        Revision = checked(Revision + 1);
+        UpdatedAtUtc = DateTime.UtcNow;
+        return true;
     }
 
     /// <summary>Stages the terminal marker in the same transaction as its immutable snapshot.</summary>

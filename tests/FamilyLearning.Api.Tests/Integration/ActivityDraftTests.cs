@@ -164,7 +164,7 @@ public sealed class ActivityDraftTests
             var row = await db.ActivityDrafts.SingleAsync();
             var document = row.Document;
             document.Materials[1] = document.Materials[1] with { Acceptance = null };
-            row.Save(plan.Name, StoredJson.Write(plan), StoredJson.Write(document));
+            row.Save(plan, document);
             await db.SaveChangesAsync();
             draft = (await parent.GetFromJsonAsync<JsonNode>(Path(draft)))!;
         }
@@ -375,7 +375,7 @@ public sealed class ActivityDraftTests
             q.Prompt, q.Interaction, q.Answer, q.Points, new("manual"), new(fingerprint, sources))).ToArray();
         var document = new TaskDocument(body.Document.Title, body.Document.Instructions, materials, questions);
         Assert.Empty(FamilyLearning.Api.TaskEngine.Validation.TaskDocumentValidator.ValidateDraft(request, document).Errors);
-        row.Save(body.Plan.Name, StoredJson.Write(body.Plan), StoredJson.Write(document));
+        row.Save(body.Plan, document);
         await db.SaveChangesAsync();
         return (await parent.GetFromJsonAsync<JsonNode>(Path(draft)))!;
     }

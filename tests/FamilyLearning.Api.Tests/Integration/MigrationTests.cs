@@ -5,9 +5,12 @@ using FamilyLearning.Api.Features.Assignments;
 using FamilyLearning.Api.Infrastructure.Persistence;
 using FamilyLearning.Api.Tests.Fixtures;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
 using static FamilyLearning.Api.Tests.Integration.ChildSessionTests;
+using static FamilyLearning.Api.Tests.TaskEngine.LearningPlanFixture;
 
 namespace FamilyLearning.Api.Tests.Integration;
 
@@ -29,6 +32,25 @@ public sealed class MigrationTests
         Assert.DoesNotContain("InputJson", draftColumns);
         Assert.DoesNotContain("InputJson", snapshotColumns);
         Assert.DoesNotContain("ResolvedInputJson", snapshotColumns);
+    }
+
+    [Fact]
+    public async Task Library_name_migration_lists_existing_drafts_by_their_learner_title()
+    {
+        using var app = new ApiFactory();
+        using var parent = await app.ParentAsync();
+        var titled = await ActivityDraftTests.Create(parent, Numeric());
+        var untitled = await ActivityDraftTests.Create(parent, Numeric());
+        using var scope = app.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<LearningDbContext>();
+        // Before this migration a draft kept its plan name in the library even after content gave it a title.
+        await db.GetService<IMigrator>().MigrateAsync("20261009124947_ActivityOnly");
+        var id = titled["id"]!.GetValue<Guid>();
+        await db.Database.ExecuteSqlAsync($"UPDATE ActivityDrafts SET DocumentJson = json_set(DocumentJson, '$.title', 'כותרת הלומדים') WHERE Id = {id}");
+        await db.Database.MigrateAsync();
+        var names = await parent.GetFromJsonAsync<JsonNode[]>("/api/activity-drafts");
+        Assert.Equal("כותרת הלומדים", names!.Single(d => d!["id"]!.GetValue<Guid>() == id)!["name"]!.GetValue<string>());
+        Assert.Equal("מספרים", names!.Single(d => d!["id"]!.GetValue<Guid>() == untitled["id"]!.GetValue<Guid>())!["name"]!.GetValue<string>());
     }
 
     [Fact]

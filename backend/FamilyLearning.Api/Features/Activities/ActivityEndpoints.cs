@@ -57,7 +57,7 @@ public static class ActivityEndpoints
         document ??= TaskAssembly.CreateDocument(resolved);
         var errors = TaskDocumentValidator.ValidateDraft(resolved, document).Errors;
         if (errors.Count > 0) return Results.ValidationProblem(errors);
-        var draft = new ActivityDraft(user.FamilyId(), plan.Name, StoredJson.Write(plan),
+        var draft = new ActivityDraft(user.FamilyId(), ActivityDraft.LibraryName(plan, document), StoredJson.Write(plan),
             StoredJson.Write(document), sourceSnapshotId, user.FindFirstValue(ClaimTypes.NameIdentifier)!);
         draft.ImportChat(body.Chat);
         db.ActivityDrafts.Add(draft);
@@ -71,7 +71,7 @@ public static class ActivityEndpoints
         if (draft is null) return Results.NotFound();
         if (draft.ReleasedSnapshotId.HasValue || draft.Revision != body.ExpectedRevision || draft.ActiveOperationId.HasValue) return Conflict();
         var (plan, document) = ActivityDraftChanges.Apply(draft, body);
-        draft.Save(plan.Name, StoredJson.Write(plan), StoredJson.Write(document));
+        draft.Save(plan, document);
         return await SaveCheckpointAsync(draft, db, user, ct);
     }
 
@@ -85,7 +85,7 @@ public static class ActivityEndpoints
             return Invalid("selection", "יש לבחור תוכן לבדיקה ולאימוץ.");
         var request = TaskRequestResolver.ResolveOrThrow(draft.Plan);
         var document = TaskAssembly.Adopt(request, draft.Document, body.MaterialIds, body.QuestionIds, DateTime.UtcNow);
-        draft.Save(draft.Name, draft.PlanJson, StoredJson.Write(document));
+        draft.Save(draft.Plan, document);
         return await SaveCheckpointAsync(draft, db, user, ct);
     }
 

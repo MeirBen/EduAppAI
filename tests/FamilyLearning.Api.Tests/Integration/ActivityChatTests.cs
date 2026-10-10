@@ -79,10 +79,12 @@ public sealed class ActivityChatTests
         await using var app = new GenerationHarness(GenerationHarness.Questions(), Serialize(new { result = new RevisionDecision(null, null, edit) }));
         using var parent = await app.ParentAsync();
         var draft = await Created(app, parent, plan);
+        Assert.Equal("תרגול", await LibraryName(parent));
         await GenerationHarness.Start(parent, draft, "Revise", "בלי ניקוד");
         await app.Worker.RunNextAsync(default);
         var saved = (await parent.GetFromJsonAsync<JsonNode>(Path(draft)))!;
         Assert.Equal("תרגול בלי ניקוד", saved["document"]!["title"]!.GetValue<string>());
+        Assert.Equal("תרגול בלי ניקוד", await LibraryName(parent));
         Assert.Equal("ענו במספר", saved["document"]!["instructions"]!.GetValue<string>());
         Assert.True(JsonNode.DeepEquals(draft["document"]!["questions"], saved["document"]!["questions"]));
         var reply = GenerationHarness.Reply(saved["chat"]!.AsArray()[^1]!);
@@ -91,6 +93,7 @@ public sealed class ActivityChatTests
         Assert.Equal(2, app.Chat.Requests.Count);
         using var undo = await parent.PostAsJsonAsync(Path(draft) + "/undo", new { expectedRevision = 3 });
         Assert.True(JsonNode.DeepEquals(draft["document"], (await undo.Content.ReadFromJsonAsync<JsonNode>())!["document"]));
+        Assert.Equal("תרגול", await LibraryName(parent));
     }
 
     [Fact]
@@ -111,13 +114,18 @@ public sealed class ActivityChatTests
         Assert.Equal("ענו", saved["document"]!["instructions"]!.GetValue<string>());
     }
 
+    /// <summary>A draft lists by its plan name until generated content gives it a learner title.</summary>
     private static async Task<JsonNode> Created(GenerationHarness app, HttpClient parent, LearningPlan plan)
     {
         var draft = await Create(parent, plan);
+        Assert.Equal(plan.Name, await LibraryName(parent));
         await GenerationHarness.Start(parent, draft);
         await app.Worker.RunNextAsync(default);
         return (await parent.GetFromJsonAsync<JsonNode>(Path(draft)))!;
     }
+
+    private static async Task<string> LibraryName(HttpClient parent) =>
+        Assert.Single((await parent.GetFromJsonAsync<JsonNode[]>("/api/activity-drafts"))!)!["name"]!.GetValue<string>();
 
     [Fact]
     public async Task Material_label_rename_commits_without_content_calls_and_reports_the_saved_label()
