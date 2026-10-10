@@ -71,6 +71,10 @@ The [prompt decisions](#prompt-decisions) below predate revision 39. Since then:
   on 10 October, three title/instruction niqqud requests each ran only the
   planner, recorded the rule there and rewrote the title or instructions with no
   question stage, and an answer explained the grade-2 niqqud default correctly.
+  An isolated check (6 calls, $0.06) confirmed the split: a title/instruction
+  rule ran only the planner and kept every question, a number-range change and
+  an answer-in-words rule rebuilt the questions, and the rebuilt title and
+  instructions kept the recorded no-niqqud rule.
 
 The 1 October comparison did **not** meet its quality threshold: one-shot passed
 9/9 structural trials and split 7/9, with split costing about 3× and taking
@@ -476,6 +480,7 @@ Costs are rounded; each experiment's `budget.json` holds the exact ledger.
 | [Rev 44 Sol][activity-contract-44]            | 17     | 0.13            |
 | [Rev 44 Gemini][activity-contract-44-gemini]  | 17     | 0.13            |
 | [Gemini edits 44][activity-edits-44-gemini]   | 3 + 17 | 0.02 + 0.13     |
+| Rev 48 title/instruction check, unretained    | 6      | 0.06 (0.30)     |
 
 "res" marks unresolved timeout reserves. The planner probes overran their cap
 by $0.04. The revision 41–42 contract runs shared a $1 cap ($0.45 used), the

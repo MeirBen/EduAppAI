@@ -306,6 +306,44 @@ describe('ActivityWorkspace plan ownership', () => {
     await settle();
   });
 
+  it('copies an activity it created and approved under a new draft identity', async () => {
+    await open();
+    reply(await ask());
+    await settle();
+    await autosave();
+    const create = http.expectOne('/api/activity-drafts');
+    const created = draft(create.request.body.plan);
+    create.flush({
+      ...created,
+      id: create.request.body.id,
+      document: {
+        ...created.document,
+        title: 'תרגול',
+        questions: [
+          {
+            id: 'q',
+            prompt: 'שאלה',
+            interaction: { type: 'numeric-input', options: null },
+            answer: { value: '1' },
+            points: 1,
+            origin: { kind: 'manual' },
+            acceptance: null,
+          },
+        ],
+      },
+      diagnostics: {},
+    });
+    await settle();
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    await click('release-activity');
+    http.expectOne(`/api/activity-drafts/${create.request.body.id}/release`).flush({ id: 'ready' });
+    await settle();
+    await click('copy-released');
+    const copy = http.expectOne('/api/activity-drafts');
+    expect(copy.request.body.snapshotId).toBe('ready');
+    expect(copy.request.body.id).not.toBe(create.request.body.id);
+  });
+
   it('saves before starting one complete Create operation', async () => {
     await open();
     reply(await ask());

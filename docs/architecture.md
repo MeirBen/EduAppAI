@@ -383,10 +383,12 @@ adoption and approval flush, so two writes never share an expected revision.
 Autosave waits while a chat request is authored. The first save creates the
 draft under an identity the page chose, and locks the page like any draft
 request, so no edit or authoring request crosses it; a retry after a lost
-response replays that draft instead of adding another. Later saves never lock
-the fields. A response replaces the buffer only when nothing was typed since it
-was sent; newer edits stay and save next. A conflict pauses autosave until a
-saved version replaces the buffer. Leaving first saves a waiting valid change.
+response replays that draft instead of adding another. A copy of a released
+snapshot gets its own identity and replays only a copy of the same snapshot.
+Later saves never lock the fields. A response replaces the buffer only when
+nothing was typed since it was sent; newer edits stay and save next. A conflict
+pauses autosave until a saved version replaces the buffer. Leaving first saves a
+waiting valid change.
 
 `ChatSession` owns local authoring, composer and targets; workspace
 buffer/revision fences still control whether proposals apply. Unsaved setup

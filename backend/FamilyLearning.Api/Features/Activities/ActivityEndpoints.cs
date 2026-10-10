@@ -44,7 +44,7 @@ public static class ActivityEndpoints
 
     /// <summary>
     /// Creates the draft the client named. A retry after a lost response replays that draft while it still holds the same
-    /// plan; any other use of the identity conflicts, so no request ever adds a second draft.
+    /// plan and source snapshot; any other use of the identity conflicts, so no request ever adds a second draft.
     /// </summary>
     private static async Task<IResult> CreateAsync(CreateActivityRequest body, ClaimsPrincipal user, LearningDbContext db, CancellationToken ct)
     {
@@ -73,7 +73,8 @@ public static class ActivityEndpoints
         await using var transaction = await db.Database.BeginTransactionAsync(ct);
         var planJson = StoredJson.Write(plan);
         if (await db.ActivityDrafts.AsNoTracking().SingleOrDefaultAsync(d => d.Id == body.Id, ct) is { } existing)
-            return existing.FamilyId == user.FamilyId() && existing.PlanJson == planJson ? Results.Ok(ActivityDetail.From(existing)) : Conflict();
+            return existing.FamilyId == user.FamilyId() && existing.PlanJson == planJson && existing.SourceSnapshotId == sourceSnapshotId
+                ? Results.Ok(ActivityDetail.From(existing)) : Conflict();
         var draft = new ActivityDraft(body.Id, user.FamilyId(), ActivityDraft.LibraryName(plan, document), planJson,
             StoredJson.Write(document), sourceSnapshotId, user.FindFirstValue(ClaimTypes.NameIdentifier)!);
         draft.ImportChat(body.Chat);

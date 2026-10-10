@@ -5,7 +5,7 @@ namespace FamilyLearning.Api.Infrastructure.Web;
 /// <summary>A bounded page without an expensive total count; HasMore indicates another page is available.</summary>
 public sealed record PageResponse<T>(T[] Items, int Page, int PageSize, bool HasMore);
 
-/// <summary>Validates page bounds before computing a database offset. New collections default to 25 rows.</summary>
+/// <summary>Validates page bounds before computing a database offset. Lists default to 25 rows.</summary>
 internal readonly record struct PageRequest(int Page, int PageSize)
 {
     internal int Offset => (Page - 1) * PageSize;

@@ -140,7 +140,8 @@ The revision planner returns exactly one outcome:
 - **Change:** the complete updated plan, bounded assumptions and one-off edits.
   Untouched fields are preserved and lasting requirements go in the plan. The
   application writes the completion notice from the committed changes, as
-  statements the chat lists beside the assumptions.
+  statements the chat lists beside the assumptions; a rebuild that returns the
+  same questions says so instead of claiming a change.
 
 Material edits are `[{ id, instruction }]`. Question edits are
 `{ scope: none | selected | append | all, instruction, items }` with at most

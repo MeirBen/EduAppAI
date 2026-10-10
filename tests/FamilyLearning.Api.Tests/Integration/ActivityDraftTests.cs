@@ -302,6 +302,24 @@ public sealed class ActivityDraftTests
         Assert.Empty((await stranger.GetFromJsonAsync<JsonNode>("/api/activity-drafts"))!["items"]!.AsArray());
     }
 
+    [Fact]
+    public async Task A_copy_replays_only_a_copy_of_the_same_snapshot()
+    {
+        using var app = new ApiFactory();
+        using var parent = await app.ParentAsync();
+        var draft = await ActivityReleaseTests.ReadyDraft(parent);
+        using var release = await parent.PostAsJsonAsync(Path(draft) + "/release", new { expectedRevision = draft["revision"]!.GetValue<long>() });
+        var snapshotId = (await release.Content.ReadFromJsonAsync<JsonNode>())!["id"]!.GetValue<Guid>();
+        // The released draft holds the snapshot's plan, but a copy under its identity is a different request.
+        using var reused = await parent.PostAsJsonAsync("/api/activity-drafts", new { id = draft["id"]!.GetValue<Guid>(), snapshotId });
+        Assert.Equal(HttpStatusCode.Conflict, reused.StatusCode);
+        var copyId = Guid.NewGuid();
+        Assert.Equal(HttpStatusCode.Created, (await parent.PostAsJsonAsync("/api/activity-drafts", new { id = copyId, snapshotId })).StatusCode);
+        using var replay = await parent.PostAsJsonAsync("/api/activity-drafts", new { id = copyId, snapshotId });
+        Assert.Equal(HttpStatusCode.OK, replay.StatusCode);
+        Assert.Equal(copyId, (await replay.Content.ReadFromJsonAsync<JsonNode>())!["id"]!.GetValue<Guid>());
+    }
+
     internal static async Task<JsonNode> Create(HttpClient parent, LearningPlan plan)
     {
         using var response = await parent.PostAsJsonAsync("/api/activity-drafts", new { id = Guid.NewGuid(), plan });

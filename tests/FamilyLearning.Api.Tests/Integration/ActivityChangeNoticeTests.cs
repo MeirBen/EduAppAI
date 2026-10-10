@@ -37,6 +37,18 @@ public sealed class ActivityChangeNoticeTests
     }
 
     [Fact]
+    public void A_rebuild_with_new_ids_says_whether_the_questions_actually_changed()
+    {
+        var plan = Numeric(2);
+        var previous = TaskAssembly.AcceptQuestions(Resolve(plan), TaskAssembly.CreateDocument(Resolve(plan)),
+            new("כותרת", "הוראות", [Question(), Question()]));
+        var rebuilt = previous with { Questions = previous.Questions.Select(q => q with { Id = Guid.NewGuid().ToString("N") }).ToArray() };
+        Assert.Equal(["השאלות נוצרו מחדש ויצאו זהות."], ActivityChangeNotice.Describe(plan, previous, plan, rebuilt));
+        rebuilt.Questions[1] = rebuilt.Questions[1] with { Prompt = "שאלה אחרת" };
+        Assert.Equal(["השאלות נוצרו מחדש (2)."], ActivityChangeNotice.Describe(plan, previous, plan, rebuilt));
+    }
+
+    [Fact]
     public void Title_and_instruction_rules_report_only_their_own_change()
     {
         var before = Numeric(2);

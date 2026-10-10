@@ -138,8 +138,12 @@ export class ActivityWorkspace {
   private autosaveHalted = false;
   /** Every draft write chains here, so two writes never send the same expected revision. */
   private writes: Promise<unknown> = Promise.resolve();
-  /** Names the draft this page creates or copies, so a retry after a lost response replays it instead of adding another. */
+  /**
+   * Name the draft this page creates and the copy it makes of a released one, so a retry after a lost response
+   * replays that request instead of adding another; a copy never reuses the created draft's identity.
+   */
   private readonly newDraftId = crypto.randomUUID();
+  private readonly copyId = crypto.randomUUID();
   protected readonly copying = signal(false);
   protected readonly notice = signal('');
   /** The last action's problem; `reload` marks a request whose outcome the saved version may show. */
@@ -670,7 +674,7 @@ export class ActivityWorkspace {
     this.copying.set(true);
     this.activityError.set(undefined);
     try {
-      const draft = await this.api.copySnapshot(id, this.newDraftId, this.lifetime);
+      const draft = await this.api.copySnapshot(id, this.copyId, this.lifetime);
       if (!this.lifetime.destroyed) await this.router.navigate(['/activities', draft.id]);
     } catch (error) {
       if (!this.lifetime.destroyed)

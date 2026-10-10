@@ -38,13 +38,14 @@ internal static class ActivityChangeNotice
         var added = current.Questions.Count(q => !previous.Questions.Any(old => old.Id == q.Id));
         var removed = previous.Questions.Count(q => !current.Questions.Any(next => next.Id == q.Id));
         if (previous.Questions.Length > 0 && current.Questions.Length > 0 && added == current.Questions.Length && removed == previous.Questions.Length)
-            notices.Add($"השאלות נוצרו מחדש ({current.Questions.Length}).");
+            // A rebuild assigns new IDs even when the model returns the same questions; say so rather than claim a change.
+            notices.Add(current.Questions.Length == previous.Questions.Length && current.Questions.Zip(previous.Questions).All(p => Same(p.Second, p.First))
+                ? "השאלות נוצרו מחדש ויצאו זהות." : $"השאלות נוצרו מחדש ({current.Questions.Length}).");
         else
         {
             AddCount("שאלות שנוספו", added);
             AddCount("שאלות שהוסרו", removed);
-            AddCount("שאלות שעודכנו", current.Questions.Count(q => previous.Questions.FirstOrDefault(old => old.Id == q.Id) is { } old &&
-                !Equal(old with { Origin = q.Origin, Acceptance = q.Acceptance }, q)));
+            AddCount("שאלות שעודכנו", current.Questions.Count(q => previous.Questions.FirstOrDefault(old => old.Id == q.Id) is { } old && !Same(old, q)));
             if (RetainedOrderChanged(previous.Questions.Select(q => q.Id), current.Questions.Select(q => q.Id)))
                 notices.Add("סדר השאלות שונה.");
         }
@@ -68,6 +69,10 @@ internal static class ActivityChangeNotice
     }
 
     private static bool Equal<T>(T before, T after) => StoredJson.Write(before) == StoredJson.Write(after);
+
+    /// <summary>Same learner-facing question; identity, origin and acceptance are bookkeeping.</summary>
+    private static bool Same(DocumentQuestion before, DocumentQuestion after) =>
+        Equal(before with { Id = after.Id, Origin = after.Origin, Acceptance = after.Acceptance }, after);
 
     private static bool RetainedOrderChanged(IEnumerable<string> before, IEnumerable<string> after)
     {

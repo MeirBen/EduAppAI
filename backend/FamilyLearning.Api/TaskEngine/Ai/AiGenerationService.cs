@@ -11,7 +11,7 @@ using Microsoft.Extensions.Options;
 namespace FamilyLearning.Api.TaskEngine.Ai;
 
 /// <summary>Activity authoring, revision and content generation through one provider boundary.</summary>
-/// <remarks>Singleton; the semaphore caps in-flight provider calls. This service has no persistence or identity access.</remarks>
+/// <remarks>Singleton without persistence or identity access; callers hold an <see cref="AiCapacity"/> slot for each call.</remarks>
 public sealed class AiGenerationService(IEnumerable<IChatClient> clients, ILogger<AiGenerationService> logger,
     IOptions<AiGenerationOptions> options)
 {
