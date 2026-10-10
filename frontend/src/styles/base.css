@@ -6,12 +6,12 @@
 
     /* Clears the pinned header when focus or fragment navigation scrolls content. */
     @variant pinned-header {
-      scroll-padding-block-start: 6rem;
+      scroll-padding-block-start: var(--spacing-pinned);
     }
     /* Keeps focused fields clear of a pinned action bar. */
     &:has(.action-bar) {
       @variant pinned-actions {
-        scroll-padding-block-end: 9rem;
+        scroll-padding-block-end: var(--spacing-pinned);
       }
     }
   }

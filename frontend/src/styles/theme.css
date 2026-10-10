@@ -47,6 +47,11 @@
   /* One control height for buttons, links, fields and chips: 44px for touch, 40px for a mouse (below). */
   --spacing-control: 2.75rem;
 
+  /* Pinned layouts: shell-height header and footer rows, main's block padding, and the band both edges clear. */
+  --spacing-shell: 4rem;
+  --spacing-main: 2rem;
+  --spacing-pinned: calc(var(--spacing-shell) + var(--spacing-main));
+
   /* Layout widths: the app frame, a reading column for documents and a single centered card. */
   --container-page: 80rem;
   --container-reading: 48rem;

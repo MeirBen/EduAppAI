@@ -113,8 +113,10 @@ test('clarifies on a phone, keeps the conversation open as a sheet and saves the
   await expect(page.getByText('בדקו שהטקסט הועתק נכון', { exact: false })).toBeVisible();
   expect(writes).toEqual([]);
   await page.getByRole('button', { name: 'הטקסט הועתק נכון' }).click();
-  await expect(page.getByRole('log')).toContainText('לאיזה גיל?');
   await expect(page.getByText('נשמר', { exact: true })).toBeVisible();
+  // The saved draft's chat still holds the conversation from before the draft existed.
+  await page.locator('#open-chat').click();
+  await expect(page.getByRole('log')).toContainText('לאיזה גיל?');
   expect(writes).toHaveLength(1);
   expect(writes[0]).toMatchObject({
     url: '/api/activity-drafts',
@@ -230,6 +232,15 @@ test('desktop chat stays reachable beside lower questions, and becomes a sheet f
     );
   };
   await besideBar(900);
+  // Scrolling the activity never moves the pinned chat, through the very end, and typing never scrolls the page.
+  const pinned = (await chat.boundingBox())!.y;
+  for (const share of [0, 0.5, 1]) {
+    await page.evaluate((s) => scrollTo(0, s * (document.body.scrollHeight - innerHeight)), share);
+    expect((await chat.boundingBox())!.y).toBe(pinned);
+  }
+  const resting = await page.evaluate(() => scrollY);
+  await page.locator('#chat-message').pressSequentially(' בבקשה');
+  expect(await page.evaluate(() => scrollY)).toBe(resting);
   const history = page.getByRole('log');
   expect(await history.evaluate((element) => element.scrollHeight > element.clientHeight)).toBe(
     true,

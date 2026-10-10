@@ -122,7 +122,10 @@
     @apply mx-auto w-full max-w-page px-gutter sm:px-8;
   }
   .app-header {
-    @apply border-b border-line bg-surface/85 backdrop-blur-md pinned-header:sticky pinned-header:inset-bs-0 pinned-header:z-20;
+    @apply border-b border-line bg-surface/85 backdrop-blur-md pinned-header:sticky pinned-header:inset-bs-0 pinned-header:z-20 pinned-header:h-shell;
+  }
+  .app-footer {
+    @apply border-t border-line pinned-header:h-shell;
   }
   .brand {
     @apply flex min-h-control items-center gap-3 rounded-button text-lg font-semibold text-brand;
@@ -258,10 +261,11 @@
     .chat-panel[data-beside] {
       @apply flex flex-col;
 
-      /* Desktops pin it, since the action bar sits under the document column. */
+      /* Desktops pin it between the pinned bands: it starts where it sticks and ends above the footer, so it
+         never moves, and its composer stays clear of the scroll padding, so typing never scrolls the page. */
       @variant lg {
-        @apply sticky top-24;
-        max-block-size: calc(100dvh - 7.5rem);
+        @apply sticky top-pinned;
+        max-block-size: calc(100dvh - 2 * var(--spacing-pinned));
       }
 
       & :is(.chat-layout, .chat-history) {
@@ -302,11 +306,11 @@
     }
   }
   /*
-   * A chat beside the activity spans the action bar's row on desktops; below desktop width it is a sheet
-   * over the page, so reading keeps its place, and the action bar's opener and its close control show.
+   * Below desktop width, a chat beside the activity is a sheet over the page, so reading keeps its place,
+   * and the action bar's opener and its close control show.
    */
   .chat-panel[data-beside] {
-    @apply lg:row-span-2 max-lg:fixed max-lg:inset-x-0 max-lg:bottom-0 max-lg:z-40 max-lg:max-h-[85dvh] max-lg:overflow-y-auto max-lg:overscroll-contain max-lg:rounded-b-none max-lg:shadow-(--shadow-raised) max-lg:transition-[translate] max-lg:duration-300;
+    @apply max-lg:fixed max-lg:inset-x-0 max-lg:bottom-0 max-lg:z-40 max-lg:max-h-[85dvh] max-lg:overflow-y-auto max-lg:overscroll-contain max-lg:rounded-b-none max-lg:shadow-(--shadow-raised) max-lg:transition-[translate] max-lg:duration-300;
 
     /* Only closing delays hiding, so an opening sheet is visible, and focusable, from its first frame. */
     &:not([data-open]) {

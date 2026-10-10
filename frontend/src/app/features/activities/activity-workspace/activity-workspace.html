@@ -1,191 +1,158 @@
+@let ready = !loadError() && !loading();
 <section
-  class="mx-auto grid gap-6"
+  class="mx-auto grid items-start gap-6"
   [class.max-w-reading]="!split()"
+  [class]="split() ? 'lg:grid-cols-[minmax(0,5fr)_minmax(20rem,3fr)]' : ''"
   aria-labelledby="workspace-title"
   (keydown.escape)="chatOpen() && closeChat()"
 >
-  <header class="grid gap-1">
-    <a routerLink="/activities" class="text-link"
-      ><span class="icon icon-back" aria-hidden="true"></span>המרחב שלנו</a
-    >
-    <h1 id="workspace-title">{{ heading() }}</h1>
-  </header>
-  <app-loading-indicator [active]="loading()" label="טוענים…" variant="panel" />
-  @if (loadError()) {
-    <div class="grid gap-2">
-      <p role="alert" class="error">{{ apiError(loadError()) }}</p>
-      <button
-        id="retry-activity"
-        type="button"
-        class="text-link"
-        [disabledInteractive]="loading()"
-        (click)="retryActivity()"
+  <div class="grid min-w-0 gap-6">
+    <header class="grid gap-1">
+      <a routerLink="/activities" class="text-link"
+        ><span class="icon icon-back" aria-hidden="true"></span>המרחב שלנו</a
       >
-        <span class="icon icon-refresh" aria-hidden="true"></span>ניסיון נוסף
-      </button>
-    </div>
-  } @else if (!loading()) {
-    <div
-      class="grid min-w-0 items-start gap-6"
-      [class]="split() ? 'lg:grid-cols-[minmax(0,5fr)_minmax(20rem,3fr)]' : ''"
-    >
-      <div class="grid min-w-0 gap-6">
-        @if (hasPlan()) {
-          <details class="panel" [open]="!hasContent()">
-            <summary id="plan-title">הגדרות הפעילות</summary>
-            <app-activity-setup
-              [plan]="fields.plan"
-              [pendingSources]="pendingSources()"
-              [locked]="locked()"
-              (edited)="edited($event)"
-              (sourceConfirmed)="confirmSource($event)"
-            />
-          </details>
-        }
-        @if (!released() && operation()?.status !== 'completed') {
-          <ng-container [ngTemplateOutlet]="operationStatus" />
-        }
-        @if (elsewhere() !== 'deleted' && available(); as result) {
-          <section class="panel grid gap-4" aria-labelledby="available-title">
-            <h2 id="available-title">גרסה שמורה חדשה</h2>
-            <p>לא החלפנו את העבודה שלכם. אפשר לבדוק את התוצאה ולטעון אותה במקום השינויים שלכם.</p>
-            <details class="well">
-              <summary>בדיקת התוצאה</summary>
-              <app-activity-document-view [document]="result.document" [nested]="true" />
-            </details>
-            <ng-container [ngTemplateOutlet]="reload" />
-          </section>
-        }
-        @if (hasContent() || editing()) {
-          @if (editing() && !operationActive()) {
-            <app-activity-document-editor
-              [fields]="fields.document"
-              [materials]="raw().plan.materials"
-              [locked]="locked()"
-              [contentIssues]="contentIssues()"
-              [measurements]="measurements()"
-              [staleMaterials]="stale().materials"
-              (adopted)="activityAction('adopt', $event)"
-              (edited)="edited($event)"
-              (sourceReplaced)="replaceSource($event)"
-              (finished)="finishEditing()"
-            />
-          } @else {
-            <section class="panel grid gap-4" aria-labelledby="document-heading">
-              <div class="flex flex-wrap items-center justify-between gap-3">
-                <h2 id="document-heading">תוכן הפעילות</h2>
-                @if (!released()) {
-                  <button
-                    id="edit-activity"
-                    type="button"
-                    class="text-link"
-                    [disabledInteractive]="locked()"
-                    (click)="editContent()"
-                  >
-                    <span class="icon icon-edit" aria-hidden="true"></span>עריכה
-                  </button>
-                }
-              </div>
-              @if (documentProjection().value; as document) {
-                <app-activity-document-view
-                  [document]="document"
-                  [nested]="true"
-                  [issues]="contentIssues()"
-                  [measurements]="measurements()"
-                  [canAsk]="!locked()"
-                  (asked)="selectTarget($event)"
-                />
-              }
-            </section>
-          }
-        }
-        @if (sourceReplacement().id) {
-          <app-source-replacement
-            [field]="sourceFields.text"
+      <h1 id="workspace-title">{{ heading() }}</h1>
+    </header>
+    <app-loading-indicator [active]="loading()" label="טוענים…" variant="panel" />
+    @if (loadError()) {
+      <div class="grid gap-2">
+        <p role="alert" class="error">{{ apiError(loadError()) }}</p>
+        <button
+          id="retry-activity"
+          type="button"
+          class="text-link"
+          [disabledInteractive]="loading()"
+          (click)="retryActivity()"
+        >
+          <span class="icon icon-refresh" aria-hidden="true"></span>ניסיון נוסף
+        </button>
+      </div>
+    } @else if (!loading()) {
+      @if (hasPlan()) {
+        <details class="panel" [open]="!hasContent()">
+          <summary id="plan-title">הגדרות הפעילות</summary>
+          <app-activity-setup
+            [plan]="fields.plan"
+            [pendingSources]="pendingSources()"
             [locked]="locked()"
-            [error]="replacementError()"
-            (typed)="markLocalChange(); replacementError.set('')"
-            (accepted)="acceptSourceReplacement()"
-            (cancelled)="cancelSourceReplacement()"
+            (edited)="edited($event)"
+            (sourceConfirmed)="confirmSource($event)"
           />
-        }
-        @if (hasContent()) {
-          <section class="panel grid gap-4" aria-labelledby="review-title">
-            @if (released()) {
-              <h2 id="review-title">הפעילות מוכנה</h2>
-              <p>הפעילות נשמרה כעותק קבוע. אפשר להקצות אותה לילדים או לערוך עותק כטיוטה חדשה.</p>
-            } @else {
-              <h2 id="review-title">בדיקת הפעילות</h2>
-              <app-activity-review
-                [issues]="issues()"
-                [measurements]="totalMeasurements()"
-                [saved]="!!saved()"
-                [outdated]="dirty() || operationActive()"
-              />
-              @if (stale().questions.size) {
-                <div id="question-recovery" class="callout grid gap-3">
-                  <p>בדקו אם השאלות עדיין מתאימות לטקסט ולהגדרות השמורים.</p>
-                  <div class="flex flex-wrap gap-3">
-                    <button
-                      id="regenerate-questions"
-                      class="button button-secondary"
-                      type="button"
-                      [disabledInteractive]="!canGenerate()"
-                      (click)="regenerateQuestions()"
-                    >
-                      <span class="icon icon-ai" aria-hidden="true"></span>עדכון השאלות
-                    </button>
-                    <button
-                      id="adopt-questions"
-                      class="button button-secondary"
-                      type="button"
-                      [disabledInteractive]="locked() || dirty()"
-                      (click)="adoptQuestions()"
-                    >
-                      <span class="icon icon-check" aria-hidden="true"></span>השאלות עדיין מתאימות
-                    </button>
-                  </div>
-                </div>
+        </details>
+      }
+      @if (!released() && operation()?.status !== 'completed') {
+        <ng-container [ngTemplateOutlet]="operationStatus" />
+      }
+      @if (elsewhere() !== 'deleted' && available(); as result) {
+        <section class="panel grid gap-4" aria-labelledby="available-title">
+          <h2 id="available-title">גרסה שמורה חדשה</h2>
+          <p>לא החלפנו את העבודה שלכם. אפשר לבדוק את התוצאה ולטעון אותה במקום השינויים שלכם.</p>
+          <details class="well">
+            <summary>בדיקת התוצאה</summary>
+            <app-activity-document-view [document]="result.document" [nested]="true" />
+          </details>
+          <ng-container [ngTemplateOutlet]="reload" />
+        </section>
+      }
+      @if (hasContent() || editing()) {
+        @if (editing() && !operationActive()) {
+          <app-activity-document-editor
+            [fields]="fields.document"
+            [materials]="raw().plan.materials"
+            [locked]="locked()"
+            [contentIssues]="contentIssues()"
+            [measurements]="measurements()"
+            [staleMaterials]="stale().materials"
+            (adopted)="activityAction('adopt', $event)"
+            (edited)="edited($event)"
+            (sourceReplaced)="replaceSource($event)"
+            (finished)="finishEditing()"
+          />
+        } @else {
+          <section class="panel grid gap-4" aria-labelledby="document-heading">
+            <div class="flex flex-wrap items-center justify-between gap-3">
+              <h2 id="document-heading">תוכן הפעילות</h2>
+              @if (!released()) {
+                <button
+                  id="edit-activity"
+                  type="button"
+                  class="text-link"
+                  [disabledInteractive]="locked()"
+                  (click)="editContent()"
+                >
+                  <span class="icon icon-edit" aria-hidden="true"></span>עריכה
+                </button>
               }
+            </div>
+            @if (documentProjection().value; as document) {
+              <app-activity-document-view
+                [document]="document"
+                [nested]="true"
+                [issues]="contentIssues()"
+                [measurements]="measurements()"
+                [canAsk]="!locked()"
+                (asked)="selectTarget($event)"
+              />
             }
           </section>
         }
-        @if (!released() && operation()?.status === 'completed') {
-          <ng-container [ngTemplateOutlet]="operationStatus" />
-        }
-        @if (reloadPlacement() === 'more') {
-          <ng-container [ngTemplateOutlet]="reload" />
-        }
-      </div>
-      @if (!released()) {
-        <section
-          class="chat-panel panel min-w-0 gap-3"
-          [attr.data-beside]="chatBeside() ? '' : null"
-          [attr.data-open]="chatOpen() ? '' : null"
-          #chatPanel
-          id="activity-chat"
-          tabindex="-1"
-          aria-label="השיחה על הפעילות"
-        >
-          @if (chatBeside()) {
-            <button
-              #chatClose
-              id="close-chat"
-              type="button"
-              class="icon-button icon-button-quiet absolute inset-e-3 top-3 lg:hidden"
-              (click)="closeChat()"
-            >
-              <span class="icon icon-minus" aria-hidden="true"></span
-              ><span class="tooltip">הסתרת השיחה</span>
-            </button>
+      }
+      @if (sourceReplacement().id) {
+        <app-source-replacement
+          [field]="sourceFields.text"
+          [locked]="locked()"
+          [error]="replacementError()"
+          (typed)="markLocalChange(); replacementError.set('')"
+          (accepted)="acceptSourceReplacement()"
+          (cancelled)="cancelSourceReplacement()"
+        />
+      }
+      @if (hasContent()) {
+        <section class="panel grid gap-4" aria-labelledby="review-title">
+          @if (released()) {
+            <h2 id="review-title">הפעילות מוכנה</h2>
+            <p>הפעילות נשמרה כעותק קבוע. אפשר להקצות אותה לילדים או לערוך עותק כטיוטה חדשה.</p>
+          } @else {
+            <h2 id="review-title">בדיקת הפעילות</h2>
+            <app-activity-review
+              [issues]="issues()"
+              [measurements]="totalMeasurements()"
+              [saved]="!!saved()"
+              [outdated]="dirty() || operationActive()"
+            />
+            @if (stale().questions.size) {
+              <div id="question-recovery" class="callout grid gap-3">
+                <p>בדקו אם השאלות עדיין מתאימות לטקסט ולהגדרות השמורים.</p>
+                <div class="flex flex-wrap gap-3">
+                  <button
+                    id="regenerate-questions"
+                    class="button button-secondary"
+                    type="button"
+                    [disabledInteractive]="!canGenerate()"
+                    (click)="regenerateQuestions()"
+                  >
+                    <span class="icon icon-ai" aria-hidden="true"></span>עדכון השאלות
+                  </button>
+                  <button
+                    id="adopt-questions"
+                    class="button button-secondary"
+                    type="button"
+                    [disabledInteractive]="locked() || dirty()"
+                    (click)="adoptQuestions()"
+                  >
+                    <span class="icon icon-check" aria-hidden="true"></span>השאלות עדיין מתאימות
+                  </button>
+                </div>
+              </div>
+            }
           }
-          @if (!hasPlan()) {
-            <h2 id="plan-title" class="chat-title">
-              <span class="ai-mark" aria-hidden="true"></span>מה תרצו להכין?
-            </h2>
-          }
-          <ng-container [ngTemplateOutlet]="authorChat" />
         </section>
+      }
+      @if (!released() && operation()?.status === 'completed') {
+        <ng-container [ngTemplateOutlet]="operationStatus" />
+      }
+      @if (reloadPlacement() === 'more') {
+        <ng-container [ngTemplateOutlet]="reload" />
       }
       @if (actionBar()) {
         <section class="action-bar" actionBar aria-labelledby="actions-title">
@@ -314,7 +281,37 @@
           <app-loading-indicator [active]="copying()" label="יוצרים טיוטה חדשה…" />
         </section>
       }
-    </div>
+    }
+  </div>
+  @if (ready && !released()) {
+    <section
+      class="chat-panel panel min-w-0 gap-3"
+      [attr.data-beside]="chatBeside() ? '' : null"
+      [attr.data-open]="chatOpen() ? '' : null"
+      #chatPanel
+      id="activity-chat"
+      tabindex="-1"
+      aria-label="השיחה על הפעילות"
+    >
+      @if (chatBeside()) {
+        <button
+          #chatClose
+          id="close-chat"
+          type="button"
+          class="icon-button icon-button-quiet absolute inset-e-3 top-3 lg:hidden"
+          (click)="closeChat()"
+        >
+          <span class="icon icon-minus" aria-hidden="true"></span
+          ><span class="tooltip">הסתרת השיחה</span>
+        </button>
+      }
+      @if (!hasPlan()) {
+        <h2 id="plan-title" class="chat-title">
+          <span class="ai-mark" aria-hidden="true"></span>מה תרצו להכין?
+        </h2>
+      }
+      <ng-container [ngTemplateOutlet]="authorChat" />
+    </section>
   }
 </section>
 <ng-template #authorChat>

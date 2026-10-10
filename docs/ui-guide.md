@@ -12,8 +12,10 @@ parent labels keep their original language and values.
   plus the quiet sign-out (`nav-link-quiet`). It stays visible on screens at
   least 64rem wide and 40rem tall and scrolls away on smaller ones. Below tablet
   width it keeps one row: nav links show only their icons, and on phones the
-  signed-in brand only its mark. The theme picker sits in the footer. Reserve
-  scroll padding for focus targets and include the skip link.
+  signed-in brand only its mark. The theme picker sits in the footer. Where the
+  header is pinned, it and the footer are rows of the shell height, and scroll
+  padding clears the same `--spacing-pinned` band at each window edge for focus
+  targets; include the skip link.
 - Route changes never move the layout: the root keeps a stable scrollbar
   gutter, the footer rests at the window's bottom on short pages, new pages
   open at the top and Back restores the previous position.
@@ -136,7 +138,10 @@ below half-width. Render optional content only when present.
   Tailwind's default palettes and scales are cleared, so templates can only use
   theme values.
 - `theme.css` also owns the layout widths (`--container-page`, `-reading`,
-  `-card`) and the control height (`--spacing-control`).
+  `-card`), the control height (`--spacing-control`) and the pinned layout:
+  the shell rows (`--spacing-shell`), main's block padding (`--spacing-main`)
+  and the band they clear together (`--spacing-pinned`). A spacing token also
+  names `w-*`/`max-w-*` utilities, so it never reuses a container name.
 - `utilities.css` owns project variants: `pinned-header`, `pinned-actions`, and
   `dark` for an explicit dark choice or a dark device without any explicit theme
   choice.
@@ -335,9 +340,11 @@ changes use chat. Each text/question offers an accessible “ask about this”
 action that fills and focuses the composer without sending. Keep the selected
 target visible and update only the app-inserted prefix when switching targets,
 preserving parent text. At widths of 64rem and heights of 40rem or more, keep
-chat beside the activity with only its history scrolling; the action bar sits
-under the document column, so it never covers the chat. Respect enlarged
-browser text.
+chat beside the activity with only its history scrolling. Its column starts at
+the top of the page, beside the heading, and fills exactly the space between
+the pinned bands, so it never moves while the page scrolls and typing never
+scrolls the page. The action bar ends the document column, so it never covers
+the chat. Respect enlarged browser text.
 
 Every turn is a bubble on the action bar's tinted dock. As in messaging apps,
 the parent's own `chat-message` takes the brand tint at the end edge, and the
