@@ -13,6 +13,78 @@ public sealed class LibraryChangeTests
 {
     private const string StreamPath = "/api/library/changes";
 
+    [Fact]
+    public async Task Child_writes_notify_parent_streams_after_commit_and_failures_publish_nothing()
+    {
+        await using var app = new ChildHarness();
+        using var parent = await app.App.ParentAsync();
+        var profile = await ChildHarness.Create(parent);
+        using var child = await app.Activate(parent, profile);
+        var content = await ChildSessionTests.MixedSnapshot(parent);
+        var assignment = await AssignmentTests.Assign(parent, profile, content.Id);
+        var path = ChildSessionTests.SessionPath(assignment);
+        var changes = app.App.Services.GetRequiredService<LibraryChanges>();
+        var family = (await parent.GetFromJsonAsync<JsonElement>("/api/auth/me")).GetProperty("familyId").GetGuid();
+        var stream = changes.Subscribe(family)!;
+        Assert.True(stream.Reader.TryRead(out _));
+        try
+        {
+            await ChildSessionTests.Start(child, path);
+            Assert.True(stream.Reader.TryRead(out _));
+            using var save = await child.PutAsJsonAsync(path, new { expectedRevision = 1, answers = content.Answers() });
+            Assert.Equal(HttpStatusCode.OK, save.StatusCode);
+            Assert.True(stream.Reader.TryRead(out _));
+            using var conflict = await child.PutAsJsonAsync(path, new { expectedRevision = 1, answers = content.Answers() });
+            Assert.Equal(HttpStatusCode.Conflict, conflict.StatusCode);
+            Assert.False(stream.Reader.TryRead(out _));
+            using var submit = await child.PostAsJsonAsync(path + "/submit", new { expectedRevision = 2, answers = content.Answers() });
+            Assert.Equal(HttpStatusCode.OK, submit.StatusCode);
+            Assert.True(stream.Reader.TryRead(out _));
+            Assert.Equal("awaiting-review", (await parent.GetFromJsonAsync<JsonNode>($"/api/assignments/{assignment["id"]}"))!["assignment"]!["status"]!.GetValue<string>());
+        }
+        finally { changes.Unsubscribe(family, stream); }
+    }
+
+    [Fact]
+    public async Task Child_stream_notifies_committed_assignments_and_withdrawals_without_content()
+    {
+        await using var app = new ChildHarness();
+        using var parent = await app.App.ParentAsync();
+        var profile = await ChildHarness.Create(parent);
+        using var child = await app.Activate(parent, profile);
+        var snapshot = await AssignmentTests.Snapshot(parent);
+        using var stream = await ChangeStream.OpenAsync(child, "/api/child/changes");
+        var assignment = await AssignmentTests.Assign(parent, profile, snapshot);
+        await stream.NextAsync();
+        var inbox = (await child.GetFromJsonAsync<JsonNode>("/api/child/assignments"))!;
+        Assert.Equal(assignment["id"]!.GetValue<Guid>(), inbox["items"]![0]!["id"]!.GetValue<Guid>());
+        using var withdrawn = await parent.PostAsJsonAsync($"/api/assignments/{assignment["id"]}/withdraw", new { expectedRevision = 1 });
+        Assert.Equal(HttpStatusCode.OK, withdrawn.StatusCode);
+        await stream.NextAsync();
+        Assert.Empty((await child.GetFromJsonAsync<JsonNode>("/api/child/assignments"))!["items"]!.AsArray());
+    }
+
+    [Fact]
+    public async Task Child_stream_requires_a_valid_child_grant_and_does_not_open_parent_access()
+    {
+        await using var app = new ChildHarness();
+        using var parent = await app.App.ParentAsync();
+        using var anonymous = app.App.CreateClient();
+        var profile = await ChildHarness.Create(parent);
+        using var child = await app.Activate(parent, profile);
+        foreach (var client in new[] { parent, anonymous })
+        {
+            using var denied = await client.GetAsync("/api/child/changes", HttpCompletionOption.ResponseHeadersRead);
+            Assert.Equal(HttpStatusCode.Unauthorized, denied.StatusCode);
+        }
+        using (var denied = await child.GetAsync(StreamPath, HttpCompletionOption.ResponseHeadersRead))
+            Assert.Equal(HttpStatusCode.Unauthorized, denied.StatusCode);
+        using (await ChangeStream.OpenAsync(child, "/api/child/changes")) { }
+        app.Clock.Now = app.Clock.Now.AddDays(31);
+        using var expired = await child.GetAsync("/api/child/changes", HttpCompletionOption.ResponseHeadersRead);
+        Assert.Equal(HttpStatusCode.Unauthorized, expired.StatusCode);
+    }
+
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
@@ -188,9 +260,9 @@ public sealed class LibraryChangeTests
     private sealed class ChangeStream(HttpResponseMessage response, StreamReader reader) : IDisposable
     {
         /// <summary>Opens a stream and reads the note every new stream starts with.</summary>
-        internal static async Task<ChangeStream> OpenAsync(HttpClient parent)
+        internal static async Task<ChangeStream> OpenAsync(HttpClient client, string path = StreamPath)
         {
-            var response = await parent.GetAsync(StreamPath, HttpCompletionOption.ResponseHeadersRead);
+            var response = await client.GetAsync(path, HttpCompletionOption.ResponseHeadersRead);
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
             Assert.Equal("text/event-stream", response.Content.Headers.ContentType?.MediaType);
             var stream = new ChangeStream(response, new StreamReader(await response.Content.ReadAsStreamAsync()));

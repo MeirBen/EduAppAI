@@ -2,6 +2,7 @@ import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
+import { FakeEventSource } from '../../core/api/event-source.fixture';
 import { AssignmentList } from './assignment-list';
 
 const assignment = {
@@ -45,6 +46,29 @@ describe('Parent assignment list', () => {
     await fixture.whenStable();
     return { fixture, http, root: fixture.nativeElement as HTMLElement };
   }
+  it('follows child submissions and can reconnect through the existing refresh control', async () => {
+    const { fixture, http, root } = await open([assignment]);
+    const [stream] = FakeEventSource.opened;
+    expect(stream?.url).toBe('/api/library/changes?ngsw-bypass');
+    stream.send();
+    TestBed.tick();
+    http
+      .expectOne('/api/assignments?page=1')
+      .flush(page([{ ...assignment, status: 'awaiting-review' }]));
+    await fixture.whenStable();
+    expect(root.querySelector('[data-withdraw]')).toBeNull();
+    stream.readyState = FakeEventSource.CLOSED;
+    stream.onerror?.();
+    await fixture.whenStable();
+    root.querySelector<HTMLButtonElement>('#refresh-assignments')!.click();
+    TestBed.tick();
+    expect(FakeEventSource.opened).toHaveLength(2);
+    http.expectOne('/api/assignments?page=1').flush(page([{ ...assignment, status: 'completed' }]));
+    await fixture.whenStable();
+    fixture.destroy();
+    expect(FakeEventSource.opened[1].readyState).toBe(FakeEventSource.CLOSED);
+  });
+
   it('pages and resets paging on child/status filters, including disabled profiles', async () => {
     const { fixture, http, root } = await open();
     root
@@ -96,6 +120,9 @@ describe('Parent assignment list', () => {
     const button = root.querySelector<HTMLButtonElement>('[data-withdraw]')!;
     button.focus();
     button.click();
+    FakeEventSource.opened[0].send();
+    TestBed.tick();
+    http.expectNone('/api/assignments?page=1');
     http
       .expectOne('/api/assignments/assignment/withdraw')
       .flush({ ...assignment, status: 'withdrawn' });

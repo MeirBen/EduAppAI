@@ -62,11 +62,12 @@ public static class ApiConfiguration
         var child = root.MapGroup("/child").RequireAuthorization("Child");
         child.MapChildAuthEndpoints();
         child.MapChildAssignmentEndpoints();
-        child.MapChildSessionEndpoints();
+        child.MapGroup("").PublishesLibraryChanges().MapChildSessionEndpoints();
+        child.MapLibraryChangeEndpoints("/changes");
         api.MapGet("/limits", () => ContentLimits.Current);
         api.MapPlanAuthoringEndpoints();
         api.MapLibraryChangeEndpoints();
-        // Successful writes to library content notify the family's open change streams.
+        // Successful content writes notify the family's parent and child change streams.
         var library = api.MapGroup("").PublishesLibraryChanges();
         library.MapActivityEndpoints();
         library.MapLearningDataEndpoints();

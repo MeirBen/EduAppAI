@@ -226,7 +226,8 @@ and environment variables, not development user secrets.
 
 The host processes `X-Forwarded-For` and `X-Forwarded-Proto` from one loopback
 proxy before HTTPS redirection, authentication and rate limiting. Preserve the
-original `Host` header and disable proxy buffering for `/api/library/changes`.
+original `Host` header and disable proxy buffering for `/api/library/changes`
+and `/api/child/changes`.
 When a hosting platform's proxy is the only route to the process, set
 `ForwardedHeaders__ClientIpHeader` to the header in which that proxy sends the
 client address. The host then accepts it and `X-Forwarded-Proto` from any

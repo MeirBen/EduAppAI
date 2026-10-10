@@ -146,6 +146,79 @@ async function narrow(page: Page, name: string) {
   await page.setViewportSize({ width: 1280, height: 900 });
 }
 
+test('open parent and child lists follow assignments and submissions without refreshing', async ({
+  request: parent,
+  page: child,
+  browser,
+}) => {
+  const anonymous = await (await parent.get('/api/auth/csrf')).json();
+  expect(
+    (
+      await parent.post('/api/auth/login', {
+        headers: { 'X-XSRF-TOKEN': anonymous.token },
+        data: { email: 'source@example.test', password: 'TestOnly!Parent12345' },
+      })
+    ).status(),
+  ).toBe(204);
+  const headers = { 'X-XSRF-TOKEN': (await (await parent.get('/api/auth/csrf')).json()).token };
+  const profile = await (
+    await parent.post('/api/children', { headers, data: { name: 'עדכונים' } })
+  ).json();
+  const issued = await parent.post(`/api/children/${profile.id}/activation`, {
+    headers,
+    data: { deviceLabel: 'מכשיר לעדכונים' },
+  });
+  await inspectChildResponses(child);
+  await child.goto('/child/activate');
+  await child.getByLabel('הקוד מההורה', { exact: true }).fill((await issued.json()).code);
+  await child.getByRole('button', { name: 'כניסה', exact: true }).click();
+  await expect(child).toHaveURL('/child');
+  await expect(child.getByText('אין כרגע פעילויות חדשות.', { exact: false })).toBeVisible();
+  const snapshot = await createSnapshot(parent, headers);
+  const assigned = await parent.post('/api/assignments', {
+    headers,
+    data: { childId: profile.id, snapshotId: snapshot.id },
+  });
+  expect(assigned.status()).toBe(201);
+  const assignment = await assigned.json();
+  const link = child.getByRole('link', { name: snapshot.document.title, exact: true });
+  await expect(link).toBeVisible();
+  const path = `/api/assignments/${assignment.id}`;
+  const withdrawn = await parent.post(path + '/withdraw', {
+    headers,
+    data: { expectedRevision: assignment.revision },
+  });
+  expect(withdrawn.status()).toBe(200);
+  await expect(link).toHaveCount(0);
+  const restored = await parent.post(path + '/restore', {
+    headers,
+    data: { expectedRevision: (await withdrawn.json()).revision },
+  });
+  expect(restored.status()).toBe(200);
+  await expect(link).toBeVisible();
+  expect((await (await parent.get(path)).json()).assignment.hasStarted).toBe(false);
+  const parentContext = await browser.newContext({
+    baseURL: new URL(child.url()).origin,
+    storageState: await parent.storageState(),
+    serviceWorkers: 'block',
+  });
+  try {
+    const parentPage = await parentContext.newPage();
+    await parentPage.goto('/assignments');
+    const row = parentPage.getByRole('article', { name: `${snapshot.document.title} — עדכונים` });
+    await expect(row.getByRole('button', { name: 'ביטול ההקצאה:', exact: false })).toBeVisible();
+    await link.click();
+    await child.getByRole('textbox', { name: 'מה למדתם מהטקסט?', exact: true }).fill('תשובה');
+    await expect(row).toContainText('העבודה התחילה');
+    child.once('dialog', (dialog) => dialog.accept());
+    await child.getByRole('button', { name: 'הגשה להורה', exact: true }).click();
+    await expect(row).toContainText('ממתינה לבדיקה');
+    await expect(row.locator('[data-withdraw]')).toHaveCount(0);
+  } finally {
+    await parentContext.close();
+  }
+});
+
 test('two families and siblings keep separate work through resume, lost submission, grading and reset', async ({
   page: parent,
   browser,

@@ -11,7 +11,7 @@ for (const theme of ['light', 'dark'] as const) {
     page,
   }) => {
     await page.emulateMedia({ colorScheme: theme });
-    await page.goto('/');
+    await page.goto('/login');
     await expect(page.getByLabel('כתובת דוא״ל', { exact: true })).toBeVisible();
     const contrasts = await page.evaluate(() => {
       const tokens = getComputedStyle(document.documentElement);

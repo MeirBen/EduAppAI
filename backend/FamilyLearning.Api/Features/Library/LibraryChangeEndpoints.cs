@@ -7,7 +7,7 @@ public static class LibraryChangeEndpoints
 {
     private static readonly ReadOnlyMemory<byte> Note = "data: changed\n\n"u8.ToArray();
 
-    public static void MapLibraryChangeEndpoints(this RouteGroupBuilder api) => api.MapGet("/library/changes", StreamAsync);
+    public static void MapLibraryChangeEndpoints(this RouteGroupBuilder api, string path = "/library/changes") => api.MapGet(path, StreamAsync);
 
     /// <summary>Notifies the caller's family after any successful write in this group.</summary>
     /// <remarks>Feature handlers commit before returning success, so a 2xx result follows the commit; failures publish nothing.</remarks>

@@ -10,6 +10,7 @@ import {
 import { RouterLink } from '@angular/router';
 import { whenIdle } from '../../core/when-idle';
 import { AssignmentApi } from '../../core/api/assignment-api';
+import { libraryChanges } from '../../core/api/library-changes';
 import { AssignmentStatus, AssignmentSummary } from '../../core/api/assignment-models';
 import { DisabledInteractive } from '../../shared/disabled-interactive';
 import { focusHolder } from '../../shared/focus-holder';
@@ -37,6 +38,7 @@ export class AssignmentList {
   private readonly api = inject(AssignmentApi);
   private readonly lifetime = inject(DestroyRef);
   private readonly holdFocus = focusHolder();
+  protected readonly updates = libraryChanges();
   protected readonly childId = signal('');
   protected readonly status = signal<AssignmentStatus | ''>('');
   protected readonly page = linkedSignal(() => {
@@ -52,6 +54,10 @@ export class AssignmentList {
   protected readonly statuses = assignmentStatuses;
   protected readonly statusOptions = Object.entries(assignmentStatuses);
   protected readonly busy = signal(false);
+  private readonly requestRefresh = whenIdle(
+    () => this.busy() || this.assignments.isLoading(),
+    () => this.assignments.reload(),
+  );
   private pendingFocus?: () => void;
   // A reload retains old rows until its response; restore only after that response removes the button.
   private readonly restoreAfterLoad = whenIdle(
@@ -69,7 +75,12 @@ export class AssignmentList {
       'מצב ההקצאה השתנה, או שהפרופיל או הפעילות כבר לא זמינים. רעננו את הרשימה.',
     );
   constructor() {
-    refreshOnReturn(() => this.assignments.reload());
+    this.updates.changes.subscribe(this.requestRefresh);
+    refreshOnReturn(this.requestRefresh);
+  }
+  protected refresh() {
+    if (this.updates.state() === 'unavailable') this.updates.reconnect();
+    else this.requestRefresh();
   }
   protected filterStatus(event: Event) {
     this.status.set((event.target as HTMLSelectElement).value as AssignmentStatus | '');
@@ -100,7 +111,7 @@ export class AssignmentList {
     try {
       await this.api.change(assignment, action, this.lifetime);
       if (this.lifetime.destroyed) return;
-      this.assignments.reload();
+      this.requestRefresh();
       this.notice.set(changed[action]);
     } catch (error) {
       if (!this.lifetime.destroyed)

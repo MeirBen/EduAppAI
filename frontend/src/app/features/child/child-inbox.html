@@ -9,14 +9,13 @@
         </p>
       }
     </div>
-    <button
-      class="text-link"
-      [disabledInteractive]="assignments.isLoading()"
-      (click)="assignments.reload()"
-    >
+    <button class="text-link" [disabledInteractive]="assignments.isLoading()" (click)="refresh()">
       <span class="icon icon-refresh" aria-hidden="true"></span>רענון הפעילויות
     </button>
   </header>
+  @if (updates.state() === 'unavailable') {
+    <p class="note" role="status">העדכונים נעצרו. לחצו על רענון הפעילויות כדי להתחבר מחדש.</p>
+  }
   <fieldset class="segmented">
     <legend class="sr-only">אילו פעילויות להציג?</legend>
     @for (view of views; track view.value) {

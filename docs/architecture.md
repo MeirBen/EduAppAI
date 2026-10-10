@@ -143,14 +143,21 @@ refuses a database that still holds pre-activity learning records, which
 ## Change notes
 
 `Features/Library` streams server-sent change notes to the family that made a
-write, after its commit. Successful library route writes publish through one
-endpoint filter; worker claims, checkpoints, recovery and diagnostic expiry
-publish after their commits. A note carries no content, so clients reread what
-they show. Each stream holds at most one
-pending note, so changes coalesce, and its first note covers anything committed
+write, after its commit. Successful library and child-session writes publish
+through one endpoint filter; worker claims, checkpoints, recovery and diagnostic
+expiry publish after their commits. A note carries no content, so clients reread
+what they show. Each stream holds at most one pending note, so changes coalesce,
+and its first note covers anything committed
 before it subscribed. A family may hold 16 streams. Each ends after five minutes
 or at shutdown, and reconnecting re-runs authentication. Like the queue,
 delivery is process-local.
+
+`GET /api/child/changes` exposes the same content-free family notes under child
+authentication. Both assignment lists follow notes; the child rereads only its
+own assignments. Hints coalesce during running reads or parent writes, and hidden
+pages close their streams. Refresh also reconnects a refused stream; returning to
+the app rereads even if streaming fails. Answer and grade buffers retain their
+explicit saved-state checks.
 
 ## Durable generation
 

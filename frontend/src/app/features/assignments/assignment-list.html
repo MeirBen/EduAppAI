@@ -11,11 +11,14 @@
       id="refresh-assignments"
       class="text-link"
       [disabledInteractive]="busy() || assignments.isLoading()"
-      (click)="assignments.reload()"
+      (click)="refresh()"
     >
       <span class="icon icon-refresh" aria-hidden="true"></span>רענון הפעילויות
     </button>
   </header>
+  @if (updates.state() === 'unavailable') {
+    <p class="note" role="status">העדכונים נעצרו. לחצו על רענון הפעילויות כדי להתחבר מחדש.</p>
+  }
   <div class="grid gap-4 sm:grid-cols-2">
     <app-child-selector
       [(value)]="childId"

@@ -8,7 +8,7 @@ import { pageVisible } from '../page-visibility';
  * Native EventSource reconnects transient failures; a refused connection needs explicit retry.
  * Retry also requests a read, so current state remains checkable when the stream is unavailable.
  */
-export function libraryChanges() {
+export function libraryChanges(path = '/api/library/changes') {
   const document = inject(DOCUMENT);
   const state = signal<'paused' | 'connecting' | 'connected' | 'unavailable'>('paused');
   const retry = new Subject<boolean>();
@@ -25,7 +25,7 @@ export function libraryChanges() {
             new Observable<void>((subscriber) => {
               state.set('connecting');
               // The service worker caches assets only; long-lived streams bypass it.
-              const source = new EventSource('/api/library/changes?ngsw-bypass');
+              const source = new EventSource(`${path}?ngsw-bypass`);
               source.onopen = () => state.set('connected');
               source.onmessage = () => subscriber.next();
               source.onerror = () => {

@@ -6,7 +6,7 @@ import { textSize } from './text-size';
 import { verifyParentReview } from './parent-review';
 
 async function login(page: Page, email = 'browser@example.test') {
-  await page.goto('/');
+  await page.goto('/login');
   await page.getByLabel('כתובת דוא״ל', { exact: true }).fill(email);
   await page.getByLabel('סיסמה', { exact: true }).fill('TestOnly!Parent12345');
   await page.getByRole('button', { name: 'כניסה למרחב שלנו' }).click();
@@ -118,10 +118,10 @@ test('prompt to activity, targeted chat, manual editing and an immutable approve
 }) => {
   const errors: string[] = [];
   page.on('pageerror', (error) => errors.push(error.message));
-  await page.goto('/');
+  await page.goto('/login');
   await expect(page.locator('html')).toHaveAttribute('lang', 'he');
   await expect(page.locator('html')).toHaveAttribute('dir', 'rtl');
-  // The first Tab is meaningful only once the app has rendered the page it redirects to.
+  // The first Tab is meaningful only once the login page has rendered.
   await expect(page.getByLabel('כתובת דוא״ל', { exact: true })).toBeVisible();
   await page.keyboard.press('Tab');
   await expect(page.getByRole('link', { name: 'דילוג לתוכן הראשי' })).toBeFocused();

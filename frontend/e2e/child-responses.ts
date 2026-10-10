@@ -47,6 +47,11 @@ export async function expectChildResponse(response: APIResponse) {
 /** Inspect the real server body before delivery; Angular request cleanup can evict Chromium's body. */
 export async function inspectChildResponses(page: Page) {
   await page.route('**/api/child/**', async (route) => {
+    // Streams stay unbuffered; backend tests verify their content-free wire format.
+    if (route.request().resourceType() === 'eventsource') {
+      expect(new URL(route.request().url()).pathname).toBe('/api/child/changes');
+      return route.continue();
+    }
     const response = await route.fetch({ maxRedirects: 0, maxRetries: 0 });
     await expectChildResponse(response);
     await route.fulfill({ response });
