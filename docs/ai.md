@@ -57,7 +57,11 @@ already applied to the plan, and the planner reads them as conversation behind
 the current plan rather than as unresolved requests. A live check on 10 October
 (six authoring calls, $0.024) returned to "the previous topic" from the
 conversation, where revision 45 had to ask which topic, and kept six questions
-when "harder questions" followed "two more questions", re-applying nothing.
+when "harder questions" followed "two more questions", re-applying nothing. A
+wider run (20 calls) passed all six scenarios: both repeats, undoing the last
+request, a change after saving that refers to the unsaved conversation, and a
+long chain where, past the window, the planner asked for the first message's
+topic instead of guessing.
 Revision 41 restores the measured authoring omission rule, shares planning
 defaults with revision, and keeps planning permissions out of content stages.
 Verification uses isolated providers and does not establish live-model quality.
