@@ -248,11 +248,11 @@ each start. Run one instance with persistent storage and set:
 - `Serilog__WriteTo__File__Args__configure__0__Args__path` (optional): a log
   file pattern on persistent storage, such as `/data/logs/server-.jsonl`.
 
-Provision the first parent from a shell in the running container:
+Provision the first parent from a shell in the running container, which
+inherits these settings:
 
 ```bash
-cd /app
-Storage__Directory=/data dotnet FamilyLearning.Api.dll --create-parent you@example.com
+cd /app && dotnet FamilyLearning.Api.dll --create-parent you@example.com
 ```
 
 ### Fly.io
