@@ -6,10 +6,7 @@ explicit approval. Children complete assigned work on their own devices and
 parents grade it. Every subject uses the same generic AI path; there are no
 subject-specific generators or seeded educational records.
 
-```text
-Describe an activity → create and refine its draft → approve when ready
-                                               ↘ it saves itself; resume later
-```
+**Describe an activity → it becomes a draft → create → review and edit → approve.**
 
 The [architecture](architecture.md) describes the implementation, the
 [chat design](activity-chat-design.md) the AI execution, the
