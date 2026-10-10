@@ -12,4 +12,5 @@ vi.stubGlobal(
 );
 beforeEach(() => {
   FakeEventSource.opened.length = 0;
+  localStorage.clear();
 });

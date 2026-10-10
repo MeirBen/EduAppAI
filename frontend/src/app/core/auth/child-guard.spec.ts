@@ -23,13 +23,33 @@ describe('Child route boundary', () => {
     vi.restoreAllMocks();
   });
 
-  it('refreshes into a child-only shell without parent identity or limits requests', async () => {
+  it('reopens a remembered child device at activation after its session is lost', async () => {
+    localStorage.setItem('entry-mode', 'child');
     const fixture = TestBed.createComponent(App),
       http = TestBed.inject(HttpTestingController);
     fixture.detectChanges();
-    const navigation = TestBed.inject(Router).navigateByUrl('/child');
+    const navigation = TestBed.inject(Router).navigateByUrl('/');
+    for (let check = 0; check < 2; check++)
+      (await vi.waitFor(() => http.expectOne('/api/child/auth/me'))).flush(
+        {},
+        { status: 401, statusText: 'Unauthorized' },
+      );
+    await navigation;
+    await fixture.whenStable();
+    expect(TestBed.inject(Router).url).toBe('/child/activate');
+    expect(fixture.nativeElement.querySelector('#activation-code')).not.toBeNull();
+    expect(localStorage.getItem('entry-mode')).toBe('child');
+    http.expectNone((r) => r.url.startsWith('/api/auth') || r.url === '/api/limits');
+  });
+
+  it.each(['/child', '/'])('restores %s without parent requests', async (url) => {
+    const fixture = TestBed.createComponent(App),
+      http = TestBed.inject(HttpTestingController);
+    fixture.detectChanges();
+    const navigation = TestBed.inject(Router).navigateByUrl(url);
     (await vi.waitFor(() => http.expectOne('/api/child/auth/me'))).flush(identity);
     (await vi.waitFor(() => http.expectOne('/api/child/auth/csrf'))).flush({});
+    if (url === '/') (await vi.waitFor(() => http.expectOne('/api/child/auth/me'))).flush(identity);
     await navigation;
     fixture.detectChanges();
     (await vi.waitFor(() => http.expectOne('/api/child/assignments?state=available&page=1'))).flush(
@@ -37,6 +57,7 @@ describe('Child route boundary', () => {
     );
     await fixture.whenStable();
     const root = fixture.nativeElement as HTMLElement;
+    expect(TestBed.inject(Router).url).toBe('/child');
     expect(root.querySelector('a[href="/child"]')).not.toBeNull();
     expect(root.querySelector('a[href="/activities"]')).toBeNull();
     expect(root.querySelector('[aria-label="ניהול המשפחה"]')).toBeNull();
@@ -46,16 +67,18 @@ describe('Child route boundary', () => {
   });
 
   it.each([
-    [401, '/child/activate'],
-    [503, '/child/access-unavailable'],
-  ])('handles HTTP %s with child recovery and a clean URL', async (status, url) => {
+    ['/child', 401, '/child/activate'],
+    ['/child', 503, '/child/access-unavailable'],
+    ['/', 503, '/access-unavailable'],
+    ['/', 403, '/access-unavailable'],
+  ] as const)('%s handles HTTP %s without parent requests', async (startUrl, status, url) => {
     const fixture = TestBed.createComponent(App),
       http = TestBed.inject(HttpTestingController);
     fixture.detectChanges();
-    const navigation = TestBed.inject(Router).navigateByUrl('/child');
+    const navigation = TestBed.inject(Router).navigateByUrl(startUrl);
     (await vi.waitFor(() => http.expectOne('/api/child/auth/me'))).flush(
       {},
-      { status: Number(status), statusText: 'Unavailable' },
+      { status, statusText: 'Unavailable' },
     );
     if (status === 401)
       (await vi.waitFor(() => http.expectOne('/api/child/auth/me'))).flush(
@@ -68,13 +91,19 @@ describe('Child route boundary', () => {
     const root = fixture.nativeElement as HTMLElement;
     expect(root.querySelector('#activation-code') !== null).toBe(status === 401);
     expect(root.textContent).not.toContain('כניסת הורים');
+    http.expectNone((r) => r.url.startsWith('/api/auth') || r.url === '/api/limits');
   });
 
-  it.each(['session', 'token'])('cancels superseded child %s checks', async (stage) => {
+  it.each([
+    ['/child', 'session'],
+    ['/child', 'token'],
+    ['/', 'session'],
+    ['/', 'token'],
+  ])('cancels superseded %s %s checks', async (url, stage) => {
     const fixture = TestBed.createComponent(App),
       http = TestBed.inject(HttpTestingController);
     fixture.detectChanges();
-    const navigation = TestBed.inject(Router).navigateByUrl('/child');
+    const navigation = TestBed.inject(Router).navigateByUrl(url);
     let pending = await vi.waitFor(() => http.expectOne('/api/child/auth/me'));
     if (stage === 'token') {
       pending.flush(identity);

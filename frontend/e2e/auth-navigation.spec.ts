@@ -12,6 +12,10 @@ async function signIn(page: Page) {
 test('saved login error parameters cannot create or restore a login error on refresh', async ({
   page,
 }) => {
+  await page.goto('/');
+  await expect(page.getByRole('link', { name: 'כניסה לפעילויות', exact: true })).toBeVisible();
+  await page.getByRole('link', { name: 'כניסת הורים', exact: true }).click();
+  await expect(page).toHaveURL('/login');
   const staleUrl = '/login?connection=unavailable&error=session-expired';
   await page.goto(staleUrl);
   await expect(page.getByLabel('סיסמה', { exact: true })).toBeVisible();
@@ -49,6 +53,8 @@ test('sign-in replaces the login history entry and authenticated visits skip the
   await page.reload();
   await expect(page.getByRole('heading', { name: 'פעילות חדשה', exact: true })).toBeVisible();
   await expect(page.getByLabel('סיסמה', { exact: true })).toHaveCount(0);
+  await page.goto('/');
+  await expect(page).toHaveURL('/activities/new');
 });
 
 test('Back skips an old login entry after signing in from another tab', async ({

@@ -48,6 +48,10 @@ disabling a profile revokes all its devices and pending codes, and re-enabling
 requires fresh activation. See the [child-flow contracts](docs/product-specification.md#child-flow)
 for scoring, profile details and history-preserving cleanup.
 
+The installed app remembers its last successful parent or child entry. When
+child access expires, enter a fresh code inside the app. If all browser data
+was cleared, choose **כניסה לפעילויות** on the app's opening screen.
+
 ## Start
 
 Use the **.NET 8 SDK** (selected by `global.json`) and a Node version allowed by

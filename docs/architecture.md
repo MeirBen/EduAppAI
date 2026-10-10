@@ -328,6 +328,14 @@ theme, skip link and navigation loader without owning either identity. Parent
 URLs remain unchanged. Child navigation never loads parent identity, limits or
 content APIs.
 
+The PWA starts at `/`. Its `canMatch` guard reads `DeviceEntry`, which remembers
+only `parent` or `child` after successful authentication. This local preference
+survives expiry and sign-out and selects a destination, never grants access.
+The destination's guard sends missing child access to activation and missing
+parent access to login. Without a preference, startup checks existing sessions
+or shows both entry choices. Failed checks show retry; blocked storage keeps
+the preference only in memory. No identity, code or answers enter this storage.
+
 `LearningApi`, `ParentChildrenApi` and `AssignmentApi` own parent URLs and
 contracts. Reads create `httpResource` in the caller's injection context and
 cancel on route change or destruction; check `hasValue()` before reading and

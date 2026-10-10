@@ -262,7 +262,13 @@ test('two families and siblings keep separate work through resume, lost submissi
     expect(
       await child.evaluate(() => JSON.stringify(localStorage) + JSON.stringify(sessionStorage)),
     ).not.toContain(code);
-    // Reopen a fresh browser context with only the persistent grant, without reactivating.
+    const manifestUrl = new URL(
+      (await child.locator('link[rel="manifest"]').getAttribute('href'))!,
+      child.url(),
+    );
+    const manifest = await (await child.request.get(manifestUrl.href)).json();
+    const startUrl = new URL(manifest.start_url, manifestUrl).href;
+    // Relaunch from the installed app's start URL with only the persistent grant.
     const cookie = (await context.cookies()).find(
       (cookie) => cookie.name === 'FamilyLearning.Child',
     )!;
@@ -277,7 +283,7 @@ test('two families and siblings keep separate work through resume, lost submissi
     child = await context.newPage();
     await inspectChildResponses(child);
     trackRequests(child);
-    await child.goto('/child');
+    await child.goto(startUrl);
     await expect(child).toHaveURL('/child');
     expect((await context.cookies()).find((c) => c.name === cookie.name)?.expires).toBe(
       cookie.expires,
@@ -430,8 +436,22 @@ test('two families and siblings keep separate work through resume, lost submissi
     expect(
       await child.evaluate(() => JSON.stringify(localStorage) + JSON.stringify(sessionStorage)),
     ).not.toContain(exactAnswer);
+    // Losing authentication keeps the child entry screen and allows activation inside the app.
+    await context.clearCookies();
+    await child.goto(startUrl);
+    await expect(child).toHaveURL('/child/activate');
+    const reactivation = await parent.request.post(`/api/children/${profile.id}/activation`, {
+      headers,
+      data: { deviceLabel: 'מכשיר הילדה' },
+    });
+    expect(reactivation.status()).toBe(200);
+    await child.getByLabel('הקוד מההורה', { exact: true }).fill((await reactivation.json()).code);
+    await child.getByRole('button', { name: 'כניסה', exact: true }).click();
+    await expect(child).toHaveURL('/child');
     child.once('dialog', (dialog) => dialog.accept());
     await child.getByRole('button', { name: 'יציאה', exact: true }).click();
+    await expect(child).toHaveURL('/child/activate');
+    await child.goto(startUrl);
     await expect(child).toHaveURL('/child/activate');
     const disconnected = await context.request.get('/api/child/auth/me');
     expect(disconnected.status()).toBe(401);
@@ -447,6 +467,8 @@ test('two families and siblings keep separate work through resume, lost submissi
     const revokedSibling = await siblingContext.request.get('/api/child/auth/me');
     expect(revokedSibling.status()).toBe(401);
     await expectChildResponse(revokedSibling);
+    await peers[0].page.goto(startUrl);
+    await expect(peers[0].page).toHaveURL('/child/activate');
     const foreign = peers[1];
     await foreign.page.reload();
     await expect(

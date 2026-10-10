@@ -2,7 +2,7 @@ import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { DisabledInteractive } from '../../../shared/disabled-interactive';
 
-/** Recoverable access failure; retry runs the normal parent guard without asking for credentials. */
+/** Recoverable access failure; retry repeats app entry routing without asking for credentials. */
 @Component({
   imports: [RouterLink, DisabledInteractive],
   selector: 'app-access-unavailable',

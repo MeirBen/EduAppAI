@@ -26,6 +26,7 @@ describe('Auth session state', () => {
     token.flush({}, { status: 503, statusText: 'Unavailable' });
     await failedLogin;
     expect(auth.signedIn()).toBe(false);
+    expect(localStorage.getItem('entry-mode')).toBeNull();
   });
 
   it('finishes sign-out even when a subsequent token refresh would fail', async () => {
@@ -44,5 +45,6 @@ describe('Auth session state', () => {
     await expect(logout).resolves.toBeUndefined();
     http.expectNone('/api/auth/csrf');
     expect(auth.signedIn()).toBe(false);
+    expect(localStorage.getItem('entry-mode')).toBe('parent');
   });
 });

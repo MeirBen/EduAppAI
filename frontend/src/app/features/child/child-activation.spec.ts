@@ -54,10 +54,12 @@ describe('Child activation', () => {
     const token = await vi.waitFor(() => http.expectOne('/api/child/auth/csrf'));
     expect(navigate).not.toHaveBeenCalled();
     expect(TestBed.inject(ChildAuth).identity()).toBeNull();
+    expect(localStorage.getItem('entry-mode')).toBeNull();
     token.flush({});
     await fixture.whenStable();
     await vi.waitFor(() => expect(code.value).toBe(''));
     expect(navigate).toHaveBeenCalledWith('/child', { replaceUrl: true });
+    expect(localStorage.getItem('entry-mode')).toBe('child');
   });
   it.each([true, false])(
     'checks a lost activation response without replaying the code (cookie arrived: %s)',

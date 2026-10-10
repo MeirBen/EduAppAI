@@ -2,12 +2,14 @@ import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { DestroyRef, inject, Injectable, signal } from '@angular/core';
 import { catchError, map, Observable, of, switchMap, tap, throwError } from 'rxjs';
 import { requestResult } from '../api/request-result';
+import { DeviceEntry } from './device-entry';
 
 /** Tracks the parent session for navigation; the browser keeps the HttpOnly authentication cookie. */
 @Injectable({ providedIn: 'root' })
 export class Auth {
   private readonly http = inject(HttpClient);
   private readonly lifetime = inject(DestroyRef);
+  private readonly entry = inject(DeviceEntry);
   private readonly session = signal(false);
   readonly signedIn = this.session.asReadonly();
 
@@ -25,7 +27,10 @@ export class Auth {
           ? of(false)
           : throwError(() => error),
       ),
-      tap((signedIn) => this.session.set(signedIn)),
+      tap((signedIn) => {
+        this.session.set(signedIn);
+        if (signedIn) this.entry.remember('parent');
+      }),
     );
   }
 
@@ -35,6 +40,7 @@ export class Auth {
     await requestResult(this.http.post('/api/auth/login', { email, password }), lifetime);
     await requestResult(this.refreshCsrf(), lifetime);
     this.session.set(true);
+    this.entry.remember('parent');
   }
 
   /** Sends a protected sign-out request and clears local state only after the server accepts it. */

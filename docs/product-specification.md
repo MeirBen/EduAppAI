@@ -263,6 +263,10 @@ delivery and gamification are out of scope.
   restarts and expires with the grant; clearing cookies needs fresh activation.
   The parent can revoke individual devices, and disconnecting on the child
   device revokes its grant.
+- The installed app remembers the last successful parent or child entry. Lost
+  child access returns to activation inside the app. If that preference and
+  both sessions are absent, the app offers child activation and parent login.
+  The preference grants no access and does not switch an active identity.
 - Parent and child policies use separate named
   [authentication schemes][auth-schemes]: neither cookie authorizes the other's
   APIs. Activation is refused with an active parent or child session, and parent

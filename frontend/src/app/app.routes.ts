@@ -1,4 +1,5 @@
 import { Routes } from '@angular/router';
+import { appEntryGuard } from './core/auth/app-entry-guard';
 import { parentGuard } from './core/auth/parent-guard';
 import { loginGuard, signOutGuard } from './core/auth/login-guard';
 import { activityWorkspaceRoutes } from './features/activities/activity.routes';
@@ -65,7 +66,6 @@ export const parentRoutes: Routes = [
             (module) => module.ActivityLibrary,
           ),
       },
-      { path: '', pathMatch: 'full', redirectTo: 'activities/new' },
     ],
   },
   { path: '**', redirectTo: 'activities/new' },
@@ -73,6 +73,14 @@ export const parentRoutes: Routes = [
 
 /** Child routes match before the parent shell and never run parent guards. */
 export const routes: Routes = [
+  {
+    path: '',
+    pathMatch: 'full',
+    // Installed apps launch here regardless of which page was open during installation.
+    canMatch: [appEntryGuard],
+    title: 'ברוכים הבאים · לומדים ביחד',
+    loadComponent: () => import('./features/auth/app-entry').then((m) => m.AppEntry),
+  },
   {
     path: 'child',
     loadChildren: () => import('./features/child/child.routes').then((m) => m.childRoutes),

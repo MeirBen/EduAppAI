@@ -3,12 +3,14 @@ import { DestroyRef, inject, Injectable, signal } from '@angular/core';
 import { catchError, map, of, switchMap, tap, throwError } from 'rxjs';
 import { ChildSessionIdentity } from '../api/child-models';
 import { requestResult } from '../api/request-result';
+import { DeviceEntry } from './device-entry';
 
 /** Device identity stays in memory; only the server's HttpOnly cookie grants child access. */
 @Injectable({ providedIn: 'root' })
 export class ChildAuth {
   private readonly http = inject(HttpClient);
   private readonly lifetime = inject(DestroyRef);
+  private readonly entry = inject(DeviceEntry);
   private readonly session = signal<ChildSessionIdentity | null>(null);
   readonly identity = this.session.asReadonly();
 
@@ -27,7 +29,10 @@ export class ChildAuth {
           ? of(null)
           : throwError(() => error),
       ),
-      tap((identity) => this.session.set(identity)),
+      tap((identity) => {
+        this.session.set(identity);
+        if (identity) this.entry.remember('child');
+      }),
     );
   }
 
