@@ -17,7 +17,7 @@ rm -rf -- "$repo_dir/logs"
 dotnet build tools/FamilyLearning.Evaluation
 
 printf '\nStarting Family Learning with automatic reload.\n'
-printf 'App: https://localhost:4200\nAPI: http://localhost:5124\nEvaluation: http://127.0.0.1:5180\n'
+printf 'App: http://localhost:4200\nAPI: http://localhost:5124\nEvaluation: http://127.0.0.1:5180\n'
 printf 'Evaluation starts without AI calls; confirm runs in its dashboard.\n'
 printf 'Press Ctrl+C to stop all services.\n\n'
 

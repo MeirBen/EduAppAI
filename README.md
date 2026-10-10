@@ -59,7 +59,7 @@ Use the **.NET 8 SDK** (selected by `global.json`) and a Node version allowed by
 ./scripts/dev.sh
 ```
 
-Open <https://localhost:4200>. Parent passwords need 12–256 characters with
+Open <http://localhost:4200>. Parent passwords need 12–256 characters with
 upper and lowercase letters, a number and a symbol. Each provisioned parent gets
 a family; there is no default account or public registration.
 
@@ -69,27 +69,9 @@ and client reload watchers and starts the evaluation dashboard at
 after configuration changes, and run `npm --prefix frontend ci` after dependency
 changes.
 Angular proxies `/api` to `http://localhost:5124`; use `localhost` consistently
-for cookies. Development applies the checked-in migrations.
-
-The client uses HTTPS, since browsers allow the APIs the app needs only on
-`localhost` or HTTPS. Trust a development certificate authority once per
-computer with [mkcert][mkcert], then restart the browser:
-
-```bash
-sudo apt install mkcert libnss3-tools # Ubuntu
-# Chrome on Linux reads trusted authorities from this database.
-if [ ! -d ~/.pki/nssdb ]; then
-  mkdir -p ~/.pki/nssdb
-  certutil -d sql:$HOME/.pki/nssdb -N --empty-password
-fi
-mkcert -install
-```
-
-`npm start` issues a trusted development certificate. Never share
-`rootCA-key.pem`. For access from other devices, use a
+for cookies. Development applies the checked-in migrations. The development
+server listens only on this computer; for other devices, use a
 [published app](#publish).
-
-[mkcert]: https://github.com/FiloSottile/mkcert
 
 AI settings, evaluation, results and costs are in the [AI guide](docs/ai.md).
 

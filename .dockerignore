@@ -1,4 +1,4 @@
-# Allowlist the image's build inputs; development databases, keys, certificates and outputs stay local.
+# Allowlist the image's build inputs; development databases, keys and outputs stay local.
 *
 !.editorconfig
 !Directory.Build.props

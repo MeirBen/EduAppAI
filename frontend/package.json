@@ -3,7 +3,6 @@
   "version": "0.0.0",
   "scripts": {
     "ng": "ng",
-    "prestart": "../scripts/dev-cert.sh",
     "start": "ng serve",
     "build": "ng build",
     "deps:update": "node tools/deps/update-deps.js",
