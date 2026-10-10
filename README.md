@@ -127,6 +127,27 @@ Open the HTTPS address and sign in. `/health` reports API process availability,
 not database or AI readiness. The PWA service worker is enabled only in published
 builds; the development server serves live changes.
 
+## Update dependencies
+
+Stop the development watchers, then run either command from the repository root:
+
+```bash
+./scripts/updatedepsadvanced.sh       # Server, tests, evaluation tool and UI
+npm --prefix frontend run deps:update # UI only
+```
+
+The server script restores the pinned local `dotnet-outdated` tool and updates
+NuGet packages to stable releases. ASP.NET Core and EF Core stay within their
+current major versions; other packages may receive major upgrades. It preserves
+the target frameworks, regenerates `packages.lock.json` files and builds the
+solution, then runs the UI updater. The UI script uses `npm-check-updates --peer`
+to select the latest peer-compatible versions, removes `.angular`, `node_modules`
+and `package-lock.json`, then runs `npm install` to regenerate the lockfile.
+
+Both commands require network access and leave changes in place if a later step
+fails. Review manifests and lockfiles together, resolve any breaking changes,
+and run `./scripts/verify.sh` before using the updated dependencies.
+
 ## Verify
 
 ```bash

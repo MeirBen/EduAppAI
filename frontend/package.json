@@ -7,9 +7,10 @@
     "start": "ng serve",
     "start:public": "exec ../scripts/dev.sh --public",
     "build": "ng build",
+    "deps:update": "node tools/deps/update-deps.js",
     "test": "ng test",
-    "format": "prettier --write \"src/**/*.{ts,html,css}\" \"e2e/**/*.{ts,mjs}\" \"*.{ts,json}\" public/manifest.webmanifest ../.prettierrc .postcssrc.json \"../*.json\" ../.markdownlint-cli2.jsonc \"../*.md\" \"../docs/**/*.md\" ../.github/workflows/verify.yml",
-    "format:check": "prettier --check \"src/**/*.{ts,html,css}\" \"e2e/**/*.{ts,mjs}\" \"*.{ts,json}\" public/manifest.webmanifest ../.prettierrc .postcssrc.json \"../*.json\" ../.markdownlint-cli2.jsonc \"../*.md\" \"../docs/**/*.md\" ../.github/workflows/verify.yml",
+    "format": "prettier --write \"src/**/*.{ts,html,css}\" \"e2e/**/*.{ts,mjs}\" \"tools/**/*.js\" \"*.{ts,json}\" public/manifest.webmanifest ../.prettierrc .postcssrc.json \"../*.json\" ../.markdownlint-cli2.jsonc \"../*.md\" \"../docs/**/*.md\" ../.github/workflows/verify.yml",
+    "format:check": "prettier --check \"src/**/*.{ts,html,css}\" \"e2e/**/*.{ts,mjs}\" \"tools/**/*.js\" \"*.{ts,json}\" public/manifest.webmanifest ../.prettierrc .postcssrc.json \"../*.json\" ../.markdownlint-cli2.jsonc \"../*.md\" \"../docs/**/*.md\" ../.github/workflows/verify.yml",
     "e2e": "playwright test",
     "lint:md": "cd .. && markdownlint-cli2",
     "typecheck:e2e": "tsc -p tsconfig.e2e.json"
