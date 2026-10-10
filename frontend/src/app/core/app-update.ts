@@ -1,8 +1,11 @@
-import { DOCUMENT, Injectable, inject } from '@angular/core';
+import { DOCUMENT, Injectable, computed, inject, signal } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { SwUpdate } from '@angular/service-worker';
 import { filter, map } from 'rxjs';
 import { refreshOnReturn } from './page-visibility';
+
+/** `ready`: a newer build opens on reload. `broken`: the cached build can no longer load its files. */
+export type UpdateNotice = 'ready' | 'broken';
 
 /**
  * The service worker's build state for the whole app. Reloading opens the newer build, and each
@@ -12,17 +15,21 @@ import { refreshOnReturn } from './page-visibility';
 export class AppUpdate {
   private readonly updates = inject(SwUpdate);
   private readonly document = inject(DOCUMENT);
-  /** A newer build is installed and opens on reload. */
-  readonly ready = toSignal(
+  private readonly ready = toSignal(
     this.updates.versionUpdates.pipe(
       filter((event) => event.type === 'VERSION_READY'),
       map(() => true),
     ),
     { initialValue: false },
   );
-  /** The cached build can no longer load its files, so only a reload recovers. */
-  readonly broken = toSignal(this.updates.unrecoverable.pipe(map(() => true)), {
+  private readonly broken = toSignal(this.updates.unrecoverable.pipe(map(() => true)), {
     initialValue: false,
+  });
+  private readonly dismissed = signal<UpdateNotice | null>(null);
+  /** A broken cache outranks a ready build; dismissing hides only the notice shown, so a later failure still appears. */
+  readonly notice = computed(() => {
+    const notice: UpdateNotice | null = this.broken() ? 'broken' : this.ready() ? 'ready' : null;
+    return notice === this.dismissed() ? null : notice;
   });
 
   constructor() {
@@ -33,5 +40,9 @@ export class AppUpdate {
 
   reload() {
     this.document.location.reload();
+  }
+
+  dismiss() {
+    this.dismissed.set(this.notice());
   }
 }

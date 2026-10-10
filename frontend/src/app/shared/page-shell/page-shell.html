@@ -21,17 +21,6 @@
     [active]="busy() || !!router.currentNavigation()"
     [label]="busy() ? 'מתנתקים…' : 'פותחים את המרחב…'"
   />
-  @if (update.broken()) {
-    <div class="error mb-6 flex flex-wrap items-center gap-x-4" role="alert">
-      <p>הגרסה של האתר שנשמרה בדפדפן כבר לא זמינה. יש לטעון את העמוד מחדש.</p>
-      <ng-container [ngTemplateOutlet]="reload" />
-    </div>
-  } @else if (update.ready()) {
-    <div class="callout mb-6 flex flex-wrap items-center gap-x-4" role="status">
-      <p>גרסה חדשה של האתר מוכנה.</p>
-      <ng-container [ngTemplateOutlet]="reload" />
-    </div>
-  }
   <ng-content />
 </main>
 <footer class="app-footer">
@@ -42,9 +31,28 @@
     <app-theme-picker />
   </div>
 </footer>
+@switch (update.notice()) {
+  @case ('broken') {
+    <div class="toast" data-problem role="alert">
+      <p>הגרסה של האתר שנשמרה בדפדפן כבר לא זמינה. יש לטעון את העמוד מחדש.</p>
+      <ng-container [ngTemplateOutlet]="updateActions" />
+    </div>
+  }
+  @case ('ready') {
+    <div class="toast" role="status">
+      <p>גרסה חדשה של האתר מוכנה.</p>
+      <ng-container [ngTemplateOutlet]="updateActions" />
+    </div>
+  }
+}
 
-<ng-template #reload>
-  <button class="text-link" type="button" (click)="update.reload()">
-    <span class="icon icon-refresh" aria-hidden="true"></span>טעינה מחדש
-  </button>
+<ng-template #updateActions>
+  <span class="flex items-center gap-2">
+    <button class="text-link" type="button" (click)="update.reload()">
+      <span class="icon icon-refresh" aria-hidden="true"></span>טעינה מחדש
+    </button>
+    <button class="icon-button icon-button-quiet" type="button" (click)="update.dismiss()">
+      <span class="icon icon-close" aria-hidden="true"></span><span class="tooltip">סגירה</span>
+    </button>
+  </span>
 </ng-template>

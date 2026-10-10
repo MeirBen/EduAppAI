@@ -498,4 +498,15 @@
   .callout {
     @apply rounded-button border border-s-4 border-line border-s-brand bg-surface p-4;
   }
+  /*
+   * An app-wide notice floating at the block-end, inline-end corner, so it never shifts the page or
+   * takes focus; it can be closed where it covers content. `data-problem` marks a failure.
+   */
+  .toast {
+    @apply fixed inset-x-4 inset-be-4 z-50 flex flex-wrap items-center justify-between gap-x-4 gap-y-2 rounded-button border border-s-4 border-line border-s-brand bg-surface p-4 shadow-(--shadow-raised) sm:inset-s-auto sm:max-w-xs;
+
+    &[data-problem] {
+      @apply border-danger/25 border-s-danger bg-danger-soft text-danger;
+    }
+  }
 }

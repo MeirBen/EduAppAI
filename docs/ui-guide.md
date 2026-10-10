@@ -156,11 +156,13 @@ below half-width. Render optional content only when present.
   `empty-state`), conversation (`chat-panel`, `chat-title`, `chat-message`,
   `chat-reply`, `chat-latest`, `chat-target`, `composer`), marks (`badge`,
   `icon-tile`, `status-icon`, `ai-mark`, `code`), lists (`steps`) and feedback
-  (`loading`, `note`, `error`, `field-error`, `callout`).
+  (`loading`, `note`, `error`, `field-error`, `callout`, `toast`).
   Use `note`, with one icon, for a short fact about how the app behaves, such as
   kept text, costs or limits; help on what to enter stays plain text under its
   field. Use `error` for a failure that replaces a page's content and
-  `field-error` beside the field, card or action that failed.
+  `field-error` beside the field, card or action that failed. `toast` is only
+  for app-wide news that arrives while a page is open, such as a new build: it
+  floats without shifting the page or taking focus, and it can be closed.
 - `icons.css` holds the icon set: masks painted with the current text color,
   drawn for right-to-left reading where they point.
 

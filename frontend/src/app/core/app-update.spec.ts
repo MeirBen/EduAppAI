@@ -40,22 +40,32 @@ describe('AppUpdate', () => {
     const { update, versionUpdates, page } = setup();
     const version = { hash: 'next' };
     versionUpdates.next({ type: 'VERSION_DETECTED', version });
-    expect(update.ready()).toBe(false);
+    expect(update.notice()).toBeNull();
 
     versionUpdates.next({
       type: 'VERSION_READY',
       currentVersion: { hash: 'old' },
       latestVersion: version,
     });
-    expect(update.ready()).toBe(true);
+    expect(update.notice()).toBe('ready');
     update.reload();
     expect(page.location.reload).toHaveBeenCalledOnce();
   });
 
-  it('reports a cached build that can no longer load', () => {
-    const { update, unrecoverable } = setup();
+  it('lets the reader close a ready notice, but a broken cache still appears afterwards', () => {
+    const { update, versionUpdates, unrecoverable } = setup();
+    versionUpdates.next({
+      type: 'VERSION_READY',
+      currentVersion: { hash: 'old' },
+      latestVersion: { hash: 'next' },
+    });
+    update.dismiss();
+    expect(update.notice()).toBeNull();
+
     unrecoverable.next({ type: 'UNRECOVERABLE_STATE', reason: 'missing file' });
-    expect(update.broken()).toBe(true);
+    expect(update.notice()).toBe('broken');
+    update.dismiss();
+    expect(update.notice()).toBeNull();
   });
 
   it('checks again each time an open tab returns, tolerating a failed check', () => {

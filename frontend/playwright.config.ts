@@ -14,7 +14,14 @@ export default defineConfig({
         '**/auth-navigation.spec.ts',
         '**/parent-assignments.spec.ts',
         '**/child-workflow.spec.ts',
+        '**/app-update.spec.ts',
       ],
+    },
+    // The only project with service workers: it serves its own builds without the API.
+    {
+      name: 'app-update',
+      testMatch: '**/app-update.spec.ts',
+      use: { serviceWorkers: 'allow' },
     },
     {
       name: 'auth',

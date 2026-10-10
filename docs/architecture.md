@@ -416,7 +416,8 @@ copy creates a new draft without AI. The PWA caches assets only; an open tab
 checks for a newer build on each return and offers a reload, which each page's
 unload warning still guards, and a cache that can no longer load asks for one.
 One Playwright suite tests the published app against a local provider, with
-service workers blocked so routing observes every request. See the
+service workers blocked so routing observes every request; only the update test
+lets the worker meet a second build. See the
 [UI guide](ui-guide.md) and [verification](../README.md#verify). References:
 [IChatClient][chat], [structured output][output], [Signal Forms][forms].
 
