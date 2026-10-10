@@ -134,4 +134,43 @@ describe('Immutable parent preview', () => {
     );
     expect(isolated).toEqual(['58 - 23 = ?', '35', '-35', '35']);
   });
+
+  it('checks the named copy after its response was lost, even if the source snapshot was removed', async () => {
+    const { root, http, fixture } = await preview([]);
+    root.querySelector<HTMLButtonElement>('#copy-snapshot')!.click();
+    const lost = http.expectOne('/api/activity-drafts');
+    lost.error(new ProgressEvent('error'));
+    await fixture.whenStable();
+    await vi.waitFor(() => expect(root.querySelector('[role="alert"]')).not.toBeNull());
+    root.querySelector<HTMLButtonElement>('#copy-snapshot')!.click();
+    http
+      .expectOne('/api/activity-drafts/' + lost.request.body.id)
+      .flush({ id: lost.request.body.id });
+    await fixture.whenStable();
+    await vi.waitFor(() =>
+      expect(root.querySelector(`a[href="/activities/${lost.request.body.id}"]`)).not.toBeNull(),
+    );
+    http.expectNone((request) => request.method === 'POST');
+    http.verify();
+  });
+
+  it('replays the same copy identity only after its saved-state check finds no draft', async () => {
+    const { root, http, fixture } = await preview([]);
+    root.querySelector<HTMLButtonElement>('#copy-snapshot')!.click();
+    const lost = http.expectOne('/api/activity-drafts');
+    lost.error(new ProgressEvent('error'));
+    await fixture.whenStable();
+    await vi.waitFor(() => expect(root.querySelector('[role="alert"]')).not.toBeNull());
+    root.querySelector<HTMLButtonElement>('#copy-snapshot')!.click();
+    http.expectOne('/api/activity-drafts/' + lost.request.body.id).flush(null, {
+      status: 404,
+      statusText: 'Not Found',
+    });
+    await fixture.whenStable();
+    const replay = http.expectOne('/api/activity-drafts');
+    expect(replay.request.body).toEqual(lost.request.body);
+    replay.flush({ id: lost.request.body.id });
+    await fixture.whenStable();
+    http.verify();
+  });
 });

@@ -279,16 +279,16 @@ describe('ActivityWorkspace plan ownership', () => {
     await click('confirm-source-' + id);
     await autosave();
     const save = http.expectOne('/api/activity-drafts');
-    // The setup shows its source editor only while the plan is editable.
     const source = root().querySelector<HTMLTextAreaElement>('#source-' + id);
-    expect(!source || source.disabled).toBe(true);
+    expect(source).not.toBeNull();
+    expect(source!.disabled).toBe(true);
     expect(field('chat-message').disabled).toBe(true);
     save.flush(draft(save.request.body.plan));
     await settle();
     expect(field('chat-message').disabled).toBe(false);
   });
 
-  it('retries the first save under the same draft identity after a lost response', async () => {
+  it('checks an uncertain first save before allowing further authoring', async () => {
     await open();
     reply(await ask());
     await settle();
@@ -297,13 +297,159 @@ describe('ActivityWorkspace plan ownership', () => {
     expect(lost.request.body.id).toMatch(/^[0-9a-f-]{36}$/);
     lost.error(new ProgressEvent('error'));
     await settle();
-    reply(await ask('עוד שאלה'), { ...numericPlan, name: 'מעודכן' });
+    await vi.waitFor(() => expect(root().textContent).not.toContain('שומרים…'));
+    expect(field('chat-message').disabled).toBe(true);
+    expect(root().querySelector('#recover-create')).not.toBeNull();
+    await autosave();
+    http.expectNone('/api/activity-drafts');
+    await click('recover-create');
+    http.expectOne('/api/activity-drafts/' + lost.request.body.id).flush({
+      ...draft(numericPlan),
+      id: lost.request.body.id,
+    });
+    await settle();
+    expect(field('chat-message').disabled).toBe(false);
+    await type('chat-message', 'עוד שאלה');
+    await click('chat-send');
+    const revision = http.expectOne('/api/activity-drafts/' + lost.request.body.id + '/operations');
+    expect(revision.request.body.kind).toBe('Revise');
+    revision.flush({}, { status: 400, statusText: 'Bad Request' });
+    await settle();
+  });
+
+  it('replays the frozen initial request only when its explicit check finds no saved draft', async () => {
+    await open();
+    reply(await ask(), suppliedPlan);
+    await settle();
+    const id = suppliedPlan.materials[0].id;
+    await click('confirm-source-' + id);
+    await autosave();
+    const lost = http.expectOne('/api/activity-drafts');
+    lost.error(new ProgressEvent('error'));
+    await settle();
+    await vi.waitFor(() => expect(root().textContent).not.toContain('שומרים…'));
+    const source = root().querySelector<HTMLTextAreaElement>('#source-' + id);
+    expect(source).not.toBeNull();
+    expect(source!.disabled).toBe(true);
+    await click('recover-create');
+    http.expectOne('/api/activity-drafts/' + lost.request.body.id).flush(null, {
+      status: 404,
+      statusText: 'Not Found',
+    });
+    await settle();
+    const replay = http.expectOne('/api/activity-drafts');
+    expect(replay.request.body).toEqual(lost.request.body);
+    replay.flush({ ...draft(suppliedPlan), id: lost.request.body.id });
+    await settle();
+    expect(field('chat-message').disabled).toBe(false);
+    expect(root().querySelector('#recover-create')).toBeNull();
+  });
+
+  it('keeps a definitely rejected initial save editable', async () => {
+    await open();
+    reply(await ask());
     await settle();
     await autosave();
-    const retry = http.expectOne('/api/activity-drafts');
-    expect(retry.request.body.id).toBe(lost.request.body.id);
-    retry.flush(draft(retry.request.body.plan));
+    http.expectOne('/api/activity-drafts').flush(null, { status: 400, statusText: 'Bad Request' });
     await settle();
+    await vi.waitFor(() => expect(field('chat-message').disabled).toBe(false));
+    expect(root().querySelector('#recover-create')).toBeNull();
+  });
+
+  it('locks a first save flushed by navigation and retains recovery after its response is lost', async () => {
+    await open();
+    reply(await ask(), suppliedPlan);
+    await settle();
+    const id = suppliedPlan.materials[0].id;
+    await click('confirm-source-' + id);
+    const workspace = harness.routeDebugElement!.componentInstance as ActivityWorkspace;
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
+    const leaving = workspace.canLeave();
+    await settle();
+    const save = http.expectOne('/api/activity-drafts');
+    expect(field('source-' + id).disabled).toBe(true);
+    expect(field('chat-message').disabled).toBe(true);
+    expect(root().querySelector('#recover-create')).toBeNull();
+    save.error(new ProgressEvent('error'));
+    expect(await leaving).toBe(false);
+    await settle();
+    expect(field('source-' + id).disabled).toBe(true);
+    expect(field('chat-message').disabled).toBe(true);
+    expect(root().querySelector('#recover-create')).not.toBeNull();
+    await click('recover-create');
+    http.expectOne('/api/activity-drafts/' + save.request.body.id).flush({
+      ...draft(suppliedPlan),
+      id: save.request.body.id,
+    });
+    await settle();
+    await vi.waitFor(() => expect(field('chat-message').disabled).toBe(false));
+    expect(confirm).toHaveBeenCalledOnce();
+    confirm.mockRestore();
+  });
+
+  it('retains creation recovery after a failed check and preserves an unsent message through recovery', async () => {
+    await open();
+    reply(await ask());
+    await settle();
+    await type('chat-message', 'בקשה שמחכה לשליחה');
+    await autosave();
+    const lost = http.expectOne('/api/activity-drafts');
+    lost.error(new ProgressEvent('error'));
+    await settle();
+    await vi.waitFor(() => expect(root().textContent).not.toContain('שומרים…'));
+    const workspace = harness.routeDebugElement!.componentInstance as ActivityWorkspace;
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
+    expect(await workspace.canLeave()).toBe(false);
+    http.expectNone('/api/activity-drafts');
+    await click('recover-create');
+    http
+      .expectOne('/api/activity-drafts/' + lost.request.body.id)
+      .error(new ProgressEvent('error'));
+    await settle();
+    await vi.waitFor(() => expect(root().textContent).not.toContain('שומרים…'));
+    expect(field('chat-message').value).toBe('בקשה שמחכה לשליחה');
+    expect(field('chat-message').disabled).toBe(true);
+    await click('recover-create');
+    http.expectOne('/api/activity-drafts/' + lost.request.body.id).flush({
+      ...draft(numericPlan),
+      id: lost.request.body.id,
+    });
+    await settle();
+    await vi.waitFor(() => expect(field('chat-message').disabled).toBe(false));
+    expect(field('chat-message').value).toBe('בקשה שמחכה לשליחה');
+    expect(await workspace.canLeave()).toBe(false);
+    expect(confirm).toHaveBeenCalledTimes(2);
+    confirm.mockRestore();
+  });
+
+  it('keeps a replay conflict checkable and accepts the saved draft changed elsewhere', async () => {
+    await open();
+    reply(await ask());
+    await settle();
+    await autosave();
+    const lost = http.expectOne('/api/activity-drafts');
+    lost.error(new ProgressEvent('error'));
+    await settle();
+    await vi.waitFor(() => expect(root().textContent).not.toContain('שומרים…'));
+    await click('recover-create');
+    http.expectOne('/api/activity-drafts/' + lost.request.body.id).flush(null, {
+      status: 404,
+      statusText: 'Not Found',
+    });
+    await settle();
+    http.expectOne('/api/activity-drafts').flush(null, { status: 409, statusText: 'Conflict' });
+    await settle();
+    await vi.waitFor(() => expect(root().textContent).not.toContain('שומרים…'));
+    expect(root().querySelector('#recover-create')).not.toBeNull();
+    await click('recover-create');
+    http.expectOne('/api/activity-drafts/' + lost.request.body.id).flush({
+      ...draft({ ...numericPlan, name: 'מעודכן במכשיר אחר' }),
+      id: lost.request.body.id,
+      revision: 2,
+    });
+    await settle();
+    await vi.waitFor(() => expect(field('chat-message').disabled).toBe(false));
+    expect(root().textContent).toContain('מעודכן במכשיר אחר');
   });
 
   it('copies an activity it created and approved under a new draft identity', async () => {

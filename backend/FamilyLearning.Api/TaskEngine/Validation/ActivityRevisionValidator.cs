@@ -66,6 +66,9 @@ public static class ActivityRevisionValidator
             document.Title is not null && !HasText(document.Title, TitleLength) ||
             document.Instructions is not null && !HasText(document.Instructions, InstructionsLength)))
             errors.AddError("document", "הכותרת או ההוראות החדשות אינן תקינות.");
+        // These rules trigger no content stage, so a rule change for existing content must carry an explicit document edit.
+        if (HasGeneratedContent(input.Plan, input.Current) && plan.DocumentGuidance != input.Plan.DocumentGuidance && change.Document is null)
+            errors.AddError("document", "שינוי בהנחיות לכותרת ולהוראות דורש את הטקסט המעודכן שלהן.");
         if (!HasGeneratedContent(input.Plan, input.Current) && (change.MaterialEdits is not { Length: 0 } ||
             questions?.Scope != "none" || change.QuestionOrder is not null || change.Document is not null))
             errors.AddError("change", "לפני היצירה יש לשנות רק את הדרישות והמקורות המאושרים.");

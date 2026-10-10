@@ -39,15 +39,12 @@ internal static class ActivityDraftChanges
     internal static (LearningPlan Plan, TaskDocument Document) Apply(ActivityDraft draft, SaveActivityRequest body)
     {
         var current = draft.Document;
-        var previousPlan = draft.Plan;
-        var plan = ValidateManualSave(previousPlan, current, body);
-        // Generated texts read supplied sources as context without recording which, so a confirmed swap stales all of them.
-        if (body.SourceReplacements is { Length: > 0 })
-        {
-            var generated = plan.Materials.Where(m => m.Source == "generated").Select(m => new MaterialRewrite(m.Id!, null)).ToArray();
-            current = RevisionScope.PrepareDocument(previousPlan, current, plan, new([], generated, "all", [], null, null, false));
-        }
+        var plan = ValidateManualSave(draft.Plan, current, body);
         var request = TaskRequestResolver.ResolveOrThrow(plan);
+        // Generated texts read supplied sources as context without recording which, so a confirmed swap stales all of them.
+        // Align only the supplied content; acceptance for generated texts and questions stays under the previous input.
+        if (body.SourceReplacements is { Length: > 0 })
+            current = TaskAssembly.AlignSources(request, current);
         var edit = body.Document;
         var fingerprint = TaskRequestResolver.Fingerprint(request);
         var materials = new MaterialContent[current.Materials.Length];

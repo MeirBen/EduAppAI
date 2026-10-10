@@ -382,9 +382,14 @@ valid buffer and runs through the same serialized write that creation, chat,
 adoption and approval flush, so two writes never share an expected revision.
 Autosave waits while a chat request is authored. The first save creates the
 draft under an identity the page chose, and locks the page like any draft
-request, so no edit or authoring request crosses it; a retry after a lost
-response replays that draft instead of adding another. A copy of a released
-snapshot gets its own identity and replays only a copy of the same snapshot.
+request, so no edit or authoring request crosses it. An uncertain response
+retains that exact request and keeps setup paused until an explicit check reads
+the named draft. Only a 404 allows that check to replay the original unpaid
+creation; other read failures preserve recovery. A definite validation rejection
+leaves setup editable, while a conflicting identity still offers the saved-state
+check. A copy of a released snapshot gets its own identity; recovery reads that
+copy first, even if its source was removed or its plan changed, and only a
+missing copy replays the same snapshot request.
 Later saves never lock the fields. A response replaces the buffer only when
 nothing was typed since it was sent; newer edits stay and save next. A conflict
 pauses autosave until a saved version replaces the buffer. Leaving first saves a

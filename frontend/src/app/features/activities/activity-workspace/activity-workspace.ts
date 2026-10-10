@@ -19,11 +19,13 @@ import { apply, disabled, form, maxLength, validate, validateTree } from '@angul
 import { Router, RouterLink } from '@angular/router';
 import { apiError, rejected, writeError } from '../../../core/api/api-error';
 import { LearningApi } from '../../../core/api/learning-api';
+import { requestResult } from '../../../core/api/request-result';
 import { Limits } from '../../../core/api/limits';
 import {
   ActivityDetail,
   GenerationKind,
   GenerationOperation,
+  ImportedChatTurn,
   LearningPlan,
   StartGeneration,
   RevisionTarget,
@@ -144,6 +146,11 @@ export class ActivityWorkspace {
    */
   private readonly newDraftId = crypto.randomUUID();
   private readonly copyId = crypto.randomUUID();
+  private checkCopy = false;
+  /** Keeps the first request unchanged until its saved outcome is known; newer requirements must use the saved draft's chat. */
+  protected readonly createRecovery = signal<
+    { plan: LearningPlan; chat: ImportedChatTurn[]; revision: number } | undefined
+  >(undefined);
   protected readonly copying = signal(false);
   protected readonly notice = signal('');
   /** The last action's problem; `reload` marks a request whose outcome the saved version may show. */
@@ -182,14 +189,20 @@ export class ActivityWorkspace {
   );
   /** Editing pauses during work and stays locked once the activity is released. */
   protected readonly locked = computed(
-    () => this.saving() || this.released() || this.operationActive() || !!this.startRecovery(),
+    () =>
+      this.saving() ||
+      this.released() ||
+      this.operationActive() ||
+      !!this.startRecovery() ||
+      !!this.createRecovery(),
   );
   protected readonly aiConfigured = computed(
     () => this.ai.hasValue() && this.ai.value().configured,
   );
   /** Content actions wait for a running save or operation and for any unresolved start. */
   protected readonly contentBusy = computed(
-    () => this.saving() || this.operationActive() || !!this.startRecovery(),
+    () =>
+      this.saving() || this.operationActive() || !!this.startRecovery() || !!this.createRecovery(),
   );
   protected readonly updates = libraryChanges();
   /** The editable draft changed or was deleted elsewhere; nothing is applied unasked. */
@@ -655,6 +668,27 @@ export class ActivityWorkspace {
     });
   }
 
+  /** Checks the named draft first; only a missing draft replays its original, unpaid creation request. */
+  protected async recoverCreate() {
+    const pending = this.createRecovery();
+    if (!pending || this.saving()) return;
+    await this.runDraftRequest(async () => {
+      let saved: ActivityDetail;
+      try {
+        saved = await requestResult(this.api.readActivity(this.newDraftId), this.lifetime);
+      } catch (error) {
+        if (!(error instanceof HttpErrorResponse && error.status === 404)) throw error;
+        await this.flushDraft();
+        return;
+      }
+      if (this.lifetime.destroyed) return;
+      this.location.replaceState('/activities/' + saved.id);
+      this.acceptSave(saved, pending.revision);
+      this.createRecovery.set(undefined);
+      this.activityError.set(undefined);
+    });
+  }
+
   protected async cancelGeneration() {
     const id = this.saved()?.id,
       operationId = this.operationId();
@@ -674,9 +708,12 @@ export class ActivityWorkspace {
     this.copying.set(true);
     this.activityError.set(undefined);
     try {
-      const draft = await this.api.copySnapshot(id, this.copyId, this.lifetime);
+      const draft = await this.api.copySnapshot(id, this.copyId, this.lifetime, this.checkCopy);
+      // A cancelled navigation keeps this page alive; its next attempt opens this same saved copy.
+      this.checkCopy = true;
       if (!this.lifetime.destroyed) await this.router.navigate(['/activities', draft.id]);
     } catch (error) {
+      this.checkCopy ||= !rejected(error);
       if (!this.lifetime.destroyed)
         this.activityError.set({
           message: writeError(
@@ -696,7 +733,7 @@ export class ActivityWorkspace {
    * cannot wait for a save, so it warns during that pause.
    */
   async canLeave() {
-    if (this.savesItself()) await this.flushDraft().catch(() => undefined);
+    if (this.savesItself()) await this.autosave();
     return !this.localWork() || window.confirm('יש שינויים שלא נשמרו. לצאת מהעמוד?');
   }
 
@@ -748,7 +785,7 @@ export class ActivityWorkspace {
   }
 
   /**
-   * Saves a valid buffer once the parent pauses; invalid content waits for its fix, shown at its fields. The first save
+   * Saves a valid buffer after a pause or before leaving; invalid content waits for its fix, shown at its fields. The first save
    * creates the draft and locks the page like any draft request, so no edit or authoring request can cross it; later
    * saves run in the background without locking fields.
    */
@@ -801,16 +838,34 @@ export class ActivityWorkspace {
     }
     let saved = this.saved();
     if (!saved) {
-      saved = await this.api.createActivity(
-        this.newDraftId,
+      const request = this.createRecovery() ?? {
         plan,
-        this.lifetime,
-        this.chatSession.authorThread(),
-      );
+        chat: this.chatSession.authorThread(),
+        revision: sent,
+      };
+      try {
+        saved = await this.api.createActivity(
+          this.newDraftId,
+          request.plan,
+          this.lifetime,
+          request.chat,
+        );
+      } catch (error) {
+        // A conflicting identity can name a draft changed elsewhere; keep its saved-state check available.
+        if (!this.lifetime.destroyed)
+          this.createRecovery.set(
+            !rejected(error) || (error instanceof HttpErrorResponse && error.status === 409)
+              ? request
+              : undefined,
+          );
+        throw error;
+      }
       if (this.lifetime.destroyed) return;
       // Keep this workspace and its pending action alive while making reload reopen the durable draft.
       this.location.replaceState('/activities/' + saved.id);
-      this.acceptSave(saved, sent);
+      this.acceptSave(saved, request.revision);
+      this.createRecovery.set(undefined);
+      this.activityError.set(undefined);
       return saved;
     }
     if (!this.dirty()) return saved;

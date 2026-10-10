@@ -353,8 +353,11 @@ history; failure/cancellation returns it for an explicit new attempt.
 first exchange and apply to the current activity; mark AI execution actions with
 `icon-ai`.
 
-Every valid change saves itself about a second after the parent pauses, without
-locking the fields; there is no save action. Use **יצירת הפעילות** for initial
+Every valid change saves itself about a second after the parent pauses; there
+is no save action. Only the first save pauses setup, keeping supplied text
+visible and disabled. If its outcome is uncertain, offer **בדיקת שמירת הטיוטה**
+and keep setup paused until it is resolved. Later saves never lock the fields.
+Use **יצירת הפעילות** for initial
 generation and **אישור הפעילות** for explicit approval of the saved revision.
 The action bar shows the relevant action and available Undo. Saving and approval
 make no AI call. Keep source text confirmation separate from activity approval.

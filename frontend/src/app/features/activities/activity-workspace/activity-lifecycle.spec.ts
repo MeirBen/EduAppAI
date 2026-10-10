@@ -1431,4 +1431,38 @@ describe('Activity lifecycle', () => {
     http.expectOne('/api/activity-drafts/copy').flush({ ...savedActivity, id: 'copy' });
     await settle();
   });
+
+  it('opens a committed copy after a lost response without depending on its original snapshot', async () => {
+    await open({ ...savedActivity, releasedSnapshotId: 'ready', releasedSourceRevision: 1 });
+    await click('copy-released');
+    const lost = http.expectOne('/api/activity-drafts');
+    lost.error(new ProgressEvent('error'));
+    await settle();
+    await click('copy-released');
+    const copied = { ...savedActivity, id: lost.request.body.id };
+    http.expectOne('/api/activity-drafts/' + copied.id).flush(copied);
+    await vi.waitFor(() => expect(TestBed.inject(Router).url).toBe('/activities/' + copied.id));
+    http.expectOne('/api/ai/status').flush({ configured: true });
+    http.expectOne('/api/activity-drafts/' + copied.id).flush(copied);
+    await settle();
+    http.expectNone((request) => request.method === 'POST');
+  });
+
+  it('checks its committed copy again when navigation to it was cancelled', async () => {
+    await open({ ...savedActivity, releasedSnapshotId: 'ready', releasedSourceRevision: 1 });
+    const navigate = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValueOnce(false);
+    await click('copy-released');
+    const copy = http.expectOne('/api/activity-drafts');
+    const copied = { ...savedActivity, id: copy.request.body.id };
+    copy.flush(copied);
+    await settle();
+    await click('copy-released');
+    http.expectOne('/api/activity-drafts/' + copied.id).flush(copied);
+    await vi.waitFor(() => expect(TestBed.inject(Router).url).toBe('/activities/' + copied.id));
+    http.expectOne('/api/ai/status').flush({ configured: true });
+    http.expectOne('/api/activity-drafts/' + copied.id).flush(copied);
+    await settle();
+    http.expectNone((request) => request.method === 'POST');
+    navigate.mockRestore();
+  });
 });

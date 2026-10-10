@@ -1,6 +1,7 @@
 import { generateDraft } from './generate-draft';
 import { expect, test, type Page } from '@playwright/test';
 import { numericPlan } from '../src/app/features/activities/learning-plan.fixture';
+import { ActivityDetail } from '../src/app/core/api/models';
 import { textSize } from './text-size';
 import { verifyParentReview } from './parent-review';
 
@@ -293,6 +294,45 @@ test('authoring failures expose safe errors and retain the parent request', asyn
     await expect(page.getByRole('alert')).not.toContainText('private provider');
     await expect(page.getByRole('textbox', { name: 'מה תרצו להכין?' })).toHaveValue(prompt);
   }
+});
+
+test('a committed first draft survives a lost response without duplicate creation or AI work', async ({
+  page,
+}) => {
+  await login(page, 'recovery@example.test');
+  const before = await (await page.request.get('/api/activity-drafts?pageSize=100')).json();
+  let committed: ActivityDetail | undefined;
+  let creates = 0;
+  await page.route('**/api/activity-drafts', async (route) => {
+    if (route.request().method() !== 'POST') return route.continue();
+    creates++;
+    if (creates !== 1) return route.continue();
+    const response = await route.fetch();
+    expect(response.status()).toBe(201);
+    committed = await response.json();
+    await route.abort('failed');
+  });
+
+  await propose(page, 'תרגול חשבון ללא קטע');
+  await expect(page.locator('#recover-create')).toBeVisible();
+  await expect(page.locator('#chat-message')).toBeDisabled();
+  expect(committed).toBeDefined();
+  const draftPath = `/api/activity-drafts/${committed!.id}`;
+  expect(await (await page.request.get(draftPath)).json()).toEqual(committed);
+
+  await page.locator('#recover-create').click();
+  await expect(page).toHaveURL(new RegExp(`/activities/${committed!.id}$`));
+  await expect(page.locator('#chat-message')).toBeEnabled();
+  await expect(page.locator('#recover-create')).toBeHidden();
+  expect(creates).toBe(1);
+  const after = await (await page.request.get('/api/activity-drafts?pageSize=100')).json();
+  expect(after.items).toHaveLength(before.items.length + 1);
+  expect(await (await page.request.get(draftPath)).json()).toEqual(committed);
+  expect(committed!.activeOperationId).toBeNull();
+
+  await page.reload();
+  await expect(page.locator('#create-activity')).toBeVisible();
+  await expect(page.locator('#chat-message')).toBeEnabled();
 });
 
 test('a lost start response locks editing until the original operation key is recovered', async ({

@@ -111,6 +111,46 @@ public sealed class ActivityRevisionTests
         Assert.NotNull(ActivityRevisionValidator.Validate(new(null, null, Change(plan with { Guidance = "new" })), input).Change);
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Lasting_document_rules_cannot_leave_existing_text_implicit(bool materialsOnly)
+    {
+        var plan = materialsOnly ? Reading() : Numeric();
+        var request = Resolve(plan);
+        var current = materialsOnly
+            ? TaskAssembly.AcceptMaterials(request, TaskAssembly.CreateDocument(request), Materials()).Document!
+            : TaskAssembly.AcceptQuestions(request, TaskAssembly.CreateDocument(request), Questions());
+        var before = Serialize(new { plan, current });
+        var change = Change(plan with { DocumentGuidance = "כותרת והוראות ללא ניקוד" });
+        using var chat = new AiFixtures.ScriptedChat(Serialize(new { result = new RevisionDecision(null, null, change) }));
+
+        var error = await Assert.ThrowsAsync<AiGenerationException>(() => Service(chat).ReviseAsync(new(plan, current, "בלי ניקוד בכותרת ובהוראות"), default));
+
+        Assert.Equal(502, error.StatusCode);
+        Assert.Equal("validation", error.Category);
+        Assert.Single(chat.Requests);
+        Assert.Equal(before, Serialize(new { plan, current }));
+    }
+
+    [Fact]
+    public void Lasting_document_rules_allow_setup_and_explicit_already_compliant_text()
+    {
+        var plan = Numeric();
+        var request = Resolve(plan);
+        var empty = TaskAssembly.CreateDocument(request);
+        var change = Change(plan with { DocumentGuidance = "כותרת והוראות ללא ניקוד" });
+        Assert.NotNull(ActivityRevisionValidator.Validate(new(null, null, change), new(plan, empty, "בלי ניקוד בכותרת ובהוראות")).Change);
+
+        var current = TaskAssembly.AcceptQuestions(request, empty, Questions());
+        change = change with { Document = new(current.Title, current.Instructions) };
+        var accepted = ActivityRevisionValidator.Validate(new(null, null, change), new(plan, current, "בלי ניקוד בכותרת ובהוראות")).Change!;
+        var scope = RevisionScope.Derive(plan, current, accepted);
+        Assert.Equal("none", scope.Questions);
+        Assert.Empty(scope.Rewrites);
+        Assert.Equal(Serialize(current), Serialize(RevisionScope.ApplyDocument(RevisionScope.PrepareDocument(plan, current, accepted.Plan, scope), scope.Document)));
+    }
+
     [Fact]
     public void Title_and_instruction_edits_are_bounded_fields_once_content_exists()
     {

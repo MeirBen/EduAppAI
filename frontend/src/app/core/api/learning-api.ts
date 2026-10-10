@@ -1,4 +1,4 @@
-import { HttpClient, httpResource } from '@angular/common/http';
+import { HttpClient, HttpErrorResponse, httpResource } from '@angular/common/http';
 import { Observable, takeUntil } from 'rxjs';
 import { DestroyRef, inject, Injectable } from '@angular/core';
 import { requestResult } from './request-result';
@@ -144,9 +144,20 @@ export class LearningApi {
   snapshot(id: () => string) {
     return httpResource<SnapshotPreview>(() => `/api/instances/${id()}`);
   }
-  /** Explicit copy only; never changes the immutable snapshot or starts AI. */
-  /** Copies a snapshot into the draft `draftId` names; a retry replays that copy. */
-  copySnapshot(snapshotId: string, draftId: string, lifetime: DestroyRef) {
+  /** Copies without changing the snapshot or starting AI; `checkSaved` recovers a lost response even if the source was removed. */
+  async copySnapshot(
+    snapshotId: string,
+    draftId: string,
+    lifetime: DestroyRef,
+    checkSaved = false,
+  ) {
+    if (checkSaved) {
+      try {
+        return await requestResult(this.readActivity(draftId), lifetime);
+      } catch (error) {
+        if (!(error instanceof HttpErrorResponse && error.status === 404)) throw error;
+      }
+    }
     return requestResult(
       this.http.post<ActivityDetail>('/api/activity-drafts', { id: draftId, snapshotId }),
       lifetime,

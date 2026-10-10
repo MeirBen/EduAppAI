@@ -327,9 +327,12 @@ Activity routes live under `/api/activity-drafts`; the full list is in
 
 Create and save accept the concrete plan with no separate input object.
 Imported turns are validated without accepting client-supplied operation
-identity. A lost operation start replays with the same key, while an explicit
-new attempt gets a new key; uncertain creation or undo responses offer a
-saved-state check, never automatic resubmission. Client limits come from
+identity, including on draft-creation replay. A lost operation start replays
+with the same key, while an explicit new attempt gets a new key. An uncertain
+initial draft save pauses setup until an explicit check reads its client-named
+identity; only a missing draft allows that check to replay the unchanged unpaid
+creation request. An uncertain undo offers a saved-state check, never automatic
+resubmission. Client limits come from
 `EngineValidation` through `GET /api/limits`, and worker policies from
 `GenerationOperationOptions`.
 

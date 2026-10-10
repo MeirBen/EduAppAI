@@ -34,6 +34,7 @@
           <app-activity-setup
             [plan]="fields.plan"
             [pendingSources]="pendingSources()"
+            [saved]="!!saved()"
             [locked]="locked()"
             (edited)="edited($event)"
             (sourceConfirmed)="confirmSource($event)"
@@ -172,6 +173,9 @@
           @if (startRecovery()) {
             <p>לא ברור אם הבקשה התקבלה. אפשר לבדוק אותה בלי להתחיל פעולה חדשה.</p>
           }
+          @if (createRecovery() && !saving()) {
+            <p>לא ברור אם הטיוטה נשמרה. בדקו את השמירה לפני שממשיכים לערוך.</p>
+          }
           <div class="action-bar-row">
             <div class="action-bar-actions">
               @if (released()) {
@@ -192,6 +196,18 @@
                   ><span>עריכה כטיוטה חדשה</span>
                 </button>
               } @else {
+                @if (createRecovery()) {
+                  <button
+                    id="recover-create"
+                    class="button button-secondary"
+                    type="button"
+                    [disabledInteractive]="saving()"
+                    (click)="recoverCreate()"
+                  >
+                    <span class="icon icon-refresh" aria-hidden="true"></span
+                    ><span>בדיקת שמירת הטיוטה</span>
+                  </button>
+                }
                 @if (startRecovery()) {
                   <button
                     id="recover-start"

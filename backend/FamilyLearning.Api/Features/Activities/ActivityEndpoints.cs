@@ -69,15 +69,16 @@ public static class ActivityEndpoints
         document ??= TaskAssembly.CreateDocument(resolved);
         var errors = TaskDocumentValidator.ValidateDraft(resolved, document).Errors;
         if (errors.Count > 0) return Results.ValidationProblem(errors);
+        var planJson = StoredJson.Write(plan);
+        var draft = new ActivityDraft(body.Id, user.FamilyId(), ActivityDraft.LibraryName(plan, document), planJson,
+            StoredJson.Write(document), sourceSnapshotId, user.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        // A replay still validates all submitted chat before checking the persisted identity.
+        draft.ImportChat(body.Chat);
         // SQLite's immediate write transaction makes the identity lookup and the insertion one decision.
         await using var transaction = await db.Database.BeginTransactionAsync(ct);
-        var planJson = StoredJson.Write(plan);
         if (await db.ActivityDrafts.AsNoTracking().SingleOrDefaultAsync(d => d.Id == body.Id, ct) is { } existing)
             return existing.FamilyId == user.FamilyId() && existing.PlanJson == planJson && existing.SourceSnapshotId == sourceSnapshotId
                 ? Results.Ok(ActivityDetail.From(existing)) : Conflict();
-        var draft = new ActivityDraft(body.Id, user.FamilyId(), ActivityDraft.LibraryName(plan, document), planJson,
-            StoredJson.Write(document), sourceSnapshotId, user.FindFirstValue(ClaimTypes.NameIdentifier)!);
-        draft.ImportChat(body.Chat);
         db.ActivityDrafts.Add(draft);
         await db.SaveChangesAsync(ct);
         await transaction.CommitAsync(ct);

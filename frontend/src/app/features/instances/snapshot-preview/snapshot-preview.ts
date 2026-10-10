@@ -12,7 +12,7 @@ import {
 import { DatePipe } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { LearningApi } from '../../../core/api/learning-api';
-import { apiError, writeError } from '../../../core/api/api-error';
+import { apiError, rejected, writeError } from '../../../core/api/api-error';
 import { ActivityDocumentView } from '../../activities/activity-document-view/activity-document-view';
 import { focusHolder } from '../../../shared/focus-holder';
 import { LoadingIndicator } from '../../../shared/loading-indicator/loading-indicator';
@@ -57,6 +57,7 @@ export class SnapshotPreviewPage {
   protected readonly copiedId = signal('');
   /** Names the copy this page makes, so a retry after a lost response replays it instead of adding another. */
   private readonly copyId = crypto.randomUUID();
+  private checkCopy = false;
   protected readonly error = signal('');
   protected readonly apiError = apiError;
   private readonly assignmentApi = inject(AssignmentApi);
@@ -129,9 +130,15 @@ export class SnapshotPreviewPage {
     this.copying.set(true);
     this.error.set('');
     try {
-      const draft = await this.api.copySnapshot(this.instanceId(), this.copyId, this.lifetime);
+      const draft = await this.api.copySnapshot(
+        this.instanceId(),
+        this.copyId,
+        this.lifetime,
+        this.checkCopy,
+      );
       if (!this.lifetime.destroyed) this.copiedId.set(draft.id);
     } catch (error) {
+      this.checkCopy ||= !rejected(error);
       if (!this.lifetime.destroyed)
         this.error.set(
           writeError(

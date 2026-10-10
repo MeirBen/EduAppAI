@@ -19,6 +19,7 @@ export class ActivitySetup {
   readonly plan = input.required<FieldTree<PlanForm>>();
   readonly pendingSources = input<string[]>([]);
   readonly locked = input(false);
+  readonly saved = input(false);
   readonly edited = output<{ key: string }>();
   readonly sourceConfirmed = output<string>();
   protected readonly summary = computed(() => activitySummary(this.plan()().value()));

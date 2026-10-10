@@ -33,7 +33,7 @@
               <p dir="auto" class="whitespace-pre-wrap">{{ material.guidance }}</p>
             }
           </div>
-          @if (material.source === 'supplied' && !p().disabled()) {
+          @if (material.source === 'supplied' && !saved()) {
             <div>
               <label [for]="'source-' + material.id">הטקסט שלכם</label>
               <textarea

@@ -1,4 +1,5 @@
 using System.Net;
+using System.Text.Json;
 using FamilyLearning.Api.TaskEngine;
 using FamilyLearning.Api.TaskEngine.Ai;
 using FamilyLearning.Api.Tests.Fixtures;
@@ -55,7 +56,8 @@ public sealed class AiPromptContractTests
     [InlineData("replace-question")]
     public async Task Content_calls_obey_resolved_requirements_without_planning_permissions(string stage)
     {
-        var request = Resolve(Reading());
+        const string documentGuidance = "כללים לכותרת ולהוראות בלבד";
+        var request = Resolve(Reading() with { DocumentGuidance = documentGuidance });
         var empty = TaskAssembly.CreateDocument(request);
         var current = TaskAssembly.AcceptMaterials(request, empty, Materials()).Document!;
         current = TaskAssembly.AcceptQuestions(request, current, Questions("text-input"));
@@ -80,6 +82,11 @@ public sealed class AiPromptContractTests
         Assert.DoesNotContain("Record niqqud and other language presentation in the plan", prompt);
         Assert.DoesNotContain("through third grade and medium above", prompt);
         Assert.DoesNotContain("even when phrased as exact; note that in assumptions", prompt);
+        using var json = JsonDocument.Parse(prompt.Split('\n')[^1]);
+        var payload = json.RootElement;
+        Assert.False(payload.GetProperty("request").TryGetProperty("documentGuidance", out _));
+        if (stage == "questions") Assert.Equal(documentGuidance, payload.GetProperty("documentGuidance").GetString());
+        else Assert.DoesNotContain(documentGuidance, payload.GetRawText());
     }
 
     private static async Task<string> PlanningPrompt(bool revision)

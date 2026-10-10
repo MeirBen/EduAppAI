@@ -1,7 +1,7 @@
 # AI guide
 
 The maintained reference for AI configuration, evaluation and tuning at engine
-revision 48. Product contracts live in the
+revision 49. Product contracts live in the
 [product specification](product-specification.md); implementation boundaries
 live in [architecture](architecture.md).
 
@@ -75,6 +75,11 @@ The [prompt decisions](#prompt-decisions) below predate revision 39. Since then:
   rule ran only the planner and kept every question, a number-range change and
   an answer-in-words rule rebuilt the questions, and the rebuilt title and
   instructions kept the recorded no-niqqud rule.
+- **49:** validation requires an explicit title/instruction edit when a planner
+  changes `documentGuidance` on existing generated content. Setup-only rules
+  remain valid without a document edit, and already compliant text can be
+  returned unchanged. Isolated tests cover this boundary and verify that only
+  full question generation receives the rule; prompts and schemas are unchanged.
 
 The 1 October comparison did **not** meet its quality threshold: one-shot passed
 9/9 structural trials and split 7/9, with split costing about 3× and taking

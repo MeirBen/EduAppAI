@@ -155,6 +155,9 @@ public sealed class ActivityDraftTests
         draft = await Seed(parent, draft, edit);
         Assert.Empty(draft["diagnostics"]!.AsObject());
         var original = draft["document"]!["materials"]![1]!.DeepClone();
+        var unchanged = Edit(draft);
+        unchanged["sourceReplacements"] = new JsonArray(new JsonObject { ["id"] = MaterialId, ["text"] = Source });
+        Assert.True(JsonNode.DeepEquals(draft, await Save(parent, draft, unchanged)));
         const string replacement = "  מקור חדש\nHello, עולם!\n";
         edit = Edit(draft);
         edit["plan"]!["materials"]![0]!["text"] = replacement;
@@ -300,6 +303,29 @@ public sealed class ActivityDraftTests
         Assert.Equal(HttpStatusCode.BadRequest, (await parent.PostAsJsonAsync("/api/activity-drafts", new { plan = Numeric() })).StatusCode);
         Assert.Single((await parent.GetFromJsonAsync<JsonNode>("/api/activity-drafts"))!["items"]!.AsArray());
         Assert.Empty((await stranger.GetFromJsonAsync<JsonNode>("/api/activity-drafts"))!["items"]!.AsArray());
+    }
+
+    [Theory]
+    [InlineData("count")]
+    [InlineData("role")]
+    [InlineData("timestamp")]
+    public async Task Creation_replay_validates_imported_chat_without_changing_the_saved_draft(string fault)
+    {
+        await using var app = new ApiFactory();
+        using var parent = await app.ParentAsync();
+        var draft = await Create(parent, Numeric());
+        var turn = new
+        {
+            role = fault == "role" ? "system" : "parent",
+            text = "הנחיה",
+            atUtc = fault == "timestamp" ? DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified) : DateTime.UtcNow
+        };
+        var chat = Enumerable.Repeat(turn, fault == "count" ? 101 : 1).ToArray();
+        using var replay = await parent.PostAsJsonAsync("/api/activity-drafts", new
+        { id = draft["id"]!.GetValue<Guid>(), plan = Numeric(), chat });
+        Assert.Equal(HttpStatusCode.BadRequest, replay.StatusCode);
+        Assert.True(JsonNode.DeepEquals(draft, await parent.GetFromJsonAsync<JsonNode>(Path(draft))));
+        Assert.Single((await parent.GetFromJsonAsync<JsonNode>("/api/activity-drafts"))!["items"]!.AsArray());
     }
 
     [Fact]

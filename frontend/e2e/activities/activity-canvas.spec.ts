@@ -157,6 +157,83 @@ test('editing a source cancels a pending proposal and a failed checkpoint preser
   await expect(page.getByLabel('הטקסט שלכם')).toHaveValue('עריכה מקומית — Hello');
 });
 
+test('a lost first-save response keeps the confirmed source visible and recovers the named draft before more editing', async ({
+  page,
+}) => {
+  await isolate(page);
+  let created: ActivityDetail | undefined;
+  let creates = 0;
+  let proposals = 0;
+  await page.route('**/api/ai/activity-plans', async (route) => {
+    proposals++;
+    await route.fulfill({ json: reply(route.request().postDataJSON()) });
+  });
+  await page.route('**/api/activity-drafts', async (route) => {
+    creates++;
+    const body = route.request().postDataJSON();
+    created = {
+      id: body.id,
+      revision: 1,
+      plan: body.plan,
+      chat: body.chat,
+      document: {
+        title: '',
+        instructions: null,
+        materials: suppliedPlan.materials.map((material) => ({
+          id: material.id,
+          title: null,
+          body: material.text!,
+          revision: 1,
+          origin: { kind: 'supplied' },
+          acceptance: null,
+        })),
+        questions: [],
+      },
+      diagnostics: { questions: ['נדרשות שאלות'] },
+      measurements: [],
+      canUndo: false,
+      activeOperationId: null,
+      releasedSnapshotId: null,
+      releasedSourceRevision: null,
+      createdAtUtc: '2026-10-10T00:00:00Z',
+      updatedAtUtc: '2026-10-10T00:00:00Z',
+    };
+    await route.abort();
+  });
+  await page.route('**/api/activity-drafts/*', async (route) => {
+    expect(route.request().method()).toBe('GET');
+    expect(new URL(route.request().url()).pathname).toBe('/api/activity-drafts/' + created!.id);
+    await route.fulfill({ json: created });
+  });
+  await page.setViewportSize({ width: 360, height: 800 });
+  await page.goto('/activities/new');
+  await textSize(page, 32);
+  await page.locator('#chat-message').fill('שאלות על המקור שלי');
+  await page.locator('#chat-send').click();
+  await expect(page.getByRole('log')).toBeFocused();
+  await expect(page.locator('#open-chat')).toHaveAttribute('aria-expanded', 'true');
+  await page.keyboard.press('Escape');
+  await expect(page.locator('#activity-chat')).toBeHidden();
+  const source = page.getByLabel('הטקסט שלכם');
+  await expect(source).toHaveValue(sourceText);
+  await page.getByRole('button', { name: 'הטקסט הועתק נכון' }).click();
+  const recovery = page.getByRole('button', { name: 'בדיקת שמירת הטיוטה' });
+  await expect(recovery).toBeVisible();
+  await expect(source).toHaveValue(sourceText);
+  await expect(source).toBeDisabled();
+  await expect(page.locator('#chat-message')).toBeDisabled();
+  await recovery.focus();
+  await page.keyboard.press('Enter');
+  await expect(page).toHaveURL(new RegExp('/activities/' + created!.id + '$'));
+  await expect(recovery).toHaveCount(0);
+  await expect(page.getByText(sourceText, { exact: true })).toBeVisible();
+  await page.locator('#open-chat').click();
+  await expect(page.locator('#chat-message')).toBeEnabled();
+  expect(creates).toBe(1);
+  expect(proposals).toBe(1);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+});
+
 test('a saved draft can be edited without AI at 360px and 200% text using the keyboard', async ({
   page,
 }) => {

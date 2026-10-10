@@ -80,6 +80,11 @@ lost start response; an uncertain save or approval is checked against saved
 state. Conflicts keep local edits and pause autosave until the saved version is
 loaded.
 
+An uncertain first draft save keeps setup paused until the parent checks its
+saved state. Recovery keeps the original request and draft identity, so it
+cannot silently discard a later requirement change or create a duplicate.
+A definitely rejected setup remains editable.
+
 The URL identifies the saved draft and operation. Chat and undo are parent-only
 draft state; invalid field edits stay local until fixed. Another device's save
 or deletion is announced without silently replacing the current buffer. Draft
