@@ -1,7 +1,7 @@
 # AI guide
 
-The maintained reference for AI configuration, evaluation and tuning, as of
-9 October 2026. Product contracts live in the
+The maintained reference for AI configuration, evaluation and tuning at engine
+revision 47. Product contracts live in the
 [product specification](product-specification.md); implementation boundaries
 live in [architecture](architecture.md).
 
@@ -25,56 +25,51 @@ probes passed on both models ([Sol][activity-contract-44],
 preservation rule but writes somewhat less faithful rewrites, so a rollback
 trades quality for availability. Any other model needs its own probe run.
 
-## Design and cutover decision
+## Design and revisions
 
-The engine/API uses concrete activity plans and atomic Create/Revise operations.
-New generated texts receive ideas/writing/polish before questions; existing
-rewrites receive no polish. Supplied sources stay exact. Revision planning
-produces a reply, clarification or validated change without repairing invalid
-output. See [architecture](architecture.md#durable-generation) for ownership
-and [chat design](activity-chat-design.md#ai-contract-and-context) for stage context.
+The engine uses concrete activity plans and atomic Create/Revise operations. New
+generated texts get ideas, writing and polish before questions; existing
+rewrites get no polish; supplied sources stay exact. Revision planning returns a
+reply, clarification or validated change and never repairs invalid output (see
+[architecture](architecture.md#durable-generation) and the
+[chat design](activity-chat-design.md#ai-contract-and-context)). Evaluation runs
+the same engine stages directly, without family data. Isolated tests do not
+establish live-model quality.
 
-The activity canvas uses Create/Revise and explicit question recovery. Template
-publication and staged operation admission are removed. Evaluation still uses
-the shared engine stages directly, without family data or retired API calls.
-The historical quality experiments below predate the activity-only prompts/schema
-(revision 39), the operation-contract retirement (revision 40) and the prompt
-contract corrections (revision 41). Revision 42 replaces equal version bounds
-with a singleton enum after the [live diagnostic][activity-schema-diagnostic].
-The final [revision-42 contract run][activity-contract-42-complete] passed all
-eight scenarios through the production engine and native adapter: 17 calls,
-including new-only generation and question append. This is contract evidence,
-not a content-quality benchmark or worker/API test. Revision 43 limits
-transformations into a separate text to supplied texts; a requested change to a
-generated text changes it in place. The [everyday-edit run][activity-edits-43]
-then passed all eight chat edits. Revision 44 makes the schema version
-application-owned, which restores the Gemini rollback without a model-specific
-path. Revision 45 removes chat-attached sources from the revise input and prompt:
-chat never adds the parent's own text and refuses such requests; it has no live
-measurement yet. Revision 46 gives authoring the same conversation window as
-revision: the newest six turns within 12,000 characters, including requests
-already applied to the plan, and the planner reads them as conversation behind
-the current plan rather than as unresolved requests. A live check on 10 October
-(six authoring calls, $0.024) returned to "the previous topic" from the
-conversation, where revision 45 had to ask which topic, and kept six questions
-when "harder questions" followed "two more questions", re-applying nothing. A
-wider run (20 calls) passed all six scenarios: both repeats, undoing the last
-request, a change after saving that refers to the unsaved conversation, and a
-long chain where, past the window, the planner asked for the first message's
-topic instead of guessing. Revision 47 lets a chat change replace the learner
-title or instructions with complete new text (`document`), where the planner
-previously sent the parent to the editor. Live, "remove the vowel marks" on a
-first-grade title rewrote the title in place, and an unrelated "two more
-questions" left it untouched. The planner also recorded "no vowel marks" as
-lasting guidance, so the questions were rebuilt to match; a prompt line asking
-it to leave the plan unchanged did not change that and was dropped.
-Revision 41 restores the measured authoring omission rule, shares planning
-defaults with revision, and keeps planning permissions out of content stages.
-Verification uses isolated providers and does not establish live-model quality.
+The [prompt decisions](#prompt-decisions) below predate revision 39. Since then:
+
+- **39–40:** activity-only prompts and schema; the staged operation contract is
+  retired.
+- **41:** restores the measured authoring omission rule, shares planning
+  defaults with revision and keeps planning permissions out of content stages.
+- **42:** a singleton enum replaces equal version bounds after the
+  [live diagnostic][activity-schema-diagnostic]. The
+  [final contract run][activity-contract-42-complete] passed all eight scenarios
+  in 17 calls through the production engine and native adapter, including
+  new-only generation and question append; this is contract evidence, not a
+  content-quality benchmark.
+- **43:** only a supplied text is transformed into a separate text; a requested
+  change to a generated text changes it in place. The
+  [everyday-edit run][activity-edits-43] passed all eight chat edits.
+- **44:** the schema version is application-owned, which restores the Gemini
+  rollback without a model-specific path.
+- **45:** chat never adds the parent's own text and refuses such requests; not
+  measured live.
+- **46:** authoring reads the same conversation window as revision (six turns
+  within 12,000 characters) as conversation behind the current plan, not as
+  unresolved requests. Live on 10 October (6 calls, $0.024, then 20 calls) it
+  returned to "the previous topic", re-applied nothing after a follow-up, and
+  past the window asked for the first message's topic instead of guessing.
+- **47:** a chat change can replace the learner title or instructions
+  (`document`). Live, "remove the vowel marks" rewrote a first-grade title in
+  place and an unrelated change left it alone. The planner also recorded "no
+  vowel marks" as lasting guidance, rebuilding the questions; a prompt line
+  against that changed nothing and was dropped.
+
 The 1 October comparison did **not** meet its quality threshold: one-shot passed
 9/9 structural trials and split 7/9, with split costing about 3× and taking
-3.4× median provider latency. The one-shot implementation was removed; do not
-restore a parallel legacy path or describe the cutover as a measured quality win.
+3.4× median provider latency. The one-shot path was removed; do not restore a
+parallel legacy path or describe the switch as a measured quality win.
 
 ## Prompt decisions
 
@@ -439,119 +434,52 @@ The early writing comparisons are grouped in `hebrew-writing-2026-10-05/`;
 schema reviews are in `claude-strict-schema-2026-10-02/` and
 `authoring-wire-review-2026-10-03/`, all under `artifacts/evaluations/`.
 
-- Early tuning: 370 calls, $1.4666050906 known plus $1.630131600 reserved
-  ($3.0967366906 combined). Reserves included 28 HTTP 400 rejections later shown
-  as zero cost. An earlier one-shot comparison was separate: 19 calls,
-  $0.062444323. Schema evidence: `gemini-strict-contract-2026-10-02/`,
-  `gemini-strict-root-cause-2026-10-02/`, `gemini-*-limits-2026-10-03/` and
-  `length-contract-2026-10-03/`.
-- `reasoning-effort-2026-10-05/` ($0.704) and
-  `inference-line-2026-10-05/` ($0.996) shared a $2 cap.
-  `factual-line-2026-10-05/` used $2.745 under a separate $3 cap.
-- `judge-repair-2026-10-05/`: $0.218 of $1; calibration and fixed-schema evidence.
-- `math-2026-10-06/`: 73 calls, $0.660264 of $1, no unknown costs; frozen
-  comparisons, reading controls, rejected digit-limit variants, semantic failures
-  and `review.md` / `verification.json`.
+Costs are rounded; each experiment's `budget.json` holds the exact ledger.
 
-- `math-formats-2026-10-06/`: 70 calls, $0.64560975 of $1, no unknown costs;
-  answer-format probe, comparison-sign and rounded-key hypotheses, browser
-  evidence (`bidi.png`), final controls and a four-case reading regression.
-- `difficulty-default-2026-10-07/`: difficulty-default candidate and a broad
-  revision-33 regression; cost in its `budget.json`, within a separate $1 cap.
-- `polish-2026-10-07/`: text and question polish replays over saved outputs
-  and a final two-case live check, 138 calls, $1.2922 of a $1.50 cap, no
-  unknown costs; `protocol.txt` records each registered rule before its run,
-  with blind labels and analysis.
-- `stale-rewrite-2026-10-07/`: rewrites of stale text through the real rewrite
-  call; without an instruction, 3 of 6 titled texts came back unchanged, which
-  `TaskAssembly.ReplaceMaterial` now accepts under the current requirements.
-  18 calls, $0.19675 of a $0.50 cap, no unknown costs.
-- `rewrite-polish-2026-10-07/` (exploratory, 24 calls, $0.25642) and
-  `rewrite-polish-confirm-2026-10-07/` (registered, 40 calls, $0.40853):
-  polish after rewrite.
-- `one-text-writing-2026-10-07/`: one-text writing pairs, 24 calls, $0.298926.
-- `flagship-models-2026-10-08/`: stage tests, 23 calls, $0.570433 of $1.
-- `gpt-end-to-end-2026-10-08/`: GPT-6.1 Sol through the evaluation runner and
-  the template-schema diagnosis; 25 calls, $0.2703045 of $0.50, no unknown
-  costs.
-- `dictalm-polish-2026-10-08/`: DictaLM polish against Gemini; OpenRouter
-  $0.08608 (9 calls), Featherless about $0.09 dashboard-reconciled through the
-  main run plus addenda whose streamed calls report no usage (ledger upper
-  bound $0.2773).
-- `sol-strict-switch-2026-10-08/`: template-schema diagnosis and the strict
-  verification runs before the switch (Sol $0.0791635, Gemini $0.0652965, plus
-  a few cents of schema probes).
-- `sol-effort-2026-10-08/`: medium against high effort, 17 calls, $0.31071 of
-  $0.60.
-- `question-level-2026-10-08/`: question thinking level, 18 calls, $0.27386 of
-  $0.50.
-- `text-prompts-2026-10-08/`: text prompt cleanup, 36 calls, $0.34465 of $0.50.
-- `plain-language-2026-10-08/`: plain-language sentence alone, 32 calls,
-  $0.27161 of $0.40.
-- `answer-key-scope-2026-10-08/`: answer-key scope in authoring, 21 calls,
-  $0.1791937 of $0.20.
-- `revise-planner-2026-10-08/`: 20 planner-prototype calls, $0.2598664;
-  `activity-chat-review-2026-10-08-jp61rjew/`: four review probes, $0.0810189.
-  Combined: **$0.3408853 against the $0.30 cap**, an overrun of $0.0408853,
-  with no unknown costs. The probes support deriving question work from guidance
-  changes and show limited empty-target schema acceptance. They do not validate
-  execution or the final append/no-mutation refusal contracts in the
-  [activity chat design](activity-chat-design.md); the revision-42 run below
-  covers those engine contracts.
+| Run                                           | Calls  | USD (cap)       |
+| --------------------------------------------- | ------ | --------------- |
+| Early tuning, schema dirs of 2–3 October      | 370    | 1.47 + 1.63 res |
+| One-shot comparison                           | 19     | 0.06            |
+| `reasoning-effort-2026-10-05`                 | —      | 0.70 (2 shared) |
+| `inference-line-2026-10-05`                   | —      | 1.00 (2 shared) |
+| `factual-line-2026-10-05`                     | —      | 2.75 (3)        |
+| `judge-repair-2026-10-05`                     | —      | 0.22 (1)        |
+| `math-2026-10-06`                             | 73     | 0.66 (1)        |
+| `math-formats-2026-10-06`                     | 70     | 0.65 (1)        |
+| `difficulty-default-2026-10-07`               | —      | ledger (1)      |
+| `polish-2026-10-07`                           | 138    | 1.29 (1.50)     |
+| `stale-rewrite-2026-10-07`                    | 18     | 0.20 (0.50)     |
+| `rewrite-polish(-confirm)-2026-10-07`         | 64     | 0.67            |
+| `one-text-writing-2026-10-07`                 | 24     | 0.30            |
+| `flagship-models-2026-10-08`                  | 23     | 0.57 (1)        |
+| `gpt-end-to-end-2026-10-08`                   | 25     | 0.27 (0.50)     |
+| `dictalm-polish-2026-10-08`                   | 9+     | at most 0.28    |
+| `sol-strict-switch-2026-10-08`                | —      | 0.14 + probes   |
+| `sol-effort-2026-10-08`                       | 17     | 0.31 (0.60)     |
+| `question-level-2026-10-08`                   | 18     | 0.27 (0.50)     |
+| `text-prompts-2026-10-08`                     | 36     | 0.34 (0.50)     |
+| `plain-language-2026-10-08`                   | 32     | 0.27 (0.40)     |
+| `answer-key-scope-2026-10-08`                 | 21     | 0.18 (0.20)     |
+| `revise-planner-`, `activity-chat-review-`    | 24     | 0.34 (0.30)     |
+| [Rev 41 contract][activity-contract-41]       | 4      | 0.03 + 0.19 res |
+| [Rev 42 schema][activity-schema-diagnostic]   | 2      | 0.02            |
+| [Rev 42 contract][activity-contract-42]       | 11     | 0.08            |
+| [Rev 42 final][activity-contract-42-complete] | 17     | 0.13            |
+| [Rev 42 edits][activity-edits-42]             | 4      | 0.03            |
+| [Rev 43 edits][activity-edits-43]             | 17     | 0.11            |
+| [Rev 44 Sol][activity-contract-44]            | 17     | 0.13            |
+| [Rev 44 Gemini][activity-contract-44-gemini]  | 17     | 0.13            |
+| [Gemini edits 44][activity-edits-44-gemini]   | 3 + 17 | 0.02 + 0.13     |
 
-- [Activity contract probe][activity-contract-41]: revision 41 on 9 October,
-  4 calls across two explicitly authorized runs under a $1 budget. Both returned
-  a valid empty-target clarification, then authoring timed out at 180 seconds.
-  The first authoring completion contained whitespace after `schemaVersion`;
-  user-supplied provider details show cancellation with status 499. Known cost
-  $0.0348154 plus a $0.194908 reserve for the second timeout. These runs stopped
-  before the remaining cases, with no automatic retry or timeout increase.
-
-- [Fixed-version diagnostic][activity-schema-diagnostic]: the same authoring
-  request with only `schemaVersion` changed from equal bounds to `enum: [2]`
-  returned valid proposals twice, in 15.67 and 13.65 seconds; cost $0.0161616.
-  This supports the shared enum constraint applied in revision 42, not full
-  live acceptance. The diagnostic used direct HTTP; the final run below uses
-  the native adapter.
-
-- [Revision-42 contract run][activity-contract-42]: 11 native-adapter calls,
-  $0.0757476, six scenarios passed. Authoring no longer stalled. The probe then
-  incorrectly rejected requested question guidance in the new-text scenario;
-  its comparison is corrected and unrelated-field rejection is tested. The
-  remaining new-only generation and append calls did not run. This run stopped
-  without a retry.
-
-- [Final revision-42 contract run][activity-contract-42-complete]: all eight
-  scenarios passed, 17 native-adapter calls, $0.126366 with no unknown costs.
-  Existing text and questions retained their content and IDs; new text alone
-  received writing/polish, and append preserved the original questions and keys.
-  Manual review found grounded reading keys and correct arithmetic in this
-  sample. Across the five authorized runs, known cost is $0.2530906 plus the
-  unresolved $0.194908 timeout reserve: **$0.4479986 accounted against $1**.
-  The remaining allowance does not authorize further calls.
-
-- [Everyday-edit run, revision 42][activity-edits-42]: stopped after 4 calls,
-  $0.0345239. The topic change passed; for "turn the story into a poem" the
-  planner kept the story and added a separate poem, because the transformation
-  rule was not limited to supplied texts. Revision 43 scopes it.
-- [Everyday-edit run, revision 43][activity-edits-43]: all eight cases passed,
-  17 calls, $0.1108978 with no unknown costs; both runs together $0.1454217
-  against the approved $0.45 guard. Topic, poem and half-length requests
-  rewrote the one text in place and rebuilt its questions; a targeted
-  replacement, a named removal and a focused addition left the other questions
-  unchanged; a vocabulary focus rebuilt only the questions; a decrease that
-  named no question was clarified. Open observations: two forced rhymes in the
-  unpolished poem, and the activity name kept its old topic while the document
-  title followed the new one.
-
-- Revision 44 on both models: [Sol contract][activity-contract-44] 17 calls,
-  $0.1271124; [Gemini contract][activity-contract-44-gemini] 17 calls,
-  $0.1312425; Gemini everyday edits [stopped][activity-edits-44-gemini-stopped]
-  after 3 calls, $0.0189675, on a literal "פיראט" wording check that a correct
-  pirate story did not meet (the check now requires the replaced story to be
-  gone), then [passed][activity-edits-44-gemini] in 17 calls, $0.12969825. No
-  unknown costs; **$0.4070202 in total** against an estimate of about $0.30.
-  Gemini cost about as much as Sol because it wrote more output tokens.
+"res" marks unresolved timeout reserves. The planner probes overran their cap
+by $0.04. The revision 41–42 contract runs shared a $1 cap ($0.45 used), the
+42–43 edit runs a $0.45 guard ($0.15) and the revision-44 runs an estimate of
+about $0.30 ($0.41). The revision-41 probe timed out during authoring, the first
+revision-42 run stopped on a probe comparison error that was then fixed, the
+revision-42 edit run stopped when a story became a separate poem (scoped in
+revision 43), and the [stopped Gemini run][activity-edits-44-gemini-stopped]
+failed a literal wording check that a correct story did not meet. None retried
+automatically.
 
 Retired design documents: `documentation-history-2026-10-01.zip`.
 

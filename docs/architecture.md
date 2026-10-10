@@ -1,9 +1,8 @@
 # Architecture
 
-This guide describes the activity-only engine/API, canvas/chat and guarded
-fresh-start migration. The [product specification](product-specification.md) and
-[chat design](activity-chat-design.md) own the contracts. Deploy the matching
-frontend/backend together and coordinate the [data cutover](../README.md#activity-only-cutover).
+How the code implements the [product specification](product-specification.md)
+and the [chat design](activity-chat-design.md). Frontend and backend deploy
+together.
 
 ## Structure
 
@@ -85,9 +84,10 @@ Responses must finish normally and pass size, shape, numeric and domain checks;
 question text fields are trimmed first, the only normalization applied; see [AI
 configuration](ai.md#configuration).
 
-`AiPrompts` composes stage/shared rules; `MathPromptGuidance` owns authoring-time
-math interpretation. Schema descriptions own source roles and answer-format
-capabilities. All subjects use the same stages and authoritative validators.
+`AiPrompts` composes stage/shared rules; `MathPromptGuidance` owns
+authoring-time math interpretation. Schema descriptions own source roles and
+answer-format capabilities. All subjects use the same stages and authoritative
+validators.
 
 `MaterialIdeas` validates five bounded ideas and selects the lowest estimated
 overlap with recent family ideas. An application-owned draw breaks ties: the
@@ -115,13 +115,15 @@ content identity, adoption and release. Engine validators derive diagnostics.
 Manual edits preserve item IDs/order, formats and option counts; requirements
 change through Revise. Confirmed source replacement updates plan and document
 atomically, leaving the questions and generated texts stale. Editable DTOs
-exclude provenance and acceptance, and child/snapshot DTOs exclude chat and undo.
+exclude provenance and acceptance, and child/snapshot DTOs exclude chat and
+undo.
 
-A changing Revise or GenerateQuestions stores one prior plan/document checkpoint.
-Undo requires its resulting revision, restores content, advances revision and
-consumes the checkpoint. Manual save, adoption and release clear it; replies,
-no-ops and failures preserve it. Undo serializes its chat read/write with
-operation admission/completion even when a reply leaves content revision alone.
+A changing Revise or GenerateQuestions stores one prior plan/document
+checkpoint. Undo requires its resulting revision, restores content, advances
+revision and consumes the checkpoint. Manual save, adoption and release clear
+it; replies, no-ops and failures preserve it. Undo serializes its chat
+read/write with operation admission/completion even when a reply leaves content
+revision alone.
 
 An EF concurrency token guards each draft write. One `SaveChanges` creates the
 snapshot and marks the draft terminal, and a unique source-draft index prevents
@@ -130,18 +132,11 @@ deleted. Source draft/snapshot IDs are detached provenance, so draft deletion
 never erases snapshots. Family reset deletes learning records atomically while
 keeping accounts.
 
-Checked-in migrations add conversation storage and remove unused input columns,
-the unread operation fingerprint and template tables/provenance. The activity-only
-migration requires empty learning records before any schema change. Ordinary
-migration, including development startup, rejects populated old data without
-deleting it. The explicit
-`--activity-only-cutover` command runs without the server/worker, transactionally
-clears learning records at the predecessor schema, then migrates; it is a no-op
-once applied. It never reads/converts old plan or operation JSON. Accounts,
-families, external AI configuration and keys stay intact. Historical migrations
-remain unchanged. Development applies safe migrations; Production requires a
-management command. Tests use disposable storage, real `Program` composition
-and isolated providers; worker tests disable polling to drive transitions.
+Migrations are checked in and never edited once applied. Development applies
+them at startup; Production requires `--migrate`. The `ActivityOnly` migration
+refuses a database that still holds pre-activity learning records, which
+`--activity-only-cutover` clears first
+([README](../README.md#activity-only-cutover)).
 
 ## Change notes
 
@@ -190,22 +185,23 @@ calling steps become unknown and are never retried. Profile fingerprints exclude
 credentials, so key rotation alone does not invalidate queued work.
 
 Operation artifacts are bounded to 2 MiB, with eight steps and a reserved 16 KiB
-summary budget. After seven terminal days, startup/hourly cleanup expires up to
-32 bulky artifacts per pass, retaining keys, outcomes and known usage until
-draft deletion. `GenerationOperationOptions` owns these bounds.
+summary budget. After seven terminal days, startup/hourly cleanup expires bulky
+artifacts in bounded batches until none remain, retaining keys, outcomes and
+known usage until draft deletion. `GenerationOperationOptions` owns these
+bounds.
 
 ## Evaluation
 
 `tools/FamilyLearning.Evaluation` is a developer executable referencing the
 engine and adapter, never published with the API or given its database or
 identity services. CLI and dashboard share the validated plan, runner, pinned
-judge client and JSON reports, and reuse the engine's assembly, resolution and `TextLength`
-rules with independent fixture adherence checks, including exact recalculation
-of bare calculation prompts and a reversed-sign display check. Reports record
-explicit skips, exact request and schema hashes, raw candidates and separate
-readiness outcomes;
-older formats are rejected. Evaluation may retry HTTP 429 three times within its
-call budget; production never inherits these retries.
+judge client and JSON reports, and reuse the engine's assembly, resolution and
+`TextLength` rules with independent fixture adherence checks, including exact
+recalculation of bare calculation prompts and a reversed-sign display check.
+Reports record explicit skips, exact request and schema hashes, raw candidates
+and separate readiness outcomes; older formats are rejected. Evaluation may
+retry HTTP 429 three times within its call budget; production never inherits
+these retries.
 
 The dashboard is a loopback-only ASP.NET host with static files. Its coordinator
 owns one cancellable run, waits for the final checkpoint on shutdown and uses
@@ -222,8 +218,9 @@ paid-run boundary. Usage and report contracts are in the
 child and fixed device grants. Named Identity/`Child` cookie policies isolate
 access; session entry rejects active opposite-mode cookies before changing CSRF
 tokens. Activation needs an anonymous browser and a fresh identity-bound token
-afterward. See the [access contract](product-specification.md#profiles-and-device-access)
-for grant terms and revocation behavior. No child endpoint uses AI.
+afterward. See the [access
+contract](product-specification.md#profiles-and-device-access) for grant terms
+and revocation behavior. No child endpoint uses AI.
 
 `ChildAccess.FindAsync` queries current profile/grant state without EF tracking.
 Writes sample UTC and recheck access/state after acquiring a short SQLite
@@ -235,21 +232,22 @@ removes owned dependents before referenced content, all within transactions.
 
 `Features/Assignments` owns one assignment per child/snapshot pair. Transactions
 serialize creation, withdrawal, restore and snapshot removal; composite foreign
-keys enforce family ownership and retention. Replay precedes new-create eligibility.
-Lists project names/titles and session existence (`HasStarted`) in SQL without
-loading answer buffers. Child reads use explicit learner contracts; read-only
-endpoints never start work.
+keys enforce family ownership and retention. Replay precedes new-create
+eligibility. Lists project names/titles and session existence (`HasStarted`) in
+SQL without loading answer buffers. Child reads use explicit learner contracts;
+read-only endpoints never start work.
 
 `TaskSession` uses the assignment ID as a restrictive primary/foreign key and
 has its own concurrency revision. Start/save leave assignment status/revision
 unchanged; submission advances both atomically. Resume/start never resets
 submitted work. `SessionValidation` bounds raw input before recognizing replay;
-blank/missing means unanswered, other text stays exact. `SessionScoring` compares
-validated numeric digits without decimal rounding and stores frozen awards with
-policy version 1, independent of generation revisions. Nonblank short text,
-including zero-point work, awaits parent review. Child sessions expose saved
-answers, status, timestamps and a completed final total, never keys or per-item
-awards. Identical submissions preserve stored results/revisions/timestamps.
+blank/missing means unanswered, other text stays exact. `SessionScoring`
+compares validated numeric digits without decimal rounding and stores frozen
+awards with policy version 1, independent of generation revisions. Nonblank
+short text, including zero-point work, awaits parent review. Child sessions
+expose saved answers, status, timestamps and a completed final total, never keys
+or per-item awards. Identical submissions preserve stored
+results/revisions/timestamps.
 
 Parent `/result` and `/review` read frozen content/evaluation. Review requires
 exact pending IDs, bounded integer awards and the session revision. One
@@ -265,6 +263,23 @@ lists hide archived rows; parent previews, assignment reads and generation
 history retain them. Removal keeps its 204 contract; UI copy covers deletion
 and archiving because concurrent assignment can change the outcome.
 
+## Tests
+
+Backend suites under [tests](../tests/FamilyLearning.Api.Tests) use disposable
+storage, the real `Program` composition and isolated AI providers; worker tests
+disable polling to drive transitions. `TaskEngine/` covers resolution, scope,
+assembly, prompts, schemas and evaluation. `Integration/` covers the API:
+activities (`ActivityDraftTests`, `ActivityChatTests`, `ActivityReleaseTests`,
+`Generation*Tests`, `LibraryChangeTests`, `LibraryDeletionTests`), child access
+(`ChildAccessTests`, `ChildProfileTests`, `ApiBoundaryTests`,
+`ParentAccountTests`), assignments and retention (`AssignmentTests`,
+`AssignmentRetentionTests`), sessions and grading (`ChildSessionTests`,
+`SessionRaceTests`, `ParentReviewTests`, `Assignments/SessionScoringTests`) and
+the host (`ProductionHostTests`, `MigrationTests`). Browser suites in
+[frontend/e2e](../frontend/e2e) run the published app: activities,
+parent/child workflows, assignments, auth navigation, HTTP boundaries, themes
+and the service-worker update; Angular specs sit beside their components.
+
 ## Access and failures
 
 Server claims determine family ownership; missing and foreign records both
@@ -273,19 +288,20 @@ return 404 before content reads or AI calls. Authenticated responses use
 
 AI permits two concurrent calls per process (`AiCapacity`) and ten requests per
 family per minute; a call holds its slot until it ends, and cancellation reaches
-the provider. The transport
-timeout exceeds the application deadline by five seconds so the deadline wins.
-SDK retries are disabled, and OpenRouter's optional fallback covers provider
-errors, not failed validation. Failures are safe ProblemDetails, including 429
-for provider rate limits and `urn:family-learning:ai-output-limit` for output
-limits, and never claim whether earlier work was saved. Error bodies inside HTTP
-200 and malformed SDK responses become safe provider failures. Logs record
-response metadata, finish reason, size, timing, tokens and failure categories,
-never prompts, answers or reasoning. `/api/ai/status` checks configuration
-without a call.
+the provider. The transport timeout exceeds the application deadline by five
+seconds so the deadline wins. SDK retries are disabled, and OpenRouter's
+optional fallback covers provider errors, not failed validation. Routing
+requires every requested parameter and the configured price ceiling ([AI
+configuration](ai.md#configuration)). Failures are safe ProblemDetails,
+including 429 for provider rate limits and `urn:family-learning:ai-output-limit`
+for output limits, and never claim whether earlier work was saved. Error bodies
+inside HTTP 200 and malformed SDK responses become safe provider failures. Logs
+record response metadata, finish reason, size, timing, tokens and failure
+categories, never prompts, answers or reasoning. `/api/ai/status` checks
+configuration without a call.
 
-Serilog integrates through ASP.NET Core's logging provider; application code uses
-`ILogger<T>`, fixed message templates and native scopes. Worker events use
+Serilog integrates through ASP.NET Core's logging provider; application code
+uses `ILogger<T>`, fixed message templates and native scopes. Worker events use
 source-generated `LoggerMessage` methods with stable event IDs. One request
 completion event owns duration, status, request correlation and unexpected
 exceptions; the framework's duplicate exception-handler event is suppressed.
@@ -301,26 +317,26 @@ redirect, HSTS, secure cookies and CSRF; deployment is in the
 ## Client state
 
 `App` contains only the root outlet. Parent and child route trees have separate
-shells and authentication guards; `PageShell` shares the responsive frame, theme,
-skip link and navigation loader without owning either identity. Parent URLs remain
-unchanged. Child navigation never loads parent identity, limits or content APIs.
+shells and authentication guards; `PageShell` shares the responsive frame,
+theme, skip link and navigation loader without owning either identity. Parent
+URLs remain unchanged. Child navigation never loads parent identity, limits or
+content APIs.
 
 `LearningApi`, `ParentChildrenApi` and `AssignmentApi` own parent URLs and
-contracts. Reads create `httpResource` in the
-caller's injection context and cancel on route change or destruction; check
-`hasValue()` before reading and render errors independently. Writes go through
-`requestResult`, bound to the caller's lifetime, without retries; cancellation
-does not guarantee a server rollback. Changing route parameters destroys the
-page and cancels its writes, while query and fragment changes keep its edits.
-Guards check the session on every private navigation and cancel superseded
-checks. Matching guards resolve access redirects before unsaved-work confirmation;
-explicit sign-out runs only after the outgoing page accepts navigation. A valid
-server session bypasses login, and successful sign-in replaces its history entry.
-Failed access checks use a separate retry page without requesting credentials.
-The request token loads once per sign-in and the server's
-`ContentLimits` once per tab, both before a private page renders; forms, caps
-and copy read the limits through `Limits`. The server still authorizes and
-validates every request.
+contracts. Reads create `httpResource` in the caller's injection context and
+cancel on route change or destruction; check `hasValue()` before reading and
+render errors independently. Writes go through `requestResult`, bound to the
+caller's lifetime, without retries; cancellation does not guarantee a server
+rollback. Changing route parameters destroys the page and cancels its writes,
+while query and fragment changes keep its edits. Guards check the session on
+every private navigation and cancel superseded checks. Matching guards resolve
+access redirects before unsaved-work confirmation; explicit sign-out runs only
+after the outgoing page accepts navigation. A valid server session bypasses
+login, and successful sign-in replaces its history entry. Failed access checks
+use a separate retry page without requesting credentials. The request token
+loads once per sign-in and the server's `ContentLimits` once per tab, both
+before a private page renders; forms, caps and copy read the limits through
+`Limits`. The server still authorizes and validates every request.
 
 Parent management pages own bounded list resources and local buffers. The paged
 child selector retains selection; assignment filters include disabled profiles.
@@ -332,11 +348,11 @@ Failed writes preserve grades and block resubmission until an explicit saved
 read; loading completed grades requires confirmation. Route/browser-close guards
 protect edits. Conflict copy belongs to its feature.
 
-`ChildAuth` supplies learner identity and answer-length limit. Cancellable guards
-route 401 to activation and availability errors to retry. Activation sends a code
-once, clears it and refreshes identity-bound CSRF before navigation; ambiguous
-failures offer a session check. Disconnect follows accepted unsaved-work guards
-and revokes the grant.
+`ChildAuth` supplies learner identity and answer-length limit. Cancellable
+guards route 401 to activation and availability errors to retry. Activation
+sends a code once, clears it and refreshes identity-bound CSRF before
+navigation; ambiguous failures offer a session check. Disconnect follows
+accepted unsaved-work guards and revokes the grant.
 
 `ChildApi` uses learner-only contracts. The inbox is read-only; `ChildPlayer`
 explicitly starts/resumes and owns raw answers, acknowledged revision and dirty
@@ -398,19 +414,21 @@ for reconciliation. Failed candidates remain technical evidence and cannot
 replace the buffer. Chat restores focus only for actions taken within it;
 creation transfers focus to the new content when its button disappears.
 
-`core/api/library-changes` owns each page's native change stream, pauses it while
-hidden and exposes a refused connection for explicit retry. The library's two
-resources refresh once running reads settle; one failed list does not hide the
-others. Confirmed deletion updates only its list, while reset clears both.
+`core/api/library-changes` owns each page's native change stream, pauses it
+while hidden and exposes a refused connection for explicit retry. The library's
+two paged resources refresh once running reads settle; one failed list does not
+hide the other. A confirmed deletion removes its row from the shown page,
+stepping back when that empties a later page, and a reset rereads both first
+pages.
 
 `draft-observer` owns one read lifecycle for SSE hints, active-operation polling
-and explicit reloads. Hints during a read coalesce into one trailing read. Writes
-cancel older background reads synchronously; explicit reconciliation survives
-background suspension. Identity changes and page destruction cancel all reads.
-Operation metadata follows even when content revision is unchanged. External
-content is offered for explicit reload; locally followed generation retains its
-edit fence and Undo behavior. Terminal operations stop polling but remain
-readable on later hints for diagnostics and late usage.
+and explicit reloads. Hints during a read coalesce into one trailing read.
+Writes cancel older background reads synchronously; explicit reconciliation
+survives background suspension. Identity changes and page destruction cancel all
+reads. Operation metadata follows even when content revision is unchanged.
+External content is offered for explicit reload; locally followed generation
+retains its edit fence and Undo behavior. Terminal operations stop polling but
+remain readable on later hints for diagnostics and late usage.
 
 The `/activities` library separates drafts and approved snapshots; a snapshot
 copy creates a new draft without AI. The PWA caches assets only; an open tab

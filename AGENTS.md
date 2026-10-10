@@ -2,10 +2,10 @@
 
 - Do not commit, stage, branch, merge, or perform other Git mutations. The user
   handles Git.
-- The target product flow is prompt-first activity creation, saved drafts and
-  explicit approval; see docs/product-specification.md. Retire standalone
-  templates through its cutover. All task creation uses the generic AI path;
-  do not add static or subject-specific deterministic generators.
+- The product flow is prompt-first activity creation, saved drafts and
+  explicit approval; see docs/product-specification.md. Templates are retired;
+  do not reintroduce reusable definitions. All task creation uses the generic
+  AI path; do not add static or subject-specific deterministic generators.
 - Read README.md and docs/architecture.md before making structural changes.
 - Follow docs/commenting-guide.md and keep comments accurate in the same change
   as the code.

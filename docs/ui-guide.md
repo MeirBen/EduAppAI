@@ -69,8 +69,7 @@ parent labels keep their original language and values.
   the theme's `--spacing-control` height: 44px for touch and 40px for a mouse.
   On phones the page heading steps down one size and list rows drop their
   decorative tile; body and field text stay 16px. Preserve browser zoom, iOS
-  text scaling and the
-  production bundle budgets.
+  text scaling and the production bundle budgets.
 - Label controls; associate errors with fields. Provide keyboard access, visible
   focus, loading status, error alerts and distinguishable repeated
   links/disclosures. Opening or adding an editor focuses its first field.
@@ -101,22 +100,18 @@ parent labels keep their original language and values.
 
 Containers own `gap`; shared primitives have no outer margin. `main` owns the
 page padding, so page roots add none. Lists span the frame and sit on the page
-as
-raised `list-row`s; forms and documents sit in panels. A page with one reading
-column, such as an activity document, uses `max-w-reading` with its header
-inside
-it; a single centered card uses `max-w-card`. A failed read shows its alert
-above
-an `icon-refresh` retry link in a `grid gap-2`.
+as raised `list-row`s; forms and documents sit in panels. A page with one
+reading column, such as an activity document, uses `max-w-reading` with its
+header inside it; a single centered card uses `max-w-card`. A failed read shows
+its alert above an `icon-refresh` retry link in a `grid gap-2`.
 
 | Token             | Use                                                     |
 | ----------------- | ------------------------------------------------------- |
 | `gap-1`           | Heading/description, status/content, stacked text links |
 | `gap-2`           | Control and revealed content                            |
-| `gap-3`           | Buttons in an action row                                |
+| `gap-3`           | Buttons in an action row; the chat's turns and blocks   |
 | `gap-4`           | Fields and blocks, including field/action rows          |
 | `gap-6`           | Page sections and headed groups                         |
-| `gap-3`           | The denser chat's turns and blocks                      |
 | `gap-x-6 gap-y-2` | A wrapping row of actions and links                     |
 | `gap-x-4`         | An inline row of links or status text                   |
 | `mb-2`            | Label above its control, set once in `base.css`         |
@@ -172,22 +167,18 @@ hairlines and focus halos, `/25` for the error edge and `/30` for hover edges.
 Repeated treatments become primitives, with state from `aria-current`,
 `data-done` or `data-problem` rather than alternative class lists. Keep visual
 CSS in these shared layers; components own markup, behavior and layout
-utilities,
-without local stylesheets, inline visual overrides or separate theme branches.
-The shared `chat-panel` bounds desktop conversation history while keeping the
-composer visible; below desktop width it is a sheet over the page.
-Give `steps`
-`role="list"` to preserve WebKit list semantics.
+utilities, without local stylesheets, inline visual overrides or separate theme
+branches. The shared `chat-panel` bounds desktop conversation history while
+keeping the composer visible; below desktop width it is a sheet over the page.
+Give `steps` `role="list"` to preserve WebKit list semantics.
 
 A theme redefines semantic `--color-*` tokens and, optionally, the corner and
 elevation roles (`--radius-*`, `--shadow-*`) on the root. These stay runtime
 variables, including composed shadows, so templates need no `dark:` utilities.
 Shared styles use `shadow-(--shadow-panel)` and the corresponding roles to
-retain
-runtime shadow overrides; named shadow utilities inline their geometry at build
-time.
-Keep the contrast contract in `theme.css` for every theme
-and check each token on every surface, tint and translucent layer it meets.
+retain runtime shadow overrides; named shadow utilities inline their geometry at
+build time. Keep the contrast contract in `theme.css` for every theme and check
+each token on every surface, tint and translucent layer it meets.
 Forced colors drop backgrounds and rings, so a selected or current state that
 shows only through them adds a `forced-colors:` border. The footer's theme
 picker follows the device by default. `Theme` stores an explicit choice in
@@ -246,18 +237,18 @@ saved text; the settings summary uses application-owned labels.
 
 ## Parent learning management
 
-Family pages are destinations in the header's primary nav. Profile/assignment
-lists use shared rows, native controls and `Pager`, which stays hidden while a
-list fits on one page. On wide screens the profile list sits beside its editor,
+Family pages are destinations in the header's primary nav. Library, profile
+and assignment lists use shared rows, native controls and `Pager`, which stays
+hidden while a list fits on one page; a count badge appears only while one page
+holds the whole list. On wide screens the profile list sits beside its editor,
 and the row being edited carries `aria-current="true"`. Empty states name the
 next step, or say that a filter or later page has
 nothing more. Separate profile edits from device access; confirmations explain
 disable/revoke effects. Activation codes show large as `XXXX-XXXX`, selectable
 with expiry, never in URLs or persistent browser storage. Withdrawn rows offer
 restore, which needs no confirmation. Lists of children's work and a profile's
-devices
-refresh when the page becomes visible again (`refreshOnReturn`) and keep a
-refresh link.
+devices refresh when the page becomes visible again (`refreshOnReturn`) and keep
+a refresh link.
 
 Grade (free text) and age (LTR integer, server bounds) are optional; each can
 be cleared, with no age-confirmation checkbox. Keep secondary dates under native
@@ -284,11 +275,11 @@ semantics](product-specification.md#elapsed-activity-time).
 ## Child learning
 
 Use `PageShell`, shared theme/controls and child-only home/disconnect
-navigation;
-no parent links or same-browser mode switch. Parent activation instructions give
-a copyable address for a separate browser, without the code. Explain persistent
-access and fresh activation after disconnect/revocation/expiry. An uncertain
-activation offers a session check; availability failures offer retry.
+navigation; no parent links or same-browser mode switch. Parent activation
+instructions give a copyable address for a separate browser, without the code.
+Explain persistent access and fresh activation after
+disconnect/revocation/expiry. An uncertain activation offers a session check;
+availability failures offer retry.
 
 Separate available/submitted inbox views with a `segmented` switch and bounded
 paging; rows carry a status `badge`, which keeps the state on phones where the
@@ -310,14 +301,12 @@ has no final score, and zero possible points has no percentage.
 
 ## Workspace actions
 
-**Implemented in slice 2.** Follow the activity-only lifecycle in the
-[product specification](product-specification.md#activity-lifecycle) and the
-execution details in the [chat design](activity-chat-design.md).
+The [product specification](product-specification.md#activity-lifecycle) owns
+the lifecycle and the [chat design](activity-chat-design.md) its execution.
 
 The library shows **טיוטות** and **פעילויות מוכנות**, with **פעילות חדשה** as
-its creation entry. Remove template links, publication/version controls and the
-reusable-parameter editor. Derive presentation from one activity buffer; do not
-store parallel page phases or keep a hidden template workspace mode.
+its creation entry. Presentation derives from one activity buffer, with no
+stored page phases.
 
 Before content exists, emphasize the request, the concrete requirements summary
 and any required source input/confirmation. Show settings read-only and change
@@ -351,18 +340,18 @@ the chat. Respect enlarged browser text.
 Every turn is a bubble on the action bar's tinted dock. As in messaging apps,
 the parent's own `chat-message` takes the brand tint at the end edge, and the
 assistant's `chat-reply` stays on the surface at the start edge beside
-`ai-mark`, which sits by the bubble's tail.
-What a reply changed lists under “מה השתנה” as `note` rows with a check, and its
-assumptions as `note` rows inside their disclosure. While a request runs, the
-assistant's thinking row (`LoadingIndicator variant="assistant"`) follows the
-turns. The history fades at its ends and, once the parent scrolls away from the
-latest turn, offers `chat-latest` to return. Enter sends; Shift+Enter adds a
-line. Send becomes Stop while retaining focus; when a reply arrives, focus that
-would be lost moves to the history, never into a field. A sent request leaves the
-composer for the history; failure/cancellation returns it for an explicit new
-attempt. `SuggestionChips` only fill fields and never send. Suggestions appear
-before the first exchange and apply to the current activity; mark AI execution
-actions with `icon-ai`.
+`ai-mark`, which sits by the bubble's tail. What a reply changed lists under “מה
+השתנה” as `note` rows with a check, and its assumptions as `note` rows inside
+their disclosure. While a request runs, the assistant's thinking row
+(`LoadingIndicator variant="assistant"`) follows the turns. The history fades at
+its ends and, once the parent scrolls away from the latest turn, offers
+`chat-latest` to return. Enter sends; Shift+Enter adds a line. Send becomes Stop
+while retaining focus; when a reply arrives, focus that would be lost moves to
+the history, never into a field. A sent request leaves the composer for the
+history; failure/cancellation returns it for an explicit new attempt.
+`SuggestionChips` only fill fields and never send. Suggestions appear before the
+first exchange and apply to the current activity; mark AI execution actions with
+`icon-ai`.
 
 Every valid change saves itself about a second after the parent pauses, without
 locking the fields; there is no save action. Use **יצירת הפעילות** for initial
@@ -383,10 +372,9 @@ quiet disclosure below the content. Never imply automatic paid retries.
 
 Question cards show prompts/options and disclose parent-only answers. Manual
 fields keep native labels; format is plain read-only text and points can use a
-disclosure.
-Remove separate scoped AI forms and manual add/remove/reorder controls when chat
-covers them.
-Show server diagnostics and length measurements beside their fields. After a
+disclosure. Structure changes go through chat, never per-item add, remove or
+reorder controls. Show server diagnostics and length measurements beside their
+fields. After a
 saved source/text edit, offer question regeneration or validated confirmation
 that the questions still fit; derive the offer from saved diagnostics.
 

@@ -5,14 +5,10 @@ The activity opens as a readable document with chat beside it. Incomplete work
 saves itself for later; ask for changes or edit the content directly, then
 approve the saved revision as a frozen snapshot for assignment.
 
-The [product specification](docs/product-specification.md) and
-[chat design](docs/activity-chat-design.md) define the activity-only flow.
-[Slice 1](docs/superpowers/plans/2026-10-08-activity-only-slice-1.md) implements
-the engine/API; [slice 2](docs/superpowers/plans/2026-10-09-activity-only-slice-2.md)
-implements the canvas/chat and removes template UI.
-[Slice 3](docs/superpowers/plans/2026-10-09-activity-only-slice-3.md) retires the
-backend template contracts and records the verified local cutover. Deploy
-the matching frontend/backend together; see the [architecture](docs/architecture.md).
+The [product specification](docs/product-specification.md) defines the
+product, the [chat design](docs/activity-chat-design.md) its AI execution and the
+[architecture](docs/architecture.md) the code; deploy frontend and backend
+together.
 
 ## Parent and child quick start
 
@@ -150,10 +146,10 @@ npm run e2e
 
 These tests use disposable data and a local AI provider to exercise the
 published app's full activity lifecycle, recovery, conflicts, keyboard/RTL
-behavior and 360px/200% text. The [child-flow acceptance checklist](docs/child-flow-plan.md#task-7-full-flow-acceptance-and-documentation-cutover)
-records isolation, persistence, concurrency and migration coverage. Read the
-[comment rules](docs/commenting-guide.md) and [UI guide](docs/ui-guide.md) before
-editing; open `FamilyLearning.sln` for backend work.
+behavior and 360px/200% text; [architecture](docs/architecture.md#tests) maps
+the suites. Read the [comment rules](docs/commenting-guide.md) and
+[UI guide](docs/ui-guide.md) before editing; open `FamilyLearning.sln` for
+backend work.
 
 ## Server logs
 
@@ -205,34 +201,16 @@ full deletion contract.
 Development stores SQLite and Data Protection keys in the ignored
 `backend/FamilyLearning.Api/data/`. Set `Storage__Directory` to an absolute path
 to relocate them, using the same path for provisioning, migrations and runtime,
-and keep keys with the database so cookies survive restarts. The activity-only
-redesign requires a coordinated fresh start for learning records; existing plan
-JSON is not converted. Keep parent accounts, families and AI configuration, and
-follow the [cutover contract](docs/product-specification.md#activity-only-cutover).
-Do not reset data as part of ordinary startup.
+and keep keys with the database so cookies survive restarts.
 
 ### Activity-only cutover
 
-For an existing installation, coordinate the reset and stop the app, worker and
-development watchers first. Build and verify the matching app before running:
-
-```bash
-export Storage__Directory="/absolute/path/to/existing/storage"
-dotnet artifacts/app/FamilyLearning.Api.dll --activity-only-cutover
-```
-
-This one-time command clears all families' drafts, operation evidence, templates,
-snapshots, children/device access, assignments, answers and grades, then removes
-template tables and provenance columns. Parent accounts, families, Data
-Protection keys and AI configuration remain. It starts no HTTP server, worker
-or AI call. A failed learning reset rolls back its deletes; if the later schema
-update fails, learning records remain empty and rerunning finishes the update.
-
-Ordinary `--migrate` and development startup reject a populated pre-cutover
-database without deleting records. Fresh databases migrate normally. Once the
-cutover migration is applied, repeating `--activity-only-cutover` changes
-nothing, including activities created afterward. Confirm account/configuration
-retention and an empty learning queue before restarting the app.
+A database from before the activity-only redesign (9 October 2026) refuses to
+migrate while it holds learning records. With the app and watchers stopped,
+`dotnet artifacts/app/FamilyLearning.Api.dll --activity-only-cutover` clears all
+learning records and child access in one transaction, keeping parent accounts,
+families, keys and AI configuration, then migrates. It starts no server, worker
+or AI call, and once applied repeating it changes nothing.
 
 For model changes, stop `dev.sh` first, since its watcher can apply an
 unfinished migration:
