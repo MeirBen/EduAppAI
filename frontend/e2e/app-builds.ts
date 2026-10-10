@@ -21,7 +21,7 @@ const types: Record<string, string> = {
 /**
  * Serves the published frontend, then a next build of it, on one origin, so the real service worker
  * meets a deployment. The next build differs by a marker, and Angular's own tool rewrites its
- * manifest. The API answers only the anonymous session check.
+ * manifest. The API answers only anonymous parent/child session checks.
  */
 export async function startAppBuilds() {
   const next = mkdtempSync(resolve(tmpdir(), 'family-learning-next-'));
@@ -43,10 +43,12 @@ export async function startAppBuilds() {
     { cwd: frontend },
   );
   let root = published;
+  const requests = new Set<string>();
   const server = createServer(async (request, response) => {
     const path = new URL(request.url ?? '/', 'http://127.0.0.1').pathname;
+    requests.add(path);
     if (path.startsWith('/api/')) {
-      response.writeHead(path === '/api/auth/me' ? 401 : 404).end();
+      response.writeHead(['/api/auth/me', '/api/child/auth/me'].includes(path) ? 401 : 404).end();
       return;
     }
     // Routes fall back to the app shell; the URL parser has already resolved any `..` segment.
@@ -66,6 +68,7 @@ export async function startAppBuilds() {
   assert.ok(address && typeof address !== 'string');
   return {
     url: `http://127.0.0.1:${address.port}`,
+    requests,
     deploy: () => {
       root = next;
     },

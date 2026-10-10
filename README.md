@@ -235,6 +235,10 @@ following
 PWA service worker is enabled only in published builds; the development server
 serves live changes.
 
+The worker prefetches HTML, styles and the main entry script. Shared and route
+chunks are cached when requested; unvisited screens need a connection on first
+use. Private API data stays uncached.
+
 Published scripts, styles, fonts and images with Angular's content hash in their
 filename use `Cache-Control: public, max-age=31536000, immutable`. HTML (including
 page fallbacks), service-worker control files and other stable filenames use
