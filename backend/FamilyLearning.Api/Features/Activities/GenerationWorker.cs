@@ -218,10 +218,9 @@ public sealed partial class GenerationWorker(IServiceScopeFactory scopes, AiGene
                 if (NextStage(call.Kind, call.Stage, acceptedArtifacts) is { } next) operation.QueueStage(next, draft.Revision);
                 else
                 {
-                    var changes = draft.ApplyOperation(acceptedArtifacts.Plan, acceptedArtifacts.Current, call.Kind);
+                    var applied = draft.ApplyOperation(acceptedArtifacts.Plan, acceptedArtifacts.Current, call.Kind);
                     operation.Finish("completed", null, UtcNow, draft.Revision);
-                    draft.CompleteChat(operation, UtcNow, acceptedArtifacts.Reply ?? (changes is null ? "הפעולה הסתיימה ללא שינוי בתוכן." : null),
-                        acceptedArtifacts.Assumptions, changes);
+                    draft.CompleteChat(operation, UtcNow, acceptedArtifacts.Reply, acceptedArtifacts.Assumptions, applied);
                 }
             }
             if (operation.Status != "queued")

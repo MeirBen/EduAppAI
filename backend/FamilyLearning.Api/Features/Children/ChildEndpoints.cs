@@ -122,10 +122,7 @@ public static class ChildEndpoints
         TimeProvider clock, CancellationToken ct)
     {
         await using var transaction = await db.Database.BeginTransactionAsync(ct);
-        var grant = await (from device in db.ChildDeviceGrants
-                           join child in db.Children on device.ChildId equals child.Id
-                           where child.Id == id && child.FamilyId == user.FamilyId() && device.Id == grantId
-                           select device).SingleOrDefaultAsync(ct);
+        var grant = await OwnedGrant(db, user, id, grantId).SingleOrDefaultAsync(ct);
         if (grant is null) return Results.NotFound();
         grant.Revoke(clock.GetUtcNow().UtcDateTime);
         await db.SaveChangesAsync(ct);
@@ -137,10 +134,7 @@ public static class ChildEndpoints
         TimeProvider clock, CancellationToken ct)
     {
         await using var transaction = await db.Database.BeginTransactionAsync(ct);
-        var grant = await (from device in db.ChildDeviceGrants
-                           join child in db.Children on device.ChildId equals child.Id
-                           where child.Id == id && child.FamilyId == user.FamilyId() && device.Id == grantId
-                           select device).SingleOrDefaultAsync(ct);
+        var grant = await OwnedGrant(db, user, id, grantId).SingleOrDefaultAsync(ct);
         if (grant is null) return Results.NotFound();
         if (grant.RevokedAtUtc is null && grant.ExpiresAtUtc > clock.GetUtcNow().UtcDateTime)
             return Results.Problem(statusCode: 409, title: "יש לבטל את הגישה מהמכשיר לפני הסרתו מהרשימה.");
@@ -149,4 +143,10 @@ public static class ChildEndpoints
         await transaction.CommitAsync(ct);
         return Results.NoContent();
     }
+
+    private static IQueryable<ChildDeviceGrant> OwnedGrant(LearningDbContext db, ClaimsPrincipal user, Guid childId, Guid grantId) =>
+        from device in db.ChildDeviceGrants
+        join child in db.Children on device.ChildId equals child.Id
+        where child.Id == childId && child.FamilyId == user.FamilyId() && device.Id == grantId
+        select device;
 }

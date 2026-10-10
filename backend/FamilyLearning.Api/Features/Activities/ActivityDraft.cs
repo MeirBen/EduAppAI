@@ -41,7 +41,7 @@ public sealed class ActivityDraft(Guid familyId, string name, string planJson, s
         var summary = reply is null ? changes : null;
         var text = reply ?? (summary is not null ? "" : operation.Status switch
         {
-            "completed" => "הפעולה הושלמה.",
+            "completed" => "הפעולה הסתיימה ללא שינוי בתוכן.",
             "cancelled" => "הפעולה נעצרה. התוכן השמור לא השתנה.",
             "unknown" => "הפעולה הופסקה ותוצאת קריאת ה־AI אינה ידועה. התוכן השמור לא השתנה.",
             "conflict" => "הפעולה לא הוחלה כי מצב הטיוטה השתנה.",
@@ -74,7 +74,7 @@ public sealed class ActivityDraft(Guid familyId, string name, string planJson, s
         UpdatedAtUtc = DateTime.UtcNow;
     }
 
-    /// <summary>Stages the accepted content and its factual notice; a null notice means there was no saved change.</summary>
+    /// <summary>Stages the accepted content and returns its factual change statements; null means there was no saved change.</summary>
     internal string[]? ApplyOperation(LearningPlan plan, TaskDocument document, string kind)
     {
         var planJson = StoredJson.Write(plan);
@@ -82,12 +82,12 @@ public sealed class ActivityDraft(Guid familyId, string name, string planJson, s
         if (PlanJson == planJson && DocumentJson == documentJson) return null;
         var previousPlan = Plan;
         var previousDocument = Document;
-        var notice = ActivityChangeNotice.Describe(previousPlan, previousDocument, plan, document);
+        var changes = ActivityChangeNotice.Describe(previousPlan, previousDocument, plan, document);
         var undo = kind is "Revise" or "GenerateQuestions"
             ? StoredJson.Write(new ActivityUndo(previousPlan, previousDocument, checked(Revision + 1))) : null;
         Save(plan.Name, planJson, documentJson);
         UndoJson = undo;
-        return notice;
+        return changes;
     }
 
     internal void RestoreUndo(DateTime now)

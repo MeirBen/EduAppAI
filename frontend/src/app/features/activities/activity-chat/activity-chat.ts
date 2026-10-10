@@ -17,6 +17,7 @@ import { FieldTree, FormField } from '@angular/forms/signals';
 import { ActivityChatTurn, AuthoringTurn } from '../../../core/api/models';
 import { LoadingIndicator } from '../../../shared/loading-indicator/loading-indicator';
 import { FieldDirection } from '../../../shared/forms/field-direction';
+import { scrollBehavior } from '../../../shared/scroll-behavior';
 import { SuggestionChips } from '../../../shared/suggestion-chips/suggestion-chips';
 
 /**
@@ -129,14 +130,12 @@ export class ActivityChat {
       if (busy === this.wasBusy) return;
       this.wasBusy = busy;
       if (!this.focusInside || this.document.activeElement !== this.document.body) return;
-      (busy
+      const successor = busy
         ? this.stop()
         : this.thread().length
           ? this.history()
-          : this.composer()
-      )?.nativeElement.focus({
-        preventScroll: true,
-      });
+          : this.composer();
+      successor?.nativeElement.focus({ preventScroll: true });
     });
   }
 
@@ -157,11 +156,8 @@ export class ActivityChat {
    * focus moves to the history it scrolled rather than to the page.
    */
   protected showLatest() {
-    const reduced = this.document.defaultView?.matchMedia(
-      '(prefers-reduced-motion: reduce)',
-    ).matches;
     const history = this.history().nativeElement;
-    history.scrollTo({ top: history.scrollHeight, behavior: reduced ? 'instant' : 'smooth' });
+    history.scrollTo({ top: history.scrollHeight, behavior: scrollBehavior(this.document) });
     history.focus({ preventScroll: true });
   }
 

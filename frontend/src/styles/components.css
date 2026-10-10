@@ -18,6 +18,10 @@
   .button-danger {
     @apply border-line bg-surface text-danger shadow-(--shadow-control) actionable:hover:border-danger/30 actionable:hover:bg-danger-soft actionable:hover:shadow-(--shadow-panel);
   }
+  /* A busy action's icon breathes, as the assistant's mark does while it thinks. */
+  .button[aria-busy='true'] > .icon {
+    @apply motion-safe:animate-thinking;
+  }
   .text-link {
     @apply inline-flex min-h-control w-fit items-center gap-2 rounded-small py-1.5 font-medium text-brand underline decoration-transparent decoration-2 transition-[color,text-decoration-color] actionable:hover:decoration-current;
   }
@@ -39,10 +43,6 @@
   /* A round icon-only action, named by its `tooltip`. Quiet ones sit in rows and cards. */
   .icon-button {
     @apply relative grid size-control shrink-0 place-items-center rounded-full bg-brand text-base text-on-brand shadow-(--shadow-button) transition-[background-color,box-shadow,color] actionable:hover:bg-brand-hover actionable:hover:shadow-(--shadow-button-raised);
-  }
-  /* A busy action's icon breathes, as the assistant's mark does while it thinks. */
-  .button[aria-busy='true'] > .icon {
-    @apply motion-safe:animate-thinking;
   }
   .icon-button-ink {
     @apply bg-ink text-surface actionable:hover:bg-ink;
@@ -143,8 +143,10 @@
   .card-section {
     @apply grid gap-4 border-t border-line pt-6;
   }
-  /* The page's save state and current actions, pinned at the window's bottom until the page reaches it. */
-  /* A tinted, raised dock, so it stands apart from the panels it floats over. */
+  /*
+   * The page's save state and current actions, pinned at the window's bottom until the page reaches
+   * it: a tinted, raised dock, so it stands apart from the panels it floats over.
+   */
   .action-bar {
     @apply z-10 grid gap-2 rounded-card border border-brand/15 bg-soft p-2 shadow-(--shadow-raised) inset-be-3 pinned-actions:sticky sm:p-3;
 
@@ -180,7 +182,7 @@
   }
   /*
    * The bar's main row: its actions, then its status line, which ends at the far edge. Actions sit
-   * directly in the row, so they and the status share lines as space allows.
+   * directly in the row, so they and the status share one line; only enlarged text wraps it.
    */
   .action-bar-row {
     @apply flex flex-wrap items-center gap-2;
@@ -240,13 +242,12 @@
   }
 
   /* Conversation. The parent's own messages sit at the end edge, as in common chat layouts. */
-  .chat-panel,
-  .chat-layout {
-    @apply grid;
-  }
   /* The chat shares the action bar's tinted dock, so the assistant's tools read apart from the document. */
   .chat-panel {
-    @apply border-brand/15 bg-soft;
+    @apply grid border-brand/15 bg-soft;
+  }
+  .chat-layout {
+    @apply grid;
   }
   /*
    * A chat beside a document keeps its title and composer in place while only its history scrolls:
@@ -256,6 +257,12 @@
   @media (width < 64rem), (height >= 40rem) {
     .chat-panel[data-document]:not(:has(#chat-consolidated)) {
       @apply flex flex-col;
+
+      /* Desktops pin it, since the action bar sits under the document column. */
+      @variant lg {
+        @apply sticky top-24;
+        max-block-size: calc(100dvh - 7.5rem);
+      }
 
       & :is(.chat-layout, .chat-history) {
         @apply flex min-h-0 flex-col;
@@ -287,13 +294,6 @@
       & .composer > textarea {
         @apply max-h-32;
       }
-    }
-  }
-  /* Pinned on desktops, where the action bar sits under the document column, so the chat can reach the window's bottom. */
-  @media (width >= 64rem) and (height >= 40rem) {
-    .chat-panel[data-document]:not(:has(#chat-consolidated)) {
-      @apply sticky top-24;
-      max-block-size: calc(100dvh - 7.5rem);
     }
   }
   /*

@@ -15,6 +15,9 @@ import { DocumentForm } from '../activity-document-editor/document-form';
 import { planChangeLabel } from '../activity-presentation';
 import { isRunning } from '../generation-status/operation-state';
 
+/** The composer field a request comes from: the message, or the request that consolidates the chat. */
+type ComposerField = 'message' | 'consolidated';
+
 /**
  * Local conversation and composer for one workspace. Create in its injection context; the
  * workspace owns content/revision fences and the server owns saved chat and operations.
@@ -26,26 +29,10 @@ export class ChatSession {
   private readonly cancelled = new Subject<void>();
   private settledOperation: string | undefined;
   /** An admitted revision's request; its saved parent turn shows it, so the field it came from is empty. */
-  private admitted?: { text: string; field: 'message' | 'consolidated' };
+  private admitted?: { text: string; field: ComposerField };
   private targetPrefix = '';
 
   readonly selectedTarget = signal<RevisionTarget | undefined>(undefined);
-  readonly targetLabel = computed(() => {
-    const target = this.selectedTarget();
-    if (!target) return '';
-    const document = this.document();
-    if (target.kind === 'material')
-      return (
-        document.materials.find((material) => material.id === target.id)?.title ||
-        (document.materials.some((material) => material.id === target.id)
-          ? 'הטקסט שנבחר'
-          : 'החלק שנבחר אינו קיים עוד. בטלו את הבחירה או בחרו חלק אחר.')
-      );
-    const index = document.questions.findIndex((question) => question.id === target.id);
-    return index < 0
-      ? 'החלק שנבחר אינו קיים עוד. בטלו את הבחירה או בחרו חלק אחר.'
-      : `שאלה ${index + 1}`;
-  });
   readonly invalidTarget = computed(() => {
     const target = this.selectedTarget();
     return (
@@ -55,9 +42,18 @@ export class ChatSession {
       )
     );
   });
+  readonly targetLabel = computed(() => {
+    const target = this.selectedTarget();
+    if (!target) return '';
+    if (this.invalidTarget()) return 'החלק שנבחר אינו קיים עוד. בטלו את הבחירה או בחרו חלק אחר.';
+    const { materials, questions } = this.document();
+    return target.kind === 'material'
+      ? materials.find((material) => material.id === target.id)!.title || 'הטקסט שנבחר'
+      : `שאלה ${questions.findIndex((question) => question.id === target.id) + 1}`;
+  });
   readonly chat = signal({ message: '', consolidated: '' });
   /** Unanswered authoring requests return to the composer on failure, Stop or a local edit. */
-  private readonly request = signal<{ id: string; text: string; consolidate: boolean } | undefined>(
+  private readonly request = signal<{ id: string; text: string; field: ComposerField } | undefined>(
     undefined,
   );
   readonly authoring = computed(() => !!this.request());
@@ -131,12 +127,7 @@ export class ChatSession {
     const pending = this.request();
     this.request.set(undefined); // Invalidate identity before unsubscribing from transport.
     this.cancelled.next();
-    if (pending)
-      this.chat.update((chat) =>
-        pending.consolidate
-          ? { ...chat, consolidated: pending.text }
-          : { ...chat, message: pending.text },
-      );
+    if (pending) this.chat.update((chat) => ({ ...chat, [pending.field]: pending.text }));
   }
 
   /** Local content edits invalidate both the pending request and unresolved context. */
@@ -158,13 +149,12 @@ export class ChatSession {
     isCurrent: () => boolean,
     consolidate = false,
   ): Promise<LearningPlan | undefined> {
-    const message = consolidate ? this.chat().consolidated : this.chat().message;
+    const field = consolidate ? 'consolidated' : 'message';
+    const message = this.chat()[field];
     const requestId = crypto.randomUUID();
     const context = consolidate ? [] : this.conversation();
-    this.request.set({ id: requestId, text: message, consolidate });
-    this.chat.update((chat) =>
-      consolidate ? { ...chat, consolidated: '' } : { ...chat, message: '' },
-    );
+    this.request.set({ id: requestId, text: message, field });
+    this.chat.update((chat) => ({ ...chat, [field]: '' }));
     this.authorError.set('');
     try {
       const reply = await this.api.authorPlan(

@@ -29,6 +29,7 @@ import {
   RevisionTarget,
 } from '../../../core/api/models';
 import { focusHolder } from '../../../shared/focus-holder';
+import { scrollBehavior } from '../../../shared/scroll-behavior';
 import { validationErrors } from '../../../shared/forms/projection';
 import { LoadingIndicator } from '../../../shared/loading-indicator/loading-indicator';
 import { ActivityDocumentEditor } from '../activity-document-editor/activity-document-editor';
@@ -452,15 +453,12 @@ export class ActivityWorkspace {
       (!consolidate && session.needsConsolidation())
     )
       return;
-    const message = consolidate ? session.chat().consolidated : session.chat().message;
+    const message = session.chat()[consolidate ? 'consolidated' : 'message'];
     if (!message.trim() || message.length > this.limits.messageLength) return;
     if (this.saved()) {
       if (session.invalidTarget()) return;
       session.authorError.set('');
-      await this.activityAction('Revise', {
-        message,
-        target: session.selectedTarget(),
-      });
+      await this.activityAction('Revise', { message, target: session.selectedTarget() });
       return;
     }
     const baseDefinition = this.projection().value;
@@ -684,8 +682,7 @@ export class ActivityWorkspace {
    * cannot wait for a save, so it warns during that pause.
    */
   async canLeave() {
-    if (this.dirty() && !this.blocker() && !this.contentBusy() && !this.autosaveHalted)
-      await this.flushDraft().catch(() => undefined);
+    if (this.savesItself()) await this.flushDraft().catch(() => undefined);
     return !this.localWork() || window.confirm('יש שינויים שלא נשמרו. לצאת מהעמוד?');
   }
 
@@ -725,9 +722,14 @@ export class ActivityWorkspace {
     this.autosaveTimer = setTimeout(() => void this.autosave(), autosaveDelay);
   }
 
+  /** A valid change saves without asking, unless other work is writing or a conflict halted it. */
+  private savesItself() {
+    return this.dirty() && !this.blocker() && !this.contentBusy() && !this.autosaveHalted;
+  }
+
   /** Saves a valid buffer in the background; invalid content waits for its fix, shown at its fields. */
   private async autosave() {
-    if (!this.dirty() || this.blocker() || this.contentBusy() || this.autosaveHalted) return;
+    if (!this.savesItself()) return;
     this.observer.suspend();
     this.autosaving.set(true);
     try {
@@ -893,10 +895,9 @@ export class ActivityWorkspace {
   private revealProgress() {
     afterNextRender(
       () => {
-        const reduced = this.document.defaultView?.matchMedia('(prefers-reduced-motion: reduce)');
         this.progress()?.nativeElement.scrollIntoView({
           block: 'start',
-          behavior: reduced?.matches ? 'auto' : 'smooth',
+          behavior: scrollBehavior(this.document),
         });
       },
       { injector: this.injector },

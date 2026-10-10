@@ -11,8 +11,6 @@ namespace FamilyLearning.Api.Tests.TaskEngine;
 
 public sealed class ContentPolishTests
 {
-    private static readonly TaskDocument Empty = new("", null, [], []);
-
     [Fact]
     public async Task Material_polish_edits_generated_text_in_place_keeps_its_idea_and_never_sends_a_supplied_source()
     {
