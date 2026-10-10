@@ -1,0 +1,18 @@
+# Allowlist the image's build inputs; development databases, keys, certificates and outputs stay local.
+*
+!.editorconfig
+!Directory.Build.props
+!global.json
+!backend/FamilyLearning.Api/
+backend/FamilyLearning.Api/bin/
+backend/FamilyLearning.Api/obj/
+backend/FamilyLearning.Api/data/
+!frontend/.postcssrc.json
+!frontend/angular.json
+!frontend/ngsw-config.json
+!frontend/package.json
+!frontend/package-lock.json
+!frontend/public/
+!frontend/src/
+!frontend/tsconfig.json
+!frontend/tsconfig.app.json

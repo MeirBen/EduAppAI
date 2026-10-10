@@ -222,6 +222,31 @@ public sealed class ProductionHostTests
         }
     }
 
+    [Fact]
+    public async Task Configured_client_ip_header_trusts_a_remote_platform_proxy()
+    {
+        using var app = new ApiFactory(services =>
+            services.Configure<HttpsRedirectionOptions>(options => options.HttpsPort = 443), "Production");
+        await MigrateAsync(app.DataDirectory);
+        var platform = app.WithWebHostBuilder(builder => builder.UseSetting("ForwardedHeaders:ClientIpHeader", "Platform-Client-IP"));
+        var context = await platform.Server.SendAsync(http =>
+        {
+            http.Connection.RemoteIpAddress = IPAddress.Parse("172.16.4.2");
+            http.Request.Scheme = "http";
+            http.Request.Host = new HostString("family.example.test");
+            http.Request.Path = "/api/auth/csrf";
+            http.Request.Headers["X-Forwarded-Proto"] = "https";
+            // The platform's own address can end X-Forwarded-For; only its client header names the caller.
+            http.Request.Headers["X-Forwarded-For"] = "192.0.2.123, 203.0.113.80";
+            http.Request.Headers["Platform-Client-IP"] = "198.51.100.42";
+        });
+
+        Assert.Equal(StatusCodes.Status200OK, context.Response.StatusCode);
+        Assert.Equal("https", context.Request.Scheme);
+        Assert.Equal(IPAddress.Parse("198.51.100.42"), context.Connection.RemoteIpAddress);
+        Assert.True(context.Response.Headers.ContainsKey(HeaderNames.StrictTransportSecurity));
+    }
+
     private static async Task MigrateAsync(string directory)
     {
         var start = new ProcessStartInfo("dotnet");

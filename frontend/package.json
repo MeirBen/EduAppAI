@@ -5,7 +5,6 @@
     "ng": "ng",
     "prestart": "../scripts/dev-cert.sh",
     "start": "ng serve",
-    "start:public": "exec ../scripts/dev.sh --public",
     "build": "ng build",
     "deps:update": "node tools/deps/update-deps.js",
     "test": "ng test",

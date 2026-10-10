@@ -14,7 +14,7 @@ together.
 
 First complete [local setup](#start) or use a [published app](#publish).
 Parent and child use separate browsers/devices. For a child on another device,
-use the app's [public HTTPS address](#public-https-address), not `localhost`.
+use the published app's HTTPS address, not `localhost`.
 
 ### Parent
 
@@ -67,9 +67,7 @@ a family; there is no default account or public registration.
 and client reload watchers and starts the evaluation dashboard at
 <http://127.0.0.1:5180>, without AI calls. **Ctrl+C** stops all three; restart
 after configuration changes, and run `npm --prefix frontend ci` after dependency
-changes. Use
-[`npm --prefix frontend run start:public`](#public-https-address) to run the
-same development app through ngrok as well.
+changes.
 Angular proxies `/api` to `http://localhost:5124`; use `localhost` consistently
 for cookies. Development applies the checked-in migrations.
 
@@ -88,44 +86,12 @@ mkcert -install
 ```
 
 `npm start` issues a trusted development certificate. Never share
-`rootCA-key.pem`. For access from other devices, use the app's
-[public HTTPS address](#public-https-address).
+`rootCA-key.pem`. For access from other devices, use a
+[published app](#publish).
 
 [mkcert]: https://github.com/FiloSottile/mkcert
 
 AI settings, evaluation, results and costs are in the [AI guide](docs/ai.md).
-
-### Public HTTPS address
-
-An account-assigned ngrok domain provides the web app's stable HTTPS address.
-ngrok manages its certificate and [supports SSE](https://ngrok.com/compare/cloudflare-tunnel)
-for live updates. UI, API and event streams share that origin.
-
-Follow ngrok's [setup instructions](https://ngrok.com/download/linux) and keep
-the account token outside the repository. [dev.sh](scripts/dev.sh) owns the
-app's assigned domain; `start:public` calls it with `--public`. The
-[free plan](https://ngrok.com/docs/pricing-limits/free-plan-limits) has usage
-limits and a browser warning; choose **Visit** to continue.
-
-Start the development services and tunnel in one terminal:
-
-```bash
-npm --prefix frontend run start:public
-```
-
-The domain forwards to the same Angular server at <https://localhost:4200>.
-`ng serve` rebuilds the frontend and `dotnet watch` reloads the API at port 5124;
-Angular's existing proxy forwards API requests and live event streams. Both
-addresses use the same database and AI configuration. The evaluation dashboard
-stays on loopback port 5180. Publishing is not needed for this command.
-
-**Ctrl+C**, closing the terminal or any service exiting stops all services and
-ngrok. The host machine and launcher must stay running for the domain to work.
-The app becomes available after the initial builds complete.
-
-Open the HTTPS address and sign in. `/health` reports API process availability,
-not database or AI readiness. The PWA service worker is enabled only in published
-builds; the development server serves live changes.
 
 ## Update dependencies
 
@@ -275,6 +241,54 @@ and environment variables, not development user secrets.
 The host processes `X-Forwarded-For` and `X-Forwarded-Proto` from one loopback
 proxy before HTTPS redirection, authentication and rate limiting. Preserve the
 original `Host` header and disable proxy buffering for `/api/library/changes`.
-For a proxy on another machine, explicitly configure its trusted address in
-`ForwardedHeadersOptions`, following
+When a hosting platform's proxy is the only route to the process, set
+`ForwardedHeaders__ClientIpHeader` to the header in which that proxy sends the
+client address. The host then accepts it and `X-Forwarded-Proto` from any
+connecting address, so never set it on a directly reachable server. For another
+remote proxy, configure its trusted address in `ForwardedHeadersOptions`,
+following
 [Microsoft's proxy guidance](https://learn.microsoft.com/en-us/aspnet/core/host-and-deploy/proxy-load-balancer?view=aspnetcore-8.0).
+
+`/health` reports API process availability, not database or AI readiness. The
+PWA service worker is enabled only in published builds; the development server
+serves live changes.
+
+### Container
+
+The [Dockerfile](Dockerfile) builds the same package as an image for any
+container host. It listens on port 8080 and applies pending migrations before
+each start. Run one instance with persistent storage and set:
+
+- `Storage__Directory`: the persistent mount, such as `/data`.
+- `OPENROUTER_API_KEY`: the AI key, stored as a host secret.
+- `ForwardedHeaders__ClientIpHeader`: the platform proxy's client-address
+  header.
+- `Serilog__WriteTo__File__Args__configure__0__Args__path` (optional): a log
+  file pattern on persistent storage, such as `/data/logs/server-.jsonl`.
+
+Provision the first parent from a shell in the running container:
+
+```bash
+cd /app
+Storage__Directory=/data dotnet FamilyLearning.Api.dll --create-parent you@example.com
+```
+
+### Fly.io
+
+[fly.toml](fly.toml) runs the image on one always-on machine in Frankfurt with
+a 1 GB volume at `/data`, logs on that volume and Fly's `Fly-Client-IP` header.
+Install [flyctl](https://fly.io/docs/flyctl/install/) and sign in, then deploy
+from the repository root:
+
+```bash
+fly apps create family-learning # If taken, choose another and update fly.toml
+fly volumes create data --region fra --size 1 -y
+read -rsp 'OpenRouter API key: ' key; echo
+printf 'OPENROUTER_API_KEY=%s\n' "$key" | fly secrets import; unset key
+fly deploy --ha=false
+fly ssh console # Then provision the parent as in Container
+```
+
+Open `https://<app>.fly.dev`. Later releases need only `fly deploy`; `fly logs`
+streams console output. Fly snapshots the volume daily and keeps snapshots for
+five days. To use another host, delete `fly.toml` and follow [Container](#container).

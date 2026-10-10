@@ -1,0 +1,25 @@
+# Fly.io settings for the generic Dockerfile; README.md#flyio has the commands.
+# One machine owns the SQLite volume and the single generation worker.
+app = "family-learning"
+primary_region = "fra"
+
+[env]
+  ForwardedHeaders__ClientIpHeader = "Fly-Client-IP"
+  Storage__Directory = "/data"
+  Serilog__WriteTo__File__Args__configure__0__Args__path = "/data/logs/server-.jsonl"
+
+[mounts]
+  source = "data"
+  destination = "/data"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  # Stopping an idle machine would interrupt generation and live-update streams.
+  auto_stop_machines = "off"
+  min_machines_running = 1
+
+[[vm]]
+  memory = "512mb"
+  cpu_kind = "shared"
+  cpus = 1

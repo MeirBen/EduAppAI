@@ -46,11 +46,19 @@ try
     builder.WebHost.ConfigureKestrel(options => options.Limits.MaxRequestBodySize = 3 * 1024 * 1024);
     app = builder.Build();
     app.Logger.LogInformation("Starting API host with AI configured: {AiConfigured}", app.Services.GetRequiredService<AiGenerationService>().Configured);
-    // Local proxies terminate TLS; retain the framework's one-hop, loopback-only trust defaults.
-    app.UseForwardedHeaders(new ForwardedHeadersOptions
+    // Proxies terminate TLS; by default only one loopback hop is trusted, the framework's defaults.
+    var forwardedHeaders = new ForwardedHeadersOptions
     {
         ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
-    });
+    };
+    // A hosting platform whose proxy is the only route to this process names its own client-address header.
+    if (app.Configuration["ForwardedHeaders:ClientIpHeader"] is { Length: > 0 } clientIpHeader)
+    {
+        forwardedHeaders.ForwardedForHeaderName = clientIpHeader;
+        forwardedHeaders.KnownNetworks.Clear();
+        forwardedHeaders.KnownProxies.Clear();
+    }
+    app.UseForwardedHeaders(forwardedHeaders);
     app.UseApplicationRequestLogging();
     if (app.Environment.IsDevelopment())
     {
