@@ -74,10 +74,11 @@ try
     app.UseExceptionHandler();
     app.UseStatusCodePages();
     // Angular serves the UI separately during development; publishing supplies wwwroot.
+    var staticFiles = new StaticFileOptions { OnPrepareResponse = StaticFileCaching.Apply };
     if (Directory.Exists(app.Environment.WebRootPath))
     {
         app.UseDefaultFiles();
-        app.UseStaticFiles();
+        app.UseStaticFiles(staticFiles);
     }
     app.UseAuthentication();
     app.UseAuthorization();
@@ -85,7 +86,7 @@ try
     app.MapApplicationApi();
     app.MapGet("/health", () => Results.Ok(new { status = "ok" }));
     if (File.Exists(Path.Combine(app.Environment.WebRootPath ?? "wwwroot", "index.html")))
-        app.MapFallbackToFile("index.html");
+        app.MapFallbackToFile("index.html", staticFiles);
     await app.StartAsync();
     await app.WaitForShutdownAsync();
 }

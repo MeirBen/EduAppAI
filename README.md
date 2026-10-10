@@ -235,6 +235,11 @@ following
 PWA service worker is enabled only in published builds; the development server
 serves live changes.
 
+Published scripts, styles, fonts and images with Angular's content hash in their
+filename use `Cache-Control: public, max-age=31536000, immutable`. HTML (including
+page fallbacks), service-worker control files and other stable filenames use
+`no-cache` to revalidate with the server. API responses retain `no-store`.
+
 ### Container
 
 The [Dockerfile](Dockerfile) builds the same package as an image for any
