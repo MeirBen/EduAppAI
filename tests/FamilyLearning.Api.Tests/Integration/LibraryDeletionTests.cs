@@ -23,7 +23,7 @@ public sealed class LibraryDeletionTests
             var db = scope.ServiceProvider.GetRequiredService<LearningDbContext>();
             var original = await db.ActivityDrafts.SingleAsync(d => d.Id == draft["id"]!.GetValue<Guid>());
             for (var index = 0; index < 101; index++)
-                db.ActivityDrafts.Add(new ActivityDraft(original.FamilyId, original.Name, original.PlanJson,
+                db.ActivityDrafts.Add(new ActivityDraft(Guid.NewGuid(), original.FamilyId, original.Name, original.PlanJson,
                     original.DocumentJson, null, original.CreatedByParentId));
             await db.SaveChangesAsync();
         }

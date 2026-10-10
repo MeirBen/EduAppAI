@@ -55,6 +55,8 @@ export class SnapshotPreviewPage {
   protected readonly snapshot = this.api.snapshot(this.instanceId);
   protected readonly copying = signal(false);
   protected readonly copiedId = signal('');
+  /** Names the copy this page makes, so a retry after a lost response replays it instead of adding another. */
+  private readonly copyId = crypto.randomUUID();
   protected readonly error = signal('');
   protected readonly apiError = apiError;
   private readonly assignmentApi = inject(AssignmentApi);
@@ -127,7 +129,7 @@ export class SnapshotPreviewPage {
     this.copying.set(true);
     this.error.set('');
     try {
-      const draft = await this.api.copySnapshot(this.instanceId(), this.lifetime);
+      const draft = await this.api.copySnapshot(this.instanceId(), this.copyId, this.lifetime);
       if (!this.lifetime.destroyed) this.copiedId.set(draft.id);
     } catch (error) {
       if (!this.lifetime.destroyed)

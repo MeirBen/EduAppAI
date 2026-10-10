@@ -26,7 +26,7 @@ public static class EvaluationRunner
         var calls = new EvaluationCalls(report.MaxCalls);
         var capture = new EvaluationCapture(client, calls);
         var judgeCapture = new EvaluationCapture(judge, calls);
-        using var engine = new AiGenerationService([capture], NullLogger<AiGenerationService>.Instance, Options.Create(options));
+        var engine = new AiGenerationService([capture], NullLogger<AiGenerationService>.Instance, Options.Create(options));
         string stage = "starting";
         string? caseId = null;
         int? currentRepetition = null;

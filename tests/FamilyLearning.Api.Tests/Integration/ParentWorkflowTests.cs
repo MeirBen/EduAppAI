@@ -36,7 +36,7 @@ public sealed class ParentWorkflowTests
         using var parent = await app.ParentAsync();
         parent.DefaultRequestHeaders.Remove("X-XSRF-TOKEN");
         Assert.Equal(HttpStatusCode.BadRequest,
-            (await parent.PostAsJsonAsync("/api/activity-drafts", new { plan = AiFixtures.PlanJson() })).StatusCode);
+            (await parent.PostAsJsonAsync("/api/activity-drafts", new { id = Guid.NewGuid(), plan = AiFixtures.PlanJson() })).StatusCode);
         await ApiFactory.RefreshCsrfAsync(parent);
         Assert.Equal(HttpStatusCode.NoContent, (await parent.PostAsync("/api/auth/logout", null)).StatusCode);
         Assert.Equal(HttpStatusCode.Unauthorized, (await parent.GetAsync("/api/activity-drafts")).StatusCode);
@@ -50,7 +50,7 @@ public sealed class ParentWorkflowTests
         var definition = AiFixtures.PlanJson();
         definition["schemaVersion"] = "3";
         Assert.Equal(HttpStatusCode.BadRequest,
-            (await parent.PostAsJsonAsync("/api/activity-drafts", new { plan = definition })).StatusCode);
+            (await parent.PostAsJsonAsync("/api/activity-drafts", new { id = Guid.NewGuid(), plan = definition })).StatusCode);
     }
 
     [Theory]
@@ -62,7 +62,7 @@ public sealed class ParentWorkflowTests
     {
         using var app = new ApiFactory();
         using var parent = await app.ParentAsync();
-        var response = await parent.PostAsync("/api/activity-drafts", new StringContent("{\"plan\":" + body + "}", Encoding.UTF8, "application/json"));
+        var response = await parent.PostAsync("/api/activity-drafts", new StringContent($"{{\"id\":\"{Guid.NewGuid()}\",\"plan\":{body}}}", Encoding.UTF8, "application/json"));
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
 

@@ -18,7 +18,7 @@ public sealed class ContentPolishTests
         var idea = new MaterialIdea("רעיון", "מבנה");
         var document = TaskAssembly.AcceptMaterials(request, TaskAssembly.CreateDocument(request), Materials(), idea: idea).Document!;
         using var chat = new AiFixtures.ScriptedChat(Serialize(new MaterialCandidateBatch([new(MaterialId, null, "שלום לכולם")])));
-        using var service = Service(chat);
+        var service = Service(chat);
         var input = new PolishInput(request, document);
         var result = await service.PolishMaterialsAsync(input, default);
         var polished = TaskAssembly.PolishMaterials(input, result.Value, result.Metadata);
@@ -43,7 +43,7 @@ public sealed class ContentPolishTests
         var request = Resolve(Reading() with { Materials = [Reading().Materials[0] with { Length = new("range", Lower: 2, Upper: 3) }] });
         var document = TaskAssembly.AcceptMaterials(request, TaskAssembly.CreateDocument(request), new([new(MaterialId, null, "סיפור קצר מאוד")])).Document!;
         using var chat = new AiFixtures.ScriptedChat(Serialize(new MaterialCandidateBatch([new(id, null, body)])));
-        using var service = Service(chat);
+        var service = Service(chat);
         var error = await Assert.ThrowsAsync<AiGenerationException>(() => service.PolishMaterialsAsync(new(request, document), default));
         Assert.Equal("validation", error.Category);
         Assert.Single(chat.Requests);
@@ -53,7 +53,7 @@ public sealed class ContentPolishTests
     public async Task Material_polish_needs_current_generated_text_before_any_call()
     {
         using var chat = new AiFixtures.ScriptedChat(Serialize(Materials()));
-        using var service = Service(chat);
+        var service = Service(chat);
         var numeric = Resolve(Numeric());
         await Assert.ThrowsAsync<TaskValidationException>(() => service.PolishMaterialsAsync(new(numeric, TaskAssembly.CreateDocument(numeric)), default));
         var strict = Resolve(Reading() with { Materials = [Reading().Materials[0] with { Length = new("range", Lower: 100, Upper: 150) }] });

@@ -49,18 +49,18 @@ public sealed class RequestValidationTests
         {
             var definition = AiFixtures.PlanJson().AsObject();
             definition.Remove(member);
-            await AssertBadRequestAsync(parent, "/api/activity-drafts", new JsonObject { ["plan"] = definition.DeepClone() }.ToJsonString());
+            await AssertBadRequestAsync(parent, "/api/activity-drafts", new JsonObject { ["id"] = Guid.NewGuid(), ["plan"] = definition.DeepClone() }.ToJsonString());
             definition[member] = null;
-            await AssertBadRequestAsync(parent, "/api/activity-drafts", new JsonObject { ["plan"] = definition.DeepClone() }.ToJsonString());
+            await AssertBadRequestAsync(parent, "/api/activity-drafts", new JsonObject { ["id"] = Guid.NewGuid(), ["plan"] = definition.DeepClone() }.ToJsonString());
         }
         foreach (var member in new[] { "topic", "audience", "difficulty", "questionCount" })
         {
             var definition = AiFixtures.PlanJson();
             var settings = definition["settings"]!.AsObject();
             settings.Remove(member);
-            await AssertBadRequestAsync(parent, "/api/activity-drafts", new JsonObject { ["plan"] = definition.DeepClone() }.ToJsonString());
+            await AssertBadRequestAsync(parent, "/api/activity-drafts", new JsonObject { ["id"] = Guid.NewGuid(), ["plan"] = definition.DeepClone() }.ToJsonString());
             settings[member] = null;
-            await AssertBadRequestAsync(parent, "/api/activity-drafts", new JsonObject { ["plan"] = definition.DeepClone() }.ToJsonString());
+            await AssertBadRequestAsync(parent, "/api/activity-drafts", new JsonObject { ["id"] = Guid.NewGuid(), ["plan"] = definition.DeepClone() }.ToJsonString());
         }
         Assert.Equal(0, (await parent.GetFromJsonAsync<JsonElement>("/api/activity-drafts")).GetArrayLength());
     }

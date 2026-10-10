@@ -503,6 +503,7 @@ test('findings expose captured source context and measurements without treating 
         ...completedReport.results[0],
         passageWordCount: 99,
         repeatedAnswerPosition: 1,
+        calculations: { applicable: 3, checked: 2, incorrect: 0 },
         judge: {
           contractValid: true,
           request: [
@@ -540,6 +541,10 @@ test('findings expose captured source context and measurements without treating 
     assert.ok(rendered.textContent.includes('Plan guidance'));
     assert.ok(rendered.textContent.includes(source));
     assert.match(rendered.textContent, /Passage words: 99/);
+    assert.match(
+      rendered.textContent,
+      /2 of 3 recalculated, 0 incorrect\. 1 in a form this check cannot read/,
+    );
     assert.match(rendered.textContent, /same option position \(1\)/);
     assert.match(rendered.textContent, /intentional ordering/);
     assert.match(rendered.textContent, /Invalid judge response; detection counts unavailable/);
@@ -547,6 +552,7 @@ test('findings expose captured source context and measurements without treating 
     const brief = ui.reportBrief('run-1', report, runSummary);
     assert.match(brief, /"passageWordCount": 99/);
     assert.match(brief, /"repeatedAnswerPosition": 1/);
+    assert.match(brief, /2 of 3 recalculated/);
     assert.match(brief, /"source": "Plan guidance"/);
     assert.ok(brief.includes(JSON.stringify(source)));
     assert.match(brief, /"missingExpectedIssueCount": null/);

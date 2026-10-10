@@ -25,7 +25,7 @@ test('Kestrel accepts bounded Hebrew activity chat and rejects oversized bodies'
   };
   expect(Buffer.byteLength(JSON.stringify(body), 'utf8')).toBeGreaterThan(256 * 1024);
   for (const escaped of [false, true]) {
-    const json = JSON.stringify(body);
+    const json = JSON.stringify({ id: crypto.randomUUID(), ...body });
     const data = escaped
       ? json.replace(
           /[^\x00-\x7f]/g,
@@ -46,7 +46,7 @@ test('Kestrel accepts bounded Hebrew activity chat and rejects oversized bodies'
   }
   const oversized = await request.post('/api/activity-drafts', {
     headers,
-    data: JSON.stringify({ plan }) + ' '.repeat(3 * 1024 * 1024),
+    data: JSON.stringify({ id: crypto.randomUUID(), plan }) + ' '.repeat(3 * 1024 * 1024),
   });
   expect(oversized.status()).toBe(413);
 });

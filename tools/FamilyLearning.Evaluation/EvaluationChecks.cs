@@ -38,16 +38,20 @@ internal static class EvaluationChecks
         result.Measurements = TextLength.Measure(result.Input!, document);
         // Bidi mirroring reverses < and > beside Hebrew words (ui-guide rendering contract); whole-item expressions display in order.
         checks["signDirection"] = LearnerTexts(document).All(text => text.AsSpan().IndexOfAny('<', '>') < 0 || !text.Any(IsHebrewLetter));
-        var calculations = 0;
-        var mismatches = 0;
+        var applicable = 0;
+        var recalculated = 0;
+        var incorrect = 0;
         foreach (var question in document.Questions)
         {
             if (!ExactArithmetic.TryEvaluate(question.Prompt, out var expected)) continue;
-            calculations++;
-            // A key in another form, such as a quotient with a remainder, is outside this check; validators own key shape.
-            if (ExactArithmetic.TryEvaluate(question.Answer?.Value, out var key) && key != expected) mismatches++;
+            applicable++;
+            // A key in another form, such as a quotient with a remainder, stays unchecked: a coverage gap, never a pass.
+            if (!ExactArithmetic.TryEvaluate(question.Answer?.Value, out var key)) continue;
+            recalculated++;
+            if (key != expected) incorrect++;
         }
-        if (calculations > 0) checks["calculationKeys"] = mismatches == 0;
+        if (applicable > 0) result.Calculations = new(applicable, recalculated, incorrect);
+        if (recalculated > 0) checks["calculationKeys"] = incorrect == 0;
         var positions = document.Questions.Where(question => question.Interaction.Type == "single-choice")
             .Select(question => Array.IndexOf(question.Interaction.Options!, question.Answer!.Value) + 1).ToArray();
         if (positions.Length >= 3 && positions[0] > 0 && positions.All(position => position == positions[0]))

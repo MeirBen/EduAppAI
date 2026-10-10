@@ -32,7 +32,7 @@ async function createSnapshot(parent: APIRequestContext, headers: Record<string,
   };
   const created = await parent.post('/api/activity-drafts', {
     headers,
-    data: { plan },
+    data: { id: crypto.randomUUID(), plan },
   });
   expect(created.status()).toBe(201);
   const draft = await generateDraft(parent, headers, await created.json());

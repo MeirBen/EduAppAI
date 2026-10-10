@@ -12,10 +12,11 @@ public static class AiEndpoints
     {
         var ai = api.MapGroup("/ai");
         ai.MapGet("/status", (AiGenerationService service) => Results.Ok(new { configured = service.Configured }));
-        ai.MapPost("/activity-plans", async (ActivityAuthoringInput request, AiGenerationService service,
+        ai.MapPost("/activity-plans", async (ActivityAuthoringInput request, AiGenerationService service, AiCapacity capacity,
             AiStartLimiter limiter, ClaimsPrincipal user, CancellationToken ct) =>
         {
             if (!limiter.TryAcquire(user.FamilyId())) return Results.StatusCode(429);
+            using var slot = capacity.TryEnter() ?? throw AiGenerationException.Busy();
             var result = await service.AuthorAsync(request, ct);
             return Results.Ok(new
             {

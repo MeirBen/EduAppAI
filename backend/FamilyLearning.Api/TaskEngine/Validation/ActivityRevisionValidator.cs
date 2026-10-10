@@ -61,12 +61,10 @@ public static class ActivityRevisionValidator
             order.Any(id => !input.Current.Questions.Any(q => q.Id == id)) ||
             plan.Settings!.QuestionCount != order.Length || questions?.Scope != "none"))
             errors.AddError("questionOrder", "יש לציין שאלות קיימות וייחודיות לפי הכמות המבוקשת.");
-        // The edited text must pass the same document checks as a manual edit, including the total content limit.
+        // Each field is bounded here; the total content limit applies to the document the whole change produces.
         if (change.Document is { } document && (document.Title is null && document.Instructions is null ||
             document.Title is not null && !HasText(document.Title, TitleLength) ||
-            document.Instructions is not null && !HasText(document.Instructions, InstructionsLength) ||
-            TaskDocumentValidator.ValidateDraft(TaskRequestResolver.ResolveOrThrow(input.Plan),
-                RevisionScope.ApplyDocument(input.Current, document)).Errors.Count > 0))
+            document.Instructions is not null && !HasText(document.Instructions, InstructionsLength)))
             errors.AddError("document", "הכותרת או ההוראות החדשות אינן תקינות.");
         if (!HasGeneratedContent(input.Plan, input.Current) && (change.MaterialEdits is not { Length: 0 } ||
             questions?.Scope != "none" || change.QuestionOrder is not null || change.Document is not null))

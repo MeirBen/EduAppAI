@@ -142,8 +142,9 @@ parent adoption. Never silently accept already stale content. Missing/invalid
 dependencies outside scope require an explicit creation, repair or adoption
 choice before content calls. Metadata-only changes may retain existing
 diagnostics; they cannot clear them or make a draft ready. A supplied-source
-replacement follows the same rule for untouched generated texts; only the
-questions become stale. Label changes do not change content requirements.
+replacement stales the questions and every generated text, since a generated
+text reads the sources without recording which it derives from. Label changes
+do not change content requirements.
 
 ## AI contract and context
 
@@ -174,10 +175,12 @@ ID enums where applicable.
 
 A nullable `document` holds `{ title, instructions }`: the complete new text
 for the field the parent asked to change, and null for one that stays. It needs
-existing content and passes the same document checks as a manual edit,
-including the total content limit. The edit is applied after every stage of its
-operation, so a question rebuild in the same change keeps it; like a manual edit,
-a later rebuild may rewrite it. The notice and Undo cover it as any change.
+existing content; each field is bounded when the change is validated, and the
+document the whole change produces passes the manual-edit checks, including the
+total content limit, so a change that also removes questions has their room.
+The edit is applied after every stage of its operation, so a question rebuild in
+the same change keeps it; like a manual edit, a later rebuild may rewrite it.
+The notice and Undo cover it as any change.
 
 Instructions must be self-contained after clarification: downstream calls must
 not need to interpret “yes” or earlier chat. Plan name and document title are
@@ -190,7 +193,8 @@ material. Chat never adds a supplied source: the parent's own texts come from
 setup, so a request to add one is refused without a change, and the validator
 rejects any new one.
 Replacing a supplied source uses the explicit source-replacement save, makes
-questions stale and offers regeneration/adoption; the model never rewrites it.
+questions and generated texts stale and offers regeneration/adoption; the model
+never rewrites it.
 
 ### Prompt and schema changes
 

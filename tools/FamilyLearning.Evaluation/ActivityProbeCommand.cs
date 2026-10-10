@@ -55,7 +55,7 @@ internal static class ActivityProbeCommand
         using var http = new HttpClient(handler) { Timeout = Timeout.InfiniteTimeSpan };
         using var clients = EvaluationClients.Create(builder.Configuration, builder.Environment, transport: new HttpClientPipelineTransport(http)) ??
             throw new ArgumentException("Configure the app's provider key before an authorized live probe.");
-        using var service = new AiGenerationService([clients.Client], NullLogger<AiGenerationService>.Instance, Options.Create(clients.Options));
+        var service = new AiGenerationService([clients.Client], NullLogger<AiGenerationService>.Instance, Options.Create(clients.Options));
         var report = new ActivityProbeReport { Profile = clients.Profile };
         Directory.CreateDirectory(directory);
         var protocolSaved = false;

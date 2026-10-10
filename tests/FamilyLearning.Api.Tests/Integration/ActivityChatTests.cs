@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json.Nodes;
 using FamilyLearning.Api.TaskEngine.Models;
+using FamilyLearning.Api.Tests.Fixtures;
 using static FamilyLearning.Api.Tests.Integration.ActivityDraftTests;
 using static FamilyLearning.Api.Tests.TaskEngine.ActivityRevisionTests;
 using static FamilyLearning.Api.Tests.TaskEngine.ContentGenerationTests;
@@ -114,6 +115,39 @@ public sealed class ActivityChatTests
         Assert.Equal("ענו", saved["document"]!["instructions"]!.GetValue<string>());
     }
 
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task Longer_instructions_fit_when_the_same_change_removes_questions_and_never_exceed_the_content_limit(bool removes)
+    {
+        // Sixteen long prompts bring the document near the content limit, which longer instructions alone would exceed.
+        var plan = Numeric(16);
+        var questions = Serialize(new QuestionCandidateBatch("תרגול", "ענו", Enumerable.Range(0, 16)
+            .Select(i => new QuestionCandidate($"{new string('x', 490)} {i}?", new("numeric-input"), new("2"), 1)).ToArray()));
+        await using var app = new GenerationHarness
+        {
+            Chat = new AiFixtures.ScriptedChat(questions)
+            {
+                Respond = input =>
+                {
+                    var first = JsonNode.Parse(input.Split('\n')[^1])!["document"]!["questions"]![0]!["id"]!.GetValue<string>();
+                    var change = Change(removes ? plan with { Settings = plan.Settings with { QuestionCount = 1 } } : plan) with
+                    { QuestionOrder = removes ? [first] : null, Document = new(null, new string('ה', 400)) };
+                    return Serialize(new { result = new RevisionDecision(null, null, change) });
+                }
+            }
+        };
+        using var parent = await app.ParentAsync();
+        var draft = await Created(app, parent, plan);
+        var operation = await GenerationHarness.Start(parent, draft, "Revise", "הוראות מפורטות");
+        await app.Worker.RunNextAsync(default);
+        var saved = (await parent.GetFromJsonAsync<JsonNode>(Path(draft)))!;
+        var status = (await parent.GetFromJsonAsync<JsonNode>(GenerationHarness.OperationPath(operation)))!["status"]!.GetValue<string>();
+        Assert.Equal(removes ? "completed" : "failed", status);
+        Assert.Equal(removes ? 400 : 3, saved["document"]!["instructions"]!.GetValue<string>().Length);
+        Assert.Equal(removes ? 1 : 16, saved["document"]!["questions"]!.AsArray().Count);
+    }
+
     /// <summary>A draft lists by its plan name until generated content gives it a learner title.</summary>
     private static async Task<JsonNode> Created(GenerationHarness app, HttpClient parent, LearningPlan plan)
     {
@@ -222,8 +256,8 @@ public sealed class ActivityChatTests
         using var parent = await app.ParentAsync();
         var turns = Enumerable.Range(0, 100).Select(i => new
         { role = i % 2 == 0 ? "parent" : "assistant", text = "turn " + i, atUtc = DateTime.UtcNow }).ToArray();
-        Assert.Equal(HttpStatusCode.BadRequest, (await parent.PostAsJsonAsync("/api/activity-drafts", new { plan, chat = turns.Append(turns[0]) })).StatusCode);
-        using var created = await parent.PostAsJsonAsync("/api/activity-drafts", new { plan, chat = turns });
+        Assert.Equal(HttpStatusCode.BadRequest, (await parent.PostAsJsonAsync("/api/activity-drafts", new { id = Guid.NewGuid(), plan, chat = turns.Append(turns[0]) })).StatusCode);
+        using var created = await parent.PostAsJsonAsync("/api/activity-drafts", new { id = Guid.NewGuid(), plan, chat = turns });
         Assert.Equal(HttpStatusCode.Created, created.StatusCode);
         var draft = (await created.Content.ReadFromJsonAsync<JsonNode>())!;
         await GenerationHarness.Start(parent, draft, "Create");
@@ -246,7 +280,7 @@ public sealed class ActivityChatTests
         var snapshot = (await release.Content.ReadFromJsonAsync<JsonNode>())!;
         Assert.Null(snapshot["chat"]);
         Assert.Null(snapshot["undo"]);
-        using var copy = await parent.PostAsJsonAsync("/api/activity-drafts", new { snapshotId = snapshot["id"]!.GetValue<Guid>() });
+        using var copy = await parent.PostAsJsonAsync("/api/activity-drafts", new { id = Guid.NewGuid(), snapshotId = snapshot["id"]!.GetValue<Guid>() });
         Assert.Equal(HttpStatusCode.Created, copy.StatusCode);
         Assert.Empty((await copy.Content.ReadFromJsonAsync<JsonNode>())!["chat"]!.AsArray());
     }
@@ -257,11 +291,11 @@ public sealed class ActivityChatTests
         await using var app = new ApiFactory();
         using var parent = await app.ParentAsync();
         var turn = new { role = "assistant", text = new string('א', 1000), atUtc = DateTime.UtcNow, target = (object?)null, assumptions = Array.Empty<string>() };
-        using var created = await parent.PostAsJsonAsync("/api/activity-drafts", new { plan = Numeric(), chat = new[] { turn } });
+        using var created = await parent.PostAsJsonAsync("/api/activity-drafts", new { id = Guid.NewGuid(), plan = Numeric(), chat = new[] { turn } });
         Assert.Equal(HttpStatusCode.Created, created.StatusCode);
-        var forged = JsonNode.Parse(Serialize(new { plan = Numeric(), chat = new[] { turn } }))!;
+        var forged = JsonNode.Parse(Serialize(new { id = Guid.NewGuid(), plan = Numeric(), chat = new[] { turn } }))!;
         forged["chat"]![0]!["operationId"] = Guid.NewGuid();
         Assert.Equal(HttpStatusCode.BadRequest, (await parent.PostAsJsonAsync("/api/activity-drafts", forged)).StatusCode);
-        Assert.Equal(HttpStatusCode.BadRequest, (await parent.PostAsJsonAsync("/api/activity-drafts", new { plan = Numeric(), chat = new[] { turn with { text = new string('א', 1001) } } })).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, (await parent.PostAsJsonAsync("/api/activity-drafts", new { id = Guid.NewGuid(), plan = Numeric(), chat = new[] { turn with { text = new string('א', 1001) } } })).StatusCode);
     }
 }

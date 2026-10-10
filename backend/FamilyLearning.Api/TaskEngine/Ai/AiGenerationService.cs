@@ -13,7 +13,7 @@ namespace FamilyLearning.Api.TaskEngine.Ai;
 /// <summary>Activity authoring, revision and content generation through one provider boundary.</summary>
 /// <remarks>Singleton; the semaphore caps in-flight provider calls. This service has no persistence or identity access.</remarks>
 public sealed class AiGenerationService(IEnumerable<IChatClient> clients, ILogger<AiGenerationService> logger,
-    IOptions<AiGenerationOptions> options) : IDisposable
+    IOptions<AiGenerationOptions> options)
 {
     private readonly IChatClient? client = clients.SingleOrDefault();
     private readonly TimeSpan requestTimeout = options.Value.RequestTimeout;
@@ -22,7 +22,6 @@ public sealed class AiGenerationService(IEnumerable<IChatClient> clients, ILogge
     private readonly int maxRequestBytes = options.Value.MaxRequestBytes;
     private readonly bool promptSchema = !options.Value.StrictSchema || options.Value.SchemaInPrompt;
     private readonly int exactQuestionCountLimit = options.Value.StrictSchema ? options.Value.StrictQuestionCountLimit : int.MaxValue;
-    private readonly SemaphoreSlim capacity = new(2, 2);
     private static readonly JsonSerializerOptions Json = EngineJson.Options;
 
     public bool Configured => client is not null;
@@ -279,7 +278,6 @@ public sealed class AiGenerationService(IEnumerable<IChatClient> clients, ILogge
         }
         int RequestSize() => Encoding.UTF8.GetByteCount(JsonSerializer.Serialize(new { systemPrompt, input, schema, promptSchema = promptSchema ? schema.GetRawText() : null }, Json));
         if (client is null) throw new AiGenerationException(503, "יצירת תוכן בעזרת AI עדיין לא מחוברת. יש להגדיר מפתח OpenRouter בשרת.");
-        if (!await capacity.WaitAsync(0, ct)) throw new AiGenerationException(503, "שירות היצירה עסוק כרגע. אפשר לנסות שוב בעוד רגע.");
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
         timeout.CancelAfter(requestTimeout);
         var started = Stopwatch.GetTimestamp();
@@ -341,7 +339,6 @@ public sealed class AiGenerationService(IEnumerable<IChatClient> clients, ILogge
                 throw new AiGenerationException(429, "שירות ה־AI הגיע למגבלת הבקשות. יש לנסות שוב מאוחר יותר.") { Category = "rate-limit" };
             throw new AiGenerationException(502, "שירות ה־AI לא הצליח ליצור תוכן כרגע. אפשר לנסות שוב.");
         }
-        finally { capacity.Release(); }
     }
 
     private AiGenerationException InvalidOutput(string failure, string promptVersion,
@@ -350,6 +347,4 @@ public sealed class AiGenerationService(IEnumerable<IChatClient> clients, ILogge
         logger.LogWarning("AI output rejected: {Failure}, prompt version {PromptVersion}", failure, promptVersion);
         return failure == "output-limit" ? AiGenerationException.OutputLimit() : AiGenerationException.InvalidOutput(errors);
     }
-
-    public void Dispose() => capacity.Dispose();
 }

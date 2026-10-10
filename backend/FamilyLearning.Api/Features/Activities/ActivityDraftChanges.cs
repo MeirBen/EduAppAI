@@ -41,9 +41,12 @@ internal static class ActivityDraftChanges
         var current = draft.Document;
         var previousPlan = draft.Plan;
         var plan = ValidateManualSave(previousPlan, current, body);
-        // A confirmed source swap invalidates questions, not untouched generated texts that were already current.
+        // Generated texts read supplied sources as context without recording which, so a confirmed swap stales all of them.
         if (body.SourceReplacements is { Length: > 0 })
-            current = RevisionScope.PrepareDocument(previousPlan, current, plan, new([], [], "all", [], null, null, false));
+        {
+            var generated = plan.Materials.Where(m => m.Source == "generated").Select(m => new MaterialRewrite(m.Id!, null)).ToArray();
+            current = RevisionScope.PrepareDocument(previousPlan, current, plan, new([], generated, "all", [], null, null, false));
+        }
         var request = TaskRequestResolver.ResolveOrThrow(plan);
         var edit = body.Document;
         var fingerprint = TaskRequestResolver.Fingerprint(request);

@@ -76,7 +76,7 @@ public static class EvaluationFiles
         if (report.Results.Any(result => result is null || !report.Cases.Any(item => item.Id == result.CaseId) ||
                 result.Repetition < 1 || result.Repetition > report.Repeat || result.Checks is null || result.Review is null ||
                 result.Refinements is null || result.Replacements is null || result.Measurements is null ||
-                result.PassageWordCount < 0 || result.RepeatedAnswerPosition is < 1 or > 6 ||
+                result.PassageWordCount < 0 || result.RepeatedAnswerPosition is < 1 or > 6 || result.Calculations is { Valid: false } ||
                 (result.Judge?.ContractValid == true && result.Issues is null)) ||
             report.Results.Select(result => (result.CaseId, result.Repetition)).Distinct().Count() != report.Results.Count)
             throw new InvalidDataException("Invalid evaluation results.");

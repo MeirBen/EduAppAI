@@ -38,7 +38,7 @@ async function isolate(page: Page, configured = true, initial: Partial<ActivityD
     if (path === '/api/limits') return route.fulfill({ json: limits });
     if (path === '/api/ai/status') return route.fulfill({ json: { configured } });
     if (path === '/api/activity-drafts' && request.method() === 'POST') {
-      draft = { ...draft, ...request.postDataJSON() };
+      draft = { ...draft, ...request.postDataJSON(), id: draft.id };
       return route.fulfill({ status: 201, json: draft });
     }
     if (path === '/api/activity-drafts/draft') {

@@ -1424,7 +1424,7 @@ describe('Activity lifecycle', () => {
     http.expectNone((r) => r.method === 'POST');
     await click('copy-released');
     const copy = http.expectOne('/api/activity-drafts');
-    expect(copy.request.body).toEqual({ snapshotId: 'ready' });
+    expect(copy.request.body).toEqual({ id: expect.any(String), snapshotId: 'ready' });
     copy.flush({ ...savedActivity, id: 'copy' });
     await vi.waitFor(() => expect(TestBed.inject(Router).url).toBe('/activities/copy'));
     http.expectOne('/api/ai/status').flush({ configured: true });

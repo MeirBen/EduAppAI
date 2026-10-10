@@ -19,13 +19,13 @@ public sealed class ActivityRevisionTests
             Context: [new("parent", new string('ב', 4000)), new("assistant", new string('ג', 4000)), new("parent", new string('ד', 4000))]);
         var response = Serialize(new { result = new RevisionDecision("תשובה", null, null) });
         using var chat = new AiFixtures.ScriptedChat(response);
-        using var service = Service(chat, new() { MaxRequestBytes = 32_000 });
+        var service = Service(chat, new() { MaxRequestBytes = 32_000 });
         await service.ReviseAsync(input, default);
         var payload = JsonDocument.Parse(Assert.Single(chat.Requests).Input.Split('\n')[^1]).RootElement;
         Assert.Equal(plan.Materials[0].Text, payload.GetProperty("plan").GetProperty("materials")[0].GetProperty("text").GetString());
         Assert.True(payload.GetProperty("context").GetArrayLength() < 3);
         using var blocked = new AiFixtures.ScriptedChat(response);
-        using var small = Service(blocked, new() { MaxRequestBytes = 1000 });
+        var small = Service(blocked, new() { MaxRequestBytes = 1000 });
         await Assert.ThrowsAsync<AiGenerationException>(() => small.ReviseAsync(input, default));
         Assert.Empty(blocked.Requests);
     }
@@ -40,7 +40,7 @@ public sealed class ActivityRevisionTests
         var current = TaskAssembly.AcceptQuestions(Resolve(plan), TaskAssembly.CreateDocument(Resolve(plan)), Questions());
         var before = Serialize(new { plan, current });
         using var chat = new AiFixtures.ScriptedChat(Serialize(new { result = new { answer = "הוספת הסברים למפתח התשובות אינה נתמכת.", clarification = (string?)null, change = (object?)null } }));
-        using var service = Service(chat);
+        var service = Service(chat);
         var reply = await service.ReviseAsync(new(plan, current, "הוסף הסברים למפתח התשובות"), default);
         Assert.Null(reply.Value.Change);
         Assert.NotNull(reply.Value.Answer);
@@ -56,7 +56,7 @@ public sealed class ActivityRevisionTests
     {
         var plan = Numeric();
         using var chat = new AiFixtures.ScriptedChat(Serialize(new { result = new { answer = "בוצע", clarification = (string?)null, change = Change(plan) } }));
-        using var service = Service(chat);
+        var service = Service(chat);
         await Assert.ThrowsAsync<AiGenerationException>(() => service.ReviseAsync(new(plan, TaskAssembly.CreateDocument(Resolve(plan)), "שנה"), default));
         Assert.Single(chat.Requests);
     }
@@ -112,18 +112,14 @@ public sealed class ActivityRevisionTests
     }
 
     [Fact]
-    public void Title_and_instruction_edits_are_bounded_document_text_once_content_exists()
+    public void Title_and_instruction_edits_are_bounded_fields_once_content_exists()
     {
-        // Sixteen long prompts bring the document near the content limit, so the total check alone rejects longer instructions.
-        var plan = Numeric(16);
-        var batch = new QuestionCandidateBatch("כותרת", "ענו", Enumerable.Range(0, 16)
-            .Select(i => new QuestionCandidate($"{new string('ש', 490)} {i}?", new("numeric-input"), new("2"), 1)).ToArray());
-        var document = TaskAssembly.AcceptQuestions(Resolve(plan), TaskAssembly.CreateDocument(Resolve(plan)), batch);
+        var plan = Numeric();
+        var document = TaskAssembly.AcceptQuestions(Resolve(plan), TaskAssembly.CreateDocument(Resolve(plan)), Questions());
         var input = new ActivityRevisionInput(plan, document, "בלי ניקוד");
         RevisionDecision Edit(DocumentEdit edit) => new(null, null, Change(plan) with { Document = edit });
         Assert.Equal("כותרת חדשה", ActivityRevisionValidator.Validate(Edit(new("כותרת חדשה", null)), input).Change!.Document!.Title);
-        foreach (var edit in new DocumentEdit[] { new(null, null), new(" ", null), new(null, new string('ה', EngineValidation.InstructionsLength + 1)),
-            new(null, new string('ה', 400)) })
+        foreach (var edit in new DocumentEdit[] { new(null, null), new(" ", null), new(null, new string('ה', EngineValidation.InstructionsLength + 1)) })
             Assert.Throws<TaskValidationException>(() => ActivityRevisionValidator.Validate(Edit(edit), input));
         var empty = new ActivityRevisionInput(plan, TaskAssembly.CreateDocument(Resolve(plan)), "בלי ניקוד");
         Assert.Throws<TaskValidationException>(() => ActivityRevisionValidator.Validate(Edit(new("כותרת", null)), empty));

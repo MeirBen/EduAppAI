@@ -228,6 +228,19 @@ public sealed class StructuredEvaluationTests : IDisposable
         Assert.Equal(passed, result.EndToEndReady);
     }
 
+    [Theory]
+    [InlineData("750", 1, true)]
+    [InlineData("שבע מאות וחמישים", 0, null)]
+    public async Task Keys_in_another_form_are_a_reported_coverage_gap_never_a_pass(string first, int recalculated, bool? passed)
+    {
+        var batch = JsonSerializer.Serialize(new QuestionCandidateBatch("תרגול", null,
+            [new("125 × 6 =", new("text-input"), new(first), 1), new("7 ÷ 2 =", new("text-input"), new("3 ושארית 1"), 1)]), JsonOptions);
+        using var chat = new AiFixtures.ScriptedChat(batch);
+        var result = Assert.Single((await Run(chat, Fixed(Numeric() with { Questions = new(["text-input"], null, "") }))).Results);
+        Assert.Equal(new CalculationCoverage(2, recalculated, 0), result.Calculations);
+        Assert.Equal(passed, result.Checks.TryGetValue("calculationKeys", out var value) ? value : null);
+    }
+
     [Fact]
     public async Task Word_problems_are_outside_the_calculation_check()
     {

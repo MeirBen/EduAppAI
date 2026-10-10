@@ -19,7 +19,7 @@ public sealed class ActivityContractProbeTests
         {
             Respond = text => Reply(chat!.Requests.Count, JsonNode.Parse(text.Split('\n')[^1])!, refusalClarifies)
         };
-        using var service = Service(provider);
+        var service = Service(provider);
         var report = new ActivityProbeReport();
         await ActivityContractProbe.RunAsync(service, report, () => Task.CompletedTask, default);
         Assert.Equal(17, provider.Requests.Count);
@@ -42,7 +42,7 @@ public sealed class ActivityContractProbeTests
     public async Task First_invalid_strict_response_stops_the_protocol_and_retains_failure()
     {
         using var provider = new AiFixtures.ScriptedChat("{}");
-        using var service = Service(provider);
+        var service = Service(provider);
         var report = new ActivityProbeReport();
         await Assert.ThrowsAnyAsync<Exception>(() => ActivityContractProbe.RunAsync(service, report, () => Task.CompletedTask, default));
         Assert.Single(provider.Requests);
@@ -70,7 +70,7 @@ public sealed class ActivityContractProbeTests
                 return response.ToJsonString();
             }
         };
-        using var service = Service(provider);
+        var service = Service(provider);
         var report = new ActivityProbeReport();
         var error = await Assert.ThrowsAsync<ActivityProbeCheckException>(() =>
             ActivityContractProbe.RunAsync(service, report, () => Task.CompletedTask, default));
@@ -84,7 +84,7 @@ public sealed class ActivityContractProbeTests
     {
         AiFixtures.ScriptedChat? chat = null;
         using var provider = chat = new AiFixtures.ScriptedChat { Respond = text => EditReply(chat!.Requests.Count, Input(text)) };
-        using var service = Service(provider);
+        var service = Service(provider);
         var report = new ActivityProbeReport();
         await ActivityContractProbe.RunEditsAsync(service, report, () => Task.CompletedTask, default);
         Assert.Equal(17, provider.Requests.Count);
@@ -126,7 +126,7 @@ public sealed class ActivityContractProbeTests
                 return Serialize(new { result = new RevisionDecision(null, null, change) });
             }
         };
-        using var service = Service(provider);
+        var service = Service(provider);
         var report = new ActivityProbeReport();
         var error = await Assert.ThrowsAsync<ActivityProbeCheckException>(() =>
             ActivityContractProbe.RunEditsAsync(service, report, () => Task.CompletedTask, default));

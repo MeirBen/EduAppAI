@@ -102,8 +102,8 @@ public sealed class ActivityReleaseTests
         var snapshotId = snapshot["id"]!.GetValue<Guid>();
         Assert.Equal(HttpStatusCode.NotFound, (await stranger.GetAsync($"/api/instances/{snapshotId}")).StatusCode);
         Assert.Equal(HttpStatusCode.NotFound, (await stranger.DeleteAsync($"/api/instances/{snapshotId}")).StatusCode);
-        Assert.Equal(HttpStatusCode.NotFound, (await stranger.PostAsJsonAsync("/api/activity-drafts", new { snapshotId })).StatusCode);
-        using var copy = await parent.PostAsJsonAsync("/api/activity-drafts", new { snapshotId });
+        Assert.Equal(HttpStatusCode.NotFound, (await stranger.PostAsJsonAsync("/api/activity-drafts", new { id = Guid.NewGuid(), snapshotId })).StatusCode);
+        using var copy = await parent.PostAsJsonAsync("/api/activity-drafts", new { id = Guid.NewGuid(), snapshotId });
         Assert.Equal(HttpStatusCode.Created, copy.StatusCode);
         var cloned = (await copy.Content.ReadFromJsonAsync<JsonNode>())!;
         Assert.Null(cloned["releasedSnapshotId"]);

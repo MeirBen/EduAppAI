@@ -112,6 +112,8 @@ public sealed class EvaluationResult(string caseId, int repetition)
     public int? PassageWordCount { get; set; }
     /// <summary>One-based position shared by at least three choice answers. Advisory only; ordered options may be intentional.</summary>
     public int? RepeatedAnswerPosition { get; set; }
+    /// <summary>Bare calculation prompts and their recalculated keys; null when no prompt is a bare calculation.</summary>
+    public CalculationCoverage? Calculations { get; set; }
     [JsonRequired] public Dictionary<string, bool> Checks { get; init; } = [];
     [JsonRequired] public ManualReview Review { get; set; } = new();
 }
@@ -158,6 +160,12 @@ public sealed class EvaluationStep
     public string? Failure { get; set; }
     /// <summary>Safe field errors from the application validator; null for other failures.</summary>
     public IReadOnlyDictionary<string, string[]>? ValidationErrors { get; set; }
+}
+
+/// <summary>Keys this check could not read (applicable minus checked) are a coverage gap for manual review, never a pass.</summary>
+public sealed record CalculationCoverage(int Applicable, int Checked, int Incorrect)
+{
+    internal bool Valid => Applicable > 0 && Checked <= Applicable && Incorrect >= 0 && Incorrect <= Checked;
 }
 
 public sealed record EvaluationMessage(string Role, string Text);

@@ -255,6 +255,57 @@ describe('ActivityWorkspace plan ownership', () => {
     expect(root().textContent).toContain('נשמר');
   });
 
+  it('holds the first save while a request is authored, then creates the draft once with its result', async () => {
+    await open();
+    reply(await ask());
+    await settle();
+    const refinement = await ask('עוד שאלה');
+    await autosave();
+    http.expectNone('/api/activity-drafts');
+    reply(refinement, { ...numericPlan, name: 'מעודכן' });
+    await settle();
+    await autosave();
+    const save = http.expectOne('/api/activity-drafts');
+    expect(save.request.body.plan.name).toBe('מעודכן');
+    save.flush(draft(save.request.body.plan));
+    await settle();
+  });
+
+  it('locks the page while the first save creates the draft, so no edit crosses it', async () => {
+    await open();
+    reply(await ask(), suppliedPlan);
+    await settle();
+    const id = suppliedPlan.materials[0].id;
+    await click('confirm-source-' + id);
+    await autosave();
+    const save = http.expectOne('/api/activity-drafts');
+    // The setup shows its source editor only while the plan is editable.
+    const source = root().querySelector<HTMLTextAreaElement>('#source-' + id);
+    expect(!source || source.disabled).toBe(true);
+    expect(field('chat-message').disabled).toBe(true);
+    save.flush(draft(save.request.body.plan));
+    await settle();
+    expect(field('chat-message').disabled).toBe(false);
+  });
+
+  it('retries the first save under the same draft identity after a lost response', async () => {
+    await open();
+    reply(await ask());
+    await settle();
+    await autosave();
+    const lost = http.expectOne('/api/activity-drafts');
+    expect(lost.request.body.id).toMatch(/^[0-9a-f-]{36}$/);
+    lost.error(new ProgressEvent('error'));
+    await settle();
+    reply(await ask('עוד שאלה'), { ...numericPlan, name: 'מעודכן' });
+    await settle();
+    await autosave();
+    const retry = http.expectOne('/api/activity-drafts');
+    expect(retry.request.body.id).toBe(lost.request.body.id);
+    retry.flush(draft(retry.request.body.plan));
+    await settle();
+  });
+
   it('saves before starting one complete Create operation', async () => {
     await open();
     reply(await ask());

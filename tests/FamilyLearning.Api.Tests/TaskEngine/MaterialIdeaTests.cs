@@ -28,7 +28,7 @@ public sealed class MaterialIdeaTests
         var ideas = Ideas();
         ideas.Ideas[3] = ideas.Ideas[3] with { RecentOverlap = 0 };
         using var chat = new AiFixtures.ScriptedChat(Serialize(ideas), Serialize(Materials()));
-        using var service = Service(chat);
+        var service = Service(chat);
         var request = Resolve(Reading());
         var input = TaskAssembly.PrepareMaterials(request, TaskAssembly.CreateDocument(request))!;
         var proposals = await service.GenerateMaterialIdeasAsync(input, [new("previous premise", "previous structure")], default);
@@ -63,7 +63,7 @@ public sealed class MaterialIdeaTests
             _ => ideas with { Ideas = [ideas.Ideas[0] with { Idea = new("premise", " ") }, .. ideas.Ideas[1..]] }
         };
         using var chat = new AiFixtures.ScriptedChat(Serialize(ideas));
-        using var service = Service(chat);
+        var service = Service(chat);
         var request = Resolve(Reading());
         await Assert.ThrowsAsync<AiGenerationException>(() => service.GenerateMaterialIdeasAsync(
             TaskAssembly.PrepareMaterials(request, TaskAssembly.CreateDocument(request))!, [], default));
@@ -86,7 +86,7 @@ public sealed class MaterialIdeaTests
             default: json["ideas"]![0]!["idea"]!["body"] = "unrequested material"; break;
         }
         using var chat = new AiFixtures.ScriptedChat(json.ToJsonString());
-        using var service = Service(chat);
+        var service = Service(chat);
         var request = Resolve(Reading());
         await Assert.ThrowsAsync<AiGenerationException>(() => service.GenerateMaterialIdeasAsync(
             TaskAssembly.PrepareMaterials(request, TaskAssembly.CreateDocument(request))!, [], default));

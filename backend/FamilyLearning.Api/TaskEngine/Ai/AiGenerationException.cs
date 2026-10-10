@@ -10,6 +10,8 @@ public sealed class AiGenerationException(int statusCode, string message, string
     public IReadOnlyDictionary<string, string[]>? ValidationErrors { get; init; }
     /// <summary>Safe call outcome, independent of whether the caller already persisted earlier stages.</summary>
     public string Category { get; init; } = "provider";
+    /// <summary>Both provider slots are in use; an interactive caller retries, background work waits instead.</summary>
+    internal static AiGenerationException Busy() => new(503, "שירות היצירה עסוק כרגע. אפשר לנסות שוב בעוד רגע.") { Category = "busy" };
     internal static AiGenerationException InputLimit(string category) => new(413,
         "הבקשה ליצירה גדולה מדי. יש לצמצם את ההגדרות או את התוכן.", "urn:family-learning:ai-input-limit")
     { Category = category };

@@ -115,7 +115,7 @@ describe('Immutable parent preview', () => {
     http.expectNone((r) => r.method === 'POST');
     root.querySelector<HTMLButtonElement>('#copy-snapshot')!.click();
     const copy = http.expectOne('/api/activity-drafts');
-    expect(copy.request.body).toEqual({ snapshotId: 'ready' });
+    expect(copy.request.body).toEqual({ id: expect.any(String), snapshotId: 'ready' });
     copy.flush({ id: 'new' });
     await vi.waitFor(() => expect(root.querySelector('a[href="/activities/new"]')).not.toBeNull());
     http.verify();

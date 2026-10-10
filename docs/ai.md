@@ -628,10 +628,12 @@ from `--label` / `--notes`.
 checks; `reviewFocus` guides human review. Two content checks need no fixture:
 `calculationKeys` recalculates every bare calculation prompt exactly (rational
 arithmetic, so `1/4 + 1/6 =` must key `5/12` or `0.41666…` never) and compares
-it with the key, and `signDirection` fails any learner-visible text that puts
-`<` or `>` beside Hebrew letters, where bidi mirroring reverses the sign. Keep
-case IDs and expectations stable, add cases only for real coverage gaps and
-never relax a check to raise pass rates.
+it with the key. A key in another form, such as a remainder, stays unchecked:
+`calculations` records applicable, checked and incorrect keys, and the check is
+absent when no key was readable. `signDirection` fails any learner-visible
+text that puts `<` or `>` beside Hebrew letters, where bidi mirroring reverses
+the sign. Keep case IDs and expectations stable, add cases only for real
+coverage gaps and never relax a check to raise pass rates.
 
 Reports go to `artifacts/evaluations/<run>/` or `--output`. `run.json` is the
 authoritative checkpoint with exact requests, schemas, versions, content,

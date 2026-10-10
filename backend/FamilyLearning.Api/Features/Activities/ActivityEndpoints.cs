@@ -35,8 +35,13 @@ public static class ActivityEndpoints
             await Owned(db, user, id).ExecuteDeleteAsync(ct) == 0 ? Results.NotFound() : Results.NoContent());
     }
 
+    /// <summary>
+    /// Creates the draft the client named. A retry after a lost response replays that draft while it still holds the same
+    /// plan; any other use of the identity conflicts, so no request ever adds a second draft.
+    /// </summary>
     private static async Task<IResult> CreateAsync(CreateActivityRequest body, ClaimsPrincipal user, LearningDbContext db, CancellationToken ct)
     {
+        if (body.Id == Guid.Empty) return Invalid("id", "יש לציין מזהה לטיוטה החדשה.");
         LearningPlan plan;
         TaskDocument? document = null;
         Guid? sourceSnapshotId = null;
@@ -57,11 +62,17 @@ public static class ActivityEndpoints
         document ??= TaskAssembly.CreateDocument(resolved);
         var errors = TaskDocumentValidator.ValidateDraft(resolved, document).Errors;
         if (errors.Count > 0) return Results.ValidationProblem(errors);
-        var draft = new ActivityDraft(user.FamilyId(), ActivityDraft.LibraryName(plan, document), StoredJson.Write(plan),
+        // SQLite's immediate write transaction makes the identity lookup and the insertion one decision.
+        await using var transaction = await db.Database.BeginTransactionAsync(ct);
+        var planJson = StoredJson.Write(plan);
+        if (await db.ActivityDrafts.AsNoTracking().SingleOrDefaultAsync(d => d.Id == body.Id, ct) is { } existing)
+            return existing.FamilyId == user.FamilyId() && existing.PlanJson == planJson ? Results.Ok(ActivityDetail.From(existing)) : Conflict();
+        var draft = new ActivityDraft(body.Id, user.FamilyId(), ActivityDraft.LibraryName(plan, document), planJson,
             StoredJson.Write(document), sourceSnapshotId, user.FindFirstValue(ClaimTypes.NameIdentifier)!);
         draft.ImportChat(body.Chat);
         db.ActivityDrafts.Add(draft);
         await db.SaveChangesAsync(ct);
+        await transaction.CommitAsync(ct);
         return Results.Created($"/api/activity-drafts/{draft.Id}", ActivityDetail.From(draft));
     }
 

@@ -153,7 +153,7 @@ public sealed class MaterialIdeaOperationTests
         var prior = await app.GenerateAsync(parent, await Create(parent, Reading() with { Settings = Numeric(1).Settings }));
         var snapshot = await Release(parent, prior);
         await Release(stranger, await SaveQuestion(stranger, "foreign-question"));
-        using var copy = await parent.PostAsJsonAsync("/api/activity-drafts", new { snapshotId = snapshot["id"]!.GetValue<Guid>() });
+        using var copy = await parent.PostAsJsonAsync("/api/activity-drafts", new { id = Guid.NewGuid(), snapshotId = snapshot["id"]!.GetValue<Guid>() });
         Assert.True(copy.IsSuccessStatusCode, await copy.Content.ReadAsStringAsync());
         var history = (await Start(parent, await Create(parent, Reading())))["artifacts"]!["history"]!;
         Assert.True(JsonNode.DeepEquals(prior["document"]!["materials"]![0]!["idea"], Assert.Single(history["ideas"]!.AsArray())));
@@ -227,7 +227,7 @@ public sealed class MaterialIdeaOperationTests
             [new("question", prompt ?? marker + "-question", new("text-input"), new(marker + "-secret-answer"), 1, new("manual"), new("accepted", []))]);
         using var scope = app.App.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<LearningDbContext>();
-        db.ActivityDrafts.Add(new(family, marker, "{}", StoredJson.Write(document), null, "test-parent"));
+        db.ActivityDrafts.Add(new(Guid.NewGuid(), family, marker, "{}", StoredJson.Write(document), null, "test-parent"));
         await db.SaveChangesAsync();
     }
 

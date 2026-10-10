@@ -347,6 +347,7 @@ test('library deletion confirms intent, preserves independent items, recovers fr
   const independent = await page.request.post('/api/activity-drafts', {
     headers: parentHeaders,
     data: {
+      id: crypto.randomUUID(),
       plan: numericPlan,
     },
   });
@@ -504,7 +505,7 @@ test('library deletion confirms intent, preserves independent items, recovers fr
   const plan = numericPlan;
   const created = await page.request.post('/api/activity-drafts', {
     headers,
-    data: { plan },
+    data: { id: crypto.randomUUID(), plan },
   });
   const draft = await created.json();
   const drafts = page.locator('section[aria-labelledby="drafts-title"]');
@@ -540,7 +541,7 @@ test('two pages follow generation, cancellation and release while preserving edi
   const plan = numericPlan;
   const created = await page.request.post('/api/activity-drafts', {
     headers,
-    data: { plan },
+    data: { id: crypto.randomUUID(), plan },
   });
   expect(created.status()).toBe(201);
   const draft = await generateDraft(page.request, headers, await created.json());
@@ -578,7 +579,7 @@ test('two pages follow generation, cancellation and release while preserving edi
 
   const another = await actor.request.post('/api/activity-drafts', {
     headers,
-    data: { plan },
+    data: { id: crypto.randomUUID(), plan },
   });
   const current = await generateDraft(actor.request, headers, await another.json());
   page.once('dialog', (dialog) => dialog.accept());
@@ -631,7 +632,10 @@ test('Create and chat revisions persist across reload without changing content o
     'X-XSRF-TOKEN': (await (await page.request.get('/api/auth/csrf')).json()).token,
   };
   const plan = numericPlan;
-  const response = await page.request.post('/api/activity-drafts', { headers, data: { plan } });
+  const response = await page.request.post('/api/activity-drafts', {
+    headers,
+    data: { id: crypto.randomUUID(), plan },
+  });
   expect(response.status()).toBe(201);
   const created = await generateDraft(page.request, headers, await response.json());
   const path = `/api/activity-drafts/${created.id}`;

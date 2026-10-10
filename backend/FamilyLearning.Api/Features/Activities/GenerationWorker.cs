@@ -13,7 +13,7 @@ using Microsoft.Extensions.Options;
 namespace FamilyLearning.Api.Features.Activities;
 
 /// <summary>One process, one sequential content caller. SQLite checkpoints own recovery; no transaction crosses a provider call.</summary>
-public sealed partial class GenerationWorker(IServiceScopeFactory scopes, AiGenerationService ai, TimeProvider clock,
+public sealed partial class GenerationWorker(IServiceScopeFactory scopes, AiGenerationService ai, AiCapacity capacity, TimeProvider clock,
     IOptions<GenerationOperationOptions> options, IOptions<AiGenerationOptions> aiOptions, IConfiguration configuration,
     LibraryChanges changes, ILogger<GenerationWorker> logger) : BackgroundService
 {
@@ -52,6 +52,8 @@ public sealed partial class GenerationWorker(IServiceScopeFactory scopes, AiGene
 
     internal async Task<bool> RunNextAsync(CancellationToken ct)
     {
+        // A stage is claimed only while it holds a provider slot, so local load delays accepted work but never fails it.
+        using var slot = await capacity.EnterAsync(ct);
         using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(ct);
         try
         {
@@ -72,9 +74,13 @@ public sealed partial class GenerationWorker(IServiceScopeFactory scopes, AiGene
                 cancellation.Token.ThrowIfCancellationRequested();
                 generated = await GenerateAsync(call, evidence, cancellation.Token);
                 var working = Advance(call, generated);
-                if (NextStage(call.Kind, call.Stage, working) is null && working.Scope?.RequiresComplete == true && working.Scope.Clarification is null)
+                // The final document meets the release rules when the work completes content, and the draft rules,
+                // including the total content limit, when it carries an explicit title or instructions edit.
+                if (NextStage(call.Kind, call.Stage, working) is null && working.Scope is { Clarification: null } scope &&
+                    (scope.RequiresComplete || scope.Document is not null))
                 {
-                    var errors = TaskDocumentValidator.ValidateRelease(working.Input, working.Current);
+                    var errors = scope.RequiresComplete ? TaskDocumentValidator.ValidateRelease(working.Input, working.Current)
+                        : TaskDocumentValidator.ValidateDraft(working.Input, working.Current).Errors;
                     if (errors.Count > 0) throw new TaskValidationException(errors);
                 }
             }
@@ -267,15 +273,23 @@ public sealed partial class GenerationWorker(IServiceScopeFactory scopes, AiGene
         using var scope = scopes.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<LearningDbContext>();
         var cutoff = UtcNow - GenerationOperationOptions.ArtifactRetention;
-        var expired = await db.GenerationOperations.Where(o => o.FinishedAtUtc <= cutoff && o.ArtifactsJson != null)
-            .OrderBy(o => o.FinishedAtUtc).Select(o => new { o.Id, o.FamilyId }).Take(GenerationOperationOptions.PurgeBatchSize).ToListAsync(ct);
-        var ids = expired.Select(o => o.Id).ToArray();
-        // Avoid loading up to 64 MiB just to discard it; concurrent draft deletion is harmless.
-        var purged = await db.GenerationOperations.Where(o => ids.Contains(o.Id) && o.FinishedAtUtc <= cutoff)
-            .ExecuteUpdateAsync(update => update.SetProperty(o => o.ArtifactsJson, (string?)null), ct);
+        var families = new HashSet<Guid>();
+        var purged = 0;
+        // Bounded batches drain the whole backlog: each one clears the rows it found, so the next finds only newer ones.
+        while (true)
+        {
+            var expired = await db.GenerationOperations.Where(o => o.FinishedAtUtc <= cutoff && o.ArtifactsJson != null)
+                .OrderBy(o => o.FinishedAtUtc).Select(o => new { o.Id, o.FamilyId }).Take(GenerationOperationOptions.PurgeBatchSize).ToListAsync(ct);
+            var ids = expired.Select(o => o.Id).ToArray();
+            // Avoid loading up to 64 MiB just to discard it; concurrent draft deletion is harmless.
+            purged += await db.GenerationOperations.Where(o => ids.Contains(o.Id) && o.FinishedAtUtc <= cutoff)
+                .ExecuteUpdateAsync(update => update.SetProperty(o => o.ArtifactsJson, (string?)null), ct);
+            families.UnionWith(expired.Select(o => o.FamilyId));
+            if (expired.Count < GenerationOperationOptions.PurgeBatchSize) break;
+        }
         if (purged > 0)
         {
-            foreach (var familyId in expired.Select(o => o.FamilyId).Distinct()) changes.Publish(familyId);
+            foreach (var familyId in families) changes.Publish(familyId);
             LogArtifactsExpired(logger, purged);
         }
     }

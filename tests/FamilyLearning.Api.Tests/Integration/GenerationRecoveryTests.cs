@@ -75,7 +75,8 @@ public sealed class GenerationRecoveryTests
         var operation = await Start(parent, draft);
         app.Configuration[setting] = value;
         using var restarted = new GenerationWorker(app.App.Services.GetRequiredService<IServiceScopeFactory>(),
-            app.App.Services.GetRequiredService<AiGenerationService>(), app.Clock, Options.Create(new GenerationOperationOptions()),
+            app.App.Services.GetRequiredService<AiGenerationService>(), app.App.Services.GetRequiredService<AiCapacity>(), app.Clock,
+            Options.Create(new GenerationOperationOptions()),
             app.App.Services.GetRequiredService<IOptions<AiGenerationOptions>>(), app.Configuration,
             app.App.Services.GetRequiredService<LibraryChanges>(),
             app.App.Services.GetRequiredService<Microsoft.Extensions.Logging.ILogger<GenerationWorker>>());
@@ -86,7 +87,7 @@ public sealed class GenerationRecoveryTests
     }
 
     [Fact]
-    public async Task Purge_is_bounded_to_thirty_two_tombstones_per_pass()
+    public async Task One_purge_drains_a_backlog_larger_than_its_batch()
     {
         await using var app = new GenerationHarness();
         using var parent = await app.ParentAsync();
@@ -109,7 +110,7 @@ public sealed class GenerationRecoveryTests
         using var check = app.App.Services.CreateScope();
         var database = check.ServiceProvider.GetRequiredService<LearningDbContext>();
         Assert.Equal(33, await database.GenerationOperations.CountAsync());
-        Assert.Equal(1, await database.GenerationOperations.CountAsync(o => o.ArtifactsJson != null));
+        Assert.Equal(0, await database.GenerationOperations.CountAsync(o => o.ArtifactsJson != null));
     }
 
     [Theory]

@@ -32,7 +32,7 @@ public sealed class ActivityOnlyTests
     {
         using var app = new ApiFactory();
         using var parent = await app.ParentAsync();
-        var request = new JsonObject { ["plan"] = Fixtures.AiFixtures.PlanJson(), [field] = null };
+        var request = new JsonObject { ["id"] = Guid.NewGuid(), ["plan"] = Fixtures.AiFixtures.PlanJson(), [field] = null };
         Assert.Equal(HttpStatusCode.BadRequest, (await parent.PostAsJsonAsync("/api/activity-drafts", request)).StatusCode);
         Assert.Empty((await parent.GetFromJsonAsync<JsonArray>("/api/activity-drafts"))!);
     }

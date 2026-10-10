@@ -51,9 +51,11 @@ export class LearningApi {
   activities() {
     return httpResource<ActivitySummary[]>(() => '/api/activity-drafts');
   }
-  createActivity(plan: LearningPlan, lifetime: DestroyRef, chat?: ImportedChatTurn[]) {
+  /** `id` names the new draft, so a retry after a lost response replays it instead of adding another. */
+  createActivity(id: string, plan: LearningPlan, lifetime: DestroyRef, chat?: ImportedChatTurn[]) {
     return requestResult(
       this.http.post<ActivityDetail>('/api/activity-drafts', {
+        id,
         plan,
         ...(chat?.length ? { chat } : {}),
       }),
@@ -136,9 +138,10 @@ export class LearningApi {
     return httpResource<SnapshotPreview>(() => `/api/instances/${id()}`);
   }
   /** Explicit copy only; never changes the immutable snapshot or starts AI. */
-  copySnapshot(id: string, lifetime: DestroyRef) {
+  /** Copies a snapshot into the draft `draftId` names; a retry replays that copy. */
+  copySnapshot(snapshotId: string, draftId: string, lifetime: DestroyRef) {
     return requestResult(
-      this.http.post<ActivityDetail>('/api/activity-drafts', { snapshotId: id }),
+      this.http.post<ActivityDetail>('/api/activity-drafts', { id: draftId, snapshotId }),
       lifetime,
     );
   }

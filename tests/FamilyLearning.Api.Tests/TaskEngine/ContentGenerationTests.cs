@@ -22,7 +22,7 @@ public sealed class ContentGenerationTests
     {
         var proposal = Reading() with { Materials = [Reading().Materials[0] with { Id = null }] };
         using var chat = new AiFixtures.ScriptedChat(Serialize(new { result = new { proposal, clarification = (string?)null }, assumptions = new[] { "עברית" } }));
-        using var service = Service(chat);
+        var service = Service(chat);
         var result = await service.AuthorAsync(new ActivityAuthoringInput("רעיון", RequestId: "client-only", BaseRevision: 42), default);
         Assert.Empty(LearningPlanValidator.Validate(result.Value.Proposal));
         Assert.NotEmpty(result.Value.Changes);
@@ -35,7 +35,7 @@ public sealed class ContentGenerationTests
     public async Task Clarification_is_one_call_and_the_model_sees_only_the_conversation_window()
     {
         using var chat = new AiFixtures.ScriptedChat("""{"result":{"proposal":null,"clarification":"לאיזה גיל?"},"assumptions":[]}""");
-        using var service = Service(chat);
+        var service = Service(chat);
         AuthoringTurn[] conversation = [new("parent", "בקשה ראשונה"),
             .. Enumerable.Range(1, 6).Select(i => new AuthoringTurn(i % 2 == 0 ? "parent" : "assistant", "תור " + i))];
         var result = await service.AuthorAsync(new ActivityAuthoringInput("רעיון", Context: conversation), default);
@@ -66,7 +66,7 @@ public sealed class ContentGenerationTests
     public async Task Empty_authoring_responses_are_rejected_without_retry(string output)
     {
         using var chat = new AiFixtures.ScriptedChat(output);
-        using var service = Service(chat);
+        var service = Service(chat);
         var error = await Assert.ThrowsAsync<AiGenerationException>(() => service.AuthorAsync(
             new("פעילות קריאה בעברית לכיתה ג׳ בנושא חלל, בערך 300 מילים ו־5 שאלות אמריקאיות."), default));
         Assert.Equal(502, error.StatusCode);
@@ -82,7 +82,7 @@ public sealed class ContentGenerationTests
             result = new { proposal = Numeric(), clarification = "לאיזה גיל?" },
             assumptions = Array.Empty<string>()
         }));
-        using var service = Service(chat);
+        var service = Service(chat);
         await Assert.ThrowsAsync<AiGenerationException>(() => service.AuthorAsync(new("רעיון"), default));
         Assert.Single(chat.Requests);
     }
@@ -93,7 +93,7 @@ public sealed class ContentGenerationTests
         var plan = Supplied();
         var changed = plan with { Materials = [plan.Materials[0] with { Text = "changed" }] };
         using var chat = new AiFixtures.ScriptedChat(Serialize(new { result = new { proposal = changed, clarification = (string?)null }, assumptions = Array.Empty<string>() }));
-        using var service = Service(chat);
+        var service = Service(chat);
         await Assert.ThrowsAsync<AiGenerationException>(() => service.AuthorAsync(new ActivityAuthoringInput("שינוי", plan), default));
     }
 
@@ -106,7 +106,7 @@ public sealed class ContentGenerationTests
         var request = Resolve(source == "generated" ? Reading() : source == "fixed" ? Supplied() : Numeric());
         using var chat = new AiFixtures.ScriptedChat(source == "generated"
             ? [Serialize(MaterialIdeaTests.Ideas()), Serialize(Materials()), Serialize(Questions("text-input"))] : [Serialize(Questions())]);
-        using var service = Service(chat);
+        var service = Service(chat);
         var document = TaskAssembly.CreateDocument(request);
         if (TaskAssembly.PrepareMaterials(request, document) is { } materials)
         {
@@ -136,7 +136,7 @@ public sealed class ContentGenerationTests
         var plan = Reading() with { Materials = [Reading().Materials[0] with { Length = new("range", Lower: 100, Upper: 150) }] };
         var request = Resolve(plan);
         using var chat = new AiFixtures.ScriptedChat(Serialize(Materials()));
-        using var service = Service(chat);
+        var service = Service(chat);
         var document = TaskAssembly.CreateDocument(request);
         var error = await Assert.ThrowsAsync<AiGenerationException>(() => service.GenerateMaterialsAsync(
             TaskAssembly.PrepareMaterials(request, document)!, new("רעיון", "מבנה"), default));
@@ -166,7 +166,7 @@ public sealed class ContentGenerationTests
     {
         var request = Resolve(Reading());
         using var chat = new AiFixtures.ScriptedChat(Serialize(MaterialIdeaTests.Ideas()));
-        using var service = Service(chat);
+        var service = Service(chat);
         var result = await service.GenerateMaterialIdeasAsync(TaskAssembly.PrepareMaterials(request, Empty)!, [], default);
         Assert.Equal(5, result.Value.Ideas.Length);
         using var input = JsonDocument.Parse(chat.Requests[0].Input.Split('\n')[^1]);
@@ -186,7 +186,7 @@ public sealed class ContentGenerationTests
         var padded = new QuestionCandidateBatch(" השוואה", "בחרו את הסימן \n", Enumerable.Range(0, 3).Select(index =>
             new QuestionCandidate($"{300 + index} ___ {300 + index}\n", new("single-choice", ["<", ">", "= "]), new("= "), 1)).ToArray());
         using var chat = new AiFixtures.ScriptedChat(Serialize(padded));
-        using var service = Service(chat);
+        var service = Service(chat);
         var questions = await service.GenerateQuestionsAsync(TaskAssembly.PrepareQuestions(request, Empty), [], default);
         var document = TaskAssembly.AcceptQuestions(request, Empty, questions.Value, questions.Metadata);
         Assert.Empty(TaskDocumentValidator.ValidateRelease(request, document));
@@ -202,7 +202,7 @@ public sealed class ContentGenerationTests
     {
         var request = Resolve(Reading());
         using var chat = new AiFixtures.ScriptedChat(Serialize(Materials()), "{}");
-        using var service = Service(chat);
+        var service = Service(chat);
         var result = await service.GenerateMaterialsAsync(TaskAssembly.PrepareMaterials(request, Empty)!, new("רעיון", "מבנה"), default);
         var document = TaskAssembly.AcceptMaterials(request, Empty, result.Value, result.Metadata).Document!;
         var error = await Assert.ThrowsAsync<AiGenerationException>(() => service.GenerateQuestionsAsync(TaskAssembly.PrepareQuestions(request, document), [], default));
@@ -221,7 +221,7 @@ public sealed class ContentGenerationTests
         var target = document.Questions[0];
         var replacement = Question("text-input") with { Prompt = "שאלה חדשה" };
         using var chat = new AiFixtures.ScriptedChat(Serialize(replacement));
-        using var service = Service(chat);
+        var service = Service(chat);
         var input = new QuestionReplacementInput(request, document, target.Id, "ניסוח אחר");
         var result = await service.ReplaceQuestionAsync(input, default);
         var changed = TaskAssembly.ReplaceQuestion(input, result.Value, result.Metadata);
@@ -244,7 +244,7 @@ public sealed class ContentGenerationTests
         var request = Resolve(Reading());
         var document = TaskAssembly.AcceptMaterials(request, Empty, Materials()).Document!;
         using var chat = new AiFixtures.ScriptedChat(Serialize(new MaterialCandidate(OtherId, null, "חדש")));
-        using var service = Service(chat);
+        var service = Service(chat);
         await Assert.ThrowsAsync<AiGenerationException>(() => service.ReplaceMaterialAsync(new(request, document, MaterialId), default));
         var supplied = Resolve(Supplied());
         await Assert.ThrowsAsync<TaskValidationException>(() => service.ReplaceMaterialAsync(new(supplied, TaskAssembly.CreateDocument(supplied), MaterialId), default));
@@ -267,7 +267,7 @@ public sealed class ContentGenerationTests
         document.Questions[1] = document.Questions[1] with { Prompt = "unrelated-private-question", Answer = null };
         var original = Serialize(document);
         using var chat = new AiFixtures.ScriptedChat(Serialize(new MaterialCandidate(MaterialId, null, body)));
-        using var service = Service(chat);
+        var service = Service(chat);
         var input = new MaterialReplacementInput(request, document, MaterialId);
         if (valid)
         {
@@ -297,7 +297,7 @@ public sealed class ContentGenerationTests
         var forged = JsonSerializer.SerializeToNode(Question())!;
         forged["sources"] = new JsonArray();
         using var chat = new AiFixtures.ScriptedChat(Serialize(Questions()), forged.ToJsonString());
-        using var service = Service(chat);
+        var service = Service(chat);
         for (var i = 0; i < 2; i++)
             await Assert.ThrowsAsync<AiGenerationException>(() => service.ReplaceQuestionAsync(new(request, document, document.Questions[0].Id), default));
     }
@@ -309,7 +309,7 @@ public sealed class ContentGenerationTests
         var document = TaskAssembly.AcceptQuestions(request, TaskAssembly.CreateDocument(request), Questions());
         document = document with { Materials = [] };
         using var chat = new AiFixtures.ScriptedChat(Serialize(Question()));
-        using var service = Service(chat);
+        var service = Service(chat);
         await Assert.ThrowsAsync<TaskValidationException>(() => service.ReplaceQuestionAsync(new(request, document, document.Questions[0].Id), default));
         Assert.Empty(chat.Requests);
     }

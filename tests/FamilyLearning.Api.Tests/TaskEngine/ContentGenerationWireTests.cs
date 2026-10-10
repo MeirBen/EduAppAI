@@ -245,7 +245,7 @@ public sealed class ContentGenerationWireTests
     {
         var json = """{"result":{"proposal":null,"clarification":"איזה גיל?"},"assumptions":[]}""";
         using var chat = new AiFixtures.ScriptedChat(json.PadRight(length));
-        using var service = Service(chat);
+        var service = Service(chat);
         if (accepted) await service.AuthorAsync(new ActivityAuthoringInput("רעיון"), default);
         else await Assert.ThrowsAsync<AiGenerationException>(() => service.AuthorAsync(new ActivityAuthoringInput("רעיון"), default));
     }

@@ -60,7 +60,7 @@ public sealed class AiPromptContractTests
         var current = TaskAssembly.AcceptMaterials(request, empty, Materials()).Document!;
         current = TaskAssembly.AcceptQuestions(request, current, Questions("text-input"));
         using var chat = new AiFixtures.ScriptedChat { FailureStatus = HttpStatusCode.ServiceUnavailable };
-        using var service = Service(chat);
+        var service = Service(chat);
         Task Call() => stage switch
         {
             "ideas" => service.GenerateMaterialIdeasAsync(TaskAssembly.PrepareMaterials(request, empty)!, [], default),
@@ -86,7 +86,7 @@ public sealed class AiPromptContractTests
     {
         var plan = Numeric();
         using var chat = new AiFixtures.ScriptedChat { FailureStatus = HttpStatusCode.ServiceUnavailable };
-        using var service = Service(chat);
+        var service = Service(chat);
         await Assert.ThrowsAsync<AiGenerationException>(() => revision
             ? (Task)service.ReviseAsync(new(plan, TaskAssembly.CreateDocument(Resolve(plan)), "הוסף הסברים למפתח התשובות"), default)
             : service.AuthorAsync(new("פעילות עם הסברים למפתח התשובות"), default));

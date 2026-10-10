@@ -138,6 +138,8 @@ export class ActivityWorkspace {
   private autosaveHalted = false;
   /** Every draft write chains here, so two writes never send the same expected revision. */
   private writes: Promise<unknown> = Promise.resolve();
+  /** Names the draft this page creates or copies, so a retry after a lost response replays it instead of adding another. */
+  private readonly newDraftId = crypto.randomUUID();
   protected readonly copying = signal(false);
   protected readonly notice = signal('');
   /** The last action's problem; `reload` marks a request whose outcome the saved version may show. */
@@ -478,11 +480,14 @@ export class ActivityWorkspace {
     const isCurrent = () =>
       this.clientRevision === baseRevision && JSON.stringify(this.raw()) === basis;
     const proposal = await session.author(baseDefinition, baseRevision, isCurrent);
-    if (proposal && !this.lifetime.destroyed && isCurrent()) {
+    if (this.lifetime.destroyed) return;
+    if (proposal && isCurrent()) {
       this.applyProposal(proposal);
       // The first plan moves the chat beside the activity; a sheet stays open where the parent is talking.
       if (!baseDefinition) afterNextRender(() => this.showSheet(), { injector: this.injector });
     }
+    // A finished request no longer holds back autosave, including a first save it deferred.
+    else this.scheduleSave();
   }
 
   protected finishEditing() {
@@ -665,7 +670,7 @@ export class ActivityWorkspace {
     this.copying.set(true);
     this.activityError.set(undefined);
     try {
-      const draft = await this.api.copySnapshot(id, this.lifetime);
+      const draft = await this.api.copySnapshot(id, this.newDraftId, this.lifetime);
       if (!this.lifetime.destroyed) await this.router.navigate(['/activities', draft.id]);
     } catch (error) {
       if (!this.lifetime.destroyed)
@@ -727,22 +732,31 @@ export class ActivityWorkspace {
     this.autosaveTimer = setTimeout(() => void this.autosave(), autosaveDelay);
   }
 
-  /** A valid change saves without asking, unless other work is writing or a conflict halted it. */
+  /** A valid change saves without asking, unless other work is writing, a request is being authored or a conflict halted it. */
   private savesItself() {
-    return this.dirty() && !this.blocker() && !this.contentBusy() && !this.autosaveHalted;
+    return (
+      this.dirty() &&
+      !this.blocker() &&
+      !this.contentBusy() &&
+      !this.chatSession.authoring() &&
+      !this.autosaveHalted
+    );
   }
 
-  /** Saves a valid buffer in the background; invalid content waits for its fix, shown at its fields. */
+  /**
+   * Saves a valid buffer once the parent pauses; invalid content waits for its fix, shown at its fields. The first save
+   * creates the draft and locks the page like any draft request, so no edit or authoring request can cross it; later
+   * saves run in the background without locking fields.
+   */
   private async autosave() {
     if (!this.savesItself()) return;
+    if (!this.saved()) return this.runDraftRequest(async () => void (await this.flushDraft()));
     this.observer.suspend();
     this.autosaving.set(true);
     try {
       await this.flushDraft();
     } catch (error) {
-      if (this.lifetime.destroyed) return;
-      this.autosaveHalted = error instanceof HttpErrorResponse && error.status === 409;
-      this.activityError.set({ message: this.activityFailure(error), reload: true });
+      if (!this.lifetime.destroyed) this.failWrite(error);
     } finally {
       if (!this.lifetime.destroyed) this.autosaving.set(false);
     }
@@ -756,8 +770,7 @@ export class ActivityWorkspace {
     try {
       await work();
     } catch (error) {
-      if (!this.lifetime.destroyed)
-        this.activityError.set({ message: this.activityFailure(error), reload: true });
+      if (!this.lifetime.destroyed) this.failWrite(error);
     } finally {
       if (!this.lifetime.destroyed) {
         this.saving.set(false);
@@ -784,7 +797,12 @@ export class ActivityWorkspace {
     }
     let saved = this.saved();
     if (!saved) {
-      saved = await this.api.createActivity(plan, this.lifetime, this.chatSession.authorThread());
+      saved = await this.api.createActivity(
+        this.newDraftId,
+        plan,
+        this.lifetime,
+        this.chatSession.authorThread(),
+      );
       if (this.lifetime.destroyed) return;
       // Keep this workspace and its pending action alive while making reload reopen the durable draft.
       this.location.replaceState('/activities/' + saved.id);
@@ -926,6 +944,12 @@ export class ActivityWorkspace {
       if (rejected(error)) this.startRecovery.set(undefined);
       throw error;
     }
+  }
+
+  /** A failed write keeps local work and says what to check; a conflict stops autosave until a saved version is loaded. */
+  private failWrite(error: unknown) {
+    this.autosaveHalted ||= error instanceof HttpErrorResponse && error.status === 409;
+    this.activityError.set({ message: this.activityFailure(error), reload: true });
   }
 
   private activityFailure(error: unknown): string {

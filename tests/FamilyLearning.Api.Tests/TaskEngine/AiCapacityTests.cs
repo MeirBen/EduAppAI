@@ -15,23 +15,27 @@ namespace FamilyLearning.Api.Tests.TaskEngine;
 public sealed class AiCapacityTests
 {
     [Fact]
-    public async Task Scoped_content_and_authoring_share_capacity_and_cancellation_releases_it()
+    public async Task Interactive_callers_never_queue_while_background_work_waits_for_a_released_slot()
     {
-        using var chat = new PausedChat();
-        using var services = CreateServices(chat, "5");
-        var service = services.GetRequiredService<AiGenerationService>();
-        var request = LearningPlanFixture.Resolve(LearningPlanFixture.Numeric());
-        using var cancellation = new CancellationTokenSource();
-        var author = service.AuthorAsync(new ActivityAuthoringInput("רעיון"), cancellation.Token);
-        var content = service.GenerateQuestionsAsync(TaskAssembly.PrepareQuestions(request, TaskAssembly.CreateDocument(request)), [], cancellation.Token);
-        var error = await Assert.ThrowsAsync<AiGenerationException>(() => service.AuthorAsync(new ActivityAuthoringInput("עוד"), default));
-        Assert.Equal(503, error.StatusCode);
-        cancellation.Cancel();
-        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => Task.WhenAll(author, content));
-        chat.Response = new(TaskCreationOptions.RunContinuationsAsynchronously);
-        var next = service.AuthorAsync(new ActivityAuthoringInput("שוב"), default);
-        chat.Response.SetResult(Response("""{"result":{"proposal":null,"clarification":"איזה גיל?"},"assumptions":[]}"""));
-        Assert.Equal("איזה גיל?", (await next).Value.Reply);
+        using var capacity = new AiCapacity();
+        var first = capacity.TryEnter();
+        using var second = capacity.TryEnter();
+        Assert.NotNull(first);
+        Assert.NotNull(second);
+        Assert.Null(capacity.TryEnter());
+        using (var cancelled = new CancellationTokenSource())
+        {
+            var abandoned = capacity.EnterAsync(cancelled.Token);
+            cancelled.Cancel();
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(() => abandoned);
+        }
+        var waiting = capacity.EnterAsync(default);
+        Assert.False(waiting.IsCompleted);
+        first!.Dispose();
+        first.Dispose();
+        using var background = await waiting.WaitAsync(TimeSpan.FromSeconds(5));
+        // A slot released twice frees one place only, so the budget stays at two.
+        Assert.Null(capacity.TryEnter());
     }
 
     [Theory]
@@ -39,53 +43,30 @@ public sealed class AiCapacityTests
     [InlineData("invalid-json")]
     [InlineData("provider-error")]
     [InlineData("timeout")]
-    public async Task Failed_requests_release_both_AI_slots(string outcome)
+    public async Task Failed_requests_end_with_safe_bounded_errors(string outcome)
     {
         using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(5));
         using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(deadline.Token);
         using var chat = new PausedChat();
         using var services = CreateServices(chat, "1");
-        var service = services.GetRequiredService<AiGenerationService>();
-        var first = service.AuthorAsync(new ActivityAuthoringInput("First idea"), cancellation.Token);
-        var second = service.AuthorAsync(new ActivityAuthoringInput("Second idea"), cancellation.Token);
-        Assert.False(first.IsCompleted);
-        Assert.False(second.IsCompleted);
-        var busy = await Assert.ThrowsAsync<AiGenerationException>(() => service.AuthorAsync(new ActivityAuthoringInput("Excess"), deadline.Token));
-        Assert.Equal(503, busy.StatusCode);
-
-        if (outcome is "cancellation" or "timeout")
+        var request = services.GetRequiredService<AiGenerationService>().AuthorAsync(new ActivityAuthoringInput("רעיון"), cancellation.Token);
+        Assert.False(request.IsCompleted);
+        if (outcome == "cancellation")
         {
-            if (outcome == "cancellation")
-            {
-                cancellation.Cancel();
-                await Assert.ThrowsAnyAsync<OperationCanceledException>(() => Task.WhenAll(first, second));
-            }
-            else
-            {
-                var error = await Assert.ThrowsAsync<AiGenerationException>(() => Task.WhenAll(first, second).WaitAsync(deadline.Token));
-                Assert.Equal(504, error.StatusCode);
-            }
-            Assert.Equal(2, chat.Tokens.Count);
-            Assert.All(chat.Tokens, token => Assert.True(token.IsCancellationRequested));
+            cancellation.Cancel();
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(() => request);
         }
+        else if (outcome == "timeout")
+            Assert.Equal(504, (await Assert.ThrowsAsync<AiGenerationException>(() => request.WaitAsync(deadline.Token))).StatusCode);
         else
         {
             if (outcome == "provider-error") chat.Response.SetException(new HttpRequestException("provider secret"));
             else chat.Response.SetResult(Response("not JSON"));
-            var error = await Assert.ThrowsAsync<AiGenerationException>(() => Task.WhenAll(first, second));
+            var error = await Assert.ThrowsAsync<AiGenerationException>(() => request);
             Assert.Equal(502, error.StatusCode);
             Assert.DoesNotContain("provider secret", error.Message);
         }
-
-        // Both replacement calls must be accepted before either response completes.
-        chat.Response = new(TaskCreationOptions.RunContinuationsAsynchronously);
-        var next = service.AuthorAsync(new ActivityAuthoringInput("Next idea"), deadline.Token);
-        var another = service.AuthorAsync(new ActivityAuthoringInput("Another idea"), deadline.Token);
-        Assert.False(next.IsCompleted);
-        Assert.False(another.IsCompleted);
-        chat.Response.SetResult(Response("""{"result":{"proposal":null,"clarification":"איזה גיל?"},"assumptions":[]}"""));
-        var results = await Task.WhenAll(next, another);
-        Assert.All(results, result => Assert.Equal("איזה גיל?", result.Value.Reply));
+        if (outcome is "cancellation" or "timeout") Assert.True(Assert.Single(chat.Tokens).IsCancellationRequested);
     }
 
     [Theory]

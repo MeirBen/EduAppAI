@@ -39,6 +39,28 @@ public sealed class GenerationOperationTests
     }
 
     [Fact]
+    public async Task Busy_provider_slots_delay_accepted_work_and_reply_busy_to_planning_without_failing_either()
+    {
+        await using var app = new GenerationHarness(GenerationHarness.Questions());
+        using var parent = await app.ParentAsync();
+        var draft = await Create(parent, Numeric(1));
+        var operation = await GenerationHarness.Start(parent, draft);
+        var capacity = app.App.Services.GetRequiredService<AiCapacity>();
+        var first = capacity.TryEnter();
+        using var second = capacity.TryEnter();
+        using var planning = await parent.PostAsJsonAsync("/api/ai/activity-plans", new { message = "רעיון" });
+        Assert.Equal(HttpStatusCode.ServiceUnavailable, planning.StatusCode);
+        var run = app.Worker.RunNextAsync(default);
+        await Task.Delay(200);
+        Assert.False(run.IsCompleted);
+        Assert.Equal("queued", (await parent.GetFromJsonAsync<JsonNode>(GenerationHarness.OperationPath(operation)))!["status"]!.GetValue<string>());
+        Assert.Empty(app.Chat.Requests);
+        first!.Dispose();
+        Assert.True(await run.WaitAsync(TimeSpan.FromSeconds(10)));
+        Assert.Equal("completed", (await parent.GetFromJsonAsync<JsonNode>(GenerationHarness.OperationPath(operation)))!["status"]!.GetValue<string>());
+    }
+
+    [Fact]
     public async Task Oversized_provider_identifiers_remain_unknown_without_losing_known_usage_or_valid_content()
     {
         await using var app = new GenerationHarness(GenerationHarness.Questions());
@@ -184,7 +206,7 @@ public sealed class GenerationOperationTests
         using var release = await parent.PostAsJsonAsync(Path(draft) + "/release", new { expectedRevision = draft["revision"]!.GetValue<long>() });
         Assert.Equal(HttpStatusCode.Created, release.StatusCode);
         var snapshot = (await release.Content.ReadFromJsonAsync<JsonNode>())!;
-        Assert.Equal(HttpStatusCode.Created, (await parent.PostAsJsonAsync("/api/activity-drafts", new { snapshotId = snapshot["id"]!.GetValue<Guid>() })).StatusCode);
+        Assert.Equal(HttpStatusCode.Created, (await parent.PostAsJsonAsync("/api/activity-drafts", new { id = Guid.NewGuid(), snapshotId = snapshot["id"]!.GetValue<Guid>() })).StatusCode);
         Assert.Empty(app.Chat.Requests);
     }
 

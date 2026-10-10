@@ -30,6 +30,7 @@ public static class OpenRouterRegistration
                 $"Ai:StrictQuestionCountLimit must be between 0 and {EngineValidation.MaxQuestionCount}.")
             .ValidateOnStart();
         services.AddSingleton<AiGenerationService>();
+        services.AddSingleton<AiCapacity>();
         var key = configuration["Ai:ApiKey"] ?? configuration["OPENROUTER_API_KEY"];
         if (string.IsNullOrWhiteSpace(key)) return;
         var model = configuration["Ai:Model"];

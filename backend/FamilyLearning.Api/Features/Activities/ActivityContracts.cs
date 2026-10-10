@@ -7,7 +7,7 @@ using FamilyLearning.Api.TaskEngine.Validation;
 namespace FamilyLearning.Api.Features.Activities;
 
 /// <summary>Presence-preserving create envelope: plan with optional imported chat, or snapshotId exclusively.</summary>
-public sealed record CreateActivityRequest(JsonElement Plan = default,
+public sealed record CreateActivityRequest([property: JsonRequired] Guid Id, JsonElement Plan = default,
     JsonElement SnapshotId = default, ImportedChatTurn[]? Chat = null);
 
 /// <summary>Complete editable checkpoint; metadata, material revisions and acceptance evidence cannot be submitted.</summary>

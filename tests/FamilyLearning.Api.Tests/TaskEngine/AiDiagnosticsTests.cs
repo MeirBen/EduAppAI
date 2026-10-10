@@ -18,7 +18,7 @@ public sealed class AiDiagnosticsTests
             FinishReason = truncated ? ChatFinishReason.Length : ChatFinishReason.Stop
         };
         var logger = new CaptureLogger();
-        using var service = new AiGenerationService([chat], logger, Options.Create(new AiGenerationOptions()));
+        var service = new AiGenerationService([chat], logger, Options.Create(new AiGenerationOptions()));
 
         await Assert.ThrowsAsync<AiGenerationException>(() => service.AuthorAsync(new Api.TaskEngine.Models.ActivityAuthoringInput("private parent prompt"), CancellationToken.None));
 

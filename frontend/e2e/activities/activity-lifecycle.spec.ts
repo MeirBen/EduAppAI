@@ -276,7 +276,7 @@ test('saves before generation, edits manually, reviews the current revision and 
     'href',
     '/activities/copy',
   );
-  expect(state.writes.at(-1)?.body).toEqual({ snapshotId: 'ready' });
+  expect(state.writes.at(-1)?.body).toEqual({ id: expect.any(String), snapshotId: 'ready' });
 });
 
 test('supports keyboard content editing with fixed structure at 360px and 200% text', async ({

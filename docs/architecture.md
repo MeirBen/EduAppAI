@@ -46,7 +46,7 @@ All routes are under `/api`; writes enforce CSRF.
 | ----------------------------------------- | -------------------------- |
 | `GET limits`                              | Server content limits      |
 | `POST ai/activity-plans`                  | Unsaved proposal           |
-| `POST activity-drafts`                    | New editable draft         |
+| `POST activity-drafts`                    | Named draft; retry replays |
 | `PUT activity-drafts/{id}`                | Save a revision            |
 | `POST activity-drafts/{id}/operations`    | Idempotent start           |
 | `POST activity-drafts/{id}/adopt-content` | Accept stale content       |
@@ -113,8 +113,8 @@ the parent's review of the saved revision.
 content identity, adoption and release. Engine validators derive diagnostics.
 Manual edits preserve item IDs/order, formats and option counts; requirements
 change through Revise. Confirmed source replacement updates plan and document
-atomically, leaving unchanged questions stale. Editable DTOs exclude provenance
-and acceptance, and child/snapshot DTOs exclude chat and undo.
+atomically, leaving the questions and generated texts stale. Editable DTOs
+exclude provenance and acceptance, and child/snapshot DTOs exclude chat and undo.
 
 A changing Revise or GenerateQuestions stores one prior plan/document checkpoint.
 Undo requires its resulting revision, restores content, advances revision and
@@ -159,8 +159,10 @@ delivery is process-local.
 `AddActivityGeneration` runs one `GenerationWorker`, so deploy **one API
 process**: SQLite owns the queue and key tombstones, and replicas would need a
 lease design. The worker uses short DbContext scopes for admission, claim and
-checkpoint and disposes them before each AI call; its single content call shares
-the service's two provider slots with authoring.
+checkpoint and disposes them before each AI call. `AiCapacity` owns the two
+provider slots: planning replies busy when both are in use, while the worker
+waits for a slot before claiming a stage, so local load delays accepted work but
+never fails it.
 
 Starts share one per-family rate limiter with authoring. Owned key replay comes
 before revision, active-state and budget checks. Admission atomically enforces
@@ -268,8 +270,9 @@ Server claims determine family ownership; missing and foreign records both
 return 404 before content reads or AI calls. Authenticated responses use
 `no-store`. Parent preview DTOs contain answers and must not serve child access.
 
-AI permits two concurrent calls per process and ten requests per family per
-minute; cancellation reaches the provider and releases capacity. The transport
+AI permits two concurrent calls per process (`AiCapacity`) and ten requests per
+family per minute; a call holds its slot until it ends, and cancellation reaches
+the provider. The transport
 timeout exceeds the application deadline by five seconds so the deadline wins.
 SDK retries are disabled, and OpenRouter's optional fallback covers provider
 errors, not failed validation. Failures are safe ProblemDetails, including 429
@@ -356,12 +359,15 @@ open; finishing a valid edit returns to reading. Field problems and server word
 counts stay beside content.
 
 Every local change schedules one autosave after a short pause; it writes only a
-valid buffer, never locks the fields and runs through the same serialized write
-that creation, chat, adoption and approval flush, so two writes never share an
-expected revision. A response replaces the buffer only when nothing was typed
-since it was sent; newer edits stay and save next. A conflict pauses autosave
-until a saved version replaces the buffer. Leaving first saves a waiting valid
-change.
+valid buffer and runs through the same serialized write that creation, chat,
+adoption and approval flush, so two writes never share an expected revision.
+Autosave waits while a chat request is authored. The first save creates the
+draft under an identity the page chose, and locks the page like any draft
+request, so no edit or authoring request crosses it; a retry after a lost
+response replays that draft instead of adding another. Later saves never lock
+the fields. A response replaces the buffer only when nothing was typed since it
+was sent; newer edits stay and save next. A conflict pauses autosave until a
+saved version replaces the buffer. Leaving first saves a waiting valid change.
 
 `ChatSession` owns local authoring, composer and targets; workspace
 buffer/revision fences still control whether proposals apply. Unsaved setup
@@ -406,11 +412,13 @@ edit fence and Undo behavior. Terminal operations stop polling but remain
 readable on later hints for diagnostics and late usage.
 
 The `/activities` library separates drafts and approved snapshots; a snapshot
-copy creates a new draft without AI. The PWA caches assets only. One Playwright
-suite tests the published app against a local provider, with service workers
-blocked so routing observes every request. See the [UI guide](ui-guide.md) and
-[verification](../README.md#verify). References: [IChatClient][chat],
-[structured output][output], [Signal Forms][forms].
+copy creates a new draft without AI. The PWA caches assets only; an open tab
+checks for a newer build on each return and offers a reload, which each page's
+unload warning still guards, and a cache that can no longer load asks for one.
+One Playwright suite tests the published app against a local provider, with
+service workers blocked so routing observes every request. See the
+[UI guide](ui-guide.md) and [verification](../README.md#verify). References:
+[IChatClient][chat], [structured output][output], [Signal Forms][forms].
 
 [chat]: https://learn.microsoft.com/en-us/dotnet/ai/ichatclient
 [output]: https://openrouter.ai/docs/guides/features/structured-outputs

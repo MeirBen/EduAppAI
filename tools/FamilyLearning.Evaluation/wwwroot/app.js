@@ -295,6 +295,11 @@ function findingsWithContext(evaluation) {
   });
 }
 
+function calculationCoverage({ applicable, checked, incorrect }) {
+  const unread = applicable - checked;
+  return `Calculation keys: ${checked} of ${applicable} recalculated, ${incorrect} incorrect.${unread ? ` ${unread} in a form this check cannot read, such as a remainder; review them by hand.` : ''}`;
+}
+
 function answerPositionWarning(evaluation) {
   return `At least three choice answers share the same option position (${evaluation.repeatedAnswerPosition}). Check for intentional ordering before judging this pattern. Advisory only; answers and scores are unchanged.`;
 }
@@ -624,6 +629,7 @@ export function reportBrief(id, report, summary) {
       ...(evaluation.passageWordCount != null
         ? [json({ passageWordCount: evaluation.passageWordCount })]
         : []),
+      ...(evaluation.calculations ? [calculationCoverage(evaluation.calculations)] : []),
       ...(evaluation.repeatedAnswerPosition
         ? [
             json({ repeatedAnswerPosition: evaluation.repeatedAnswerPosition }),
@@ -1408,6 +1414,8 @@ export function createDashboard(document, fetchRequest = globalThis.fetch.bind(g
             'hint',
           ),
         );
+      if (evaluation.calculations)
+        automaticChecks.append(node('p', calculationCoverage(evaluation.calculations), 'hint'));
       card.append(automaticChecks);
       if (evaluation.repeatedAnswerPosition)
         card.append(
