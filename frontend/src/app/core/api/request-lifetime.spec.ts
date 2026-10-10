@@ -53,7 +53,9 @@ describe('Page HTTP lifetime', () => {
     const fixture = TestBed.createComponent(ActivityLibrary);
     TestBed.tick();
     const http = TestBed.inject(HttpTestingController);
-    const requests = ['/api/instances', '/api/activity-drafts'].map((path) => http.expectOne(path));
+    const requests = ['/api/instances?page=1', '/api/activity-drafts?page=1'].map((path) =>
+      http.expectOne(path),
+    );
     fixture.destroy();
     for (const request of requests) expect(request.cancelled).toBe(true);
     expect(FakeEventSource.opened.map((source) => source.readyState)).toEqual([
@@ -65,8 +67,15 @@ describe('Page HTTP lifetime', () => {
     const fixture = TestBed.createComponent(ActivityLibrary);
     TestBed.tick();
     const http = TestBed.inject(HttpTestingController);
-    http.expectOne('/api/instances').flush([]);
-    http.expectOne('/api/activity-drafts').flush([{ id: 'draft', name: 'Saved', revision: 1 }]);
+    http
+      .expectOne('/api/instances?page=1')
+      .flush({ items: [], page: 1, pageSize: 25, hasMore: false });
+    http.expectOne('/api/activity-drafts?page=1').flush({
+      items: [{ id: 'draft', name: 'Saved', revision: 1 }],
+      page: 1,
+      pageSize: 25,
+      hasMore: false,
+    });
     await fixture.whenStable();
     vi.spyOn(window, 'confirm').mockReturnValue(true);
     fixture.nativeElement.querySelector('[data-delete-draft]').click();

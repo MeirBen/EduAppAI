@@ -27,14 +27,14 @@ public sealed class AssignmentRetentionTests
         var snapshotId = await Snapshot(parent);
         var assignment = await Assign(parent, profile, snapshotId);
         var original = (await parent.GetFromJsonAsync<JsonNode>($"/api/instances/{snapshotId}"))!;
-        var summary = Assert.Single((await parent.GetFromJsonAsync<JsonNode>("/api/instances"))!.AsArray())!;
+        var summary = Assert.Single((await parent.GetFromJsonAsync<JsonNode>("/api/instances"))!["items"]!.AsArray())!;
         Assert.True(summary["hasAssignments"]!.GetValue<bool>());
         Assert.Equal(HttpStatusCode.NotFound, (await stranger.DeleteAsync($"/api/instances/{snapshotId}")).StatusCode);
         Assert.Equal(HttpStatusCode.NoContent, (await parent.DeleteAsync($"/api/instances/{snapshotId}")).StatusCode);
         var archived = (await parent.GetFromJsonAsync<JsonNode>($"/api/instances/{snapshotId}"))!;
         Assert.True(JsonNode.DeepEquals(original["document"], archived["document"]));
         Assert.NotNull(archived["archivedAtUtc"]);
-        Assert.Empty((await parent.GetFromJsonAsync<JsonNode>("/api/instances"))!.AsArray());
+        Assert.Empty((await parent.GetFromJsonAsync<JsonNode>("/api/instances"))!["items"]!.AsArray());
         Assert.Equal(HttpStatusCode.OK, (await child.GetAsync("/api/child/assignments/" + assignment["id"]!.GetValue<Guid>())).StatusCode);
         Assert.Equal(HttpStatusCode.OK, (await parent.GetAsync("/api/assignments/" + assignment["id"]!.GetValue<Guid>())).StatusCode);
         Assert.Equal(HttpStatusCode.Conflict, (await parent.PostAsJsonAsync("/api/assignments", new { childId = sibling["id"]!.GetValue<Guid>(), snapshotId })).StatusCode);

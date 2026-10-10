@@ -74,7 +74,7 @@ public sealed class LearningDbContext(DbContextOptions<LearningDbContext> option
             entity.Property(d => d.UndoJson).IsConcurrencyToken();
             entity.Property(d => d.CreatedAtUtc).HasConversion(utcTimestamp);
             entity.Property(d => d.UpdatedAtUtc).HasConversion(utcTimestamp);
-            entity.HasIndex(d => new { d.FamilyId, d.UpdatedAtUtc });
+            entity.HasIndex(d => new { d.FamilyId, d.UpdatedAtUtc, d.Id });
             entity.HasOne<Family>().WithMany().HasForeignKey(d => d.FamilyId).OnDelete(DeleteBehavior.Restrict);
         });
         model.Entity<TaskSnapshot>(entity =>
@@ -84,7 +84,7 @@ public sealed class LearningDbContext(DbContextOptions<LearningDbContext> option
             entity.Property(s => s.ReviewedAtUtc).HasConversion(utcTimestamp);
             entity.Property(s => s.ArchivedAtUtc).HasConversion(utcTimestamp);
             entity.HasIndex(s => s.SourceDraftId).IsUnique();
-            entity.HasIndex(s => new { s.FamilyId, s.ReviewedAtUtc });
+            entity.HasIndex(s => new { s.FamilyId, s.ReviewedAtUtc, s.Id });
             entity.HasOne<Family>().WithMany().HasForeignKey(s => s.FamilyId).OnDelete(DeleteBehavior.Restrict);
         });
         model.Entity<Assignment>(entity =>

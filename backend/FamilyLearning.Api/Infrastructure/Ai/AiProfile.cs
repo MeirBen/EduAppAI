@@ -9,7 +9,8 @@ public static class AiProfile
 {
     public static Dictionary<string, string?> Capture(IConfiguration configuration, AiGenerationOptions options)
     {
-        string[] keys = ["Model", "FallbackModel", "ResponseFormat", "ReasoningEnabled", "ReasoningEffort", "ReasoningMaxTokens", "Temperature", "TopP", "TopK"];
+        string[] keys = ["Model", "FallbackModel", "ResponseFormat", "ReasoningEnabled", "ReasoningEffort", "ReasoningMaxTokens", "Temperature", "TopP", "TopK",
+            "MaxPrice:PromptPerMillion", "MaxPrice:CompletionPerMillion"];
         var profile = keys.ToDictionary(key => key, key => configuration[$"Ai:{key}"]);
         profile["ResponseFormat"] ??= "json_object";
         profile["MaxOutputTokens"] = options.MaxOutputTokens.ToString(CultureInfo.InvariantCulture);

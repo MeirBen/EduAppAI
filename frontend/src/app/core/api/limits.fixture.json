@@ -16,7 +16,6 @@
   "answerLength": 200,
   "contentLength": 8000,
   "messageLength": 4000,
-  "listLimit": 100,
   "maxChildAge": 120,
   "revisionReplyLength": 600,
   "editInstructionLength": 500,

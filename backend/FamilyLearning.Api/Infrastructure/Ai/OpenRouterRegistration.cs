@@ -1,5 +1,7 @@
 using System.ClientModel;
 using System.ClientModel.Primitives;
+using System.Text.Json;
+using System.Text.Json.Nodes;
 using FamilyLearning.Api.TaskEngine.Ai;
 using FamilyLearning.Api.TaskEngine.Validation;
 using Microsoft.Extensions.AI;
@@ -42,9 +44,15 @@ public static class OpenRouterRegistration
         if (ignoredProviders.Length > 16 || ignoredProviders.Any(slug => slug is null || slug.Length is < 1 or > 64 ||
             slug.Any(character => !char.IsAsciiLetterLower(character) && !char.IsAsciiDigit(character) && character is not ('-' or '_' or '/'))))
             throw new InvalidOperationException("Ai:IgnoredProviders accepts at most 16 provider slugs of 1–64 lowercase letters, digits, hyphens, underscores or slashes.");
-        var providerRouting = ignoredProviders.Length == 0
-            ? BinaryData.FromObjectAsJson(new { require_parameters = true })
-            : BinaryData.FromObjectAsJson(new { require_parameters = true, ignore = ignoredProviders });
+        // OpenRouter refuses a request rather than route it above this USD-per-million-token ceiling.
+        var promptPrice = configuration.GetValue<decimal?>("Ai:MaxPrice:PromptPerMillion");
+        var completionPrice = configuration.GetValue<decimal?>("Ai:MaxPrice:CompletionPerMillion");
+        if (promptPrice.HasValue != completionPrice.HasValue || promptPrice <= 0 || completionPrice <= 0)
+            throw new InvalidOperationException("Ai:MaxPrice:PromptPerMillion and Ai:MaxPrice:CompletionPerMillion must be set together as positive prices.");
+        var routing = new JsonObject { ["require_parameters"] = true };
+        if (ignoredProviders.Length > 0) routing["ignore"] = JsonSerializer.SerializeToNode(ignoredProviders);
+        if (promptPrice.HasValue) routing["max_price"] = new JsonObject { ["prompt"] = promptPrice, ["completion"] = completionPrice };
+        var providerRouting = BinaryData.FromObjectAsJson(routing);
         var reasoningEnabled = configuration.GetValue<bool?>("Ai:ReasoningEnabled");
         var effort = configuration["Ai:ReasoningEffort"] ?? "";
         if (effort is not ("" or "minimal" or "low" or "medium" or "high" or "xhigh" or "max"))

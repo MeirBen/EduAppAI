@@ -50,7 +50,7 @@ public sealed class ActivityDraftTests
             db.ActivityDrafts.Add(released);
         }
         await db.SaveChangesAsync();
-        var listed = (await parent.GetFromJsonAsync<JsonArray>("/api/activity-drafts"))!;
+        var listed = (await parent.GetFromJsonAsync<JsonNode>("/api/activity-drafts"))!["items"]!.AsArray();
         Assert.Single(listed);
         Assert.Equal(editable["id"]!.GetValue<Guid>(), listed[0]!["id"]!.GetValue<Guid>());
     }
@@ -85,7 +85,7 @@ public sealed class ActivityDraftTests
         Assert.Equal(HttpStatusCode.OK, (await parent.GetAsync($"/api/activity-drafts/{id}")).StatusCode);
         Assert.Equal(HttpStatusCode.NotFound, (await stranger.GetAsync($"/api/activity-drafts/{id}")).StatusCode);
         Assert.Equal(HttpStatusCode.NotFound, (await stranger.DeleteAsync($"/api/activity-drafts/{id}")).StatusCode);
-        Assert.Equal(0, (await parent.GetFromJsonAsync<JsonElement>("/api/instances")).GetArrayLength());
+        Assert.Empty((await parent.GetFromJsonAsync<JsonNode>("/api/instances"))!["items"]!.AsArray());
     }
 
     [Fact]
@@ -298,8 +298,8 @@ public sealed class ActivityDraftTests
         Assert.Equal(HttpStatusCode.Conflict, (await parent.PostAsJsonAsync("/api/activity-drafts", new { id, plan = Numeric(3) })).StatusCode);
         Assert.Equal(HttpStatusCode.Conflict, (await stranger.PostAsJsonAsync("/api/activity-drafts", new { id, plan = Numeric() })).StatusCode);
         Assert.Equal(HttpStatusCode.BadRequest, (await parent.PostAsJsonAsync("/api/activity-drafts", new { plan = Numeric() })).StatusCode);
-        Assert.Single((await parent.GetFromJsonAsync<JsonNode[]>("/api/activity-drafts"))!);
-        Assert.Empty((await stranger.GetFromJsonAsync<JsonNode[]>("/api/activity-drafts"))!);
+        Assert.Single((await parent.GetFromJsonAsync<JsonNode>("/api/activity-drafts"))!["items"]!.AsArray());
+        Assert.Empty((await stranger.GetFromJsonAsync<JsonNode>("/api/activity-drafts"))!["items"]!.AsArray());
     }
 
     internal static async Task<JsonNode> Create(HttpClient parent, LearningPlan plan)

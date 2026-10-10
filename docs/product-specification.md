@@ -274,16 +274,19 @@ The existing parent/child [acceptance record](child-flow-plan.md) remains baseli
 evidence. Isolated redesign checks do not establish live-model quality; review
 representative generated activities with the family before giving them to children.
 
-Before inviting other families, add account recovery and tested backup/restore.
-Shared-parent onboarding, dashboards, broad library pagination, update notices,
-offline synchronization and native packaging remain deferred.
+Before inviting other families, add account recovery, tested backup/restore and
+per-family AI spending quotas; until then the OpenRouter key limit bounds spend.
+Shared-parent onboarding, dashboards, offline synchronization and native
+packaging remain deferred.
 
 Deferred maintenance:
 
 - Use general server feedback for shared 502–504 errors unless the response
   identifies an AI-specific problem.
-- Review `braces` advisory GHSA-vfj7-8cjw-p6xm in Markdown lint development
-  dependencies before choosing a dependency change.
+- Recheck the Markdown lint development advisories (`braces`, `katex`,
+  `smol-toml`, all through `markdownlint-cli2`) on its next release: `braces`
+  has no fix, the `katex` fix is outside its declared range, and the repository
+  has no TOML configuration for `smol-toml` to parse.
 
 ## Child flow
 
@@ -404,10 +407,10 @@ Parents may record **כיתה** (school grade) and **גיל** (completed years).
   only on assigned work, so the two never both succeed.
   Withdrawal and submission are serialized: whichever commits first wins.
   There are no due dates or automatic assignment expiry in this milestone.
-- The child inbox separates available work from submitted work. New collections
-  use bounded pagination (25 items per page, maximum 100) so older assignments
-  and reports remain reachable. Existing library lists keep their current
-  behavior; adding these pages does not require a library-wide redesign.
+- The child inbox separates available work from submitted work. Every
+  collection, the library included, uses bounded pagination (25 items per page,
+  maximum 100, newest first with an identifier tie-break) so older activities,
+  assignments and reports remain reachable.
 - Child responses explicitly project the title, instructions, material IDs,
   titles and bodies, question IDs, prompts, interaction types, options and
   possible points. Include only the child's own saved answers and status where
@@ -545,7 +548,7 @@ For stored results and parent review:
   never changes an existing assignment or result.
 - The explicit family reset remains the destructive exception. Its confirmation
   must name children, device access, assignments, answers, grades and content.
-  Delete all of them in one transaction, including records beyond list limits;
+  Delete all of them in one transaction;
   keep the family, parent accounts and AI configuration. After reset, old child
   cookies and activation codes cannot access or recreate deleted work. Update
   reset whenever a schema change adds family-owned learning records.

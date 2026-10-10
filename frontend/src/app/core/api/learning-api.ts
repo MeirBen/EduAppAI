@@ -15,6 +15,7 @@ import {
   SnapshotPreview,
   SnapshotSummary,
 } from './models';
+import { Page } from './assignment-models';
 
 /**
  * Parent HTTP contracts. Create resources in the caller's injection context: reads
@@ -48,8 +49,11 @@ export class LearningApi {
   readActivity(id: string) {
     return this.http.get<ActivityDetail>(`/api/activity-drafts/${id}`);
   }
-  activities() {
-    return httpResource<ActivitySummary[]>(() => '/api/activity-drafts');
+  activities(page: () => number) {
+    return httpResource<Page<ActivitySummary>>(() => ({
+      url: '/api/activity-drafts',
+      params: { page: page() },
+    }));
   }
   /** `id` names the new draft, so a retry after a lost response replays it instead of adding another. */
   createActivity(id: string, plan: LearningPlan, lifetime: DestroyRef, chat?: ImportedChatTurn[]) {
@@ -131,8 +135,11 @@ export class LearningApi {
       lifetime,
     );
   }
-  snapshots() {
-    return httpResource<SnapshotSummary[]>(() => '/api/instances');
+  snapshots(page: () => number) {
+    return httpResource<Page<SnapshotSummary>>(() => ({
+      url: '/api/instances',
+      params: { page: page() },
+    }));
   }
   snapshot(id: () => string) {
     return httpResource<SnapshotPreview>(() => `/api/instances/${id()}`);

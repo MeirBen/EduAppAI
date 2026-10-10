@@ -26,7 +26,7 @@ public sealed class OpenRouterConfigurationTests
     [InlineData(null, "low", null, null, "", "json_schema", "test/model:free", null, null, null, true)]
     public async Task Generation_requests_preserve_settings_schema_guidance_and_unicode(bool? enabled, string? effort,
         float? temperature, float? topP, string? fallbackModel, string? responseFormat, string model = "test/model:free",
-        int? reasoningMaxTokens = null, int? topK = null, int? maxOutputTokens = null, bool excludeProvider = false)
+        int? reasoningMaxTokens = null, int? topK = null, int? maxOutputTokens = null, bool constrainRouting = false)
     {
         const string sourceText = "שָׁלוֹם, Maya! שלום־עולם";
 
@@ -73,7 +73,12 @@ public sealed class OpenRouterConfigurationTests
             ["Ai:TopK"] = topK?.ToString(CultureInfo.InvariantCulture),
             ["Ai:MaxOutputTokens"] = (maxOutputTokens ?? 8192).ToString(CultureInfo.InvariantCulture)
         }).Build();
-        if (excludeProvider) configuration["Ai:IgnoredProviders:0"] = "test-provider";
+        if (constrainRouting)
+        {
+            configuration["Ai:IgnoredProviders:0"] = "test-provider";
+            configuration["Ai:MaxPrice:PromptPerMillion"] = "1.5";
+            configuration["Ai:MaxPrice:CompletionPerMillion"] = "6";
+        }
         var services = new ServiceCollection().AddLogging();
         services.AddTaskAi(configuration, new HostingEnvironment { EnvironmentName = "Development" });
         using var provider = services.BuildServiceProvider();
@@ -117,9 +122,18 @@ public sealed class OpenRouterConfigurationTests
         Assert.Equal(topK, request.TryGetProperty("top_k", out value) ? value.GetInt32() : null);
         Assert.Equal(maxOutputTokens ?? 8192, request.GetProperty("max_completion_tokens").GetInt32());
         Assert.True(request.GetProperty("provider").GetProperty("require_parameters").GetBoolean());
-        if (excludeProvider)
-            Assert.Equal("test-provider", Assert.Single(request.GetProperty("provider").GetProperty("ignore").EnumerateArray()).GetString());
-        else Assert.False(request.GetProperty("provider").TryGetProperty("ignore", out _));
+        var routing = request.GetProperty("provider");
+        if (constrainRouting)
+        {
+            Assert.Equal("test-provider", Assert.Single(routing.GetProperty("ignore").EnumerateArray()).GetString());
+            Assert.Equal(1.5m, routing.GetProperty("max_price").GetProperty("prompt").GetDecimal());
+            Assert.Equal(6m, routing.GetProperty("max_price").GetProperty("completion").GetDecimal());
+        }
+        else
+        {
+            Assert.False(routing.TryGetProperty("ignore", out _));
+            Assert.False(routing.TryGetProperty("max_price", out _));
+        }
         AssertResponseSchema(request, responseFormat ?? "json_object", "proposal");
 
         var resolved = TaskEngine.LearningPlanFixture.Resolve(TaskEngine.LearningPlanFixture.Supplied() with
@@ -221,6 +235,8 @@ public sealed class OpenRouterConfigurationTests
     [InlineData("Ai:Model", "")]
     [InlineData("Ai:Model", "paid/model,test:free")]
     [InlineData("Ai:IgnoredProviders:0", "https://provider")]
+    [InlineData("Ai:MaxPrice:PromptPerMillion", "0")]
+    [InlineData("Ai:MaxPrice:CompletionPerMillion", "")]
     public void Invalid_generation_settings_are_rejected(string setting, string? value, string? effort = null,
         string maxOutputTokens = "8192")
     {
@@ -230,6 +246,8 @@ public sealed class OpenRouterConfigurationTests
             ["Ai:Model"] = "test/model:free",
             ["Ai:ReasoningEffort"] = effort,
             ["Ai:MaxOutputTokens"] = maxOutputTokens,
+            ["Ai:MaxPrice:PromptPerMillion"] = "2",
+            ["Ai:MaxPrice:CompletionPerMillion"] = "10",
             [setting] = value
         }).Build();
         var error = Assert.Throws<InvalidOperationException>(() =>
@@ -238,16 +256,19 @@ public sealed class OpenRouterConfigurationTests
     }
 
     [Fact]
-    public void Provider_exclusions_are_recorded_in_the_nonsecret_profile()
+    public void Provider_routing_constraints_are_recorded_in_the_nonsecret_profile()
     {
         var configuration = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
         {
             ["Ai:ApiKey"] = "isolated-test-key",
             ["Ai:Model"] = "test/model",
-            ["Ai:IgnoredProviders:0"] = "test-provider"
+            ["Ai:IgnoredProviders:0"] = "test-provider",
+            ["Ai:MaxPrice:PromptPerMillion"] = "2",
+            ["Ai:MaxPrice:CompletionPerMillion"] = "10"
         }).Build();
         var profile = AiProfile.Capture(configuration, new());
         Assert.Equal("test-provider", profile["IgnoredProviders"]);
+        Assert.Equal(("2", "10"), (profile["MaxPrice:PromptPerMillion"], profile["MaxPrice:CompletionPerMillion"]));
         Assert.DoesNotContain("isolated-test-key", JsonSerializer.Serialize(profile));
     }
 

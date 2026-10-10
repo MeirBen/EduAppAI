@@ -3,6 +3,7 @@ using System.Text.Json;
 using FamilyLearning.Api.Features.Instances;
 using FamilyLearning.Api.Infrastructure.Auth;
 using FamilyLearning.Api.Infrastructure.Persistence;
+using FamilyLearning.Api.Infrastructure.Web;
 using FamilyLearning.Api.TaskEngine;
 using FamilyLearning.Api.TaskEngine.Models;
 using FamilyLearning.Api.TaskEngine.Validation;
@@ -18,10 +19,7 @@ public static class ActivityEndpoints
     {
         var drafts = api.MapGroup("/activity-drafts");
         drafts.MapPost("/", CreateAsync);
-        drafts.MapGet("/", async (ClaimsPrincipal user, LearningDbContext db, CancellationToken ct) =>
-            await db.ActivityDrafts.AsNoTracking().Where(d => d.FamilyId == user.FamilyId() && d.ReleasedSnapshotId == null)
-                .OrderByDescending(d => d.UpdatedAtUtc).Take(EngineValidation.ListLimit)
-                .Select(d => new ActivitySummary(d.Id, d.Name, d.Revision, d.UpdatedAtUtc)).ToListAsync(ct));
+        drafts.MapGet("/", ListAsync);
         drafts.MapGet("/{id:guid}", async (Guid id, ClaimsPrincipal user, LearningDbContext db, CancellationToken ct) =>
         {
             var draft = await Owned(db, user, id).AsNoTracking().SingleOrDefaultAsync(ct);
@@ -33,6 +31,15 @@ public static class ActivityEndpoints
         drafts.MapPost("/{id:guid}/undo", UndoAsync);
         drafts.MapDelete("/{id:guid}", async (Guid id, ClaimsPrincipal user, LearningDbContext db, CancellationToken ct) =>
             await Owned(db, user, id).ExecuteDeleteAsync(ct) == 0 ? Results.NotFound() : Results.NoContent());
+    }
+
+    private static async Task<IResult> ListAsync(ClaimsPrincipal user, LearningDbContext db, CancellationToken ct, int page = 1, int pageSize = 25)
+    {
+        var paging = new PageRequest(page, pageSize);
+        if (!paging.IsValid) return PageRequest.Invalid();
+        return Results.Ok(await paging.ReadAsync(db.ActivityDrafts.AsNoTracking().Where(d => d.FamilyId == user.FamilyId() && d.ReleasedSnapshotId == null)
+            .OrderByDescending(d => d.UpdatedAtUtc).ThenByDescending(d => d.Id)
+            .Select(d => new ActivitySummary(d.Id, d.Name, d.Revision, d.UpdatedAtUtc)), ct));
     }
 
     /// <summary>

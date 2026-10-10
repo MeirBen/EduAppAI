@@ -159,7 +159,7 @@ public sealed class ActivityChatTests
     }
 
     private static async Task<string> LibraryName(HttpClient parent) =>
-        Assert.Single((await parent.GetFromJsonAsync<JsonNode[]>("/api/activity-drafts"))!)!["name"]!.GetValue<string>();
+        Assert.Single((await parent.GetFromJsonAsync<JsonNode>("/api/activity-drafts"))!["items"]!.AsArray())!["name"]!.GetValue<string>();
 
     [Fact]
     public async Task Material_label_rename_commits_without_content_calls_and_reports_the_saved_label()

@@ -36,12 +36,10 @@ public static class ChildEndpoints
     {
         var paging = new PageRequest(page, pageSize);
         if (!paging.IsValid) return PageRequest.Invalid();
-        var rows = await db.Children.AsNoTracking().Where(c => c.FamilyId == user.FamilyId())
+        return Results.Ok(await paging.ReadAsync(db.Children.AsNoTracking().Where(c => c.FamilyId == user.FamilyId())
             .OrderByDescending(c => c.CreatedAtUtc).ThenByDescending(c => c.Id)
             .Select(c => new ChildSummary(c.Id, c.Name, c.Enabled, c.Revision, c.CreatedAtUtc, c.Grade, c.Age, c.AgeConfirmedAtUtc, c.UpdatedAtUtc,
-                db.Assignments.Any(a => a.ChildId == c.Id)))
-            .Skip(paging.Offset).Take(pageSize + 1).ToListAsync(ct);
-        return Results.Ok(PageResponse<ChildSummary>.From(rows, page, pageSize));
+                db.Assignments.Any(a => a.ChildId == c.Id))), ct));
     }
 
     private static async Task<IResult> UpdateAsync(Guid id, UpdateChildRequest request, ClaimsPrincipal user, LearningDbContext db,
@@ -110,12 +108,10 @@ public static class ChildEndpoints
         if (!paging.IsValid) return PageRequest.Invalid();
         if (!await db.Children.AnyAsync(c => c.Id == id && c.FamilyId == user.FamilyId(), ct)) return Results.NotFound();
         var now = clock.GetUtcNow().UtcDateTime;
-        var rows = await db.ChildDeviceGrants.AsNoTracking().Where(g => g.ChildId == id)
+        return Results.Ok(await paging.ReadAsync(db.ChildDeviceGrants.AsNoTracking().Where(g => g.ChildId == id)
             .OrderByDescending(g => g.CreatedAtUtc).ThenByDescending(g => g.Id)
             .Select(g => new ChildDeviceSummary(g.Id, g.DeviceLabel, g.CreatedAtUtc, g.ExpiresAtUtc, g.RevokedAtUtc,
-                g.RevokedAtUtc != null || g.ExpiresAtUtc <= now))
-            .Skip(paging.Offset).Take(pageSize + 1).ToListAsync(ct);
-        return Results.Ok(PageResponse<ChildDeviceSummary>.From(rows, page, pageSize));
+                g.RevokedAtUtc != null || g.ExpiresAtUtc <= now)), ct));
     }
 
     private static async Task<IResult> RevokeAsync(Guid id, Guid grantId, ClaimsPrincipal user, LearningDbContext db,

@@ -1,7 +1,9 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using FamilyLearning.Api.Features.Activities;
+using FamilyLearning.Api.Features.Instances;
 using FamilyLearning.Api.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -11,7 +13,7 @@ namespace FamilyLearning.Api.Tests.Integration;
 public sealed class LibraryDeletionTests
 {
     [Fact]
-    public async Task Family_reset_clears_drafts_beyond_the_list_limit_and_can_be_repeated()
+    public async Task Library_pages_list_every_item_once_newest_first_and_a_repeated_reset_clears_them_all()
     {
         await using var app = new ApiFactory();
         using var owner = await app.ParentAsync();
@@ -22,12 +24,32 @@ public sealed class LibraryDeletionTests
         {
             var db = scope.ServiceProvider.GetRequiredService<LearningDbContext>();
             var original = await db.ActivityDrafts.SingleAsync(d => d.Id == draft["id"]!.GetValue<Guid>());
-            for (var index = 0; index < 101; index++)
+            // Equal review times leave the snapshot order to the identifier tie-break; one save per row keeps the
+            // storage order random, since a batch inserts in key order.
+            var reviewed = DateTime.UtcNow;
+            for (var index = 0; index < 30; index++)
+            {
                 db.ActivityDrafts.Add(new ActivityDraft(Guid.NewGuid(), original.FamilyId, original.Name, original.PlanJson,
                     original.DocumentJson, null, original.CreatedByParentId));
-            await db.SaveChangesAsync();
+                db.TaskSnapshots.Add(new TaskSnapshot(original.FamilyId, Guid.NewGuid(), 1, original.Name, original.PlanJson,
+                    original.DocumentJson, "[]", 1, null, original.CreatedByParentId, reviewed, original.CreatedByParentId, reviewed));
+                await db.SaveChangesAsync();
+            }
         }
-        Assert.Equal(100, (await owner.GetFromJsonAsync<JsonElement>("/api/activity-drafts")).GetArrayLength());
+        foreach (var (path, time, count) in new[] { ("/api/activity-drafts", "updatedAtUtc", 31), ("/api/instances", "createdAtUtc", 30) })
+        {
+            var listed = new List<JsonNode>();
+            JsonNode page;
+            var number = 0;
+            do
+            {
+                page = (await owner.GetFromJsonAsync<JsonNode>($"{path}?page={++number}&pageSize=7"))!;
+                listed.AddRange(page["items"]!.AsArray().Select(item => item!));
+            } while (page["hasMore"]!.GetValue<bool>());
+            Assert.Equal(count, listed.DistinctBy(item => item["id"]!.GetValue<Guid>()).Count());
+            Assert.Equal(listed, listed.OrderByDescending(item => item[time]!.GetValue<DateTime>())
+                .ThenByDescending(item => item["id"]!.GetValue<string>(), StringComparer.Ordinal));
+        }
         Assert.Equal(HttpStatusCode.NoContent, (await owner.DeleteAsync("/api/learning-data")).StatusCode);
         Assert.Equal(HttpStatusCode.NoContent, (await owner.DeleteAsync("/api/learning-data")).StatusCode);
         Assert.Equal(HttpStatusCode.OK, (await owner.GetAsync("/api/auth/me")).StatusCode);
@@ -78,7 +100,7 @@ public sealed class LibraryDeletionTests
         }
         Assert.Equal(HttpStatusCode.InternalServerError, (await parent.DeleteAsync("/api/learning-data")).StatusCode);
         Assert.Equal(HttpStatusCode.OK, (await parent.GetAsync(ActivityDraftTests.Path(draft))).StatusCode);
-        Assert.Equal(1, (await parent.GetFromJsonAsync<JsonElement>("/api/instances")).GetArrayLength());
+        Assert.Single((await parent.GetFromJsonAsync<JsonNode>("/api/instances"))!["items"]!.AsArray());
     }
 
     [Theory]

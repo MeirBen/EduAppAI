@@ -22,7 +22,7 @@ public sealed class ActivityOnlyTests
         Assert.Equal(HttpStatusCode.NotFound, (await parent.PostAsJsonAsync("/api/templates/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa/versions",
             new { expectedVersion = 1, definition = Numeric() })).StatusCode);
         Assert.Equal(HttpStatusCode.NotFound, (await parent.DeleteAsync("/api/templates/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa")).StatusCode);
-        Assert.Empty((await parent.GetFromJsonAsync<JsonArray>("/api/activity-drafts"))!);
+        Assert.Empty((await parent.GetFromJsonAsync<JsonNode>("/api/activity-drafts"))!["items"]!.AsArray());
     }
 
     [Theory]
@@ -34,7 +34,7 @@ public sealed class ActivityOnlyTests
         using var parent = await app.ParentAsync();
         var request = new JsonObject { ["id"] = Guid.NewGuid(), ["plan"] = Fixtures.AiFixtures.PlanJson(), [field] = null };
         Assert.Equal(HttpStatusCode.BadRequest, (await parent.PostAsJsonAsync("/api/activity-drafts", request)).StatusCode);
-        Assert.Empty((await parent.GetFromJsonAsync<JsonArray>("/api/activity-drafts"))!);
+        Assert.Empty((await parent.GetFromJsonAsync<JsonNode>("/api/activity-drafts"))!["items"]!.AsArray());
     }
 
     [Fact]

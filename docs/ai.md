@@ -292,22 +292,23 @@ secrets, and Production ignores user secrets. Environment variables (`Ai__…`)
 and development secrets (`Ai:…`) override the file; restart after changes.
 Credentials never belong in reports.
 
-| Setting                       | Contract                       |
-| ----------------------------- | ------------------------------ |
-| `Model`                       | Required OpenRouter model ID.  |
-| `ResponseFormat`              | Schema, JSON object, or text.  |
-| `SchemaInPrompt`              | Strict-mode prompt copy.       |
-| `StrictQuestionCountLimit`    | Exact-count ceiling; 0–20.     |
-| `ReasoningEnabled`            | True, false, or null.          |
-| `ReasoningEffort`             | Supported effort; empty omits. |
-| `ReasoningMaxTokens`          | Budget; null omits.            |
-| `Temperature`, `TopP`, `TopK` | Nullable sampling controls.    |
-| `MaxOutputTokens`             | 1–32768; option default 8192.  |
-| `RequestTimeoutSeconds`       | 1–300; default 180.            |
-| `MaxRequestBytes`             | At most 512 KiB.               |
-| `MaxSchemaBytes`              | At most 64 KiB.                |
-| `FallbackModel`               | Empty disables fallback.       |
-| `IgnoredProviders`            | Empty array excludes none.     |
+| Setting                       | Contract                        |
+| ----------------------------- | ------------------------------- |
+| `Model`                       | Required OpenRouter model ID.   |
+| `ResponseFormat`              | Schema, JSON object, or text.   |
+| `SchemaInPrompt`              | Strict-mode prompt copy.        |
+| `StrictQuestionCountLimit`    | Exact-count ceiling; 0–20.      |
+| `ReasoningEnabled`            | True, false, or null.           |
+| `ReasoningEffort`             | Supported effort; empty omits.  |
+| `ReasoningMaxTokens`          | Budget; null omits.             |
+| `Temperature`, `TopP`, `TopK` | Nullable sampling controls.     |
+| `MaxOutputTokens`             | 1–32768; option default 8192.   |
+| `RequestTimeoutSeconds`       | 1–300; default 180.             |
+| `MaxRequestBytes`             | At most 512 KiB.                |
+| `MaxSchemaBytes`              | At most 64 KiB.                 |
+| `FallbackModel`               | Empty disables fallback.        |
+| `IgnoredProviders`            | Empty array excludes none.      |
+| `MaxPrice`                    | USD per million tokens; paired. |
 
 The current profile requests 16,384 output tokens with a 180-second deadline,
 no fallback model and no excluded providers. Medium reasoning and omitted
@@ -317,8 +318,12 @@ and top-p are not allowed with reasoning) and the
 `reasoning: { effort, exclude: true }`; **exclusion hides returned thinking
 text but does not disable reasoning or its billing.** Reasoning shares the
 output ceiling, and output-limit responses are rejected. Token caps and
-deadlines are application limits, not billing ceilings, so use an OpenRouter key
-spending limit.
+deadlines are application limits, not billing ceilings. `MaxPrice` sends
+OpenRouter's [`max_price`][routing] at the model's current list price ($2 and
+$10 per million prompt and completion tokens), so no route can charge more. The
+cheaper Gemini rollback fits under it; only a pricier model needs a deliberate
+raise. Spending itself stays bounded by an OpenRouter key limit: one family
+uses a deployment, and per-family quotas come before others are invited.
 
 Use effort or a token budget, never both; either enables reasoning unless
 explicitly disabled. Unsupported sampling controls stay null. Temperature
@@ -675,6 +680,7 @@ this guide in place; keep experimental evidence in artifacts.
 
 [gpt6]: https://developers.openai.com/api/docs/guides/latest-model
 [reasoning]: https://openrouter.ai/docs/guides/best-practices/reasoning-tokens
+[routing]: https://openrouter.ai/docs/features/provider-routing
 [metadata]: https://openrouter.ai/api/v1/models
 [fallback]: https://openrouter.ai/docs/guides/routing/model-fallbacks
 [usage]: https://openrouter.ai/docs/cookbook/administration/usage-accounting

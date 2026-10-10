@@ -206,7 +206,7 @@ test('exact bilingual source bypasses material generation and missing answers bl
   await expect(page.getByText('נשמר', { exact: true })).toBeVisible();
   await expect(page.getByText('חסרה תשובה נכונה.', { exact: true })).toBeVisible();
   await expect(page.locator('#release-activity')).toHaveAttribute('aria-disabled', 'true');
-  expect(await (await page.request.get('/api/instances')).json()).toEqual([]);
+  expect((await (await page.request.get('/api/instances')).json()).items).toEqual([]);
   await page.locator('#question-0-answer').fill('דינוזאורים');
   await expect(page.getByText('נשמר', { exact: true })).toBeVisible();
   page.once('dialog', async (dialog) => {
@@ -369,7 +369,7 @@ test('library deletion confirms intent, preserves independent items, recovers fr
   });
   expect(profileResponse.status()).toBe(201);
   const profile = await profileResponse.json();
-  const [snapshot] = await (await page.request.get('/api/instances')).json();
+  const [snapshot] = (await (await page.request.get('/api/instances')).json()).items;
   const original = await (await page.request.get(`/api/instances/${snapshot.id}`)).json();
   const assigned = await page.request.post('/api/assignments', {
     headers: parentHeaders,

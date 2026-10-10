@@ -242,7 +242,6 @@ export interface ContentLimits {
   answerLength: number;
   contentLength: number;
   messageLength: number;
-  listLimit: number;
   maxChildAge: number;
   revisionReplyLength: number;
   editInstructionLength: number;

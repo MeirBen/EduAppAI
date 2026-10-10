@@ -142,7 +142,7 @@ public sealed class ActivityReleaseTests
         if (fault == "answer") edit["document"]!["questions"]![0]!["answer"]!["value"] = "not a number";
         draft = await Seed(parent, draft, edit);
         Assert.Equal(HttpStatusCode.BadRequest, (await parent.PostAsJsonAsync(Path(draft) + "/release", new { expectedRevision = 3 })).StatusCode);
-        Assert.Equal(0, (await parent.GetFromJsonAsync<System.Text.Json.JsonElement>("/api/instances")).GetArrayLength());
+        Assert.Empty((await parent.GetFromJsonAsync<JsonNode>("/api/instances"))!["items"]!.AsArray());
     }
 
     [Fact]

@@ -37,9 +37,7 @@ public static class ChildAssignmentEndpoints
             return Results.ValidationProblem(new Dictionary<string, string[]> { ["state"] = ["מצב הרשימה אינו תקף."] });
         var query = db.Assignments.AsNoTracking().Where(a => a.ChildId == identity.ChildId && a.FamilyId == identity.FamilyId);
         query = state == "available" ? query.Where(a => a.Status == "assigned") : query.Where(a => a.Status == "awaiting-review" || a.Status == "completed");
-        var rows = await query.OrderByDescending(a => a.CreatedAtUtc).ThenByDescending(a => a.Id)
-            .Select(a => new LearnerAssignmentSummary(a.Id, a.Snapshot.Title, a.Status, a.Revision, a.CreatedAtUtc, a.Session != null))
-            .Skip(paging.Offset).Take(pageSize + 1).ToListAsync(ct);
-        return Results.Ok(PageResponse<LearnerAssignmentSummary>.From(rows, page, pageSize));
+        return Results.Ok(await paging.ReadAsync(query.OrderByDescending(a => a.CreatedAtUtc).ThenByDescending(a => a.Id)
+            .Select(a => new LearnerAssignmentSummary(a.Id, a.Snapshot.Title, a.Status, a.Revision, a.CreatedAtUtc, a.Session != null)), ct));
     }
 }

@@ -39,7 +39,7 @@ public sealed class AiAuthoringTests
         Assert.Contains("תרגול חשבון", app.Chat.Requests[2].Input);
         Assert.DoesNotContain("requestId", app.Chat.Requests[2].Input);
         Assert.DoesNotContain("baseRevision", app.Chat.Requests[2].Input);
-        Assert.Empty(await parent.GetFromJsonAsync<JsonElement[]>("/api/activity-drafts") ?? []);
+        Assert.Empty((await parent.GetFromJsonAsync<JsonNode>("/api/activity-drafts"))!["items"]!.AsArray());
     }
 
     [Fact]

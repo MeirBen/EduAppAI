@@ -64,9 +64,8 @@ public static class AssignmentEndpoints
         if (childId.HasValue) query = query.Where(a => a.ChildId == childId.Value);
         // Withdrawn work is history: only its own filter lists it.
         query = status is null ? query.Where(a => a.Status != "withdrawn") : query.Where(a => a.Status == status);
-        var rows = await query.OrderByDescending(a => a.CreatedAtUtc).ThenByDescending(a => a.Id)
-            .Select(AssignmentSummary.Projection).Skip(paging.Offset).Take(pageSize + 1).ToListAsync(ct);
-        return Results.Ok(PageResponse<AssignmentSummary>.From(rows, page, pageSize));
+        return Results.Ok(await paging.ReadAsync(query.OrderByDescending(a => a.CreatedAtUtc).ThenByDescending(a => a.Id)
+            .Select(AssignmentSummary.Projection), ct));
     }
 
     private static async Task<IResult> WithdrawAsync(Guid id, AssignmentStateRequest request, ClaimsPrincipal user,

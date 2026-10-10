@@ -1,7 +1,7 @@
 using System.Security.Claims;
 using FamilyLearning.Api.Infrastructure.Auth;
 using FamilyLearning.Api.Infrastructure.Persistence;
-using FamilyLearning.Api.TaskEngine.Validation;
+using FamilyLearning.Api.Infrastructure.Web;
 using Microsoft.EntityFrameworkCore;
 
 namespace FamilyLearning.Api.Features.Instances;
@@ -12,9 +12,14 @@ public static class SnapshotEndpoints
     public static void MapSnapshotEndpoints(this RouteGroupBuilder api)
     {
         var snapshots = api.MapGroup("/instances");
-        snapshots.MapGet("/", async (ClaimsPrincipal user, LearningDbContext db, CancellationToken ct) =>
-            await db.TaskSnapshots.AsNoTracking().Where(s => s.FamilyId == user.FamilyId() && s.ArchivedAtUtc == null).OrderByDescending(s => s.ReviewedAtUtc)
-                .Take(EngineValidation.ListLimit).Select(s => new SnapshotSummary(s.Id, s.Title, "Ready", s.ReviewedAtUtc, db.Assignments.Any(a => a.FamilyId == s.FamilyId && a.SnapshotId == s.Id))).ToListAsync(ct));
+        snapshots.MapGet("/", async (ClaimsPrincipal user, LearningDbContext db, CancellationToken ct, int page = 1, int pageSize = 25) =>
+        {
+            var paging = new PageRequest(page, pageSize);
+            if (!paging.IsValid) return PageRequest.Invalid();
+            return Results.Ok(await paging.ReadAsync(db.TaskSnapshots.AsNoTracking().Where(s => s.FamilyId == user.FamilyId() && s.ArchivedAtUtc == null)
+                .OrderByDescending(s => s.ReviewedAtUtc).ThenByDescending(s => s.Id)
+                .Select(s => new SnapshotSummary(s.Id, s.Title, "Ready", s.ReviewedAtUtc, db.Assignments.Any(a => a.FamilyId == s.FamilyId && a.SnapshotId == s.Id))), ct));
+        });
         snapshots.MapGet("/{id:guid}", async (Guid id, ClaimsPrincipal user, LearningDbContext db, CancellationToken ct) =>
         {
             var snapshot = await db.TaskSnapshots.AsNoTracking().SingleOrDefaultAsync(s => s.Id == id && s.FamilyId == user.FamilyId(), ct);

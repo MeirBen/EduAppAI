@@ -23,8 +23,8 @@
     <div class="grid gap-1">
       <h2 id="drafts-title" class="flex items-center gap-3">
         טיוטות לעריכה
-        @if (drafts.hasValue() && drafts.value().length) {
-          <span class="badge">{{ drafts.value().length }}</span>
+        @if (draftCount()) {
+          <span class="badge">{{ draftCount() }}</span>
         }
       </h2>
       <p class="text-sm text-muted">פעילויות שעוד לא סומנו כמוכנות. אפשר לחזור ולערוך בכל זמן.</p>
@@ -41,7 +41,7 @@
         </button>
       </div>
     } @else if (drafts.hasValue()) {
-      @for (draft of drafts.value(); track draft.id) {
+      @for (draft of drafts.value().items; track draft.id) {
         <article class="list-row">
           <span class="icon-tile size-10" aria-hidden="true"
             ><span class="icon icon-edit"></span
@@ -76,14 +76,20 @@
           עוד אין טיוטות. כשתשמרו טיוטה, היא תופיע כאן ותוכלו לחזור לערוך אותה.
         </p>
       }
+      <app-pager
+        label="עמודי טיוטות"
+        [(page)]="draftPage"
+        [hasMore]="drafts.value().hasMore"
+        [busy]="deleting() || drafts.isLoading()"
+      />
     }
   </section>
   <section class="grid gap-4" aria-labelledby="ready-title">
     <div class="grid gap-1">
       <h2 id="ready-title" class="flex items-center gap-3">
         פעילויות מוכנות
-        @if (snapshots.hasValue() && snapshots.value().length) {
-          <span class="badge">{{ snapshots.value().length }}</span>
+        @if (snapshotCount()) {
+          <span class="badge">{{ snapshotCount() }}</span>
         }
       </h2>
       <p class="text-sm text-muted">פעילויות שבדקתם ואפשר להקצות לילדים.</p>
@@ -100,7 +106,7 @@
         </button>
       </div>
     } @else if (snapshots.hasValue()) {
-      @for (snapshot of snapshots.value(); track snapshot.id) {
+      @for (snapshot of snapshots.value().items; track snapshot.id) {
         <article class="list-row">
           <span class="icon-tile size-10" aria-hidden="true"
             ><span class="icon icon-check"></span
@@ -135,21 +141,21 @@
           עוד אין פעילויות מוכנות. פעילות שתסמנו כמוכנה תופיע כאן, ומכאן אפשר להקצות אותה לילדים.
         </p>
       }
+      <app-pager
+        label="עמודי פעילויות מוכנות"
+        [(page)]="snapshotPage"
+        [hasMore]="snapshots.value().hasMore"
+        [busy]="deleting() || snapshots.isLoading()"
+      />
     }
   </section>
   <details class="border-t border-line pt-4" [open]="!!failed('all')">
     <summary>ניהול נתונים</summary>
     <div class="grid gap-4">
-      <ul role="list" class="grid gap-1">
-        <li class="note">
-          <span class="icon icon-info" aria-hidden="true"></span>מוצגים עד
-          {{ limits.listLimit }} הפריטים האחרונים בכל רשימה.
-        </li>
-        <li class="note">
-          <span class="icon icon-alert" aria-hidden="true"></span>איפוס מוחק את הילדים, הגישה
-          מהמכשירים, ההקצאות וכל התוכן הלימודי. חשבונות ההורים והגדרות ה־AI נשמרים.
-        </li>
-      </ul>
+      <p class="note">
+        <span class="icon icon-alert" aria-hidden="true"></span>איפוס מוחק את הילדים, הגישה
+        מהמכשירים, ההקצאות וכל התוכן הלימודי. חשבונות ההורים והגדרות ה־AI נשמרים.
+      </p>
       <button
         type="button"
         class="button button-danger"

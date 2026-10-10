@@ -62,7 +62,7 @@ public sealed class RequestValidationTests
             settings[member] = null;
             await AssertBadRequestAsync(parent, "/api/activity-drafts", new JsonObject { ["id"] = Guid.NewGuid(), ["plan"] = definition.DeepClone() }.ToJsonString());
         }
-        Assert.Equal(0, (await parent.GetFromJsonAsync<JsonElement>("/api/activity-drafts")).GetArrayLength());
+        Assert.Empty((await parent.GetFromJsonAsync<JsonNode>("/api/activity-drafts"))!["items"]!.AsArray());
     }
 
     private static async Task AssertBadRequestAsync(HttpClient client, string path, string json)

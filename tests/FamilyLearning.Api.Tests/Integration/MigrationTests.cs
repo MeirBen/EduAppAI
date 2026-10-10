@@ -48,9 +48,9 @@ public sealed class MigrationTests
         var id = titled["id"]!.GetValue<Guid>();
         await db.Database.ExecuteSqlAsync($"UPDATE ActivityDrafts SET DocumentJson = json_set(DocumentJson, '$.title', 'כותרת הלומדים') WHERE Id = {id}");
         await db.Database.MigrateAsync();
-        var names = await parent.GetFromJsonAsync<JsonNode[]>("/api/activity-drafts");
-        Assert.Equal("כותרת הלומדים", names!.Single(d => d!["id"]!.GetValue<Guid>() == id)!["name"]!.GetValue<string>());
-        Assert.Equal("מספרים", names!.Single(d => d!["id"]!.GetValue<Guid>() == untitled["id"]!.GetValue<Guid>())!["name"]!.GetValue<string>());
+        var names = (await parent.GetFromJsonAsync<JsonNode>("/api/activity-drafts"))!["items"]!.AsArray();
+        Assert.Equal("כותרת הלומדים", names.Single(d => d!["id"]!.GetValue<Guid>() == id)!["name"]!.GetValue<string>());
+        Assert.Equal("מספרים", names.Single(d => d!["id"]!.GetValue<Guid>() == untitled["id"]!.GetValue<Guid>())!["name"]!.GetValue<string>());
     }
 
     [Fact]

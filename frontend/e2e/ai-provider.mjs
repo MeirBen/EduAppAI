@@ -29,7 +29,10 @@ export async function startAiProvider(port = 0) {
       assert.equal(input.top_p, 0.95);
       assert.equal(input.top_k, 20);
       assert.equal(input.max_completion_tokens ?? input.max_tokens, 8192);
-      assert.deepEqual(input.provider, { require_parameters: true });
+      assert.deepEqual(input.provider, {
+        require_parameters: true,
+        max_price: { prompt: 2, completion: 10 },
+      });
       assert.equal(input.response_format.type, 'json_schema');
       assert.equal(input.response_format.json_schema.strict, true);
       assert.equal(input.tools, undefined);

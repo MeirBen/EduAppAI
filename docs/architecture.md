@@ -46,6 +46,7 @@ All routes are under `/api`; writes enforce CSRF.
 | ----------------------------------------- | -------------------------- |
 | `GET limits`                              | Server content limits      |
 | `POST ai/activity-plans`                  | Unsaved proposal           |
+| `GET activity-drafts`, `GET instances`    | Library pages              |
 | `POST activity-drafts`                    | Named draft; retry replays |
 | `PUT activity-drafts/{id}`                | Save a revision            |
 | `POST activity-drafts/{id}/operations`    | Idempotent start           |

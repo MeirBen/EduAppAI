@@ -35,7 +35,6 @@ internal static class EngineValidation
     internal const int AssumptionLength = 200;
     internal const int MaxChatTurns = 100;
     internal const int AuthoringReplyLength = 1000;
-    internal const int ListLimit = 100;
 
     internal static readonly string ContentLimitError = $"התוכן כולו מוגבל ל־{Count(ContentLimit)} תווים.";
 
