@@ -11,12 +11,7 @@
     variant="panel"
   />
   @if (snapshot.error()) {
-    <div class="grid gap-2">
-      <p role="alert" class="error">{{ apiError(snapshot.error()) }}</p>
-      <button type="button" class="text-link" (click)="snapshot.reload()">
-        <span class="icon icon-refresh" aria-hidden="true"></span>ניסיון נוסף
-      </button>
-    </div>
+    <app-read-failure [message]="apiError(snapshot.error())" (retry)="snapshot.reload()" />
   } @else if (snapshot.hasValue()) {
     <div class="grid gap-1">
       <p class="note">

@@ -12,12 +12,7 @@
         label="טוענים פרופילים…"
       />
       @if (children.error()) {
-        <div class="grid gap-2">
-          <p class="error" role="alert">{{ failure(children.error()) }}</p>
-          <button type="button" class="text-link" (click)="children.reload()">
-            <span class="icon icon-refresh" aria-hidden="true"></span>ניסיון נוסף
-          </button>
-        </div>
+        <app-read-failure [message]="failure(children.error())" (retry)="children.reload()" />
       }
       @if (shownChildren(); as list) {
         @for (child of list.items; track child.id) {
@@ -263,12 +258,7 @@
               label="טוענים מכשירים…"
             />
             @if (devices.error()) {
-              <div class="grid gap-2">
-                <p class="field-error" role="alert">{{ failure(devices.error()) }}</p>
-                <button type="button" class="text-link" (click)="devices.reload()">
-                  <span class="icon icon-refresh" aria-hidden="true"></span>ניסיון נוסף
-                </button>
-              </div>
+              <app-read-failure [message]="failure(devices.error())" (retry)="devices.reload()" />
             }
             @if (shownDevices(); as list) {
               @for (device of list.items; track device.id) {

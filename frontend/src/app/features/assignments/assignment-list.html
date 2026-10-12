@@ -45,12 +45,7 @@
     label="טוענים את הפעילויות…"
   />
   @if (assignments.error()) {
-    <div class="grid gap-2">
-      <p class="error" role="alert">{{ failure(assignments.error()) }}</p>
-      <button type="button" class="text-link" (click)="assignments.reload()">
-        <span class="icon icon-refresh" aria-hidden="true"></span>ניסיון נוסף
-      </button>
-    </div>
+    <app-read-failure [message]="failure(assignments.error())" (retry)="assignments.reload()" />
   } @else if (shownAssignments(); as list) {
     <div class="grid gap-stack">
       @for (assignment of list.items; track assignment.id) {

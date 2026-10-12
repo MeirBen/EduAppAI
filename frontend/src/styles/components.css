@@ -428,7 +428,8 @@
     &:has(> textarea:focus) {
       @apply border-focus inset-ring inset-ring-focus ring-4 ring-focus/15;
     }
-    &:has(> textarea:disabled) {
+    /* Read-only while a request runs, or disabled, the field looks unavailable but keeps its focus. */
+    &:has(> textarea:read-only) {
       @apply border-line bg-canvas;
     }
     & > textarea {

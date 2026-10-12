@@ -28,16 +28,10 @@
     variant="panel"
   />
   @if (detail.error() || initialResult.error()) {
-    <div class="grid gap-2">
-      <p class="error" role="alert">{{ failure(detail.error() || initialResult.error()) }}</p>
-      <button
-        type="button"
-        class="text-link"
-        (click)="detail.error() ? detail.reload() : initialResult.reload()"
-      >
-        <span class="icon icon-refresh" aria-hidden="true"></span>ניסיון נוסף
-      </button>
-    </div>
+    <app-read-failure
+      [message]="failure(detail.error() || initialResult.error())"
+      (retry)="detail.error() ? detail.reload() : initialResult.reload()"
+    />
   }
   @if (detail.hasValue()) {
     @let assignment = summary()!;

@@ -25,6 +25,7 @@ import { ChildBadge } from '../../../shared/child-badge/child-badge';
 import { Count } from '../../../shared/count/count';
 import { Pager } from '../../../shared/pager/pager';
 import { shownValue } from '../../../core/api/shown-value';
+import { ReadFailure } from '../../../shared/read-failure/read-failure';
 
 const snapshotViews: { value: SnapshotView; label: string; empty: string }[] = [
   { value: 'assigned', label: 'מוקצות', empty: 'אין כרגע פעילויות שמחכות לילדים או לבדיקה.' },
@@ -44,8 +45,8 @@ function rowDate({ assignedAtUtc, completedAtUtc, createdAtUtc }: SnapshotSummar
 }
 
 /**
- * What each removal asks and reports. A removed ready activity may live on in the archive, so only
- * drafts and archive deletions say "deleted"; deleting from the archive also erases children's work.
+ * What each removal asks and reports. A removed ready activity may live on in the archive, so it
+ * says "removed"; every other removal deletes, and its confirmation names the work it erases.
  */
 const removals = {
   activities: {
@@ -90,12 +91,13 @@ function sectionOpen(count: Signal<number | undefined>) {
 
 /**
  * Content-first library; drafts, immutable snapshots and the archive have distinct routes and
- * deletion scopes, each in a folding section that keeps its count. Ready activities open on those
- * with work left to assign or finish. Lists follow changes saved elsewhere, such as on another device.
+ * deletion scopes, each in a folding section that keeps its count. Ready activities open on the
+ * assigned ones. Lists follow changes saved elsewhere, such as on another device.
  */
 @Component({
   selector: 'app-activity-library',
   imports: [
+    ReadFailure,
     ChildBadge,
     Count,
     RouterLink,

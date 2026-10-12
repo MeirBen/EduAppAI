@@ -27,11 +27,13 @@ import { Pager } from '../../shared/pager/pager';
 import { shownValue } from '../../core/api/shown-value';
 import { writeError } from '../../core/api/api-error';
 import { liveLists } from '../../core/api/live-lists';
+import { ReadFailure } from '../../shared/read-failure/read-failure';
 
 /** One local profile buffer; list refreshes never replace edits or retain activation secrets. */
 @Component({
   selector: 'app-children-page',
   imports: [
+    ReadFailure,
     DatePipe,
     FormField,
     FieldDirection,

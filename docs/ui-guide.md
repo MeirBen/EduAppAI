@@ -111,7 +111,8 @@ every page by redefining those tokens. Lists span the frame and sit on the page
 as raised `list-row`s; forms and documents sit in panels. A page with one
 reading column, such as an activity document, uses `max-w-reading` with its
 header inside it; a single centered card uses `max-w-card`. A failed read shows
-its alert above an `icon-refresh` retry link in a `grid gap-2`.
+`ReadFailure`: its `error` alert above an `icon-refresh` retry link. Reads that
+offer something else, such as signing in again, keep that layout.
 
 | Token             | Use                                                      |
 | ----------------- | -------------------------------------------------------- |

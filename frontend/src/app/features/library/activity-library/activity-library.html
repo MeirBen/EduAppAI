@@ -25,12 +25,7 @@
           label="טוענים את הטיוטות…"
         />
         @if (drafts.error()) {
-          <div class="grid gap-2">
-            <p role="alert" class="field-error">{{ apiError(drafts.error()) }}</p>
-            <button type="button" class="text-link" (click)="drafts.reload()">
-              <span class="icon icon-refresh" aria-hidden="true"></span>ניסיון נוסף
-            </button>
-          </div>
+          <app-read-failure [message]="apiError(drafts.error())" (retry)="drafts.reload()" />
         } @else if (shownDrafts(); as list) {
           @for (draft of list.items; track draft.id) {
             <article class="list-row">
@@ -115,12 +110,7 @@
           label="טוענים את הפעילויות המוכנות…"
         />
         @if (snapshots.error()) {
-          <div class="grid gap-2">
-            <p role="alert" class="field-error">{{ apiError(snapshots.error()) }}</p>
-            <button type="button" class="text-link" (click)="snapshots.reload()">
-              <span class="icon icon-refresh" aria-hidden="true"></span>ניסיון נוסף
-            </button>
-          </div>
+          <app-read-failure [message]="apiError(snapshots.error())" (retry)="snapshots.reload()" />
         } @else if (shownSnapshots(); as list) {
           @for (snapshot of list.items; track snapshot.id) {
             <article class="list-row">
@@ -193,12 +183,7 @@
           label="טוענים את הארכיון…"
         />
         @if (archive.error()) {
-          <div class="grid gap-2">
-            <p role="alert" class="field-error">{{ apiError(archive.error()) }}</p>
-            <button type="button" class="text-link" (click)="archive.reload()">
-              <span class="icon icon-refresh" aria-hidden="true"></span>ניסיון נוסף
-            </button>
-          </div>
+          <app-read-failure [message]="apiError(archive.error())" (retry)="archive.reload()" />
         } @else if (shownArchive(); as list) {
           @for (snapshot of list.items; track snapshot.id) {
             <article class="list-row">

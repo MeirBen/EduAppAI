@@ -22,6 +22,7 @@ import { ChildSelector } from '../../children/child-selector';
 import { ChildBadge } from '../../../shared/child-badge/child-badge';
 import { DisabledInteractive } from '../../../shared/disabled-interactive';
 import { parentTaskError } from '../../../core/api/parent-task-error';
+import { ReadFailure } from '../../../shared/read-failure/read-failure';
 
 const outcomes = {
   created: 'הפעילות הוקצתה',
@@ -37,6 +38,7 @@ interface Assigned {
 @Component({
   selector: 'app-snapshot-preview',
   imports: [
+    ReadFailure,
     DatePipe,
     RouterLink,
     ActivityDocumentView,

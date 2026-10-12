@@ -320,7 +320,7 @@
   <app-loading-indicator [active]="ai.isLoading()" label="בודקים את זמינות העוזר…" />
   @if (ai.error()) {
     <div class="grid gap-2">
-      <p role="alert" class="field-error">לא הצלחנו לבדוק אם העוזר זמין. נסו שוב.</p>
+      <p role="alert" class="error">לא הצלחנו לבדוק אם העוזר זמין. נסו שוב.</p>
       <button
         id="retry-ai-status"
         type="button"

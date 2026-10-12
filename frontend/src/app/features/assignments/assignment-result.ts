@@ -27,6 +27,7 @@ import { ActivityDocumentView } from '../activities/activity-document-view/activ
 import { assignmentState } from './assignment-presentation';
 import { parentTaskError } from '../../core/api/parent-task-error';
 import { writeError } from '../../core/api/api-error';
+import { ReadFailure } from '../../shared/read-failure/read-failure';
 
 /**
  * Frozen parent report with a local grade buffer that follows the family's changes, so a submission
@@ -35,6 +36,7 @@ import { writeError } from '../../core/api/api-error';
 @Component({
   selector: 'app-assignment-result',
   imports: [
+    ReadFailure,
     DatePipe,
     RouterLink,
     FormField,

@@ -25,6 +25,7 @@ import { Pager } from '../../shared/pager/pager';
 import { shownValue } from '../../core/api/shown-value';
 import { ChildBadge } from '../../shared/child-badge/child-badge';
 import { writeError } from '../../core/api/api-error';
+import { ReadFailure } from '../../shared/read-failure/read-failure';
 
 const changed = {
   withdraw: 'ההקצאה בוטלה. היא נשמרת בתצוגה "בוטלו".',
@@ -38,6 +39,7 @@ const changed = {
 @Component({
   selector: 'app-assignment-list',
   imports: [
+    ReadFailure,
     Count,
     DatePipe,
     RouterLink,
