@@ -69,7 +69,10 @@ export class AssignmentList {
     childId: this.childId(),
     status: this.view(),
   }));
-  protected readonly shownAssignments = shownValue(this.assignments);
+  protected readonly shownAssignments = shownValue(
+    this.assignments,
+    () => `${this.view()} ${this.childId()}`,
+  );
   protected readonly views = assignmentViews;
   protected readonly emptyView = computed(
     () => assignmentViews.find((option) => option.value === this.view())!.empty,
@@ -77,7 +80,6 @@ export class AssignmentList {
   protected readonly assignmentState = assignmentState;
   protected readonly busy = signal(false);
   protected readonly counts = this.api.counts(this.childId);
-  private readonly shownCounts = shownValue(this.counts);
   protected readonly live = liveLists([this.assignments, this.counts], { busy: this.busy });
   private pendingFocus?: () => void;
   // A reload retains old rows until its response; restore only after that response removes the button.
@@ -106,7 +108,7 @@ export class AssignmentList {
     return undefined;
   }
   protected count(view: AssignmentView) {
-    return this.shownCounts()?.[view];
+    return this.counts.hasValue() ? this.counts.value()[view] : undefined;
   }
   private idle() {
     return !this.busy() && !this.assignments.isLoading();

@@ -38,7 +38,7 @@ export class ChildInbox {
     state: this.state(),
     page: this.page(),
   }));
-  protected readonly shownAssignments = shownValue(this.assignments);
+  protected readonly shownAssignments = shownValue(this.assignments, this.state);
   protected readonly live = liveLists([this.assignments], { path: '/api/child/changes' });
   protected readonly failure = childError;
   protected readonly status = childStatus;

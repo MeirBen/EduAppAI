@@ -230,6 +230,18 @@
    * One item in a page's list; its link and actions stay native controls. A row that arrives while
    * the list is shown, such as one a change elsewhere added, fades in where it lands.
    */
+  /*
+   * A list's rows. While it loads another page or saves a change to it (`aria-busy`), the rows it
+   * still shows fade after a beat and return at once, so a quick response never flickers and
+   * nothing moves.
+   */
+  .list {
+    @apply grid gap-stack transition-opacity duration-300;
+
+    &[aria-busy='true'] {
+      @apply opacity-60 delay-200;
+    }
+  }
   /* A row's title over its details, with room for the badges below it. */
   .row-body {
     @apply grid min-w-1/2 flex-1 gap-2;

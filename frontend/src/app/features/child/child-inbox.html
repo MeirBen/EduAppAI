@@ -42,7 +42,7 @@
       }
     </div>
   } @else if (shownAssignments(); as list) {
-    <div class="grid gap-stack">
+    <div class="list" [attr.aria-busy]="assignments.isLoading()">
       @for (assignment of list.items; track assignment.id) {
         @let shown = learnerState(assignment);
         <article class="list-row">
@@ -55,21 +55,19 @@
                 ><bdi>{{ assignment.title }}</bdi></a
               >
             </h2>
-            <p class="text-sm text-muted">
-              נוספה ב־<time [dateTime]="assignment.createdAtUtc">{{
-                assignment.createdAtUtc | date
-              }}</time>
+            <p class="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted">
+              <span class="badge" [attr.data-tone]="shown.tone">{{ shown.label }}</span>
+              <app-score-badge
+                [final]="assignment.finalTotal"
+                [possible]="assignment.possibleTotal"
+              />
+              <span
+                >נוספה ב־<time [dateTime]="assignment.createdAtUtc">{{
+                  assignment.createdAtUtc | date
+                }}</time></span
+              >
             </p>
           </div>
-          @if (assignment.finalTotal !== null && assignment.possibleTotal) {
-            <app-score-badge
-              [label]="shown.label"
-              [final]="assignment.finalTotal"
-              [possible]="assignment.possibleTotal"
-            />
-          } @else {
-            <span class="badge" [attr.data-tone]="shown.tone">{{ shown.label }}</span>
-          }
         </article>
       } @empty {
         <p class="empty-state">

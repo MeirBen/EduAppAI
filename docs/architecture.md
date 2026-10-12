@@ -386,13 +386,14 @@ loads once per sign-in and the server's `ContentLimits` once per tab, both
 before a private page renders; forms, caps and copy read the limits through
 `Limits`. The server still authorizes and validates every request.
 
-Parent management pages own bounded list resources and local buffers. A list or
-count keeps showing its last value while the next page or filter loads
-(`shownValue`), so it never collapses, shifts or drops focus. The child selector
-reads every profile in one bounded page; assignment filters include disabled
-profiles, and the list's views map to the server's `open`, `completed` and
-`withdrawn` statuses. Refreshes preserve unsaved edits. Activation codes live
-only in page memory and clear on selection/destruction. Frozen previews
+Parent management pages own bounded list resources and local buffers. A list
+keeps showing its page while another page of the same filter loads
+(`shownValue`), so paging never collapses it or drops focus; a new view or child
+shows the loading state instead, never another filter's results. The child
+selector reads every profile in one bounded page; assignment filters include
+disabled profiles, and the list's views map to the server's `open`, `completed`
+and `withdrawn` statuses. Refreshes preserve unsaved edits. Activation codes
+live only in page memory and clear on selection/destruction. Frozen previews
 distinguish new assignments from replay. Result pages read frozen
 answers/evaluation without starting work and follow notes, so a submission shows
 by itself; the report request changes only when the work becomes submitted, and

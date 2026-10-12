@@ -47,7 +47,7 @@
   @if (assignments.error()) {
     <app-read-failure [message]="failure(assignments.error())" (retry)="assignments.reload()" />
   } @else if (shownAssignments(); as list) {
-    <div class="grid gap-stack">
+    <div class="list" [attr.aria-busy]="assignments.isLoading() || busy()">
       @for (assignment of list.items; track assignment.id) {
         <article class="list-row" [attr.aria-labelledby]="'assignment-' + assignment.id">
           <div class="row-body">

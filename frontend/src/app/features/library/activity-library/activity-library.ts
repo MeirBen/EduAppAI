@@ -133,7 +133,7 @@ export class ActivityLibrary {
   }));
   protected readonly archive = this.api.archivedSnapshots(this.archivePage);
   protected readonly shownDrafts = shownValue(this.drafts);
-  protected readonly shownSnapshots = shownValue(this.snapshots);
+  protected readonly shownSnapshots = shownValue(this.snapshots, this.snapshotView);
   protected readonly shownArchive = shownValue(this.archive);
   /** Exact section and view sizes, so a folded section or an unchosen view says what it holds. */
   protected readonly counts = this.api.libraryCounts();

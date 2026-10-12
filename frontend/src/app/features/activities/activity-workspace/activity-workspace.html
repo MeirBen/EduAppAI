@@ -13,7 +13,7 @@
       >
       <h1 id="workspace-title">{{ heading() }}</h1>
     </header>
-    <app-loading-indicator [active]="loading()" label="טוענים…" variant="panel" />
+    <app-loading-indicator [active]="loading()" label="טוענים את הטיוטה…" variant="panel" />
     @if (loadError()) {
       <div class="grid gap-2">
         <p role="alert" class="error">{{ apiError(loadError()) }}</p>

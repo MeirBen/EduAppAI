@@ -428,7 +428,7 @@ Results and review:
 - Submission stores the scoring-policy version and automatic awards; reports
   never rescore against changed rules or draft content. A pending result shows
   the automatic subtotal, possible total and outstanding review count, without a
-  final total or percentage.
+  final total or grade.
 - The parent reviews each submitted text beside the frozen question, source
   material and expected answer, which is a reference rather than a required
   string, and enters integer points from zero to the question's possible
@@ -443,7 +443,7 @@ Results and review:
   warning. Corrections, reopening and written feedback are future features.
 - Parent reports show the child, activity, answers, frozen keys, automatic and
   manual awards and timestamps; final totals appear only once grading is
-  complete, without a percentage when possible points are zero. The child's
+  complete, without a grade when possible points are zero. The child's
   history shows receipt, review status and the final total when available,
   without keys or per-question correctness.
 

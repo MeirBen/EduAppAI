@@ -278,13 +278,16 @@ for their item, so the row keeps its room for the title.
 
 Lists, the result page and the child inbox follow changes live through
 `liveLists`, with no refresh controls: a change elsewhere rereads them in place,
-keeping shown rows, and rows that arrive fade in. Loading states show only
-before a list's first value; a failed read offers its retry. When the stream is
-refused, the shared `LiveStatus` says so once and offers **בדיקת עדכונים**, which
-reconnects and rereads. A status `badge` and its row's `icon-tile` share one
-`data-tone`: `new` asks for attention (work awaiting the parent's grading, a new
-activity for the child), `done` is finished and `quiet` is history (withdrawn,
-archived); work in progress has none.
+keeping shown rows, and rows that arrive fade in. The inline `LoadingIndicator`
+shows only while a list has nothing to show (its first read, or a new view or
+child). Rows sit in one `.list`, which is `aria-busy` while it loads another
+page or saves a change: its rows fade after a beat and return at once, so
+nothing moves and quick answers never flicker. A failed read offers its retry.
+When the stream is refused, the shared `LiveStatus` says so once and offers
+**בדיקת עדכונים**, which reconnects and rereads. A status `badge` and its row's
+`icon-tile` share one `data-tone`: `new` asks for attention (work awaiting the
+parent's grading, a new activity for the child), `done` is finished and `quiet`
+is history (withdrawn, archived); work in progress has none.
 
 Filters form one toolbar row: a `segmented` view switch, which is a control's
 height, beside fields whose label is screen-reader-only there. Its labels never
@@ -297,24 +300,24 @@ in `Count`.
 The library's drafts, ready activities and archive are `section-fold`
 disclosures whose summary is the section heading with its exact `Count` (a quiet
 0 when empty), so a folded section still says what it holds. A `Count` keeps its
-place unseen until known and its last value while a filter rereads, so counts
-never shift the layout. Ready rows show what put them in their view, newest
-first: **הוקצתה לאחרונה**, **הושלמה** (when the last child finished) or
-**אושרה** with its date, and each child as a `ChildBadge`: the name while the
-work is open, the banded score once completed. An activity's page names the same
-children, and an assignment row shows its child as that badge under the
-activity's title. Ready activities open with the page unless that first count is
-0; drafts and the archive start folded. Later view switches and changes never
-fold or unfold them. Ready activities open on **מוקצות** (work with the children
-or awaiting review), with **לא הוקצו** and **הושלמו** beside it; their count is
-every ready activity. Deleting from the archive names the children's answers and
-grades it erases.
+place unseen until known, so counts never shift the layout. Ready rows show what
+put them in their view, newest first: **הוקצתה לאחרונה**, **הושלמה** (when the
+last child finished) or **אושרה** with its date, and each child as a
+`ChildBadge`: the name, with the grade beside it in its own badge once
+completed. An activity's page names the same children, and an assignment row
+shows its child as that badge under the activity's title. Ready activities open
+with the page unless that first count is 0; drafts and the archive start folded.
+Later view switches and changes never fold or unfold them. Ready activities open
+on **מוקצות** (work with the children or awaiting review), with **לא הוקצו** and
+**הושלמו** beside it; their count is every ready activity. Deleting from the
+archive names the children's answers and grades it erases.
 
-A final score shows as one `ScoreBadge`, wherever it appears (ready and
-archived rows by child, completed assignment rows, the result page and the
-child's receipt and list): `data-band` `high` from 80%, `mid` from 55% and
-`low` below, in existing contrast-checked pairs, with the percentage as its
-text.
+A final score shows as one `ScoreBadge`, wherever it appears (ready and archived
+rows by child, completed assignment rows, the result page and the child's
+receipt and list): a grade out of 100 with no percent sign, never joined to a
+name; `data-band` `high` from 80, `mid` from 55 and `low` below, in existing
+contrast-checked pairs, with the number as its text and "ציון" for screen
+readers.
 
 Grade (free text) and age (LTR integer, server bounds) are optional; each can
 be cleared, with no age-confirmation checkbox. Keep secondary dates under native
@@ -324,13 +327,13 @@ unused profiles offer deletion, profiles with history disabling, active devices
 revocation and inactive devices removal.
 
 Frozen previews own child selection/assignment and link to an existing pair on
-replay; a withdrawn pair offers its explicit restore.
-Review shows frozen content, exact submitted text and parent-only answer
-disclosures. Pending grades start empty; automatic/completed awards stay
-read-only. Distinguish pending subtotal from final score; percentages require
-positive possible points. Recovery stays beside finalization and never silently
-replaces local grades. Parent and child learning pages share primitives and
-logical utilities without separate stylesheets.
+replay; a withdrawn pair offers its explicit restore. Review shows frozen
+content, exact submitted text and parent-only answer disclosures. Pending grades
+start empty; automatic/completed awards stay read-only. Distinguish pending
+subtotal from final score; grades require positive possible points. Recovery
+stays beside finalization and never silently replaces local grades. Parent and
+child learning pages share primitives and logical utilities without separate
+stylesheets.
 
 Group creation, opening, last-save, submission and review dates in “פרטי זמנים”.
 Label elapsed time “זמן מהפתיחה עד ההגשה (כולל הפסקות)”, using minutes/hours or
@@ -349,26 +352,26 @@ disconnect/revocation/expiry. An uncertain activation offers a session check;
 availability failures offer retry.
 
 The inbox greets the child by name. Separate available/submitted inbox views
-with a `segmented` switch and bounded paging; rows carry a status `badge`, which
-keeps the state on phones where the tile drops. Keep materials above numbered
-questions in the reading column. Numeric answers use LTR text inputs with a
-decimal keyboard, retaining invalid edits and sending no surrounding spaces;
-text preserves whitespace. Choice
-questions are a fieldset whose legend is the prompt, with every option a
-`choice` card around its native radio, so long answers wrap rather than hide in
-a closed select. An answered question fills its number. While work is open,
-the action bar leads with one meta line: a `progress` track of answered
-questions (the count is its accessible text) and the time since the first
-start, which ticks only while work is open and the page is visible. Below it,
-one row holds save, submit, saved-work recovery and the save state, so the row
-stays one line at any timer length down to 320px. On phones the unsaved state
-shows as the save button's `data-attention` dot; it is still announced. The
-saved-work check shows only while recovering or after submission, where it
+with a `segmented` switch and bounded paging; each row's details line, like the
+parent lists', holds its status `badge` (the state on phones, where the tile
+drops), its grade and its date. Keep materials above numbered questions in the
+reading column. Numeric answers use LTR text inputs with a decimal keyboard,
+retaining invalid edits and sending no surrounding spaces; text preserves
+whitespace. Choice questions are a fieldset whose legend is the prompt, with
+every option a `choice` card around its native radio, so long answers wrap
+rather than hide in a closed select. An answered question fills its number.
+While work is open, the action bar leads with one meta line: a `progress` track
+of answered questions (the count is its accessible text) and the time since the
+first start, which ticks only while work is open and the page is visible. Below
+it, one row holds save, submit, saved-work recovery and the save state, so the
+row stays one line at any timer length down to 320px. On phones the unsaved
+state shows as the save button's `data-attention` dot; it is still announced.
+The saved-work check shows only while recovering or after submission, where it
 fetches the grade. Invalid submit focuses the first problem; missing answers
 need confirmation. Checkpoint reads never overwrite local text implicitly. A
 submission receipt leads the page, locks editing and praises the child by name
 beside its outcome icon, which fills (`data-done`) once reviewed; pending review
-has no final score, and zero possible points has no percentage.
+has no final score, and zero possible points has no grade.
 
 ## Workspace actions
 

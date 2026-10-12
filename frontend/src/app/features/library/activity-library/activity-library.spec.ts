@@ -142,11 +142,15 @@ describe('Activity library', () => {
       .find((button) => button.textContent?.includes('העמוד הבא'))!
       .click();
     TestBed.tick();
-    // The shown page stays until the next arrives, so the list never collapses under the pager.
+    // The shown page stays until the next arrives, so the list never collapses under the pager,
+    // and it says it is busy meanwhile.
     expect(root.querySelector('a[href="/activities/draft"]')).not.toBeNull();
+    const list = drafts.querySelector('.list')!;
+    expect(list.getAttribute('aria-busy')).toBe('true');
     const older = { ...draft, id: 'older', name: 'ישנה' };
     http.expectOne('/api/activity-drafts?page=2').flush(page([older], false, 2));
     await fixture.whenStable();
+    expect(list.getAttribute('aria-busy')).toBe('false');
     expect(root.querySelector('a[href="/activities/draft"]')).toBeNull();
     expect(root.querySelector('a[href="/activities/older"]')).not.toBeNull();
 
@@ -344,6 +348,10 @@ describe('Activity library', () => {
     ).toBe(false);
     ready.querySelector<HTMLInputElement>('input[value="completed"]')!.click();
     TestBed.tick();
+    // A new view shows its loading state, never the previous view's rows or its own empty text.
+    expect(ready.querySelector('a[href="/instances/ready"]')).toBeNull();
+    expect(ready.querySelector('.empty-state')).toBeNull();
+    expect(ready.querySelector('app-loading-indicator.loading-active')).not.toBeNull();
     const children = [
       { childName: 'נועה', status: 'completed', finalTotal: 9, possibleTotal: 10 },
       { childName: 'איתי', status: 'completed', finalTotal: 6, possibleTotal: 10 },
@@ -361,10 +369,14 @@ describe('Activity library', () => {
       badge.textContent!.replace(/\s+/g, ' ').trim(),
     ]);
     expect(scores).toEqual([
-      ['high', 'נועה · 90%'],
-      ['mid', 'איתי · 60%'],
-      ['low', 'רפאל · 20%'],
+      ['high', 'ציון 90'],
+      ['mid', 'ציון 60'],
+      ['low', 'ציון 20'],
     ]);
+    // A grade is its own badge beside the child's name, a plain number out of 100.
+    const names = [...ready.querySelectorAll('app-child-badge > .badge:not([data-band])')];
+    expect(names.map((name) => name.textContent)).toEqual(['נועה', 'איתי', 'רפאל']);
+    expect(ready.textContent).not.toContain('%');
     http.verify();
   });
 

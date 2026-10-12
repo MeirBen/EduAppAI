@@ -1,15 +1,18 @@
 import { linkedSignal, Resource } from '@angular/core';
 
 /**
- * What a page shows of a resource: its last value, kept while a new request loads, so a list or a
- * count never collapses, shifts or drops focus mid-change. A failed read, or another `owner` (such
- * as the child a device list belongs to), clears it.
+ * What a page shows of a resource: its last value, kept while another page of the same `filter`
+ * loads, so paging never collapses a list or drops focus. A new filter (another view, child or
+ * owner) or a failed read clears it, so a page never shows another filter's results.
  */
-export function shownValue<T>(resource: Resource<T | undefined>, owner?: () => unknown) {
-  return linkedSignal<{ owner: unknown; value?: T }, T | undefined>({
-    source: () => ({ owner: owner?.(), value: resource.hasValue() ? resource.value() : undefined }),
-    computation: ({ owner, value }, previous) =>
+export function shownValue<T>(resource: Resource<T | undefined>, filter?: () => unknown) {
+  return linkedSignal<{ filter: unknown; value?: T }, T | undefined>({
+    source: () => ({
+      filter: filter?.(),
+      value: resource.hasValue() ? resource.value() : undefined,
+    }),
+    computation: ({ filter, value }, previous) =>
       value ??
-      (resource.isLoading() && previous?.source.owner === owner ? previous?.value : undefined),
+      (resource.isLoading() && previous?.source.filter === filter ? previous?.value : undefined),
   });
 }
