@@ -4,6 +4,7 @@ import { Router } from '@angular/router';
 import { ChildAuth } from '../../core/auth/child-auth';
 import { requestResult } from '../../core/api/request-result';
 import { DisabledInteractive } from '../../shared/disabled-interactive';
+import { EntryLayout } from '../../shared/entry-layout/entry-layout';
 import { FieldErrors } from '../../shared/forms/field-errors';
 import { FieldValidity } from '../../shared/forms/field-validity';
 import { LoadingIndicator } from '../../shared/loading-indicator/loading-indicator';
@@ -12,7 +13,14 @@ import { childStatus } from './child-error';
 /** One-time activation. Recovery checks the cookie; it never resends a possibly consumed code. */
 @Component({
   selector: 'app-child-activation',
-  imports: [FormField, FieldErrors, FieldValidity, DisabledInteractive, LoadingIndicator],
+  imports: [
+    EntryLayout,
+    FormField,
+    FieldErrors,
+    FieldValidity,
+    DisabledInteractive,
+    LoadingIndicator,
+  ],
   templateUrl: './child-activation.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })

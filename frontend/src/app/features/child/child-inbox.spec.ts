@@ -44,7 +44,33 @@ describe('Child inbox', () => {
     expect(stream.readyState).toBe(FakeEventSource.CLOSED);
   });
 
-  it('uses the refresh button to recover a refused stream and reread the inbox', async () => {
+  it('keeps the shown work in place while a change rereads it', async () => {
+    const fixture = TestBed.createComponent(ChildInbox);
+    const http = TestBed.inject(HttpTestingController);
+    const path = '/api/child/assignments?state=available&page=1';
+    const work = {
+      id: 'work',
+      title: 'פעילות',
+      status: 'assigned',
+      revision: 1,
+      createdAtUtc: '2026-10-01T00:00:00Z',
+      hasStarted: false,
+    };
+    fixture.detectChanges();
+    http.expectOne(path).flush({ items: [work], page: 1, pageSize: 25, hasMore: false });
+    await fixture.whenStable();
+    FakeEventSource.opened[0].send();
+    TestBed.tick();
+    const reread = http.expectOne(path);
+    fixture.detectChanges();
+    const root = fixture.nativeElement as HTMLElement;
+    expect(root.querySelector('a[href="/child/assignments/work"]')).not.toBeNull();
+    expect(root.querySelector('app-loading-indicator.loading-active')).toBeNull();
+    reread.flush({ items: [work], page: 1, pageSize: 25, hasMore: false });
+    await fixture.whenStable();
+  });
+
+  it('offers to restart refused updates, which also rereads the inbox', async () => {
     const fixture = TestBed.createComponent(ChildInbox);
     const http = TestBed.inject(HttpTestingController);
     const path = '/api/child/assignments?state=available&page=1';
@@ -58,12 +84,12 @@ describe('Child inbox', () => {
     stream.onerror?.();
     await fixture.whenStable();
     const root = fixture.nativeElement as HTMLElement;
-    expect(root.querySelector('[role="status"]')?.textContent).toContain('רענון הפעילויות');
-    root.querySelector<HTMLButtonElement>('header button')!.click();
+    root.querySelector<HTMLButtonElement>('app-live-status button')!.click();
     TestBed.tick();
     expect(FakeEventSource.opened).toHaveLength(2);
     http.expectOne(path).flush(empty);
     await fixture.whenStable();
+    expect(root.querySelector('app-live-status button')).toBeNull();
   });
 
   it('pages available work and resets paging when selecting submitted work without starting any session', async () => {

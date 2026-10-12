@@ -58,12 +58,17 @@ public static class AssignmentEndpoints
     {
         var paging = new PageRequest(page, pageSize);
         if (!paging.IsValid) return PageRequest.Invalid();
-        if (status is not (null or "assigned" or "withdrawn" or "awaiting-review" or "completed"))
+        if (status is not (null or "open" or "assigned" or "withdrawn" or "awaiting-review" or "completed"))
             return Results.ValidationProblem(new Dictionary<string, string[]> { ["status"] = ["מצב ההקצאה אינו תקף."] });
         var query = db.Assignments.AsNoTracking().Where(a => a.FamilyId == user.FamilyId());
         if (childId.HasValue) query = query.Where(a => a.ChildId == childId.Value);
-        // Withdrawn work is history: only its own filter lists it.
-        query = status is null ? query.Where(a => a.Status != "withdrawn") : query.Where(a => a.Status == status);
+        // Open work still waits for the child or for the parent's grading. Withdrawn work is history: only its own filter lists it.
+        query = status switch
+        {
+            null => query.Where(a => a.Status != "withdrawn"),
+            "open" => query.Where(a => a.Status == "assigned" || a.Status == "awaiting-review"),
+            _ => query.Where(a => a.Status == status),
+        };
         return Results.Ok(await paging.ReadAsync(query.OrderByDescending(a => a.CreatedAtUtc).ThenByDescending(a => a.Id)
             .Select(AssignmentSummary.Projection), ct));
     }

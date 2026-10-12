@@ -14,6 +14,51 @@ public sealed class LibraryChangeTests
     private const string StreamPath = "/api/library/changes";
 
     [Fact]
+    public async Task Profile_and_device_changes_notify_only_the_owning_family()
+    {
+        await using var app = new ChildHarness();
+        using var parent = await app.App.ParentAsync();
+        using var stranger = await app.App.ParentAsync();
+        var changes = app.App.Services.GetRequiredService<LibraryChanges>();
+        var family = (await parent.GetFromJsonAsync<JsonElement>("/api/auth/me")).GetProperty("familyId").GetGuid();
+        var otherFamily = (await stranger.GetFromJsonAsync<JsonElement>("/api/auth/me")).GetProperty("familyId").GetGuid();
+        var stream = changes.Subscribe(family)!;
+        var other = changes.Subscribe(otherFamily)!;
+        Assert.True(stream.Reader.TryRead(out _));
+        Assert.True(other.Reader.TryRead(out _));
+        try
+        {
+            var profile = await ChildHarness.Create(parent);
+            Notified();
+            var code = await ChildHarness.Issue(parent, profile);
+            Notified();
+            using var device = app.App.CreateClient(new() { AllowAutoRedirect = false });
+            await ChildHarness.Csrf(device);
+            using (var activated = await device.PostAsJsonAsync("/api/child/auth/activate", new { code = code["code"]!.GetValue<string>() }))
+                Assert.Equal(HttpStatusCode.NoContent, activated.StatusCode);
+            Notified();
+            await ChildHarness.Csrf(device);
+            using (var left = await device.PostAsync("/api/child/auth/logout", null))
+                Assert.Equal(HttpStatusCode.NoContent, left.StatusCode);
+            Notified();
+            using (var refused = await device.PostAsJsonAsync("/api/child/auth/activate", new { code = code["code"]!.GetValue<string>() }))
+                Assert.Equal(HttpStatusCode.BadRequest, refused.StatusCode);
+            Assert.False(stream.Reader.TryRead(out _));
+        }
+        finally
+        {
+            changes.Unsubscribe(family, stream);
+            changes.Unsubscribe(otherFamily, other);
+        }
+
+        void Notified()
+        {
+            Assert.True(stream.Reader.TryRead(out _));
+            Assert.False(other.Reader.TryRead(out _));
+        }
+    }
+
+    [Fact]
     public async Task Child_writes_notify_parent_streams_after_commit_and_failures_publish_nothing()
     {
         await using var app = new ChildHarness();

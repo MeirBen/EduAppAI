@@ -209,10 +209,10 @@ test('open parent and child lists follow assignments and submissions without ref
     await expect(row.getByRole('button', { name: 'ביטול ההקצאה:', exact: false })).toBeVisible();
     await link.click();
     await child.getByRole('textbox', { name: 'מה למדתם מהטקסט?', exact: true }).fill('תשובה');
-    await expect(row).toContainText('העבודה התחילה');
+    await expect(row).toContainText('בעבודה');
     child.once('dialog', (dialog) => dialog.accept());
     await child.getByRole('button', { name: 'הגשה להורה', exact: true }).click();
-    await expect(row).toContainText('ממתינה לבדיקה');
+    await expect(row).toContainText('מחכה לבדיקה');
     await expect(row.locator('[data-withdraw]')).toHaveCount(0);
   } finally {
     await parentContext.close();
@@ -323,7 +323,7 @@ test('two families and siblings keep separate work through resume, lost submissi
     }
     await child.goto('/child');
     await expect(child).toHaveURL('/child/activate');
-    await expect(child.getByText('המכשיר הזה יזכור אתכם', { exact: false })).toBeVisible();
+    await expect(child.getByText('לא צריך קוד שוב', { exact: false })).toBeVisible();
     await narrow(child, 'activation-mobile');
     await child.getByLabel('הקוד מההורה', { exact: true }).fill(code);
     await child.getByRole('button', { name: 'כניסה', exact: true }).click();

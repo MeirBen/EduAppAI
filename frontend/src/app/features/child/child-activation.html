@@ -1,9 +1,5 @@
-<section class="panel mx-auto grid max-w-card gap-6" aria-labelledby="activation-title">
-  <header class="grid gap-1">
-    <h1 id="activation-title">כניסה לפעילויות</h1>
-    <p class="text-muted">כתבו את הקוד שקיבלתם מההורה.</p>
-  </header>
-  <form class="grid gap-4" (submit)="activate($event)" novalidate>
+<app-entry-layout audience="child" heading="כניסה לפעילויות" lead="כתבו כאן את הקוד מההורה.">
+  <form class="grid gap-stack" (submit)="activate($event)" novalidate>
     <div>
       <label for="activation-code">הקוד מההורה</label>
       <input
@@ -19,7 +15,9 @@
       />
       <app-field-errors id="activation-code-errors" [field]="fields.code" />
     </div>
-    <button class="button" type="submit" [disabledInteractive]="busy() || recovery()">כניסה</button>
+    <button class="button w-full" type="submit" [disabledInteractive]="busy() || recovery()">
+      כניסה
+    </button>
   </form>
   <app-loading-indicator [active]="busy()" label="רק רגע…" />
   @if (error()) {
@@ -28,7 +26,7 @@
   @if (recovery()) {
     <button
       id="check-child-access"
-      class="button button-secondary"
+      class="button button-secondary w-full"
       [disabledInteractive]="busy()"
       (click)="checkAccess()"
     >
@@ -36,7 +34,7 @@
     </button>
   }
   <p class="note">
-    <span class="icon icon-info" aria-hidden="true"></span>אחרי הכניסה, המכשיר הזה יזכור אתכם עד 30
+    <span class="icon icon-info" aria-hidden="true"></span>אחרי שנכנסים, לא צריך קוד שוב במשך 30
     יום.
   </p>
-</section>
+</app-entry-layout>

@@ -267,7 +267,7 @@ test('saves before generation, edits manually, reviews the current revision and 
   page.once('dialog', (dialog) => dialog.accept());
   await page.locator('#release-activity').click();
   await page.getByRole('link', { name: 'הקצאה לילדים' }).click();
-  await expect(page.getByRole('heading', { name: 'פעילות מוכנה — תצוגה להורים' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'פעילות מוכנה', exact: true })).toBeVisible();
   await expect(page.locator('textarea')).toHaveCount(0);
   await page.locator('summary').first().click();
   await expect(page.getByText('9', { exact: true })).toBeVisible();

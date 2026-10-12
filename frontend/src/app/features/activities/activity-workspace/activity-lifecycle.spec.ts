@@ -207,6 +207,10 @@ describe('Activity lifecycle', () => {
     });
     await click('ask-question-q');
     await type('chat-message', 'בקשה שנשארת');
+    FakeEventSource.opened[0].send();
+    await settle();
+    http.expectOne('/api/activity-drafts/draft').flush({ ...savedActivity, revision: 2 });
+    await settle();
     await click('reload-activity');
     http.expectOne('/api/activity-drafts/draft').flush({ ...savedActivity, revision: 2 });
     await settle();

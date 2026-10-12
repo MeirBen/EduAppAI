@@ -45,3 +45,6 @@ export function libraryChanges(path = '/api/library/changes') {
   );
   return { changes, state: state.asReadonly(), reconnect: () => retry.next(true) };
 }
+
+/** A page's change connection as its status presentation sees it. */
+export type LiveUpdates = Pick<ReturnType<typeof libraryChanges>, 'state' | 'reconnect'>;

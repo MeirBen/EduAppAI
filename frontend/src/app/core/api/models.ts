@@ -217,11 +217,12 @@ export interface SnapshotPreview {
   archivedAtUtc: string | null;
   measurements: LengthMeasurement[];
 }
+/** A library or archive row; `createdAtUtc` is when the parent approved it. */
 export interface SnapshotSummary {
   id: string;
   title: string;
-  status: 'Ready';
   createdAtUtc: string;
+  archivedAtUtc: string | null;
   hasAssignments: boolean;
 }
 

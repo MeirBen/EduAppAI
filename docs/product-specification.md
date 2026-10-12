@@ -328,7 +328,9 @@ Parents may record **כיתה** (school grade) and **גיל** (completed years).
   stale one conflicts. Restore acts only on withdrawn work and submission only
   on assigned work, so the two never both succeed; withdrawal and submission are
   serialized. There are no due dates or automatic expiry.
-- The child inbox separates available from submitted work.
+- The parent's assignment list opens on open work (`assigned` or
+  `awaiting-review`), with completed and withdrawn work as separate views; the
+  child inbox separates available from submitted work.
 - Child responses explicitly project the title, instructions, material IDs,
   titles and bodies, question IDs, prompts, interaction types, options and
   possible points, plus only the child's own saved answers and status. A child
@@ -450,10 +452,15 @@ Results and review:
   transaction-safe checks and restrictive foreign keys, so a race cannot leave
   dangling work.
 - Withdrawn assignments and submitted results are kept; the parent sees
-  withdrawn work only under its own filter. Disabling a child revokes access
+  withdrawn work only under its own view. Disabling a child revokes access
   without deleting history, and approving a new activity never changes an
   existing assignment or result.
-- The explicit family reset is the one destructive exception. Its confirmation
+- History is deleted only on an explicit request. Deleting an archived snapshot
+  from the library's archive removes it with all its assignments, answers and
+  grades in one transaction, and its confirmation names that loss. Only
+  archived content can be deleted this way, so removing a ready activity twice
+  never erases children's work.
+- The explicit family reset deletes everything. Its confirmation
   names children, device access, assignments, answers, grades and content, all
   deleted in one transaction, while the family, parent accounts and AI
   configuration stay. Old child cookies and activation codes then cannot reach

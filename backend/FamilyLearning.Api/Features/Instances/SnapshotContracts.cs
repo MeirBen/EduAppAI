@@ -3,8 +3,8 @@ using FamilyLearning.Api.TaskEngine.Models;
 
 namespace FamilyLearning.Api.Features.Instances;
 
-/// <summary>Ready snapshot list entry without content or answer keys.</summary>
-public sealed record SnapshotSummary(Guid Id, string Title, string Status, DateTime CreatedAtUtc, bool HasAssignments);
+/// <summary>Library or archive list entry without content or answer keys; <c>CreatedAtUtc</c> is the review time.</summary>
+public sealed record SnapshotSummary(Guid Id, string Title, DateTime CreatedAtUtc, DateTime? ArchivedAtUtc, bool HasAssignments);
 
 /// <summary>Frozen parent-only preview, including keys and release evidence. Never use this DTO for child access.</summary>
 public sealed record SnapshotPreview(Guid Id, Guid SourceDraftId, long SourceDraftRevision, LearningPlan Plan, TaskDocument Document, LengthMeasurement[] Measurements, int EngineRevision,

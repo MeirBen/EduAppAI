@@ -1,9 +1,9 @@
-<section class="mx-auto grid max-w-reading gap-6" aria-labelledby="snapshot-heading">
+<section class="mx-auto grid max-w-reading gap-section" aria-labelledby="snapshot-heading">
   <header class="grid gap-1">
     <a class="text-link" routerLink="/activities"
       ><span class="icon icon-back" aria-hidden="true"></span>המרחב שלנו</a
     >
-    <h1 id="snapshot-heading">פעילות מוכנה — תצוגה להורים</h1>
+    <h1 id="snapshot-heading">פעילות מוכנה</h1>
   </header>
   <app-loading-indicator
     [active]="snapshot.isLoading()"
@@ -20,7 +20,7 @@
   } @else if (snapshot.hasValue()) {
     <div class="grid gap-1">
       <p class="note">
-        <span class="icon icon-check" aria-hidden="true"></span>נבדקה ב־<bdi>{{
+        <span class="icon icon-check" aria-hidden="true"></span>אושרה ב־<bdi>{{
           snapshot.value().reviewedAtUtc | date
         }}</bdi>
       </p>
@@ -29,8 +29,8 @@
       </p>
       @if (snapshot.value().archivedAtUtc) {
         <p class="note">
-          <span class="icon icon-info" aria-hidden="true"></span>הפעילות בארכיון. עבודה שכבר הוקצתה
-          נשמרת, אך אי אפשר להקצות אותה שוב.
+          <span class="icon icon-info" aria-hidden="true"></span>הפעילות בארכיון. מה שכבר הוקצה
+          נשמר, אבל אי אפשר להקצות אותה שוב.
         </p>
       }
       @if (measurements().length) {
@@ -38,7 +38,7 @@
       }
     </div>
     @if (!snapshot.value().archivedAtUtc) {
-      <section class="panel grid gap-4" aria-labelledby="assign-heading">
+      <section class="panel grid gap-stack" aria-labelledby="assign-heading">
         <h2 id="assign-heading">הקצאה לילד או לילדה</h2>
         <app-child-selector [(value)]="childId" [disabled]="assigning()" label="ילד או ילדה" />
         <div class="flex flex-wrap items-center gap-3">

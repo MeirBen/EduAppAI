@@ -15,7 +15,10 @@ parent labels keep their original language and values.
   signed-in brand only its mark. The theme picker sits in the footer. Where the
   header is pinned, it and the footer are rows of the shell height, and scroll
   padding clears the same `--spacing-pinned` band at each window edge for focus
-  targets; include the skip link.
+  targets; include the skip link. Signed-out pages (entry choice, parent
+  sign-in, child code and both unavailable pages) share `EntryLayout`: the
+  app's promise beside one card that holds the page's `h1` and its single task,
+  centered between the pinned bands; primary actions in that card span it.
 - Route changes never move the layout: the root keeps a stable scrollbar
   gutter, the footer rests at the window's bottom on short pages, new pages
   open at the top and Back restores the previous position.
@@ -99,23 +102,27 @@ parent labels keep their original language and values.
 ## Spacing
 
 Containers own `gap`; shared primitives have no outer margin. `main` owns the
-page padding, so page roots add none. Lists span the frame and sit on the page
+page padding (`py-main`), so page roots add none. Density is a theme concern:
+the structural rhythm uses the `section`, `stack` and `inset` spacing roles from
+`theme.css`, and panels pad by the `gutter`, so a theme can tighten or loosen
+every page by redefining those tokens. Lists span the frame and sit on the page
 as raised `list-row`s; forms and documents sit in panels. A page with one
 reading column, such as an activity document, uses `max-w-reading` with its
 header inside it; a single centered card uses `max-w-card`. A failed read shows
 its alert above an `icon-refresh` retry link in a `grid gap-2`.
 
-| Token             | Use                                                     |
-| ----------------- | ------------------------------------------------------- |
-| `gap-1`           | Heading/description, status/content, stacked text links |
-| `gap-2`           | Control and revealed content                            |
-| `gap-3`           | Buttons in an action row; the chat's turns and blocks   |
-| `gap-4`           | Fields and blocks, including field/action rows          |
-| `gap-6`           | Page sections and headed groups                         |
-| `gap-x-6 gap-y-2` | A wrapping row of actions and links                     |
-| `gap-x-4`         | An inline row of links or status text                   |
-| `mb-2`            | Label above its control, set once in `base.css`         |
-| `mt-2`            | Hint/help/error below its control                       |
+| Token             | Use                                                      |
+| ----------------- | -------------------------------------------------------- |
+| `gap-1`           | Heading/description, status/content, stacked text links  |
+| `gap-2`           | Control and revealed content                             |
+| `gap-3`           | Buttons in an action row; the chat's turns and blocks    |
+| `gap-stack`       | Fields, blocks, list rows and field/action rows          |
+| `gap-section`     | Page sections and headed groups                          |
+| `py-inset`        | Block padding of rows, choices, notes, errors and toasts |
+| `gap-x-6 gap-y-2` | A wrapping row of actions and links                      |
+| `gap-x-4`         | An inline row of links or status text                    |
+| `mb-2`            | Label above its control, set once in `base.css`          |
+| `mt-2`            | Hint/help/error below its control                        |
 
 Keep each label/control in one field block, not separate gapped children.
 Disclosures own summary/content spacing; empty live regions occupy no slot.
@@ -133,10 +140,12 @@ below half-width. Render optional content only when present.
   Tailwind's default palettes and scales are cleared, so templates can only use
   theme values.
 - `theme.css` also owns the layout widths (`--container-page`, `-reading`,
-  `-card`), the control height (`--spacing-control`) and the pinned layout:
-  the shell rows (`--spacing-shell`), main's block padding (`--spacing-main`)
-  and the band they clear together (`--spacing-pinned`). A spacing token also
-  names `w-*`/`max-w-*` utilities, so it never reuses a container name.
+  `-card`), the control height (`--spacing-control`), the density roles
+  (`--spacing-section`, `-stack`, `-inset`, `-gutter`) and the pinned layout:
+  the shell rows (`--spacing-shell`), main's block padding (`--spacing-main`),
+  the band they clear together (`--spacing-pinned`) and the window height left
+  between them (`--spacing-pinned-fill`). A spacing token also names
+  `w-*`/`max-w-*` utilities, so it never reuses a container name.
 - `utilities.css` owns project variants: `pinned-header`, `pinned-actions`, and
   `dark` for an explicit dark choice or a dark device without any explicit theme
   choice.
@@ -144,14 +153,17 @@ below half-width. Render optional content only when present.
   `ul` reads as bullets; layout lists opt out with `role="list"`.
 - `components.css` holds every shared visual treatment, grouped as actions
   (buttons, links, `nav-link`, `icon-button` with its `tooltip`, `chip`,
-  `segmented` radios, `choice` answer cards), the shell (`app-frame`,
+  `segmented` radios with `segmented-compact` for icon segments, `choice`
+  answer cards; a `data-attention` button carries an unsaved dot), the shell
+  (`app-frame`,
   `app-header`, `brand`, `brand-mark`), surfaces
   (`panel`, `well`, `card-section`, `action-bar` with its
   `save-state`, `list-row` with its `row-link` and `aria-current` selection,
   `empty-state`), conversation (`chat-panel`, `chat-title`, `chat-message`,
-  `chat-reply`, `chat-latest`, `chat-target`, `composer`), marks (`badge`,
-  `icon-tile`, `status-icon`, `ai-mark`, `code`), lists (`steps`) and feedback
-  (`loading`, `note`, `error`, `field-error`, `callout`, `toast`).
+  `chat-reply`, `chat-latest`, `chat-target`, `composer`), marks (`badge` and
+  `icon-tile` with their shared `data-tone`, `status-icon`, `ai-mark`, `code`),
+  lists (`steps`) and feedback (`loading`, `progress`, `note`, `error`,
+  `field-error`, `callout`, `toast`).
   Use `note`, with one icon, for a short fact about how the app behaves, such as
   kept text, costs or limits; help on what to enter stays plain text under its
   field. Use `error` for a failure that replaces a page's content and
@@ -220,9 +232,14 @@ Write concise Hebrew for labels, validation, loading and errors, and never
 expose raw framework or provider errors. Address parents and children in the
 plural imperative ("בדקו", "נסו שוב"), call the parent home "המרחב שלנו" and
 avoid internal terms such as model, item or local copy. A count of one reads in
-words ("שאלה אחת"). Children read short, warm sentences that say what to do
-next, without technical words such as access, device, browser, request or saved
-work; actions name their result ("הגשה להורה", "בדיקת עדכונים"). Render
+words ("שאלה אחת"). Write everyday, semi-formal Hebrew; prefer "אחרי" to
+"לאחר" and an imperative to "יש ל…" outside field rules. Name the child where
+a page knows them: parent headings and confirmations use the child's name, and
+the child's own pages greet and praise them by name in forms that read the same
+for any gender ("שלך", "ענית"). Children read short, warm sentences that say
+what to do next, without technical words such as access, device, browser,
+request or saved work; actions name their result ("הגשה להורה", "בדיקת
+עדכונים"). Render
 generated text through interpolation, never HTML, and never rewrite saved
 content for presentation. Generated text is bare by contract, so presentation
 supplies its structure: keep line breaks with `whitespace-pre-wrap` (blank lines
@@ -246,9 +263,25 @@ next step, or say that a filter or later page has
 nothing more. Separate profile edits from device access; confirmations explain
 disable/revoke effects. Activation codes show large as `XXXX-XXXX`, selectable
 with expiry, never in URLs or persistent browser storage. Withdrawn rows offer
-restore, which needs no confirmation. Lists of children's work and a profile's
-devices refresh when the page becomes visible again (`refreshOnReturn`) and keep
-a refresh link.
+restore, which needs no confirmation. Withdraw and restore keep their labels and
+lead with an icon; on phones they show only the icon (`max-sm:icon-only`), named
+for their item, so the row keeps its room for the title.
+
+Lists, the result page and the child inbox follow changes live through
+`liveLists`, with no refresh controls: a change elsewhere rereads them in place,
+keeping shown rows, and rows that arrive fade in. Loading states show only
+before a list's first value; a failed read offers its retry. When the stream is
+refused, the shared `LiveStatus` says so once and offers **בדיקת עדכונים**, which
+reconnects and rereads. A status `badge` and its row's `icon-tile` share one
+`data-tone`: `new` asks for attention (work awaiting the parent's grading, a new
+activity for the child), `done` is finished and `quiet` is history (withdrawn,
+archived); work in progress has none.
+
+The assignments page opens on **פתוחות** (assigned or awaiting review), with
+**הושלמו** and **בוטלו** as the other `segmented` views and a child filter beside
+them. The library keeps a collapsed **ארכיון** disclosure below its lists; it
+reads only while open, and deleting from it names the children's answers and
+grades it erases.
 
 Grade (free text) and age (LTR integer, server bounds) are optional; each can
 be cleared, with no age-confirmation checkbox. Keep secondary dates under native
@@ -268,8 +301,9 @@ logical utilities without separate stylesheets.
 
 Group creation, opening, last-save, submission and review dates in “פרטי זמנים”.
 Label elapsed time “זמן מהפתיחה עד ההגשה (כולל הפסקות)”, using minutes/hours or
-“פחות מדקה”. Unsubmitted work shows “עוד לא הוגשה”; missing/reversed timestamps
-show unavailable duration. See [timing
+“פחות מדקה”. A result page's heading names the child, with the activity link
+and status badge on one line; unsubmitted work says so in one note above its
+frozen content. Missing/reversed timestamps show unavailable duration. See [timing
 semantics](product-specification.md#elapsed-activity-time).
 
 ## Child learning
@@ -281,22 +315,26 @@ Explain persistent access and fresh activation after
 disconnect/revocation/expiry. An uncertain activation offers a session check;
 availability failures offer retry.
 
-Separate available/submitted inbox views with a `segmented` switch and bounded
-paging; rows carry a status `badge`, which keeps the state on phones where the
-tile drops. Keep materials above numbered questions in the reading column.
-Numeric answers use LTR text inputs with a decimal keyboard, retaining invalid
-edits and sending no surrounding spaces; text preserves whitespace. Choice
+The inbox greets the child by name. Separate available/submitted inbox views
+with a `segmented` switch and bounded paging; rows carry a status `badge`, which
+keeps the state on phones where the tile drops. Keep materials above numbered
+questions in the reading column. Numeric answers use LTR text inputs with a
+decimal keyboard, retaining invalid edits and sending no surrounding spaces;
+text preserves whitespace. Choice
 questions are a fieldset whose legend is the prompt, with every option a
 `choice` card around its native radio, so long answers wrap rather than hide in
-a closed select. An answered question fills its number. The action bar owns
-save, submit, saved-work recovery and one status line: the save state when it
-is unsaved, how many questions have answers (from tablet width; the filled
-numbers show it on phones) and the time since the first start, which ticks only
-while work is open and the page is visible. The
+a closed select. An answered question fills its number. While work is open,
+the action bar leads with one meta line: a `progress` track of answered
+questions (the count is its accessible text) and the time since the first
+start, which ticks only while work is open and the page is visible. Below it,
+one row holds save, submit, saved-work recovery and the save state, so the row
+stays one line at any timer length down to 320px. On phones the unsaved state
+shows as the save button's `data-attention` dot; it is still announced. The
 saved-work check shows only while recovering or after submission, where it
 fetches the grade. Invalid submit focuses the first problem; missing answers
 need confirmation. Checkpoint reads never overwrite local text implicitly. A
-submission receipt locks editing and leads with its outcome icon; pending review
+submission receipt leads the page, locks editing and praises the child by name
+beside its outcome icon, which fills (`data-done`) once reviewed; pending review
 has no final score, and zero possible points has no percentage.
 
 ## Workspace actions

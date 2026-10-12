@@ -2,8 +2,8 @@ import { HttpClient, httpResource } from '@angular/common/http';
 import { DestroyRef, inject, Injectable } from '@angular/core';
 import {
   AssignmentDetail,
-  AssignmentStatus,
   AssignmentSummary,
+  AssignmentView,
   Page,
   ParentAssignmentResult,
   ParentGrade,
@@ -15,12 +15,12 @@ import { requestResult } from './request-result';
 export class AssignmentApi {
   private readonly http = inject(HttpClient);
 
-  list(filter: () => { page: number; childId: string; status: AssignmentStatus | '' }) {
+  list(filter: () => { page: number; childId: string; status: AssignmentView }) {
     return httpResource<Page<AssignmentSummary>>(() => {
       const { page, childId, status } = filter();
       return {
         url: '/api/assignments',
-        params: { page, ...(childId ? { childId } : {}), ...(status ? { status } : {}) },
+        params: { page, status, ...(childId ? { childId } : {}) },
       };
     });
   }

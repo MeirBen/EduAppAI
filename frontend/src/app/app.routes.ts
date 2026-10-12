@@ -45,7 +45,7 @@ export const parentRoutes: Routes = [
       },
       {
         path: 'assignments/:assignmentId',
-        title: 'הגשה ובדיקה להורים · לומדים ביחד',
+        title: 'בדיקת עבודה · לומדים ביחד',
         loadComponent: () =>
           import('./features/assignments/assignment-result').then((m) => m.AssignmentResult),
         canDeactivate: [(component: AssignmentResult) => component.canLeave()],

@@ -1,5 +1,5 @@
-<section class="grid gap-6" aria-labelledby="library-heading">
-  <header class="flex flex-wrap items-end justify-between gap-4">
+<section class="grid gap-section" aria-labelledby="library-heading">
+  <header class="flex flex-wrap items-end justify-between gap-stack">
     <div class="grid gap-1">
       <h1 id="library-heading">המרחב שלנו</h1>
       <p class="text-muted">הטיוטות והפעילויות המוכנות של המשפחה, במקום אחד.</p>
@@ -8,18 +8,9 @@
       ><span class="icon icon-ai" aria-hidden="true"></span>פעילות חדשה</a
     >
   </header>
-  @if (updates.state() === 'unavailable') {
-    <div class="grid gap-1">
-      <p role="status" class="note">
-        <span class="icon icon-alert" aria-hidden="true"></span>העדכונים בזמן אמת נותקו.
-      </p>
-      <button id="reconnect-library" type="button" class="text-link" (click)="updates.reconnect()">
-        <span class="icon icon-refresh" aria-hidden="true"></span>חיבור מחדש
-      </button>
-    </div>
-  }
+  <app-live-status [updates]="live" />
   <p role="status">{{ notice() }}</p>
-  <section class="grid gap-4" aria-labelledby="drafts-title">
+  <section class="grid gap-stack" aria-labelledby="drafts-title">
     <div class="grid gap-1">
       <h2 id="drafts-title" class="flex items-center gap-3">
         טיוטות לעריכה
@@ -27,7 +18,7 @@
           <span class="badge">{{ draftCount() }}</span>
         }
       </h2>
-      <p class="text-sm text-muted">פעילויות שעוד לא סומנו כמוכנות. אפשר לחזור ולערוך בכל זמן.</p>
+      <p class="text-sm text-muted">פעילויות שעוד לא אישרתם. אפשר להמשיך לערוך מתי שרוצים.</p>
     </div>
     <app-loading-indicator
       [active]="drafts.isLoading() && !drafts.hasValue()"
@@ -76,7 +67,7 @@
           @if (draftPage() > 1) {
             אין עוד טיוטות בעמוד הזה. אפשר לחזור לעמוד הקודם.
           } @else {
-            עוד אין טיוטות. כשתשמרו טיוטה, היא תופיע כאן ותוכלו לחזור לערוך אותה.
+            עוד אין טיוטות. פעילות חדשה נשמרת כאן כטיוטה עד שתאשרו אותה.
           }
         </p>
       }
@@ -88,7 +79,7 @@
       />
     }
   </section>
-  <section class="grid gap-4" aria-labelledby="ready-title">
+  <section class="grid gap-stack" aria-labelledby="ready-title">
     <div class="grid gap-1">
       <h2 id="ready-title" class="flex items-center gap-3">
         פעילויות מוכנות
@@ -96,7 +87,7 @@
           <span class="badge">{{ snapshotCount() }}</span>
         }
       </h2>
-      <p class="text-sm text-muted">פעילויות שבדקתם ואפשר להקצות לילדים.</p>
+      <p class="text-sm text-muted">פעילויות שאישרתם. מכאן מקצים אותן לילדים.</p>
     </div>
     <app-loading-indicator
       [active]="snapshots.isLoading() && !snapshots.hasValue()"
@@ -122,10 +113,12 @@
               >
             </h3>
             <p class="text-sm text-muted">
-              סומנה כמוכנה ב־<bdi>{{ snapshot.createdAtUtc | date }}</bdi
-              >{{ snapshot.hasAssignments ? ' · הוקצתה' : '' }}
+              אושרה ב־<bdi>{{ snapshot.createdAtUtc | date }}</bdi>
             </p>
           </div>
+          @if (snapshot.hasAssignments) {
+            <span class="badge">הוקצתה</span>
+          }
           <button
             type="button"
             class="icon-button icon-button-danger"
@@ -145,7 +138,7 @@
           @if (snapshotPage() > 1) {
             אין עוד פעילויות מוכנות בעמוד הזה. אפשר לחזור לעמוד הקודם.
           } @else {
-            עוד אין פעילויות מוכנות. פעילות שתסמנו כמוכנה תופיע כאן, ומכאן אפשר להקצות אותה לילדים.
+            עוד אין פעילויות מוכנות. פעילות שתאשרו תופיע כאן.
           }
         </p>
       }
@@ -157,9 +150,79 @@
       />
     }
   </section>
+  <details
+    class="border-t border-line pt-4"
+    aria-labelledby="archive-title"
+    (toggle)="archiveOpen.set($any($event.target).open)"
+  >
+    <summary id="archive-title" class="flex items-center gap-3">
+      ארכיון
+      @if (archiveCount()) {
+        <span class="badge" data-tone="quiet">{{ archiveCount() }}</span>
+      }
+    </summary>
+    <div class="grid gap-stack">
+      <p class="text-sm text-muted">
+        פעילויות שהסרתם אחרי שהוקצו. העבודה של הילדים נשמרת כאן עד שתמחקו אותן לצמיתות.
+      </p>
+      <app-loading-indicator
+        [active]="archive.isLoading() && !archive.hasValue()"
+        label="טוענים את הארכיון…"
+      />
+      @if (archive.error()) {
+        <div class="grid gap-2">
+          <p role="alert" class="field-error">{{ apiError(archive.error()) }}</p>
+          <button type="button" class="text-link" (click)="archive.reload()">
+            <span class="icon icon-refresh" aria-hidden="true"></span>ניסיון נוסף
+          </button>
+        </div>
+      } @else if (archive.hasValue()) {
+        @for (snapshot of archive.value().items; track snapshot.id) {
+          <article class="list-row">
+            <span class="icon-tile size-10" data-tone="quiet" aria-hidden="true"
+              ><span class="icon icon-archive"></span
+            ></span>
+            <div class="grid min-w-1/2 flex-1 gap-1">
+              <h3>
+                <a class="row-link" [routerLink]="['/instances', snapshot.id]"
+                  ><bdi>{{ snapshot.title }}</bdi></a
+                >
+              </h3>
+              <p class="text-sm text-muted">
+                הועברה לארכיון ב־<bdi>{{ snapshot.archivedAtUtc | date }}</bdi>
+              </p>
+            </div>
+            <button
+              type="button"
+              class="icon-button icon-button-danger"
+              [attr.aria-label]="'מחיקה לצמיתות: ' + snapshot.title"
+              [disabledInteractive]="deleting()"
+              (click)="remove('archived', snapshot.id, snapshot.title)"
+            >
+              <span class="icon icon-remove" aria-hidden="true"></span
+              ><span class="tooltip" aria-hidden="true">מחיקה לצמיתות</span>
+            </button>
+          </article>
+          @if (failed(snapshot.id); as message) {
+            <p role="alert" class="field-error">{{ message }}</p>
+          }
+        } @empty {
+          <p class="empty-state">
+            {{ archivePage() > 1 ? 'אין עוד פעילויות בארכיון.' : 'הארכיון ריק.' }}
+          </p>
+        }
+        <app-pager
+          label="עמודי הארכיון"
+          [(page)]="archivePage"
+          [hasMore]="archive.value().hasMore"
+          [busy]="deleting() || archive.isLoading()"
+        />
+      }
+    </div>
+  </details>
   <details class="border-t border-line pt-4" [open]="!!failed('all')">
     <summary>ניהול נתונים</summary>
-    <div class="grid gap-4">
+    <div class="grid gap-stack">
       <p class="note">
         <span class="icon icon-alert" aria-hidden="true"></span>איפוס מוחק את הילדים, הגישה
         מהמכשירים, ההקצאות וכל התוכן הלימודי. חשבונות ההורים והגדרות ה־AI נשמרים.

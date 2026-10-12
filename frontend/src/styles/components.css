@@ -22,6 +22,15 @@
   .button[aria-busy='true'] > .icon {
     @apply motion-safe:animate-thinking;
   }
+  /* An action with unsaved work behind it, such as Save, carries a small dot at its corner. */
+  .button[data-attention] {
+    @apply relative;
+
+    &::after {
+      content: '';
+      @apply absolute inset-bs-1 inset-e-1 size-2 rounded-full bg-brand ring-2 ring-surface;
+    }
+  }
   .text-link {
     @apply inline-flex min-h-control w-fit items-center gap-2 rounded-small py-1.5 font-medium text-brand underline decoration-transparent decoration-2 transition-[color,text-decoration-color] actionable:hover:decoration-current;
   }
@@ -101,20 +110,27 @@
   }
   /* One answer among a question's options: a full-width card around its native radio, so long text wraps. */
   .choice {
-    @apply flex cursor-pointer items-start gap-3 rounded-inset border border-line bg-surface px-4 py-3 font-normal transition-colors has-checked:border-brand has-checked:bg-soft has-disabled:cursor-not-allowed;
+    @apply flex cursor-pointer items-start gap-3 rounded-inset border border-line bg-surface px-4 py-inset font-normal transition-colors has-checked:border-brand has-checked:bg-soft has-disabled:cursor-not-allowed;
 
     /* The radio sits on the first line of a long answer. */
     & > input {
       margin-block-start: calc((1lh - --spacing(6)) / 2);
     }
   }
-  /* One choice among a few: a fieldset of labels around visually hidden radios; the checked one fills its segment. */
+  /*
+   * One choice among a few, such as a list's view: a fieldset of labels around visually hidden radios;
+   * the checked one fills its segment. A disabled fieldset keeps its choice but stops switching.
+   */
   .segmented {
     @apply flex w-fit items-center gap-0.5 rounded-full bg-soft p-1;
 
     & > label {
-      @apply relative grid cursor-pointer place-items-center rounded-full text-muted transition-colors not-has-checked:hover:text-ink has-checked:bg-brand has-checked:text-on-brand forced-colors:has-checked:border-2 has-focus-visible:outline-2 has-focus-visible:outline-offset-2 has-focus-visible:outline-focus;
+      @apply relative grid min-h-control cursor-pointer place-items-center rounded-full px-4 text-muted transition-colors not-has-checked:hover:text-ink has-checked:bg-brand has-checked:text-on-brand has-disabled:cursor-not-allowed forced-colors:has-checked:border-2 has-focus-visible:outline-2 has-focus-visible:outline-offset-2 has-focus-visible:outline-focus;
     }
+  }
+  /* Icon-only segments, such as the theme picker's, are small round targets. */
+  .segmented-compact > label {
+    @apply size-9 min-h-0 px-0;
   }
 
   /* Shell. The header, page and footer share one frame, so their edges line up on every screen. */
@@ -136,7 +152,7 @@
 
   /* Surfaces. */
   .panel {
-    @apply rounded-card border border-line bg-surface p-gutter shadow-(--shadow-panel) sm:p-6;
+    @apply rounded-card border border-line bg-surface p-gutter shadow-(--shadow-panel);
   }
   /* Recessed area inside a panel for source text or grouped fields. */
   .well {
@@ -144,7 +160,7 @@
   }
   /* A headed group after the first in a panel; the rule marks where the previous group ends. */
   .card-section {
-    @apply grid gap-4 border-t border-line pt-6;
+    @apply grid gap-stack border-t border-line pt-section;
   }
   /*
    * The page's save state and current actions, pinned at the window's bottom until the page reaches
@@ -174,7 +190,8 @@
         & :is(.action-bar-row, .action-bar-status) {
           @apply gap-1;
         }
-        & .action-bar-status > :not(button, app-action-bar-toggle) {
+        & .action-bar-status > :not(button, app-action-bar-toggle, app-live-status),
+        & app-live-status > .note {
           @apply sr-only;
         }
         & :is(.button, .text-link) {
@@ -204,9 +221,12 @@
       @apply not-sr-only font-medium text-ink;
     }
   }
-  /* One item in a page's list; its link and actions stay native controls. */
+  /*
+   * One item in a page's list; its link and actions stay native controls. A row that arrives while
+   * the list is shown, such as one a change elsewhere added, fades in where it lands.
+   */
   .list-row {
-    @apply relative flex flex-wrap items-center gap-x-4 gap-y-2 rounded-inset border border-line bg-surface px-4 py-3 shadow-(--shadow-control) transition-[border-color,box-shadow,background-color];
+    @apply relative flex flex-wrap items-center gap-x-4 gap-y-2 rounded-inset border border-line bg-surface px-4 py-inset shadow-(--shadow-control) transition-[border-color,box-shadow,background-color] motion-safe:animate-fade;
 
     /* Titles share one size whatever their heading level. */
     & :is(h2, h3, h4) {
@@ -241,7 +261,7 @@
   }
   /* An empty list says what will appear here, or that a filter or later page has nothing more. */
   .empty-state {
-    @apply rounded-inset border border-dashed border-control p-4 text-muted;
+    @apply rounded-inset border border-dashed border-control px-4 py-inset text-muted;
   }
 
   /* Conversation. The parent's own messages sit at the end edge, as in common chat layouts. */
@@ -264,8 +284,7 @@
       /* Desktops pin it between the pinned bands: it starts where it sticks and ends above the footer, so it
          never moves, and its composer stays clear of the scroll padding, so typing never scrolls the page. */
       @variant lg {
-        @apply sticky top-pinned;
-        max-block-size: calc(100dvh - 2 * var(--spacing-pinned));
+        @apply sticky top-pinned max-h-pinned-fill;
       }
 
       & :is(.chat-layout, .chat-history) {
@@ -367,24 +386,56 @@
     }
   }
 
-  /* Marks. */
+  /*
+   * Marks. A status badge and its row's tile share one `data-tone`: `new` asks for attention, `done`
+   * is finished and `quiet` is history; without a tone, work is in progress.
+   */
   .badge {
-    @apply inline-flex w-fit items-center gap-1.5 rounded-full bg-soft px-3 py-1 text-sm font-medium text-brand ring-1 ring-brand/15 ring-inset;
+    @apply inline-flex w-fit shrink-0 items-center gap-1.5 rounded-full bg-soft px-3 py-1 text-sm font-medium text-brand ring-1 ring-brand/15 ring-inset;
+
+    &[data-tone='new'] {
+      @apply bg-accent text-ink;
+    }
+    /* Finished work leads with a check, so a page of results stays calm rather than filled. */
+    &[data-tone='done']::before {
+      content: '';
+      @apply size-[1em] shrink-0 bg-current;
+      mask: var(--icon-check) center / contain no-repeat;
+    }
+    &[data-tone='quiet'] {
+      @apply bg-transparent text-muted ring-line;
+    }
   }
   .icon-tile {
-    @apply grid shrink-0 place-items-center rounded-inset bg-accent text-brand ring-1 ring-brand/15 ring-inset;
+    @apply grid shrink-0 place-items-center rounded-inset bg-soft text-brand ring-1 ring-brand/15 ring-inset;
+
+    &[data-tone='new'] {
+      @apply bg-accent;
+    }
+    &[data-tone='done'] {
+      @apply bg-brand text-on-brand ring-brand;
+    }
+    &[data-tone='quiet'] {
+      @apply bg-canvas text-muted ring-line;
+    }
   }
   /* A one-time code, spaced so it reads and copies character by character. */
   .code {
     @apply font-semibold tracking-widest uppercase tabular-nums;
   }
-  /* An outcome beside a status title, centered on its first line; `data-problem` marks a failure. */
+  /*
+   * An outcome beside a status title, centered on its first line; `data-problem` marks a failure and
+   * `data-done` a finished outcome, which fills and pops in as a small celebration.
+   */
   .status-icon {
     @apply grid size-9 shrink-0 place-items-center rounded-full bg-soft text-brand;
     margin-block-start: calc((1lh - --spacing(9)) / 2);
 
     &[data-problem] {
       @apply bg-danger-soft text-danger;
+    }
+    &[data-done] {
+      @apply bg-brand text-on-brand motion-safe:animate-pop;
     }
   }
   /* The assistant's avatar carries the AI icon, so AI surfaces read as one family. */
@@ -424,13 +475,26 @@
     @apply motion-safe:animate-loading-reveal;
   }
   .loading-panel {
-    @apply flex-wrap gap-4 rounded-inset border border-line bg-canvas p-gutter;
+    @apply flex-wrap gap-stack rounded-inset border border-line bg-canvas p-gutter;
 
     & .loading-copy {
       @apply min-w-[min(100%,12rem)];
     }
     & .loading-mark {
       @apply size-9;
+    }
+  }
+  /*
+   * A slim decorative progress track whose fill grows from the reading start; `--progress` is the
+   * done fraction (0–1). The counted text stays the accessible value.
+   */
+  .progress {
+    @apply block h-1.5 overflow-hidden rounded-full bg-brand/15;
+
+    &::before {
+      content: '';
+      @apply block h-full rounded-full bg-brand transition-[inline-size] duration-500;
+      inline-size: calc(var(--progress, 0) * 100%);
     }
   }
   .loading-label {
@@ -492,18 +556,18 @@
     @apply text-sm text-danger;
   }
   .error {
-    @apply rounded-button border border-s-4 border-danger/25 border-s-danger bg-danger-soft p-4 text-danger;
+    @apply rounded-button border border-s-4 border-danger/25 border-s-danger bg-danger-soft px-4 py-inset text-danger;
   }
   /* A calm prompt inside a card that asks the parent to review something; not an error. */
   .callout {
-    @apply rounded-button border border-s-4 border-line border-s-brand bg-surface p-4;
+    @apply rounded-button border border-s-4 border-line border-s-brand bg-surface px-4 py-inset;
   }
   /*
    * An app-wide notice floating at the block-end, inline-end corner, so it never shifts the page or
    * takes focus; it can be closed where it covers content. `data-problem` marks a failure.
    */
   .toast {
-    @apply fixed inset-x-4 inset-be-4 z-50 flex flex-wrap items-center justify-between gap-x-4 gap-y-2 rounded-button border border-s-4 border-line border-s-brand bg-surface p-4 shadow-(--shadow-raised) sm:inset-s-auto sm:max-w-xs;
+    @apply fixed inset-x-4 inset-be-4 z-50 flex flex-wrap items-center justify-between gap-x-4 gap-y-2 rounded-button border border-s-4 border-line border-s-brand bg-surface px-4 py-inset shadow-(--shadow-raised) sm:inset-s-auto sm:max-w-xs;
 
     &[data-problem] {
       @apply border-danger/25 border-s-danger bg-danger-soft text-danger;

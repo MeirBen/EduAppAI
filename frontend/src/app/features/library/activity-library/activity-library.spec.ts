@@ -9,9 +9,9 @@ const draft = { id: 'draft', name: 'בעבודה', revision: 2, updatedAtUtc: '2
 const snapshot = {
   id: 'ready',
   title: 'מוכנה',
-  status: 'Ready',
   hasAssignments: false,
   createdAtUtc: draft.updatedAtUtc,
+  archivedAtUtc: null,
 };
 const page = <T>(items: T[], hasMore = false, number = 1) => ({
   items,
@@ -237,6 +237,47 @@ describe('Activity library', () => {
     http.verify();
   });
 
+  it('reads the archive only while open and deletes from it only after naming the lost work', async () => {
+    const fixture = await render();
+    const root = fixture.nativeElement as HTMLElement;
+    http.expectNone('/api/instances/archive?page=1');
+    const archive = root.querySelector<HTMLDetailsElement>(
+      'details[aria-labelledby="archive-title"]',
+    )!;
+    archive.open = true;
+    archive.dispatchEvent(new Event('toggle'));
+    TestBed.tick();
+    const archived = { ...snapshot, id: 'old', title: 'ישנה', archivedAtUtc: draft.updatedAtUtc };
+    http.expectOne('/api/instances/archive?page=1').flush(page([archived]));
+    await fixture.whenStable();
+    expect(root.querySelector('#archive-title')!.textContent).toContain('1');
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
+    const remove = archive.querySelector<HTMLButtonElement>('article button')!;
+    expect(remove.getAttribute('aria-label')).toBe('מחיקה לצמיתות: ישנה');
+    remove.click();
+    expect(confirm.mock.calls[0][0]).toContain('הציונים');
+    http.expectNone((r) => r.method === 'DELETE');
+    confirm.mockReturnValue(true);
+    remove.click();
+    http
+      .expectOne((r) => r.url === '/api/instances/archive/old' && r.method === 'DELETE')
+      .flush(null);
+    await fixture.whenStable();
+    expect(root.textContent).toContain('נמחקה לצמיתות');
+    expect(archive.querySelector('a[href="/instances/old"]')).toBeNull();
+    // Removing a ready activity may move it into the open archive, so the archive rereads.
+    root
+      .querySelector<HTMLButtonElement>('section[aria-labelledby="ready-title"] article button')!
+      .click();
+    http.expectOne((r) => r.url === '/api/instances/ready' && r.method === 'DELETE').flush(null);
+    (await vi.waitFor(() => http.expectOne('/api/instances/archive?page=1'))).flush(
+      page([{ ...snapshot, archivedAtUtc: draft.updatedAtUtc }]),
+    );
+    await fixture.whenStable();
+    expect(archive.querySelector('a[href="/instances/ready"]')).not.toBeNull();
+    http.verify();
+  });
+
   it('shows a closed stream and retries both observation and list reads on request', async () => {
     const fixture = await render();
     const root = fixture.nativeElement as HTMLElement;
@@ -244,7 +285,7 @@ describe('Activity library', () => {
     stream.readyState = FakeEventSource.CLOSED;
     stream.onerror?.();
     await fixture.whenStable();
-    const retry = root.querySelector<HTMLButtonElement>('#reconnect-library');
+    const retry = root.querySelector<HTMLButtonElement>('app-live-status button');
     expect(retry).not.toBeNull();
     expect(root.querySelector('a[href="/activities/draft"]')).not.toBeNull();
     retry!.click();

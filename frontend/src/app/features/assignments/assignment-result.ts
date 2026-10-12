@@ -13,19 +13,24 @@ import {
 import { applyEach, disabled, form, FormField, submit, validate } from '@angular/forms/signals';
 import { RouterLink } from '@angular/router';
 import { AssignmentApi } from '../../core/api/assignment-api';
+import { liveLists } from '../../core/api/live-lists';
 import { ParentAssignmentResult } from '../../core/api/assignment-models';
 import { DisabledInteractive } from '../../shared/disabled-interactive';
 import { focusHolder } from '../../shared/focus-holder';
 import { FieldErrors } from '../../shared/forms/field-errors';
 import { FieldValidity } from '../../shared/forms/field-validity';
 import { isIntegerInput } from '../../shared/forms/integer-input';
+import { LiveStatus } from '../../shared/live-status/live-status';
 import { LoadingIndicator } from '../../shared/loading-indicator/loading-indicator';
 import { ActivityDocumentView } from '../activities/activity-document-view/activity-document-view';
-import { assignmentStatuses } from './assignment-presentation';
+import { assignmentState } from './assignment-presentation';
 import { parentTaskError } from '../../core/api/parent-task-error';
 import { writeError } from '../../core/api/api-error';
 
-/** Frozen parent report with a local grade buffer. Reconciliation reads never replace entered grades. */
+/**
+ * Frozen parent report with a local grade buffer that follows the family's changes, so a submission
+ * shows up by itself. Reconciliation reads never replace entered grades.
+ */
 @Component({
   selector: 'app-assignment-result',
   imports: [
@@ -36,6 +41,7 @@ import { writeError } from '../../core/api/api-error';
     FieldErrors,
     FieldValidity,
     DisabledInteractive,
+    LiveStatus,
     LoadingIndicator,
     ActivityDocumentView,
   ],
@@ -49,11 +55,20 @@ export class AssignmentResult {
   private readonly lifetime = inject(DestroyRef);
   private readonly holdFocus = focusHolder();
   protected readonly detail = this.api.detail(this.assignmentId);
-  protected readonly initialResult = this.api.result(() => {
+  /** Changes only when the work becomes submitted, so rereading the detail never refetches the report. */
+  private readonly submittedId = computed(() => {
     const status = this.detail.hasValue() ? this.detail.value().assignment.status : undefined;
     return status === 'completed' || status === 'awaiting-review' ? this.assignmentId() : undefined;
   });
+  protected readonly initialResult = this.api.result(this.submittedId);
   protected readonly result = signal<ParentAssignmentResult | undefined>(undefined);
+  /** A submission or review elsewhere rereads the detail; an accepted report and its grades stay. */
+  protected readonly live = liveLists([this.detail]);
+  protected readonly summary = computed(
+    () =>
+      this.result()?.assignment ??
+      (this.detail.hasValue() ? this.detail.value().assignment : undefined),
+  );
   protected readonly savedResult = signal<ParentAssignmentResult | undefined>(undefined);
   protected readonly timing = computed(() => {
     const source = this.result() ?? (this.detail.hasValue() ? this.detail.value() : undefined);
@@ -90,7 +105,7 @@ export class AssignmentResult {
   protected readonly recovery = signal(false);
   protected readonly error = signal('');
   protected readonly notice = signal('');
-  protected readonly statuses = assignmentStatuses;
+  protected readonly assignmentState = assignmentState;
   protected readonly failure = (error: unknown) =>
     parentTaskError(
       error,
@@ -157,7 +172,7 @@ export class AssignmentResult {
       return;
     this.error.set('');
     await submit(this.fields, async () => {
-      if (!window.confirm('לשמור את כל הציונים ולסיים את הבדיקה? לאחר השמירה הציונים יהיו סופיים.'))
+      if (!window.confirm('לשמור את כל הציונים ולסיים את הבדיקה? אחרי השמירה אי אפשר לשנות אותם.'))
         return;
       const restore = this.holdFocus();
       this.busy.set(true);

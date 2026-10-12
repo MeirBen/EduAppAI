@@ -15,7 +15,7 @@
     <ng-content select="[shell-navigation]" />
   </div>
 </header>
-<main #mainContent id="main-content" tabindex="-1" class="app-frame flex-1 py-6 sm:py-main">
+<main #mainContent id="main-content" tabindex="-1" class="app-frame flex-1 py-main">
   <app-loading-indicator
     variant="bar"
     [active]="busy() || !!router.currentNavigation()"
@@ -34,7 +34,7 @@
 @switch (update.notice()) {
   @case ('broken') {
     <div class="toast" data-problem role="alert">
-      <p>הגרסה של האתר שנשמרה בדפדפן כבר לא זמינה. יש לטעון את העמוד מחדש.</p>
+      <p>הגרסה הזו של האתר כבר לא זמינה. טענו את העמוד מחדש.</p>
       <ng-container [ngTemplateOutlet]="updateActions" />
     </div>
   }

@@ -1,12 +1,12 @@
 @let ready = !loadError() && !loading();
 <section
-  class="mx-auto grid items-start gap-6"
+  class="mx-auto grid items-start gap-section"
   [class.max-w-reading]="!split()"
   [class]="split() ? 'lg:grid-cols-[minmax(0,5fr)_minmax(20rem,3fr)]' : ''"
   aria-labelledby="workspace-title"
   (keydown.escape)="chatOpen() && closeChat()"
 >
-  <div class="grid min-w-0 gap-6">
+  <div class="grid min-w-0 gap-section">
     <header class="grid gap-1">
       <a routerLink="/activities" class="text-link"
         ><span class="icon icon-back" aria-hidden="true"></span>המרחב שלנו</a
@@ -45,7 +45,7 @@
         <ng-container [ngTemplateOutlet]="operationStatus" />
       }
       @if (elsewhere() !== 'deleted' && available(); as result) {
-        <section class="panel grid gap-4" aria-labelledby="available-title">
+        <section class="panel grid gap-stack" aria-labelledby="available-title">
           <h2 id="available-title">גרסה שמורה חדשה</h2>
           <p>לא החלפנו את העבודה שלכם. אפשר לבדוק את התוצאה ולטעון אותה במקום השינויים שלכם.</p>
           <details class="well">
@@ -70,7 +70,7 @@
             (finished)="finishEditing()"
           />
         } @else {
-          <section class="panel grid gap-4" aria-labelledby="document-heading">
+          <section class="panel grid gap-stack" aria-labelledby="document-heading">
             <div class="flex flex-wrap items-center justify-between gap-3">
               <h2 id="document-heading">תוכן הפעילות</h2>
               @if (!released()) {
@@ -109,7 +109,7 @@
         />
       }
       @if (hasContent()) {
-        <section class="panel grid gap-4" aria-labelledby="review-title">
+        <section class="panel grid gap-stack" aria-labelledby="review-title">
           @if (released()) {
             <h2 id="review-title">הפעילות מוכנה</h2>
             <p>הפעילות נשמרה כעותק קבוע. אפשר להקצות אותה לילדים או לערוך עותק כטיוטה חדשה.</p>
@@ -151,9 +151,6 @@
       }
       @if (!released() && operation()?.status === 'completed') {
         <ng-container [ngTemplateOutlet]="operationStatus" />
-      }
-      @if (reloadPlacement() === 'more') {
-        <ng-container [ngTemplateOutlet]="reload" />
       }
       @if (actionBar()) {
         <section class="action-bar" actionBar aria-labelledby="actions-title">
@@ -266,20 +263,10 @@
                 [attr.data-attention]="elsewhere() || (unsaved() && blocker()) ? '' : null"
                 >{{ saveState() }}</span
               >
-              @if (updates.state() === 'unavailable') {
-                <span role="status" class="note"
-                  ><span class="icon icon-alert" aria-hidden="true"></span>העדכונים בזמן אמת
-                  נותקו.</span
-                >
-                <button
-                  id="reconnect-draft"
-                  type="button"
-                  class="text-link"
-                  (click)="updates.reconnect()"
-                >
-                  <span class="icon icon-refresh" aria-hidden="true"></span><span>חיבור מחדש</span>
-                </button>
+              @if (reloadPlacement() === 'changed') {
+                <ng-container [ngTemplateOutlet]="reload" />
               }
+              <app-live-status [updates]="updates" />
               <button
                 id="plan-undo"
                 class="icon-button icon-button-quiet"

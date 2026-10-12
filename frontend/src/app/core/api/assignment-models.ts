@@ -37,6 +37,8 @@ export interface ChildActivation {
   expiresAtUtc: string;
 }
 export type AssignmentStatus = 'assigned' | 'withdrawn' | 'awaiting-review' | 'completed';
+/** A list filter: open work is assigned or awaiting the parent's review. */
+export type AssignmentView = 'open' | 'completed' | 'withdrawn';
 export interface AssignmentSummary {
   id: string;
   childId: string;

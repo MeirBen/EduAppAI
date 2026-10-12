@@ -1,26 +1,26 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { DisabledInteractive } from '../../../shared/disabled-interactive';
+import { EntryLayout } from '../../../shared/entry-layout/entry-layout';
 
 /** Recoverable access failure; retry repeats app entry routing without asking for credentials. */
 @Component({
-  imports: [RouterLink, DisabledInteractive],
+  imports: [RouterLink, DisabledInteractive, EntryLayout],
   selector: 'app-access-unavailable',
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <section class="panel mx-auto grid max-w-card gap-4" aria-labelledby="access-title">
-      <h1 id="access-title">המרחב לא זמין כרגע</h1>
+    <app-entry-layout heading="המרחב לא זמין כרגע">
       <p class="error" role="alert">לא הצלחנו לפתוח את המרחב. נסו שוב בעוד רגע.</p>
       <button
         type="button"
-        class="button"
+        class="button w-full"
         routerLink="/"
         [replaceUrl]="true"
         [disabledInteractive]="router.currentNavigation() !== null"
       >
         <span class="icon icon-refresh" aria-hidden="true"></span>ניסיון נוסף
       </button>
-    </section>
+    </app-entry-layout>
   `,
 })
 export class AccessUnavailable {

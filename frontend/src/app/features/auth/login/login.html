@@ -1,56 +1,40 @@
-<div class="grid items-center gap-10 py-2 lg:grid-cols-2 lg:gap-20 lg:py-10">
-  <section class="grid max-w-card gap-4">
-    <h1>לומדים משהו חדש, ביחד.</h1>
-    <p class="text-lg text-muted">
-      מתארים מה לתרגל, מכינים פעילות ובודקים אותה לפני שהילדים מתחילים.
-    </p>
-  </section>
-  <section
-    class="panel grid w-full max-w-card gap-4 lg:justify-self-end"
-    aria-labelledby="sign-in-title"
+<app-entry-layout heading="כניסת הורים" lead="טוב שחזרתם. נכנסים למרחב הלמידה המשפחתי.">
+  <form
+    class="grid gap-stack"
+    (submit)="signIn($event)"
+    novalidate
+    [attr.aria-busy]="fields().submitting()"
   >
-    <span class="badge">כניסת הורים</span>
-    <div class="grid gap-1">
-      <h2 id="sign-in-title">טוב שחזרתם</h2>
-      <p class="text-muted">נכנסים למרחב הלמידה המשפחתי.</p>
+    <div>
+      <label for="email">כתובת דוא״ל</label>
+      <input
+        id="email"
+        type="email"
+        dir="ltr"
+        autocomplete="username"
+        [formField]="fields.email"
+        aria-describedby="email-error"
+      />
+      <app-field-errors id="email-error" [field]="fields.email" />
     </div>
-    <form
-      class="grid gap-4"
-      (submit)="signIn($event)"
-      novalidate
-      [attr.aria-busy]="fields().submitting()"
-    >
-      <div>
-        <label for="email">כתובת דוא״ל</label>
-        <input
-          id="email"
-          type="email"
-          dir="ltr"
-          autocomplete="username"
-          [formField]="fields.email"
-          aria-describedby="email-error"
-        />
-        <app-field-errors id="email-error" [field]="fields.email" />
-      </div>
-      <div>
-        <label for="password">סיסמה</label>
-        <input
-          id="password"
-          type="password"
-          dir="ltr"
-          autocomplete="current-password"
-          [formField]="fields.password"
-          aria-describedby="password-error"
-        />
-        <app-field-errors id="password-error" [field]="fields.password" />
-      </div>
-      @if (error()) {
-        <p class="field-error" role="alert">{{ error() }}</p>
-      }
-      <button class="button w-full" type="submit" [disabledInteractive]="fields().submitting()">
-        {{ fields().submitting() ? 'מתחברים…' : 'כניסה למרחב שלנו' }}
-      </button>
-    </form>
-    <app-loading-indicator [active]="fields().submitting()" label="מתחברים למרחב שלכם…" />
-  </section>
-</div>
+    <div>
+      <label for="password">סיסמה</label>
+      <input
+        id="password"
+        type="password"
+        dir="ltr"
+        autocomplete="current-password"
+        [formField]="fields.password"
+        aria-describedby="password-error"
+      />
+      <app-field-errors id="password-error" [field]="fields.password" />
+    </div>
+    @if (error()) {
+      <p class="field-error" role="alert">{{ error() }}</p>
+    }
+    <button class="button w-full" type="submit" [disabledInteractive]="fields().submitting()">
+      {{ fields().submitting() ? 'מתחברים…' : 'כניסה למרחב שלנו' }}
+    </button>
+  </form>
+  <app-loading-indicator [active]="fields().submitting()" label="מתחברים למרחב שלכם…" />
+</app-entry-layout>

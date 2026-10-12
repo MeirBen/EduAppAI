@@ -3,6 +3,7 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { provideLimits, limits } from '../../core/api/limits.fixture';
+import { FakeEventSource } from '../../core/api/event-source.fixture';
 import { ChildrenPage } from './children-page';
 
 const child = {
@@ -103,11 +104,13 @@ describe('Parent child management', () => {
     expect(root.textContent).not.toContain('הנתונים השתנו בינתיים');
     // A conflict is a definite rejection, so the message never suggests the save may have applied.
     expect(root.textContent).not.toContain('ייתכן שהפעולה נשמרה');
-    root.querySelector<HTMLButtonElement>('#refresh-children')!.click();
+    // The conflicting write elsewhere sends a change note; the list follows it without replacing the form.
+    FakeEventSource.opened[0].send();
     TestBed.tick();
     http
       .expectOne('/api/children?page=1')
       .flush(page([{ ...child, name: 'שם בשרת', revision: 2 }]));
+    http.expectOne('/api/children/child/devices?page=1').flush(page([]));
     await fixture.whenStable();
     expect(root.querySelector<HTMLInputElement>('#child-name')!.value).toBe('שם מקומי');
   });
@@ -202,10 +205,9 @@ describe('Parent child management', () => {
   it('removes an inactive device record after confirmation and restores focus to the device section', async () => {
     const { fixture, http, root, edit } = await open();
     await edit();
-    Array.from(root.querySelectorAll('button'))
-      .find((button) => button.textContent?.trim() === 'רענון המכשירים')!
-      .click();
+    FakeEventSource.opened[0].send();
     TestBed.tick();
+    http.expectOne('/api/children?page=1').flush(page([child]));
     http.expectOne('/api/children/child/devices?page=1').flush(
       page([
         {
@@ -245,7 +247,9 @@ describe('Parent child management', () => {
       .expectOne('/api/children/child?expectedRevision=1')
       .flush({}, { status: 409, statusText: 'Conflict' });
     await fixture.whenStable();
-    await vi.waitFor(() => expect(root.textContent).toContain('רעננו את הרשימה'));
+    await vi.waitFor(() =>
+      expect(root.textContent).toContain('הפרופיל השתנה או שהוקצו לו פעילויות'),
+    );
     expect(root.querySelector<HTMLInputElement>('#child-grade')!.value).toBe('כיתה ה׳');
   });
   it('displays a transient activation code, clears it on selection and cancels outstanding issuance', async () => {
@@ -288,11 +292,9 @@ describe('Parent child management', () => {
       expiresAtUtc: '2026-11-01T00:00:00Z',
       revokedAtUtc: null,
     };
-    const refreshButton = Array.from(root.querySelectorAll('button')).find(
-      (button) => button.textContent?.trim() === 'רענון המכשירים',
-    )!;
-    refreshButton.click();
+    FakeEventSource.opened[0].send();
     TestBed.tick();
+    http.expectOne('/api/children?page=1').flush(page([child]));
     http.expectOne('/api/children/child/devices?page=1').flush(page([device]));
     await fixture.whenStable();
     vi.spyOn(window, 'confirm').mockReturnValue(true);

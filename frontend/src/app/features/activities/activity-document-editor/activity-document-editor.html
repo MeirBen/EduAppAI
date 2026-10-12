@@ -1,4 +1,4 @@
-<section class="panel grid gap-4" aria-labelledby="document-heading">
+<section class="panel grid gap-stack" aria-labelledby="document-heading">
   <div class="flex flex-wrap items-center justify-between gap-3">
     <h2 id="document-heading">עריכת תוכן הפעילות</h2>
     <button
@@ -36,13 +36,13 @@
   @for (value of fields().materials().value(); track value.id; let i = $index) {
     @let material = fields().materials[i];
     @let id = material.id().value();
-    <section class="well grid gap-4" [attr.aria-labelledby]="'material-' + i + '-heading'">
+    <section class="well grid gap-stack" [attr.aria-labelledby]="'material-' + i + '-heading'">
       <h3 [id]="'material-' + i + '-heading'">
         <bdi>{{ label(id) }}</bdi>
       </h3>
       @if (generated(id)) {
         @if (staleMaterials().has(id)) {
-          <div class="callout grid gap-4">
+          <div class="callout grid gap-stack">
             <p>הטקסט נוצר לפי הגדרות קודמות. בדקו אותו, ואז אשרו אותו או שפרו אותו.</p>
             <button
               type="button"
@@ -97,14 +97,14 @@
   }
   @let count = fields().questions().value().length;
   @if (count) {
-    <ol role="list" class="grid gap-4">
+    <ol role="list" class="grid gap-stack">
       @for (value of fields().questions().value(); track value.id; let i = $index) {
         @let question = fields().questions[i];
         @let id = question.id().value();
         @let issue = contentIssues().questions.get(id);
-        <li class="well grid gap-4" [attr.aria-labelledby]="'question-' + i + '-heading'">
+        <li class="well grid gap-stack" [attr.aria-labelledby]="'question-' + i + '-heading'">
           <h3 [id]="'question-' + i + '-heading'">שאלה {{ i + 1 }}</h3>
-          <div class="grid gap-4 sm:grid-cols-2">
+          <div class="grid gap-stack sm:grid-cols-2">
             <div class="sm:only:col-span-2">
               <label [for]="'question-' + i + '-prompt'">נוסח השאלה</label
               ><textarea
@@ -141,7 +141,7 @@
             }
           </div>
           @if (value.type === 'single-choice') {
-            <div class="grid gap-4">
+            <div class="grid gap-stack">
               @for (option of value.options; track $index; let j = $index) {
                 <div>
                   <label [for]="'question-' + i + '-option-' + j">אפשרות {{ j + 1 }}</label
@@ -204,7 +204,7 @@
                   <span class="text-danger group-open:hidden">· נדרש תיקון</span>
                 }
               </summary>
-              <div class="grid gap-4">
+              <div class="grid gap-stack">
                 <div>
                   <p [id]="'question-' + i + '-type'">
                     סוג התשובה: {{ questionFormatLabels[question.type().value()] }}

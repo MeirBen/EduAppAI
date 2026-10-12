@@ -1,43 +1,38 @@
-<section class="grid gap-6" aria-labelledby="assignments-heading">
-  <header class="flex flex-wrap items-end justify-between gap-4">
-    <div class="grid gap-1">
-      <h1 id="assignments-heading">פעילויות לילדים</h1>
-      <p class="text-muted">
-        עבודה זמינה, הגשות וציונים. להקצאה חדשה, פתחו פעילות מוכנה
-        <a routerLink="/activities">במרחב שלנו</a>.
-      </p>
-    </div>
-    <button
-      id="refresh-assignments"
-      class="text-link"
-      [disabledInteractive]="busy() || assignments.isLoading()"
-      (click)="refresh()"
-    >
-      <span class="icon icon-refresh" aria-hidden="true"></span>רענון הפעילויות
-    </button>
+<section class="grid gap-section" aria-labelledby="assignments-heading">
+  <header class="grid gap-1">
+    <h1 id="assignments-heading">פעילויות לילדים</h1>
+    <p class="text-muted">
+      מה מחכה לילדים, מה הם הגישו ומה מחכה לבדיקה שלכם. להקצאה חדשה, פתחו פעילות מוכנה
+      <a routerLink="/activities">במרחב שלנו</a>.
+    </p>
   </header>
-  @if (updates.state() === 'unavailable') {
-    <p class="note" role="status">העדכונים נעצרו. לחצו על רענון הפעילויות כדי להתחבר מחדש.</p>
-  }
-  <div class="grid gap-4 sm:grid-cols-2">
+  <app-live-status [updates]="live" />
+  <div class="flex flex-wrap items-end gap-x-6 gap-y-4">
+    <fieldset class="segmented" [disabled]="busy()">
+      <legend class="sr-only">אילו פעילויות להציג?</legend>
+      @for (option of views; track option.value) {
+        <label
+          ><input
+            class="sr-only"
+            type="radio"
+            name="assignment-view"
+            [value]="option.value"
+            [checked]="view() === option.value"
+            (change)="view.set(option.value)"
+          />{{ option.label }}</label
+        >
+      }
+    </fieldset>
     <app-child-selector
+      class="w-full sm:w-72"
       [(value)]="childId"
       [allowDisabled]="true"
       [disabled]="busy()"
       emptyLabel="כל הילדים"
     />
-    <label
-      ><span class="mb-2 block">מצב הפעילות</span
-      ><select [value]="status()" [disabled]="busy()" (change)="filterStatus($event)">
-        <option value="">ללא הקצאות שבוטלו</option>
-        @for (option of statusOptions; track option[0]) {
-          <option [value]="option[0]">{{ option[1] }}</option>
-        }
-      </select></label
-    >
   </div>
-  @if (error() || assignments.error()) {
-    <p class="error" role="alert">{{ error() || failure(assignments.error()) }}</p>
+  @if (error()) {
+    <p class="field-error" role="alert">{{ error() }}</p>
   }
   @if (notice()) {
     <p class="note" role="status">
@@ -45,11 +40,18 @@
     </p>
   }
   <app-loading-indicator
-    [active]="busy() || assignments.isLoading()"
-    label="מעדכנים את רשימת הפעילויות…"
+    [active]="assignments.isLoading() && !assignments.hasValue()"
+    label="טוענים את הפעילויות…"
   />
-  @if (assignments.hasValue()) {
-    <div class="grid gap-4">
+  @if (assignments.error()) {
+    <div class="grid gap-2">
+      <p class="error" role="alert">{{ failure(assignments.error()) }}</p>
+      <button type="button" class="text-link" (click)="assignments.reload()">
+        <span class="icon icon-refresh" aria-hidden="true"></span>ניסיון נוסף
+      </button>
+    </div>
+  } @else if (assignments.hasValue()) {
+    <div class="grid gap-stack">
       @for (assignment of assignments.value().items; track assignment.id) {
         <article class="list-row" [attr.aria-labelledby]="'assignment-' + assignment.id">
           <div class="grid min-w-1/2 flex-1 gap-1">
@@ -58,47 +60,47 @@
                 ><bdi>{{ assignment.title }}</bdi> — <bdi>{{ assignment.childName }}</bdi></a
               >
             </h2>
-            <p class="text-sm">
-              {{ statuses[assignment.status]
-              }}{{
-                assignment.status === 'assigned' && assignment.hasStarted ? ' · העבודה התחילה' : ''
-              }}
-            </p>
-            <p class="text-sm text-muted">
-              הוקצתה ב־<bdi>{{ assignment.createdAtUtc | date }}</bdi>
+            @let state = assignmentState(assignment);
+            <p class="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted">
+              <span class="badge" [attr.data-tone]="state.tone">{{ state.label }}</span>
+              <span
+                >הוקצתה ב־<bdi>{{ assignment.createdAtUtc | date }}</bdi></span
+              >
             </p>
           </div>
           @if (assignment.status === 'assigned') {
             <button
-              class="button button-danger"
+              type="button"
+              class="button button-danger max-sm:icon-only"
               data-withdraw
               [disabledInteractive]="busy() || assignments.isLoading()"
               [attr.aria-label]="'ביטול ההקצאה: ' + assignment.title + ' — ' + assignment.childName"
               (click)="withdraw(assignment)"
             >
-              ביטול ההקצאה
+              <span class="icon icon-close" aria-hidden="true"></span><span>ביטול ההקצאה</span>
             </button>
           } @else if (assignment.status === 'withdrawn') {
             <button
-              class="button button-secondary"
+              type="button"
+              class="button button-secondary max-sm:icon-only"
               data-restore
               [disabledInteractive]="busy() || assignments.isLoading()"
               [attr.aria-label]="'החזרת ההקצאה: ' + assignment.title + ' — ' + assignment.childName"
               (click)="restore(assignment)"
             >
-              החזרת ההקצאה
+              <span class="icon icon-undo" aria-hidden="true"></span><span>החזרת ההקצאה</span>
             </button>
           }
         </article>
       } @empty {
         <p class="empty-state">
-          {{
-            page() > 1
-              ? 'אין פעילויות נוספות.'
-              : childId() || status()
-                ? 'אין פעילויות שמתאימות לבחירה.'
-                : 'אין כרגע פעילויות שהוקצו.'
-          }}
+          @if (page() > 1) {
+            אין פעילויות נוספות.
+          } @else if (childId()) {
+            אין פעילויות שמתאימות לבחירה.
+          } @else {
+            {{ emptyView() }}
+          }
         </p>
       }
     </div>

@@ -46,6 +46,7 @@ All routes are under `/api`; writes enforce CSRF.
 | `GET limits`                              | Server content limits      |
 | `POST ai/activity-plans`                  | Unsaved proposal           |
 | `GET activity-drafts`, `GET instances`    | Library pages              |
+| `GET instances/archive`                   | Archived snapshots page    |
 | `POST activity-drafts`                    | Named draft; retry replays |
 | `PUT activity-drafts/{id}`                | Save a revision            |
 | `POST activity-drafts/{id}/operations`    | Idempotent start           |
@@ -55,6 +56,7 @@ All routes are under `/api`; writes enforce CSRF.
 | `GET instances/{id}`                      | Frozen parent preview      |
 | `DELETE activity-drafts/{id}`             | Draft and operations       |
 | `DELETE instances/{id}`                   | Archive or delete snapshot |
+| `DELETE instances/archive/{id}`           | Delete archived with work  |
 | `DELETE learning-data`                    | Family learning reset      |
 | `GET library/changes`                     | Change notes (SSE)         |
 
@@ -143,21 +145,24 @@ refuses a database that still holds pre-activity learning records, which
 ## Change notes
 
 `Features/Library` streams server-sent change notes to the family that made a
-write, after its commit. Successful library and child-session writes publish
-through one endpoint filter; worker claims, checkpoints, recovery and diagnostic
-expiry publish after their commits. A note carries no content, so clients reread
-what they show. Each stream holds at most one pending note, so changes coalesce,
+write, after its commit. Successful library, profile, device and child-session
+writes publish through one endpoint filter; anonymous child activation and child
+disconnect publish for the child's family, and worker claims, checkpoints,
+recovery and diagnostic expiry publish after their commits. A note carries no
+content, so clients reread what they show. Each stream holds at most one pending
+note, so changes coalesce,
 and its first note covers anything committed
 before it subscribed. A family may hold 16 streams. Each ends after five minutes
 or at shutdown, and reconnecting re-runs authentication. Like the queue,
 delivery is process-local.
 
 `GET /api/child/changes` exposes the same content-free family notes under child
-authentication. Both assignment lists follow notes; the child rereads only its
-own assignments. Hints coalesce during running reads or parent writes, and hidden
-pages close their streams. Refresh also reconnects a refused stream; returning to
-the app rereads even if streaming fails. Answer and grade buffers retain their
-explicit saved-state checks.
+authentication. Every parent list, the parent result page and the child inbox
+follow notes through `liveLists`; the child rereads only its own assignments.
+Hints coalesce during running reads or the page's own writes, and hidden pages
+close their streams; returning to the app rereads even if streaming fails, and
+a refused stream offers one explicit restart (`LiveStatus`). Answer and grade
+buffers retain their explicit saved-state checks.
 
 ## Durable generation
 
@@ -272,9 +277,14 @@ change; automatically completed work cannot acquire review metadata. Parent
 report DTOs never serve children. Archives/disabled profiles retain reports.
 
 Snapshot archive time is mutable metadata; content JSON is frozen. Library
-lists hide archived rows; parent previews, assignment reads and generation
-history retain them. Removal keeps its 204 contract; UI copy covers deletion
-and archiving because concurrent assignment can change the outcome.
+lists hide archived rows, which the archive list pages in the same order;
+parent previews, assignment reads and generation history retain them. Removal
+keeps its 204 contract; UI copy covers deletion and archiving because concurrent
+assignment can change the outcome. Deleting from the archive is a separate
+command that finds only archived, family-owned snapshots (404 otherwise) and
+deletes their sessions, assignments and the snapshot in one transaction, in
+the reset's order; creation and restore already refuse archived content, so no
+race can attach new work.
 
 ## Tests
 
@@ -360,11 +370,16 @@ before a private page renders; forms, caps and copy read the limits through
 `Limits`. The server still authorizes and validates every request.
 
 Parent management pages own bounded list resources and local buffers. The paged
-child selector retains selection; assignment filters include disabled profiles.
+child selector retains selection; assignment filters include disabled profiles,
+and the list's views map to the server's `open`, `completed` and `withdrawn`
+statuses.
 Refreshes preserve unsaved edits. Activation codes live only in page memory and
 clear on selection/destruction. Frozen previews distinguish new assignments
-from replay. Result pages read frozen answers/evaluation without starting work;
-pending grades start blank, use frozen integer bounds and finalize together.
+from replay. Result pages read frozen answers/evaluation without starting work
+and follow notes, so a submission shows by itself; the report request changes
+only when the work becomes submitted, and a shown report is never replaced
+implicitly. Pending grades start blank, use frozen integer bounds and finalize
+together.
 Failed writes preserve grades and block resubmission until an explicit saved
 read; loading completed grades requires confirmation. Route/browser-close guards
 protect edits. Conflict copy belongs to its feature.
@@ -443,11 +458,14 @@ replace the buffer. Chat restores focus only for actions taken within it;
 creation transfers focus to the new content when its button disappears.
 
 `core/api/library-changes` owns each page's native change stream, pauses it
-while hidden and exposes a refused connection for explicit retry. The library's
-two paged resources refresh once running reads settle; one failed list does not
-hide the other. A confirmed deletion removes its row from the shown page,
-stepping back when that empties a later page, and a reset rereads both first
-pages.
+while hidden and exposes a refused connection for explicit retry; `liveLists`
+builds on it for paged resources, rereading them once running reads and the
+page's own writes settle, and keeping shown rows meanwhile, so loading states
+appear only before a list's first value. The library's resources fail
+independently, and its archive reads only while open. A confirmed deletion
+removes its row from the shown page, stepping back when that empties a later
+page; a removed ready activity rereads an open archive, and a reset rereads every
+first page.
 
 `draft-observer` owns one read lifecycle for SSE hints, active-operation polling
 and explicit reloads. Hints during a read coalesce into one trailing read.

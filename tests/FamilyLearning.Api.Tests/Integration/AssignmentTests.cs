@@ -38,6 +38,7 @@ public sealed class AssignmentTests
         var snapshot = await Snapshot(parent);
         var assignment = await Assign(parent, profile, snapshot);
         var id = assignment["id"]!.GetValue<Guid>();
+        Assert.Single((await parent.GetFromJsonAsync<JsonNode>("/api/assignments?status=open"))!["items"]!.AsArray());
         using (var scope = h.App.Services.CreateScope())
         {
             var db = scope.ServiceProvider.GetRequiredService<LearningDbContext>();
@@ -50,6 +51,8 @@ public sealed class AssignmentTests
         Assert.Empty((await child.GetFromJsonAsync<JsonNode>("/api/child/assignments?state=available"))!["items"]!.AsArray());
         Assert.Single((await child.GetFromJsonAsync<JsonNode>("/api/child/assignments?state=submitted"))!["items"]!.AsArray());
         Assert.Single((await parent.GetFromJsonAsync<JsonNode>($"/api/assignments?status={status}&childId={profile["id"]!.GetValue<Guid>()}"))!["items"]!.AsArray());
+        // Work awaiting the parent's grading is still open; completed work is not.
+        Assert.Equal(status == "awaiting-review" ? 1 : 0, (await parent.GetFromJsonAsync<JsonNode>("/api/assignments?status=open"))!["items"]!.AsArray().Count);
         Assert.Empty((await parent.GetFromJsonAsync<JsonNode>($"/api/assignments?childId={Guid.NewGuid()}"))!["items"]!.AsArray());
     }
 
@@ -95,6 +98,7 @@ public sealed class AssignmentTests
         Assert.Empty((await child.GetFromJsonAsync<JsonNode>("/api/child/assignments"))!["items"]!.AsArray());
         // Withdrawn work is kept as history that only its own filter lists.
         Assert.Empty((await parent.GetFromJsonAsync<JsonNode>("/api/assignments"))!["items"]!.AsArray());
+        Assert.Empty((await parent.GetFromJsonAsync<JsonNode>("/api/assignments?status=open"))!["items"]!.AsArray());
         Assert.Single((await parent.GetFromJsonAsync<JsonNode>("/api/assignments?status=withdrawn"))!["items"]!.AsArray());
     }
 

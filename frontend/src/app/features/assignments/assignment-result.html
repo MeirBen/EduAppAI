@@ -1,12 +1,29 @@
-<section class="mx-auto grid max-w-reading gap-6" aria-labelledby="result-heading">
+<section class="mx-auto grid max-w-reading gap-section" aria-labelledby="result-heading">
   <header class="grid gap-1">
     <a class="text-link" routerLink="/assignments"
       ><span class="icon icon-back" aria-hidden="true"></span>פעילויות לילדים</a
     >
-    <h1 id="result-heading">{{ result() ? 'הגשה ובדיקה להורים' : 'פרטי הפעילות' }}</h1>
+    @if (summary(); as assignment) {
+      @let state = assignmentState(assignment);
+      <h1 id="result-heading">
+        העבודה של <bdi>{{ assignment.childName }}</bdi>
+      </h1>
+      <p class="flex flex-wrap items-center gap-x-3 gap-y-1">
+        <a [routerLink]="['/instances', assignment.snapshotId]"
+          ><bdi>{{ assignment.title }}</bdi></a
+        >
+        <span class="badge" [attr.data-tone]="state.tone">{{ state.label }}</span>
+      </p>
+    } @else {
+      <h1 id="result-heading">פרטי הפעילות</h1>
+    }
   </header>
+  <app-live-status [updates]="live" />
   <app-loading-indicator
-    [active]="detail.isLoading() || initialResult.isLoading()"
+    [active]="
+      (detail.isLoading() && !detail.hasValue()) ||
+      (initialResult.isLoading() && !initialResult.hasValue())
+    "
     label="טוענים את הפעילות…"
     variant="panel"
   />
@@ -23,30 +40,45 @@
     </div>
   }
   @if (detail.hasValue()) {
-    @let assignment = result()?.assignment ?? detail.value().assignment;
+    @let assignment = summary()!;
     <div class="grid gap-1">
-      <h2 dir="auto">{{ assignment.title }}</h2>
-      <p>
-        <bdi>{{ assignment.childName }}</bdi> · {{ statuses[assignment.status] }}
-      </p>
+      @if (result(); as report) {
+        @if (report.evaluation.finalTotal !== null) {
+          <p class="font-semibold">
+            ציון סופי: {{ report.evaluation.finalTotal }} מתוך {{ report.evaluation.possibleTotal }}
+            @if (report.evaluation.possibleTotal > 0) {
+              <span>
+                ({{
+                  (report.evaluation.finalTotal / report.evaluation.possibleTotal) * 100
+                    | number: '1.0-1'
+                }}%)</span
+              >
+            }
+          </p>
+        } @else {
+          <p class="note">
+            <span class="icon icon-info" aria-hidden="true"></span>ניקוד אוטומטי עד כה:
+            {{ report.evaluation.automaticSubtotal }} מתוך {{ report.evaluation.possibleTotal }}.
+            {{
+              report.evaluation.pendingCount === 1
+                ? 'תשובה אחת מחכה'
+                : report.evaluation.pendingCount + ' תשובות מחכות'
+            }}
+            לבדיקה שלכם.
+          </p>
+        }
+      }
       @if (detail.value().snapshot.archivedAtUtc) {
         <p class="note">
           <span class="icon icon-info" aria-hidden="true"></span>הפעילות בארכיון. התוכן הקבוע
           והעבודה נשמרים.
         </p>
       }
-      <a class="text-link" [routerLink]="['/instances', assignment.snapshotId]"
-        >פתיחת הפעילות המוכנה</a
-      >
-    </div>
-    @if (timing(); as times) {
-      <div class="grid gap-2">
+      @if (timing(); as times) {
         @if (times.submitted) {
           <p>
             זמן מהפתיחה עד ההגשה (כולל הפסקות): <span data-elapsed-time>{{ times.elapsed }}</span>
           </p>
-        } @else {
-          <p class="text-muted">עוד לא הוגשה</p>
         }
         <details class="text-sm text-muted">
           <summary>פרטי זמנים</summary>
@@ -78,35 +110,9 @@
             }
           </div>
         </details>
-      </div>
-    }
+      }
+    </div>
     @if (result(); as report) {
-      <div class="grid gap-1">
-        @if (report.evaluation.finalTotal !== null) {
-          <p class="font-semibold">
-            ציון סופי: {{ report.evaluation.finalTotal }} מתוך {{ report.evaluation.possibleTotal }}
-            @if (report.evaluation.possibleTotal > 0) {
-              <span>
-                ({{
-                  (report.evaluation.finalTotal / report.evaluation.possibleTotal) * 100
-                    | number: '1.0-1'
-                }}%)</span
-              >
-            }
-          </p>
-        } @else {
-          <p class="note">
-            <span class="icon icon-info" aria-hidden="true"></span>ניקוד אוטומטי עד כה:
-            {{ report.evaluation.automaticSubtotal }} מתוך {{ report.evaluation.possibleTotal }}.
-            {{
-              report.evaluation.pendingCount === 1
-                ? 'תשובה אחת מחכה'
-                : report.evaluation.pendingCount + ' תשובות מחכות'
-            }}
-            לבדיקה שלכם.
-          </p>
-        }
-      </div>
       @if (report.document.instructions) {
         <p class="whitespace-pre-wrap" dir="auto">{{ report.document.instructions }}</p>
       }
@@ -118,11 +124,11 @@
           <p class="whitespace-pre-wrap" dir="auto">{{ material.body }}</p>
         </section>
       }
-      <form id="review-form" class="grid gap-6" (submit)="finalize($event)">
-        <ol role="list" class="grid gap-4">
+      <form id="review-form" class="grid gap-section" (submit)="finalize($event)">
+        <ol role="list" class="grid gap-stack">
           @for (row of rows(); track row.question.id) {
             <li class="panel" [attr.aria-labelledby]="'question-' + row.question.id">
-              <div class="grid gap-4">
+              <div class="grid gap-stack">
                 <div class="grid gap-1">
                   <h3 [id]="'question-' + row.question.id">שאלה {{ $index + 1 }}</h3>
                   <p class="whitespace-pre-wrap">
@@ -217,7 +223,7 @@
             <section class="well grid gap-2" aria-labelledby="saved-result-heading">
               <h3 id="saved-result-heading">התוצאה השמורה</h3>
               <p>
-                {{ statuses[saved.assignment.status] }} ·
+                {{ assignmentState(saved.assignment).label }} ·
                 {{
                   saved.evaluation.finalTotal === null
                     ? 'אין ציון סופי'
@@ -246,21 +252,13 @@
         <span class="icon icon-info" aria-hidden="true"></span>
         {{
           assignment.status === 'withdrawn'
-            ? 'ההקצאה בוטלה. אין הגשה לבדיקה.'
-            : 'העבודה עדיין לא הוגשה. לאחר ההגשה התשובות יופיעו כאן לבדיקה.'
+            ? 'ההקצאה בוטלה, אז אין מה לבדוק.'
+            : 'העבודה עוד לא הוגשה. כשתוגש, התשובות יופיעו כאן לבדיקה.'
         }}
       </p>
       <div class="panel">
         <app-activity-document-view [document]="detail.value().snapshot.document" />
       </div>
-      <button
-        type="button"
-        class="text-link"
-        [disabledInteractive]="detail.isLoading()"
-        (click)="detail.reload()"
-      >
-        <span class="icon icon-refresh" aria-hidden="true"></span>בדיקת מצב ההגשה
-      </button>
     }
   }
 </section>

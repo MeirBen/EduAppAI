@@ -2,6 +2,7 @@ import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
+import { FakeEventSource } from '../../core/api/event-source.fixture';
 import { AssignmentResult } from './assignment-result';
 
 const assignment = {
@@ -155,6 +156,47 @@ describe('Parent frozen result and grading', () => {
       http.expectNone((r) => r.method !== 'GET' || r.url.endsWith('/result'));
     },
   );
+  it('shows a submission made elsewhere in place and never replaces a shown report', async () => {
+    const fixture = TestBed.createComponent(AssignmentResult),
+      http = TestBed.inject(HttpTestingController);
+    fixture.componentRef.setInput('assignmentId', 'assigned');
+    fixture.detectChanges();
+    const detail = (status: string) => ({
+      assignment: { ...assignment, status },
+      snapshot: { archivedAtUtc: null, document: report.document },
+      startedAtUtc: report.startedAtUtc,
+      submittedAtUtc: status === 'assigned' ? null : report.submittedAtUtc,
+    });
+    http.expectOne('/api/assignments/assigned').flush(detail('assigned'));
+    await fixture.whenStable();
+    const root = fixture.nativeElement as HTMLElement;
+    expect(root.textContent).toContain('העבודה עוד לא הוגשה');
+    const [stream] = FakeEventSource.opened;
+    stream.send();
+    TestBed.tick();
+    const reread = http.expectOne('/api/assignments/assigned');
+    fixture.detectChanges();
+    expect(root.querySelector('app-loading-indicator.loading-active')).toBeNull();
+    reread.flush(detail('awaiting-review'));
+    (
+      await vi.waitFor(() => {
+        TestBed.tick();
+        return http.expectOne('/api/assignments/assigned/result');
+      })
+    ).flush(report);
+    await fixture.whenStable();
+    expect(root.textContent).toContain('מחכה לבדיקה');
+    const grade = root.querySelector<HTMLInputElement>('#grade-text')!;
+    grade.value = '2';
+    grade.dispatchEvent(new Event('input'));
+    stream.send();
+    TestBed.tick();
+    http.expectOne('/api/assignments/assigned').flush(detail('completed'));
+    await fixture.whenStable();
+    // A later change never replaces the report or the grade being entered.
+    http.expectNone('/api/assignments/assigned/result');
+    expect(root.querySelector<HTMLInputElement>('#grade-text')!.value).toBe('2');
+  });
   it.each([null, 'invalid'])(
     'shows unavailable duration for a submitted result with missing or invalid end %s',
     async (submittedAtUtc) => {

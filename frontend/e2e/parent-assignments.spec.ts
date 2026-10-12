@@ -115,7 +115,7 @@ test('parent manages access, assigns frozen work, recovers final grades and rese
     const childHeaders = {
       'X-XSRF-TOKEN': (await (await childApi.get(base + '/api/child/auth/csrf')).json()).token,
     };
-    await page.getByRole('button', { name: 'רענון המכשירים', exact: true }).click();
+    // The device list follows the activation without a refresh.
     await expect(page.getByRole('heading', { name: 'הטאבלט של נועה', exact: true })).toBeVisible();
     await narrow(page, 'profiles-mobile');
     const snapshot = await createReviewSnapshot(page.request, headers);
@@ -133,7 +133,7 @@ test('parent manages access, assigns frozen work, recovers final grades and rese
     expect(assignmentResponse.status()).toBe(201);
     const assignment = await assignmentResponse.json();
     await page.getByRole('link', { name: 'פתיחת ההקצאה', exact: true }).click();
-    await expect(page.getByText('העבודה עדיין לא הוגשה.', { exact: false })).toBeVisible();
+    await expect(page.getByText('העבודה עוד לא הוגשה.', { exact: false })).toBeVisible();
     await page.getByText('פרטי זמנים', { exact: true }).click();
     await expect(page.getByText('עוד לא נפתחה', { exact: true })).toBeVisible();
     await expect(page.locator('[data-elapsed-time]')).toHaveCount(0);
@@ -155,11 +155,10 @@ test('parent manages access, assigns frozen work, recovers final grades and rese
       .getByRole('button', { name: 'ביטול ההקצאה: עבודה לביטול — נועה', exact: true })
       .click();
     await expect(
-      page.getByText('ההקצאה בוטלה. היא נשמרת בבחירה "ההקצאה בוטלה".', { exact: true }),
+      page.getByText('ההקצאה בוטלה. היא נשמרת בתצוגה "בוטלו".', { exact: true }),
     ).toBeVisible();
-    await page
-      .getByRole('combobox', { name: 'מצב הפעילות', exact: true })
-      .selectOption('withdrawn');
+    await page.locator('label', { hasText: 'בוטלו' }).click();
+    await expect(page.getByRole('radio', { name: 'בוטלו', exact: true })).toBeChecked();
     await expect(
       page.getByRole('link', { name: 'עבודה לביטול — נועה', exact: true }),
     ).toBeVisible();
@@ -187,7 +186,8 @@ test('parent manages access, assigns frozen work, recovers final grades and rese
     await page.goto(`/assignments/${assignment.id}`);
     await page.getByText('פרטי זמנים', { exact: true }).click();
     await expect(page.getByText('נפתחה ב־', { exact: false })).toBeVisible();
-    await expect(page.getByText('עוד לא הוגשה', { exact: true })).toBeVisible();
+    await expect(page.getByText('העבודה עוד לא הוגשה.', { exact: false })).toBeVisible();
+    await expect(page.getByText('בעבודה', { exact: true })).toBeVisible();
     await expect(page.locator('[data-elapsed-time]')).toHaveCount(0);
     const answers = [
       { questionId: snapshot.document.questions[0].id, value: '+02.00' },
@@ -204,6 +204,9 @@ test('parent manages access, assigns frozen work, recovers final grades and rese
     expect((await childApi.get(`${base}/api/assignments/${assignment.id}/result`)).status()).toBe(
       401,
     );
+    // The open result page follows the submission without a reload.
+    await expect(page.getByText('מחכה לבדיקה', { exact: true })).toBeVisible();
+    await expect(page.getByText('ניקוד אוטומטי עד כה:', { exact: false })).toBeVisible();
     await page.goto('/activities');
     page.once('dialog', (dialog) => dialog.accept());
     await page.getByRole('button', { name: 'הסרת הפעילות: פעילות ללא הקצאה', exact: true }).click();
@@ -288,6 +291,16 @@ test('parent manages access, assigns frozen work, recovers final grades and rese
     await expect(page.getByText('הפרופיל מושבת.', { exact: false })).toBeVisible();
     await expect(page.getByRole('button', { name: 'יצירת קוד הפעלה', exact: true })).toHaveCount(0);
     await page.goto('/activities');
+    // Deleting from the archive erases the activity together with its assignment and results.
+    await page.locator('#archive-title').click();
+    page.once('dialog', async (dialog) => {
+      expect(dialog.message()).toContain('הציונים');
+      await dialog.accept();
+    });
+    await page.getByRole('button', { name: 'מחיקה לצמיתות: בדיקת תשובות', exact: true }).click();
+    await expect(page.getByText('הפעילות נמחקה לצמיתות', { exact: false })).toBeVisible();
+    expect((await page.request.get(`/api/assignments/${assignment.id}`)).status()).toBe(404);
+    expect((await page.request.get(`/api/instances/${snapshot.id}`)).status()).toBe(404);
     await page.getByText('ניהול נתונים', { exact: true }).click();
     page.once('dialog', async (dialog) => {
       for (const scope of ['פרופילי הילדים', 'המכשירים', 'ההקצאות', 'התשובות', 'הציונים'])

@@ -29,17 +29,17 @@ use the published app's HTTPS address, not `localhost`.
 4. At `/children`, select that child, name the device and create an activation
    code. Give the child the displayed activation address and code; the code
    works once and expires after ten minutes.
-5. After submission, open `/assignments` to see the work and elapsed time.
-   Grade any pending short-text answers and finalize the review to show the
-   final total.
+5. `/assignments` opens on open work, which includes submissions waiting for
+   your grading; an open result page shows a submission by itself. Grade any
+   pending short-text answers and finalize the review to show the final total.
 
 ### Child
 
 1. Open the activation address (`/child/activate`) in the separate browser and
    enter the code. No child email or password is needed.
 2. Open an assigned activity from `/child` and answer the questions. Use
-   **שמירת התשובות** before leaving; reopening resumes the last saved answers.
-3. Choose **הגשת העבודה** when finished. Submission locks the answers and shows
+   **שמירה** before leaving; reopening resumes the last saved answers.
+3. Choose **הגשה להורה** when finished. Submission locks the answers and shows
    a receipt; the final total appears once any parent review is complete.
 
 Access lasts up to 30 days from activation. Disconnect, expiry, revocation or

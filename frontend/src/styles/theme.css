@@ -42,15 +42,27 @@
   --ease-smooth: cubic-bezier(0.22, 1, 0.36, 1);
   --default-transition-duration: 200ms;
 
-  /* About 16px on phones and 20px from ~500px up; the viewport cap leaves room for enlarged text in nested panels. */
+  /*
+   * Density roles. A theme may redefine them on the root like colors: `section` between page sections
+   * and headed groups, `stack` between fields, blocks and list rows, and `inset` inside small boxes
+   * such as rows, notes and errors. The gutter pads frames and panels: about 16px on phones and 20px
+   * from ~500px up; its viewport cap leaves room for enlarged text in nested panels.
+   */
+  --spacing-section: 1.25rem;
+  --spacing-stack: 0.75rem;
+  --spacing-inset: 0.75rem;
   --spacing-gutter: min(1.25rem, 4vw);
   /* One control height for buttons, links, fields and chips: 44px for touch, 40px for a mouse (below). */
   --spacing-control: 2.75rem;
 
-  /* Pinned layouts: shell-height header and footer rows, main's block padding, and the band both edges clear. */
-  --spacing-shell: 4rem;
-  --spacing-main: 2rem;
+  /*
+   * Pinned layouts: shell-height header and footer rows, main's block padding, the band both edges
+   * clear, and the window height left between those bands.
+   */
+  --spacing-shell: 3.5rem;
+  --spacing-main: 1.5rem;
   --spacing-pinned: calc(var(--spacing-shell) + var(--spacing-main));
+  --spacing-pinned-fill: calc(100dvh - 2 * var(--spacing-pinned));
 
   /* Layout widths: the app frame, a reading column for documents and a single centered card. */
   --container-page: 80rem;
@@ -78,6 +90,7 @@
     0 12px 22px -10px color-mix(in oklab, var(--color-shadow) 40%, transparent);
 
   --animate-enter: enter 0.4s var(--ease-smooth);
+  --animate-pop: pop 0.5s var(--ease-smooth);
   --animate-fade: fade 0.25s ease-out;
   --animate-loading-reveal: fade 0.25s ease-out 0.3s backwards;
   --animate-loading-spin: loading-spin 1.6s linear infinite;
@@ -95,6 +108,15 @@
   @keyframes fade {
     from {
       opacity: 0;
+    }
+  }
+  @keyframes pop {
+    from {
+      opacity: 0;
+      scale: 0.5;
+    }
+    60% {
+      scale: 1.15;
     }
   }
   @keyframes loading-spin {

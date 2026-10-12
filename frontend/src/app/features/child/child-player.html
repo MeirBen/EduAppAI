@@ -1,4 +1,4 @@
-<section class="mx-auto grid max-w-reading gap-6" aria-labelledby="player-title">
+<section class="mx-auto grid max-w-reading gap-section" aria-labelledby="player-title">
   <header class="grid gap-1">
     <a class="text-link" routerLink="/child"
       ><span class="icon icon-back" aria-hidden="true"></span>לפעילויות שלי</a
@@ -40,6 +40,44 @@
   }
   @if (assignment.hasValue()) {
     @let document = assignment.value().document;
+    @if (terminal()) {
+      @let receipt = outcome()!;
+      @let reviewed = receipt.status === 'completed';
+      <section class="panel flex items-start gap-stack" aria-labelledby="receipt-title">
+        <span class="status-icon" [attr.data-done]="reviewed ? '' : null" aria-hidden="true"
+          ><span class="icon" [class]="reviewed ? 'icon-check' : 'icon-clock'"></span
+        ></span>
+        <div class="grid min-w-0 gap-1">
+          <h2 id="receipt-title">העבודה הוגשה</h2>
+          <p>
+            @if (name(); as name) {
+              כל הכבוד, <bdi>{{ name }}</bdi
+              >!
+            } @else {
+              כל הכבוד!
+            }
+            {{ reviewed ? 'הבדיקה הסתיימה.' : 'התשובות אצל ההורה לבדיקה.' }}
+          </p>
+          @if (receipt.submittedAtUtc) {
+            <p class="text-sm text-muted">
+              נשלחה ב־<bdi>{{ receipt.submittedAtUtc | date }}</bdi>
+            </p>
+          }
+          @if (reviewed && receipt.finalTotal !== null && receipt.possibleTotal !== null) {
+            <p class="text-lg font-semibold">
+              הציון: {{ receipt.finalTotal }} מתוך {{ receipt.possibleTotal }}
+              @if (receipt.possibleTotal > 0) {
+                <span>
+                  ({{
+                    (receipt.finalTotal / receipt.possibleTotal) * 100 | number: '1.0-1'
+                  }}%)</span
+                >
+              }
+            </p>
+          }
+        </div>
+      </section>
+    }
     @for (material of document.materials; track material.id) {
       <section class="panel grid gap-2">
         @if (material.title) {
@@ -56,7 +94,7 @@
     @if (session(); as current) {
       @if (current.status === 'assigned') {
         <form id="answer-form" (submit)="write(true, $event)" novalidate>
-          <ol role="list" class="steps grid gap-6">
+          <ol role="list" class="steps grid gap-section">
             @for (question of document.questions; track question.id; let index = $index) {
               <li class="grid gap-2" [attr.data-done]="answers()[index].value.trim() ? '' : null">
                 <div>
@@ -119,7 +157,7 @@
           </ol>
         </form>
       } @else {
-        <ol role="list" class="steps grid gap-6">
+        <ol role="list" class="steps grid gap-section">
           @for (question of document.questions; track question.id; let index = $index) {
             <li class="grid gap-2" [attr.data-done]="answers()[index].value.trim() ? '' : null">
               <p class="whitespace-pre-wrap">
@@ -136,43 +174,6 @@
         </ol>
       }
     }
-    @if (terminal()) {
-      @let receipt = outcome()!;
-      <section class="panel flex items-start gap-3" aria-labelledby="receipt-title">
-        <span class="status-icon" aria-hidden="true"><span class="icon icon-check"></span></span>
-        <div class="grid min-w-0 gap-1">
-          <h2 id="receipt-title">העבודה הוגשה</h2>
-          <p>
-            {{
-              receipt.status === 'awaiting-review'
-                ? 'התשובות מחכות לבדיקה של ההורה.'
-                : 'הבדיקה הסתיימה.'
-            }}
-          </p>
-          @if (receipt.submittedAtUtc) {
-            <p class="text-sm text-muted">
-              נשלחה ב־<bdi>{{ receipt.submittedAtUtc | date }}</bdi>
-            </p>
-          }
-          @if (
-            receipt.status === 'completed' &&
-            receipt.finalTotal !== null &&
-            receipt.possibleTotal !== null
-          ) {
-            <p class="font-semibold">
-              הציון: {{ receipt.finalTotal }} מתוך {{ receipt.possibleTotal }}
-              @if (receipt.possibleTotal > 0) {
-                <span>
-                  ({{
-                    (receipt.finalTotal / receipt.possibleTotal) * 100 | number: '1.0-1'
-                  }}%)</span
-                >
-              }
-            </p>
-          }
-        </div>
-      </section>
-    }
     <section class="action-bar" actionBar aria-labelledby="answer-actions-title">
       <h2 id="answer-actions-title" class="sr-only">שמירה והגשה</h2>
       @if (notice()) {
@@ -185,6 +186,23 @@
       }
       @if (blocked() === 401) {
         <a class="button" routerLink="/child/activate">כניסה מחדש</a>
+      }
+      @if (working()) {
+        <div class="flex items-center gap-3 text-sm text-muted">
+          <span
+            class="progress min-w-0 flex-1"
+            aria-hidden="true"
+            [style.--progress]="progress()"
+          ></span>
+          <span class="sr-only">ענית על {{ answered() }} מתוך {{ answers().length }}</span>
+          @if (elapsed(); as time) {
+            <span class="flex items-center gap-2" role="timer">
+              <span class="icon icon-clock" aria-hidden="true"></span
+              ><span class="sr-only">זמן מתחילת הפעילות, כולל הפסקות:</span
+              ><time class="tabular-nums" dir="ltr">{{ time }}</time>
+            </span>
+          }
+        </div>
       }
       <div class="action-bar-row">
         <div class="action-bar-actions">
@@ -200,6 +218,7 @@
             <button
               id="save-answers"
               class="button button-secondary"
+              [attr.data-attention]="dirty() ? '' : null"
               [disabledInteractive]="busy() || reading() || recovery() || !!blocked() || !dirty()"
               (click)="write(false)"
             >
@@ -225,21 +244,12 @@
         </div>
         <div class="action-bar-status whitespace-nowrap">
           @if (statusText(); as text) {
-            <span role="status" class="save-state" [attr.data-attention]="dirty() ? '' : null">{{
-              text
-            }}</span>
-          }
-          @if (working()) {
-            <span class="max-sm:sr-only"
-              >עניתם על {{ answered() }} מתוך {{ answers().length }}</span
+            <span
+              role="status"
+              class="save-state max-sm:sr-only"
+              [attr.data-attention]="dirty() ? '' : null"
+              >{{ text }}</span
             >
-            @if (elapsed(); as time) {
-              <span class="flex items-center gap-2" role="timer">
-                <span class="icon icon-clock" aria-hidden="true"></span
-                ><span class="sr-only">זמן מתחילת הפעילות, כולל הפסקות:</span
-                ><time class="tabular-nums" dir="ltr">{{ time }}</time>
-              </span>
-            }
           }
           @if ((recovery() || terminal()) && !blocked()) {
             <button

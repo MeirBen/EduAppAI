@@ -1,4 +1,5 @@
 using FamilyLearning.Api.Features.Auth;
+using FamilyLearning.Api.Features.Library;
 using FamilyLearning.Api.Infrastructure.Auth;
 using FamilyLearning.Api.Infrastructure.Persistence;
 using FamilyLearning.Api.TaskEngine.Validation;
@@ -7,7 +8,10 @@ using Microsoft.EntityFrameworkCore;
 
 namespace FamilyLearning.Api.Features.Children;
 
-/// <summary>Child-only device activation, identity discovery and disconnect; no parent DTOs or AI calls.</summary>
+/// <summary>
+/// Child-only device activation, identity discovery and disconnect; no parent DTOs or AI calls. Activation and
+/// disconnect change the family's device list, so they notify its change streams after committing.
+/// </summary>
 public static class ChildAuthEndpoints
 {
     public static void MapChildAuthEndpoints(this RouteGroupBuilder api)
@@ -30,7 +34,7 @@ public static class ChildAuthEndpoints
     }
 
     private static async Task<IResult> ActivateAsync(ActivateChildRequest request, HttpContext context, LearningDbContext db,
-        TimeProvider clock, CancellationToken ct)
+        LibraryChanges changes, TimeProvider clock, CancellationToken ct)
     {
         if (ActivationCode.Normalize(request.Code) is not { } code) return InvalidCode();
         var hash = ActivationCode.Hash(code);
@@ -46,13 +50,15 @@ public static class ChildAuthEndpoints
         db.ChildDeviceGrants.Add(grant);
         await db.SaveChangesAsync(ct);
         await transaction.CommitAsync(ct);
+        changes.Publish(child.FamilyId);
         await context.SignInAsync(ChildAuthentication.Scheme, ChildAuthentication.Principal(new(child.Id, child.FamilyId, grant.Id)),
             new AuthenticationProperties { IsPersistent = true, IssuedUtc = new DateTimeOffset(now), ExpiresUtc = new DateTimeOffset(grant.ExpiresAtUtc), AllowRefresh = false });
         // The next /csrf read must obtain a token bound to the newly issued identity.
         return Results.NoContent();
     }
 
-    private static async Task<IResult> LogoutAsync(HttpContext context, LearningDbContext db, TimeProvider clock, CancellationToken ct)
+    private static async Task<IResult> LogoutAsync(HttpContext context, LearningDbContext db, LibraryChanges changes, TimeProvider clock,
+        CancellationToken ct)
     {
         await using var transaction = await db.Database.BeginTransactionAsync(ct);
         var now = clock.GetUtcNow().UtcDateTime;
@@ -62,6 +68,7 @@ public static class ChildAuthEndpoints
         grant.Revoke(now);
         await db.SaveChangesAsync(ct);
         await transaction.CommitAsync(ct);
+        changes.Publish(identity.FamilyId);
         await context.SignOutAsync(ChildAuthentication.Scheme);
         return Results.NoContent();
     }

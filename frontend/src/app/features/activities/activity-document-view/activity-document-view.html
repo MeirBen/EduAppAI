@@ -47,7 +47,7 @@
   </section>
 }
 @if (document().questions.length) {
-  <ol role="list" class="steps grid gap-4">
+  <ol role="list" class="steps grid gap-stack">
     @for (question of document().questions; track $index) {
       <li class="grid gap-1">
         <p class="whitespace-pre-wrap">

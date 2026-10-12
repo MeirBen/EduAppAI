@@ -3,6 +3,7 @@ using System.Net.Http.Json;
 using System.Text.Json.Nodes;
 using FamilyLearning.Api.Features.Activities;
 using FamilyLearning.Api.Features.Instances;
+using FamilyLearning.Api.Features.Library;
 using FamilyLearning.Api.Infrastructure.Persistence;
 using FamilyLearning.Api.TaskEngine.Models;
 using Microsoft.EntityFrameworkCore;
@@ -54,6 +55,51 @@ public sealed class AssignmentRetentionTests
         var unassigned = await Snapshot(parent);
         Assert.Equal(HttpStatusCode.NoContent, (await parent.DeleteAsync($"/api/instances/{unassigned}")).StatusCode);
         Assert.Equal(HttpStatusCode.NotFound, (await parent.GetAsync($"/api/instances/{unassigned}")).StatusCode);
+    }
+
+    [Fact]
+    public async Task Deleting_from_the_archive_erases_only_that_activity_with_its_assignments_and_work()
+    {
+        await using var h = new ChildHarness();
+        using var parent = await h.App.ParentAsync();
+        using var stranger = await h.App.ParentAsync();
+        var profile = await Create(parent);
+        using var child = await h.Activate(parent, profile);
+        var snapshotId = await Snapshot(parent);
+        var kept = await Snapshot(parent);
+        var assignment = await Assign(parent, profile, snapshotId);
+        var keptAssignment = await Assign(parent, profile, kept);
+        await Start(child, SessionPath(assignment));
+        var keptSession = await Start(child, SessionPath(keptAssignment));
+        var archive = $"/api/instances/archive/{snapshotId}";
+        // Content still in the library is not in the archive, so a repeated removal can never erase work.
+        Assert.Equal(HttpStatusCode.NotFound, (await parent.DeleteAsync(archive)).StatusCode);
+        Assert.Equal(HttpStatusCode.NoContent, (await parent.DeleteAsync($"/api/instances/{snapshotId}")).StatusCode);
+        var archived = Assert.Single((await parent.GetFromJsonAsync<JsonNode>("/api/instances/archive"))!["items"]!.AsArray())!;
+        Assert.Equal(snapshotId, archived["id"]!.GetValue<Guid>());
+        Assert.NotNull(archived["archivedAtUtc"]);
+        Assert.True(archived["hasAssignments"]!.GetValue<bool>());
+        Assert.Equal(kept, Assert.Single((await parent.GetFromJsonAsync<JsonNode>("/api/instances"))!["items"]!.AsArray())!["id"]!.GetValue<Guid>());
+        Assert.Empty((await stranger.GetFromJsonAsync<JsonNode>("/api/instances/archive"))!["items"]!.AsArray());
+        Assert.Equal(HttpStatusCode.NotFound, (await stranger.DeleteAsync(archive)).StatusCode);
+
+        var changes = h.App.Services.GetRequiredService<LibraryChanges>();
+        var familyId = (await parent.GetFromJsonAsync<JsonNode>("/api/auth/me"))!["familyId"]!.GetValue<Guid>();
+        var stream = changes.Subscribe(familyId)!;
+        Assert.True(stream.Reader.TryRead(out _));
+        Assert.Equal(HttpStatusCode.NoContent, (await parent.DeleteAsync(archive)).StatusCode);
+        Assert.True(stream.Reader.TryRead(out _));
+        changes.Unsubscribe(familyId, stream);
+        Assert.Equal(HttpStatusCode.NotFound, (await parent.DeleteAsync(archive)).StatusCode);
+        Assert.Empty((await parent.GetFromJsonAsync<JsonNode>("/api/instances/archive"))!["items"]!.AsArray());
+        Assert.Equal(HttpStatusCode.NotFound, (await parent.GetAsync($"/api/instances/{snapshotId}")).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await parent.GetAsync("/api/assignments/" + assignment["id"]!.GetValue<Guid>())).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await child.GetAsync(SessionPath(assignment))).StatusCode);
+        Assert.True(JsonNode.DeepEquals(keptSession, await child.GetFromJsonAsync<JsonNode>(SessionPath(keptAssignment))));
+        using var scope = h.App.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<LearningDbContext>();
+        Assert.Equal(keptAssignment["id"]!.GetValue<Guid>(), (await db.Assignments.SingleAsync()).Id);
+        Assert.Equal(keptAssignment["id"]!.GetValue<Guid>(), (await db.TaskSessions.SingleAsync()).AssignmentId);
     }
 
     [Theory]

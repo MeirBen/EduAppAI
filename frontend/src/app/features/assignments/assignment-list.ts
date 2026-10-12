@@ -2,6 +2,7 @@ import { DatePipe } from '@angular/common';
 import {
   ChangeDetectionStrategy,
   Component,
+  computed,
   DestroyRef,
   inject,
   linkedSignal,
@@ -10,27 +11,38 @@ import {
 import { RouterLink } from '@angular/router';
 import { whenIdle } from '../../core/when-idle';
 import { AssignmentApi } from '../../core/api/assignment-api';
-import { libraryChanges } from '../../core/api/library-changes';
-import { AssignmentStatus, AssignmentSummary } from '../../core/api/assignment-models';
+import { liveLists } from '../../core/api/live-lists';
+import { AssignmentSummary, AssignmentView } from '../../core/api/assignment-models';
 import { DisabledInteractive } from '../../shared/disabled-interactive';
 import { focusHolder } from '../../shared/focus-holder';
+import { LiveStatus } from '../../shared/live-status/live-status';
 import { LoadingIndicator } from '../../shared/loading-indicator/loading-indicator';
 import { ChildSelector } from '../children/child-selector';
-import { assignmentStatuses } from './assignment-presentation';
+import { assignmentState, assignmentViews } from './assignment-presentation';
 import { parentTaskError } from '../../core/api/parent-task-error';
 import { Pager } from '../../shared/pager/pager';
 import { writeError } from '../../core/api/api-error';
-import { refreshOnReturn } from '../../core/page-visibility';
 
 const changed = {
-  withdraw: 'ההקצאה בוטלה. היא נשמרת בבחירה "ההקצאה בוטלה".',
-  restore: 'ההקצאה הוחזרה, והעבודה השמורה זמינה שוב.',
+  withdraw: 'ההקצאה בוטלה. היא נשמרת בתצוגה "בוטלו".',
+  restore: 'ההקצאה הוחזרה, עם כל מה שנשמר בה.',
 };
 
-/** Paged parent assignment history. Reading/filtering never starts or changes child work. */
+/**
+ * Paged parent assignment history that follows the family's changes, open work first. Reading or
+ * filtering never starts or changes child work; every write outcome rereads the list.
+ */
 @Component({
   selector: 'app-assignment-list',
-  imports: [DatePipe, RouterLink, ChildSelector, DisabledInteractive, LoadingIndicator, Pager],
+  imports: [
+    DatePipe,
+    RouterLink,
+    ChildSelector,
+    DisabledInteractive,
+    LiveStatus,
+    LoadingIndicator,
+    Pager,
+  ],
   templateUrl: './assignment-list.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
@@ -38,26 +50,25 @@ export class AssignmentList {
   private readonly api = inject(AssignmentApi);
   private readonly lifetime = inject(DestroyRef);
   private readonly holdFocus = focusHolder();
-  protected readonly updates = libraryChanges();
   protected readonly childId = signal('');
-  protected readonly status = signal<AssignmentStatus | ''>('');
+  protected readonly view = signal<AssignmentView>('open');
   protected readonly page = linkedSignal(() => {
     this.childId();
-    this.status();
+    this.view();
     return 1;
   });
   protected readonly assignments = this.api.list(() => ({
     page: this.page(),
     childId: this.childId(),
-    status: this.status(),
+    status: this.view(),
   }));
-  protected readonly statuses = assignmentStatuses;
-  protected readonly statusOptions = Object.entries(assignmentStatuses);
-  protected readonly busy = signal(false);
-  private readonly requestRefresh = whenIdle(
-    () => this.busy() || this.assignments.isLoading(),
-    () => this.assignments.reload(),
+  protected readonly views = assignmentViews;
+  protected readonly emptyView = computed(
+    () => assignmentViews.find((option) => option.value === this.view())!.empty,
   );
+  protected readonly assignmentState = assignmentState;
+  protected readonly busy = signal(false);
+  protected readonly live = liveLists([this.assignments], { busy: this.busy });
   private pendingFocus?: () => void;
   // A reload retains old rows until its response; restore only after that response removes the button.
   private readonly restoreAfterLoad = whenIdle(
@@ -72,24 +83,13 @@ export class AssignmentList {
   protected readonly failure = (error: unknown) =>
     parentTaskError(
       error,
-      'מצב ההקצאה השתנה, או שהפרופיל או הפעילות כבר לא זמינים. רעננו את הרשימה.',
+      'מצב ההקצאה השתנה, או שהפרופיל או הפעילות כבר לא זמינים. הרשימה עודכנה.',
     );
-  constructor() {
-    this.updates.changes.subscribe(this.requestRefresh);
-    refreshOnReturn(this.requestRefresh);
-  }
-  protected refresh() {
-    if (this.updates.state() === 'unavailable') this.updates.reconnect();
-    else this.requestRefresh();
-  }
-  protected filterStatus(event: Event) {
-    this.status.set((event.target as HTMLSelectElement).value as AssignmentStatus | '');
-  }
   protected withdraw(assignment: AssignmentSummary) {
     if (
       this.idle() &&
       window.confirm(
-        `לבטל את ההקצאה "${assignment.title}" עבור ${assignment.childName}? הגישה לעבודה תיחסם, והעבודה השמורה תישאר. אפשר להחזיר את ההקצאה בהמשך.`,
+        `לבטל את "${assignment.title}" ל־${assignment.childName}? העבודה תיחסם, אבל מה שנשמר בה יישאר, ואפשר להחזיר אותה בהמשך.`,
       )
     )
       return this.change(assignment, 'withdraw');
@@ -110,9 +110,7 @@ export class AssignmentList {
     this.notice.set('');
     try {
       await this.api.change(assignment, action, this.lifetime);
-      if (this.lifetime.destroyed) return;
-      this.requestRefresh();
-      this.notice.set(changed[action]);
+      if (!this.lifetime.destroyed) this.notice.set(changed[action]);
     } catch (error) {
       if (!this.lifetime.destroyed)
         this.error.set(
@@ -124,6 +122,8 @@ export class AssignmentList {
         );
     } finally {
       if (!this.lifetime.destroyed) {
+        // A success changed the row and a failure means the shown state may be stale; either way, reread.
+        this.live.reload();
         this.busy.set(false);
         this.pendingFocus = restoreFocus;
         this.restoreAfterLoad();

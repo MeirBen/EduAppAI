@@ -53,6 +53,7 @@ import { planValue } from './plan-projection';
 import { SourceReplacement } from '../source-replacement/source-replacement';
 import { ActivityChat } from '../activity-chat/activity-chat';
 import { libraryChanges } from '../../../core/api/library-changes';
+import { LiveStatus } from '../../../shared/live-status/live-status';
 import { DraftObservation, observeDraft } from './draft-observer';
 import { UndoHistory } from './undo-history';
 import { ChatSession } from './chat-session';
@@ -93,6 +94,7 @@ const autosaveDelay = 1000;
     SourceReplacement,
     ActionBar,
     ActionBarToggle,
+    LiveStatus,
   ],
   templateUrl: './activity-workspace.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -298,12 +300,15 @@ export class ActivityWorkspace {
     if (this.saved() || this.activityId()) return 'טיוטת פעילות';
     return 'פעילות חדשה';
   });
-  /** One reload control: beside a newer server result or error, otherwise with the other actions. */
+  /**
+   * One reload control, only where loading the saved version helps: beside a newer server result, an
+   * error, or the notice that another device changed the draft. Live updates cover every other case.
+   */
   protected readonly reloadPlacement = computed(() => {
     if (!this.saved() || this.elsewhere() === 'deleted') return 'none';
     if (this.available()) return 'available';
     if (this.activityError()?.reload || this.readError()) return 'error';
-    return 'more';
+    return this.elsewhere() === 'changed' ? 'changed' : 'none';
   });
   protected readonly measurements = computed(() =>
     measurementItems(this.saved()?.measurements ?? [], this.saved()?.plan),

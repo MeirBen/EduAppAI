@@ -23,6 +23,8 @@ const page = (items: object[], hasMore = false, number = 1) => ({
   hasMore,
 });
 
+const list = '/api/assignments?page=1&status=open';
+
 describe('Parent assignment list', () => {
   beforeEach(() =>
     TestBed.configureTestingModule({
@@ -39,56 +41,64 @@ describe('Parent assignment list', () => {
     const fixture = TestBed.createComponent(AssignmentList),
       http = TestBed.inject(HttpTestingController);
     fixture.detectChanges();
-    http.expectOne('/api/assignments?page=1').flush(page(rows, true));
+    http.expectOne(list).flush(page(rows, true));
     http
       .expectOne('/api/children?page=1')
       .flush(page([{ id: 'child', name: 'נועה', enabled: false }]));
     await fixture.whenStable();
     return { fixture, http, root: fixture.nativeElement as HTMLElement };
   }
-  it('follows child submissions and can reconnect through the existing refresh control', async () => {
+  it('follows child submissions in place and reconnects a refused stream on request', async () => {
     const { fixture, http, root } = await open([assignment]);
     const [stream] = FakeEventSource.opened;
     expect(stream?.url).toBe('/api/library/changes?ngsw-bypass');
     stream.send();
     TestBed.tick();
-    http
-      .expectOne('/api/assignments?page=1')
-      .flush(page([{ ...assignment, status: 'awaiting-review' }]));
+    const reread = http.expectOne(list);
+    fixture.detectChanges();
+    // A background reread keeps the shown rows and adds no loading row above them.
+    expect(root.querySelector('[data-withdraw]')).not.toBeNull();
+    expect(root.querySelector('app-loading-indicator.loading-active')).toBeNull();
+    reread.flush(page([{ ...assignment, status: 'awaiting-review' }]));
     await fixture.whenStable();
     expect(root.querySelector('[data-withdraw]')).toBeNull();
+    expect(root.querySelector('app-live-status button')).toBeNull();
     stream.readyState = FakeEventSource.CLOSED;
     stream.onerror?.();
     await fixture.whenStable();
-    root.querySelector<HTMLButtonElement>('#refresh-assignments')!.click();
+    expect(root.querySelector('app-live-status')!.textContent).toContain(
+      'העדכונים האוטומטיים נעצרו',
+    );
+    root.querySelector<HTMLButtonElement>('app-live-status button')!.click();
     TestBed.tick();
     expect(FakeEventSource.opened).toHaveLength(2);
-    http.expectOne('/api/assignments?page=1').flush(page([{ ...assignment, status: 'completed' }]));
+    http.expectOne(list).flush(page([{ ...assignment, status: 'completed' }]));
     await fixture.whenStable();
     fixture.destroy();
     expect(FakeEventSource.opened[1].readyState).toBe(FakeEventSource.CLOSED);
   });
 
-  it('pages and resets paging on child/status filters, including disabled profiles', async () => {
+  it('opens on open work, then pages and resets paging on view and child filters', async () => {
     const { fixture, http, root } = await open();
+    expect(root.querySelector<HTMLInputElement>('input[value="open"]')!.checked).toBe(true);
     root
       .querySelector<HTMLButtonElement>('nav[aria-label="עמודי פעילויות"] button:last-of-type')!
       .click();
     TestBed.tick();
-    http.expectOne('/api/assignments?page=2').flush(page([], false, 2));
+    http.expectOne('/api/assignments?page=2&status=open').flush(page([], false, 2));
     await fixture.whenStable();
     const child = root.querySelector<HTMLSelectElement>('app-child-selector select')!;
     expect(child.options[1].disabled).toBe(false);
     child.value = 'child';
     child.dispatchEvent(new Event('change'));
     TestBed.tick();
-    http.expectOne('/api/assignments?page=1&childId=child').flush(page([]));
+    http.expectOne('/api/assignments?page=1&status=open&childId=child').flush(page([]));
     await fixture.whenStable();
-    const status = root.querySelectorAll('select')[1];
-    status.value = 'awaiting-review';
-    status.dispatchEvent(new Event('change'));
+    root.querySelector<HTMLInputElement>('input[value="completed"]')!.click();
     TestBed.tick();
-    http.expectOne('/api/assignments?page=1&childId=child&status=awaiting-review').flush(page([]));
+    http.expectOne('/api/assignments?page=1&status=completed&childId=child').flush(page([]));
+    await fixture.whenStable();
+    expect(root.querySelector('.empty-state')!.textContent).toContain('אין פעילויות שמתאימות');
     http.expectNone((r) => r.method !== 'GET');
   });
   it('withdraws assigned work only after confirmation, using its revision and no implicit retry', async () => {
@@ -106,11 +116,10 @@ describe('Parent assignment list', () => {
     http.expectNone((r) => r.method === 'POST');
     request.flush({}, { status: 409, statusText: 'Conflict' });
     await vi.waitFor(() => expect(root.textContent).toContain('מצב ההקצאה השתנה'));
-    root.querySelector<HTMLButtonElement>('#refresh-assignments')!.click();
-    TestBed.tick();
-    http
-      .expectOne('/api/assignments?page=1')
-      .flush(page([{ ...assignment, status: 'awaiting-review' }]));
+    // A conflict means the shown state is stale, so the list rereads itself.
+    (await vi.waitFor(() => http.expectOne(list))).flush(
+      page([{ ...assignment, status: 'awaiting-review' }]),
+    );
     await fixture.whenStable();
     expect(root.querySelector('[data-withdraw]')).toBeNull();
   });
@@ -122,11 +131,11 @@ describe('Parent assignment list', () => {
     button.click();
     FakeEventSource.opened[0].send();
     TestBed.tick();
-    http.expectNone('/api/assignments?page=1');
+    http.expectNone(list);
     http
       .expectOne('/api/assignments/assignment/withdraw')
       .flush({ ...assignment, status: 'withdrawn' });
-    const refresh = await vi.waitFor(() => http.expectOne('/api/assignments?page=1'));
+    const refresh = await vi.waitFor(() => http.expectOne(list));
     fixture.detectChanges();
     await Promise.resolve();
     fixture.detectChanges();
@@ -147,7 +156,7 @@ describe('Parent assignment list', () => {
     const request = http.expectOne('/api/assignments/assignment/restore');
     expect(request.request.body).toEqual({ expectedRevision: 2 });
     request.flush({ ...assignment, revision: 3 });
-    (await vi.waitFor(() => http.expectOne('/api/assignments?page=1'))).flush(page([assignment]));
+    (await vi.waitFor(() => http.expectOne(list))).flush(page([assignment]));
     await fixture.whenStable();
     expect(confirm).not.toHaveBeenCalled();
     expect(root.textContent).toContain('ההקצאה הוחזרה');
@@ -160,7 +169,7 @@ describe('Parent assignment list', () => {
     http
       .expectOne('/api/assignments/assignment/withdraw')
       .flush({ ...assignment, status: 'withdrawn' });
-    (await vi.waitFor(() => http.expectOne('/api/assignments?page=1'))).flush(page([assignment]));
+    (await vi.waitFor(() => http.expectOne(list))).flush(page([assignment]));
     await fixture.whenStable();
     root.querySelector<HTMLButtonElement>('[data-withdraw]')!.click();
     const request = http.expectOne('/api/assignments/assignment/withdraw');

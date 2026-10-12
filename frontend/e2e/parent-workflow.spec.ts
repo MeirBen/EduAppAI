@@ -166,7 +166,7 @@ test('prompt to activity, targeted chat, manual editing and an immutable approve
   page.once('dialog', (dialog) => dialog.accept());
   await page.locator('#release-activity').click();
   await page.getByRole('link', { name: 'הקצאה לילדים' }).click();
-  await expect(page.getByRole('heading', { name: 'פעילות מוכנה — תצוגה להורים' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'פעילות מוכנה', exact: true })).toBeVisible();
   const frozenUrl = page.url();
   const frozenPath = '/api' + new URL(frozenUrl).pathname;
   const frozen = await (await page.request.get(frozenPath)).json();
@@ -457,7 +457,7 @@ test('library deletion confirms intent, preserves independent items, recovers fr
   const savedSession = await save.json();
   expect(savedSession.answers).toEqual(answers);
   expect(await (await childRequest.get(sessionPath)).json()).toEqual(savedSession);
-  await expect(snapshots.getByText('· הוקצתה', { exact: false })).toBeVisible();
+  await expect(snapshots.getByText('הוקצתה', { exact: true })).toBeVisible();
   page.once('dialog', async (dialog) => {
     expect(dialog.message()).toContain('ארכיון');
     expect(dialog.message()).toContain('לצמיתות');
@@ -591,14 +591,14 @@ test('two pages follow generation, cancellation and release while preserving edi
   await actor.goto(editorUrl);
   await page.route('**/api/library/changes?*', (route) => route.fulfill({ status: 503 }));
   await page.goto(editorUrl);
-  await expect(page.locator('#reconnect-draft')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'בדיקת עדכונים', exact: true })).toBeVisible();
   await page.locator('#edit-activity').click();
   await page.locator('#document-title').fill('עריכה מקומית שנשמרת כאן');
 
   const running = await start(actor, 'שנה את שם הפעילות עם המתנה');
   expect((await (await actor.request.get(path)).json()).revision).toBe(draft.revision);
   await page.unroute('**/api/library/changes?*');
-  await page.locator('#reconnect-draft').click();
+  await page.getByRole('button', { name: 'בדיקת עדכונים', exact: true }).click();
   await expect(page.locator('#chat-cancel')).toBeVisible();
   await actor.locator('#chat-cancel').click();
   await expect(page.getByText('הבקשה בוטלה.', { exact: true })).toBeVisible();

@@ -64,6 +64,7 @@ export class ChildPlayer {
   private readonly identity = inject(ChildAuth).identity;
   // Keep the bootstrap limit for retained local text even if a later guard discovers expired access.
   private readonly answerLength = this.identity()!.answerLength;
+  protected readonly name = computed(() => this.identity()?.name);
   private readonly lifetime = inject(DestroyRef);
   private readonly holdFocus = focusHolder();
   protected readonly assignment = this.api.assignment(this.assignmentId);
@@ -72,6 +73,10 @@ export class ChildPlayer {
   protected readonly answers = signal<LearnerAnswer[]>([]);
   protected readonly answered = computed(
     () => this.answers().filter((answer) => answer.value.trim()).length,
+  );
+  /** The answered fraction the bar's progress track shows; the count stays its accessible text. */
+  protected readonly progress = computed(() =>
+    this.answers().length ? this.answered() / this.answers().length : 0,
   );
   protected readonly busy = signal(false);
   protected readonly reading = signal(false);

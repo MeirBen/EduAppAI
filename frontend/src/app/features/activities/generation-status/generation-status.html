@@ -1,6 +1,6 @@
 @let current = view();
 <section
-  class="grid gap-4"
+  class="grid gap-stack"
   [class.panel]="operation().status !== 'completed'"
   aria-labelledby="operation-heading"
 >
@@ -47,7 +47,7 @@
   }
   <details>
     <summary>פרטים טכניים</summary>
-    <div class="grid gap-4">
+    <div class="grid gap-stack">
       <ol role="list" class="grid gap-1">
         @for (step of operation().steps; track $index) {
           @let outcome = outcomes[step.outcome];
@@ -74,7 +74,7 @@
         @if (candidateText(step.candidate, step.call?.output); as text) {
           <details class="well">
             <summary>התשובה שהתקבלה — {{ stageNames[step.stage] || 'יצירת תוכן' }}</summary>
-            <div class="grid gap-4">
+            <div class="grid gap-stack">
               <div class="flex items-center justify-between gap-3">
                 <p class="note">
                   <span class="icon icon-info" aria-hidden="true"></span>תשובת שירות ה־AI מוצגת

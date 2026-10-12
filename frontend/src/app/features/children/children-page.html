@@ -1,24 +1,23 @@
-<section class="grid gap-6" aria-labelledby="children-heading">
+<section class="grid gap-section" aria-labelledby="children-heading">
   <header class="grid gap-1">
     <h1 id="children-heading">הילדים והמכשירים</h1>
     <p class="text-muted">ניהול הפרופילים והגישה לפעילויות של המשפחה.</p>
   </header>
-  <div class="grid items-start gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
-    <section class="grid gap-4" aria-labelledby="profiles-heading">
-      <div class="flex flex-wrap items-center justify-between gap-3">
-        <h2 id="profiles-heading">פרופילי הילדים</h2>
-        <button
-          id="refresh-children"
-          class="text-link"
-          [disabledInteractive]="busy() || children.isLoading()"
-          (click)="children.reload()"
-        >
-          <span class="icon icon-refresh" aria-hidden="true"></span>רענון הרשימה
-        </button>
-      </div>
-      <app-loading-indicator [active]="children.isLoading()" label="טוענים פרופילים…" />
+  <app-live-status [updates]="live" />
+  <div class="grid items-start gap-section lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
+    <section class="grid gap-stack" aria-labelledby="profiles-heading">
+      <h2 id="profiles-heading">פרופילי הילדים</h2>
+      <app-loading-indicator
+        [active]="children.isLoading() && !children.hasValue()"
+        label="טוענים פרופילים…"
+      />
       @if (children.error()) {
-        <p class="error" role="alert">{{ failure(children.error()) }}</p>
+        <div class="grid gap-2">
+          <p class="error" role="alert">{{ failure(children.error()) }}</p>
+          <button type="button" class="text-link" (click)="children.reload()">
+            <span class="icon icon-refresh" aria-hidden="true"></span>ניסיון נוסף
+          </button>
+        </div>
       }
       @if (children.hasValue()) {
         @for (child of children.value().items; track child.id) {
@@ -67,8 +66,8 @@
         />
       }
     </section>
-    <div class="grid gap-6">
-      <section class="panel grid gap-4" aria-labelledby="profile-heading">
+    <div class="grid gap-section">
+      <section class="panel grid gap-stack" aria-labelledby="profile-heading">
         <div class="flex flex-wrap items-center justify-between gap-3">
           <h2 id="profile-heading">{{ selected() ? 'עריכת פרופיל' : 'פרופיל חדש' }}</h2>
           @if (selected()) {
@@ -82,7 +81,7 @@
             </button>
           }
         </div>
-        <form id="profile-form" class="grid gap-4" (submit)="save($event)">
+        <form id="profile-form" class="grid gap-stack" (submit)="save($event)">
           <div>
             <label for="child-name">שם הילד או הילדה</label
             ><input
@@ -94,7 +93,7 @@
             />
             <app-field-errors id="child-name-errors" [field]="fields.name" />
           </div>
-          <div class="grid gap-4 sm:grid-cols-2">
+          <div class="grid gap-stack sm:grid-cols-2">
             <div>
               <label for="child-grade">כיתה (רשות)</label>
               <input
@@ -181,12 +180,12 @@
         }
       </section>
       @if (selected(); as child) {
-        <section class="panel grid gap-4" aria-labelledby="access-heading">
+        <section class="panel grid gap-stack" aria-labelledby="access-heading">
           <h2 id="access-heading">
             גישה למכשירים — <bdi>{{ child.name }}</bdi>
           </h2>
           @if (child.enabled) {
-            <form id="activation-form" class="grid gap-4" (submit)="issue($event)">
+            <form id="activation-form" class="grid gap-stack" (submit)="issue($event)">
               <div>
                 <label for="device-label">שם המכשיר</label
                 ><input
@@ -201,8 +200,8 @@
               </div>
               <p class="note">
                 <span class="icon icon-info" aria-hidden="true"></span>
-                הקוד יוצג פעם אחת בלבד, וקוד חדש מבטל קוד קודם שלא נוצל. השתמשו בו בדפדפן אחר מזה
-                שבו אתם מחוברים.
+                הקוד מוצג פעם אחת, וקוד חדש מבטל את הקודם. השתמשו בו בדפדפן אחר, לא בזה שאתם מחוברים
+                בו.
               </p>
               <button class="button button-secondary" [disabledInteractive]="busy()">
                 יצירת קוד הפעלה
@@ -216,7 +215,10 @@
           }
           @if (activation(); as code) {
             <div class="well grid gap-2" role="status">
-              <p>במכשיר או בדפדפן נפרד של הילד, פתחו את כתובת ההפעלה והזינו את הקוד:</p>
+              <p>
+                במכשיר של <bdi>{{ selected()?.name }}</bdi> (או בדפדפן נפרד), פתחו את הכתובת הזו
+                והזינו את הקוד:
+              </p>
               <div class="flex flex-wrap items-center gap-3">
                 <bdi class="min-w-0 break-all">{{ activationUrl }}</bdi>
                 <app-copy-button [text]="activationUrl" label="העתקת כתובת ההפעלה" />
@@ -245,24 +247,23 @@
             <p class="field-error" role="alert">{{ accessError() }}</p>
           }
           <section class="card-section" aria-labelledby="devices-heading">
-            <div class="flex flex-wrap items-center justify-between gap-3">
-              <h3 id="devices-heading">מכשירים</h3>
-              <button
-                class="text-link"
-                [disabledInteractive]="busy() || devices.isLoading()"
-                (click)="devices.reload()"
-              >
-                <span class="icon icon-refresh" aria-hidden="true"></span>רענון המכשירים
-              </button>
-            </div>
-            <app-loading-indicator [active]="devices.isLoading()" label="טוענים מכשירים…" />
+            <h3 id="devices-heading">מכשירים</h3>
+            <app-loading-indicator
+              [active]="devices.isLoading() && !devices.hasValue()"
+              label="טוענים מכשירים…"
+            />
             @if (devices.error()) {
-              <p class="field-error" role="alert">{{ failure(devices.error()) }}</p>
+              <div class="grid gap-2">
+                <p class="field-error" role="alert">{{ failure(devices.error()) }}</p>
+                <button type="button" class="text-link" (click)="devices.reload()">
+                  <span class="icon icon-refresh" aria-hidden="true"></span>ניסיון נוסף
+                </button>
+              </div>
             }
             @if (devices.hasValue()) {
               @for (device of devices.value().items; track device.id) {
                 <article
-                  class="flex flex-wrap items-center gap-4"
+                  class="flex flex-wrap items-center gap-stack"
                   [attr.aria-labelledby]="'device-' + device.id"
                 >
                   <div class="grid min-w-1/2 flex-1 gap-1">

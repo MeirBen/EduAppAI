@@ -19,12 +19,13 @@ import { FieldErrors } from '../../shared/forms/field-errors';
 import { FieldValidity } from '../../shared/forms/field-validity';
 import { DisabledInteractive } from '../../shared/disabled-interactive';
 import { focusHolder } from '../../shared/focus-holder';
+import { LiveStatus } from '../../shared/live-status/live-status';
 import { LoadingIndicator } from '../../shared/loading-indicator/loading-indicator';
 import { CopyButton } from '../../shared/copy-button/copy-button';
 import { parentTaskError } from '../../core/api/parent-task-error';
 import { Pager } from '../../shared/pager/pager';
 import { writeError } from '../../core/api/api-error';
-import { refreshOnReturn } from '../../core/page-visibility';
+import { liveLists } from '../../core/api/live-lists';
 
 /** One local profile buffer; list refreshes never replace edits or retain activation secrets. */
 @Component({
@@ -38,6 +39,7 @@ import { refreshOnReturn } from '../../core/page-visibility';
     DisabledInteractive,
     LoadingIndicator,
     CopyButton,
+    LiveStatus,
     Pager,
   ],
   templateUrl: './children-page.html',
@@ -59,6 +61,8 @@ export class ChildrenPage {
   /** The panel whose action is running; while one runs, every action waits. */
   protected readonly working = signal<'profile' | 'access' | undefined>(undefined);
   protected readonly busy = computed(() => !!this.working());
+  /** Profiles and devices follow changes made elsewhere, such as a child activating a device. */
+  protected readonly live = liveLists([this.children, this.devices], { busy: this.busy });
   private pendingDeviceFocus?: () => void;
   // Device rows change or disappear on reload; restore focus only after the refreshed list renders.
   private readonly restoreAfterDevices = whenIdle(
@@ -106,7 +110,7 @@ export class ChildrenPage {
   protected readonly failure = (error: unknown) =>
     parentTaskError(
       error,
-      'הפרופיל השתנה או הושבת. רעננו את הרשימה ובחרו אותו שוב. מה שהקלדתם עדיין בטופס.',
+      'הפרופיל השתנה או הושבת. בחרו אותו שוב מהרשימה. מה שהקלדתם עדיין בטופס.',
     );
   private readonly dirty = computed(
     () =>
@@ -118,8 +122,6 @@ export class ChildrenPage {
 
   constructor() {
     this.lifetime.onDestroy(() => this.activation.set(undefined));
-    // A device activated elsewhere shows when the parent comes back; the profile list stays with its form.
-    refreshOnReturn(() => this.devices.reload());
   }
   /** Protects unsaved profile changes on navigation and explicit selection. */
   canLeave() {
@@ -228,7 +230,7 @@ export class ChildrenPage {
         this.error.set(
           parentTaskError(
             error,
-            'הפרופיל השתנה או שהוקצו לו פעילויות. רעננו את הרשימה. פרופיל עם פעילויות אפשר רק להשבית.',
+            'הפרופיל השתנה או שהוקצו לו פעילויות. פרופיל עם פעילויות אפשר רק להשבית.',
           ) + ' בדקו ברשימה לפני ניסיון נוסף.',
         );
     } finally {
@@ -282,10 +284,11 @@ export class ChildrenPage {
       else this.devices.reload();
       this.accessNotice.set(device.canRemove ? 'המכשיר הוסר מהרשימה.' : 'הגישה מהמכשיר בוטלה.');
     } catch (error) {
-      if (!this.lifetime.destroyed)
-        this.accessError.set(
-          this.failure(error) + ' רעננו את רשימת המכשירים כדי לבדוק את הגישה השמורה.',
-        );
+      if (!this.lifetime.destroyed) {
+        // A failure means the shown access may be stale, so the list rereads.
+        this.devices.reload();
+        this.accessError.set(this.failure(error) + ' בדקו את הגישה ברשימת המכשירים.');
+      }
     } finally {
       if (!this.lifetime.destroyed) {
         this.working.set(undefined);

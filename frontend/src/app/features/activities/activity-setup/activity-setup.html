@@ -1,6 +1,6 @@
 @let p = plan();
 @let materials = p.materials().value();
-<div class="grid gap-6">
+<div class="grid gap-section">
   <div class="grid gap-2">
     <h3 dir="auto">{{ p.name().value() }}</h3>
     <p class="text-muted">{{ summary().join(' · ') }}</p>
@@ -20,7 +20,7 @@
       <h3 id="setup-content-title">מקור הטקסט</h3>
       @for (material of materials; track $index; let index = $index) {
         @let m = p.materials[index];
-        <div class="well grid min-w-0 gap-4" role="group" [attr.aria-label]="material.label">
+        <div class="well grid min-w-0 gap-stack" role="group" [attr.aria-label]="material.label">
           <div class="grid gap-1">
             <h4 dir="auto">{{ material.label }}</h4>
             <p class="text-sm text-muted">

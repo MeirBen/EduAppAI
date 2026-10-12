@@ -141,6 +141,13 @@ export class LearningApi {
       params: { page: page() },
     }));
   }
+  /** Archived snapshots, read only while `page` names one. */
+  archivedSnapshots(page: () => number | undefined) {
+    return httpResource<Page<SnapshotSummary>>(() => {
+      const number = page();
+      return number ? { url: '/api/instances/archive', params: { page: number } } : undefined;
+    });
+  }
   snapshot(id: () => string) {
     return httpResource<SnapshotPreview>(() => `/api/instances/${id()}`);
   }
@@ -170,5 +177,9 @@ export class LearningApi {
   /** Removes a snapshot from the library: archives assigned content, deletes unassigned content; other items remain. */
   deleteSnapshot(id: string, lifetime: DestroyRef) {
     return requestResult(this.http.delete<void>(`/api/instances/${id}`), lifetime);
+  }
+  /** Permanently deletes an archived snapshot with its assignments, answers and grades. */
+  deleteArchivedSnapshot(id: string, lifetime: DestroyRef) {
+    return requestResult(this.http.delete<void>(`/api/instances/archive/${id}`), lifetime);
   }
 }

@@ -106,6 +106,7 @@ public sealed class LibraryDeletionTests
     [Theory]
     [InlineData("/api/learning-data")]
     [InlineData("/api/instances/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa")]
+    [InlineData("/api/instances/archive/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa")]
     public async Task Deletion_requires_authentication_and_csrf(string path)
     {
         using var app = new ApiFactory();
