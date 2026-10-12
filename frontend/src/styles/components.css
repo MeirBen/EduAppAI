@@ -147,12 +147,15 @@
       @apply opacity-60;
     }
   }
-  /* Icon-only segments, such as the theme picker's, are small round targets. */
+  /*
+   * Icon-only segments, such as the theme picker's, are small round targets: the control keeps its
+   * own size on phones too, so it neither spans the row nor contains its width.
+   */
   .segmented-compact {
-    @apply w-fit;
+    @apply w-fit contain-none;
 
     & > label {
-      @apply size-9 flex-none px-0;
+      @apply size-9 flex-none px-0 max-sm:size-8;
     }
   }
 

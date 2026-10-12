@@ -27,6 +27,11 @@
           [saving]="deleting()"
           loadingLabel="טוענים את הטיוטות…"
           pagerLabel="עמודי טיוטות"
+          [empty]="
+            draftPage() > 1
+              ? 'אין עוד טיוטות בעמוד הזה. אפשר לחזור לעמוד הקודם.'
+              : 'עוד אין טיוטות. פעילות חדשה נשמרת כאן כטיוטה עד שתאשרו אותה.'
+          "
         >
           @for (draft of draftList.items(); track draft.id) {
             <article class="list-row">
@@ -60,14 +65,6 @@
             @if (failed(draft.id); as message) {
               <p role="alert" class="field-error">{{ message }}</p>
             }
-          } @empty {
-            <p class="empty-state">
-              @if (draftPage() > 1) {
-                אין עוד טיוטות בעמוד הזה. אפשר לחזור לעמוד הקודם.
-              } @else {
-                עוד אין טיוטות. פעילות חדשה נשמרת כאן כטיוטה עד שתאשרו אותה.
-              }
-            </p>
           }
         </app-paged-list>
       </div>
@@ -104,10 +101,14 @@
           #snapshotList
           [resource]="snapshots"
           [(page)]="snapshotPage"
-          [filter]="snapshotView()"
           [saving]="deleting()"
           loadingLabel="טוענים את הפעילויות המוכנות…"
           pagerLabel="עמודי פעילויות מוכנות"
+          [empty]="
+            snapshotPage() > 1
+              ? 'אין עוד פעילויות מוכנות בעמוד הזה. אפשר לחזור לעמוד הקודם.'
+              : snapshotEmpty()
+          "
         >
           @for (snapshot of snapshotList.items(); track snapshot.id) {
             <article class="list-row">
@@ -144,14 +145,6 @@
             @if (failed(snapshot.id); as message) {
               <p role="alert" class="field-error">{{ message }}</p>
             }
-          } @empty {
-            <p class="empty-state">
-              {{
-                snapshotPage() > 1
-                  ? 'אין עוד פעילויות מוכנות בעמוד הזה. אפשר לחזור לעמוד הקודם.'
-                  : snapshotEmpty()
-              }}
-            </p>
           }
         </app-paged-list>
       </div>
@@ -176,6 +169,7 @@
           [saving]="deleting()"
           loadingLabel="טוענים את הארכיון…"
           pagerLabel="עמודי הארכיון"
+          [empty]="archivePage() > 1 ? 'אין עוד פעילויות בארכיון.' : 'הארכיון ריק.'"
         >
           @for (snapshot of archiveList.items(); track snapshot.id) {
             <article class="list-row">
@@ -213,10 +207,6 @@
             @if (failed(snapshot.id); as message) {
               <p role="alert" class="field-error">{{ message }}</p>
             }
-          } @empty {
-            <p class="empty-state">
-              {{ archivePage() > 1 ? 'אין עוד פעילויות בארכיון.' : 'הארכיון ריק.' }}
-            </p>
           }
         </app-paged-list>
       </div>

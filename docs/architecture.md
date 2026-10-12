@@ -388,21 +388,21 @@ before a private page renders; forms, caps and copy read the limits through
 
 Parent management pages own bounded list resources and local buffers. Every
 paged list is a `PagedList`, which owns its first-read indicator, failed-read
-retry, busy rows and pager. It keeps showing its page while another page of the
-same filter loads, so paging never collapses it or drops focus; a new view or
-child shows the loading state instead, never another filter's results. The child
-selector reads every profile in one bounded page; assignment filters include
-disabled profiles, and the list's views map to the server's `open`, `completed`
-and `withdrawn` statuses. Refreshes preserve unsaved edits. Activation codes
-live only in page memory and clear on selection/destruction. Frozen previews
-distinguish new assignments from replay. Result pages read frozen
-answers/evaluation without starting work and follow notes, so a submission shows
-by itself; the report request changes only when the work becomes submitted, and
-a shown report is never replaced implicitly. Pending grades start blank, use
-frozen integer bounds and finalize together. Failed writes preserve grades and
-block resubmission until an explicit saved read; loading completed grades
-requires confirmation. Route/browser-close guards protect edits. Conflict copy
-belongs to its feature.
+retry, busy rows, empty state and pager. Another page or view keeps the shown
+rows, busy, until its own arrive, so the page never shrinks or jumps, and an
+empty list says it is loading rather than empty meanwhile; rows of another owner
+(another child's devices) never show. The child selector reads every profile in
+one bounded page; assignment filters include disabled profiles, and the list's
+views map to the server's `open`, `completed` and `withdrawn` statuses.
+Refreshes preserve unsaved edits. Activation codes live only in page memory and
+clear on selection/destruction. Frozen previews distinguish new assignments from
+replay. Result pages read frozen answers/evaluation without starting work and
+follow notes, so a submission shows by itself; the report request changes only
+when the work becomes submitted, and a shown report is never replaced
+implicitly. Pending grades start blank, use frozen integer bounds and finalize
+together. Failed writes preserve grades and block resubmission until an explicit
+saved read; loading completed grades requires confirmation. Route/browser-close
+guards protect edits. Conflict copy belongs to its feature.
 
 `ChildAuth` supplies learner identity and answer-length limit. Cancellable
 guards route 401 to activation and availability errors to retry. Activation

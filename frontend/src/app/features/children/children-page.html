@@ -15,6 +15,7 @@
         [saving]="busy()"
         loadingLabel="טוענים פרופילים…"
         pagerLabel="עמודי פרופילים"
+        [empty]="'עוד אין פרופילים. הוסיפו ילד או ילדה כדי להקצות פעילויות.'"
       >
         @for (child of childList.items(); track child.id) {
           <article
@@ -57,8 +58,6 @@
               ניהול
             </button>
           </article>
-        } @empty {
-          <p class="empty-state">עוד אין פרופילים. הוסיפו ילד או ילדה כדי להקצות פעילויות.</p>
         }
       </app-paged-list>
     </section>
@@ -252,11 +251,16 @@
               #deviceList
               [resource]="devices"
               [(page)]="devicePage"
-              [filter]="selected()?.id"
+              [owner]="selected()?.id"
               [failure]="failure"
               [saving]="busy()"
               loadingLabel="טוענים מכשירים…"
               pagerLabel="עמודי מכשירים"
+              [empty]="
+                devicePage() > 1
+                  ? 'אין מכשירים נוספים.'
+                  : 'עוד לא חוברו מכשירים. צרו קוד הפעלה כדי לחבר מכשיר.'
+              "
             >
               @for (device of deviceList.items(); track device.id) {
                 <article
@@ -327,14 +331,6 @@
                     </button>
                   }
                 </article>
-              } @empty {
-                <p class="empty-state">
-                  {{
-                    devicePage() > 1
-                      ? 'אין מכשירים נוספים.'
-                      : 'עוד לא חוברו מכשירים. צרו קוד הפעלה כדי לחבר מכשיר.'
-                  }}
-                </p>
               }
             </app-paged-list>
           </section>

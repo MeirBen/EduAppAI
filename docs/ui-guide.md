@@ -280,17 +280,17 @@ for their item, so the row keeps its room for the title.
 Lists, the result page and the child inbox follow changes live through
 `liveLists`, with no refresh controls: a change elsewhere rereads them in place,
 keeping shown rows, and rows that arrive fade in. Paged lists are `PagedList`s:
-the inline `LoadingIndicator` shows only while a list has nothing to show (its
-first read, or a new view or child); its rows sit in `.list`, which is
-`aria-busy` while it loads another page or saves a change, and they breathe
-(`animate-breathe`, the busy motion shared with a busy action's icon and the
-assistant's mark), so nothing moves; a failed read offers its retry, or the
-page's own `[failure]` content. When the stream is refused, the shared
-`LiveStatus` says so once and offers **בדיקת עדכונים**, which reconnects and
-rereads. A status `badge` and its row's `icon-tile` share one `data-tone`: `new`
-asks for attention (work awaiting the parent's grading, a new activity for the
-child), `done` is finished and `quiet` is history (withdrawn, archived); work in
-progress has none.
+the inline `LoadingIndicator` shows only before a list's first read; its rows
+sit in `.list`, which is `aria-busy` while it loads another page or view or
+saves a change, keeping the shown rows so the page never shrinks or jumps (an
+empty list says it is loading meanwhile), and they breathe (`animate-breathe`,
+the busy motion shared with a busy action's icon and the assistant's mark), so
+nothing moves; a failed read offers its retry, or the page's own `[failure]`
+content. When the stream is refused, the shared `LiveStatus` says so once and
+offers **בדיקת עדכונים**, which reconnects and rereads. A status `badge` and its
+row's `icon-tile` share one `data-tone`: `new` asks for attention (work awaiting
+the parent's grading, a new activity for the child), `done` is finished and
+`quiet` is history (withdrawn, archived); work in progress has none.
 
 Filters form one toolbar row: a `segmented` view switch, which is a control's
 height, beside fields whose label is screen-reader-only there. Its labels never

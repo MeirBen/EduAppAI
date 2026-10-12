@@ -44,11 +44,17 @@
     #assignmentList
     [resource]="assignments"
     [(page)]="page"
-    [filter]="view() + ' ' + childId()"
     [failure]="failure"
     [saving]="busy()"
     loadingLabel="טוענים את הפעילויות…"
     pagerLabel="עמודי פעילויות"
+    [empty]="
+      page() > 1
+        ? 'אין פעילויות נוספות.'
+        : childId()
+          ? 'אין פעילויות שמתאימות לבחירה.'
+          : emptyView()
+    "
   >
     @for (assignment of assignmentList.items(); track assignment.id) {
       <article class="list-row" [attr.aria-labelledby]="'assignment-' + assignment.id">
@@ -98,16 +104,6 @@
           </button>
         }
       </article>
-    } @empty {
-      <p class="empty-state">
-        @if (page() > 1) {
-          אין פעילויות נוספות.
-        } @else if (childId()) {
-          אין פעילויות שמתאימות לבחירה.
-        } @else {
-          {{ emptyView() }}
-        }
-      </p>
     }
   </app-paged-list>
 </section>

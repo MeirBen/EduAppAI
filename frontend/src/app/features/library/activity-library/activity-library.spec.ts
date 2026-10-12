@@ -330,6 +330,14 @@ describe('Activity library', () => {
     expect(ready.querySelector('details')!.open).toBe(true);
     // The count is every ready activity, whichever view is shown.
     expect(ready.querySelector('app-count')!.textContent!.trim()).toBe('1');
+    // Leaving an empty view, the list says it is loading until the next view answers, never
+    // that the next view is empty.
+    ready.querySelector<HTMLInputElement>('input[value="unassigned"]')!.click();
+    TestBed.tick();
+    expect(ready.querySelector('.empty-state')!.textContent).toContain('טוענים');
+    http.expectOne('/api/instances?page=1&status=unassigned').flush(page([]));
+    await fixture.whenStable();
+    expect(ready.querySelector('.empty-state')!.textContent).toContain('שעוד לא הוקצו');
     http.verify();
   });
 
@@ -348,10 +356,10 @@ describe('Activity library', () => {
     ).toBe(false);
     ready.querySelector<HTMLInputElement>('input[value="completed"]')!.click();
     TestBed.tick();
-    // A new view shows its loading state, never the previous view's rows or its own empty text.
-    expect(ready.querySelector('a[href="/instances/ready"]')).toBeNull();
+    // A new view keeps the shown rows, busy, until its own arrive, so the page never shrinks.
+    expect(ready.querySelector('a[href="/instances/ready"]')).not.toBeNull();
+    expect(ready.querySelector('.list')!.getAttribute('aria-busy')).toBe('true');
     expect(ready.querySelector('.empty-state')).toBeNull();
-    expect(ready.querySelector('app-loading-indicator.loading-active')).not.toBeNull();
     const children = [
       { childName: 'נועה', status: 'completed', finalTotal: 9, possibleTotal: 10 },
       { childName: 'איתי', status: 'completed', finalTotal: 6, possibleTotal: 10 },

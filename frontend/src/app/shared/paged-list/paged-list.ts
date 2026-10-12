@@ -15,9 +15,10 @@ import { ReadFailure } from '../read-failure/read-failure';
 
 /**
  * One paged list around its projected rows: the first read's indicator, a failed read's retry (or
- * the owner's own `[failure]` content), the rows, busy while another page loads or the owner saves,
- * and the pager. Paging keeps the shown page until the next arrives; another `filter` (a view, a
- * child or an owner) shows the indicator instead, so rows never belong to another filter.
+ * the page's own `[failure]` content), the rows with their empty state, and the pager. Another page
+ * or view keeps the shown rows, busy, until its own arrive, so the page never shrinks or jumps;
+ * meanwhile an empty list says it is loading rather than empty. Rows of another `owner` (such as
+ * another child's devices) never show.
  */
 @Component({
   selector: 'app-paged-list',
@@ -29,7 +30,14 @@ import { ReadFailure } from '../read-failure/read-failure';
         ><app-read-failure [message]="failure()(error)" (retry)="resource().reload()"
       /></ng-content>
     } @else if (shown(); as shownPage) {
-      <div class="list" [attr.aria-busy]="busy()"><ng-content /></div>
+      <div class="list" [attr.aria-busy]="busy()">
+        <ng-content />
+        @if (!shownPage.items.length) {
+          <p class="empty-state">
+            {{ resource().status() === 'loading' ? loadingLabel() : empty() }}
+          </p>
+        }
+      </div>
       <app-pager
         [label]="pagerLabel()"
         [(page)]="page"
@@ -44,27 +52,28 @@ import { ReadFailure } from '../read-failure/read-failure';
 export class PagedList<T> {
   readonly resource = input.required<HttpResourceRef<Page<T> | undefined>>();
   readonly page = model.required<number>();
-  readonly filter = input<unknown>();
+  readonly owner = input<unknown>();
+  /** What an empty list says, such as that a later page has nothing more. */
+  readonly empty = input.required<string>();
   readonly loadingLabel = input.required<string>();
   /** Names the pages, such as "עמודי טיוטות". */
   readonly pagerLabel = input.required<string>();
   readonly failure = input<(error: unknown) => string>(apiError);
-  /** The owner is saving a change to the list. */
+  /** The page is saving a change to the list. */
   readonly saving = input(false);
-  protected readonly shown = linkedSignal<
-    { filter: unknown; value?: Page<T> },
-    Page<T> | undefined
-  >({
-    source: () => {
-      const resource = this.resource();
-      return { filter: this.filter(), value: resource.hasValue() ? resource.value() : undefined };
+  protected readonly shown = linkedSignal<{ owner: unknown; value?: Page<T> }, Page<T> | undefined>(
+    {
+      source: () => {
+        const resource = this.resource();
+        return { owner: this.owner(), value: resource.hasValue() ? resource.value() : undefined };
+      },
+      computation: ({ owner, value }, previous) =>
+        value ??
+        (this.resource().isLoading() && previous?.source.owner === owner
+          ? previous?.value
+          : undefined),
     },
-    computation: ({ filter, value }, previous) =>
-      value ??
-      (this.resource().isLoading() && previous?.source.filter === filter
-        ? previous?.value
-        : undefined),
-  });
+  );
   /** The rows the list shows. */
   readonly items = computed(() => this.shown()?.items ?? []);
   protected readonly busy = computed(() => this.resource().isLoading() || this.saving());
