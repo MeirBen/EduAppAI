@@ -8,7 +8,7 @@
     <section class="grid gap-stack" aria-labelledby="profiles-heading">
       <h2 id="profiles-heading">פרופילי הילדים</h2>
       <app-loading-indicator
-        [active]="children.isLoading() && !children.hasValue()"
+        [active]="children.isLoading() && !shownChildren()"
         label="טוענים פרופילים…"
       />
       @if (children.error()) {
@@ -19,28 +19,34 @@
           </button>
         </div>
       }
-      @if (children.hasValue()) {
-        @for (child of children.value().items; track child.id) {
+      @if (shownChildren(); as list) {
+        @for (child of list.items; track child.id) {
           <article
             class="list-row"
             [attr.aria-labelledby]="'child-' + child.id"
             [attr.aria-current]="selected()?.id === child.id ? 'true' : null"
           >
-            <div class="grid min-w-1/2 flex-1 gap-1">
+            <div class="row-body">
               <h3 [id]="'child-' + child.id">
                 <bdi>{{ child.name }}</bdi>
               </h3>
-              <p class="text-sm text-muted">{{ child.enabled ? 'פרופיל פעיל' : 'פרופיל מושבת' }}</p>
-              @if (child.grade || child.age !== null) {
-                <p class="text-sm text-muted">
-                  @if (child.grade) {
-                    <bdi>{{ child.grade }}</bdi>
+              @if (!child.enabled || child.grade || child.age !== null) {
+                <p class="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted">
+                  @if (!child.enabled) {
+                    <span class="badge" data-tone="quiet">מושבת</span>
                   }
-                  @if (child.grade && child.age !== null) {
-                    ·
-                  }
-                  @if (child.age !== null) {
-                    גיל {{ child.age }}
+                  @if (child.grade || child.age !== null) {
+                    <span>
+                      @if (child.grade) {
+                        <bdi>{{ child.grade }}</bdi>
+                      }
+                      @if (child.grade && child.age !== null) {
+                        ·
+                      }
+                      @if (child.age !== null) {
+                        גיל {{ child.age }}
+                      }
+                    </span>
                   }
                 </p>
               }
@@ -61,7 +67,7 @@
         <app-pager
           label="עמודי פרופילים"
           [(page)]="page"
-          [hasMore]="children.value().hasMore"
+          [hasMore]="list.hasMore"
           [busy]="busy() || children.isLoading()"
         />
       }
@@ -163,16 +169,20 @@
             <summary [attr.aria-label]="'פרטי זמנים של הפרופיל: ' + child.name">פרטי זמנים</summary>
             <div class="grid gap-1">
               <p>
-                נוצר ב־<bdi>{{ child.createdAtUtc | date }}</bdi>
+                נוצר ב־<time [dateTime]="child.createdAtUtc">{{ child.createdAtUtc | date }}</time>
               </p>
               @if (child.updatedAtUtc) {
                 <p>
-                  עודכן ב־<bdi>{{ child.updatedAtUtc | date }}</bdi>
+                  עודכן ב־<time [dateTime]="child.updatedAtUtc">{{
+                    child.updatedAtUtc | date
+                  }}</time>
                 </p>
               }
               @if (child.ageConfirmedAtUtc) {
                 <p>
-                  הגיל עודכן ב־<bdi>{{ child.ageConfirmedAtUtc | date }}</bdi>
+                  הגיל עודכן ב־<time [dateTime]="child.ageConfirmedAtUtc">{{
+                    child.ageConfirmedAtUtc | date
+                  }}</time>
                 </p>
               }
             </div>
@@ -231,7 +241,7 @@
                 [textContent]="code.code"
               ></p>
               <p>
-                בתוקף עד <bdi>{{ code.expiresAtUtc | date }}</bdi
+                בתוקף עד <time [dateTime]="code.expiresAtUtc">{{ code.expiresAtUtc | date }}</time
                 >. הקוד ייעלם ביציאה מהעמוד.
               </p>
               <button class="text-link" (click)="activation.set(undefined)">הסתרת הקוד</button>
@@ -249,7 +259,7 @@
           <section class="card-section" aria-labelledby="devices-heading">
             <h3 id="devices-heading">מכשירים</h3>
             <app-loading-indicator
-              [active]="devices.isLoading() && !devices.hasValue()"
+              [active]="devices.isLoading() && !shownDevices()"
               label="טוענים מכשירים…"
             />
             @if (devices.error()) {
@@ -260,13 +270,13 @@
                 </button>
               </div>
             }
-            @if (devices.hasValue()) {
-              @for (device of devices.value().items; track device.id) {
+            @if (shownDevices(); as list) {
+              @for (device of list.items; track device.id) {
                 <article
                   class="flex flex-wrap items-center gap-stack"
                   [attr.aria-labelledby]="'device-' + device.id"
                 >
-                  <div class="grid min-w-1/2 flex-1 gap-1">
+                  <div class="row-body">
                     <h4 [id]="'device-' + device.id">
                       <bdi>{{ device.deviceLabel }}</bdi>
                     </h4>
@@ -285,11 +295,15 @@
                       </summary>
                       <div class="grid gap-1">
                         <p>
-                          חובר ב־<bdi>{{ device.createdAtUtc | date }}</bdi>
+                          חובר ב־<time [dateTime]="device.createdAtUtc">{{
+                            device.createdAtUtc | date
+                          }}</time>
                         </p>
                         @if (device.revokedAtUtc) {
                           <p>
-                            הגישה בוטלה ב־<bdi>{{ device.revokedAtUtc | date }}</bdi>
+                            הגישה בוטלה ב־<time [dateTime]="device.revokedAtUtc">{{
+                              device.revokedAtUtc | date
+                            }}</time>
                           </p>
                         }
                         <p>
@@ -297,7 +311,9 @@
                             device.canRemove && !device.revokedAtUtc
                               ? 'התוקף פג ב־'
                               : 'תוקף הגישה עד '
-                          }}<bdi>{{ device.expiresAtUtc | date }}</bdi>
+                          }}<time [dateTime]="device.expiresAtUtc">{{
+                            device.expiresAtUtc | date
+                          }}</time>
                         </p>
                       </div>
                     </details>
@@ -336,7 +352,7 @@
               <app-pager
                 label="עמודי מכשירים"
                 [(page)]="devicePage"
-                [hasMore]="devices.value().hasMore"
+                [hasMore]="list.hasMore"
                 [busy]="busy() || devices.isLoading()"
               />
             }

@@ -1,6 +1,6 @@
 @let start = !refining();
 @let message = fields().message;
-<div class="chat-layout gap-3">
+<div class="chat-layout gap-3" [attr.data-started]="started() ? '' : null">
   @if (!start) {
     <h2 id="change-title" class="chat-title">
       <span class="ai-mark" aria-hidden="true"></span>רוצים לשנות משהו?
@@ -88,6 +88,25 @@
       </button>
     }
   </div>
+  @if (configured()) {
+    @if (start && !started()) {
+      <app-suggestion-chips
+        key="chat-start"
+        label="רעיונות להתחלה"
+        [suggestions]="starterSuggestions"
+        [disabled]="busy() || locked()"
+        (picked)="suggest($event)"
+      />
+    } @else if (!start && !clarification() && !started()) {
+      <app-suggestion-chips
+        key="chat-change"
+        label="רעיונות לשינוי"
+        [suggestions]="changeSuggestions"
+        [disabled]="busy() || locked()"
+        (picked)="suggest($event)"
+      />
+    }
+  }
   <app-loading-indicator
     variant="assistant"
     [active]="busy()"
@@ -141,46 +160,20 @@
         >
           <kbd dir="ltr">Enter</kbd> לשליחה · <kbd dir="ltr">Shift+Enter</kbd> לשורה חדשה
         </p>
-        @if (busy()) {
-          <button
-            #stop
-            id="chat-cancel"
-            type="button"
-            class="icon-button icon-button-ink ms-auto"
-            [disabled]="stopping()"
-            (click)="cancelled.emit()"
-          >
-            <span class="icon icon-stop" aria-hidden="true"></span
-            ><span class="tooltip">עצירה</span>
-          </button>
-        } @else {
-          <button id="chat-send" type="submit" class="icon-button ms-auto" [disabled]="!canSend()">
-            <span class="icon icon-up" aria-hidden="true"></span
-            ><span class="tooltip">{{
-              clarification() ? 'שליחת התשובה' : start ? 'שליחה' : 'שליחת הבקשה'
-            }}</span>
-          </button>
-        }
+        <button
+          [id]="busy() ? 'chat-cancel' : 'chat-send'"
+          [type]="busy() ? 'button' : 'submit'"
+          class="icon-button ms-auto"
+          [class.icon-button-ink]="busy()"
+          [disabledInteractive]="busy() ? stopping() : !canSend()"
+          (click)="stopRequest()"
+        >
+          <span class="icon" [class]="busy() ? 'icon-stop' : 'icon-up'" aria-hidden="true"></span
+          ><span class="tooltip">{{
+            busy() ? 'עצירה' : clarification() ? 'שליחת התשובה' : start ? 'שליחה' : 'שליחת הבקשה'
+          }}</span>
+        </button>
       </div>
     </div>
   </form>
-  @if (configured()) {
-    @if (start && !started()) {
-      <app-suggestion-chips
-        key="chat-start"
-        label="רעיונות להתחלה"
-        [suggestions]="starterSuggestions"
-        [disabled]="busy() || locked()"
-        (picked)="suggest($event)"
-      />
-    } @else if (!start && !clarification() && !started()) {
-      <app-suggestion-chips
-        key="chat-change"
-        label="רעיונות לשינוי"
-        [suggestions]="changeSuggestions"
-        [disabled]="busy() || locked()"
-        (picked)="suggest($event)"
-      />
-    }
-  }
 </div>

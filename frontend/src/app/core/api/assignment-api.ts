@@ -1,6 +1,7 @@
 import { HttpClient, httpResource } from '@angular/common/http';
 import { DestroyRef, inject, Injectable } from '@angular/core';
 import {
+  AssignmentCounts,
   AssignmentDetail,
   AssignmentSummary,
   AssignmentView,
@@ -23,6 +24,20 @@ export class AssignmentApi {
         params: { page, status, ...(childId ? { childId } : {}) },
       };
     });
+  }
+  /** Exact sizes of the list's views, for one child or the whole family. */
+  counts(childId: () => string) {
+    return httpResource<AssignmentCounts>(() => {
+      const id = childId();
+      return { url: '/api/assignments/counts', params: { ...(id ? { childId: id } : {}) } };
+    });
+  }
+  /** Every child's current work on one activity. */
+  forSnapshot(snapshotId: () => string) {
+    return httpResource<Page<AssignmentSummary>>(() => ({
+      url: '/api/assignments',
+      params: { snapshotId: snapshotId(), pageSize: 100 },
+    }));
   }
   detail(id: () => string) {
     return httpResource<AssignmentDetail>(() => `/api/assignments/${id()}`);

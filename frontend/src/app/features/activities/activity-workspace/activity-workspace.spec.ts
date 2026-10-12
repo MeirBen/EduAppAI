@@ -128,7 +128,7 @@ describe('ActivityWorkspace plan ownership', () => {
     await settle();
     expect(field('chat-message').value).toBe('בקשה שעדיין לא נשלחה');
     expect(document.activeElement?.id).toBe('chat-message');
-    expect(root().querySelector<HTMLButtonElement>('#chat-send')!.disabled).toBe(false);
+    expect(root().querySelector('#chat-send')!.hasAttribute('aria-disabled')).toBe(false);
     http.expectNone('/api/ai/activity-plans');
   });
 

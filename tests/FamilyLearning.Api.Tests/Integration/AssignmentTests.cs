@@ -54,6 +54,11 @@ public sealed class AssignmentTests
         // Work awaiting the parent's grading is still open; completed work is not.
         Assert.Equal(status == "awaiting-review" ? 1 : 0, (await parent.GetFromJsonAsync<JsonNode>("/api/assignments?status=open"))!["items"]!.AsArray().Count);
         Assert.Empty((await parent.GetFromJsonAsync<JsonNode>($"/api/assignments?childId={Guid.NewGuid()}"))!["items"]!.AsArray());
+        // View counts match the lists, for the family and for one child alone.
+        var counts = status == "awaiting-review" ? """{"open":1,"completed":0,"withdrawn":0}""" : """{"open":0,"completed":1,"withdrawn":0}""";
+        Assert.True(JsonNode.DeepEquals(JsonNode.Parse(counts), await parent.GetFromJsonAsync<JsonNode>("/api/assignments/counts")));
+        Assert.True(JsonNode.DeepEquals(JsonNode.Parse("""{"open":0,"completed":0,"withdrawn":0}"""),
+            await parent.GetFromJsonAsync<JsonNode>($"/api/assignments/counts?childId={Guid.NewGuid()}")));
     }
 
     [Fact]
@@ -100,6 +105,8 @@ public sealed class AssignmentTests
         Assert.Empty((await parent.GetFromJsonAsync<JsonNode>("/api/assignments"))!["items"]!.AsArray());
         Assert.Empty((await parent.GetFromJsonAsync<JsonNode>("/api/assignments?status=open"))!["items"]!.AsArray());
         Assert.Single((await parent.GetFromJsonAsync<JsonNode>("/api/assignments?status=withdrawn"))!["items"]!.AsArray());
+        Assert.True(JsonNode.DeepEquals(JsonNode.Parse("""{"open":0,"completed":0,"withdrawn":1}"""),
+            await parent.GetFromJsonAsync<JsonNode>("/api/assignments/counts")));
     }
 
     [Fact]
@@ -186,7 +193,9 @@ public sealed class AssignmentTests
         Properties(question["interaction"]!, "type", "options");
         var inbox = (await child.GetFromJsonAsync<JsonNode>("/api/child/assignments"))!;
         Properties(inbox, "items", "page", "pageSize", "hasMore");
-        Properties(Assert.Single(inbox["items"]!.AsArray())!, "id", "title", "status", "revision", "createdAtUtc", "hasStarted");
+        var item = Assert.Single(inbox["items"]!.AsArray())!;
+        Properties(item, "id", "title", "status", "revision", "createdAtUtc", "hasStarted", "finalTotal", "possibleTotal");
+        Assert.Null(item["finalTotal"]);
         Assert.False(inbox["items"]![0]!["hasStarted"]!.GetValue<bool>());
         var parentDocument = (await parent.GetFromJsonAsync<JsonNode>("/api/instances/" + snapshot))!["document"]!;
         Assert.True(JsonNode.DeepEquals(parentDocument["questions"]![0]!["prompt"], question["prompt"]));

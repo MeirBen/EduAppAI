@@ -1,3 +1,5 @@
+import type { AssignedChild } from './assignment-models';
+
 /** Shared task choices; difficulty is relative to the audience. */
 export interface TaskSettings {
   topic: string;
@@ -222,9 +224,18 @@ export interface SnapshotSummary {
   id: string;
   title: string;
   createdAtUtc: string;
+  /** The latest open assignment and the latest completion, when there are any. */
+  assignedAtUtc: string | null;
+  completedAtUtc: string | null;
   archivedAtUtc: string | null;
-  hasAssignments: boolean;
+  /** Completed work on this activity, by child name. */
+  /** Each child's open or completed work, by name. */
+  children: AssignedChild[];
 }
+/** The ready list's views; each activity is in one: open work, finished work, or neither. */
+export type SnapshotView = 'assigned' | 'unassigned' | 'completed';
+/** Exact sizes of the library's sections, with ready activities counted per view. */
+export type LibraryCounts = Record<'drafts' | SnapshotView | 'archived', number>;
 
 /** Server-enforced limits. The client mirrors them for native validation, caps and copy; the API stays authoritative. */
 export interface ContentLimits {

@@ -19,6 +19,7 @@ import { LoadingIndicator } from '../../../shared/loading-indicator/loading-indi
 import { AssignmentApi } from '../../../core/api/assignment-api';
 import { AssignmentSummary } from '../../../core/api/assignment-models';
 import { ChildSelector } from '../../children/child-selector';
+import { ChildBadge } from '../../../shared/child-badge/child-badge';
 import { DisabledInteractive } from '../../../shared/disabled-interactive';
 import { parentTaskError } from '../../../core/api/parent-task-error';
 
@@ -42,6 +43,7 @@ interface Assigned {
     LoadingIndicator,
     MeasurementList,
     ChildSelector,
+    ChildBadge,
     DisabledInteractive,
   ],
   templateUrl: './snapshot-preview.html',
@@ -66,6 +68,8 @@ export class SnapshotPreviewPage {
   protected readonly assigned = signal<Assigned | undefined>(undefined);
   protected readonly outcomes = outcomes;
   protected readonly assignmentError = signal('');
+  /** The children this activity is assigned to, reread after every assignment change here. */
+  protected readonly work = this.assignmentApi.forSnapshot(this.instanceId);
   protected readonly measurements = computed(() => {
     const snapshot = this.snapshot.hasValue() ? this.snapshot.value() : undefined;
     return snapshot ? measurementItems(snapshot.measurements, snapshot.plan) : [];
@@ -104,7 +108,9 @@ export class SnapshotPreviewPage {
     this.assignmentError.set('');
     try {
       const result = await send();
-      if (!this.lifetime.destroyed && result) this.assigned.set(result);
+      if (this.lifetime.destroyed || !result) return;
+      this.assigned.set(result);
+      this.work.reload();
     } catch (error) {
       if (!this.lifetime.destroyed)
         this.assignmentError.set(

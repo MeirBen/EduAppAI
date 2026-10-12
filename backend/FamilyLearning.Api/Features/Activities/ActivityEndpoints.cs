@@ -33,7 +33,7 @@ public static class ActivityEndpoints
             await Owned(db, user, id).ExecuteDeleteAsync(ct) == 0 ? Results.NotFound() : Results.NoContent());
     }
 
-    private static async Task<IResult> ListAsync(ClaimsPrincipal user, LearningDbContext db, CancellationToken ct, int page = 1, int pageSize = 25)
+    private static async Task<IResult> ListAsync(ClaimsPrincipal user, LearningDbContext db, CancellationToken ct, int page = 1, int pageSize = PageRequest.DefaultSize)
     {
         var paging = new PageRequest(page, pageSize);
         if (!paging.IsValid) return PageRequest.Invalid();

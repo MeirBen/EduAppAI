@@ -32,7 +32,7 @@ public static class ChildEndpoints
         children.MapDelete("/{id:guid}/devices/{grantId:guid}/record", RemoveDeviceAsync);
     }
 
-    private static async Task<IResult> ListAsync(ClaimsPrincipal user, LearningDbContext db, CancellationToken ct, int page = 1, int pageSize = 25)
+    private static async Task<IResult> ListAsync(ClaimsPrincipal user, LearningDbContext db, CancellationToken ct, int page = 1, int pageSize = PageRequest.DefaultSize)
     {
         var paging = new PageRequest(page, pageSize);
         if (!paging.IsValid) return PageRequest.Invalid();
@@ -102,7 +102,7 @@ public static class ChildEndpoints
     }
 
     private static async Task<IResult> DevicesAsync(Guid id, ClaimsPrincipal user, LearningDbContext db, TimeProvider clock, CancellationToken ct,
-        int page = 1, int pageSize = 25)
+        int page = 1, int pageSize = PageRequest.DefaultSize)
     {
         var paging = new PageRequest(page, pageSize);
         if (!paging.IsValid) return PageRequest.Invalid();

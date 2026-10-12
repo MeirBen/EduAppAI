@@ -30,7 +30,12 @@
       );
     background-repeat: no-repeat;
     overflow-wrap: anywhere;
-    text-underline-offset: 0.25em;
+    /*
+     * Below the text's descent, an underline clears Hebrew vowel marks and descenders. Spaces stay
+     * underlined because the default skip drops one beside a number in a Hebrew line, clipping its start.
+     */
+    text-underline-position: under;
+    text-decoration-skip-spaces: none;
 
     &:dir(ltr) {
       --glow-start: left;
@@ -70,6 +75,11 @@
   }
   kbd {
     font-family: inherit;
+  }
+  /* A date reads as one unit: it never breaks inside, and its numbers never reorder the sentence around it. */
+  time {
+    @apply whitespace-nowrap;
+    unicode-bidi: isolate;
   }
   /* A link inside a sentence stays on its line and keeps an underline; standalone actions use `.text-link`. */
   p a:not([class]) {

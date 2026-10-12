@@ -29,7 +29,8 @@ describe('dismissibleTooltips', () => {
     const fixture = TestBed.createComponent(Host);
     const hidden = () => document.documentElement.hasAttribute('data-tooltips-hidden');
     const control = document.createElement('button');
-    control.innerHTML = '<span class="icon"></span><span class="tooltip">הקטנת הסרגל</span>';
+    control.innerHTML =
+      '<span class="icon"></span><span class="tooltip">ביטול השינוי האחרון</span>';
     const other = document.createElement('a');
     document.body.append(control, other);
     const at = (target: Element, type: string) =>

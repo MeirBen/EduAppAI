@@ -236,8 +236,11 @@ public sealed class LibraryChangeTests
 
             await Create(owner, Numeric(1));
             Notified();
-            using (var reset = await owner.DeleteAsync("/api/learning-data")) Assert.Equal(HttpStatusCode.NoContent, reset.StatusCode);
-            Notified();
+            foreach (var data in new[] { "activities", "children" })
+            {
+                using (var reset = await owner.DeleteAsync("/api/learning-data/" + data)) Assert.Equal(HttpStatusCode.NoContent, reset.StatusCode);
+                Notified();
+            }
         }
         finally
         {

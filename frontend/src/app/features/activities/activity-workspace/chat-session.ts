@@ -1,5 +1,5 @@
 import { computed, DestroyRef, inject, signal } from '@angular/core';
-import { disabled, form, maxLength } from '@angular/forms/signals';
+import { disabled, form, maxLength, readonly } from '@angular/forms/signals';
 import { Subject } from 'rxjs';
 import { apiError } from '../../../core/api/api-error';
 import { LearningApi } from '../../../core/api/learning-api';
@@ -52,6 +52,8 @@ export class ChatSession {
   /** Unanswered authoring requests return to the composer on failure, Stop or a local edit. */
   private readonly request = signal<{ id: string; text: string } | undefined>(undefined);
   readonly authoring = computed(() => !!this.request());
+  /** A chat request or a draft operation is running. */
+  readonly busy = computed(() => this.authoring() || this.running());
   readonly pendingMessage = computed(() => this.request()?.text ?? '');
   /** Sent whole with every request and imported on first save; the saved draft's chat then becomes authoritative. */
   readonly authorThread = signal<ImportedChatTurn[]>([]);
@@ -60,13 +62,16 @@ export class ChatSession {
   readonly changes = signal<string[]>([]);
   readonly hasComposerWork = computed(() => !!this.chat().message.trim());
   readonly chatFields = form(this.chat, (path) => {
-    disabled(path, { when: () => this.locked() || this.authoring() });
+    // A running request makes the composer read-only rather than disabled, so its focus stays put.
+    readonly(path, () => this.busy());
+    disabled(path, { when: () => this.locked() && !this.busy() });
     maxLength(path.message, this.limits.messageLength);
   });
 
   constructor(
     private readonly document: () => DocumentForm,
     private readonly locked: () => boolean,
+    private readonly running: () => boolean,
   ) {
     this.lifetime.onDestroy(() => {
       this.request.set(undefined);

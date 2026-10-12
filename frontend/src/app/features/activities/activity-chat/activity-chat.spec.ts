@@ -36,7 +36,7 @@ describe('ActivityChat presentation', () => {
     expect(host.submitted).toBe('כיתה ג');
     host.configured.set(false);
     await fixture.whenStable();
-    expect(root.querySelector<HTMLButtonElement>('#chat-send')!.disabled).toBe(true);
+    expect(root.querySelector('#chat-send')!.getAttribute('aria-disabled')).toBe('true');
   });
 
   it('sends on Enter only, and a suggestion fills the composer without sending', async () => {
@@ -95,34 +95,29 @@ describe('ActivityChat presentation', () => {
     expect(document.activeElement).toBe(document.body);
   });
 
-  it('keeps keyboard focus on the swapped send and stop controls without taking it elsewhere', async () => {
+  it('keeps focus where the parent left it through a request, on its one send and stop control', async () => {
     const fixture = TestBed.createComponent(Host),
       host = fixture.componentInstance;
     host.raw.set({ message: 'כיתה ג' });
+    host.thread.set([{ role: 'assistant', text: 'תשובה' }]);
     await fixture.whenStable();
     const root: HTMLElement = fixture.nativeElement;
-    root.querySelector<HTMLButtonElement>('#chat-send')!.focus();
+    const action = root.querySelector<HTMLButtonElement>('#chat-send')!;
+    action.focus();
     host.busy.set(true);
     await fixture.whenStable();
-    expect(document.activeElement?.id).toBe('chat-cancel');
+    expect(document.activeElement).toBe(action);
+    expect(action.id).toBe('chat-cancel');
     host.busy.set(false);
     await fixture.whenStable();
-    expect(document.activeElement?.id).toBe('chat-message');
-    // Once there is history, a finished reply leaves focus on it rather than in the field.
-    host.thread.set([{ role: 'assistant', text: 'תשובה' }]);
-    root.querySelector<HTMLButtonElement>('#chat-send')!.focus();
-    host.busy.set(true);
-    await fixture.whenStable();
-    host.busy.set(false);
-    await fixture.whenStable();
-    expect(document.activeElement?.getAttribute('role')).toBe('log');
-    const other = document.body.appendChild(document.createElement('input'));
-    other.focus();
+    expect(document.activeElement).toBe(action);
+    expect(action.id).toBe('chat-send');
+    const composer = root.querySelector<HTMLTextAreaElement>('#chat-message')!;
+    composer.focus();
     host.busy.set(true);
     await fixture.whenStable();
     host.busy.set(false);
     await fixture.whenStable();
-    expect(document.activeElement).toBe(other);
-    other.remove();
+    expect(document.activeElement).toBe(composer);
   });
 });

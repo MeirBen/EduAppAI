@@ -214,10 +214,10 @@ describe('Activity lifecycle', () => {
     await click('reload-activity');
     http.expectOne('/api/activity-drafts/draft').flush({ ...savedActivity, revision: 2 });
     await settle();
-    expect(root().querySelector<HTMLButtonElement>('#chat-send')!.disabled).toBe(true);
+    expect(root().querySelector('#chat-send')!.getAttribute('aria-disabled')).toBe('true');
     expect(root().querySelector('#chat-target')!.textContent).toContain('אינו קיים');
     await click('clear-chat-target');
-    expect(root().querySelector<HTMLButtonElement>('#chat-send')!.disabled).toBe(false);
+    expect(root().querySelector('#chat-send')!.hasAttribute('aria-disabled')).toBe(false);
   });
 
   it('keeps focus in chat when a target is cleared', async () => {
@@ -373,7 +373,10 @@ describe('Activity lifecycle', () => {
       await click('chat-send');
       http.expectOne('/api/activity-drafts/draft/operations').flush(requestOperation);
       await settle();
-      expect(root().querySelector<HTMLTextAreaElement>('#chat-message')!.value).toBe('');
+      const composer = root().querySelector<HTMLTextAreaElement>('#chat-message')!;
+      expect(composer.value).toBe('');
+      // While the request runs the composer is read-only, not disabled, so its focus stays put.
+      expect([composer.readOnly, composer.disabled]).toEqual([true, false]);
       await observeOutcome(status, { ...savedActivity, chat: [requestTurn] });
       expect(root().querySelector<HTMLTextAreaElement>('#chat-message')!.value).toBe(
         requestMessage,
@@ -876,6 +879,10 @@ describe('Activity lifecycle', () => {
     await click('create-activity');
     const start = http.expectOne('/api/activity-drafts/draft/operations');
     const body = start.request.body;
+    await settle();
+    // A start that is still answering is not lost, so it offers no recovery yet.
+    expect(root().querySelector('#recover-start')).toBeNull();
+    expect(root().textContent).not.toContain('לא ברור אם הבקשה התקבלה');
     start.error(new ProgressEvent('error'));
     await settle();
     expect(root().querySelector('#create-activity')!.getAttribute('aria-disabled')).toBe('true');

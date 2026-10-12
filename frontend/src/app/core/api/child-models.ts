@@ -13,6 +13,9 @@ export interface LearnerAssignmentSummary {
   revision: number;
   createdAtUtc: string;
   hasStarted: boolean;
+  /** Set only once the work is completed. */
+  finalTotal: number | null;
+  possibleTotal: number | null;
 }
 export interface LearnerInbox {
   items: LearnerAssignmentSummary[];

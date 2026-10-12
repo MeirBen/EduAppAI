@@ -310,7 +310,7 @@ plan and document together.
   manual save, adoption and release clear it; answers, no-ops and failures keep
   it.
 - Both are parent-only: snapshots, child DTOs, library lists and change notes
-  exclude them, and draft deletion or family reset removes them.
+  exclude them, and draft deletion or deleting all activities removes them.
 
 ## API
 

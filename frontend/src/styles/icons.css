@@ -48,11 +48,6 @@
       background-color: CanvasText;
     }
   }
-  /* Beside a label, an icon centers on its first line, so a wrapped label keeps it in place. */
-  :where(.button, .text-link, .nav-link, .chip) > .icon {
-    align-self: start;
-    margin-block-start: calc((1lh - 1.25em) / 2);
-  }
   .icon-users {
     mask-image: var(--icon-users);
   }
@@ -70,9 +65,6 @@
   }
   .icon-clock {
     mask-image: var(--icon-clock);
-  }
-  .icon-chevron {
-    mask-image: var(--icon-chevron);
   }
   .icon-close {
     mask-image: var(--icon-close);
@@ -95,6 +87,15 @@
   .icon-back {
     mask-image: var(--icon-back);
     @apply ltr:-scale-x-100;
+  }
+  /* Paging chevrons: a turned chevron mirrors by turning the other way. */
+  .icon-previous {
+    mask-image: var(--icon-chevron);
+    @apply -rotate-90 ltr:rotate-90;
+  }
+  .icon-next {
+    mask-image: var(--icon-chevron);
+    @apply rotate-90 ltr:-rotate-90;
   }
   .icon-undo {
     mask-image: var(--icon-undo);

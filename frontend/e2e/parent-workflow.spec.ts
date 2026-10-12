@@ -395,13 +395,19 @@ test('library deletion confirms intent, preserves independent items, recovers fr
   await page.goto('/activities');
   const independentDrafts = page.locator('section[aria-labelledby="drafts-title"]');
   const snapshots = page.locator('section[aria-labelledby="ready-title"]');
+  // Drafts start folded; only ready activities open with the page.
+  await page.locator('#drafts-title').click();
   page.once('dialog', (dialog) => dialog.dismiss());
   await independentDrafts.getByRole('button', { name: /^מחיקה: / }).click();
   await expect(independentDrafts.locator('article')).toHaveCount(1);
   page.once('dialog', (dialog) => dialog.accept());
   await independentDrafts.getByRole('button', { name: /^מחיקה: / }).click();
   await expect(independentDrafts.locator('article')).toHaveCount(0);
+  // A fresh activity waits under "לא הוקצו"; the list opens on assigned work.
+  await expect(snapshots.locator('article')).toHaveCount(0);
+  await snapshots.locator('label', { hasText: 'לא הוקצו' }).click();
   await expect(snapshots.locator('article')).toHaveCount(1);
+  await snapshots.locator('label', { hasText: 'מוקצות' }).click();
   expect((await page.request.get(state.draftPath)).status()).toBe(200);
   const profileResponse = await page.request.post('/api/children', {
     headers: parentHeaders,
@@ -457,7 +463,7 @@ test('library deletion confirms intent, preserves independent items, recovers fr
   const savedSession = await save.json();
   expect(savedSession.answers).toEqual(answers);
   expect(await (await childRequest.get(sessionPath)).json()).toEqual(savedSession);
-  await expect(snapshots.getByText('הוקצתה', { exact: true })).toBeVisible();
+  await expect(snapshots.getByText(/^הוקצתה לאחרונה ב־/)).toBeVisible();
   page.once('dialog', async (dialog) => {
     expect(dialog.message()).toContain('ארכיון');
     expect(dialog.message()).toContain('לצמיתות');
@@ -513,22 +519,27 @@ test('library deletion confirms intent, preserves independent items, recovers fr
     verifyParentReview(page, childRequest, profile.id));
   await page.goto('/activities');
 
-  await page.route('**/api/learning-data', async (route) => {
+  await page.route('**/api/learning-data/*', async (route) => {
     if (route.request().method() === 'DELETE')
       await route.fulfill({ status: 500, json: { title: 'המחיקה נכשלה' } });
     else await route.continue();
   });
   await page.getByText('ניהול נתונים', { exact: true }).click();
   page.once('dialog', (dialog) => dialog.accept());
-  await page.getByRole('button', { name: 'איפוס נתוני הלמידה' }).click();
+  await page.getByRole('button', { name: 'מחיקת נתוני הילדים' }).click();
   await expect(page.getByRole('alert')).toBeVisible();
   await expect(snapshots.locator('article')).toHaveCount(0);
   expect((await childRequest.get(`${childBase}/api/child/auth/me`)).status()).toBe(200);
   expect(await (await childRequest.get(sessionPath)).json()).toEqual(completed);
-  await page.unroute('**/api/learning-data');
-  page.once('dialog', (dialog) => dialog.accept());
-  await page.getByRole('button', { name: 'איפוס נתוני הלמידה' }).click();
-  await expect(page.getByText('נתוני הלמידה נמחקו.', { exact: true })).toBeVisible();
+  await page.unroute('**/api/learning-data/*');
+  for (const [name, done] of [
+    ['מחיקת נתוני הילדים', 'נתוני הילדים נמחקו.'],
+    ['מחיקת כל הפעילויות', 'כל הפעילויות נמחקו.'],
+  ]) {
+    page.once('dialog', (dialog) => dialog.accept());
+    await page.getByRole('button', { name }).click();
+    await expect(page.getByText(done, { exact: true })).toBeVisible();
+  }
   await expect(snapshots.locator('article')).toHaveCount(0);
   expect((await page.request.get(state.draftPath)).status()).toBe(404);
   expect((await page.request.get('/api/auth/me')).status()).toBe(200);
@@ -549,6 +560,7 @@ test('library deletion confirms intent, preserves independent items, recovers fr
   });
   const draft = await created.json();
   const drafts = page.locator('section[aria-labelledby="drafts-title"]');
+  await page.locator('#drafts-title').click();
   await drafts.getByRole('link', { name: plan.name }).click();
   await expect(page.locator('#create-activity')).toBeVisible();
   const saved = await page.request.put(`/api/activity-drafts/${draft.id}`, {

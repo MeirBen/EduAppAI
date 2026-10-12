@@ -20,6 +20,13 @@ export class ParentChildrenApi {
       params: { page: page() },
     }));
   }
+  /** Every profile a picker offers, read as the server's largest page. */
+  childOptions() {
+    return httpResource<Page<ChildSummary>>(() => ({
+      url: '/api/children',
+      params: { pageSize: 100 },
+    }));
+  }
   devices(childId: () => string | undefined, page: () => number) {
     return httpResource<Page<ChildDevice>>(() =>
       childId()

@@ -166,8 +166,9 @@ queued events. These are operational logs, not an audit ledger.
 ## Data
 
 Library removal deletes unassigned snapshots and archives assigned ones.
-**איפוס נתוני הלמידה** clears all family learning records and child access after
-confirmation, keeping parent accounts and AI configuration. See
+Under **ניהול נתונים**, **מחיקת כל הפעילויות** deletes every activity with the
+work assigned in it, and **מחיקת נתוני הילדים** deletes profiles, device access
+and assigned work; both keep parent accounts and AI configuration. See
 [retention and reset](docs/product-specification.md#retention-and-reset) for the
 full deletion contract.
 

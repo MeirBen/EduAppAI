@@ -29,7 +29,7 @@ public sealed class AssignmentRetentionTests
         var assignment = await Assign(parent, profile, snapshotId);
         var original = (await parent.GetFromJsonAsync<JsonNode>($"/api/instances/{snapshotId}"))!;
         var summary = Assert.Single((await parent.GetFromJsonAsync<JsonNode>("/api/instances"))!["items"]!.AsArray())!;
-        Assert.True(summary["hasAssignments"]!.GetValue<bool>());
+        Assert.NotNull(summary["assignedAtUtc"]);
         Assert.Equal(HttpStatusCode.NotFound, (await stranger.DeleteAsync($"/api/instances/{snapshotId}")).StatusCode);
         Assert.Equal(HttpStatusCode.NoContent, (await parent.DeleteAsync($"/api/instances/{snapshotId}")).StatusCode);
         var archived = (await parent.GetFromJsonAsync<JsonNode>($"/api/instances/{snapshotId}"))!;
@@ -78,8 +78,11 @@ public sealed class AssignmentRetentionTests
         var archived = Assert.Single((await parent.GetFromJsonAsync<JsonNode>("/api/instances/archive"))!["items"]!.AsArray())!;
         Assert.Equal(snapshotId, archived["id"]!.GetValue<Guid>());
         Assert.NotNull(archived["archivedAtUtc"]);
-        Assert.True(archived["hasAssignments"]!.GetValue<bool>());
+        Assert.NotNull(archived["assignedAtUtc"]);
         Assert.Equal(kept, Assert.Single((await parent.GetFromJsonAsync<JsonNode>("/api/instances"))!["items"]!.AsArray())!["id"]!.GetValue<Guid>());
+        var counts = (await parent.GetFromJsonAsync<JsonNode>("/api/library/counts"))!;
+        Assert.Equal(1, counts["assigned"]!.GetValue<int>());
+        Assert.Equal(1, counts["archived"]!.GetValue<int>());
         Assert.Empty((await stranger.GetFromJsonAsync<JsonNode>("/api/instances/archive"))!["items"]!.AsArray());
         Assert.Equal(HttpStatusCode.NotFound, (await stranger.DeleteAsync(archive)).StatusCode);
 
@@ -92,6 +95,7 @@ public sealed class AssignmentRetentionTests
         changes.Unsubscribe(familyId, stream);
         Assert.Equal(HttpStatusCode.NotFound, (await parent.DeleteAsync(archive)).StatusCode);
         Assert.Empty((await parent.GetFromJsonAsync<JsonNode>("/api/instances/archive"))!["items"]!.AsArray());
+        Assert.Equal(0, (await parent.GetFromJsonAsync<JsonNode>("/api/library/counts"))!["archived"]!.GetValue<int>());
         Assert.Equal(HttpStatusCode.NotFound, (await parent.GetAsync($"/api/instances/{snapshotId}")).StatusCode);
         Assert.Equal(HttpStatusCode.NotFound, (await parent.GetAsync("/api/assignments/" + assignment["id"]!.GetValue<Guid>())).StatusCode);
         Assert.Equal(HttpStatusCode.NotFound, (await child.GetAsync(SessionPath(assignment))).StatusCode);
@@ -191,7 +195,7 @@ public sealed class AssignmentRetentionTests
         using (var scope = h.App.Services.CreateScope())
             await scope.ServiceProvider.GetRequiredService<LearningDbContext>().Database.ExecuteSqlRawAsync(
                 "CREATE TRIGGER prevent_snapshot_reset BEFORE DELETE ON TaskSnapshots BEGIN SELECT RAISE(ABORT, 'isolated'); END;");
-        Assert.Equal(HttpStatusCode.InternalServerError, (await parent.DeleteAsync("/api/learning-data")).StatusCode);
+        Assert.Equal(HttpStatusCode.InternalServerError, (await parent.DeleteAsync("/api/learning-data/activities")).StatusCode);
         Assert.Equal(HttpStatusCode.OK, (await child.GetAsync("/api/child/auth/me")).StatusCode);
         Assert.Single((await parent.GetFromJsonAsync<JsonNode>("/api/assignments?pageSize=100&page=2"))!["items"]!.AsArray());
         using (var scope = h.App.Services.CreateScope())
@@ -200,9 +204,12 @@ public sealed class AssignmentRetentionTests
             Assert.Equal(102, await db.TaskSessions.CountAsync());
             await db.Database.ExecuteSqlRawAsync("DROP TRIGGER prevent_snapshot_reset;");
         }
-        Assert.Equal(HttpStatusCode.NoContent, (await parent.DeleteAsync("/api/learning-data")).StatusCode);
+        Assert.Equal(HttpStatusCode.NoContent, (await parent.DeleteAsync("/api/learning-data/children")).StatusCode);
         Assert.Empty((await parent.GetFromJsonAsync<JsonNode>("/api/assignments"))!["items"]!.AsArray());
         Assert.Equal(HttpStatusCode.Unauthorized, (await child.GetAsync("/api/child/auth/me")).StatusCode);
+        // Deleting children's data keeps the library's activities.
+        Assert.NotEmpty((await parent.GetFromJsonAsync<JsonNode>("/api/instances"))!["items"]!.AsArray());
+        Assert.Equal(HttpStatusCode.NoContent, (await parent.DeleteAsync("/api/learning-data/activities")).StatusCode);
         Assert.Equal(HttpStatusCode.OK, (await stranger.GetAsync("/api/assignments/" + foreignAssignment["id"]!.GetValue<Guid>())).StatusCode);
         using var verification = h.App.Services.CreateScope();
         var remaining = verification.ServiceProvider.GetRequiredService<LearningDbContext>();

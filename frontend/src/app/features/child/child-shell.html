@@ -8,14 +8,16 @@
           routerLinkActive
           [routerLinkActiveOptions]="{ exact: true }"
           ariaCurrentWhenActive="page"
-          ><span class="icon icon-home" aria-hidden="true"></span><span>הפעילויות שלי</span></a
+          ><span class="icon icon-home" aria-hidden="true"></span><span>הפעילויות שלי</span
+          ><span class="tooltip" aria-hidden="true">הפעילויות שלי</span></a
         >
         <button
           class="nav-link nav-link-quiet"
           [disabledInteractive]="signingOut()"
           (click)="logout()"
         >
-          <span class="icon icon-sign-out" aria-hidden="true"></span><span>יציאה</span>
+          <span class="icon icon-sign-out" aria-hidden="true"></span><span>יציאה</span
+          ><span class="tooltip" aria-hidden="true">יציאה</span>
         </button>
       </nav>
     }

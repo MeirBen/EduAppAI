@@ -8,13 +8,16 @@
           routerLinkActive
           [routerLinkActiveOptions]="{ exact: true }"
           ariaCurrentWhenActive="page"
-          ><span class="icon icon-home" aria-hidden="true"></span><span>המרחב שלנו</span></a
+          ><span class="icon icon-home" aria-hidden="true"></span><span>המרחב שלנו</span
+          ><span class="tooltip" aria-hidden="true">המרחב שלנו</span></a
         >
         <a class="nav-link" routerLink="/children" routerLinkActive ariaCurrentWhenActive="page"
-          ><span class="icon icon-users" aria-hidden="true"></span><span>הילדים</span></a
+          ><span class="icon icon-users" aria-hidden="true"></span><span>הילדים</span
+          ><span class="tooltip" aria-hidden="true">הילדים</span></a
         >
         <a class="nav-link" routerLink="/assignments" routerLinkActive ariaCurrentWhenActive="page"
-          ><span class="icon icon-tasks" aria-hidden="true"></span><span>פעילויות לילדים</span></a
+          ><span class="icon icon-tasks" aria-hidden="true"></span><span>פעילויות לילדים</span
+          ><span class="tooltip" aria-hidden="true">פעילויות לילדים</span></a
         >
         <button
           class="nav-link nav-link-quiet"
@@ -22,7 +25,8 @@
           [disabledInteractive]="signingOut()"
         >
           <span class="icon icon-sign-out" aria-hidden="true"></span
-          ><span>{{ signingOut() ? 'מתנתקים…' : 'יציאה' }}</span>
+          ><span>{{ signingOut() ? 'מתנתקים…' : 'יציאה' }}</span
+          ><span class="tooltip" aria-hidden="true">יציאה</span>
         </button>
       </nav>
     }

@@ -153,7 +153,7 @@
         <ng-container [ngTemplateOutlet]="operationStatus" />
       }
       @if (actionBar()) {
-        <section class="action-bar" actionBar aria-labelledby="actions-title">
+        <section class="action-bar" aria-labelledby="actions-title">
           <h2 id="actions-title" class="sr-only">שמירה ופעולות</h2>
           @if (activityError()?.message || readError()) {
             <div class="flex flex-wrap items-center gap-x-4">
@@ -278,7 +278,6 @@
                 ><span class="tooltip">ביטול השינוי האחרון</span>
               </button>
               <span role="status">{{ notice() }}</span>
-              <app-action-bar-toggle />
             </div>
           </div>
           <app-loading-indicator [active]="copying()" label="יוצרים טיוטה חדשה…" />
@@ -341,7 +340,7 @@
   <app-activity-chat
     [fields]="chatSession.chatFields"
     [configured]="aiConfigured()"
-    [busy]="chatSession.authoring() || operationActive()"
+    [busy]="chatSession.busy()"
     [stopping]="saving()"
     [locked]="locked() || chatSession.invalidTarget()"
     [targetLabel]="chatSession.targetLabel()"

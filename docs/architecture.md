@@ -47,6 +47,7 @@ All routes are under `/api`; writes enforce CSRF.
 | `POST ai/activity-plans`                  | Unsaved proposal           |
 | `GET activity-drafts`, `GET instances`    | Library pages              |
 | `GET instances/archive`                   | Archived snapshots page    |
+| `GET library/counts`                      | Exact section/view sizes   |
 | `POST activity-drafts`                    | Named draft; retry replays |
 | `PUT activity-drafts/{id}`                | Save a revision            |
 | `POST activity-drafts/{id}/operations`    | Idempotent start           |
@@ -57,7 +58,9 @@ All routes are under `/api`; writes enforce CSRF.
 | `DELETE activity-drafts/{id}`             | Draft and operations       |
 | `DELETE instances/{id}`                   | Archive or delete snapshot |
 | `DELETE instances/archive/{id}`           | Delete archived with work  |
-| `DELETE learning-data`                    | Family learning reset      |
+| `GET assignments/counts`                  | Parent list view sizes     |
+| `DELETE learning-data/activities`         | All activities with work   |
+| `DELETE learning-data/children`           | All children's data        |
 | `GET library/changes`                     | Change notes (SSE)         |
 
 `EngineValidation` names every client-visible limit once; validators, their
@@ -133,8 +136,8 @@ An EF concurrency token guards each draft write. One `SaveChanges` creates the
 snapshot and marks the draft terminal, and a unique source-draft index prevents
 duplicate releases; replay returns the original snapshot, or 410 if it was
 deleted. Source draft/snapshot IDs are detached provenance, so draft deletion
-never erases snapshots. Family reset deletes learning records atomically while
-keeping accounts.
+never erases snapshots. The two data deletions each delete assigned work first,
+then activities or children, atomically while keeping accounts.
 
 Migrations are checked in and never edited once applied. Development applies
 them at startup; Production requires `--migrate`. The `ActivityOnly` migration
@@ -283,8 +286,22 @@ keeps its 204 contract; UI copy covers deletion and archiving because concurrent
 assignment can change the outcome. Deleting from the archive is a separate
 command that finds only archived, family-owned snapshots (404 otherwise) and
 deletes their sessions, assignments and the snapshot in one transaction, in
-the reset's order; creation and restore already refuse archived content, so no
-race can attach new work.
+the data deletions' order; creation and restore already refuse archived
+content, so no race can attach new work.
+
+The ready list's `status` puts every snapshot in one view: `assigned` while any
+work is assigned or awaiting review, else `completed` once any is finished, else
+`unassigned`; withdrawn work counts neither way. One `InView` rule serves the
+list and its counts. Each row carries its latest open assignment and completion
+and every child's current work (`GET assignments?snapshotId=` lists the same
+work for an activity's page), and lists sort by the date a row shows: archiving,
+else the latest open assignment, else the latest completion, else the review.
+Library rows list each child's completed result, and assignment summaries carry
+final and possible totals once completed. Totals are never stored twice: queries
+read them from the frozen evaluation JSON with SQLite's built-in `json_extract`,
+mapped as `LearningDbContext.JsonInteger`. `GET library/counts` returns drafts,
+each ready view and archived sizes in one query, and `GET assignments/counts`
+the parent list's view sizes, for one child or the family, in one grouped query.
 
 ## Tests
 
@@ -369,20 +386,21 @@ loads once per sign-in and the server's `ContentLimits` once per tab, both
 before a private page renders; forms, caps and copy read the limits through
 `Limits`. The server still authorizes and validates every request.
 
-Parent management pages own bounded list resources and local buffers. The paged
-child selector retains selection; assignment filters include disabled profiles,
-and the list's views map to the server's `open`, `completed` and `withdrawn`
-statuses.
-Refreshes preserve unsaved edits. Activation codes live only in page memory and
-clear on selection/destruction. Frozen previews distinguish new assignments
-from replay. Result pages read frozen answers/evaluation without starting work
-and follow notes, so a submission shows by itself; the report request changes
-only when the work becomes submitted, and a shown report is never replaced
-implicitly. Pending grades start blank, use frozen integer bounds and finalize
-together.
-Failed writes preserve grades and block resubmission until an explicit saved
-read; loading completed grades requires confirmation. Route/browser-close guards
-protect edits. Conflict copy belongs to its feature.
+Parent management pages own bounded list resources and local buffers. A list or
+count keeps showing its last value while the next page or filter loads
+(`shownValue`), so it never collapses, shifts or drops focus. The child selector
+reads every profile in one bounded page; assignment filters include disabled
+profiles, and the list's views map to the server's `open`, `completed` and
+`withdrawn` statuses. Refreshes preserve unsaved edits. Activation codes live
+only in page memory and clear on selection/destruction. Frozen previews
+distinguish new assignments from replay. Result pages read frozen
+answers/evaluation without starting work and follow notes, so a submission shows
+by itself; the report request changes only when the work becomes submitted, and
+a shown report is never replaced implicitly. Pending grades start blank, use
+frozen integer bounds and finalize together. Failed writes preserve grades and
+block resubmission until an explicit saved read; loading completed grades
+requires confirmation. Route/browser-close guards protect edits. Conflict copy
+belongs to its feature.
 
 `ChildAuth` supplies learner identity and answer-length limit. Cancellable
 guards route 401 to activation and availability errors to retry. Activation
@@ -450,7 +468,9 @@ new attempt. The saved source/text diagnostics offer question regeneration or
 validated adoption, including after reload. Approval requires a complete,
 valid, clean saved revision, freezes it without AI and never assigns it.
 
-Polling reads operation status before its draft. Only a confirmed revision
+A start is recorded for recovery only after an uncertain response; while it is
+answering, the draft request's own lock fences the page. Polling reads operation
+status before its draft. Only a confirmed revision
 with an unchanged local-edit fence applies automatically; other content is
 offered for explicit reload. Lost start responses retain the exact key/payload
 for reconciliation. Failed candidates remain technical evidence and cannot
@@ -464,8 +484,8 @@ page's own writes settle, and keeping shown rows meanwhile, so loading states
 appear only before a list's first value. The library's resources fail
 independently, and its archive reads only while open. A confirmed deletion
 removes its row from the shown page, stepping back when that empties a later
-page; a removed ready activity rereads an open archive, and a reset rereads every
-first page.
+page; a removed ready activity rereads an open archive, and a data deletion
+rereads the first page of every list it changed.
 
 `draft-observer` owns one read lifecycle for SSE hints, active-operation polling
 and explicit reloads. Hints during a read coalesce into one trailing read.

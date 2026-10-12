@@ -24,6 +24,7 @@ import { LoadingIndicator } from '../../shared/loading-indicator/loading-indicat
 import { CopyButton } from '../../shared/copy-button/copy-button';
 import { parentTaskError } from '../../core/api/parent-task-error';
 import { Pager } from '../../shared/pager/pager';
+import { shownValue } from '../../core/api/shown-value';
 import { writeError } from '../../core/api/api-error';
 import { liveLists } from '../../core/api/live-lists';
 
@@ -58,6 +59,8 @@ export class ChildrenPage {
   protected readonly selected = signal<ChildSummary | undefined>(undefined);
   protected readonly devicePage = signal(1);
   protected readonly devices = this.api.devices(() => this.selected()?.id, this.devicePage);
+  protected readonly shownChildren = shownValue(this.children);
+  protected readonly shownDevices = shownValue(this.devices, () => this.selected()?.id);
   /** The panel whose action is running; while one runs, every action waits. */
   protected readonly working = signal<'profile' | 'access' | undefined>(undefined);
   protected readonly busy = computed(() => !!this.working());

@@ -20,7 +20,10 @@ import { LoadingIndicator } from '../../shared/loading-indicator/loading-indicat
 import { ChildSelector } from '../children/child-selector';
 import { assignmentState, assignmentViews } from './assignment-presentation';
 import { parentTaskError } from '../../core/api/parent-task-error';
+import { Count } from '../../shared/count/count';
 import { Pager } from '../../shared/pager/pager';
+import { shownValue } from '../../core/api/shown-value';
+import { ChildBadge } from '../../shared/child-badge/child-badge';
 import { writeError } from '../../core/api/api-error';
 
 const changed = {
@@ -35,6 +38,7 @@ const changed = {
 @Component({
   selector: 'app-assignment-list',
   imports: [
+    Count,
     DatePipe,
     RouterLink,
     ChildSelector,
@@ -42,6 +46,7 @@ const changed = {
     LiveStatus,
     LoadingIndicator,
     Pager,
+    ChildBadge,
   ],
   templateUrl: './assignment-list.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -62,13 +67,16 @@ export class AssignmentList {
     childId: this.childId(),
     status: this.view(),
   }));
+  protected readonly shownAssignments = shownValue(this.assignments);
   protected readonly views = assignmentViews;
   protected readonly emptyView = computed(
     () => assignmentViews.find((option) => option.value === this.view())!.empty,
   );
   protected readonly assignmentState = assignmentState;
   protected readonly busy = signal(false);
-  protected readonly live = liveLists([this.assignments], { busy: this.busy });
+  protected readonly counts = this.api.counts(this.childId);
+  private readonly shownCounts = shownValue(this.counts);
+  protected readonly live = liveLists([this.assignments, this.counts], { busy: this.busy });
   private pendingFocus?: () => void;
   // A reload retains old rows until its response; restore only after that response removes the button.
   private readonly restoreAfterLoad = whenIdle(
@@ -94,6 +102,9 @@ export class AssignmentList {
     )
       return this.change(assignment, 'withdraw');
     return undefined;
+  }
+  protected count(view: AssignmentView) {
+    return this.shownCounts()?.[view];
   }
   private idle() {
     return !this.busy() && !this.assignments.isLoading();

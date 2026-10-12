@@ -9,11 +9,13 @@ import {
   ActivityDetail,
   ActivitySummary,
   ImportedChatTurn,
+  LibraryCounts,
   EditableActivity,
   StartGeneration,
   GenerationOperation,
   SnapshotPreview,
   SnapshotSummary,
+  SnapshotView,
 } from './models';
 import { Page } from './assignment-models';
 
@@ -135,18 +137,17 @@ export class LearningApi {
       lifetime,
     );
   }
-  snapshots(page: () => number) {
+  snapshots(filter: () => { page: number; status: SnapshotView }) {
+    return httpResource<Page<SnapshotSummary>>(() => ({ url: '/api/instances', params: filter() }));
+  }
+  libraryCounts() {
+    return httpResource<LibraryCounts>(() => '/api/library/counts');
+  }
+  archivedSnapshots(page: () => number) {
     return httpResource<Page<SnapshotSummary>>(() => ({
-      url: '/api/instances',
+      url: '/api/instances/archive',
       params: { page: page() },
     }));
-  }
-  /** Archived snapshots, read only while `page` names one. */
-  archivedSnapshots(page: () => number | undefined) {
-    return httpResource<Page<SnapshotSummary>>(() => {
-      const number = page();
-      return number ? { url: '/api/instances/archive', params: { page: number } } : undefined;
-    });
   }
   snapshot(id: () => string) {
     return httpResource<SnapshotPreview>(() => `/api/instances/${id()}`);
@@ -170,9 +171,12 @@ export class LearningApi {
       lifetime,
     );
   }
-  /** Clears all family content, children, device access and assigned work beyond list limits; keeps accounts and AI settings. */
-  resetLibrary(lifetime: DestroyRef) {
-    return requestResult(this.http.delete<void>('/api/learning-data'), lifetime);
+  /**
+   * Deletes every activity with the work assigned in it, or all children's data with the archive kept for that work.
+   * Parent accounts and AI settings always stay.
+   */
+  deleteData(kind: 'activities' | 'children', lifetime: DestroyRef) {
+    return requestResult(this.http.delete<void>(`/api/learning-data/${kind}`), lifetime);
   }
   /** Removes a snapshot from the library: archives assigned content, deletes unassigned content; other items remain. */
   deleteSnapshot(id: string, lifetime: DestroyRef) {

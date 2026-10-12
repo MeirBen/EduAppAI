@@ -39,6 +39,8 @@ export interface ChildActivation {
 export type AssignmentStatus = 'assigned' | 'withdrawn' | 'awaiting-review' | 'completed';
 /** A list filter: open work is assigned or awaiting the parent's review. */
 export type AssignmentView = 'open' | 'completed' | 'withdrawn';
+/** Exact sizes of the list's views. */
+export type AssignmentCounts = Record<AssignmentView, number>;
 export interface AssignmentSummary {
   id: string;
   childId: string;
@@ -49,7 +51,15 @@ export interface AssignmentSummary {
   revision: number;
   createdAtUtc: string;
   hasStarted: boolean;
+  /** Set only once the work is completed. */
+  finalTotal: number | null;
+  possibleTotal: number | null;
 }
+/** One child's work as listed with its activity; completed work carries its final score. */
+export type AssignedChild = Pick<
+  AssignmentSummary,
+  'childName' | 'status' | 'finalTotal' | 'possibleTotal'
+>;
 /** Parent-only frozen content and answer keys; never consume from child routes. */
 export interface AssignmentDetail {
   assignment: AssignmentSummary;

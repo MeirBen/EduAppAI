@@ -25,8 +25,9 @@ parent labels keep their original language and values.
 - Use the shared light/dark theme tokens, visible focus/error states and locally
   bundled Heebo in three weights: semibold headings with snug leading, medium
   field captions and actions, and regular body, option and help text with the
-  theme's 1.7 leading. Underlines share one offset; Hebrew text keeps its
-  natural letter spacing.
+  theme's 1.7 leading. Underlines sit under the text
+  (`text-underline-position: under`), clearing vowel marks and descenders;
+  Hebrew text keeps its natural letter spacing.
 - Use `panel` for raised surfaces and `button` for primary actions; add
   `button-secondary`, or the quiet `button-danger` for destructive actions
   guarded by a confirmation. Actions size to their content. Keep one prominent
@@ -40,10 +41,9 @@ parent labels keep their original language and values.
   keeps focus clear of it. Its main row is `action-bar-row`: the actions, then
   `action-bar-status`, which ends at the far edge. Every action leads with an
   icon and keeps its label as its accessible name; on phones secondary actions
-  show only the icon, so the row stays one line at normal text sizes. On long
-  working pages (`actionBar` with `app-action-bar-toggle`) the pinned bar can
-  shrink to one row of icons; an alert always shows it whole. The `save-state`
-  is announced on every change and shows only when it needs attention.
+  show only the icon, so the row stays one line at normal text sizes. The
+  `save-state` is announced on every change and shows only when it needs
+  attention.
 - Pages opened from the library lead back with a link above their heading. A
   `list-row` with a `row-link` opens from anywhere on the row, which shows the
   link's hover and focus; the row's other actions stay separate controls. A
@@ -57,7 +57,9 @@ parent labels keep their original language and values.
   assistive technology. Tooltips show on hover or keyboard focus; Escape hides
   them, and pressing a control hides its tooltip until the pointer or focus
   leaves it; anchor positioning keeps them within the window. Actions with
-  lasting effects keep their visible label.
+  lasting effects keep their visible label. Where a `nav-link` or an `icon-only`
+  row action keeps only its icon on narrow screens, an `aria-hidden` tooltip
+  shows that label there.
 - Keep hover/press feedback brief, exclude disabled controls and respect reduced
   motion. Use theme shadows and colors rather than page-specific copies.
 - Actions show a 2px offset focus ring. Fields tint their own edge instead, in
@@ -125,7 +127,9 @@ its alert above an `icon-refresh` retry link in a `grid gap-2`.
 | `mt-2`            | Hint/help/error below its control                        |
 
 Keep each label/control in one field block, not separate gapped children.
-Disclosures own summary/content spacing; empty live regions occupy no slot.
+Disclosures own summary/content spacing; empty live regions occupy no slot,
+except a bounded chat's thinking row, which keeps its place once a conversation
+starts.
 Use `role="group"` with an inset heading for grouped card fields, not a
 `.well` fieldset legend; later headed groups use `card-section`. Related
 fields share rows: two-column settings, sibling numbers and list-item remove
@@ -181,7 +185,10 @@ Repeated treatments become primitives, with state from `aria-current`,
 CSS in these shared layers; components own markup, behavior and layout
 utilities, without local stylesheets, inline visual overrides or separate theme
 branches. The shared `chat-panel` bounds desktop conversation history while
-keeping the composer visible; below desktop width it is a sheet over the page.
+keeping the composer visible; below desktop width it is a sheet over the page
+that, where the action bar is pinned and anchor positioning works, rises from
+the bar at its width (`anchor-name: --action-bar`), and otherwise from the
+window's edge. An empty conversation hides its history until the first request.
 Give `steps` `role="list"` to preserve WebKit list semantics.
 
 A theme redefines semantic `--color-*` tokens and, optionally, the corner and
@@ -215,14 +222,15 @@ aligned. Use logical spacing (`ms`, `me`, `ps`, `pe`, `inset-s`, `inset-e`) and
 normal DOM order. Use `dir="auto"` for learning-text blocks such as titles,
 instructions and materials. Wrap inline user values and question prompts,
 options and answers in `<bdi>`, so their own direction never moves them out of
-the page's alignment or reorders a calculation. `<option>` text cannot hold
-markup, so wrap its user values in first-strong isolates (`&#x2068;…&#x2069;`).
-Isolate email and numeric inputs as LTR. Bind text fields' `dir` with
-`[formField]`: `FieldDirection` keeps an empty `auto` field in the page
-direction, so the caret and placeholder start on the page's side. Back arrows
-point right, and decorative gradients start at the reading edge. Dates display
-in Hebrew with a month name and local time through the app-wide `DatePipe`
-default, while stored timestamps remain UTC.
+the page's alignment or reorders a calculation. Formatted dates are `<time>`
+elements: one unit that never breaks inside or reorders the sentence around it.
+`<option>` text cannot hold markup, so wrap its user values in first-strong
+isolates (`&#x2068;…&#x2069;`). Isolate email and numeric inputs as LTR. Bind
+text fields' `dir` with `[formField]`: `FieldDirection` keeps an empty `auto`
+field in the page direction, so the caret and placeholder start on the page's
+side. Back arrows point right, and decorative gradients start at the reading
+edge. Dates display in Hebrew with a month name and local time through the
+app-wide `DatePipe` default, while stored timestamps remain UTC.
 
 Read every size limit, count cap and the numbers in their messages from the
 server's `Limits`; child answer controls use `ChildSessionIdentity.answerLength`
@@ -255,12 +263,12 @@ saved text; the settings summary uses application-owned labels.
 ## Parent learning management
 
 Family pages are destinations in the header's primary nav. Library, profile
-and assignment lists use shared rows, native controls and `Pager`, which stays
-hidden while a list fits on one page; a count badge appears only while one page
-holds the whole list. On wide screens the profile list sits beside its editor,
-and the row being edited carries `aria-current="true"`. Empty states name the
-next step, or say that a filter or later page has
-nothing more. Separate profile edits from device access; confirmations explain
+and assignment lists use shared rows, native controls and `Pager`: chevron
+icon buttons around the page number, hidden while a list fits on one page. On
+wide screens the profile list sits beside its editor, and the row being edited
+carries `aria-current="true"`.
+Empty states name the next step, or say that a filter or later page has nothing
+more. Separate profile edits from device access; confirmations explain
 disable/revoke effects. Activation codes show large as `XXXX-XXXX`, selectable
 with expiry, never in URLs or persistent browser storage. Withdrawn rows offer
 restore, which needs no confirmation. Withdraw and restore keep their labels and
@@ -277,11 +285,35 @@ reconnects and rereads. A status `badge` and its row's `icon-tile` share one
 activity for the child), `done` is finished and `quiet` is history (withdrawn,
 archived); work in progress has none.
 
-The assignments page opens on **פתוחות** (assigned or awaiting review), with
-**הושלמו** and **בוטלו** as the other `segmented` views and a child filter beside
-them. The library keeps a collapsed **ארכיון** disclosure below its lists; it
-reads only while open, and deleting from it names the children's answers and
+Filters form one toolbar row: a `segmented` view switch, which is a control's
+height, beside fields whose label is screen-reader-only there. Its labels never
+wrap; on phones it spans the row and its segments share it, like the full-width
+fields below it. The assignments page opens on **פתוחות** (assigned or awaiting
+review), with **הושלמו** and **בוטלו** as the other views and a child filter
+beside them. Every view label, here and in the library, carries its exact size
+in `Count`.
+
+The library's drafts, ready activities and archive are `section-fold`
+disclosures whose summary is the section heading with its exact `Count` (a quiet
+0 when empty), so a folded section still says what it holds. A `Count` keeps its
+place unseen until known and its last value while a filter rereads, so counts
+never shift the layout. Ready rows show what put them in their view, newest
+first: **הוקצתה לאחרונה**, **הושלמה** (when the last child finished) or
+**אושרה** with its date, and each child as a `ChildBadge`: the name while the
+work is open, the banded score once completed. An activity's page names the same
+children, and an assignment row shows its child as that badge under the
+activity's title. Ready activities open with the page unless that first count is
+0; drafts and the archive start folded. Later view switches and changes never
+fold or unfold them. Ready activities open on **מוקצות** (work with the children
+or awaiting review), with **לא הוקצו** and **הושלמו** beside it; their count is
+every ready activity. Deleting from the archive names the children's answers and
 grades it erases.
+
+A final score shows as one `ScoreBadge`, wherever it appears (ready and
+archived rows by child, completed assignment rows, the result page and the
+child's receipt and list): `data-band` `high` from 80%, `mid` from 55% and
+`low` below, in existing contrast-checked pairs, with the percentage as its
+text.
 
 Grade (free text) and age (LTR integer, server bounds) are optional; each can
 be cleared, with no age-confirmation checkbox. Keep secondary dates under native
@@ -353,27 +385,32 @@ incomplete content saves and resumes later.
 Keep each text's guidance and length beside its name, and show the number of
 answer choices. A combined text length is explicitly labelled as a total.
 
-Before the first plan, the chat is the page: one reading column around the
-first request. From the first plan on, the chat keeps one layout, `data-beside`:
+Before the first plan, the chat is the page: one reading column around the first
+request. From the first plan on, the chat keeps one layout, `data-beside`:
 beside the activity on wide screens, and below desktop width a sheet over the
-page. The sheet opens with the first plan, so the conversation stays where the
-parent is talking; afterwards the action bar's AI button and every “ask about
-this” open it. Its close button or Escape returns focus to the control that
-opened it, or to the AI button when the sheet opened itself, with the page
-unmoved. After every reply, focus that fell to the page moves to the history
-holding it.
-**עריכה** opens titles, instructions, texts, questions/options, answers and
-points in the same buffer. Edits save themselves while editing; **סיום עריכה**
-returns to reading, and invalid fields stay open for correction. Structural
-changes use chat. Each text/question offers an accessible “ask about this”
-action that fills and focuses the composer without sending. Keep the selected
-target visible and update only the app-inserted prefix when switching targets,
-preserving parent text. At widths of 64rem and heights of 40rem or more, keep
-chat beside the activity with only its history scrolling. Its column starts at
-the top of the page, beside the heading, and fills exactly the space between
-the pinned bands, so it never moves while the page scrolls and typing never
-scrolls the page. The action bar ends the document column, so it never covers
-the chat. Respect enlarged browser text.
+page. The sheet stays closed after the first plan, whose settings take the
+focus; the action bar's AI button and every “ask about this” open it. Its close
+button or Escape returns focus to the control that opened it, or to the AI
+button where tapping gave the opener no focus, with the page unmoved. Focus
+moves never scroll the page. A request never moves focus: the composer turns
+read-only and one control sends, then stops. An empty chat fits its title, ideas
+and composer, beside the activity or as the sheet resting just above the bar.
+Once a conversation starts, the composer keeps its place: the sheet grows up
+from the bar, and beside the activity the chat takes its column height. The
+conversation, or before the first request its ideas, scrolls when short, and the
+thinking row keeps its place, so sending never moves the composer or resizes the
+conversation. **עריכה** opens titles, instructions, texts, questions/options,
+answers and points in the same buffer. Edits save themselves while editing;
+**סיום עריכה** returns to reading, and invalid fields stay open for correction.
+Structural changes use chat. Each text/question offers an accessible “ask about
+this” action that fills and focuses the composer without sending. Keep the
+selected target visible and update only the app-inserted prefix when switching
+targets, preserving parent text. At widths of 64rem and heights of 40rem or
+more, keep chat beside the activity with only its history scrolling. Its column
+starts at the top of the page, beside the heading, and fills exactly the space
+between the pinned bands, so it never moves while the page scrolls and typing
+never scrolls the page. The action bar ends the document column, so it never
+covers the chat. Respect enlarged browser text.
 
 Every turn is a bubble on the action bar's tinted dock. As in messaging apps,
 the parent's own `chat-message` takes the brand tint at the end edge, and the
@@ -387,7 +424,8 @@ its ends and, once the parent scrolls away from the latest turn, offers
 while retaining focus; when a reply arrives, focus that would be lost moves to
 the history, never into a field. A sent request leaves the composer for the
 history; failure/cancellation returns it for an explicit new attempt.
-`SuggestionChips` only fill fields and never send. Suggestions appear before the
+`SuggestionChips` only fill fields and never send; they sit in equal cells, two
+per row from tablet width. Suggestions appear before the
 first exchange and apply to the current activity; mark AI execution actions with
 `icon-ai`.
 

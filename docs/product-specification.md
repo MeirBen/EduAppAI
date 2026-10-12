@@ -89,7 +89,7 @@ The URL identifies the saved draft and operation. Chat and undo are parent-only
 draft state; invalid field edits stay local until fixed. Another device's save
 or deletion is announced without silently replacing the current buffer. Draft
 deletion removes its operation history and chat, and late AI output cannot
-recreate it. Library deletion and family reset follow the
+recreate it. Library deletion and data deletions follow the
 [retention rules](#retention-and-reset). The server enforces ownership on every
 read and write.
 
@@ -216,9 +216,9 @@ Server limits:
   one complete question.
 - Title 100; instructions 1,000; material body 4,000; prompt 500; answer and
   option 200. Choice questions have 2–6 distinct options; points are 0–100.
-- Lists: 25 items per page by default, at most 100, newest first with an
+- Lists: 5 items per page by default, at most 100, newest first with an
   identifier tie-break, so every activity, assignment and report stays
-  reachable.
+  reachable. The child selector asks for one page of 100.
 
 ## Boundaries
 
@@ -330,7 +330,11 @@ Parents may record **כיתה** (school grade) and **גיל** (completed years).
   serialized. There are no due dates or automatic expiry.
 - The parent's assignment list opens on open work (`assigned` or
   `awaiting-review`), with completed and withdrawn work as separate views; the
-  child inbox separates available from submitted work.
+  child inbox separates available from submitted work. Ready activities open on
+  those with work still to assign or finish; an activity whose assigned work is
+  all completed moves to its completed view, with each child's final score, and
+  returns to the open view when assigned again. The library's drafts and ready
+  activities open with the page unless that first read finds them empty.
 - Child responses explicitly project the title, instructions, material IDs,
   titles and bodies, question IDs, prompts, interaction types, options and
   possible points, plus only the child's own saved answers and status. A child
@@ -460,12 +464,15 @@ Results and review:
   grades in one transaction, and its confirmation names that loss. Only
   archived content can be deleted this way, so removing a ready activity twice
   never erases children's work.
-- The explicit family reset deletes everything. Its confirmation
-  names children, device access, assignments, answers, grades and content, all
-  deleted in one transaction, while the family, parent accounts and AI
-  configuration stay. Old child cookies and activation codes then cannot reach
-  or recreate deleted work. Reset must cover every family-owned learning record
-  a schema change adds.
+- Two explicit data deletions, each in one transaction, keep the family, parent
+  accounts and AI configuration. **מחיקת כל הפעילויות** deletes drafts, ready
+  and archived activities with the assignments, answers and grades in them;
+  profiles and devices stay. **מחיקת נתוני הילדים** deletes profiles, device
+  access, activation codes, assignments, answers, grades and the archive, which
+  existed only for that work; drafts and ready activities stay. Each
+  confirmation names what it deletes and keeps. Old child cookies and activation
+  codes then cannot reach or recreate deleted work. Every family-owned learning
+  record a schema change adds must fall under one of them.
 
 ### Acceptance
 

@@ -44,16 +44,12 @@
     <div class="grid gap-1">
       @if (result(); as report) {
         @if (report.evaluation.finalTotal !== null) {
-          <p class="font-semibold">
+          <p class="flex flex-wrap items-center gap-x-3 gap-y-1 font-semibold">
             ציון סופי: {{ report.evaluation.finalTotal }} מתוך {{ report.evaluation.possibleTotal }}
-            @if (report.evaluation.possibleTotal > 0) {
-              <span>
-                ({{
-                  (report.evaluation.finalTotal / report.evaluation.possibleTotal) * 100
-                    | number: '1.0-1'
-                }}%)</span
-              >
-            }
+            <app-score-badge
+              [final]="report.evaluation.finalTotal"
+              [possible]="report.evaluation.possibleTotal"
+            />
           </p>
         } @else {
           <p class="note">
@@ -84,28 +80,30 @@
           <summary>פרטי זמנים</summary>
           <div class="grid gap-1">
             <p>
-              הוקצתה ב־<bdi>{{ assignment.createdAtUtc | date }}</bdi>
+              הוקצתה ב־<time [dateTime]="assignment.createdAtUtc">{{
+                assignment.createdAtUtc | date
+              }}</time>
             </p>
             <p>
               @if (times.startedAt !== null) {
-                נפתחה ב־<bdi>{{ times.startedAt | date }}</bdi>
+                נפתחה ב־<time [dateTime]="times.startedAt">{{ times.startedAt | date }}</time>
               } @else {
                 {{ assignment.hasStarted ? 'מועד הפתיחה לא זמין' : 'עוד לא נפתחה' }}
               }
             </p>
             @if (times.savedAt !== null) {
               <p>
-                התקדמות נשמרה ב־<bdi>{{ times.savedAt | date }}</bdi>
+                התקדמות נשמרה ב־<time [dateTime]="times.savedAt">{{ times.savedAt | date }}</time>
               </p>
             }
             @if (times.submittedAt !== null) {
               <p>
-                הוגשה ב־<bdi>{{ times.submittedAt | date }}</bdi>
+                הוגשה ב־<time [dateTime]="times.submittedAt">{{ times.submittedAt | date }}</time>
               </p>
             }
             @if (result()?.reviewedAtUtc; as reviewedAt) {
               <p>
-                נבדקה ב־<bdi>{{ reviewedAt | date }}</bdi>
+                נבדקה ב־<time [dateTime]="reviewedAt">{{ reviewedAt | date }}</time>
               </p>
             }
           </div>
@@ -145,7 +143,7 @@
                   </ul>
                 }
                 @if (row.question.answer; as key) {
-                  <details>
+                  <details class="well">
                     <summary>תשובה להורים — שאלה {{ $index + 1 }}</summary>
                     <p class="whitespace-pre-wrap">
                       <bdi>{{ key.value }}</bdi>
@@ -192,60 +190,62 @@
             </li>
           }
         </ol>
-        <section class="action-bar" aria-labelledby="review-actions-heading">
-          <h2 id="review-actions-heading" class="sr-only">שמירת הבדיקה</h2>
-          @if (error()) {
-            <p class="field-error" role="alert">{{ error() }}</p>
-          }
-          @if (notice()) {
-            <p class="note" role="status">
-              <span class="icon icon-info" aria-hidden="true"></span>{{ notice() }}
-            </p>
-          }
-          <app-loading-indicator [active]="busy() || reading()" label="מעדכנים את הבדיקה…" />
-          @if (report.evaluation.pendingCount) {
-            <div class="action-bar-row">
-              <button class="button" [disabledInteractive]="busy() || reading() || recovery()">
-                שמירת ציונים וסיום הבדיקה
-              </button>
-              <button
-                id="read-saved-result"
-                type="button"
-                class="text-link"
-                [disabledInteractive]="busy() || reading()"
-                (click)="readSaved()"
-              >
-                <span class="icon icon-refresh" aria-hidden="true"></span>קריאת התוצאה השמורה
-              </button>
-            </div>
-          }
-          @if (savedResult(); as saved) {
-            <section class="well grid gap-2" aria-labelledby="saved-result-heading">
-              <h3 id="saved-result-heading">התוצאה השמורה</h3>
-              <p>
-                {{ assignmentState(saved.assignment).label }} ·
-                {{
-                  saved.evaluation.finalTotal === null
-                    ? 'אין ציון סופי'
-                    : 'ציון סופי: ' +
-                      saved.evaluation.finalTotal +
-                      ' מתוך ' +
-                      saved.evaluation.possibleTotal
-                }}
+        @if (report.evaluation.pendingCount || error() || notice() || savedResult()) {
+          <section class="action-bar" aria-labelledby="review-actions-heading">
+            <h2 id="review-actions-heading" class="sr-only">שמירת הבדיקה</h2>
+            @if (error()) {
+              <p class="field-error" role="alert">{{ error() }}</p>
+            }
+            @if (notice()) {
+              <p class="note" role="status">
+                <span class="icon icon-info" aria-hidden="true"></span>{{ notice() }}
               </p>
-              <p>הציונים שהקלדתם עדיין מוצגים למעלה. הצגת התוצאה השמורה תחליף אותם.</p>
-              <button
-                id="use-saved-result"
-                type="button"
-                class="text-link"
-                [disabledInteractive]="busy() || reading()"
-                (click)="useSaved()"
-              >
-                הצגת התוצאה השמורה
-              </button>
-            </section>
-          }
-        </section>
+            }
+            <app-loading-indicator [active]="busy() || reading()" label="מעדכנים את הבדיקה…" />
+            @if (report.evaluation.pendingCount) {
+              <div class="action-bar-row">
+                <button class="button" [disabledInteractive]="busy() || reading() || recovery()">
+                  שמירת ציונים וסיום הבדיקה
+                </button>
+                <button
+                  id="read-saved-result"
+                  type="button"
+                  class="text-link"
+                  [disabledInteractive]="busy() || reading()"
+                  (click)="readSaved()"
+                >
+                  <span class="icon icon-refresh" aria-hidden="true"></span>קריאת התוצאה השמורה
+                </button>
+              </div>
+            }
+            @if (savedResult(); as saved) {
+              <section class="well grid gap-2" aria-labelledby="saved-result-heading">
+                <h3 id="saved-result-heading">התוצאה השמורה</h3>
+                <p>
+                  {{ assignmentState(saved.assignment).label }} ·
+                  {{
+                    saved.evaluation.finalTotal === null
+                      ? 'אין ציון סופי'
+                      : 'ציון סופי: ' +
+                        saved.evaluation.finalTotal +
+                        ' מתוך ' +
+                        saved.evaluation.possibleTotal
+                  }}
+                </p>
+                <p>הציונים שהקלדתם עדיין מוצגים למעלה. הצגת התוצאה השמורה תחליף אותם.</p>
+                <button
+                  id="use-saved-result"
+                  type="button"
+                  class="text-link"
+                  [disabledInteractive]="busy() || reading()"
+                  (click)="useSaved()"
+                >
+                  הצגת התוצאה השמורה
+                </button>
+              </section>
+            }
+          </section>
+        }
       </form>
     } @else if (assignment.status === 'assigned' || assignment.status === 'withdrawn') {
       <p class="note">

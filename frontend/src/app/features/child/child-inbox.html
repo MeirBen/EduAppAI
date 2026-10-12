@@ -27,7 +27,7 @@
     }
   </fieldset>
   <app-loading-indicator
-    [active]="assignments.isLoading() && !assignments.hasValue()"
+    [active]="assignments.isLoading() && !shownAssignments()"
     label="מביאים את הפעילויות…"
   />
   @if (assignments.error(); as error) {
@@ -41,25 +41,35 @@
         </button>
       }
     </div>
-  } @else if (assignments.hasValue()) {
+  } @else if (shownAssignments(); as list) {
     <div class="grid gap-stack">
-      @for (assignment of assignments.value().items; track assignment.id) {
+      @for (assignment of list.items; track assignment.id) {
         @let shown = learnerState(assignment);
         <article class="list-row">
           <span class="icon-tile size-10" [attr.data-tone]="shown.tone" aria-hidden="true"
             ><span class="icon" [class]="shown.icon"></span
           ></span>
-          <div class="grid min-w-1/2 flex-1 gap-1">
+          <div class="row-body">
             <h2>
               <a class="row-link" [routerLink]="['/child/assignments', assignment.id]"
                 ><bdi>{{ assignment.title }}</bdi></a
               >
             </h2>
             <p class="text-sm text-muted">
-              נוספה ב־<bdi>{{ assignment.createdAtUtc | date }}</bdi>
+              נוספה ב־<time [dateTime]="assignment.createdAtUtc">{{
+                assignment.createdAtUtc | date
+              }}</time>
             </p>
           </div>
-          <span class="badge" [attr.data-tone]="shown.tone">{{ shown.label }}</span>
+          @if (assignment.finalTotal !== null && assignment.possibleTotal) {
+            <app-score-badge
+              [label]="shown.label"
+              [final]="assignment.finalTotal"
+              [possible]="assignment.possibleTotal"
+            />
+          } @else {
+            <span class="badge" [attr.data-tone]="shown.tone">{{ shown.label }}</span>
+          }
         </article>
       } @empty {
         <p class="empty-state">
@@ -76,7 +86,7 @@
     <app-pager
       label="עמודי הפעילויות שלי"
       [(page)]="page"
-      [hasMore]="assignments.value().hasMore"
+      [hasMore]="list.hasMore"
       [busy]="assignments.isLoading()"
     />
   }

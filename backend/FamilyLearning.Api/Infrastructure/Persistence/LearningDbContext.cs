@@ -25,9 +25,16 @@ public sealed class LearningDbContext(DbContextOptions<LearningDbContext> option
     public DbSet<TaskSnapshot> TaskSnapshots => Set<TaskSnapshot>();
     public DbSet<GenerationOperation> GenerationOperations => Set<GenerationOperation>();
 
+    /// <summary>
+    /// SQLite's built-in <c>json_extract</c> for one integer in stored JSON, so queries derive values such as final scores
+    /// instead of storing them twice. It translates only inside LINQ queries.
+    /// </summary>
+    public static int? JsonInteger(string? json, string path) => throw new NotSupportedException();
+
     protected override void OnModelCreating(ModelBuilder model)
     {
         base.OnModelCreating(model);
+        model.HasDbFunction(typeof(LearningDbContext).GetMethod(nameof(JsonInteger))!).HasName("json_extract").IsBuiltIn();
         // SQLite loses DateTime.Kind; these timestamp columns always contain UTC values.
         var utcTimestamp = new ValueConverter<DateTime, DateTime>(value => value,
             value => DateTime.SpecifyKind(value, DateTimeKind.Utc));

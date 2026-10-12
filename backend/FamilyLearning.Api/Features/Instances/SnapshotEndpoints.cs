@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using FamilyLearning.Api.Features.Assignments;
 using FamilyLearning.Api.Infrastructure.Auth;
 using FamilyLearning.Api.Infrastructure.Persistence;
 using FamilyLearning.Api.Infrastructure.Web;
@@ -15,10 +16,10 @@ public static class SnapshotEndpoints
     public static void MapSnapshotEndpoints(this RouteGroupBuilder api)
     {
         var snapshots = api.MapGroup("/instances");
-        snapshots.MapGet("/", (ClaimsPrincipal user, LearningDbContext db, CancellationToken ct, int page = 1, int pageSize = 25) =>
-            ListAsync(user, db, archived: false, new PageRequest(page, pageSize), ct));
-        snapshots.MapGet("/archive", (ClaimsPrincipal user, LearningDbContext db, CancellationToken ct, int page = 1, int pageSize = 25) =>
-            ListAsync(user, db, archived: true, new PageRequest(page, pageSize), ct));
+        snapshots.MapGet("/", (ClaimsPrincipal user, LearningDbContext db, CancellationToken ct, string? status = null, int page = 1, int pageSize = PageRequest.DefaultSize) =>
+            ListAsync(user, db, archived: false, status, new PageRequest(page, pageSize), ct));
+        snapshots.MapGet("/archive", (ClaimsPrincipal user, LearningDbContext db, CancellationToken ct, int page = 1, int pageSize = PageRequest.DefaultSize) =>
+            ListAsync(user, db, archived: true, null, new PageRequest(page, pageSize), ct));
         snapshots.MapGet("/{id:guid}", async (Guid id, ClaimsPrincipal user, LearningDbContext db, CancellationToken ct) =>
         {
             var snapshot = await db.TaskSnapshots.AsNoTracking().SingleOrDefaultAsync(s => s.Id == id && s.FamilyId == user.FamilyId(), ct);
@@ -42,14 +43,62 @@ public static class SnapshotEndpoints
         snapshots.MapDelete("/archive/{id:guid}", DeleteArchivedAsync);
     }
 
-    private static async Task<IResult> ListAsync(ClaimsPrincipal user, LearningDbContext db, bool archived, PageRequest paging, CancellationToken ct)
+    /// <summary>A family's open (assigned or awaiting review) and finished work; withdrawn work is in neither.</summary>
+    private static (IQueryable<Assignment> Open, IQueryable<Assignment> Finished) Work(LearningDbContext db, Guid familyId)
+    {
+        var assignments = db.Assignments.AsNoTracking().Where(a => a.FamilyId == familyId);
+        return (assignments.Where(a => a.Status == "assigned" || a.Status == "awaiting-review"),
+            assignments.Where(a => a.Status == "completed"));
+    }
+
+    /// <summary>
+    /// Keeps one library view. Every snapshot is in exactly one: <c>assigned</c> while any work is open, else
+    /// <c>completed</c> once any is finished, else <c>unassigned</c>.
+    /// </summary>
+    internal static IQueryable<TaskSnapshot> InView(this IQueryable<TaskSnapshot> snapshots, LearningDbContext db, Guid familyId,
+        string view)
+    {
+        var (open, finished) = Work(db, familyId);
+        return view switch
+        {
+            "assigned" => snapshots.Where(s => open.Any(a => a.SnapshotId == s.Id)),
+            "completed" => snapshots.Where(s => !open.Any(a => a.SnapshotId == s.Id) && finished.Any(a => a.SnapshotId == s.Id)),
+            _ => snapshots.Where(s => !open.Any(a => a.SnapshotId == s.Id) && !finished.Any(a => a.SnapshotId == s.Id)),
+        };
+    }
+
+    /// <summary>
+    /// Lists one page, in one view when <paramref name="status"/> names it, newest first by the date each row shows: when
+    /// it was archived, else its latest open assignment, else its latest completion, else its review.
+    /// </summary>
+    private static async Task<IResult> ListAsync(ClaimsPrincipal user, LearningDbContext db, bool archived, string? status,
+        PageRequest paging, CancellationToken ct)
     {
         if (!paging.IsValid) return PageRequest.Invalid();
-        var snapshots = db.TaskSnapshots.AsNoTracking().Where(s => s.FamilyId == user.FamilyId());
+        if (status is not (null or "assigned" or "unassigned" or "completed"))
+            return Results.ValidationProblem(new Dictionary<string, string[]> { ["status"] = ["מצב הפעילות אינו תקף."] });
+        var familyId = user.FamilyId();
+        var snapshots = db.TaskSnapshots.AsNoTracking().Where(s => s.FamilyId == familyId);
         snapshots = archived ? snapshots.Where(s => s.ArchivedAtUtc != null) : snapshots.Where(s => s.ArchivedAtUtc == null);
-        return Results.Ok(await paging.ReadAsync(snapshots.OrderByDescending(s => s.ReviewedAtUtc).ThenByDescending(s => s.Id)
-            .Select(s => new SnapshotSummary(s.Id, s.Title, s.ReviewedAtUtc, s.ArchivedAtUtc,
-                db.Assignments.Any(a => a.FamilyId == s.FamilyId && a.SnapshotId == s.Id))), ct));
+        if (status is not null) snapshots = snapshots.InView(db, familyId, status);
+        var (open, finished) = Work(db, familyId);
+        var rows = snapshots.Select(s => new
+        {
+            Snapshot = s,
+            AssignedAtUtc = open.Where(a => a.SnapshotId == s.Id).Max(a => (DateTime?)a.CreatedAtUtc),
+            CompletedAtUtc = finished.Where(a => a.SnapshotId == s.Id).Max(a => a.Session!.ReviewedAtUtc ?? a.Session!.SubmittedAtUtc),
+        });
+        return Results.Ok(await paging.ReadAsync(rows
+            .OrderByDescending(r => r.Snapshot.ArchivedAtUtc ?? r.AssignedAtUtc ?? r.CompletedAtUtc ?? r.Snapshot.ReviewedAtUtc)
+            .ThenByDescending(r => r.Snapshot.Id)
+            .Select(r => new SnapshotSummary(r.Snapshot.Id, r.Snapshot.Title, r.Snapshot.ReviewedAtUtc, r.AssignedAtUtc,
+                r.CompletedAtUtc, r.Snapshot.ArchivedAtUtc,
+                db.Assignments.Where(a => a.FamilyId == familyId && a.SnapshotId == r.Snapshot.Id && a.Status != "withdrawn")
+                    .OrderBy(a => a.Child.Name).ThenBy(a => a.Id)
+                    .Select(a => new SnapshotChild(a.Child.Name, a.Status,
+                        LearningDbContext.JsonInteger(a.Session!.EvaluationJson, "$.finalTotal"),
+                        LearningDbContext.JsonInteger(a.Session!.EvaluationJson, "$.possibleTotal")))
+                    .ToArray())), ct));
     }
 
     /// <summary>

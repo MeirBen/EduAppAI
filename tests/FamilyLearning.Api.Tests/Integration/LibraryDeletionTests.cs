@@ -50,8 +50,14 @@ public sealed class LibraryDeletionTests
             Assert.Equal(listed, listed.OrderByDescending(item => item[time]!.GetValue<DateTime>())
                 .ThenByDescending(item => item["id"]!.GetValue<string>(), StringComparer.Ordinal));
         }
-        Assert.Equal(HttpStatusCode.NoContent, (await owner.DeleteAsync("/api/learning-data")).StatusCode);
-        Assert.Equal(HttpStatusCode.NoContent, (await owner.DeleteAsync("/api/learning-data")).StatusCode);
+        Assert.True(JsonNode.DeepEquals(JsonNode.Parse("""{"drafts":31,"assigned":0,"unassigned":30,"completed":0,"archived":0}"""),
+            await owner.GetFromJsonAsync<JsonNode>("/api/library/counts")));
+        Assert.True(JsonNode.DeepEquals(JsonNode.Parse("""{"drafts":1,"assigned":0,"unassigned":0,"completed":0,"archived":0}"""),
+            await stranger.GetFromJsonAsync<JsonNode>("/api/library/counts")));
+        Assert.Equal(HttpStatusCode.NoContent, (await owner.DeleteAsync("/api/learning-data/activities")).StatusCode);
+        Assert.Equal(HttpStatusCode.NoContent, (await owner.DeleteAsync("/api/learning-data/activities")).StatusCode);
+        Assert.True(JsonNode.DeepEquals(JsonNode.Parse("""{"drafts":0,"assigned":0,"unassigned":0,"completed":0,"archived":0}"""),
+            await owner.GetFromJsonAsync<JsonNode>("/api/library/counts")));
         Assert.Equal(HttpStatusCode.OK, (await owner.GetAsync("/api/auth/me")).StatusCode);
         Assert.Equal(HttpStatusCode.OK, (await stranger.GetAsync(ActivityDraftTests.Path(foreign))).StatusCode);
         using var verification = app.Services.CreateScope();
@@ -61,7 +67,7 @@ public sealed class LibraryDeletionTests
     }
 
     [Fact]
-    public async Task Family_reset_deletes_drafts_and_snapshots_only_in_the_owned_family()
+    public async Task Activity_deletion_removes_drafts_and_snapshots_only_in_the_owned_family()
     {
         await using var app = new ApiFactory();
         using var owner = await app.ParentAsync();
@@ -71,9 +77,10 @@ public sealed class LibraryDeletionTests
         var snapshot = await released.Content.ReadFromJsonAsync<JsonElement>();
         var snapshotId = snapshot.GetProperty("id").GetGuid();
         var foreign = await ActivityReleaseTests.ReadyDraft(stranger);
+        Assert.Equal(HttpStatusCode.Created, (await owner.PostAsJsonAsync("/api/children", new { name = "נועה" })).StatusCode);
         Assert.Equal(HttpStatusCode.OK, (await owner.GetAsync(ActivityDraftTests.Path(draft))).StatusCode);
         Assert.Equal(HttpStatusCode.OK, (await owner.GetAsync($"/api/instances/{snapshotId}")).StatusCode);
-        Assert.Equal(HttpStatusCode.NoContent, (await owner.DeleteAsync("/api/learning-data")).StatusCode);
+        Assert.Equal(HttpStatusCode.NoContent, (await owner.DeleteAsync("/api/learning-data/activities")).StatusCode);
         Assert.Equal(HttpStatusCode.NotFound, (await owner.GetAsync(ActivityDraftTests.Path(draft))).StatusCode);
         Assert.Equal(HttpStatusCode.NotFound, (await owner.GetAsync($"/api/instances/{snapshotId}")).StatusCode);
         Assert.Equal(HttpStatusCode.OK, (await stranger.GetAsync(ActivityDraftTests.Path(foreign))).StatusCode);
@@ -83,6 +90,8 @@ public sealed class LibraryDeletionTests
         Assert.Equal(2, await db.Families.CountAsync());
         Assert.Single(await db.ActivityDrafts.ToListAsync());
         Assert.Empty(await db.TaskSnapshots.ToListAsync());
+        // Deleting activities keeps children's profiles.
+        Assert.Single(await db.Children.ToListAsync());
     }
 
     [Fact]
@@ -98,13 +107,14 @@ public sealed class LibraryDeletionTests
             var db = scope.ServiceProvider.GetRequiredService<LearningDbContext>();
             await db.Database.ExecuteSqlRawAsync("CREATE TRIGGER RejectSnapshotDeletion BEFORE DELETE ON TaskSnapshots BEGIN SELECT RAISE(ABORT, 'private'); END;");
         }
-        Assert.Equal(HttpStatusCode.InternalServerError, (await parent.DeleteAsync("/api/learning-data")).StatusCode);
+        Assert.Equal(HttpStatusCode.InternalServerError, (await parent.DeleteAsync("/api/learning-data/activities")).StatusCode);
         Assert.Equal(HttpStatusCode.OK, (await parent.GetAsync(ActivityDraftTests.Path(draft))).StatusCode);
         Assert.Single((await parent.GetFromJsonAsync<JsonNode>("/api/instances"))!["items"]!.AsArray());
     }
 
     [Theory]
-    [InlineData("/api/learning-data")]
+    [InlineData("/api/learning-data/activities")]
+    [InlineData("/api/learning-data/children")]
     [InlineData("/api/instances/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa")]
     [InlineData("/api/instances/archive/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa")]
     public async Task Deletion_requires_authentication_and_csrf(string path)

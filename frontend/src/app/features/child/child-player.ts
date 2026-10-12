@@ -1,4 +1,4 @@
-import { DatePipe, DecimalPipe } from '@angular/common';
+import { DatePipe } from '@angular/common';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -32,10 +32,10 @@ import { FieldDirection } from '../../shared/forms/field-direction';
 import { FieldErrors } from '../../shared/forms/field-errors';
 import { FieldValidity } from '../../shared/forms/field-validity';
 import { LoadingIndicator } from '../../shared/loading-indicator/loading-indicator';
+import { ScoreBadge } from '../../shared/score-badge/score-badge';
 import { childError, childStatus } from './child-error';
 import { writeError } from '../../core/api/api-error';
 import { pageVisible } from '../../core/page-visibility';
-import { ActionBar, ActionBarToggle } from '../../shared/action-bar/action-bar';
 import { elapsedClock } from './elapsed-clock';
 
 /** Page-owned answer buffer. Reads offer a checkpoint; only acknowledgement or explicit acceptance replaces edits. */
@@ -43,7 +43,6 @@ import { elapsedClock } from './elapsed-clock';
   selector: 'app-child-player',
   imports: [
     DatePipe,
-    DecimalPipe,
     RouterLink,
     FormField,
     FieldErrors,
@@ -51,8 +50,7 @@ import { elapsedClock } from './elapsed-clock';
     FieldDirection,
     DisabledInteractive,
     LoadingIndicator,
-    ActionBar,
-    ActionBarToggle,
+    ScoreBadge,
   ],
   templateUrl: './child-player.html',
   changeDetection: ChangeDetectionStrategy.OnPush,

@@ -536,7 +536,9 @@ test('two families and siblings keep separate work through resume, lost submissi
       await expectChildResponse(saved);
       expect(await saved.json()).toEqual(peer.saved);
     }
-    expect((await parent.request.delete('/api/learning-data', { headers })).status()).toBe(204);
+    expect((await parent.request.delete('/api/learning-data/children', { headers })).status()).toBe(
+      204,
+    );
     const revokedSibling = await siblingContext.request.get('/api/child/auth/me');
     expect(revokedSibling.status()).toBe(401);
     await expectChildResponse(revokedSibling);

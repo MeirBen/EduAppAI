@@ -7,7 +7,7 @@ import { AssignmentSummary, AssignmentView } from '../../core/api/assignment-mod
 export function assignmentState({ status, hasStarted }: AssignmentSummary) {
   switch (status) {
     case 'assigned':
-      return { label: hasStarted ? 'בעבודה' : 'עוד לא התחילה', tone: null };
+      return { label: hasStarted ? 'בעבודה' : 'לפני התחלה', tone: null };
     case 'awaiting-review':
       return { label: 'מחכה לבדיקה', tone: 'new' };
     case 'completed':

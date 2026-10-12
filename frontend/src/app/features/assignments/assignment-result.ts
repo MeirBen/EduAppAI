@@ -1,4 +1,4 @@
-import { DatePipe, DecimalPipe } from '@angular/common';
+import { DatePipe } from '@angular/common';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -22,6 +22,7 @@ import { FieldValidity } from '../../shared/forms/field-validity';
 import { isIntegerInput } from '../../shared/forms/integer-input';
 import { LiveStatus } from '../../shared/live-status/live-status';
 import { LoadingIndicator } from '../../shared/loading-indicator/loading-indicator';
+import { ScoreBadge } from '../../shared/score-badge/score-badge';
 import { ActivityDocumentView } from '../activities/activity-document-view/activity-document-view';
 import { assignmentState } from './assignment-presentation';
 import { parentTaskError } from '../../core/api/parent-task-error';
@@ -35,7 +36,6 @@ import { writeError } from '../../core/api/api-error';
   selector: 'app-assignment-result',
   imports: [
     DatePipe,
-    DecimalPipe,
     RouterLink,
     FormField,
     FieldErrors,
@@ -43,6 +43,7 @@ import { writeError } from '../../core/api/api-error';
     DisabledInteractive,
     LiveStatus,
     LoadingIndicator,
+    ScoreBadge,
     ActivityDocumentView,
   ],
   templateUrl: './assignment-result.html',

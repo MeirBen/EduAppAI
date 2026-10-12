@@ -66,6 +66,7 @@ public static class ApiConfiguration
         api.MapGet("/limits", () => ContentLimits.Current);
         api.MapPlanAuthoringEndpoints();
         api.MapLibraryChangeEndpoints();
+        api.MapLibraryCountsEndpoints();
         // Successful content, profile and device writes notify the family's parent and child change streams.
         var library = api.MapGroup("").PublishesLibraryChanges();
         library.MapChildEndpoints();

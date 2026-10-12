@@ -145,7 +145,7 @@ public sealed class GenerationRaceTests
                 Assert.Equal(HttpStatusCode.OK, (await parent.PostAsync(OperationPath(operation) + "/cancel", null)).StatusCode);
             }
             else if (action == "delete") Assert.Equal(HttpStatusCode.NoContent, (await parent.DeleteAsync(Path(draft))).StatusCode);
-            else if (action == "reset") Assert.Equal(HttpStatusCode.NoContent, (await parent.DeleteAsync("/api/learning-data")).StatusCode);
+            else if (action == "reset") Assert.Equal(HttpStatusCode.NoContent, (await parent.DeleteAsync("/api/learning-data/activities")).StatusCode);
             else
             {
                 var edit = Edit(draft);

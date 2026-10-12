@@ -15,6 +15,7 @@ public static class AssignmentEndpoints
         var assignments = api.MapGroup("/assignments");
         assignments.MapPost("/", CreateAsync);
         assignments.MapGet("/", ListAsync);
+        assignments.MapGet("/counts", CountsAsync);
         assignments.MapGet("/{id:guid}", async (Guid id, ClaimsPrincipal user, LearningDbContext db, CancellationToken ct) =>
         {
             var query = db.Assignments.AsNoTracking().Where(a => a.Id == id && a.FamilyId == user.FamilyId());
@@ -54,7 +55,8 @@ public static class AssignmentEndpoints
     }
 
     private static async Task<IResult> ListAsync(ClaimsPrincipal user, LearningDbContext db, CancellationToken ct,
-        Guid? childId = null, string? status = null, int page = 1, int pageSize = 25)
+        Guid? childId = null, Guid? snapshotId = null, string? status = null, int page = 1,
+        int pageSize = PageRequest.DefaultSize)
     {
         var paging = new PageRequest(page, pageSize);
         if (!paging.IsValid) return PageRequest.Invalid();
@@ -62,6 +64,7 @@ public static class AssignmentEndpoints
             return Results.ValidationProblem(new Dictionary<string, string[]> { ["status"] = ["מצב ההקצאה אינו תקף."] });
         var query = db.Assignments.AsNoTracking().Where(a => a.FamilyId == user.FamilyId());
         if (childId.HasValue) query = query.Where(a => a.ChildId == childId.Value);
+        if (snapshotId.HasValue) query = query.Where(a => a.SnapshotId == snapshotId.Value);
         // Open work still waits for the child or for the parent's grading. Withdrawn work is history: only its own filter lists it.
         query = status switch
         {
@@ -71,6 +74,18 @@ public static class AssignmentEndpoints
         };
         return Results.Ok(await paging.ReadAsync(query.OrderByDescending(a => a.CreatedAtUtc).ThenByDescending(a => a.Id)
             .Select(AssignmentSummary.Projection), ct));
+    }
+
+    /// <summary>Exact sizes of the list's views, for one child or the whole family, read in one grouped query.</summary>
+    private static async Task<IResult> CountsAsync(ClaimsPrincipal user, LearningDbContext db, CancellationToken ct,
+        Guid? childId = null)
+    {
+        var query = db.Assignments.AsNoTracking().Where(a => a.FamilyId == user.FamilyId());
+        if (childId.HasValue) query = query.Where(a => a.ChildId == childId.Value);
+        var counts = await query.GroupBy(a => a.Status).Select(g => new { Status = g.Key, Count = g.Count() })
+            .ToDictionaryAsync(g => g.Status, g => g.Count, ct);
+        int Count(string status) => counts.GetValueOrDefault(status);
+        return Results.Ok(new AssignmentCounts(Count("assigned") + Count("awaiting-review"), Count("completed"), Count("withdrawn")));
     }
 
     private static async Task<IResult> WithdrawAsync(Guid id, AssignmentStateRequest request, ClaimsPrincipal user,

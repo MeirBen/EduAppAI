@@ -44,18 +44,25 @@ describe('Page HTTP lifetime', () => {
     const fixture = TestBed.createComponent(SnapshotPreviewPage);
     fixture.componentRef.setInput('instanceId', 'snapshot');
     TestBed.tick();
-    const request = TestBed.inject(HttpTestingController).expectOne('/api/instances/snapshot');
+    const http = TestBed.inject(HttpTestingController);
+    const requests = [
+      '/api/instances/snapshot',
+      '/api/assignments?snapshotId=snapshot&pageSize=100',
+    ].map((path) => http.expectOne(path));
     fixture.destroy();
-    expect(request.cancelled).toBe(true);
+    for (const request of requests) expect(request.cancelled).toBe(true);
   });
 
   it('cancels every library read and closes its change stream when leaving the page', () => {
     const fixture = TestBed.createComponent(ActivityLibrary);
     TestBed.tick();
     const http = TestBed.inject(HttpTestingController);
-    const requests = ['/api/instances?page=1', '/api/activity-drafts?page=1'].map((path) =>
-      http.expectOne(path),
-    );
+    const requests = [
+      '/api/instances?page=1&status=assigned',
+      '/api/activity-drafts?page=1',
+      '/api/instances/archive?page=1',
+      '/api/library/counts',
+    ].map((path) => http.expectOne(path));
     fixture.destroy();
     for (const request of requests) expect(request.cancelled).toBe(true);
     expect(FakeEventSource.opened.map((source) => source.readyState)).toEqual([
@@ -68,7 +75,7 @@ describe('Page HTTP lifetime', () => {
     TestBed.tick();
     const http = TestBed.inject(HttpTestingController);
     http
-      .expectOne('/api/instances?page=1')
+      .expectOne('/api/instances?page=1&status=assigned')
       .flush({ items: [], page: 1, pageSize: 25, hasMore: false });
     http.expectOne('/api/activity-drafts?page=1').flush({
       items: [{ id: 'draft', name: 'Saved', revision: 1 }],
@@ -76,6 +83,12 @@ describe('Page HTTP lifetime', () => {
       pageSize: 25,
       hasMore: false,
     });
+    http
+      .expectOne('/api/instances/archive?page=1')
+      .flush({ items: [], page: 1, pageSize: 25, hasMore: false });
+    http
+      .expectOne('/api/library/counts')
+      .flush({ drafts: 1, assigned: 0, unassigned: 0, completed: 0, archived: 0 });
     await fixture.whenStable();
     vi.spyOn(window, 'confirm').mockReturnValue(true);
     fixture.nativeElement.querySelector('[data-delete-draft]').click();

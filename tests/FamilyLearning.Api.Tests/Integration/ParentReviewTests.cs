@@ -102,6 +102,7 @@ public sealed class ParentReviewTests
         var profile = await Create(parent);
         using var child = await h.Activate(parent, profile);
         var content = await MixedSnapshot(parent);
+        Assert.Single((await parent.GetFromJsonAsync<JsonNode>("/api/instances?status=unassigned"))!["items"]!.AsArray());
         var assignment = await Assign(parent, profile, content.Id);
         var submitted = await Submit(child, assignment, content.Answers());
         using var pendingResponse = await parent.GetAsync(ResultPath(assignment));
@@ -114,7 +115,16 @@ public sealed class ParentReviewTests
         Assert.Equal(7, pending["evaluation"]!["automaticSubtotal"]!.GetValue<int>());
         Assert.Equal(1, pending["evaluation"]!["pendingCount"]!.GetValue<int>());
         Assert.Null(pending["evaluation"]!["finalTotal"]);
+        Assert.Null(pending["assignment"]!["finalTotal"]);
         Assert.Null(pending["reviewedByParentId"]);
+        // Every activity is in one view: work awaiting review keeps it assigned, listing the child it waits on.
+        var waiting = Assert.Single((await parent.GetFromJsonAsync<JsonNode>("/api/instances?status=assigned"))!["items"]!.AsArray())!;
+        Assert.Equal("awaiting-review", Assert.Single(waiting["children"]!.AsArray())!["status"]!.GetValue<string>());
+        Assert.Single((await parent.GetFromJsonAsync<JsonNode>($"/api/assignments?snapshotId={content.Id}"))!["items"]!.AsArray());
+        Assert.Empty((await parent.GetFromJsonAsync<JsonNode>($"/api/assignments?snapshotId={Guid.NewGuid()}"))!["items"]!.AsArray());
+        Assert.Empty((await parent.GetFromJsonAsync<JsonNode>("/api/instances?status=unassigned"))!["items"]!.AsArray());
+        Assert.Empty((await parent.GetFromJsonAsync<JsonNode>("/api/instances?status=completed"))!["items"]!.AsArray());
+        Assert.Equal(HttpStatusCode.BadRequest, (await parent.GetAsync("/api/instances?status=withdrawn")).StatusCode);
         Assert.Equal("private-parent-key", pending["document"]!["questions"]![2]!["answer"]!["value"]!.GetValue<string>());
         Assert.Equal(content.Answers()[2].Value, pending["answers"]![2]!["value"]!.GetValue<string>());
         var request = new FinalizeReviewRequest(2, [new(content.TextId, 2)]);
@@ -128,6 +138,21 @@ public sealed class ParentReviewTests
         Assert.Equal(9, result["evaluation"]!["finalTotal"]!.GetValue<int>());
         Assert.Equal(10, result["evaluation"]!["possibleTotal"]!.GetValue<int>());
         Assert.Equal(0, result["evaluation"]!["pendingCount"]!.GetValue<int>());
+        // Summaries derive the frozen totals once the work is completed, in memory and in SQL alike.
+        Assert.Equal(9, result["assignment"]!["finalTotal"]!.GetValue<int>());
+        Assert.Equal(10, result["assignment"]!["possibleTotal"]!.GetValue<int>());
+        var listed = Assert.Single((await parent.GetFromJsonAsync<JsonNode>("/api/assignments?status=completed"))!["items"]!.AsArray())!;
+        Assert.True(JsonNode.DeepEquals(result["assignment"], listed));
+        Assert.Empty((await parent.GetFromJsonAsync<JsonNode>("/api/instances?status=assigned"))!["items"]!.AsArray());
+        Assert.Empty((await parent.GetFromJsonAsync<JsonNode>("/api/instances?status=unassigned"))!["items"]!.AsArray());
+        var finished = Assert.Single((await parent.GetFromJsonAsync<JsonNode>("/api/instances?status=completed"))!["items"]!.AsArray())!;
+        Assert.Equal(content.Id, finished["id"]!.GetValue<Guid>());
+        Assert.Equal(1, (await parent.GetFromJsonAsync<JsonNode>("/api/library/counts"))!["completed"]!.GetValue<int>());
+        // A row is dated by what put it in its view: here the completion, with no open assignment left.
+        Assert.NotNull(finished["completedAtUtc"]);
+        Assert.Null(finished["assignedAtUtc"]);
+        Assert.True(JsonNode.DeepEquals(JsonNode.Parse($$"""[{"childName":{{profile["name"]!.ToJsonString()}},"status":"completed","finalTotal":9,"possibleTotal":10}]"""),
+            finished["children"]));
         Assert.True(JsonNode.DeepEquals(pending["evaluation"]!["questions"]![0], result["evaluation"]!["questions"]![0]));
         Assert.True(JsonNode.DeepEquals(pending["evaluation"]!["questions"]![1], result["evaluation"]!["questions"]![1]));
         Assert.True(JsonNode.DeepEquals(pending["answers"], result["answers"]));
@@ -153,7 +178,8 @@ public sealed class ParentReviewTests
         Assert.True(JsonNode.DeepEquals(submitted["answers"], childResult["answers"]));
         var inbox = (await child.GetFromJsonAsync<JsonNode>("/api/child/assignments?state=submitted"))!;
         Properties(inbox, "items", "page", "pageSize", "hasMore");
-        Properties(inbox["items"]![0]!, "id", "title", "status", "revision", "createdAtUtc", "hasStarted");
+        Properties(inbox["items"]![0]!, "id", "title", "status", "revision", "createdAtUtc", "hasStarted", "finalTotal", "possibleTotal");
+        Assert.Equal(9, inbox["items"]![0]!["finalTotal"]!.GetValue<int>());
         var learner = (await child.GetFromJsonAsync<JsonNode>($"/api/child/assignments/{assignment["id"]}"))!;
         Properties(learner, "id", "status", "revision", "createdAtUtc", "document");
         Properties(learner["document"]!, "title", "instructions", "materials", "questions");

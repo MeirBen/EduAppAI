@@ -1,6 +1,5 @@
 import {
   afterNextRender,
-  afterRenderEffect,
   ChangeDetectionStrategy,
   Component,
   computed,
@@ -15,6 +14,7 @@ import {
 } from '@angular/core';
 import { FieldTree, FormField } from '@angular/forms/signals';
 import { ActivityChatTurn, AuthoringTurn } from '../../../core/api/models';
+import { DisabledInteractive } from '../../../shared/disabled-interactive';
 import { LoadingIndicator } from '../../../shared/loading-indicator/loading-indicator';
 import { FieldDirection } from '../../../shared/forms/field-direction';
 import { scrollBehavior } from '../../../shared/scroll-behavior';
@@ -42,14 +42,13 @@ const changeSuggestions = [
 
 /**
  * Shared conversation view; its host supplies thread, composer fields, request state and actions.
+ * A request never moves focus: the composer turns read-only and one control sends, then stops.
  */
 @Component({
-  imports: [FormField, FieldDirection, SuggestionChips, LoadingIndicator],
+  imports: [FormField, FieldDirection, SuggestionChips, LoadingIndicator, DisabledInteractive],
   selector: 'app-activity-chat',
   host: {
-    class: 'flex min-h-0 flex-col',
-    '(focusin)': 'focusInside = true',
-    '(focusout)': 'leaveFocus($event)',
+    class: 'flex min-h-0 flex-1 flex-col',
   },
   templateUrl: './activity-chat.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -83,14 +82,11 @@ export class ActivityChat {
   protected readonly changeSuggestions = changeSuggestions;
   private readonly document = inject(DOCUMENT);
   private readonly composer = viewChild.required<ElementRef<HTMLTextAreaElement>>('composer');
-  private readonly stop = viewChild<ElementRef<HTMLButtonElement>>('stop');
   private readonly history = viewChild.required<ElementRef<HTMLElement>>('history');
   private readonly turns = viewChild.required<ElementRef<HTMLElement>>('turns');
   private followLatest = true;
-  private wasBusy = false;
   /** The parent scrolled a bounded history away from the latest turn, which a control brings back. */
   protected readonly moreAfter = signal(false);
-  protected focusInside = false;
   /** The owner's heading names the field only for a first description, not an answer or a change. */
   protected readonly titled = computed(
     () => !this.refining() && !this.clarification() && !!this.labelledBy(),
@@ -119,21 +115,6 @@ export class ActivityChat {
       resized.observe(this.turns().nativeElement);
       destroyRef.onDestroy(() => resized.disconnect());
     });
-    // The composer is disabled while a request runs and Stop leaves when it ends; focus that fell to
-    // the page moves to Stop, then to the history holding the reply. Only a stopped first request,
-    // with no history yet, returns focus to the composer that holds it again.
-    afterRenderEffect(() => {
-      const busy = this.busy();
-      if (busy === this.wasBusy) return;
-      this.wasBusy = busy;
-      if (!this.focusInside || this.document.activeElement !== this.document.body) return;
-      const successor = busy
-        ? this.stop()
-        : this.thread().length
-          ? this.history()
-          : this.composer();
-      successor?.nativeElement.focus({ preventScroll: true });
-    });
   }
 
   /**
@@ -156,14 +137,6 @@ export class ActivityChat {
     const history = this.history().nativeElement;
     history.scrollTo({ top: history.scrollHeight, behavior: scrollBehavior(this.document) });
     history.focus({ preventScroll: true });
-  }
-
-  protected leaveFocus(event: FocusEvent) {
-    if (
-      event.relatedTarget instanceof Node &&
-      !(event.currentTarget as HTMLElement).contains(event.relatedTarget)
-    )
-      this.focusInside = false;
   }
 
   /**
@@ -189,6 +162,11 @@ export class ActivityChat {
     if (!this.canSend()) return;
     this.followLatest = true;
     this.sent.emit();
+  }
+
+  /** While a request runs, the composer's one control stops it instead of sending. */
+  protected stopRequest() {
+    if (this.busy()) this.cancelled.emit();
   }
 
   protected suggest(text: string) {

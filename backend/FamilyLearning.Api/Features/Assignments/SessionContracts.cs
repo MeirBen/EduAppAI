@@ -29,10 +29,13 @@ public sealed record ParentAssignmentResult(AssignmentSummary Assignment, TaskDo
     internal static ParentAssignmentResult From(Assignment assignment, string childName, string documentJson, TaskSession session)
     {
         var document = StoredJson.Read<TaskDocument>(documentJson);
+        var evaluation = StoredJson.Read<SessionEvaluation>(session.EvaluationJson!);
+        var completed = assignment.Status == "completed";
         var summary = new AssignmentSummary(assignment.Id, assignment.ChildId, childName, assignment.SnapshotId,
-            document.Title, assignment.Status, assignment.Revision, assignment.CreatedAtUtc, true);
+            document.Title, assignment.Status, assignment.Revision, assignment.CreatedAtUtc, true,
+            completed ? evaluation.FinalTotal : null, completed ? evaluation.PossibleTotal : null);
         return new(summary, document, session.Revision, StoredJson.Read<SessionAnswer[]>(session.AnswersJson),
-            StoredJson.Read<SessionEvaluation>(session.EvaluationJson!), session.ScoringPolicyVersion!.Value,
+            evaluation, session.ScoringPolicyVersion!.Value,
             session.StartedAtUtc, session.SavedAtUtc, session.SubmittedAtUtc!.Value, session.ReviewedAtUtc, session.ReviewedByParentId);
     }
 }

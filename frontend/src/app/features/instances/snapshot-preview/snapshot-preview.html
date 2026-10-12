@@ -20,9 +20,10 @@
   } @else if (snapshot.hasValue()) {
     <div class="grid gap-1">
       <p class="note">
-        <span class="icon icon-check" aria-hidden="true"></span>אושרה ב־<bdi>{{
-          snapshot.value().reviewedAtUtc | date
-        }}</bdi>
+        <span class="icon icon-check" aria-hidden="true"></span>אושרה ב־<time
+          [dateTime]="snapshot.value().reviewedAtUtc"
+          >{{ snapshot.value().reviewedAtUtc | date }}</time
+        >
       </p>
       <p class="note">
         <span class="icon icon-lock" aria-hidden="true"></span>עותק קבוע. עריכה יוצרת טיוטה חדשה.
@@ -33,6 +34,14 @@
           נשמר, אבל אי אפשר להקצות אותה שוב.
         </p>
       }
+      @if (work.hasValue() && work.value().items.length) {
+        <div class="flex flex-wrap items-center gap-2">
+          <p class="note"><span class="icon icon-users" aria-hidden="true"></span>הוקצתה ל־</p>
+          @for (child of work.value().items; track child.id) {
+            <app-child-badge [child]="child" />
+          }
+        </div>
+      }
       @if (measurements().length) {
         <app-measurement-list [items]="measurements()" />
       }
@@ -40,8 +49,13 @@
     @if (!snapshot.value().archivedAtUtc) {
       <section class="panel grid gap-stack" aria-labelledby="assign-heading">
         <h2 id="assign-heading">הקצאה לילד או לילדה</h2>
-        <app-child-selector [(value)]="childId" [disabled]="assigning()" label="ילד או ילדה" />
-        <div class="flex flex-wrap items-center gap-3">
+        <div class="flex flex-wrap items-start gap-3">
+          <app-child-selector
+            class="w-full sm:w-64"
+            [hideLabel]="true"
+            [(value)]="childId"
+            [disabled]="assigning()"
+          />
           <button
             id="assign-snapshot"
             class="button"
@@ -50,7 +64,6 @@
           >
             הקצאת הפעילות
           </button>
-          <a class="text-link" routerLink="/children">ניהול הילדים והמכשירים</a>
         </div>
         <app-loading-indicator [active]="assigning()" label="מקצים את הפעילות…" />
         @if (assignmentError()) {

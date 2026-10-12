@@ -34,10 +34,7 @@
 @utility icon-only {
   @apply size-control grow-0 justify-center rounded-full px-0;
 
-  & > :not(.icon) {
+  & > :not(.icon, .tooltip) {
     @apply sr-only;
-  }
-  & > .icon {
-    @apply self-center [margin-block-start:0];
   }
 }

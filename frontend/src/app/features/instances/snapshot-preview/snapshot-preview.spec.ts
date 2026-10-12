@@ -6,9 +6,19 @@ import { SnapshotPreviewPage } from './snapshot-preview';
 import { numericPlan } from '../../activities/learning-plan.fixture';
 import { EditableQuestion } from '../../../core/api/models';
 
+const work = '/api/assignments?snapshotId=ready&pageSize=100';
+const flushWork = async (http: HttpTestingController, items: object[] = []) =>
+  (await vi.waitFor(() => http.expectOne(work))).flush({
+    items,
+    page: 1,
+    pageSize: 100,
+    hasMore: false,
+  });
+
 async function preview(
   questions: Pick<EditableQuestion, 'prompt' | 'interaction' | 'answer'>[],
   archivedAtUtc: string | null = null,
+  assigned: object[] = [],
 ) {
   TestBed.configureTestingModule({
     providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([])],
@@ -39,8 +49,9 @@ async function preview(
       })),
     },
   });
+  await flushWork(http, assigned);
   if (!archivedAtUtc)
-    (await vi.waitFor(() => http.expectOne('/api/children?page=1'))).flush({
+    (await vi.waitFor(() => http.expectOne('/api/children?pageSize=100'))).flush({
       items: [{ id: 'child', name: 'נועה', enabled: true }],
       page: 1,
       pageSize: 25,
@@ -64,8 +75,11 @@ describe('Immutable parent preview', () => {
     button.click();
     http.expectNone('/api/assignments');
     request.flush({ id: 'existing', status: 'completed', childName: 'נועה' });
+    // The children it is assigned to reread, so the new child shows by the activity.
+    await flushWork(http, [{ id: 'existing', status: 'assigned', childName: 'נועה' }]);
     await fixture.whenStable();
     expect(root.textContent).toContain('כבר הוקצתה');
+    expect(root.querySelector('app-child-badge')!.textContent).toContain('נועה');
     expect(root.querySelector('a[href="/assignments/existing"]')).not.toBeNull();
     http.verify();
   });
@@ -80,6 +94,7 @@ describe('Immutable parent preview', () => {
     http
       .expectOne('/api/assignments')
       .flush({ id: 'existing', status: 'withdrawn', revision: 2, childName: 'נועה' });
+    await flushWork(http);
     await fixture.whenStable();
     expect(root.textContent).toContain('בוטלה קודם');
     expect(root.textContent).not.toContain('כבר הוקצתה');
@@ -87,6 +102,7 @@ describe('Immutable parent preview', () => {
     const restore = http.expectOne('/api/assignments/existing/restore');
     expect(restore.request.body).toEqual({ expectedRevision: 2 });
     restore.flush({ id: 'existing', status: 'assigned', revision: 3, childName: 'נועה' });
+    await flushWork(http);
     await fixture.whenStable();
     expect(root.textContent).toContain('ההקצאה הוחזרה');
     expect(root.querySelector('a[href="/assignments/existing"]')).not.toBeNull();
@@ -94,8 +110,12 @@ describe('Immutable parent preview', () => {
   });
 
   it('explains archived content while retaining the parent preview and copy action', async () => {
-    const { root, http } = await preview([], '2026-10-06T00:00:00Z');
+    const { root, http } = await preview([], '2026-10-06T00:00:00Z', [
+      { id: 'kept', status: 'completed', childName: 'רפאל', finalTotal: 1, possibleTotal: 2 },
+    ]);
     expect(root.textContent).toContain('הפעילות בארכיון');
+    // Archived work still names its children.
+    expect(root.querySelector('app-child-badge')!.textContent).toContain('רפאל');
     expect(root.querySelector('#assign-snapshot')).toBeNull();
     expect(root.querySelector('#copy-snapshot')).not.toBeNull();
     http.verify();

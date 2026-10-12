@@ -68,7 +68,6 @@ import {
 } from './workspace-form';
 import { DisabledInteractive } from '../../../shared/disabled-interactive';
 import { FieldErrors } from '../../../shared/forms/field-errors';
-import { ActionBar, ActionBarToggle } from '../../../shared/action-bar/action-bar';
 
 /** The pause after the last change before it saves itself. */
 const autosaveDelay = 1000;
@@ -92,8 +91,6 @@ const autosaveDelay = 1000;
     ActivityDocumentView,
     NgTemplateOutlet,
     SourceReplacement,
-    ActionBar,
-    ActionBarToggle,
     LiveStatus,
   ],
   templateUrl: './activity-workspace.html',
@@ -351,6 +348,7 @@ export class ActivityWorkspace {
   protected readonly chatSession = new ChatSession(
     () => this.raw().document,
     () => this.locked(),
+    () => this.operationActive(),
   );
   protected readonly sourceFields = form(this.sourceReplacement, (path) => {
     disabled(path, { when: () => this.locked() });
@@ -385,24 +383,28 @@ export class ActivityWorkspace {
 
   /**
    * Opens the chat sheet where the layout has one, then moves focus once it shows: by default into
-   * the sheet itself, which raises no on-screen keyboard.
+   * the sheet itself, which raises no on-screen keyboard. The sheet is fixed in view, so focusing it
+   * never scrolls the page behind.
    */
-  protected openChat(focus = () => this.chatPanel()?.nativeElement.focus()) {
-    this.showSheet(this.document.activeElement as HTMLElement);
+  protected openChat(focus = () => this.chatPanel()?.nativeElement.focus({ preventScroll: true })) {
+    // The sheet's close control renders only where the chat is a sheet; elsewhere the chat is in view.
+    if (this.chatClose()?.nativeElement.getClientRects().length) {
+      // Tapping a button does not focus it on iOS, which leaves no opener but the AI button.
+      const opener = this.document.activeElement;
+      this.chatInvoker =
+        opener instanceof HTMLElement && opener !== this.document.body ? opener : undefined;
+      this.chatOpen.set(true);
+    }
     afterNextRender(focus, { injector: this.injector });
   }
 
-  /** Closing returns focus to the control that opened the sheet, or to the AI button when it opened itself. */
+  /**
+   * Closing returns focus to the control that opened the sheet, or to the AI button where tapping
+   * gave the opener no focus; both are in view, so the page stays where it was.
+   */
   protected closeChat() {
     this.chatOpen.set(false);
-    (this.chatInvoker ?? this.chatOpener()?.nativeElement)?.focus();
-  }
-
-  /** The sheet's close control renders only where the chat is a sheet; elsewhere the chat is in view. */
-  private showSheet(invoker?: HTMLElement) {
-    if (!this.chatClose()?.nativeElement.getClientRects().length) return;
-    this.chatInvoker = invoker;
-    this.chatOpen.set(true);
+    (this.chatInvoker ?? this.chatOpener()?.nativeElement)?.focus({ preventScroll: true });
   }
 
   constructor() {
@@ -505,8 +507,19 @@ export class ActivityWorkspace {
     if (this.lifetime.destroyed) return;
     if (proposal && isCurrent()) {
       this.applyProposal(proposal);
-      // The first plan moves the chat beside the activity; a sheet stays open where the parent is talking.
-      if (!baseDefinition) afterNextRender(() => this.showSheet(), { injector: this.injector });
+      // The first plan replaces the request: where the chat becomes a closed sheet, focus that fell to
+      // the page moves to the new settings; a visible chat keeps its own after-reply focus.
+      if (!baseDefinition)
+        afterNextRender(
+          () => {
+            if (
+              this.document.activeElement === this.document.body &&
+              !this.chatPanel()?.nativeElement.checkVisibility()
+            )
+              this.document.getElementById('plan-title')?.focus({ preventScroll: true });
+          },
+          { injector: this.injector },
+        );
     }
     // A finished request no longer holds back autosave, including a first save it deferred.
     else this.scheduleSave();
@@ -641,7 +654,6 @@ export class ActivityWorkspace {
           ...(target?.message ? { message: target.message } : {}),
           ...(target?.target ? { target: target.target } : {}),
         };
-        this.startRecovery.set({ draftId: saved.id, request });
         await this.submitOperation(saved.id, request);
         if (action === 'Create' || action === 'GenerateQuestions') this.revealProgress();
       }
@@ -1004,8 +1016,8 @@ export class ActivityWorkspace {
       );
       this.startRecovery.set(undefined);
     } catch (error) {
-      // Anything but a definite rejection may have started and stays recoverable.
-      if (rejected(error)) this.startRecovery.set(undefined);
+      // Anything but a definite rejection may have started, so its exact request stays recoverable.
+      this.startRecovery.set(rejected(error) ? undefined : { draftId: id, request });
       throw error;
     }
   }

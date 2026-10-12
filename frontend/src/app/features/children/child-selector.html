@@ -1,12 +1,14 @@
 <div class="grid gap-2">
   <label
-    ><span class="mb-2 block">{{ label() }}</span
+    ><span class="mb-2 block" [class.sr-only]="hideLabel()">{{ label() }}</span
     ><select
       [value]="value()"
       [disabled]="disabled() || children.isLoading()"
       (change)="choose($event)"
     >
-      <option value="">{{ emptyLabel() }}</option>
+      <option value="">
+        {{ children.isLoading() && !children.hasValue() ? 'טוענים פרופילים…' : emptyLabel() }}
+      </option>
       @for (child of options(); track child.id) {
         <option [value]="child.id" [disabled]="!allowDisabled() && !child.enabled">
           &#x2068;{{ child.name }}&#x2069;{{ child.enabled ? '' : ' (מושבת)' }}
@@ -14,7 +16,6 @@
       }
     </select></label
   >
-  <app-loading-indicator [active]="children.isLoading()" label="טוענים פרופילים…" />
   @if (children.error()) {
     <p class="field-error" role="alert">{{ failure(children.error()) }}</p>
     <button
@@ -25,17 +26,7 @@
       <span class="icon icon-refresh" aria-hidden="true"></span>רענון הפרופילים
     </button>
   }
-  @if (children.hasValue()) {
-    @if (!children.value().items.length) {
-      <p class="text-sm text-muted">
-        {{ page() === 1 ? 'עוד לא הוספתם ילדים.' : 'אין פרופילים נוספים.' }}
-      </p>
-    }
-    <app-pager
-      label="עמודי בחירת פרופיל"
-      [(page)]="page"
-      [hasMore]="children.value().hasMore"
-      [busy]="disabled() || children.isLoading()"
-    />
+  @if (children.hasValue() && !options().length) {
+    <p class="text-sm text-muted">עוד לא הוספתם ילדים.</p>
   }
 </div>

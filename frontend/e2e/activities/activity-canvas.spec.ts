@@ -98,12 +98,9 @@ test('clarifies on a phone, keeps the conversation open as a sheet and saves the
   await page.getByLabel('התשובה שלכם').fill('כיתה ג');
   await page.locator('#chat-send').click();
   await expect(page.locator('#plan-title')).toHaveText('הגדרות הפעילות');
-  // The first plan moves the chat into its sheet, still open on the reply; closing it returns to the AI button.
-  await expect(page.locator('#activity-chat')).toBeInViewport();
-  await expect(page.getByRole('log')).toBeFocused();
-  await page.keyboard.press('Escape');
+  // The first plan moves the chat into its closed sheet and focus to the new settings.
   await expect(page.locator('#activity-chat')).toBeHidden();
-  await expect(page.locator('#open-chat')).toBeFocused();
+  await expect(page.locator('#plan-title')).toBeFocused();
   expect(authoring[1]['context']).toEqual([
     { role: 'parent', text: 'תרגול לפי מקור דו לשוני' },
     { role: 'assistant', text: 'לאיזה גיל?' },
@@ -372,9 +369,6 @@ test('desktop chat stays reachable beside lower questions, and becomes a sheet f
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
       true,
     );
-    // A minimized action bar still lets a question open the sheet.
-    if (width === 360 && font === 16)
-      await page.locator('.action-bar').getByRole('button', { name: 'הקטנת הסרגל' }).click();
     // Asking opens the sheet at the composer; Escape returns to the question the parent asked about.
     await page.locator('#ask-question-q11').click();
     await expect(page.locator('#chat-message')).toBeFocused();

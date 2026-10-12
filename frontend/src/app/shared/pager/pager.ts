@@ -7,28 +7,32 @@ import { DisabledInteractive } from '../disabled-interactive';
   imports: [DisabledInteractive],
   template: `
     @if (page() > 1 || hasMore()) {
-      <nav class="flex flex-wrap items-center gap-3" [attr.aria-label]="label()">
+      <nav class="flex items-center justify-center gap-2" [attr.aria-label]="label()">
         <button
           type="button"
-          class="button button-secondary"
+          class="icon-button icon-button-quiet"
           [disabledInteractive]="busy() || page() === 1"
           (click)="page.set(page() - 1)"
         >
-          הקודם
+          <span class="icon icon-previous" aria-hidden="true"></span
+          ><span class="tooltip">העמוד הקודם</span>
         </button>
-        <span>עמוד {{ page() }}</span>
+        <span class="text-sm text-muted" aria-live="polite">עמוד {{ page() }}</span>
         <button
           type="button"
-          class="button button-secondary"
+          class="icon-button icon-button-quiet"
           [disabledInteractive]="busy() || !hasMore()"
           (click)="page.set(page() + 1)"
         >
-          הבא
+          <span class="icon icon-next" aria-hidden="true"></span
+          ><span class="tooltip">העמוד הבא</span>
         </button>
       </nav>
     }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
+  // A list that fits on one page shows no pager, and its empty host takes no slot in the list's gaps.
+  host: { class: 'contents' },
 })
 export class Pager {
   readonly page = model.required<number>();

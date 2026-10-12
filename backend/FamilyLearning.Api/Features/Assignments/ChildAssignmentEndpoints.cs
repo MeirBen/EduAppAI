@@ -27,7 +27,7 @@ public static class ChildAssignmentEndpoints
     }
 
     private static async Task<IResult> ListAsync(ClaimsPrincipal user, LearningDbContext db, TimeProvider clock, CancellationToken ct,
-        string state = "available", int page = 1, int pageSize = 25)
+        string state = "available", int page = 1, int pageSize = PageRequest.DefaultSize)
     {
         var identity = await ChildAccess.FindAsync(user, db, clock.GetUtcNow().UtcDateTime, ct);
         if (identity is null) return Results.Unauthorized();
@@ -38,6 +38,8 @@ public static class ChildAssignmentEndpoints
         var query = db.Assignments.AsNoTracking().Where(a => a.ChildId == identity.ChildId && a.FamilyId == identity.FamilyId);
         query = state == "available" ? query.Where(a => a.Status == "assigned") : query.Where(a => a.Status == "awaiting-review" || a.Status == "completed");
         return Results.Ok(await paging.ReadAsync(query.OrderByDescending(a => a.CreatedAtUtc).ThenByDescending(a => a.Id)
-            .Select(a => new LearnerAssignmentSummary(a.Id, a.Snapshot.Title, a.Status, a.Revision, a.CreatedAtUtc, a.Session != null)), ct));
+            .Select(a => new LearnerAssignmentSummary(a.Id, a.Snapshot.Title, a.Status, a.Revision, a.CreatedAtUtc, a.Session != null,
+                a.Status == "completed" ? LearningDbContext.JsonInteger(a.Session!.EvaluationJson, "$.finalTotal") : null,
+                a.Status == "completed" ? LearningDbContext.JsonInteger(a.Session!.EvaluationJson, "$.possibleTotal") : null)), ct));
     }
 }

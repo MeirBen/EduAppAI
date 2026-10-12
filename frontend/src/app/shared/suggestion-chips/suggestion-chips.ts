@@ -1,6 +1,9 @@
 import { ChangeDetectionStrategy, Component, input, output } from '@angular/core';
 
-/** Ready-made wording a parent can pick; a suggestion only fills its field and never sends. */
+/**
+ * Ready-made wording a parent can pick, in equal cells that stack on phones; a suggestion only fills
+ * its field and never sends.
+ */
 @Component({
   selector: 'app-suggestion-chips',
   templateUrl: './suggestion-chips.html',

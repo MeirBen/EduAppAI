@@ -303,12 +303,12 @@ test('parent manages access, assigns frozen work, recovers final grades and rese
     expect((await page.request.get(`/api/instances/${snapshot.id}`)).status()).toBe(404);
     await page.getByText('ניהול נתונים', { exact: true }).click();
     page.once('dialog', async (dialog) => {
-      for (const scope of ['פרופילי הילדים', 'המכשירים', 'ההקצאות', 'התשובות', 'הציונים'])
+      for (const scope of ['הפרופילים', 'המכשירים', 'ההקצאות', 'התשובות', 'הציונים'])
         expect(dialog.message()).toContain(scope);
       await dialog.accept();
     });
-    await page.getByRole('button', { name: 'איפוס נתוני הלמידה', exact: true }).click();
-    await expect(page.getByText('נתוני הלמידה נמחקו.', { exact: true })).toBeVisible();
+    await page.getByRole('button', { name: 'מחיקת נתוני הילדים', exact: true }).click();
+    await expect(page.getByText('נתוני הילדים נמחקו.', { exact: true })).toBeVisible();
     expect((await (await page.request.get('/api/children')).json()).items).toEqual([]);
     expect((await (await page.request.get('/api/assignments')).json()).items).toEqual([]);
     expect((await page.request.get(`/api/instances/${snapshot.id}`)).status()).toBe(404);
