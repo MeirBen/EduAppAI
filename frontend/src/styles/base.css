@@ -76,9 +76,12 @@
   kbd {
     font-family: inherit;
   }
-  /* A date reads as one unit: it never breaks inside, and its numbers never reorder the sentence around it. */
+  /*
+   * A date reads as one unit: it moves to the next line whole and wraps inside only when wider than
+   * the line, as with very large text; its numbers never reorder the sentence around it.
+   */
   time {
-    @apply whitespace-nowrap;
+    @apply inline-block;
     unicode-bidi: isolate;
   }
   /* A link inside a sentence stays on its line and keeps an underline; standalone actions use `.text-link`. */

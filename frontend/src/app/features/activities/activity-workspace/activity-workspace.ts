@@ -386,9 +386,14 @@ export class ActivityWorkspace {
    * the sheet itself, which raises no on-screen keyboard. The sheet is fixed in view, so focusing it
    * never scrolls the page behind.
    */
+  /** Below desktop width the chat is a sheet over the page; only there does its close control render. */
+  private chatIsSheet() {
+    return !!this.chatClose()?.nativeElement.getClientRects().length;
+  }
+
   protected openChat(focus = () => this.chatPanel()?.nativeElement.focus({ preventScroll: true })) {
-    // The sheet's close control renders only where the chat is a sheet; elsewhere the chat is in view.
-    if (this.chatClose()?.nativeElement.getClientRects().length) {
+    // Elsewhere the chat is already in view.
+    if (this.chatIsSheet()) {
       // Tapping a button does not focus it on iOS, which leaves no opener but the AI button.
       const opener = this.document.activeElement;
       this.chatInvoker =
@@ -507,14 +512,16 @@ export class ActivityWorkspace {
     if (this.lifetime.destroyed) return;
     if (proposal && isCurrent()) {
       this.applyProposal(proposal);
-      // The first plan replaces the request: where the chat becomes a closed sheet, focus that fell to
-      // the page moves to the new settings; a visible chat keeps its own after-reply focus.
+      // The first plan replaces the request: where the chat becomes a closed sheet, focus left in it
+      // (or on the page) moves to the new settings; a visible chat keeps its focus.
       if (!baseDefinition)
         afterNextRender(
           () => {
+            const active = this.document.activeElement;
             if (
-              this.document.activeElement === this.document.body &&
-              !this.chatPanel()?.nativeElement.checkVisibility()
+              this.chatIsSheet() &&
+              !this.chatOpen() &&
+              (active === this.document.body || this.chatPanel()?.nativeElement.contains(active))
             )
               this.document.getElementById('plan-title')?.focus({ preventScroll: true });
           },

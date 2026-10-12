@@ -158,7 +158,8 @@ test('parent manages access, assigns frozen work, recovers final grades and rese
       page.getByText('ההקצאה בוטלה. היא נשמרת בתצוגה "בוטלו".', { exact: true }),
     ).toBeVisible();
     await page.locator('label', { hasText: 'בוטלו' }).click();
-    await expect(page.getByRole('radio', { name: 'בוטלו', exact: true })).toBeChecked();
+    // A view's name ends with its count.
+    await expect(page.getByRole('radio', { name: /^בוטלו/ })).toBeChecked();
     await expect(
       page.getByRole('link', { name: 'עבודה לביטול — נועה', exact: true }),
     ).toBeVisible();
@@ -208,12 +209,16 @@ test('parent manages access, assigns frozen work, recovers final grades and rese
     await expect(page.getByText('מחכה לבדיקה', { exact: true })).toBeVisible();
     await expect(page.getByText('ניקוד אוטומטי עד כה:', { exact: false })).toBeVisible();
     await page.goto('/activities');
+    // Ready activities open on assigned work; one never assigned waits under "לא הוקצו".
+    const ready = page.locator('section[aria-labelledby="ready-title"]');
+    await ready.locator('label', { hasText: 'לא הוקצו' }).click();
     page.once('dialog', (dialog) => dialog.accept());
     await page.getByRole('button', { name: 'הסרת הפעילות: פעילות ללא הקצאה', exact: true }).click();
     await expect(
       page.getByRole('button', { name: 'הסרת הפעילות: פעילות ללא הקצאה', exact: true }),
     ).toHaveCount(0);
     expect((await page.request.get(`/api/instances/${unused.id}`)).status()).toBe(404);
+    await ready.locator('label', { hasText: 'מוקצות' }).click();
     page.once('dialog', (dialog) => dialog.accept());
     await page.getByRole('button', { name: 'הסרת הפעילות: בדיקת תשובות', exact: true }).click();
     await expect(page.getByText('הפעילות הוסרה.', { exact: true })).toBeVisible();

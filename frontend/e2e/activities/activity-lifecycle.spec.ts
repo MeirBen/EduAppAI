@@ -48,8 +48,8 @@ async function isolate(page: Page, format: 'numeric-input' | 'single-choice' = '
       signedIn = false;
       return route.fulfill({ status: 204 });
     }
-    if (path === '/api/children' && method === 'GET')
-      return route.fulfill({ json: { items: [], page: 1, pageSize: 25, hasMore: false } });
+    if (['/api/children', '/api/assignments'].includes(path) && method === 'GET')
+      return route.fulfill({ json: { items: [], page: 1, pageSize: 100, hasMore: false } });
     if (path === '/api/limits') return route.fulfill({ json: limits });
     // No other device exists here; 204 closes the change stream without a retry.
     if (path === '/api/library/changes') return route.fulfill({ status: 204 });

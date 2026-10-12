@@ -207,9 +207,8 @@ test('a lost first-save response keeps the confirmed source visible and recovers
   await textSize(page, 32);
   await page.locator('#chat-message').fill('שאלות על המקור שלי');
   await page.locator('#chat-send').click();
-  await expect(page.getByRole('log')).toBeFocused();
-  await expect(page.locator('#open-chat')).toHaveAttribute('aria-expanded', 'true');
-  await page.keyboard.press('Escape');
+  // The first plan moves the chat into its closed sheet and focus to the new settings.
+  await expect(page.locator('#plan-title')).toBeFocused();
   await expect(page.locator('#activity-chat')).toBeHidden();
   const source = page.getByLabel('הטקסט שלכם');
   await expect(source).toHaveValue(sourceText);

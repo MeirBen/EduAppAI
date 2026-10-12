@@ -7,67 +7,60 @@
   <div class="grid items-start gap-section lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
     <section class="grid gap-stack" aria-labelledby="profiles-heading">
       <h2 id="profiles-heading">פרופילי הילדים</h2>
-      <app-loading-indicator
-        [active]="children.isLoading() && !shownChildren()"
-        label="טוענים פרופילים…"
-      />
-      @if (children.error()) {
-        <app-read-failure [message]="failure(children.error())" (retry)="children.reload()" />
-      }
-      @if (shownChildren(); as list) {
-        <div class="list" [attr.aria-busy]="children.isLoading() || busy()">
-          @for (child of list.items; track child.id) {
-            <article
-              class="list-row"
-              [attr.aria-labelledby]="'child-' + child.id"
-              [attr.aria-current]="selected()?.id === child.id ? 'true' : null"
+      <app-paged-list
+        #childList
+        [resource]="children"
+        [(page)]="page"
+        [failure]="failure"
+        [saving]="busy()"
+        loadingLabel="טוענים פרופילים…"
+        pagerLabel="עמודי פרופילים"
+      >
+        @for (child of childList.items(); track child.id) {
+          <article
+            class="list-row"
+            [attr.aria-labelledby]="'child-' + child.id"
+            [attr.aria-current]="selected()?.id === child.id ? 'true' : null"
+          >
+            <div class="row-body">
+              <h3 [id]="'child-' + child.id">
+                <bdi>{{ child.name }}</bdi>
+              </h3>
+              @if (!child.enabled || child.grade || child.age !== null) {
+                <p class="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted">
+                  @if (!child.enabled) {
+                    <span class="badge" data-tone="quiet">מושבת</span>
+                  }
+                  @if (child.grade || child.age !== null) {
+                    <span>
+                      @if (child.grade) {
+                        <bdi>{{ child.grade }}</bdi>
+                      }
+                      @if (child.grade && child.age !== null) {
+                        ·
+                      }
+                      @if (child.age !== null) {
+                        גיל {{ child.age }}
+                      }
+                    </span>
+                  }
+                </p>
+              }
+            </div>
+            <button
+              data-edit-child
+              class="button button-secondary"
+              [disabledInteractive]="busy()"
+              [attr.aria-label]="'ניהול הפרופיל: ' + child.name"
+              (click)="select(child)"
             >
-              <div class="row-body">
-                <h3 [id]="'child-' + child.id">
-                  <bdi>{{ child.name }}</bdi>
-                </h3>
-                @if (!child.enabled || child.grade || child.age !== null) {
-                  <p class="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted">
-                    @if (!child.enabled) {
-                      <span class="badge" data-tone="quiet">מושבת</span>
-                    }
-                    @if (child.grade || child.age !== null) {
-                      <span>
-                        @if (child.grade) {
-                          <bdi>{{ child.grade }}</bdi>
-                        }
-                        @if (child.grade && child.age !== null) {
-                          ·
-                        }
-                        @if (child.age !== null) {
-                          גיל {{ child.age }}
-                        }
-                      </span>
-                    }
-                  </p>
-                }
-              </div>
-              <button
-                data-edit-child
-                class="button button-secondary"
-                [disabledInteractive]="busy()"
-                [attr.aria-label]="'ניהול הפרופיל: ' + child.name"
-                (click)="select(child)"
-              >
-                ניהול
-              </button>
-            </article>
-          } @empty {
-            <p class="empty-state">עוד אין פרופילים. הוסיפו ילד או ילדה כדי להקצות פעילויות.</p>
-          }
-        </div>
-        <app-pager
-          label="עמודי פרופילים"
-          [(page)]="page"
-          [hasMore]="list.hasMore"
-          [busy]="busy() || children.isLoading()"
-        />
-      }
+              ניהול
+            </button>
+          </article>
+        } @empty {
+          <p class="empty-state">עוד אין פרופילים. הוסיפו ילד או ילדה כדי להקצות פעילויות.</p>
+        }
+      </app-paged-list>
     </section>
     <div class="grid gap-section">
       <section class="panel grid gap-stack" aria-labelledby="profile-heading">
@@ -255,101 +248,95 @@
           }
           <section class="card-section" aria-labelledby="devices-heading">
             <h3 id="devices-heading">מכשירים</h3>
-            <app-loading-indicator
-              [active]="devices.isLoading() && !shownDevices()"
-              label="טוענים מכשירים…"
-            />
-            @if (devices.error()) {
-              <app-read-failure [message]="failure(devices.error())" (retry)="devices.reload()" />
-            }
-            @if (shownDevices(); as list) {
-              <div class="list" [attr.aria-busy]="devices.isLoading() || busy()">
-                @for (device of list.items; track device.id) {
-                  <article
-                    class="flex flex-wrap items-center gap-stack"
-                    [attr.aria-labelledby]="'device-' + device.id"
-                  >
-                    <div class="row-body">
-                      <h4 [id]="'device-' + device.id">
-                        <bdi>{{ device.deviceLabel }}</bdi>
-                      </h4>
-                      <p class="text-sm text-muted">
-                        {{
-                          device.revokedAtUtc
-                            ? 'הגישה בוטלה'
-                            : device.canRemove
-                              ? 'תוקף הגישה פג'
-                              : 'גישה פעילה'
-                        }}
-                      </p>
-                      <details class="text-sm text-muted">
-                        <summary [attr.aria-label]="'פרטי זמנים של המכשיר: ' + device.deviceLabel">
-                          פרטי זמנים
-                        </summary>
-                        <div class="grid gap-1">
+            <app-paged-list
+              #deviceList
+              [resource]="devices"
+              [(page)]="devicePage"
+              [filter]="selected()?.id"
+              [failure]="failure"
+              [saving]="busy()"
+              loadingLabel="טוענים מכשירים…"
+              pagerLabel="עמודי מכשירים"
+            >
+              @for (device of deviceList.items(); track device.id) {
+                <article
+                  class="flex flex-wrap items-center gap-stack"
+                  [attr.aria-labelledby]="'device-' + device.id"
+                >
+                  <div class="row-body">
+                    <h4 [id]="'device-' + device.id">
+                      <bdi>{{ device.deviceLabel }}</bdi>
+                    </h4>
+                    <p class="text-sm text-muted">
+                      {{
+                        device.revokedAtUtc
+                          ? 'הגישה בוטלה'
+                          : device.canRemove
+                            ? 'תוקף הגישה פג'
+                            : 'גישה פעילה'
+                      }}
+                    </p>
+                    <details class="text-sm text-muted">
+                      <summary [attr.aria-label]="'פרטי זמנים של המכשיר: ' + device.deviceLabel">
+                        פרטי זמנים
+                      </summary>
+                      <div class="grid gap-1">
+                        <p>
+                          חובר ב־<time [dateTime]="device.createdAtUtc">{{
+                            device.createdAtUtc | date
+                          }}</time>
+                        </p>
+                        @if (device.revokedAtUtc) {
                           <p>
-                            חובר ב־<time [dateTime]="device.createdAtUtc">{{
-                              device.createdAtUtc | date
+                            הגישה בוטלה ב־<time [dateTime]="device.revokedAtUtc">{{
+                              device.revokedAtUtc | date
                             }}</time>
                           </p>
-                          @if (device.revokedAtUtc) {
-                            <p>
-                              הגישה בוטלה ב־<time [dateTime]="device.revokedAtUtc">{{
-                                device.revokedAtUtc | date
-                              }}</time>
-                            </p>
-                          }
-                          <p>
-                            {{
-                              device.canRemove && !device.revokedAtUtc
-                                ? 'התוקף פג ב־'
-                                : 'תוקף הגישה עד '
-                            }}<time [dateTime]="device.expiresAtUtc">{{
-                              device.expiresAtUtc | date
-                            }}</time>
-                          </p>
-                        </div>
-                      </details>
-                    </div>
-                    @if (device.canRemove) {
-                      <button
-                        data-remove-device
-                        class="text-link text-link-danger"
-                        [disabledInteractive]="busy()"
-                        [attr.aria-label]="'הסרת המכשיר מהרשימה: ' + device.deviceLabel"
-                        (click)="changeDeviceAccess(device)"
-                      >
-                        הסרה מהרשימה
-                      </button>
-                    } @else {
-                      <button
-                        data-revoke
-                        class="button button-danger"
-                        [disabledInteractive]="busy()"
-                        [attr.aria-label]="'ביטול הגישה: ' + device.deviceLabel"
-                        (click)="changeDeviceAccess(device)"
-                      >
-                        ביטול גישה
-                      </button>
-                    }
-                  </article>
-                } @empty {
-                  <p class="empty-state">
-                    {{
-                      devicePage() > 1
-                        ? 'אין מכשירים נוספים.'
-                        : 'עוד לא חוברו מכשירים. צרו קוד הפעלה כדי לחבר מכשיר.'
-                    }}
-                  </p>
-                }
-              </div>
-              <app-pager
-                label="עמודי מכשירים"
-                [(page)]="devicePage"
-                [hasMore]="list.hasMore"
-                [busy]="busy() || devices.isLoading()"
-              />
-            }
+                        }
+                        <p>
+                          {{
+                            device.canRemove && !device.revokedAtUtc
+                              ? 'התוקף פג ב־'
+                              : 'תוקף הגישה עד '
+                          }}<time [dateTime]="device.expiresAtUtc">{{
+                            device.expiresAtUtc | date
+                          }}</time>
+                        </p>
+                      </div>
+                    </details>
+                  </div>
+                  @if (device.canRemove) {
+                    <button
+                      data-remove-device
+                      class="text-link text-link-danger"
+                      [disabledInteractive]="busy()"
+                      [attr.aria-label]="'הסרת המכשיר מהרשימה: ' + device.deviceLabel"
+                      (click)="changeDeviceAccess(device)"
+                    >
+                      הסרה מהרשימה
+                    </button>
+                  } @else {
+                    <button
+                      data-revoke
+                      class="button button-danger"
+                      [disabledInteractive]="busy()"
+                      [attr.aria-label]="'ביטול הגישה: ' + device.deviceLabel"
+                      (click)="changeDeviceAccess(device)"
+                    >
+                      ביטול גישה
+                    </button>
+                  }
+                </article>
+              } @empty {
+                <p class="empty-state">
+                  {{
+                    devicePage() > 1
+                      ? 'אין מכשירים נוספים.'
+                      : 'עוד לא חוברו מכשירים. צרו קוד הפעלה כדי לחבר מכשיר.'
+                  }}
+                </p>
+              }
+            </app-paged-list>
           </section>
         </section>
       }

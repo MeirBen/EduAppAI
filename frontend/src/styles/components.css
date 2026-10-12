@@ -18,9 +18,9 @@
   .button-danger {
     @apply border-line bg-surface text-danger shadow-(--shadow-control) actionable:hover:border-danger/30 actionable:hover:bg-danger-soft actionable:hover:shadow-(--shadow-panel);
   }
-  /* A busy action's icon breathes, as the assistant's mark does while it thinks. */
+  /* A busy action's icon breathes, as the assistant's mark and a busy list do. */
   .button[aria-busy='true'] > .icon {
-    @apply motion-safe:animate-thinking;
+    @apply motion-safe:animate-breathe;
   }
   /* An action with unsaved work behind it, such as Save, carries a small dot at its corner. */
   .button[data-attention] {
@@ -127,8 +127,11 @@
    * beside it. A disabled fieldset keeps its choice but stops switching.
    */
   .segmented {
-    /* `min-w-0` lifts a fieldset's min-content floor, so the narrowest phones scroll the track, never the page. */
-    @apply flex w-fit max-w-full min-w-0 items-center gap-0.5 overflow-x-auto rounded-full bg-soft p-1 max-sm:w-full;
+    /*
+     * On phones it takes the row's width, so its own labels never widen the page (inline-size
+     * containment); at very large text they scroll inside the track instead.
+     */
+    @apply flex w-fit max-w-full min-w-0 items-center gap-0.5 overflow-x-auto rounded-full bg-soft p-1 max-sm:w-full max-sm:contain-inline-size;
 
     /* A fieldset never stretches its items, so each segment takes the control height less the track's padding. */
     & > label {
@@ -231,15 +234,15 @@
    * the list is shown, such as one a change elsewhere added, fades in where it lands.
    */
   /*
-   * A list's rows. While it loads another page or saves a change to it (`aria-busy`), the rows it
-   * still shows fade after a beat and return at once, so a quick response never flickers and
-   * nothing moves.
+   * A list's rows (`PagedList`). While it loads another page or saves a change to it (`aria-busy`),
+   * the rows it still shows breathe, so the wait reads as work and nothing moves. Reduced motion
+   * holds a steady fade after a beat instead, so a quick answer never flickers.
    */
   .list {
-    @apply grid gap-stack transition-opacity duration-300;
+    @apply grid gap-stack;
 
     &[aria-busy='true'] {
-      @apply opacity-60 delay-200;
+      @apply motion-safe:animate-breathe motion-reduce:opacity-60 motion-reduce:transition-opacity motion-reduce:delay-200;
     }
   }
   /* A row's title over its details, with room for the badges below it. */
@@ -578,7 +581,7 @@
     @apply gap-2;
 
     & .ai-mark {
-      @apply motion-safe:animate-thinking;
+      @apply motion-safe:animate-breathe;
     }
     & .loading-label {
       @apply font-normal text-muted;

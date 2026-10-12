@@ -1,5 +1,5 @@
 {
-    "css.customData": [".vscode/tailwind.css-data.json"],
+    "css.customData": [".vscode/css-data.json"],
     "dotnet.defaultSolution": "FamilyLearning.sln",
     "logViewer.watch": [
         {

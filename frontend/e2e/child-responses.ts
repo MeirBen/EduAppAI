@@ -31,7 +31,16 @@ export async function expectChildResponse(response: APIResponse) {
   } else if (path.endsWith('/assignments')) {
     keys(body, ['items', 'page', 'pageSize', 'hasMore']);
     for (const item of body.items)
-      keys(item, ['createdAtUtc', 'hasStarted', 'id', 'revision', 'status', 'title']);
+      keys(item, [
+        'createdAtUtc',
+        'finalTotal',
+        'hasStarted',
+        'id',
+        'possibleTotal',
+        'revision',
+        'status',
+        'title',
+      ]);
   } else {
     expect(path).toMatch(/\/api\/child\/assignments\/[^/]+$/);
     keys(body, ['createdAtUtc', 'document', 'id', 'revision', 'status']);

@@ -19,13 +19,10 @@ import { liveLists } from '../../../core/api/live-lists';
 import { apiError } from '../../../core/api/api-error';
 import { focusHolder } from '../../../shared/focus-holder';
 import { LiveStatus } from '../../../shared/live-status/live-status';
-import { LoadingIndicator } from '../../../shared/loading-indicator/loading-indicator';
 import { DisabledInteractive } from '../../../shared/disabled-interactive';
 import { ChildBadge } from '../../../shared/child-badge/child-badge';
 import { Count } from '../../../shared/count/count';
-import { Pager } from '../../../shared/pager/pager';
-import { shownValue } from '../../../core/api/shown-value';
-import { ReadFailure } from '../../../shared/read-failure/read-failure';
+import { PagedList } from '../../../shared/paged-list/paged-list';
 
 const snapshotViews: { value: SnapshotView; label: string; empty: string }[] = [
   { value: 'assigned', label: 'מוקצות', empty: 'אין כרגע פעילויות שמחכות לילדים או לבדיקה.' },
@@ -96,17 +93,7 @@ function sectionOpen(count: Signal<number | undefined>) {
  */
 @Component({
   selector: 'app-activity-library',
-  imports: [
-    ReadFailure,
-    ChildBadge,
-    Count,
-    RouterLink,
-    DatePipe,
-    LiveStatus,
-    LoadingIndicator,
-    DisabledInteractive,
-    Pager,
-  ],
+  imports: [PagedList, ChildBadge, Count, RouterLink, DatePipe, LiveStatus, DisabledInteractive],
   templateUrl: './activity-library.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
@@ -132,9 +119,6 @@ export class ActivityLibrary {
     status: this.snapshotView(),
   }));
   protected readonly archive = this.api.archivedSnapshots(this.archivePage);
-  protected readonly shownDrafts = shownValue(this.drafts);
-  protected readonly shownSnapshots = shownValue(this.snapshots, this.snapshotView);
-  protected readonly shownArchive = shownValue(this.archive);
   /** Exact section and view sizes, so a folded section or an unchosen view says what it holds. */
   protected readonly counts = this.api.libraryCounts();
   protected readonly draftCount = computed(() => this.count('drafts'));

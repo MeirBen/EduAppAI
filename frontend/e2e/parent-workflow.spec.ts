@@ -107,7 +107,8 @@ test('the parent keeps their place: pages open at the top, focus follows the act
   await expect.poll(direction).toBe('rtl');
   await page.locator('#create-activity').focus();
   await page.keyboard.press('Enter');
-  await expect(page.locator('#chat-cancel')).toBeVisible();
+  // On a phone Stop waits in the closed chat sheet.
+  await expect(page.locator('#chat-cancel')).toBeAttached();
   await expect(page.locator('#create-activity')).toBeFocused();
   await expect(page.locator('app-generation-status')).toBeInViewport();
   await expect(page.locator('#document-heading')).toBeFocused({ timeout: 20_000 });
@@ -133,7 +134,10 @@ test('prompt to activity, targeted chat, manual editing and an immutable approve
   await expect(page.locator('#chat-cancel')).toBeVisible();
   await page.reload();
   await expect(page.locator('#chat-cancel')).toBeVisible();
-  await expect.poll(async () => (await operation(page, state)).stage).toBe('materials');
+  // Each stage of this request waits on purpose, so the stage poll allows as long as a finish.
+  await expect
+    .poll(async () => (await operation(page, state)).stage, { timeout: 15_000 })
+    .toBe('materials');
   const planned = await operation(page, state);
   expect(planned.steps.map((step: { stage: string }) => step.stage)).toEqual([
     'material-ideas',
@@ -166,6 +170,8 @@ test('prompt to activity, targeted chat, manual editing and an immutable approve
   page.once('dialog', (dialog) => dialog.accept());
   await page.locator('#release-activity').click();
   await page.getByRole('link', { name: 'הקצאה לילדים' }).click();
+  // The approved draft shares the heading, so wait for the frozen copy's own page.
+  await expect(page).toHaveURL(/\/instances\//);
   await expect(page.getByRole('heading', { name: 'פעילות מוכנה', exact: true })).toBeVisible();
   const frozenUrl = page.url();
   const frozenPath = '/api' + new URL(frozenUrl).pathname;

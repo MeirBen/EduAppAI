@@ -23,17 +23,15 @@ import { LiveStatus } from '../../shared/live-status/live-status';
 import { LoadingIndicator } from '../../shared/loading-indicator/loading-indicator';
 import { CopyButton } from '../../shared/copy-button/copy-button';
 import { parentTaskError } from '../../core/api/parent-task-error';
-import { Pager } from '../../shared/pager/pager';
-import { shownValue } from '../../core/api/shown-value';
 import { writeError } from '../../core/api/api-error';
 import { liveLists } from '../../core/api/live-lists';
-import { ReadFailure } from '../../shared/read-failure/read-failure';
+import { PagedList } from '../../shared/paged-list/paged-list';
 
 /** One local profile buffer; list refreshes never replace edits or retain activation secrets. */
 @Component({
   selector: 'app-children-page',
   imports: [
-    ReadFailure,
+    PagedList,
     DatePipe,
     FormField,
     FieldDirection,
@@ -43,7 +41,6 @@ import { ReadFailure } from '../../shared/read-failure/read-failure';
     LoadingIndicator,
     CopyButton,
     LiveStatus,
-    Pager,
   ],
   templateUrl: './children-page.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -61,8 +58,6 @@ export class ChildrenPage {
   protected readonly selected = signal<ChildSummary | undefined>(undefined);
   protected readonly devicePage = signal(1);
   protected readonly devices = this.api.devices(() => this.selected()?.id, this.devicePage);
-  protected readonly shownChildren = shownValue(this.children);
-  protected readonly shownDevices = shownValue(this.devices, () => this.selected()?.id);
   /** The panel whose action is running; while one runs, every action waits. */
   protected readonly working = signal<'profile' | 'access' | undefined>(undefined);
   protected readonly busy = computed(() => !!this.working());

@@ -20,63 +20,56 @@
       </summary>
       <div class="grid gap-stack">
         <p class="text-sm text-muted">פעילויות שעוד לא אישרתם. אפשר להמשיך לערוך מתי שרוצים.</p>
-        <app-loading-indicator
-          [active]="drafts.isLoading() && !shownDrafts()"
-          label="טוענים את הטיוטות…"
-        />
-        @if (drafts.error()) {
-          <app-read-failure [message]="apiError(drafts.error())" (retry)="drafts.reload()" />
-        } @else if (shownDrafts(); as list) {
-          <div class="list" [attr.aria-busy]="drafts.isLoading() || deleting()">
-            @for (draft of list.items; track draft.id) {
-              <article class="list-row">
-                <span class="icon-tile size-10" aria-hidden="true"
-                  ><span class="icon icon-edit"></span
-                ></span>
-                <div class="row-body">
-                  <h3>
-                    <a class="row-link" [routerLink]="['/activities', draft.id]"
-                      ><bdi>{{ draft.name }}</bdi></a
-                    >
-                  </h3>
-                  <p class="text-sm text-muted">
-                    עודכנה ב־<time [dateTime]="draft.updatedAtUtc">{{
-                      draft.updatedAtUtc | date
-                    }}</time>
-                  </p>
-                </div>
-                <button
-                  data-delete-draft
-                  type="button"
-                  class="icon-button icon-button-danger"
-                  [attr.aria-label]="'מחיקה: ' + draft.name"
-                  [disabledInteractive]="deleting()"
-                  (click)="remove('draft', draft.id, draft.name)"
-                >
-                  <span class="icon icon-remove" aria-hidden="true"></span
-                  ><span class="tooltip" aria-hidden="true">מחיקה</span>
-                </button>
-              </article>
-              @if (failed(draft.id); as message) {
-                <p role="alert" class="field-error">{{ message }}</p>
-              }
-            } @empty {
-              <p class="empty-state">
-                @if (draftPage() > 1) {
-                  אין עוד טיוטות בעמוד הזה. אפשר לחזור לעמוד הקודם.
-                } @else {
-                  עוד אין טיוטות. פעילות חדשה נשמרת כאן כטיוטה עד שתאשרו אותה.
-                }
-              </p>
+        <app-paged-list
+          #draftList
+          [resource]="drafts"
+          [(page)]="draftPage"
+          [saving]="deleting()"
+          loadingLabel="טוענים את הטיוטות…"
+          pagerLabel="עמודי טיוטות"
+        >
+          @for (draft of draftList.items(); track draft.id) {
+            <article class="list-row">
+              <span class="icon-tile size-10" aria-hidden="true"
+                ><span class="icon icon-edit"></span
+              ></span>
+              <div class="row-body">
+                <h3>
+                  <a class="row-link" [routerLink]="['/activities', draft.id]"
+                    ><bdi>{{ draft.name }}</bdi></a
+                  >
+                </h3>
+                <p class="text-sm text-muted">
+                  עודכנה ב־<time [dateTime]="draft.updatedAtUtc">{{
+                    draft.updatedAtUtc | date
+                  }}</time>
+                </p>
+              </div>
+              <button
+                data-delete-draft
+                type="button"
+                class="icon-button icon-button-danger"
+                [attr.aria-label]="'מחיקה: ' + draft.name"
+                [disabledInteractive]="deleting()"
+                (click)="remove('draft', draft.id, draft.name)"
+              >
+                <span class="icon icon-remove" aria-hidden="true"></span
+                ><span class="tooltip" aria-hidden="true">מחיקה</span>
+              </button>
+            </article>
+            @if (failed(draft.id); as message) {
+              <p role="alert" class="field-error">{{ message }}</p>
             }
-          </div>
-          <app-pager
-            label="עמודי טיוטות"
-            [(page)]="draftPage"
-            [hasMore]="list.hasMore"
-            [busy]="deleting() || drafts.isLoading()"
-          />
-        }
+          } @empty {
+            <p class="empty-state">
+              @if (draftPage() > 1) {
+                אין עוד טיוטות בעמוד הזה. אפשר לחזור לעמוד הקודם.
+              } @else {
+                עוד אין טיוטות. פעילות חדשה נשמרת כאן כטיוטה עד שתאשרו אותה.
+              }
+            </p>
+          }
+        </app-paged-list>
       </div>
     </details>
   </section>
@@ -107,68 +100,60 @@
             }
           </fieldset>
         </div>
-        <app-loading-indicator
-          [active]="snapshots.isLoading() && !shownSnapshots()"
-          label="טוענים את הפעילויות המוכנות…"
-        />
-        @if (snapshots.error()) {
-          <app-read-failure [message]="apiError(snapshots.error())" (retry)="snapshots.reload()" />
-        } @else if (shownSnapshots(); as list) {
-          <div class="list" [attr.aria-busy]="snapshots.isLoading() || deleting()">
-            @for (snapshot of list.items; track snapshot.id) {
-              <article class="list-row">
-                <span class="icon-tile size-10" aria-hidden="true"
-                  ><span class="icon icon-check"></span
-                ></span>
-                <div class="row-body">
-                  <h3>
-                    <a class="row-link" [routerLink]="['/instances', snapshot.id]"
-                      ><bdi>{{ snapshot.title }}</bdi></a
-                    >
-                  </h3>
-                  <p class="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted">
-                    @let date = rowDate(snapshot);
-                    <span
-                      >{{ date.label }} ב־<time [dateTime]="date.at">{{
-                        date.at | date
-                      }}</time></span
-                    >
-                    @for (child of snapshot.children; track $index) {
-                      <app-child-badge [child]="child" />
-                    }
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  class="icon-button icon-button-danger"
-                  [attr.aria-label]="'הסרת הפעילות: ' + snapshot.title"
-                  [disabledInteractive]="deleting()"
-                  (click)="remove('snapshot', snapshot.id, snapshot.title)"
-                >
-                  <span class="icon icon-remove" aria-hidden="true"></span
-                  ><span class="tooltip" aria-hidden="true">הסרה</span>
-                </button>
-              </article>
-              @if (failed(snapshot.id); as message) {
-                <p role="alert" class="field-error">{{ message }}</p>
-              }
-            } @empty {
-              <p class="empty-state">
-                {{
-                  snapshotPage() > 1
-                    ? 'אין עוד פעילויות מוכנות בעמוד הזה. אפשר לחזור לעמוד הקודם.'
-                    : snapshotEmpty()
-                }}
-              </p>
+        <app-paged-list
+          #snapshotList
+          [resource]="snapshots"
+          [(page)]="snapshotPage"
+          [filter]="snapshotView()"
+          [saving]="deleting()"
+          loadingLabel="טוענים את הפעילויות המוכנות…"
+          pagerLabel="עמודי פעילויות מוכנות"
+        >
+          @for (snapshot of snapshotList.items(); track snapshot.id) {
+            <article class="list-row">
+              <span class="icon-tile size-10" aria-hidden="true"
+                ><span class="icon icon-check"></span
+              ></span>
+              <div class="row-body">
+                <h3>
+                  <a class="row-link" [routerLink]="['/instances', snapshot.id]"
+                    ><bdi>{{ snapshot.title }}</bdi></a
+                  >
+                </h3>
+                <p class="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted">
+                  @let date = rowDate(snapshot);
+                  <span
+                    >{{ date.label }} ב־<time [dateTime]="date.at">{{ date.at | date }}</time></span
+                  >
+                  @for (child of snapshot.children; track $index) {
+                    <app-child-badge [child]="child" />
+                  }
+                </p>
+              </div>
+              <button
+                type="button"
+                class="icon-button icon-button-danger"
+                [attr.aria-label]="'הסרת הפעילות: ' + snapshot.title"
+                [disabledInteractive]="deleting()"
+                (click)="remove('snapshot', snapshot.id, snapshot.title)"
+              >
+                <span class="icon icon-remove" aria-hidden="true"></span
+                ><span class="tooltip" aria-hidden="true">הסרה</span>
+              </button>
+            </article>
+            @if (failed(snapshot.id); as message) {
+              <p role="alert" class="field-error">{{ message }}</p>
             }
-          </div>
-          <app-pager
-            label="עמודי פעילויות מוכנות"
-            [(page)]="snapshotPage"
-            [hasMore]="list.hasMore"
-            [busy]="deleting() || snapshots.isLoading()"
-          />
-        }
+          } @empty {
+            <p class="empty-state">
+              {{
+                snapshotPage() > 1
+                  ? 'אין עוד פעילויות מוכנות בעמוד הזה. אפשר לחזור לעמוד הקודם.'
+                  : snapshotEmpty()
+              }}
+            </p>
+          }
+        </app-paged-list>
       </div>
     </details>
   </section>
@@ -184,67 +169,60 @@
         <p class="text-sm text-muted">
           פעילויות שהסרתם אחרי שהוקצו. העבודה של הילדים נשמרת כאן עד שתמחקו אותן לצמיתות.
         </p>
-        <app-loading-indicator
-          [active]="archive.isLoading() && !shownArchive()"
-          label="טוענים את הארכיון…"
-        />
-        @if (archive.error()) {
-          <app-read-failure [message]="apiError(archive.error())" (retry)="archive.reload()" />
-        } @else if (shownArchive(); as list) {
-          <div class="list" [attr.aria-busy]="archive.isLoading() || deleting()">
-            @for (snapshot of list.items; track snapshot.id) {
-              <article class="list-row">
-                <span class="icon-tile size-10" data-tone="quiet" aria-hidden="true"
-                  ><span class="icon icon-archive"></span
-                ></span>
-                <div class="row-body">
-                  <h3>
-                    <a class="row-link" [routerLink]="['/instances', snapshot.id]"
-                      ><bdi>{{ snapshot.title }}</bdi></a
-                    >
-                  </h3>
-                  <p class="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted">
-                    <span
-                      >הועברה לארכיון ב־<time [dateTime]="snapshot.archivedAtUtc">{{
-                        snapshot.archivedAtUtc | date
-                      }}</time></span
-                    >
-                    @for (child of snapshot.children; track $index) {
-                      <app-child-badge [child]="child" />
-                    }
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  class="icon-button icon-button-danger"
-                  [attr.aria-label]="'מחיקה לצמיתות: ' + snapshot.title"
-                  [disabledInteractive]="deleting()"
-                  (click)="remove('archived', snapshot.id, snapshot.title)"
-                >
-                  <span class="icon icon-remove" aria-hidden="true"></span
-                  ><span class="tooltip" aria-hidden="true">מחיקה לצמיתות</span>
-                </button>
-              </article>
-              @if (failed(snapshot.id); as message) {
-                <p role="alert" class="field-error">{{ message }}</p>
-              }
-            } @empty {
-              <p class="empty-state">
-                {{ archivePage() > 1 ? 'אין עוד פעילויות בארכיון.' : 'הארכיון ריק.' }}
-              </p>
+        <app-paged-list
+          #archiveList
+          [resource]="archive"
+          [(page)]="archivePage"
+          [saving]="deleting()"
+          loadingLabel="טוענים את הארכיון…"
+          pagerLabel="עמודי הארכיון"
+        >
+          @for (snapshot of archiveList.items(); track snapshot.id) {
+            <article class="list-row">
+              <span class="icon-tile size-10" data-tone="quiet" aria-hidden="true"
+                ><span class="icon icon-archive"></span
+              ></span>
+              <div class="row-body">
+                <h3>
+                  <a class="row-link" [routerLink]="['/instances', snapshot.id]"
+                    ><bdi>{{ snapshot.title }}</bdi></a
+                  >
+                </h3>
+                <p class="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted">
+                  <span
+                    >הועברה לארכיון ב־<time [dateTime]="snapshot.archivedAtUtc">{{
+                      snapshot.archivedAtUtc | date
+                    }}</time></span
+                  >
+                  @for (child of snapshot.children; track $index) {
+                    <app-child-badge [child]="child" />
+                  }
+                </p>
+              </div>
+              <button
+                type="button"
+                class="icon-button icon-button-danger"
+                [attr.aria-label]="'מחיקה לצמיתות: ' + snapshot.title"
+                [disabledInteractive]="deleting()"
+                (click)="remove('archived', snapshot.id, snapshot.title)"
+              >
+                <span class="icon icon-remove" aria-hidden="true"></span
+                ><span class="tooltip" aria-hidden="true">מחיקה לצמיתות</span>
+              </button>
+            </article>
+            @if (failed(snapshot.id); as message) {
+              <p role="alert" class="field-error">{{ message }}</p>
             }
-          </div>
-          <app-pager
-            label="עמודי הארכיון"
-            [(page)]="archivePage"
-            [hasMore]="list.hasMore"
-            [busy]="deleting() || archive.isLoading()"
-          />
-        }
+          } @empty {
+            <p class="empty-state">
+              {{ archivePage() > 1 ? 'אין עוד פעילויות בארכיון.' : 'הארכיון ריק.' }}
+            </p>
+          }
+        </app-paged-list>
       </div>
     </details>
   </section>
-  <details class="border-t border-line pt-4" [open]="!!failed('data')">
+  <details class="border-t border-line pt-4">
     <summary>ניהול נתונים</summary>
     <div class="grid gap-stack">
       <p class="note">

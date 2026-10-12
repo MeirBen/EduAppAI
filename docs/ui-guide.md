@@ -224,14 +224,15 @@ normal DOM order. Use `dir="auto"` for learning-text blocks such as titles,
 instructions and materials. Wrap inline user values and question prompts,
 options and answers in `<bdi>`, so their own direction never moves them out of
 the page's alignment or reorders a calculation. Formatted dates are `<time>`
-elements: one unit that never breaks inside or reorders the sentence around it.
-`<option>` text cannot hold markup, so wrap its user values in first-strong
-isolates (`&#x2068;…&#x2069;`). Isolate email and numeric inputs as LTR. Bind
-text fields' `dir` with `[formField]`: `FieldDirection` keeps an empty `auto`
-field in the page direction, so the caret and placeholder start on the page's
-side. Back arrows point right, and decorative gradients start at the reading
-edge. Dates display in Hebrew with a month name and local time through the
-app-wide `DatePipe` default, while stored timestamps remain UTC.
+elements: one unit that moves to the next line whole, wraps inside only when
+wider than the line, and never reorders the sentence around it. `<option>` text
+cannot hold markup, so wrap its user values in first-strong isolates
+(`&#x2068;…&#x2069;`). Isolate email and numeric inputs as LTR. Bind text
+fields' `dir` with `[formField]`: `FieldDirection` keeps an empty `auto` field
+in the page direction, so the caret and placeholder start on the page's side.
+Back arrows point right, and decorative gradients start at the reading edge.
+Dates display in Hebrew with a month name and local time through the app-wide
+`DatePipe` default, while stored timestamps remain UTC.
 
 Read every size limit, count cap and the numbers in their messages from the
 server's `Limits`; child answer controls use `ChildSessionIdentity.answerLength`
@@ -278,16 +279,18 @@ for their item, so the row keeps its room for the title.
 
 Lists, the result page and the child inbox follow changes live through
 `liveLists`, with no refresh controls: a change elsewhere rereads them in place,
-keeping shown rows, and rows that arrive fade in. The inline `LoadingIndicator`
-shows only while a list has nothing to show (its first read, or a new view or
-child). Rows sit in one `.list`, which is `aria-busy` while it loads another
-page or saves a change: its rows fade after a beat and return at once, so
-nothing moves and quick answers never flicker. A failed read offers its retry.
-When the stream is refused, the shared `LiveStatus` says so once and offers
-**בדיקת עדכונים**, which reconnects and rereads. A status `badge` and its row's
-`icon-tile` share one `data-tone`: `new` asks for attention (work awaiting the
-parent's grading, a new activity for the child), `done` is finished and `quiet`
-is history (withdrawn, archived); work in progress has none.
+keeping shown rows, and rows that arrive fade in. Paged lists are `PagedList`s:
+the inline `LoadingIndicator` shows only while a list has nothing to show (its
+first read, or a new view or child); its rows sit in `.list`, which is
+`aria-busy` while it loads another page or saves a change, and they breathe
+(`animate-breathe`, the busy motion shared with a busy action's icon and the
+assistant's mark), so nothing moves; a failed read offers its retry, or the
+page's own `[failure]` content. When the stream is refused, the shared
+`LiveStatus` says so once and offers **בדיקת עדכונים**, which reconnects and
+rereads. A status `badge` and its row's `icon-tile` share one `data-tone`: `new`
+asks for attention (work awaiting the parent's grading, a new activity for the
+child), `done` is finished and `quiet` is history (withdrawn, archived); work in
+progress has none.
 
 Filters form one toolbar row: a `segmented` view switch, which is a control's
 height, beside fields whose label is screen-reader-only there. Its labels never

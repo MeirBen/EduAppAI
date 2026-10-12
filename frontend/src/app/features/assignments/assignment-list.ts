@@ -16,16 +16,13 @@ import { AssignmentSummary, AssignmentView } from '../../core/api/assignment-mod
 import { DisabledInteractive } from '../../shared/disabled-interactive';
 import { focusHolder } from '../../shared/focus-holder';
 import { LiveStatus } from '../../shared/live-status/live-status';
-import { LoadingIndicator } from '../../shared/loading-indicator/loading-indicator';
 import { ChildSelector } from '../children/child-selector';
 import { assignmentState, assignmentViews } from './assignment-presentation';
 import { parentTaskError } from '../../core/api/parent-task-error';
 import { Count } from '../../shared/count/count';
-import { Pager } from '../../shared/pager/pager';
-import { shownValue } from '../../core/api/shown-value';
 import { ChildBadge } from '../../shared/child-badge/child-badge';
 import { writeError } from '../../core/api/api-error';
-import { ReadFailure } from '../../shared/read-failure/read-failure';
+import { PagedList } from '../../shared/paged-list/paged-list';
 
 const changed = {
   withdraw: 'ההקצאה בוטלה. היא נשמרת בתצוגה "בוטלו".',
@@ -39,15 +36,13 @@ const changed = {
 @Component({
   selector: 'app-assignment-list',
   imports: [
-    ReadFailure,
+    PagedList,
     Count,
     DatePipe,
     RouterLink,
     ChildSelector,
     DisabledInteractive,
     LiveStatus,
-    LoadingIndicator,
-    Pager,
     ChildBadge,
   ],
   templateUrl: './assignment-list.html',
@@ -69,10 +64,6 @@ export class AssignmentList {
     childId: this.childId(),
     status: this.view(),
   }));
-  protected readonly shownAssignments = shownValue(
-    this.assignments,
-    () => `${this.view()} ${this.childId()}`,
-  );
   protected readonly views = assignmentViews;
   protected readonly emptyView = computed(
     () => assignmentViews.find((option) => option.value === this.view())!.empty,

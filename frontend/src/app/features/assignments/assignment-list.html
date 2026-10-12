@@ -40,79 +40,74 @@
       <span class="icon icon-info" aria-hidden="true"></span>{{ notice() }}
     </p>
   }
-  <app-loading-indicator
-    [active]="assignments.isLoading() && !shownAssignments()"
-    label="טוענים את הפעילויות…"
-  />
-  @if (assignments.error()) {
-    <app-read-failure [message]="failure(assignments.error())" (retry)="assignments.reload()" />
-  } @else if (shownAssignments(); as list) {
-    <div class="list" [attr.aria-busy]="assignments.isLoading() || busy()">
-      @for (assignment of list.items; track assignment.id) {
-        <article class="list-row" [attr.aria-labelledby]="'assignment-' + assignment.id">
-          <div class="row-body">
-            <h2 [id]="'assignment-' + assignment.id">
-              <a class="row-link" [routerLink]="['/assignments', assignment.id]"
-                ><bdi>{{ assignment.title }}</bdi
-                ><span class="sr-only"> — {{ assignment.childName }}</span></a
-              >
-            </h2>
-            @let state = assignmentState(assignment);
-            <p class="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted">
-              <app-child-badge [child]="assignment" />
-              @if (assignment.status !== 'completed') {
-                <span class="badge" [attr.data-tone]="state.tone">{{ state.label }}</span>
-              }
-              <span
-                >הוקצתה ב־<time [dateTime]="assignment.createdAtUtc">{{
-                  assignment.createdAtUtc | date
-                }}</time></span
-              >
-            </p>
-          </div>
-          @if (assignment.status === 'assigned') {
-            <button
-              type="button"
-              class="button button-danger max-sm:icon-only"
-              data-withdraw
-              [disabledInteractive]="busy() || assignments.isLoading()"
-              [attr.aria-label]="'ביטול ההקצאה: ' + assignment.title + ' — ' + assignment.childName"
-              (click)="withdraw(assignment)"
+  <app-paged-list
+    #assignmentList
+    [resource]="assignments"
+    [(page)]="page"
+    [filter]="view() + ' ' + childId()"
+    [failure]="failure"
+    [saving]="busy()"
+    loadingLabel="טוענים את הפעילויות…"
+    pagerLabel="עמודי פעילויות"
+  >
+    @for (assignment of assignmentList.items(); track assignment.id) {
+      <article class="list-row" [attr.aria-labelledby]="'assignment-' + assignment.id">
+        <div class="row-body">
+          <h2 [id]="'assignment-' + assignment.id">
+            <a class="row-link" [routerLink]="['/assignments', assignment.id]"
+              ><bdi>{{ assignment.title }}</bdi
+              ><span class="sr-only"> — {{ assignment.childName }}</span></a
             >
-              <span class="icon icon-close" aria-hidden="true"></span><span>ביטול ההקצאה</span
-              ><span class="tooltip sm:hidden" aria-hidden="true">ביטול ההקצאה</span>
-            </button>
-          } @else if (assignment.status === 'withdrawn') {
-            <button
-              type="button"
-              class="button button-secondary max-sm:icon-only"
-              data-restore
-              [disabledInteractive]="busy() || assignments.isLoading()"
-              [attr.aria-label]="'החזרת ההקצאה: ' + assignment.title + ' — ' + assignment.childName"
-              (click)="restore(assignment)"
+          </h2>
+          @let state = assignmentState(assignment);
+          <p class="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted">
+            <app-child-badge [child]="assignment" />
+            @if (assignment.status !== 'completed') {
+              <span class="badge" [attr.data-tone]="state.tone">{{ state.label }}</span>
+            }
+            <span
+              >הוקצתה ב־<time [dateTime]="assignment.createdAtUtc">{{
+                assignment.createdAtUtc | date
+              }}</time></span
             >
-              <span class="icon icon-undo" aria-hidden="true"></span><span>החזרת ההקצאה</span
-              ><span class="tooltip sm:hidden" aria-hidden="true">החזרת ההקצאה</span>
-            </button>
-          }
-        </article>
-      } @empty {
-        <p class="empty-state">
-          @if (page() > 1) {
-            אין פעילויות נוספות.
-          } @else if (childId()) {
-            אין פעילויות שמתאימות לבחירה.
-          } @else {
-            {{ emptyView() }}
-          }
-        </p>
-      }
-    </div>
-    <app-pager
-      label="עמודי פעילויות"
-      [(page)]="page"
-      [hasMore]="list.hasMore"
-      [busy]="busy() || assignments.isLoading()"
-    />
-  }
+          </p>
+        </div>
+        @if (assignment.status === 'assigned') {
+          <button
+            type="button"
+            class="button button-danger max-sm:icon-only"
+            data-withdraw
+            [disabledInteractive]="busy() || assignments.isLoading()"
+            [attr.aria-label]="'ביטול ההקצאה: ' + assignment.title + ' — ' + assignment.childName"
+            (click)="withdraw(assignment)"
+          >
+            <span class="icon icon-close" aria-hidden="true"></span><span>ביטול ההקצאה</span
+            ><span class="tooltip sm:hidden" aria-hidden="true">ביטול ההקצאה</span>
+          </button>
+        } @else if (assignment.status === 'withdrawn') {
+          <button
+            type="button"
+            class="button button-secondary max-sm:icon-only"
+            data-restore
+            [disabledInteractive]="busy() || assignments.isLoading()"
+            [attr.aria-label]="'החזרת ההקצאה: ' + assignment.title + ' — ' + assignment.childName"
+            (click)="restore(assignment)"
+          >
+            <span class="icon icon-undo" aria-hidden="true"></span><span>החזרת ההקצאה</span
+            ><span class="tooltip sm:hidden" aria-hidden="true">החזרת ההקצאה</span>
+          </button>
+        }
+      </article>
+    } @empty {
+      <p class="empty-state">
+        @if (page() > 1) {
+          אין פעילויות נוספות.
+        } @else if (childId()) {
+          אין פעילויות שמתאימות לבחירה.
+        } @else {
+          {{ emptyView() }}
+        }
+      </p>
+    }
+  </app-paged-list>
 </section>

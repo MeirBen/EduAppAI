@@ -138,7 +138,9 @@
                 }
                 @if (row.question.answer; as key) {
                   <details class="well">
-                    <summary>תשובה להורים — שאלה {{ $index + 1 }}</summary>
+                    <summary>
+                      תשובה להורים<span class="sr-only"> — שאלה {{ $index + 1 }}</span>
+                    </summary>
                     <p class="whitespace-pre-wrap">
                       <bdi>{{ key.value }}</bdi>
                     </p>

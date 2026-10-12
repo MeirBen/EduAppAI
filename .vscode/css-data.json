@@ -33,5 +33,31 @@
       "name": "@reference",
       "description": "Imports a stylesheet for @apply and theme access without emitting its CSS."
     }
+  ],
+  "properties": [
+    {
+      "name": "text-decoration-skip-spaces",
+      "description": "Whether text decorations such as underlines skip spaces: none, all, or start and end of a line (CSS Text Decoration Level 4).",
+      "values": [
+        {
+          "name": "none"
+        },
+        {
+          "name": "all"
+        },
+        {
+          "name": "start"
+        },
+        {
+          "name": "end"
+        }
+      ],
+      "references": [
+        {
+          "name": "MDN",
+          "url": "https://developer.mozilla.org/docs/Web/CSS/text-decoration-skip-spaces"
+        }
+      ]
+    }
   ]
 }
