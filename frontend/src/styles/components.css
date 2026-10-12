@@ -155,7 +155,7 @@
     @apply w-fit contain-none;
 
     & > label {
-      @apply size-9 flex-none px-0 max-sm:size-8;
+      @apply size-9 flex-none px-0;
     }
   }
 
