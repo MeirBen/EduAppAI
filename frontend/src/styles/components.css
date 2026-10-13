@@ -163,8 +163,9 @@
   .app-frame {
     @apply mx-auto w-full max-w-page px-gutter sm:px-8;
   }
+  /* Only a pinned header blurs the page under it; elsewhere it covers nothing, and a blur would frame its fixed tooltips. */
   .app-header {
-    @apply border-b border-line bg-surface/85 backdrop-blur-md pinned-header:sticky pinned-header:inset-bs-0 pinned-header:z-20 pinned-header:h-shell;
+    @apply border-b border-line bg-surface/85 pinned-header:sticky pinned-header:inset-bs-0 pinned-header:z-20 pinned-header:h-shell pinned-header:backdrop-blur-md;
   }
   .app-footer {
     @apply border-t border-line pinned-header:h-shell;
@@ -201,7 +202,6 @@
    */
   .action-bar {
     @apply z-10 grid gap-2 rounded-card border border-brand/30 bg-soft p-2 shadow-(--shadow-raised) inset-be-3 pinned-actions:sticky sm:p-3;
-    anchor-name: --action-bar;
 
     & .button {
       @apply px-3.5 text-sm;
@@ -318,9 +318,9 @@
 
       /*
        * Like the sheet, an empty chat fits its title, ideas and composer. A conversation keeps its
-       * composer in place: the sheet grows up from the bar, and on desktops the panel, pinned between
-       * the pinned bands, takes the whole column. The conversation, or the ideas before it, scrolls
-       * when the space is short, and the composer stays clear of the scroll padding.
+       * composer in place: the sheet grows up from the window's edge, and on desktops the panel,
+       * pinned between the pinned bands, takes the whole column. The conversation, or the ideas
+       * before it, scrolls when the space is short, and the composer stays clear of the scroll padding.
        */
       @variant lg {
         @apply sticky top-pinned max-h-pinned-fill;
@@ -374,8 +374,9 @@
     }
   }
   /*
-   * Below desktop width, a chat beside the activity is a sheet over the page, so reading keeps its place,
-   * and the action bar's opener and its close control show.
+   * Below desktop width, a chat beside the activity is a sheet over the page, fixed to the window's
+   * bottom edge and over the action bar, so reading keeps its place and scrolling the page never
+   * moves it; the action bar's opener and the sheet's close control show.
    */
   .chat-panel[data-beside] {
     @apply max-lg:fixed max-lg:inset-x-0 max-lg:bottom-0 max-lg:z-40 max-lg:max-h-[85dvh] max-lg:overflow-y-auto max-lg:overscroll-contain max-lg:rounded-b-none max-lg:shadow-(--shadow-raised) max-lg:transition-[translate] max-lg:duration-300;
@@ -383,29 +384,6 @@
     /* Only closing delays hiding, so an opening sheet is visible, and focusable, from its first frame. */
     &:not([data-open]) {
       @apply max-lg:invisible max-lg:translate-y-full max-lg:transition-[translate,visibility];
-    }
-  }
-  /*
-   * Where the action bar is pinned and anchor positioning works, the sheet grows out of the bar instead
-   * of the window's edge: it takes the bar's width and its bottom rests just above where the pinned bar
-   * rests (0.75rem from the window's edge, then a 0.5rem gap), so a bar that moves on a short page never
-   * moves the open sheet. It fits its content up to the page gutter and rises from the bar as it opens.
-   */
-  @supports (anchor-name: --action-bar) {
-    .chat-panel[data-beside] {
-      @variant max-lg {
-        @variant pinned-actions {
-          position-anchor: --action-bar;
-          inset: auto anchor(right) calc(anchor-size(block) + --spacing(5)) anchor(left);
-          max-block-size: calc(100dvh - var(--spacing-gutter) - anchor-size(block) - --spacing(5));
-          @apply rounded-b-card transition-[translate,scale,opacity];
-          transform-origin: bottom center;
-
-          &:not([data-open]) {
-            @apply translate-y-2 scale-98 opacity-0 transition-[translate,scale,opacity,visibility];
-          }
-        }
-      }
     }
   }
   /* A small round control floating in the history's bottom fade once the parent scrolls away from the latest turn. */

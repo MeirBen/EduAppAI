@@ -108,8 +108,9 @@
     outline: none;
   }
 
+  /* A page only fades in: moving it would make it the frame of its fixed sheet and tooltips. */
   main router-outlet + * {
-    @apply block motion-safe:animate-enter;
+    @apply block motion-safe:animate-fade;
   }
 
   /* A field is one block: label, control, then help lines that carry their own top margin. */

@@ -56,7 +56,9 @@ parent labels keep their original language and values.
   repeats per item, an `aria-label` adds the item and hides the tooltip from
   assistive technology. Tooltips show on hover or keyboard focus; Escape hides
   them, and pressing a control hides its tooltip until the pointer or focus
-  leaves it; anchor positioning keeps them within the window. Actions with
+  leaves it; anchor positioning keeps them within the window. Their ancestors,
+  like the chat sheet's, never move, filter or blur where they show: that would
+  make the ancestor their frame instead of the window. Actions with
   lasting effects keep their visible label. Where a `nav-link`, an `icon-only`
   row action or an action bar's secondary action keeps only its icon on narrow
   screens, an `aria-hidden` tooltip shows that label there. Each icon keeps one
@@ -188,10 +190,9 @@ Repeated treatments become primitives, with state from `aria-current`,
 CSS in these shared layers; components own markup, behavior and layout
 utilities, without local stylesheets, inline visual overrides or separate theme
 branches. The shared `chat-panel` bounds desktop conversation history while
-keeping the composer visible; below desktop width it is a sheet over the page
-that, where the action bar is pinned and anchor positioning works, rises from
-the bar at its width (`anchor-name: --action-bar`), and otherwise from the
-window's edge. An empty conversation hides its history until the first request.
+keeping the composer visible; below desktop width it is a sheet over the page,
+fixed to the window's bottom edge, so scrolling the page never moves it. An
+empty conversation hides its history until the first request.
 Give `steps` `role="list"` to preserve WebKit list semantics.
 
 A theme redefines semantic `--color-*` tokens and, optionally, the corner and
@@ -403,9 +404,9 @@ button or Escape returns focus to the control that opened it, or to the AI
 button where tapping gave the opener no focus, with the page unmoved. Focus
 moves never scroll the page. A request never moves focus: the composer turns
 read-only and one control sends, then stops. An empty chat fits its title, ideas
-and composer, beside the activity or as the sheet resting just above the bar.
+and composer, beside the activity or as the sheet at the window's bottom edge.
 Once a conversation starts, the composer keeps its place: the sheet grows up
-from the bar, and beside the activity the chat takes its column height. The
+from that edge, and beside the activity the chat takes its column height. The
 conversation, or before the first request its ideas, scrolls when short, and the
 thinking row keeps its place, so sending never moves the composer or resizes the
 conversation. **עריכה** opens titles, instructions, texts, questions/options,

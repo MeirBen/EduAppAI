@@ -381,16 +381,16 @@ export class ActivityWorkspace {
     this.openChat(() => this.chatView()?.focusComposer());
   }
 
-  /**
-   * Opens the chat sheet where the layout has one, then moves focus once it shows: by default into
-   * the sheet itself, which raises no on-screen keyboard. The sheet is fixed in view, so focusing it
-   * never scrolls the page behind.
-   */
   /** Below desktop width the chat is a sheet over the page; only there does its close control render. */
   private chatIsSheet() {
     return !!this.chatClose()?.nativeElement.getClientRects().length;
   }
 
+  /**
+   * Opens the chat sheet where the layout has one, then moves focus once it shows: by default into
+   * the sheet itself, which raises no on-screen keyboard. The sheet is fixed in view, so focusing it
+   * never scrolls the page behind.
+   */
   protected openChat(focus = () => this.chatPanel()?.nativeElement.focus({ preventScroll: true })) {
     // Elsewhere the chat is already in view.
     if (this.chatIsSheet()) {
