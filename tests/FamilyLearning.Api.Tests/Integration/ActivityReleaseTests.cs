@@ -125,12 +125,46 @@ public sealed class ActivityReleaseTests
         await using var app = new ApiFactory();
         using var parent = await app.ParentAsync();
         const string request = "תרגול חיבור לכיתה ב";
+        var original = await ApproveAsync(parent, request);
+        Assert.Equal(request, original["firstMessage"]!.GetValue<string>());
+        // A copy has no chat of its own; its approval leads back to the original draft even after the original snapshot is gone.
+        var preview = $"/api/instances/{(await ApproveCopyAsync(parent, original))["id"]!.GetValue<Guid>()}";
+        Assert.Equal(HttpStatusCode.NoContent, (await parent.DeleteAsync($"/api/instances/{original["id"]!.GetValue<Guid>()}")).StatusCode);
+        Assert.Equal(request, (await parent.GetFromJsonAsync<JsonNode>(preview))!["firstMessage"]!.GetValue<string>());
+        Assert.Equal(HttpStatusCode.NoContent, (await parent.DeleteAsync($"/api/activity-drafts/{original["sourceDraftId"]!.GetValue<Guid>()}")).StatusCode);
+        Assert.Null((await parent.GetFromJsonAsync<JsonNode>(preview))!["firstMessage"]);
+    }
+
+    [Fact]
+    public async Task First_messages_list_the_latest_approvals_in_the_library_each_once_and_at_most_five()
+    {
+        await using var app = new ApiFactory();
+        using var parent = await app.ParentAsync();
+        using var stranger = await app.ParentAsync();
+        var first = await ApproveAsync(parent, "ראשונה");
+        await ApproveCopyAsync(parent, await ApproveAsync(parent, "שנייה"));
+        Assert.Equal(["שנייה", "ראשונה"], await FirstMessages(parent));
+        using (var scope = app.Services.CreateScope())
+            await scope.ServiceProvider.GetRequiredService<LearningDbContext>().TaskSnapshots.Where(s => s.Id == first["id"]!.GetValue<Guid>())
+                .ExecuteUpdateAsync(s => s.SetProperty(x => x.ArchivedAtUtc, DateTime.UtcNow));
+        Assert.Equal(["שנייה"], await FirstMessages(parent));
+        foreach (var message in new[] { "3", "4", "5", "6", "7" }) await ApproveAsync(parent, message);
+        Assert.Equal(["7", "6", "5", "4", "3"], await FirstMessages(parent));
+        Assert.Empty(await FirstMessages(stranger));
+    }
+
+    private static async Task<string[]> FirstMessages(HttpClient parent) =>
+        (await parent.GetFromJsonAsync<string[]>("/api/instances/first-messages"))!;
+
+    /// <summary>Approves a new activity whose chat opens with <paramref name="message"/> and continues past it.</summary>
+    private static async Task<JsonNode> ApproveAsync(HttpClient parent, string message)
+    {
         var at = DateTime.UtcNow;
         using var created = await parent.PostAsJsonAsync("/api/activity-drafts", new
         {
             id = Guid.NewGuid(),
             plan = Numeric(1),
-            chat = new[] { new { role = "parent", text = request, atUtc = at }, new { role = "assistant", text = "הנה הצעה.", atUtc = at },
+            chat = new[] { new { role = "parent", text = message, atUtc = at }, new { role = "assistant", text = "הנה הצעה.", atUtc = at },
                 new { role = "parent", text = "ועוד שאלה", atUtc = at } },
         });
         var draft = (await created.Content.ReadFromJsonAsync<JsonNode>())!;
@@ -138,17 +172,15 @@ public sealed class ActivityReleaseTests
         edit["document"] = Document();
         draft = await Seed(parent, draft, edit);
         using var release = await parent.PostAsJsonAsync(Path(draft) + "/release", new { expectedRevision = draft["revision"]!.GetValue<long>() });
-        var original = (await release.Content.ReadFromJsonAsync<JsonNode>())!;
-        Assert.Equal(request, original["firstMessage"]!.GetValue<string>());
-        // A copy has no chat of its own; its approval leads back to the original draft even after the original snapshot is gone.
-        using var copy = await parent.PostAsJsonAsync("/api/activity-drafts", new { id = Guid.NewGuid(), snapshotId = original["id"]!.GetValue<Guid>() });
+        return (await release.Content.ReadFromJsonAsync<JsonNode>())!;
+    }
+
+    private static async Task<JsonNode> ApproveCopyAsync(HttpClient parent, JsonNode snapshot)
+    {
+        using var copy = await parent.PostAsJsonAsync("/api/activity-drafts", new { id = Guid.NewGuid(), snapshotId = snapshot["id"]!.GetValue<Guid>() });
         var copied = (await copy.Content.ReadFromJsonAsync<JsonNode>())!;
-        using var copyRelease = await parent.PostAsJsonAsync(Path(copied) + "/release", new { expectedRevision = 1 });
-        var preview = $"/api/instances/{(await copyRelease.Content.ReadFromJsonAsync<JsonNode>())!["id"]!.GetValue<Guid>()}";
-        Assert.Equal(HttpStatusCode.NoContent, (await parent.DeleteAsync($"/api/instances/{original["id"]!.GetValue<Guid>()}")).StatusCode);
-        Assert.Equal(request, (await parent.GetFromJsonAsync<JsonNode>(preview))!["firstMessage"]!.GetValue<string>());
-        Assert.Equal(HttpStatusCode.NoContent, (await parent.DeleteAsync(Path(draft))).StatusCode);
-        Assert.Null((await parent.GetFromJsonAsync<JsonNode>(preview))!["firstMessage"]);
+        using var release = await parent.PostAsJsonAsync(Path(copied) + "/release", new { expectedRevision = 1 });
+        return (await release.Content.ReadFromJsonAsync<JsonNode>())!;
     }
 
     internal static async Task<JsonNode> ReadyDraft(HttpClient parent)

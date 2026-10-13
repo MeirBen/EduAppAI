@@ -415,8 +415,8 @@ accepted unsaved-work guards and revokes the grant.
 explicitly starts/resumes and owns raw answers, acknowledged revision and dirty
 state. Signal Forms retain unfinished numeric input on save and validate grammar
 on submit using the child limit. No writes retry. Uncertain/conflicting writes
-require a session read before another write; loading newer answers is explicit.
-A terminal receipt locks editing even if local text stays visible. Withdrawal
+require a session read before another write; loading newer open answers is
+explicit, while a submitted session read shows its receipt. Withdrawal
 and lost access also lock writes with child-specific feedback. Navigation/close
 warnings and lifetime cancellation protect work; answers are never persisted
 in a browser cache.

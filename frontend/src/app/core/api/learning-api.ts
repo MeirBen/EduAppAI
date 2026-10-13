@@ -149,6 +149,10 @@ export class LearningApi {
       params: { page: page() },
     }));
   }
+  /** The first messages that began the latest approved activities, read only while `wanted`. */
+  firstMessages(wanted: () => boolean) {
+    return httpResource<string[]>(() => (wanted() ? '/api/instances/first-messages' : undefined));
+  }
   snapshot(id: () => string) {
     return httpResource<SnapshotPreview>(() => `/api/instances/${id()}`);
   }

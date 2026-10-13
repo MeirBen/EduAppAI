@@ -354,6 +354,7 @@
     [pending]="chatSession.pendingMessage()"
     [changes]="chatSession.changes()"
     [refining]="hasPlan()"
+    [firstMessages]="firstMessages()"
     labelledBy="plan-title"
     (sent)="author()"
     (cancelled)="operationActive() ? cancelGeneration() : chatSession.cancelAuthor()"

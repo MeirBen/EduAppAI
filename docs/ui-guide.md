@@ -372,9 +372,9 @@ first start, which ticks only while work is open and the page is visible. Below
 it, one row holds save, submit, saved-work recovery and the save state, so the
 row stays one line at any timer length down to 320px. On phones the unsaved
 state shows as the save button's `data-attention` dot; it is still announced.
-The saved-work check shows only while recovering or after submission, where it
-fetches the grade. Invalid submit focuses the first problem; missing answers
-need confirmation. Checkpoint reads never overwrite local text implicitly. A
+The saved-work check shows only while recovering. Invalid submit focuses the
+first problem; missing answers need confirmation. Checkpoint reads never
+overwrite open work's local text implicitly; submitted work replaces it. A
 submission receipt leads the page, locks editing and praises the child by name
 beside its outcome icon, which fills (`data-done`) once reviewed; pending review
 has no final score, and zero possible points has no grade.
@@ -413,7 +413,8 @@ conversation. **עריכה** opens titles, instructions, texts, questions/option
 answers and points in the same buffer. Edits save themselves while editing;
 **סיום עריכה** returns to reading, and invalid fields stay open for correction.
 Structural changes use chat. Each text/question offers an accessible “ask about
-this” action that fills and focuses the composer without sending. Keep the
+this” action that fills the composer without sending; focus never moves into
+the composer, and a sheet it opens takes focus itself. Keep the
 selected target visible and update only the app-inserted prefix when switching
 targets, preserving parent text. At widths of 64rem and heights of 40rem or
 more, keep chat beside the activity with only its history scrolling. Its column
@@ -435,9 +436,10 @@ while retaining focus; when a reply arrives, focus that would be lost moves to
 the history, never into a field. A sent request leaves the composer for the
 history; failure/cancellation returns it for an explicit new attempt.
 `SuggestionChips` only fill fields and never send; they sit in equal cells, two
-per row from tablet width. Suggestions appear before the
-first exchange and apply to the current activity; mark AI execution actions with
-`icon-ai`.
+per row from tablet width, and a label past three lines ends in an ellipsis
+whose tooltip shows the suggestion. Suggestions appear before the first
+exchange: starters under a new activity's composer, change ideas in the
+conversation slot; mark AI execution actions with `icon-ai`.
 
 Every valid change saves itself about a second after the parent pauses; there
 is no save action. Only the first save pauses setup, keeping supplied text

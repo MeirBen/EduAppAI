@@ -36,6 +36,8 @@ describe('Workspace routes', () => {
       });
     await navigation;
     http.expectOne('/api/ai/status').flush({ configured: false });
+    // Only a new activity reads the starters.
+    for (const read of http.match('/api/instances/first-messages')) read.flush([]);
   }
 
   it('opens the parent workspace from the app start URL with a parent session', async () => {

@@ -6,7 +6,7 @@ import { ActivityChat } from './activity-chat';
 @Component({
   imports: [ActivityChat],
   template:
-    '<app-activity-chat [fields]="fields" [configured]="configured()" [busy]="busy()" [clarification]="question()" [refining]="refining()" [thread]="thread()" (sent)="submitted = raw().message" />',
+    '<app-activity-chat [fields]="fields" [configured]="configured()" [busy]="busy()" [clarification]="question()" [refining]="refining()" [thread]="thread()" [firstMessages]="firstMessages()" (sent)="submitted = raw().message" />',
 })
 class Host {
   readonly raw = signal({ message: '' });
@@ -16,6 +16,7 @@ class Host {
   readonly busy = signal(false);
   readonly refining = signal(false);
   readonly thread = signal<{ role: 'parent' | 'assistant'; text: string }[]>([]);
+  readonly firstMessages = signal<string[] | undefined>([]);
   submitted = '';
 }
 describe('ActivityChat presentation', () => {
@@ -57,6 +58,39 @@ describe('ActivityChat presentation', () => {
     expect(host.submitted).toBe(field.value);
   });
 
+  it('starts under the composer once first messages are known, leading with them and completing each once', async () => {
+    const fixture = TestBed.createComponent(Host),
+      host = fixture.componentInstance;
+    host.firstMessages.set(undefined);
+    await fixture.whenStable();
+    const root: HTMLElement = fixture.nativeElement;
+    const chips = () =>
+      root.querySelectorAll<HTMLButtonElement>('[aria-labelledby="chat-start-suggestions"] button');
+    /** Picks every starter in turn and returns what each put in the composer. */
+    const pickAll = async () => {
+      const picked: string[] = [];
+      for (const chip of chips()) {
+        chip.click();
+        await fixture.whenStable();
+        picked.push(root.querySelector<HTMLTextAreaElement>('#chat-message')!.value);
+      }
+      return picked;
+    };
+    expect(chips()).toHaveLength(0);
+    host.firstMessages.set([]);
+    await fixture.whenStable();
+    const builtIn = await pickAll();
+    expect(builtIn).toHaveLength(5);
+    host.firstMessages.set(['שמורה', builtIn[2]]);
+    await fixture.whenStable();
+    expect(await pickAll()).toEqual(['שמורה', builtIn[2], builtIn[0], builtIn[1], builtIn[3]]);
+    expect(
+      root.querySelector('form')!.compareDocumentPosition(chips()[0]) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(host.submitted).toBe('');
+  });
+
   it('offers change suggestions for an existing plan, but not while a question awaits an answer', async () => {
     const fixture = TestBed.createComponent(Host),
       host = fixture.componentInstance;
@@ -67,9 +101,9 @@ describe('ActivityChat presentation', () => {
     idea.focus();
     idea.click();
     await fixture.whenStable();
-    expect(root.querySelector<HTMLTextAreaElement>('#chat-message')!.value).toBe(
-      idea.textContent!.trim(),
-    );
+    const message = root.querySelector<HTMLTextAreaElement>('#chat-message')!.value;
+    expect(message).not.toBe('');
+    expect(idea.textContent).toContain(message);
     // An idea fills the composer in place; focus stays where the parent picked it.
     expect(document.activeElement).toBe(idea);
     expect(host.submitted).toBe('');

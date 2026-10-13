@@ -37,6 +37,7 @@ async function isolate(page: Page, configured = true, initial: Partial<ActivityD
     if (path === '/api/library/changes') return route.fulfill({ status: 204 });
     if (path === '/api/limits') return route.fulfill({ json: limits });
     if (path === '/api/ai/status') return route.fulfill({ json: { configured } });
+    if (path === '/api/instances/first-messages') return route.fulfill({ json: [] });
     if (path === '/api/activity-drafts' && request.method() === 'POST') {
       draft = { ...draft, ...request.postDataJSON(), id: draft.id };
       return route.fulfill({ status: 201, json: draft });
@@ -291,7 +292,7 @@ test('desktop chat stays reachable beside lower questions, and becomes a sheet f
   await page.locator('#ask-question-q10').scrollIntoViewIfNeeded();
   const before = await page.evaluate(() => scrollY);
   await page.locator('#ask-question-q10').click();
-  await expect(page.locator('#chat-message')).toBeFocused();
+  await expect(page.locator('#ask-question-q10')).toBeFocused();
   await expect(page.locator('#chat-message')).toHaveValue('לגבי שאלה 11: ');
   expect(Math.abs((await page.evaluate(() => scrollY)) - before)).toBeLessThan(10);
   // The pinned composer is fully in view and beside the action bar's column, never under it.
@@ -368,9 +369,9 @@ test('desktop chat stays reachable beside lower questions, and becomes a sheet f
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
       true,
     );
-    // Asking opens the sheet at the composer; Escape returns to the question the parent asked about.
+    // Asking opens the sheet, focused on itself; Escape returns to the question the parent asked about.
     await page.locator('#ask-question-q11').click();
-    await expect(page.locator('#chat-message')).toBeFocused();
+    await expect(page.locator('#activity-chat')).toBeFocused();
     await expect(page.locator('#chat-message')).toBeInViewport();
     await page.keyboard.press('Escape');
     await expect(chat).toBeHidden();

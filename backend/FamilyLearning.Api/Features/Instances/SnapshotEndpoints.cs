@@ -18,6 +18,7 @@ public static class SnapshotEndpoints
         var snapshots = api.MapGroup("/instances");
         snapshots.MapGet("/", (ClaimsPrincipal user, LearningDbContext db, CancellationToken ct, string? status = null, int page = 1, int pageSize = PageRequest.DefaultSize) =>
             ListAsync(user, db, archived: false, status, new PageRequest(page, pageSize), ct));
+        snapshots.MapGet("/first-messages", FirstMessagesAsync);
         snapshots.MapGet("/archive", (ClaimsPrincipal user, LearningDbContext db, CancellationToken ct, int page = 1, int pageSize = PageRequest.DefaultSize) =>
             ListAsync(user, db, archived: true, null, new PageRequest(page, pageSize), ct));
         snapshots.MapGet("/{id:guid}", async (Guid id, ClaimsPrincipal user, LearningDbContext db, CancellationToken ct) =>
@@ -41,6 +42,26 @@ public static class SnapshotEndpoints
             return Results.NoContent();
         });
         snapshots.MapDelete("/archive/{id:guid}", DeleteArchivedAsync);
+    }
+
+    /// <summary>
+    /// The first messages that began the latest approved activities still in the library, newest approval first, each once
+    /// and at most five, to start new activities from.
+    /// </summary>
+    private static async Task<IResult> FirstMessagesAsync(ClaimsPrincipal user, LearningDbContext db, CancellationToken ct)
+    {
+        const int limit = 5;
+        var familyId = user.FamilyId();
+        var sources = await db.TaskSnapshots.Where(s => s.FamilyId == familyId && s.ArchivedAtUtc == null)
+            .OrderByDescending(s => s.ReviewedAtUtc).ThenByDescending(s => s.Id).Select(s => s.SourceDraftId).ToListAsync(ct);
+        var messages = new List<string>(limit);
+        foreach (var source in sources)
+        {
+            if (messages.Count == limit) break;
+            if (await SnapshotPreview.FirstMessageAsync(db, familyId, source, ct) is { } message && !messages.Contains(message))
+                messages.Add(message);
+        }
+        return Results.Ok(messages);
     }
 
     /// <summary>A family's open (assigned or awaiting review) and finished work; withdrawn work is in neither.</summary>

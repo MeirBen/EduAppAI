@@ -18,6 +18,8 @@ configuration and evidence.
 1. **New activity:** describe the goal, audience and requirements in chat. AI
    proposes requirements or asks one focused clarification. Show a concise
    summary, collect required source text and confirm AI-extracted sources.
+   Up to five starters lead with the first messages of the latest approved
+   activities still in the library, completed by built-in ones.
 2. **Draft:** once requirements and source inputs are valid, the activity and
    its chat become a draft by themselves, before any generation. A draft may
    have missing texts/questions or unresolved content diagnostics; saving makes

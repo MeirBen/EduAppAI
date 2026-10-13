@@ -110,6 +110,13 @@
     & > .icon {
       @apply text-brand;
     }
+    /* A cut-short label's tooltip, bounded so a pasted text never covers the page. */
+    & > .tooltip {
+      @apply line-clamp-10;
+    }
+    &:not([data-clamped]) > .tooltip {
+      @apply invisible;
+    }
   }
   /* One answer among a question's options: a full-width card around its native radio, so long text wraps. */
   .choice {

@@ -454,11 +454,8 @@ test('two families and siblings keep separate work through resume, lost submissi
     await expect(text).toHaveValue(exactAnswer);
     await child.getByRole('button', { name: 'בדיקת עדכונים', exact: true }).click();
     await expect(child.getByRole('heading', { name: 'העבודה הוגשה', exact: true })).toBeVisible();
-    await expect(text).toBeDisabled();
     await expect(child.getByText('הציון:', { exact: false })).toHaveCount(0);
     expect(submissions).toBe(1);
-    child.once('dialog', (dialog) => dialog.accept());
-    await child.getByRole('button', { name: 'טעינת התשובות השמורות', exact: true }).click();
     expect(
       await child
         .locator(`[data-saved-answer="${snapshot.document.questions[1].id}"]`)
@@ -479,9 +476,6 @@ test('two families and siblings keep separate work through resume, lost submissi
     parent.once('dialog', (dialog) => dialog.accept());
     await parent.getByRole('button', { name: 'שמירת ציונים וסיום הבדיקה', exact: true }).click();
     await expect(parent.getByText('ציון סופי:', { exact: false })).toBeVisible();
-    await child.getByRole('button', { name: 'בדיקת עדכונים', exact: true }).click();
-    await expect(child.getByText('הציון:', { exact: false })).toContainText('5 מתוך 6');
-    await child.getByRole('button', { name: 'טעינת התשובות השמורות', exact: true }).click();
     const finalResponse = await context.request.get(sessionPath);
     await expectChildResponse(finalResponse);
     const finalResult = await finalResponse.json();

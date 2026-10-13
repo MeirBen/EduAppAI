@@ -18,7 +18,7 @@ through chat rather than a large form.
   Settings stay a read-only summary.
 - **Chat owns structure.** Adding, removing or reordering texts/questions and
   changing settings go through chat. Each text and question has an “ask about
-  this” shortcut that fills and focuses the composer without sending.
+  this” shortcut that fills the composer without sending or focusing it.
 - **First request.** Authoring proposes a plan or asks one clarification;
   required source text is collected and AI-extracted sources confirmed, then
   the draft and its conversation save themselves. One Create operation produces

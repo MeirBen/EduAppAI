@@ -41,7 +41,7 @@
   @if (assignment.hasValue()) {
     @let document = assignment.value().document;
     @if (terminal()) {
-      @let receipt = outcome()!;
+      @let receipt = session()!;
       @let reviewed = receipt.status === 'completed';
       <section class="panel flex items-start gap-stack" aria-labelledby="receipt-title">
         <span class="status-icon" [attr.data-done]="reviewed ? '' : null" aria-hidden="true"
@@ -249,7 +249,7 @@
               >{{ text }}</span
             >
           }
-          @if ((recovery() || terminal()) && !blocked()) {
+          @if (recovery() && !blocked()) {
             <button
               id="read-saved-session"
               class="text-link"

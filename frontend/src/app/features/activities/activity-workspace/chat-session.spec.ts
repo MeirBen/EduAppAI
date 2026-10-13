@@ -85,7 +85,7 @@ describe('Activity chat target composer', () => {
     await click('ask-question-q2');
     expect(composer().value).toBe('לגבי שאלה 2: הסבירו את הפתרון');
     expect(root().querySelector('#chat-target')!.textContent).toContain('שאלה 2');
-    expect(document.activeElement?.id).toBe('chat-message');
+    expect(document.activeElement?.id).not.toBe('chat-message');
     http.expectNone((request) => request.method === 'POST');
   });
 

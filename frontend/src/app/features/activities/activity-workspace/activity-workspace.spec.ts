@@ -46,6 +46,7 @@ describe('ActivityWorkspace plan ownership', () => {
   async function open() {
     await harness.navigateByUrl('/activities/new', ActivityWorkspace);
     http.expectOne('/api/ai/status').flush({ configured: true });
+    http.expectOne('/api/instances/first-messages').flush([]);
     await settle();
   }
   function draft(plan: LearningPlan): ActivityDetail {
@@ -119,6 +120,7 @@ describe('ActivityWorkspace plan ownership', () => {
 
   it('retries an unavailable AI status without losing the request being written', async () => {
     await harness.navigateByUrl('/activities/new', ActivityWorkspace);
+    http.expectOne('/api/instances/first-messages').flush([]);
     const status = http.expectOne('/api/ai/status');
     expect(root().textContent).not.toContain('העוזר לא זמין כרגע');
     status.flush({}, { status: 503, statusText: 'Unavailable' });
@@ -132,7 +134,7 @@ describe('ActivityWorkspace plan ownership', () => {
     http.expectOne('/api/ai/status').flush({ configured: true });
     await settle();
     expect(field('chat-message').value).toBe('בקשה שעדיין לא נשלחה');
-    expect(document.activeElement?.id).toBe('chat-message');
+    expect(document.activeElement?.id).toBe('activity-chat');
     expect(root().querySelector('#chat-send')!.hasAttribute('aria-disabled')).toBe(false);
     http.expectNone('/api/ai/activity-plans');
   });
@@ -141,6 +143,7 @@ describe('ActivityWorkspace plan ownership', () => {
     await TestBed.inject(Router).navigateByUrl('/activities/new', { info: 'תרגול חיבור לכיתה ב' });
     harness.detectChanges();
     http.expectOne('/api/ai/status').flush({ configured: true });
+    http.expectOne('/api/instances/first-messages').flush([]);
     await settle();
     expect(field('chat-message').value).toBe('תרגול חיבור לכיתה ב');
     expect(document.activeElement?.id).not.toBe('chat-message');

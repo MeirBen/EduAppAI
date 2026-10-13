@@ -54,6 +54,7 @@ async function isolate(page: Page, format: 'numeric-input' | 'single-choice' = '
     // No other device exists here; 204 closes the change stream without a retry.
     if (path === '/api/library/changes') return route.fulfill({ status: 204 });
     if (path === '/api/ai/status') return route.fulfill({ json: { configured: true } });
+    if (path === '/api/instances/first-messages') return route.fulfill({ json: [] });
     if (path === '/api/activity-drafts' && method === 'POST') {
       const body = request.postDataJSON();
       draft = { ...draft, id: body.snapshotId ? 'copy' : 'draft', releasedSnapshotId: null };

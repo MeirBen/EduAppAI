@@ -256,8 +256,8 @@ describe('Child player', () => {
       expect(fixture.componentInstance.canLeave()).toBe(true);
     },
   );
-  it('recovers a committed submit through a read without resubmitting or replacing local text implicitly', async () => {
-    const { http, fixture, root, field, type, submit } = await open();
+  it('recovers a committed submit through a read, showing the submitted answers without resubmitting', async () => {
+    const { http, fixture, root, type, submit } = await open();
     type('text', 'הטקסט שלי');
     submit();
     const request = await vi.waitFor(() => http.expectOne(sessionUrl + '/submit'));
@@ -274,8 +274,9 @@ describe('Child player', () => {
       possibleTotal: 0,
     });
     await fixture.whenStable();
-    expect(field('text').value).toBe('הטקסט שלי');
-    expect(field('text').disabled).toBe(true);
+    expect(root.querySelector('form')).toBeNull();
+    expect(root.querySelector('[data-saved-answer="text"]')!.textContent).toBe('טקסט שנשלח');
+    expect(root.querySelector('#use-saved-session')).toBeNull();
     expect(root.textContent).toContain('הציון:');
     expect(root.textContent).not.toContain('%');
     http.expectNone((r) => r.method === 'POST');
@@ -346,8 +347,7 @@ describe('Child player', () => {
     expect(root.querySelector('form')).toBeNull();
     expect(root.textContent).toContain('הציון:');
     expect(root.textContent).not.toContain('%');
-    // A submitted child checks here for the parent's grade.
-    expect(root.querySelector('#read-saved-session')).not.toBeNull();
+    expect(root.querySelector('#read-saved-session')).toBeNull();
   });
   it('cancels a pending save when the player is destroyed', async () => {
     const { http, fixture, type, save } = await open();

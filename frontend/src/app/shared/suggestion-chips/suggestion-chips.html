@@ -2,8 +2,18 @@
 <ul role="list" class="grid gap-2 sm:grid-cols-2" [attr.aria-labelledby]="key() + '-suggestions'">
   @for (suggestion of suggestions(); track suggestion) {
     <li class="grid">
-      <button type="button" class="chip" [disabled]="disabled()" (click)="picked.emit(suggestion)">
-        <span class="icon icon-ai" aria-hidden="true"></span>{{ suggestion }}
+      <button
+        type="button"
+        class="chip"
+        [attr.data-clamped]="clamped() === suggestion ? '' : null"
+        [disabled]="disabled()"
+        (click)="picked.emit(suggestion)"
+        (pointerenter)="measure(suggestion, label)"
+        (focus)="measure(suggestion, label)"
+      >
+        <span class="icon icon-ai" aria-hidden="true"></span
+        ><span #label class="min-w-0 line-clamp-3" dir="auto">{{ suggestion }}</span
+        ><span class="tooltip" aria-hidden="true" dir="auto">{{ suggestion }}</span>
       </button>
     </li>
   }

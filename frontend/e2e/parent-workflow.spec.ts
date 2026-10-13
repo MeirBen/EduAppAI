@@ -157,7 +157,7 @@ test('prompt to activity, targeted chat, manual editing and an immutable approve
   const secondQuestion = draft.document.questions[1];
   const firstId = draft.document.questions[0].id;
   await page.locator('#ask-question-' + firstId).click();
-  await expect(page.locator('#chat-message')).toBeFocused();
+  await expect(page.locator('#ask-question-' + firstId)).toBeFocused();
   await expect(page.locator('#chat-target')).toContainText('שאלה 1');
   expect((await (await page.request.get(state.draftPath)).json()).revision).toBe(draft.revision);
   await finish(page, await start(page, 'החליפו את השאלה'));
@@ -193,6 +193,10 @@ test('prompt to activity, targeted chat, manual editing and an immutable approve
   expect(await (await page.request.get(frozenPath)).json()).toEqual(frozen);
   await page.locator('#reuse-request').click();
   await expect(page.locator('#chat-message')).toHaveValue('קריאה עם סגנון לבחירה והמתנה');
+  // The latest approval's first message leads the starters under the composer.
+  const starters = page.getByRole('list', { name: 'רעיונות להתחלה' }).getByRole('button');
+  await expect(starters).toHaveCount(5);
+  await expect(starters.first()).toHaveAccessibleName('קריאה עם סגנון לבחירה והמתנה');
   expect(errors).toEqual([]);
 });
 

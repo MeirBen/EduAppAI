@@ -21,9 +21,9 @@ import { scrollBehavior } from '../../../shared/scroll-behavior';
 import { SuggestionChips } from '../../../shared/suggestion-chips/suggestion-chips';
 
 /**
- * Suggestions only fill the composer; every request still goes through the parent's send. Starters
- * cover what generation supports best: a reading text, an early reader, a drill, word problems on a
- * shared story and questions on the parent's own text, each with formats the app can grade.
+ * Suggestions only fill the composer; every request still goes through the parent's send. Built-in
+ * starters cover what generation supports best: a reading text, an early reader, a drill, word
+ * problems on a shared story and questions on the parent's own text, each gradable by the app.
  */
 const starterSuggestions = [
   'קטע מידע על החלל לכיתה ד׳, כ־250 מילים, עם 5 שאלות אמריקאיות',
@@ -76,12 +76,19 @@ export class ActivityChat {
   readonly refining = input(false);
   /** ID of the owner's visible heading that names the first-description field. */
   readonly labelledBy = input('');
+  /** The latest approved activities' first messages; no starters show until they are known. */
+  readonly firstMessages = input<readonly string[]>();
   readonly sent = output<void>();
   readonly cancelled = output<void>();
-  protected readonly starterSuggestions = starterSuggestions;
+  /** Approved activities' first messages lead, completed by built-in starters, each once. */
+  protected readonly starters = computed(() => {
+    const saved = this.firstMessages();
+    return (
+      saved && [...new Set([...saved, ...starterSuggestions])].slice(0, starterSuggestions.length)
+    );
+  });
   protected readonly changeSuggestions = changeSuggestions;
   private readonly document = inject(DOCUMENT);
-  private readonly composer = viewChild.required<ElementRef<HTMLTextAreaElement>>('composer');
   private readonly history = viewChild.required<ElementRef<HTMLElement>>('history');
   private readonly turns = viewChild.required<ElementRef<HTMLElement>>('turns');
   private followLatest = true;
@@ -137,17 +144,6 @@ export class ActivityChat {
     const history = this.history().nativeElement;
     history.scrollTo({ top: history.scrollHeight, behavior: scrollBehavior(this.document) });
     history.focus({ preventScroll: true });
-  }
-
-  /**
-   * Explicit canvas targeting focuses the composer, scrolling only when it is out of view: a pinned
-   * chat or the sheet stays in place, even near the scroll padding kept for the action bar.
-   */
-  focusComposer(): void {
-    const composer = this.composer().nativeElement;
-    const { top, bottom } = composer.getBoundingClientRect();
-    const visible = top >= 0 && bottom <= (this.document.defaultView?.innerHeight ?? 0);
-    composer.focus({ preventScroll: visible });
   }
 
   /** Enter sends; Shift+Enter and IME composition keep editing the message. */

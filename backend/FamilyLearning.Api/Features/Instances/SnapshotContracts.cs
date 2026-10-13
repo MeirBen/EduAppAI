@@ -28,17 +28,18 @@ public sealed record SnapshotPreview(Guid Id, Guid SourceDraftId, long SourceDra
         StoredJson.Read<LearningPlan>(snapshot.PlanJson), StoredJson.Read<TaskDocument>(snapshot.DocumentJson),
         StoredJson.Read<LengthMeasurement[]>(snapshot.MeasurementsJson), snapshot.EngineRevision,
         snapshot.SourceSnapshotId, snapshot.CreatedByParentId, snapshot.DraftCreatedAtUtc,
-        snapshot.ReviewedByParentId, snapshot.ReviewedAtUtc, snapshot.ArchivedAtUtc, await FirstMessageAsync(db, snapshot, ct));
+        snapshot.ReviewedByParentId, snapshot.ReviewedAtUtc, snapshot.ArchivedAtUtc,
+        await FirstMessageAsync(db, snapshot.FamilyId, snapshot.SourceDraftId, ct));
 
     /// <summary>
     /// Follows copies back through the drafts that released their sources, which keep that link after a snapshot's deletion;
     /// null once a draft on the way is gone. A chat past its turn limit keeps only its newest turns.
     /// </summary>
-    private static async Task<string?> FirstMessageAsync(LearningDbContext db, TaskSnapshot snapshot, CancellationToken ct)
+    internal static async Task<string?> FirstMessageAsync(LearningDbContext db, Guid familyId, Guid sourceDraftId, CancellationToken ct)
     {
-        var drafts = db.ActivityDrafts.Where(d => d.FamilyId == snapshot.FamilyId)
+        var drafts = db.ActivityDrafts.Where(d => d.FamilyId == familyId)
             .Select(d => new { d.Id, d.ReleasedSnapshotId, d.SourceSnapshotId, d.ChatJson });
-        var draft = await drafts.SingleOrDefaultAsync(d => d.Id == snapshot.SourceDraftId, ct);
+        var draft = await drafts.SingleOrDefaultAsync(d => d.Id == sourceDraftId, ct);
         while (draft?.SourceSnapshotId is { } source)
             draft = await drafts.SingleOrDefaultAsync(d => d.ReleasedSnapshotId == source, ct);
         return draft is null ? null : StoredJson.Read<ActivityChatTurn[]>(draft.ChatJson).FirstOrDefault(t => t.Role == "parent")?.Text;

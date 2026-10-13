@@ -88,24 +88,14 @@
       </button>
     }
   </div>
-  @if (configured()) {
-    @if (start && !started()) {
-      <app-suggestion-chips
-        key="chat-start"
-        label="רעיונות להתחלה"
-        [suggestions]="starterSuggestions"
-        [disabled]="busy() || locked()"
-        (picked)="suggest($event)"
-      />
-    } @else if (!start && !clarification() && !started()) {
-      <app-suggestion-chips
-        key="chat-change"
-        label="רעיונות לשינוי"
-        [suggestions]="changeSuggestions"
-        [disabled]="busy() || locked()"
-        (picked)="suggest($event)"
-      />
-    }
+  @if (configured() && !start && !clarification() && !started()) {
+    <app-suggestion-chips
+      key="chat-change"
+      label="רעיונות לשינוי"
+      [suggestions]="changeSuggestions"
+      [disabled]="busy() || locked()"
+      (picked)="suggest($event)"
+    />
   }
   <app-loading-indicator
     variant="assistant"
@@ -135,7 +125,6 @@
     }
     <div class="composer">
       <textarea
-        #composer
         id="chat-message"
         dir="auto"
         enterkeyhint="send"
@@ -176,4 +165,15 @@
       </div>
     </div>
   </form>
+  @if (configured() && start && !started()) {
+    @if (starters(); as starters) {
+      <app-suggestion-chips
+        key="chat-start"
+        label="רעיונות להתחלה"
+        [suggestions]="starters"
+        [disabled]="busy() || locked()"
+        (picked)="suggest($event)"
+      />
+    }
+  }
 </div>

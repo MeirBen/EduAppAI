@@ -67,6 +67,7 @@ export class ChildPlayer {
   private readonly holdFocus = focusHolder();
   protected readonly assignment = this.api.assignment(this.assignmentId);
   protected readonly session = signal<LearnerSession | undefined>(undefined);
+  /** A newer open checkpoint the child may load in place of the answers shown here. */
   protected readonly savedSession = signal<LearnerSession | undefined>(undefined);
   protected readonly answers = signal<LearnerAnswer[]>([]);
   protected readonly answered = computed(
@@ -91,9 +92,8 @@ export class ChildPlayer {
   protected readonly triedSubmit = signal(false);
   protected readonly failure = childError;
   protected readonly status = childStatus;
-  protected readonly outcome = computed(() => this.savedSession() ?? this.session());
   protected readonly terminal = computed(
-    () => !!this.outcome() && this.outcome()!.status !== 'assigned',
+    () => !!this.session() && this.session()!.status !== 'assigned',
   );
   protected readonly dirty = computed(() => {
     const saved = new Map(
@@ -145,9 +145,7 @@ export class ChildPlayer {
       : new Set<string>(),
   );
   /** Open work the child can still change. */
-  protected readonly working = computed(
-    () => this.session()?.status === 'assigned' && !this.terminal(),
-  );
+  protected readonly working = computed(() => this.session()?.status === 'assigned');
   /** The bar's one line of feedback, so a slow request never adds a row while the child scrolls. */
   protected readonly statusText = computed(() => {
     if (this.reading()) return 'בודקים…';
@@ -292,7 +290,8 @@ export class ChildPlayer {
     try {
       const saved = await this.api.readSession(this.assignmentId(), this.lifetime);
       if (this.lifetime.destroyed) return;
-      if (!this.session()) this.accept(saved);
+      // Submitted work is final, so its saved receipt replaces whatever is shown here.
+      if (!this.session() || saved.status !== 'assigned') this.accept(saved);
       else if (saved.status === 'assigned' && saved.revision === this.session()!.revision) {
         this.recovery.set(false);
         this.savedSession.set(undefined);

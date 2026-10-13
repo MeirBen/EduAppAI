@@ -115,6 +115,12 @@ export class ActivityWorkspace {
   readonly resumeOperation = input<string | undefined>(undefined, { alias: 'operation' });
 
   protected readonly activity = this.api.activity(this.activityId);
+  private readonly firstMessageRead = this.api.firstMessages(() => !this.activityId());
+  /** A new activity's starters; a failed read leaves the built-in ones. */
+  protected readonly firstMessages = computed(() => {
+    const read = this.firstMessageRead;
+    return read.isLoading() ? undefined : read.hasValue() ? read.value() : [];
+  });
   protected readonly ai = this.api.aiStatus();
   protected readonly loading = this.activity.isLoading;
   protected readonly loadError = this.activity.error;
@@ -166,7 +172,6 @@ export class ActivityWorkspace {
   /** A newer server checkpoint held back because applying it would replace local edits. */
   protected readonly available = signal<ActivityDetail | undefined>(undefined);
 
-  private readonly chatView = viewChild(ActivityChat);
   private readonly chatPanel = viewChild<ElementRef<HTMLElement>>('chatPanel');
   private readonly chatClose = viewChild<ElementRef<HTMLButtonElement>>('chatClose');
   private readonly chatOpener = viewChild<ElementRef<HTMLButtonElement>>('chatOpener');
@@ -361,11 +366,11 @@ export class ActivityWorkspace {
   protected clearTarget() {
     const restoreFocus = this.holdFocus();
     this.chatSession.clearTarget();
-    restoreFocus('chat-message');
+    restoreFocus('activity-chat');
   }
   protected retryAiStatus() {
     const restoreFocus = this.holdFocus();
-    this.aiReadFocus = () => restoreFocus(this.ai.error() ? 'retry-ai-status' : 'chat-message');
+    this.aiReadFocus = () => restoreFocus(this.ai.error() ? 'retry-ai-status' : 'activity-chat');
     this.ai.reload();
   }
   protected retryActivity() {
@@ -377,8 +382,7 @@ export class ActivityWorkspace {
   protected selectTarget(target: RevisionTarget): void {
     if (this.locked()) return;
     this.chatSession.selectTarget(target);
-    // Asking starts a request, so the composer takes focus.
-    this.openChat(() => this.chatView()?.focusComposer());
+    this.openChat();
   }
 
   /** Below desktop width the chat is a sheet over the page; only there does its close control render. */
@@ -387,20 +391,20 @@ export class ActivityWorkspace {
   }
 
   /**
-   * Opens the chat sheet where the layout has one, then moves focus once it shows: by default into
-   * the sheet itself, which raises no on-screen keyboard. The sheet is fixed in view, so focusing it
-   * never scrolls the page behind.
+   * Opens the chat sheet where the layout has one and moves focus into the sheet itself, never its
+   * composer, so no on-screen keyboard rises. The sheet is fixed in view, so focusing it never
+   * scrolls the page behind; elsewhere the chat is already in view and focus stays put.
    */
-  protected openChat(focus = () => this.chatPanel()?.nativeElement.focus({ preventScroll: true })) {
-    // Elsewhere the chat is already in view.
-    if (this.chatIsSheet()) {
-      // Tapping a button does not focus it on iOS, which leaves no opener but the AI button.
-      const opener = this.document.activeElement;
-      this.chatInvoker =
-        opener instanceof HTMLElement && opener !== this.document.body ? opener : undefined;
-      this.chatOpen.set(true);
-    }
-    afterNextRender(focus, { injector: this.injector });
+  protected openChat() {
+    if (!this.chatIsSheet()) return;
+    // Tapping a button does not focus it on iOS, which leaves no opener but the AI button.
+    const opener = this.document.activeElement;
+    this.chatInvoker =
+      opener instanceof HTMLElement && opener !== this.document.body ? opener : undefined;
+    this.chatOpen.set(true);
+    afterNextRender(() => this.chatPanel()?.nativeElement.focus({ preventScroll: true }), {
+      injector: this.injector,
+    });
   }
 
   /**

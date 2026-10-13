@@ -119,7 +119,7 @@ describe('Activity lifecycle', () => {
     });
     await click('ask-question-q');
     expect(root().querySelector<HTMLTextAreaElement>('#chat-message')!.value).toContain('שאלה 1');
-    expect(document.activeElement?.id).toBe('chat-message');
+    expect(document.activeElement?.id).not.toBe('chat-message');
     expect(root().querySelector('#chat-target')!.textContent).toContain('שאלה 1');
     http.expectNone((r) => r.method === 'POST');
     await type('chat-message', 'הסבירו לי את השאלה');
@@ -228,7 +228,7 @@ describe('Activity lifecycle', () => {
     await click('ask-question-q');
     root().querySelector<HTMLButtonElement>('#clear-chat-target')!.focus();
     await click('clear-chat-target');
-    expect(document.activeElement?.id).toBe('chat-message');
+    expect(document.activeElement?.id).toBe('activity-chat');
   });
 
   it('focuses source replacement, explains blank text, and returns to its opener', async () => {
