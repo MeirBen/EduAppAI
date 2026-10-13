@@ -26,7 +26,8 @@ internal sealed class ActivityService(LearningDbContext db, TimeProvider clock)
         if (!paging.IsValid) return PageRequest.Invalid();
         return await paging.ReadAsync(db.ActivityDrafts.AsNoTracking().Where(d => d.FamilyId == familyId && d.ReleasedSnapshotId == null)
             .OrderByDescending(d => d.UpdatedAtUtc).ThenByDescending(d => d.Id)
-            .Select(d => new ActivitySummary(d.Id, d.Name, d.Revision, d.UpdatedAtUtc)), ct);
+            .Select(d => new ActivitySummary(d.Id, d.Name, LearningDbContext.JsonText(d.PlanJson, "$.settings.difficulty")!, d.Revision,
+                d.UpdatedAtUtc)), ct);
     }
 
     /// <summary>

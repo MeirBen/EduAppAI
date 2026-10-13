@@ -194,7 +194,7 @@ public sealed class AssignmentTests
         var inbox = (await child.GetFromJsonAsync<JsonNode>("/api/child/assignments"))!;
         Properties(inbox, "items", "page", "pageSize", "hasMore");
         var item = Assert.Single(inbox["items"]!.AsArray())!;
-        Properties(item, "id", "title", "status", "revision", "createdAtUtc", "hasStarted", "finalTotal", "possibleTotal");
+        Properties(item, "id", "title", "difficulty", "status", "revision", "createdAtUtc", "hasStarted", "finalTotal", "possibleTotal");
         Assert.Null(item["finalTotal"]);
         Assert.False(inbox["items"]![0]!["hasStarted"]!.GetValue<bool>());
         var parentDocument = (await parent.GetFromJsonAsync<JsonNode>("/api/instances/" + snapshot))!["document"]!;

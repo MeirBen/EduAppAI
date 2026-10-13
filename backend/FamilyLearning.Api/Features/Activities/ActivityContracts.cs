@@ -36,8 +36,8 @@ public sealed record ReleaseActivityRequest([property: JsonRequired] long Expect
 
 public sealed record UndoActivityRequest([property: JsonRequired] long ExpectedRevision);
 
-/// <summary>Bounded editable-only library projection; answers and content remain in the owned detail route.</summary>
-public sealed record ActivitySummary(Guid Id, string Name, long Revision, DateTime UpdatedAtUtc);
+/// <summary>Bounded editable-only library projection; content remains in the owned detail route, difficulty is read in SQL.</summary>
+public sealed record ActivitySummary(Guid Id, string Name, string Difficulty, long Revision, DateTime UpdatedAtUtc);
 
 /// <summary>Saved parent-only state. Diagnostics are derived from authoritative data, never an independent readiness cache.</summary>
 public sealed record ActivityDetail(Guid Id, long Revision, LearningPlan Plan, TaskDocument Document,

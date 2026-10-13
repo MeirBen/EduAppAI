@@ -35,6 +35,9 @@
     --icon-moon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5Z'/%3E%3C/svg%3E");
     --icon-ai: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M10 3c1.2 5.2 2.8 6.8 8 8-5.2 1.2-6.8 2.8-8 8-1.2-5.2-2.8-6.8-8-8 5.2-1.2 6.8-2.8 8-8Z'/%3E%3Cpath d='M19 2c.4 1.7.9 2.2 2.6 2.6-1.7.4-2.2.9-2.6 2.6-.4-1.7-.9-2.2-2.6-2.6 1.7-.4 2.2-.9 2.6-2.6Z'/%3E%3C/svg%3E");
     --icon-archive: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 4h18v4H3zM5 8v12h14V8M10 12h4'/%3E%3C/svg%3E");
+    --icon-level-easy: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect x='16' y='14' width='5' height='6' rx='1.5'/%3E%3Cg opacity='.3'%3E%3Crect x='9.5' y='9' width='5' height='11' rx='1.5'/%3E%3Crect x='3' y='4' width='5' height='16' rx='1.5'/%3E%3C/g%3E%3C/svg%3E");
+    --icon-level-medium: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect x='16' y='14' width='5' height='6' rx='1.5'/%3E%3Crect x='9.5' y='9' width='5' height='11' rx='1.5'/%3E%3Cg opacity='.3'%3E%3Crect x='3' y='4' width='5' height='16' rx='1.5'/%3E%3C/g%3E%3C/svg%3E");
+    --icon-level-hard: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect x='16' y='14' width='5' height='6' rx='1.5'/%3E%3Crect x='9.5' y='9' width='5' height='11' rx='1.5'/%3E%3Crect x='3' y='4' width='5' height='16' rx='1.5'/%3E%3C/svg%3E");
     --icon-chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 18 18' fill='none' stroke='%23000' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4.5 6.75 9 11.25l4.5-4.5'/%3E%3C/svg%3E");
   }
 
@@ -146,5 +149,18 @@
   }
   .icon-archive {
     mask-image: var(--icon-archive);
+  }
+  /* A difficulty meter fills its steps along the reading direction. */
+  .icon-level-easy {
+    mask-image: var(--icon-level-easy);
+    @apply ltr:-scale-x-100;
+  }
+  .icon-level-medium {
+    mask-image: var(--icon-level-medium);
+    @apply ltr:-scale-x-100;
+  }
+  .icon-level-hard {
+    mask-image: var(--icon-level-hard);
+    @apply ltr:-scale-x-100;
   }
 }

@@ -11,6 +11,7 @@ const assignment = {
   childName: 'נועה',
   snapshotId: 'snapshot',
   title: 'תרגול',
+  difficulty: 'medium',
   status: 'assigned',
   revision: 3,
   createdAtUtc: '2026-10-01T00:00:00Z',

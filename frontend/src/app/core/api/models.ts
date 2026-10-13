@@ -147,6 +147,7 @@ export interface ActivityDetail {
 export interface ActivitySummary {
   id: string;
   name: string;
+  difficulty: TaskSettings['difficulty'];
   revision: number;
   updatedAtUtc: string;
 }
@@ -225,6 +226,7 @@ export interface SnapshotPreview {
 export interface SnapshotSummary {
   id: string;
   title: string;
+  difficulty: TaskSettings['difficulty'];
   createdAtUtc: string;
   /** The latest open assignment and the latest completion, when there are any. */
   assignedAtUtc: string | null;

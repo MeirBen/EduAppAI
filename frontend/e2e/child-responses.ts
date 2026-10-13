@@ -33,6 +33,7 @@ export async function expectChildResponse(response: APIResponse) {
     for (const item of body.items)
       keys(item, [
         'createdAtUtc',
+        'difficulty',
         'finalTotal',
         'hasStarted',
         'id',

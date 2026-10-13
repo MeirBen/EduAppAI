@@ -1,3 +1,5 @@
+import type { TaskSettings } from './models';
+
 /** Child-only wire contracts. Never reuse parent documents, previews or grading reports here. */
 export interface ChildSessionIdentity {
   childId: string;
@@ -9,6 +11,7 @@ export type LearnerStatus = 'assigned' | 'awaiting-review' | 'completed';
 export interface LearnerAssignmentSummary {
   id: string;
   title: string;
+  difficulty: TaskSettings['difficulty'];
   status: LearnerStatus;
   revision: number;
   createdAtUtc: string;

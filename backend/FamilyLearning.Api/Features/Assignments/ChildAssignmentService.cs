@@ -33,7 +33,8 @@ internal sealed class ChildAssignmentService(LearningDbContext db, ChildAccess a
         var query = db.Assignments.AsNoTracking().Where(a => a.ChildId == identity.ChildId && a.FamilyId == identity.FamilyId);
         query = state == "available" ? query.Where(a => a.Status == "assigned") : query.Where(a => a.Status == "awaiting-review" || a.Status == "completed");
         return await paging.ReadAsync(query.OrderByDescending(a => a.CreatedAtUtc).ThenByDescending(a => a.Id)
-            .Select(a => new LearnerAssignmentSummary(a.Id, a.Snapshot.Title, a.Status, a.Revision, a.CreatedAtUtc, a.Session != null,
+            .Select(a => new LearnerAssignmentSummary(a.Id, a.Snapshot.Title,
+                LearningDbContext.JsonText(a.Snapshot.PlanJson, "$.settings.difficulty")!, a.Status, a.Revision, a.CreatedAtUtc, a.Session != null,
                 a.Status == "completed" ? LearningDbContext.JsonInteger(a.Session!.EvaluationJson, "$.finalTotal") : null,
                 a.Status == "completed" ? LearningDbContext.JsonInteger(a.Session!.EvaluationJson, "$.possibleTotal") : null)), ct);
     }

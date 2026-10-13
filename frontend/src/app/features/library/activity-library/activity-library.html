@@ -44,10 +44,13 @@
                     ><bdi>{{ draft.name }}</bdi></a
                   >
                 </h3>
-                <p class="text-sm text-muted">
-                  עודכנה ב־<time [dateTime]="draft.updatedAtUtc">{{
-                    draft.updatedAtUtc | date
-                  }}</time>
+                <p class="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted">
+                  <app-difficulty-badge [level]="draft.difficulty" />
+                  <span
+                    >עודכנה ב־<time [dateTime]="draft.updatedAtUtc">{{
+                      draft.updatedAtUtc | date
+                    }}</time></span
+                  >
                 </p>
               </div>
               <button
@@ -123,6 +126,7 @@
                 </h3>
                 <p class="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted">
                   @let date = rowDate(snapshot);
+                  <app-difficulty-badge [level]="snapshot.difficulty" />
                   <span
                     >{{ date.label }} ב־<time [dateTime]="date.at">{{ date.at | date }}</time></span
                   >
@@ -183,6 +187,7 @@
                   >
                 </h3>
                 <p class="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted">
+                  <app-difficulty-badge [level]="snapshot.difficulty" />
                   <span
                     >הועברה לארכיון ב־<time [dateTime]="snapshot.archivedAtUtc">{{
                       snapshot.archivedAtUtc | date

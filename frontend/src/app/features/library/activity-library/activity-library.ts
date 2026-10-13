@@ -21,6 +21,7 @@ import { focusHolder } from '../../../shared/focus-holder';
 import { LiveStatus } from '../../../shared/live-status/live-status';
 import { DisabledInteractive } from '../../../shared/disabled-interactive';
 import { ChildBadge } from '../../../shared/child-badge/child-badge';
+import { DifficultyBadge } from '../../../shared/difficulty-badge/difficulty-badge';
 import { Count } from '../../../shared/count/count';
 import { PagedList } from '../../../shared/paged-list/paged-list';
 
@@ -93,7 +94,16 @@ function sectionOpen(count: Signal<number | undefined>) {
  */
 @Component({
   selector: 'app-activity-library',
-  imports: [PagedList, ChildBadge, Count, RouterLink, DatePipe, LiveStatus, DisabledInteractive],
+  imports: [
+    PagedList,
+    ChildBadge,
+    DifficultyBadge,
+    Count,
+    RouterLink,
+    DatePipe,
+    LiveStatus,
+    DisabledInteractive,
+  ],
   templateUrl: './activity-library.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })

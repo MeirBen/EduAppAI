@@ -51,6 +51,7 @@ describe('Child inbox', () => {
     const work = {
       id: 'work',
       title: 'פעילות',
+      difficulty: 'easy',
       status: 'assigned',
       revision: 1,
       createdAtUtc: '2026-10-01T00:00:00Z',
@@ -101,6 +102,7 @@ describe('Child inbox', () => {
         {
           id: 'work',
           title: 'פעילות',
+          difficulty: 'easy',
           status: 'assigned',
           revision: 1,
           createdAtUtc: '2026-10-01T00:00:00Z',

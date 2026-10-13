@@ -30,7 +30,9 @@ public sealed class ContentLifecycleTests
         Assert.Equal("completed", operation["status"]!.GetValue<string>());
         draft = (await parent.GetFromJsonAsync<JsonNode>(Path(draft)))!;
         Assert.Equal("2", draft["document"]!["questions"]![0]!["answer"]!["value"]!.GetValue<string>());
-        Assert.Equal(draft["id"]!.GetValue<Guid>(), Assert.Single((await parent.GetFromJsonAsync<JsonNode>("/api/activity-drafts"))!["items"]!.AsArray())!["id"]!.GetValue<Guid>());
+        var listed = Assert.Single((await parent.GetFromJsonAsync<JsonNode>("/api/activity-drafts"))!["items"]!.AsArray())!;
+        Assert.Equal(draft["id"]!.GetValue<Guid>(), listed["id"]!.GetValue<Guid>());
+        Assert.Equal(draft["plan"]!["settings"]!["difficulty"]!.GetValue<string>(), listed["difficulty"]!.GetValue<string>());
         using var release = await parent.PostAsJsonAsync(Path(draft) + "/release",
             new { expectedRevision = draft["revision"]!.GetValue<long>() });
         Assert.Equal(HttpStatusCode.Created, release.StatusCode);

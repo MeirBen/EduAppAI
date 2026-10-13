@@ -63,6 +63,7 @@
             >
           </h2>
           <p class="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted">
+            <app-difficulty-badge [level]="assignment.difficulty" />
             <span class="badge" [attr.data-tone]="shown.tone">{{ shown.label }}</span>
             <app-score-badge
               [final]="assignment.finalTotal"

@@ -446,7 +446,8 @@
 
   /*
    * Marks. A status badge and its row's tile share one `data-tone`: `new` asks for attention, `done`
-   * is finished and `quiet` is history; without a tone, work is in progress.
+   * is finished and `quiet` is history; without a tone, work is in progress. A `data-level` badge
+   * names an activity's difficulty (see `DifficultyBadge`), which stays as calm as history.
    */
   .badge {
     @apply inline-flex w-fit shrink-0 items-center gap-1.5 rounded-full bg-soft px-3 py-1 text-sm font-medium text-brand ring-1 ring-brand/15 ring-inset;
@@ -460,7 +461,8 @@
       @apply size-[1em] shrink-0 bg-current;
       mask: var(--icon-check) center / contain no-repeat;
     }
-    &[data-tone='quiet'] {
+    &[data-tone='quiet'],
+    &[data-level] {
       @apply bg-transparent text-muted ring-line;
     }
     /* A final score's band (see `ScoreBadge`): from 80%, from 55% and below; its percentage stays the text. */

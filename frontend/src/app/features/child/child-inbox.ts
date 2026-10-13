@@ -6,6 +6,7 @@ import { liveLists } from '../../core/api/live-lists';
 import { ChildAuth } from '../../core/auth/child-auth';
 import { LiveStatus } from '../../shared/live-status/live-status';
 import { ScoreBadge } from '../../shared/score-badge/score-badge';
+import { DifficultyBadge } from '../../shared/difficulty-badge/difficulty-badge';
 import { childError, childStatus } from './child-error';
 import { learnerState } from './child-presentation';
 import { PagedList } from '../../shared/paged-list/paged-list';
@@ -19,7 +20,7 @@ const views: { value: InboxView; label: string }[] = [
 /** Bounded child inbox that follows the parent's changes; listing work never starts a session. */
 @Component({
   selector: 'app-child-inbox',
-  imports: [PagedList, DatePipe, RouterLink, LiveStatus, ScoreBadge],
+  imports: [PagedList, DatePipe, RouterLink, LiveStatus, ScoreBadge, DifficultyBadge],
   templateUrl: './child-inbox.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })

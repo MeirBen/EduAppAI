@@ -9,7 +9,8 @@ namespace FamilyLearning.Api.Features.Assignments;
 internal sealed class AssignmentService(LearningDbContext db, TimeProvider clock)
 {
     private static readonly Expression<Func<Assignment, AssignmentSummary>> SummaryProjection = a =>
-        new(a.Id, a.ChildId, a.Child.Name, a.SnapshotId, a.Snapshot.Title, a.Status, a.Revision, a.CreatedAtUtc, a.Session != null,
+        new(a.Id, a.ChildId, a.Child.Name, a.SnapshotId, a.Snapshot.Title,
+            LearningDbContext.JsonText(a.Snapshot.PlanJson, "$.settings.difficulty")!, a.Status, a.Revision, a.CreatedAtUtc, a.Session != null,
             a.Status == "completed" ? LearningDbContext.JsonInteger(a.Session!.EvaluationJson, "$.finalTotal") : null,
             a.Status == "completed" ? LearningDbContext.JsonInteger(a.Session!.EvaluationJson, "$.possibleTotal") : null);
 

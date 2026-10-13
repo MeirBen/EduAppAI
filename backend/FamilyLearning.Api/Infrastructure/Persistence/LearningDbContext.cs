@@ -30,11 +30,14 @@ public sealed class LearningDbContext(DbContextOptions<LearningDbContext> option
     /// instead of storing them twice. It translates only inside LINQ queries.
     /// </summary>
     public static int? JsonInteger(string? json, string path) => throw new NotSupportedException();
+    /// <summary>The same <c>json_extract</c> for one string, such as a stored plan's difficulty.</summary>
+    public static string? JsonText(string? json, string path) => throw new NotSupportedException();
 
     protected override void OnModelCreating(ModelBuilder model)
     {
         base.OnModelCreating(model);
         model.HasDbFunction(typeof(LearningDbContext).GetMethod(nameof(JsonInteger))!).HasName("json_extract").IsBuiltIn();
+        model.HasDbFunction(typeof(LearningDbContext).GetMethod(nameof(JsonText))!).HasName("json_extract").IsBuiltIn();
         // SQLite loses DateTime.Kind; these timestamp columns always contain UTC values.
         var utcTimestamp = new ValueConverter<DateTime, DateTime>(value => value,
             value => DateTime.SpecifyKind(value, DateTimeKind.Utc));

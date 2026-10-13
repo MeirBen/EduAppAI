@@ -314,9 +314,11 @@ chain with no message.
 Library rows list each child's completed result, and assignment summaries carry
 final and possible totals once completed. Totals are never stored twice: queries
 read them from the frozen evaluation JSON with SQLite's built-in `json_extract`,
-mapped as `LearningDbContext.JsonInteger`. `GET library/counts` returns drafts,
-each ready view and archived sizes in one query, and `GET assignments/counts`
-the parent list's view sizes, for one child or the family, in one grouped query.
+mapped as `LearningDbContext.JsonInteger`. Every activity list row, the child's
+included, carries its plan's difficulty the same way, through
+`LearningDbContext.JsonText`. `GET library/counts` returns drafts, each ready
+view and archived sizes in one query, and `GET assignments/counts` the parent
+list's view sizes, for one child or the family, in one grouped query.
 
 ## Tests
 

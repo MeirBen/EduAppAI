@@ -8,21 +8,25 @@ namespace FamilyLearning.Api.Features.Assignments;
 /// <summary>Reads family-owned frozen reports and serializes one-time parent grading and replay.</summary>
 internal sealed class ParentReviewService(LearningDbContext db, TimeProvider clock)
 {
+    private sealed record ReviewRow(Assignment Assignment, TaskSession? Session, string ChildName, string DocumentJson, string Difficulty);
+
+    private static IQueryable<ReviewRow> Rows(IQueryable<Assignment> assignments, Guid id, Guid familyId) =>
+        assignments.Where(a => a.Id == id && a.FamilyId == familyId).Select(a => new ReviewRow(a, a.Session, a.Child.Name,
+            a.Snapshot.DocumentJson, LearningDbContext.JsonText(a.Snapshot.PlanJson, "$.settings.difficulty")!));
+
     internal async Task<FeatureResult<ParentAssignmentResult>> ReadAsync(Guid id, Guid familyId, CancellationToken ct)
     {
-        var row = await db.Assignments.AsNoTracking().Where(a => a.Id == id && a.FamilyId == familyId)
-            .Select(a => new { Assignment = a, a.Session, ChildName = a.Child.Name, a.Snapshot.DocumentJson }).SingleOrDefaultAsync(ct);
+        var row = await Rows(db.Assignments.AsNoTracking(), id, familyId).SingleOrDefaultAsync(ct);
         if (row is null) return FeatureFailure.NotFound;
         if (row.Session?.SubmittedAtUtc is null) return NotSubmitted();
-        return ToParentResult(row.Assignment, row.ChildName, row.DocumentJson, row.Session);
+        return ToParentResult(row, row.Session);
     }
 
     internal async Task<FeatureResult<ParentAssignmentResult>> FinalizeAsync(Guid id, FinalizeReviewRequest request,
         Guid familyId, string parentId, CancellationToken ct)
     {
         await using var transaction = await db.Database.BeginTransactionAsync(ct);
-        var row = await db.Assignments.Where(a => a.Id == id && a.FamilyId == familyId)
-            .Select(a => new { Assignment = a, a.Session, ChildName = a.Child.Name, a.Snapshot.DocumentJson }).SingleOrDefaultAsync(ct);
+        var row = await Rows(db.Assignments, id, familyId).SingleOrDefaultAsync(ct);
         if (row is null) return FeatureFailure.NotFound;
         var errors = ValidateShape(request);
         if (errors.Count > 0) return FeatureFailure.Invalid(errors);
@@ -51,16 +55,17 @@ internal sealed class ParentReviewService(LearningDbContext db, TimeProvider clo
             await db.SaveChangesAsync(ct);
         }
         await transaction.CommitAsync(ct);
-        return ToParentResult(row.Assignment, row.ChildName, row.DocumentJson, row.Session);
+        return ToParentResult(row, row.Session);
     }
 
-    private static ParentAssignmentResult ToParentResult(Assignment assignment, string childName, string documentJson, TaskSession session)
+    private static ParentAssignmentResult ToParentResult(ReviewRow row, TaskSession session)
     {
-        var document = StoredJson.Read<TaskDocument>(documentJson);
+        var assignment = row.Assignment;
+        var document = StoredJson.Read<TaskDocument>(row.DocumentJson);
         var evaluation = StoredJson.Read<SessionEvaluation>(session.EvaluationJson!);
         var completed = assignment.Status == "completed";
-        var summary = new AssignmentSummary(assignment.Id, assignment.ChildId, childName, assignment.SnapshotId,
-            document.Title, assignment.Status, assignment.Revision, assignment.CreatedAtUtc, true,
+        var summary = new AssignmentSummary(assignment.Id, assignment.ChildId, row.ChildName, assignment.SnapshotId,
+            document.Title, row.Difficulty, assignment.Status, assignment.Revision, assignment.CreatedAtUtc, true,
             completed ? evaluation.FinalTotal : null, completed ? evaluation.PossibleTotal : null);
         return new(summary, document, session.Revision, StoredJson.Read<SessionAnswer[]>(session.AnswersJson),
             evaluation, session.ScoringPolicyVersion!.Value,

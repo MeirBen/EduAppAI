@@ -1,4 +1,4 @@
-import { ActivityDocument, SnapshotPreview } from './models';
+import { ActivityDocument, SnapshotPreview, TaskSettings } from './models';
 
 /** Bounded server page. A following page exists only when hasMore is true. */
 export interface Page<T> {
@@ -47,6 +47,7 @@ export interface AssignmentSummary {
   childName: string;
   snapshotId: string;
   title: string;
+  difficulty: TaskSettings['difficulty'];
   status: AssignmentStatus;
   revision: number;
   createdAtUtc: string;

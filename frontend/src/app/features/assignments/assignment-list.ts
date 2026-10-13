@@ -21,6 +21,7 @@ import { assignmentState, assignmentViews } from './assignment-presentation';
 import { parentTaskError } from '../../core/api/parent-task-error';
 import { Count } from '../../shared/count/count';
 import { ChildBadge } from '../../shared/child-badge/child-badge';
+import { DifficultyBadge } from '../../shared/difficulty-badge/difficulty-badge';
 import { writeError } from '../../core/api/api-error';
 import { PagedList } from '../../shared/paged-list/paged-list';
 
@@ -44,6 +45,7 @@ const changed = {
     DisabledInteractive,
     LiveStatus,
     ChildBadge,
+    DifficultyBadge,
   ],
   templateUrl: './assignment-list.html',
   changeDetection: ChangeDetectionStrategy.OnPush,

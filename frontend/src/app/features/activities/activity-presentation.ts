@@ -5,6 +5,7 @@ import {
   PlanChange,
   QuestionFormat,
 } from '../../core/api/models';
+import { difficultyNames } from '../../shared/difficulty-badge/difficulty-badge';
 import { DocumentForm } from './activity-document-editor/document-form';
 import { lengthText } from './activity-document-view/measurements';
 import { PlanForm } from './activity-workspace/plan-form';
@@ -15,7 +16,6 @@ export const questionFormatLabels: Record<QuestionFormat, string> = {
   'text-input': 'תשובה קצרה',
   'single-choice': 'בחירה',
 };
-const difficultyNames = { easy: 'קל', medium: 'בינוני', hard: 'קשה' };
 
 function questionPhrase(count: number, formats: QuestionFormat[]): string {
   const counted = count === 1 ? 'שאלה אחת' : `${count} שאלות`;

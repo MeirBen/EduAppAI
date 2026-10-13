@@ -9,16 +9,16 @@ public sealed record CreateAssignmentRequest([property: JsonRequired] Guid Child
 /// <summary>Withdrawal and restore apply only to the revision the parent saw.</summary>
 public sealed record AssignmentStateRequest([property: JsonRequired] long ExpectedRevision);
 /// <summary>
-/// Parent list projection; fetch detail for content, never load content JSON to page this list. Totals are set only for
-/// completed work and are read from the frozen evaluation in SQL.
+/// Parent list projection; fetch detail for content, never load content JSON to page this list. Difficulty is read from
+/// the frozen plan in SQL; totals are set only for completed work and are read from the frozen evaluation in SQL.
 /// </summary>
-public sealed record AssignmentSummary(Guid Id, Guid ChildId, string ChildName, Guid SnapshotId, string Title,
+public sealed record AssignmentSummary(Guid Id, Guid ChildId, string ChildName, Guid SnapshotId, string Title, string Difficulty,
     string Status, long Revision, DateTime CreatedAtUtc, bool HasStarted, int? FinalTotal, int? PossibleTotal);
 /// <summary>Parent-only assignment detail. Snapshot contains answer keys and must never serve a child route.</summary>
 public sealed record AssignmentDetail(AssignmentSummary Assignment, SnapshotPreview Snapshot,
     DateTime? StartedAtUtc, DateTime? SavedAtUtc, DateTime? SubmittedAtUtc);
 /// <summary>A child's list entry; totals appear only once the work is completed, as in the child's own session.</summary>
-public sealed record LearnerAssignmentSummary(Guid Id, string Title, string Status, long Revision, DateTime CreatedAtUtc, bool HasStarted,
+public sealed record LearnerAssignmentSummary(Guid Id, string Title, string Difficulty, string Status, long Revision, DateTime CreatedAtUtc, bool HasStarted,
     int? FinalTotal, int? PossibleTotal);
 public sealed record LearnerAssignment(Guid Id, string Status, long Revision, DateTime CreatedAtUtc, LearnerDocument Document);
 

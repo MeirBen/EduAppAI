@@ -143,10 +143,12 @@ public sealed class ParentReviewTests
         Assert.Equal(10, result["assignment"]!["possibleTotal"]!.GetValue<int>());
         var listed = Assert.Single((await parent.GetFromJsonAsync<JsonNode>("/api/assignments?status=completed"))!["items"]!.AsArray())!;
         Assert.True(JsonNode.DeepEquals(result["assignment"], listed));
+        Assert.Equal("medium", listed["difficulty"]!.GetValue<string>());
         Assert.Empty((await parent.GetFromJsonAsync<JsonNode>("/api/instances?status=assigned"))!["items"]!.AsArray());
         Assert.Empty((await parent.GetFromJsonAsync<JsonNode>("/api/instances?status=unassigned"))!["items"]!.AsArray());
         var finished = Assert.Single((await parent.GetFromJsonAsync<JsonNode>("/api/instances?status=completed"))!["items"]!.AsArray())!;
         Assert.Equal(content.Id, finished["id"]!.GetValue<Guid>());
+        Assert.Equal("medium", finished["difficulty"]!.GetValue<string>());
         Assert.Equal(1, (await parent.GetFromJsonAsync<JsonNode>("/api/library/counts"))!["completed"]!.GetValue<int>());
         // A row is dated by what put it in its view: here the completion, with no open assignment left.
         Assert.NotNull(finished["completedAtUtc"]);
@@ -178,8 +180,9 @@ public sealed class ParentReviewTests
         Assert.True(JsonNode.DeepEquals(submitted["answers"], childResult["answers"]));
         var inbox = (await child.GetFromJsonAsync<JsonNode>("/api/child/assignments?state=submitted"))!;
         Properties(inbox, "items", "page", "pageSize", "hasMore");
-        Properties(inbox["items"]![0]!, "id", "title", "status", "revision", "createdAtUtc", "hasStarted", "finalTotal", "possibleTotal");
+        Properties(inbox["items"]![0]!, "id", "title", "difficulty", "status", "revision", "createdAtUtc", "hasStarted", "finalTotal", "possibleTotal");
         Assert.Equal(9, inbox["items"]![0]!["finalTotal"]!.GetValue<int>());
+        Assert.Equal("medium", inbox["items"]![0]!["difficulty"]!.GetValue<string>());
         var learner = (await child.GetFromJsonAsync<JsonNode>($"/api/child/assignments/{assignment["id"]}"))!;
         Properties(learner, "id", "status", "revision", "createdAtUtc", "document");
         Properties(learner["document"]!, "title", "instructions", "materials", "questions");

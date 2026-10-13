@@ -5,10 +5,17 @@ import { provideRouter } from '@angular/router';
 import { ActivityLibrary } from './activity-library';
 import { FakeEventSource } from '../../../core/api/event-source.fixture';
 
-const draft = { id: 'draft', name: 'בעבודה', revision: 2, updatedAtUtc: '2026-10-01T00:00:00Z' };
+const draft = {
+  id: 'draft',
+  name: 'בעבודה',
+  difficulty: 'easy',
+  revision: 2,
+  updatedAtUtc: '2026-10-01T00:00:00Z',
+};
 const snapshot = {
   id: 'ready',
   title: 'מוכנה',
+  difficulty: 'hard',
   assignedAtUtc: '2026-10-02T00:00:00Z',
   completedAtUtc: null,
   createdAtUtc: draft.updatedAtUtc,
@@ -349,6 +356,7 @@ describe('Activity library', () => {
     // An assigned row names its latest assignment date and each child.
     expect(ready.textContent).toContain('הוקצתה לאחרונה ב־');
     expect(ready.querySelector('app-child-badge')!.textContent).toContain('נועה');
+    expect(ready.querySelector('app-difficulty-badge')!.textContent).toContain('רמת קושי: קשה');
     // Only ready activities open with the page; drafts start folded.
     expect(
       root.querySelector<HTMLDetailsElement>('section[aria-labelledby="drafts-title"] details')!

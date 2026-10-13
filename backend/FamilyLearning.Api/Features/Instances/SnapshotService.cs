@@ -32,7 +32,8 @@ internal sealed class SnapshotService(LearningDbContext db, TimeProvider clock)
         return await paging.ReadAsync(rows
             .OrderByDescending(r => r.Snapshot.ArchivedAtUtc ?? r.AssignedAtUtc ?? r.CompletedAtUtc ?? r.Snapshot.ReviewedAtUtc)
             .ThenByDescending(r => r.Snapshot.Id)
-            .Select(r => new SnapshotSummary(r.Snapshot.Id, r.Snapshot.Title, r.Snapshot.ReviewedAtUtc, r.AssignedAtUtc,
+            .Select(r => new SnapshotSummary(r.Snapshot.Id, r.Snapshot.Title,
+                LearningDbContext.JsonText(r.Snapshot.PlanJson, "$.settings.difficulty")!, r.Snapshot.ReviewedAtUtc, r.AssignedAtUtc,
                 r.CompletedAtUtc, r.Snapshot.ArchivedAtUtc,
                 db.Assignments.Where(a => a.FamilyId == familyId && a.SnapshotId == r.Snapshot.Id && a.Status != "withdrawn")
                     .OrderBy(a => a.Child.Name).ThenBy(a => a.Id)
