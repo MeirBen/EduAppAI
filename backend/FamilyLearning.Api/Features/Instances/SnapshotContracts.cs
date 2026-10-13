@@ -1,5 +1,7 @@
+using FamilyLearning.Api.Features.Activities;
 using FamilyLearning.Api.Infrastructure.Persistence;
 using FamilyLearning.Api.TaskEngine.Models;
+using Microsoft.EntityFrameworkCore;
 
 namespace FamilyLearning.Api.Features.Instances;
 
@@ -13,14 +15,32 @@ public sealed record SnapshotSummary(Guid Id, string Title, DateTime CreatedAtUt
 /// <summary>One child's work on a snapshot; completed work carries its final score from the frozen evaluation.</summary>
 public sealed record SnapshotChild(string ChildName, string Status, int? FinalTotal, int? PossibleTotal);
 
-/// <summary>Frozen parent-only preview, including keys and release evidence. Never use this DTO for child access.</summary>
+/// <summary>
+/// Frozen parent-only preview, including keys and release evidence. <c>FirstMessage</c> is the parent's first chat message
+/// in the draft the activity began from, for starting another activity with it. Never use this DTO for child access.
+/// </summary>
 public sealed record SnapshotPreview(Guid Id, Guid SourceDraftId, long SourceDraftRevision, LearningPlan Plan, TaskDocument Document, LengthMeasurement[] Measurements, int EngineRevision,
     Guid? SourceSnapshotId, string CreatedByParentId, DateTime DraftCreatedAtUtc,
-    string ReviewedByParentId, DateTime ReviewedAtUtc, DateTime? ArchivedAtUtc)
+    string ReviewedByParentId, DateTime ReviewedAtUtc, DateTime? ArchivedAtUtc, string? FirstMessage)
 {
-    internal static SnapshotPreview From(TaskSnapshot snapshot) => new(snapshot.Id, snapshot.SourceDraftId, snapshot.SourceDraftRevision,
+    internal static async Task<SnapshotPreview> ReadAsync(LearningDbContext db, TaskSnapshot snapshot, CancellationToken ct) => new(
+        snapshot.Id, snapshot.SourceDraftId, snapshot.SourceDraftRevision,
         StoredJson.Read<LearningPlan>(snapshot.PlanJson), StoredJson.Read<TaskDocument>(snapshot.DocumentJson),
         StoredJson.Read<LengthMeasurement[]>(snapshot.MeasurementsJson), snapshot.EngineRevision,
         snapshot.SourceSnapshotId, snapshot.CreatedByParentId, snapshot.DraftCreatedAtUtc,
-        snapshot.ReviewedByParentId, snapshot.ReviewedAtUtc, snapshot.ArchivedAtUtc);
+        snapshot.ReviewedByParentId, snapshot.ReviewedAtUtc, snapshot.ArchivedAtUtc, await FirstMessageAsync(db, snapshot, ct));
+
+    /// <summary>
+    /// Follows copies back through the drafts that released their sources, which keep that link after a snapshot's deletion;
+    /// null once a draft on the way is gone. A chat past its turn limit keeps only its newest turns.
+    /// </summary>
+    private static async Task<string?> FirstMessageAsync(LearningDbContext db, TaskSnapshot snapshot, CancellationToken ct)
+    {
+        var drafts = db.ActivityDrafts.Where(d => d.FamilyId == snapshot.FamilyId)
+            .Select(d => new { d.Id, d.ReleasedSnapshotId, d.SourceSnapshotId, d.ChatJson });
+        var draft = await drafts.SingleOrDefaultAsync(d => d.Id == snapshot.SourceDraftId, ct);
+        while (draft?.SourceSnapshotId is { } source)
+            draft = await drafts.SingleOrDefaultAsync(d => d.ReleasedSnapshotId == source, ct);
+        return draft is null ? null : StoredJson.Read<ActivityChatTurn[]>(draft.ChatJson).FirstOrDefault(t => t.Role == "parent")?.Text;
+    }
 }

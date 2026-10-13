@@ -1,16 +1,13 @@
 import { expect, test } from '@playwright/test';
 import { numericPlan } from '../src/app/features/activities/learning-plan.fixture';
+import { sessionFile } from './parent-session';
+
+test.use({ storageState: sessionFile('cleanup@example.test') });
 
 test('Kestrel accepts bounded Hebrew activity chat and rejects oversized bodies', async ({
   request,
 }) => {
-  let csrf = await (await request.get('/api/auth/csrf')).json();
-  const login = await request.post('/api/auth/login', {
-    headers: { 'X-XSRF-TOKEN': csrf.token },
-    data: { email: 'cleanup@example.test', password: 'TestOnly!Parent12345' },
-  });
-  expect(login.status()).toBe(204);
-  csrf = await (await request.get('/api/auth/csrf')).json();
+  const csrf = await (await request.get('/api/auth/csrf')).json();
   const headers = { 'X-XSRF-TOKEN': csrf.token, 'Content-Type': 'application/json' };
   const plan = numericPlan;
   const body = {

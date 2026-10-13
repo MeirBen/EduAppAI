@@ -123,7 +123,8 @@ Manual edits preserve item IDs/order, formats and option counts; requirements
 change through Revise. Confirmed source replacement updates plan and document
 atomically, leaving the questions and generated texts stale. Editable DTOs
 exclude provenance and acceptance, and child/snapshot DTOs exclude chat and
-undo.
+undo; a snapshot preview carries only the first parent message of the draft its
+copies lead back to.
 
 A changing Revise or GenerateQuestions stores one prior plan/document
 checkpoint. Undo requires its resulting revision, restores content, advances
@@ -504,7 +505,9 @@ checks for a newer build on each return and offers a reload, which each page's
 unload warning still guards, and a cache that can no longer load asks for one.
 One Playwright suite tests the published app against a local provider, with
 service workers blocked so routing observes every request; only the update test
-lets the worker meet a second build. See the
+lets the worker meet a second build. Each disposable host allows ten sign-ins a
+minute, so a setup project signs each workflow parent in once and the workflows
+reuse that session. See the
 [UI guide](ui-guide.md) and [verification](../README.md#verify). References:
 [IChatClient][chat], [structured output][output], [Signal Forms][forms].
 

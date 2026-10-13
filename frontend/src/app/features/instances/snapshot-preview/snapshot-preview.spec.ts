@@ -1,7 +1,7 @@
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
-import { provideRouter } from '@angular/router';
+import { provideRouter, Router } from '@angular/router';
 import { SnapshotPreviewPage } from './snapshot-preview';
 import { numericPlan } from '../../activities/learning-plan.fixture';
 import { EditableQuestion } from '../../../core/api/models';
@@ -19,6 +19,7 @@ async function preview(
   questions: Pick<EditableQuestion, 'prompt' | 'interaction' | 'answer'>[],
   archivedAtUtc: string | null = null,
   assigned: object[] = [],
+  firstMessage: string | null = null,
 ) {
   TestBed.configureTestingModule({
     providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([])],
@@ -36,6 +37,7 @@ async function preview(
     reviewedAtUtc: '2026-10-01T00:00:00Z',
     measurements: [],
     archivedAtUtc,
+    firstMessage,
     document: {
       title: 'מוכנה',
       instructions: null,
@@ -139,6 +141,22 @@ describe('Immutable parent preview', () => {
     copy.flush({ id: 'new' });
     await vi.waitFor(() => expect(root.querySelector('a[href="/activities/new"]')).not.toBeNull());
     http.verify();
+  });
+
+  it('hands its first message to a new activity without changing this one', async () => {
+    const { root, http } = await preview([], null, [], 'תרגול חיבור לכיתה ב');
+    const navigate = vi.spyOn(TestBed.inject(Router), 'navigateByUrl').mockResolvedValue(true);
+    root.querySelector<HTMLAnchorElement>('#reuse-request')!.click();
+    expect(String(navigate.mock.calls[0][0])).toBe('/activities/new');
+    expect(navigate.mock.calls[0][1]).toEqual(
+      expect.objectContaining({ info: 'תרגול חיבור לכיתה ב' }),
+    );
+    http.verify();
+  });
+
+  it('offers no similar activity without a first message', async () => {
+    const { root } = await preview([]);
+    expect(root.querySelector('#reuse-request')).toBeNull();
   });
 
   it('isolates each question item so a calculation keeps its own order inside the RTL page', async () => {

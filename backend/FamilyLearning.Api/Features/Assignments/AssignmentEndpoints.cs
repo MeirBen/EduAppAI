@@ -25,7 +25,7 @@ public static class AssignmentEndpoints
             if (snapshot is null) return Results.NotFound();
             var timing = await db.TaskSessions.AsNoTracking().Where(s => s.AssignmentId == id)
                 .Select(s => new { s.StartedAtUtc, s.SavedAtUtc, s.SubmittedAtUtc }).SingleOrDefaultAsync(ct);
-            return Results.Ok(new AssignmentDetail(summary, SnapshotPreview.From(snapshot), timing?.StartedAtUtc, timing?.SavedAtUtc, timing?.SubmittedAtUtc));
+            return Results.Ok(new AssignmentDetail(summary, await SnapshotPreview.ReadAsync(db, snapshot, ct), timing?.StartedAtUtc, timing?.SavedAtUtc, timing?.SubmittedAtUtc));
         });
         assignments.MapPost("/{id:guid}/withdraw", WithdrawAsync);
         assignments.MapPost("/{id:guid}/restore", RestoreAsync);

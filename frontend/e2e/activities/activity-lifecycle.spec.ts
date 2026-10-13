@@ -111,6 +111,7 @@ async function isolate(page: Page, format: 'numeric-input' | 'single-choice' = '
         document: draft.document,
         reviewedAtUtc: '2026-10-01T00:00:00Z',
         measurements: [],
+        firstMessage: null,
       };
       draft = { ...draft, releasedSnapshotId: 'ready' };
       return route.fulfill({ status: 201, json: snapshot });

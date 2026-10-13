@@ -23,7 +23,7 @@ public static class SnapshotEndpoints
         snapshots.MapGet("/{id:guid}", async (Guid id, ClaimsPrincipal user, LearningDbContext db, CancellationToken ct) =>
         {
             var snapshot = await db.TaskSnapshots.AsNoTracking().SingleOrDefaultAsync(s => s.Id == id && s.FamilyId == user.FamilyId(), ct);
-            return snapshot is null ? Results.NotFound() : Results.Ok(SnapshotPreview.From(snapshot));
+            return snapshot is null ? Results.NotFound() : Results.Ok(await SnapshotPreview.ReadAsync(db, snapshot, ct));
         });
         snapshots.MapDelete("/{id:guid}", async (Guid id, ClaimsPrincipal user, LearningDbContext db, TimeProvider clock, CancellationToken ct) =>
         {

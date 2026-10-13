@@ -5,7 +5,12 @@ import {
   TestRequest,
 } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
-import { provideRouter, RouteReuseStrategy, withComponentInputBinding } from '@angular/router';
+import {
+  provideRouter,
+  RouteReuseStrategy,
+  Router,
+  withComponentInputBinding,
+} from '@angular/router';
 import { RouterTestingHarness } from '@angular/router/testing';
 import { PageReuseStrategy } from '../../../core/page-reuse-strategy';
 import { ActivityDetail, LearningPlan } from '../../../core/api/models';
@@ -129,6 +134,16 @@ describe('ActivityWorkspace plan ownership', () => {
     expect(field('chat-message').value).toBe('בקשה שעדיין לא נשלחה');
     expect(document.activeElement?.id).toBe('chat-message');
     expect(root().querySelector('#chat-send')!.hasAttribute('aria-disabled')).toBe(false);
+    http.expectNone('/api/ai/activity-plans');
+  });
+
+  it('opens with a first message handed over by navigation, unsent and unfocused', async () => {
+    await TestBed.inject(Router).navigateByUrl('/activities/new', { info: 'תרגול חיבור לכיתה ב' });
+    harness.detectChanges();
+    http.expectOne('/api/ai/status').flush({ configured: true });
+    await settle();
+    expect(field('chat-message').value).toBe('תרגול חיבור לכיתה ב');
+    expect(document.activeElement?.id).not.toBe('chat-message');
     http.expectNone('/api/ai/activity-plans');
   });
 

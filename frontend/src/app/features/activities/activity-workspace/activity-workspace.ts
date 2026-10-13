@@ -414,6 +414,9 @@ export class ActivityWorkspace {
 
   constructor() {
     this.lifetime.onDestroy(() => clearTimeout(this.autosaveTimer));
+    // An approved activity's first message arrives as navigation info and waits unsent in the composer.
+    const firstMessage = this.router.currentNavigation()?.extras.info;
+    if (typeof firstMessage === 'string') this.chatSession.chat.set({ message: firstMessage });
     // Retried reads replace their error controls only after the resource settles.
     effect(() => {
       if (this.activity.isLoading()) return;

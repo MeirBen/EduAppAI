@@ -104,8 +104,17 @@
         <p role="alert" class="field-error">{{ error() }}</p>
       }
       <app-loading-indicator [active]="copying()" label="יוצרים טיוטה חדשה…" />
-      @if (copiedId()) {
-        <div class="action-bar-row">
+      <div class="flex flex-wrap items-center gap-2">
+        @if (snapshot.value().firstMessage; as firstMessage) {
+          <a
+            id="reuse-request"
+            class="button button-secondary"
+            routerLink="/activities/new"
+            [info]="firstMessage"
+            ><span class="icon icon-ai" aria-hidden="true"></span>פעילות דומה</a
+          >
+        }
+        @if (copiedId()) {
           <a class="button" [routerLink]="['/activities', copiedId()]"
             ><span class="icon icon-edit" aria-hidden="true"></span>פתיחת הטיוטה החדשה</a
           >
@@ -113,18 +122,18 @@
             <span class="icon icon-check" aria-hidden="true"></span>נוצר עותק לעריכה. הפעילות המוכנה
             נשארה ללא שינוי.
           </p>
-        </div>
-      } @else {
-        <button
-          id="copy-snapshot"
-          type="button"
-          class="button button-secondary"
-          [disabledInteractive]="copying()"
-          (click)="copy()"
-        >
-          <span class="icon icon-edit" aria-hidden="true"></span>עריכה כטיוטה חדשה
-        </button>
-      }
+        } @else {
+          <button
+            id="copy-snapshot"
+            type="button"
+            class="button button-secondary"
+            [disabledInteractive]="copying()"
+            (click)="copy()"
+          >
+            <span class="icon icon-edit" aria-hidden="true"></span>עריכה
+          </button>
+        }
+      </div>
     </section>
   }
 </section>

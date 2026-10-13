@@ -218,6 +218,8 @@ export interface SnapshotPreview {
   reviewedAtUtc: string;
   archivedAtUtc: string | null;
   measurements: LengthMeasurement[];
+  /** The parent's first chat message in the draft the activity began from, while that draft exists. */
+  firstMessage: string | null;
 }
 /** A library or archive row; `createdAtUtc` is when the parent approved it. */
 export interface SnapshotSummary {
@@ -228,7 +230,6 @@ export interface SnapshotSummary {
   assignedAtUtc: string | null;
   completedAtUtc: string | null;
   archivedAtUtc: string | null;
-  /** Completed work on this activity, by child name. */
   /** Each child's open or completed work, by name. */
   children: AssignedChild[];
 }

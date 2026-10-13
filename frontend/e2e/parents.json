@@ -1,0 +1,12 @@
+{
+  "emails": [
+    "browser@example.test",
+    "failures@example.test",
+    "cleanup@example.test",
+    "source@example.test",
+    "blockers@example.test",
+    "races@example.test",
+    "recovery@example.test"
+  ],
+  "password": "TestOnly!Parent12345"
+}

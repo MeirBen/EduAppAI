@@ -119,6 +119,38 @@ public sealed class ActivityReleaseTests
         await Save(parent, cloned, edit);
     }
 
+    [Fact]
+    public async Task Snapshot_previews_carry_the_first_message_of_the_draft_the_activity_began_from()
+    {
+        await using var app = new ApiFactory();
+        using var parent = await app.ParentAsync();
+        const string request = "תרגול חיבור לכיתה ב";
+        var at = DateTime.UtcNow;
+        using var created = await parent.PostAsJsonAsync("/api/activity-drafts", new
+        {
+            id = Guid.NewGuid(),
+            plan = Numeric(1),
+            chat = new[] { new { role = "parent", text = request, atUtc = at }, new { role = "assistant", text = "הנה הצעה.", atUtc = at },
+                new { role = "parent", text = "ועוד שאלה", atUtc = at } },
+        });
+        var draft = (await created.Content.ReadFromJsonAsync<JsonNode>())!;
+        var edit = Edit(draft);
+        edit["document"] = Document();
+        draft = await Seed(parent, draft, edit);
+        using var release = await parent.PostAsJsonAsync(Path(draft) + "/release", new { expectedRevision = draft["revision"]!.GetValue<long>() });
+        var original = (await release.Content.ReadFromJsonAsync<JsonNode>())!;
+        Assert.Equal(request, original["firstMessage"]!.GetValue<string>());
+        // A copy has no chat of its own; its approval leads back to the original draft even after the original snapshot is gone.
+        using var copy = await parent.PostAsJsonAsync("/api/activity-drafts", new { id = Guid.NewGuid(), snapshotId = original["id"]!.GetValue<Guid>() });
+        var copied = (await copy.Content.ReadFromJsonAsync<JsonNode>())!;
+        using var copyRelease = await parent.PostAsJsonAsync(Path(copied) + "/release", new { expectedRevision = 1 });
+        var preview = $"/api/instances/{(await copyRelease.Content.ReadFromJsonAsync<JsonNode>())!["id"]!.GetValue<Guid>()}";
+        Assert.Equal(HttpStatusCode.NoContent, (await parent.DeleteAsync($"/api/instances/{original["id"]!.GetValue<Guid>()}")).StatusCode);
+        Assert.Equal(request, (await parent.GetFromJsonAsync<JsonNode>(preview))!["firstMessage"]!.GetValue<string>());
+        Assert.Equal(HttpStatusCode.NoContent, (await parent.DeleteAsync(Path(draft))).StatusCode);
+        Assert.Null((await parent.GetFromJsonAsync<JsonNode>(preview))!["firstMessage"]);
+    }
+
     internal static async Task<JsonNode> ReadyDraft(HttpClient parent)
     {
         var draft = await Create(parent, Numeric(1));

@@ -160,14 +160,14 @@ public static class ActivityEndpoints
             var current = await Owned(db, user, id).AsNoTracking().SingleOrDefaultAsync(ct);
             return current is null ? Results.NotFound() : await ReplayAsync(current, body.ExpectedRevision, db, ct);
         }
-        return Results.Created($"/api/instances/{snapshot.Id}", SnapshotPreview.From(snapshot));
+        return Results.Created($"/api/instances/{snapshot.Id}", await SnapshotPreview.ReadAsync(db, snapshot, ct));
     }
 
     private static async Task<IResult> ReplayAsync(ActivityDraft draft, long expected, LearningDbContext db, CancellationToken ct)
     {
         if (draft.ReleasedSourceRevision != expected) return Conflict();
         var snapshot = await db.TaskSnapshots.AsNoTracking().SingleOrDefaultAsync(s => s.Id == draft.ReleasedSnapshotId && s.FamilyId == draft.FamilyId, ct);
-        return snapshot is null ? Results.Problem(statusCode: 410, title: "הפעילות המוכנה נמחקה.") : Results.Ok(SnapshotPreview.From(snapshot));
+        return snapshot is null ? Results.Problem(statusCode: 410, title: "הפעילות המוכנה נמחקה.") : Results.Ok(await SnapshotPreview.ReadAsync(db, snapshot, ct));
     }
 
     private static IQueryable<ActivityDraft> Owned(LearningDbContext db, ClaimsPrincipal user, Guid id) =>

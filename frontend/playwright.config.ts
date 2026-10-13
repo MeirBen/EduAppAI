@@ -8,8 +8,10 @@ export default defineConfig({
   reporter: 'list',
   use: { baseURL: 'http://localhost:5199', trace: 'retain-on-failure', serviceWorkers: 'block' },
   projects: [
+    { name: 'parent-sessions', testMatch: '**/*.setup.ts' },
     {
       name: 'workflows',
+      dependencies: ['parent-sessions'],
       testIgnore: [
         '**/auth-navigation.spec.ts',
         '**/parent-assignments.spec.ts',

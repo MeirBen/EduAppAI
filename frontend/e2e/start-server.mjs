@@ -3,6 +3,7 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { resolve } from 'node:path';
 import { startAiProvider } from './ai-provider.mjs';
+import parents from './parents.json' with { type: 'json' };
 
 const root = resolve(import.meta.dirname, '../..');
 const dataDirectory = mkdtempSync(resolve(tmpdir(), 'family-learning-e2e-'));
@@ -27,24 +28,15 @@ const environment = {
   Ai__Endpoint: provider.endpoint,
   Ai__RequestTimeoutSeconds: '180',
 };
-// Separate families keep cleanup independent of other workflows and their AI rate limits.
-for (const email of [
-  'browser@example.test',
-  'failures@example.test',
-  'cleanup@example.test',
-  'source@example.test',
-  'blockers@example.test',
-  'races@example.test',
-  'recovery@example.test',
-]) {
-  // This known password belongs only to this disposable test database.
+// Separate families keep workflows and their AI rate limits independent.
+for (const email of parents.emails) {
   const account = spawnSync(
     'dotnet',
     ['artifacts/app/FamilyLearning.Api.dll', '--create-parent', email],
     {
       cwd: root,
       env: environment,
-      input: 'TestOnly!Parent12345\nTestOnly!Parent12345\n',
+      input: `${parents.password}\n${parents.password}\n`,
       encoding: 'utf8',
     },
   );

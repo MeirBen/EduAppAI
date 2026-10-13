@@ -1,15 +1,17 @@
+import { readFile } from 'node:fs/promises';
 import { generateDraft } from './generate-draft';
+import { sessionFile } from './parent-session';
 import { expect, test, type Page } from '@playwright/test';
 import { numericPlan } from '../src/app/features/activities/learning-plan.fixture';
 import { ActivityDetail } from '../src/app/core/api/models';
 import { textSize } from './text-size';
 import { verifyParentReview } from './parent-review';
 
-async function login(page: Page, email = 'browser@example.test') {
-  await page.goto('/login');
-  await page.getByLabel('כתובת דוא״ל', { exact: true }).fill(email);
-  await page.getByLabel('סיסמה', { exact: true }).fill('TestOnly!Parent12345');
-  await page.getByRole('button', { name: 'כניסה למרחב שלנו' }).click();
+/** Opens a new activity as a parent the setup project signed in. */
+async function signedIn(page: Page, email = 'browser@example.test') {
+  const { cookies } = JSON.parse(await readFile(sessionFile(email), 'utf8'));
+  await page.context().addCookies(cookies);
+  await page.goto('/activities/new');
   await expect(page.getByRole('heading', { name: 'פעילות חדשה' })).toBeVisible();
 }
 
@@ -83,7 +85,16 @@ test('the parent keeps their place: pages open at the top, focus follows the act
   page,
 }) => {
   await page.setViewportSize({ width: 390, height: 600 });
-  await login(page, 'races@example.test');
+  await signedIn(page, 'races@example.test');
+  // An empty field follows the page direction; typed text sets its own.
+  const composer = page.locator('#chat-message');
+  const direction = () =>
+    composer.evaluate((field) => (field.matches(':dir(rtl)') ? 'rtl' : 'ltr'));
+  expect(await direction()).toBe('rtl');
+  await composer.fill('Hello');
+  await expect.poll(direction).toBe('ltr');
+  await composer.fill('');
+  await expect.poll(direction).toBe('rtl');
   await page.locator('footer').scrollIntoViewIfNeeded();
   expect(await page.evaluate(() => scrollY)).toBeGreaterThan(0);
   // A DOM click follows the link from where the parent is, without the test runner scrolling first.
@@ -96,15 +107,6 @@ test('the parent keeps their place: pages open at the top, focus follows the act
 
   // A request keeps focus on its own button; content that replaces it takes focus at its heading.
   await propose(page, 'קריאה עם סגנון לבחירה והמתנה');
-  // An empty field follows the page direction; typed text sets its own.
-  const composer = page.locator('#chat-message');
-  const direction = () =>
-    composer.evaluate((field) => (field.matches(':dir(rtl)') ? 'rtl' : 'ltr'));
-  expect(await direction()).toBe('rtl');
-  await composer.fill('Hello');
-  await expect.poll(direction).toBe('ltr');
-  await composer.fill('');
-  await expect.poll(direction).toBe('rtl');
   await page.locator('#create-activity').focus();
   await page.keyboard.press('Enter');
   // On a phone Stop waits in the closed chat sheet.
@@ -128,7 +130,7 @@ test('prompt to activity, targeted chat, manual editing and an immutable approve
   await expect(page.getByRole('link', { name: 'דילוג לתוכן הראשי' })).toBeFocused();
   await page.keyboard.press('Enter');
   await expect(page.locator('main')).toBeFocused();
-  await login(page);
+  await signedIn(page);
   await propose(page, 'קריאה עם סגנון לבחירה והמתנה');
   const state = await start(page);
   await expect(page.locator('#chat-cancel')).toBeVisible();
@@ -189,13 +191,15 @@ test('prompt to activity, targeted chat, manual editing and an immutable approve
   await expect(page.getByText('נשמר', { exact: true })).toBeVisible();
   await page.goto(frozenUrl);
   expect(await (await page.request.get(frozenPath)).json()).toEqual(frozen);
+  await page.locator('#reuse-request').click();
+  await expect(page.locator('#chat-message')).toHaveValue('קריאה עם סגנון לבחירה והמתנה');
   expect(errors).toEqual([]);
 });
 
 test('exact bilingual source bypasses material generation and missing answers block release', async ({
   page,
 }) => {
-  await login(page, 'source@example.test');
+  await signedIn(page, 'source@example.test');
   await propose(page, 'תרגול לפי מקור דו לשוני');
   const source = '"שָׁלוֹם" — Hello!\nDon\'t change בעלי־חיים.\n';
   await expect(page.getByLabel('הטקסט שלכם')).toHaveValue(source);
@@ -227,7 +231,7 @@ test('exact bilingual source bypasses material generation and missing answers bl
 test('Create failures keep the entire saved checkpoint unchanged and retry only on request', async ({
   page,
 }) => {
-  await login(page, 'blockers@example.test');
+  await signedIn(page, 'blockers@example.test');
   await propose(page, 'תרגול קריאה באורך קשיח');
   let state = await start(page);
   let draft = await finish(page, state, 'failed');
@@ -260,7 +264,7 @@ test('Create failures keep the entire saved checkpoint unchanged and retry only 
 test('revisions lock editing, support durable Undo and leave saved content intact after Stop', async ({
   page,
 }) => {
-  await login(page, 'races@example.test');
+  await signedIn(page, 'races@example.test');
   await propose(page, 'תרגול חשבון ללא קטע');
   const state = await start(page);
   const created = await finish(page, state);
@@ -286,7 +290,7 @@ test('revisions lock editing, support durable Undo and leave saved content intac
 });
 
 test('authoring failures expose safe errors and retain the parent request', async ({ page }) => {
-  await login(page, 'failures@example.test');
+  await signedIn(page, 'failures@example.test');
   for (const [prompt, message] of [
     ['בדיקת כשל', ''],
     ['בדיקת מגבלת פלט', 'ארוך מדי'],
@@ -305,7 +309,7 @@ test('authoring failures expose safe errors and retain the parent request', asyn
 test('a committed first draft survives a lost response without duplicate creation or AI work', async ({
   page,
 }) => {
-  await login(page, 'recovery@example.test');
+  await signedIn(page, 'recovery@example.test');
   const before = await (await page.request.get('/api/activity-drafts?pageSize=100')).json();
   let committed: ActivityDetail | undefined;
   let creates = 0;
@@ -344,7 +348,7 @@ test('a committed first draft survives a lost response without duplicate creatio
 test('a lost start response locks editing until the original operation key is recovered', async ({
   page,
 }) => {
-  await login(page, 'recovery@example.test');
+  await signedIn(page, 'recovery@example.test');
   await propose(page, 'תרגול חשבון ללא קטע עם המתנה');
   const starts: Record<string, unknown>[] = [];
   let acceptedId = '';
@@ -380,7 +384,7 @@ test('library deletion confirms intent, preserves independent items, recovers fr
   page,
   browser,
 }) => {
-  await login(page, 'cleanup@example.test');
+  await signedIn(page, 'cleanup@example.test');
   await propose(page, 'תרגול חשבון ללא קטע');
   const state = await start(page);
   await finish(page, state);
@@ -592,7 +596,7 @@ test('two pages follow generation, cancellation and release while preserving edi
   context,
 }) => {
   test.setTimeout(60_000);
-  await login(page, 'cleanup@example.test');
+  await signedIn(page, 'cleanup@example.test');
   const headers = {
     'X-XSRF-TOKEN': (await (await page.request.get('/api/auth/csrf')).json()).token,
   };
@@ -685,7 +689,7 @@ test('two pages follow generation, cancellation and release while preserving edi
 test('Create and chat revisions persist across reload without changing content on refusal', async ({
   page,
 }) => {
-  await login(page, 'source@example.test');
+  await signedIn(page, 'source@example.test');
   const headers = {
     'X-XSRF-TOKEN': (await (await page.request.get('/api/auth/csrf')).json()).token,
   };

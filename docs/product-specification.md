@@ -37,7 +37,8 @@ configuration and evidence.
    the activity ready. Approval validates and freezes the saved revision, makes
    no AI call and never assigns work. Ready activities are read-only and can be
    assigned; editing one starts a new draft from its snapshot, leaving existing
-   assignments and results unchanged.
+   assignments and results unchanged. A similar activity opens New activity
+   with the first message that began this one in the composer, unsent.
 
 The library has **drafts** and **ready activities**, with one New activity entry
 point. There are no templates or reusable definitions: a learning plan belongs
