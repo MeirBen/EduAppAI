@@ -103,9 +103,13 @@
         flip-block flip-inline;
     }
   }
-  /* A suggestion that only fills a field; it never submits on its own. */
+  /*
+   * A suggestion that only fills a field; it never submits on its own. Its corners are half a
+   * control's height, so a one-line chip is a pill and a wrapped label keeps clear of them.
+   */
   .chip {
-    @apply inline-flex min-h-control items-center gap-2 rounded-full border border-line bg-surface px-3.5 py-1.5 text-start text-sm text-balance text-ink shadow-(--shadow-control) transition-colors actionable:hover:border-brand/30 actionable:hover:bg-soft;
+    border-radius: calc(var(--spacing-control) / 2);
+    @apply inline-flex min-h-control items-center gap-2 border border-line bg-surface px-3.5 py-1.5 text-start text-sm text-balance text-ink shadow-(--shadow-control) transition-colors actionable:hover:border-brand/30 actionable:hover:bg-soft;
 
     & > .icon {
       @apply text-brand;
