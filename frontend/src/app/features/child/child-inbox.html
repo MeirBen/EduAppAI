@@ -63,6 +63,11 @@
             >
           </h2>
           <p class="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted">
+            <span
+              >נוספה ב־<time [dateTime]="assignment.createdAtUtc">{{
+                assignment.createdAtUtc | date
+              }}</time></span
+            >
             <span class="flex flex-wrap items-center gap-x-3 gap-y-1">
               <span class="badge" [attr.data-tone]="shown.tone">{{ shown.label }}</span>
               <app-score-badge
@@ -71,11 +76,6 @@
               />
               <app-difficulty-badge [level]="assignment.difficulty" />
             </span>
-            <span
-              >נוספה ב־<time [dateTime]="assignment.createdAtUtc">{{
-                assignment.createdAtUtc | date
-              }}</time></span
-            >
           </p>
         </div>
       </article>

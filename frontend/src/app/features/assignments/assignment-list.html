@@ -66,19 +66,19 @@
             >
           </h2>
           @let state = assignmentState(assignment);
-          <p class="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted">
-            <span class="flex flex-wrap items-center gap-x-4 gap-y-1">
+          <p class="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted">
+            <span
+              >הוקצתה ב־<time [dateTime]="assignment.createdAtUtc">{{
+                assignment.createdAtUtc | date
+              }}</time></span
+            >
+            <span class="flex flex-wrap items-center gap-x-3 gap-y-1">
               <app-child-badge [child]="assignment" />
               @if (assignment.status !== 'completed') {
                 <span class="badge" [attr.data-tone]="state.tone">{{ state.label }}</span>
               }
               <app-difficulty-badge [level]="assignment.difficulty" />
             </span>
-            <span
-              >הוקצתה ב־<time [dateTime]="assignment.createdAtUtc">{{
-                assignment.createdAtUtc | date
-              }}</time></span
-            >
           </p>
         </div>
         @if (assignment.status === 'assigned') {

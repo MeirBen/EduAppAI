@@ -327,8 +327,9 @@ readers.
 
 An activity's difficulty shows as one `DifficultyBadge`, the last badge on the
 details line of every activity row: drafts, ready and archived activities,
-assignment rows and the child's list. A row's badges share one wrapping flex
-group, so they keep one line whenever it fits and move below the date together.
+assignment rows and the child's list. Each details line leads with its date;
+its badges follow in one wrapping flex group, so they keep one line whenever it
+fits and move below the date together.
 The difficulty is a quiet `badge` with `data-level`, because it describes the
 activity, not its progress. A meter icon fills one, two or three steps beside
 the level's name, so no status or score color is reused, and screen readers hear
@@ -368,25 +369,25 @@ availability failures offer retry.
 
 The inbox greets the child by name. Separate available/submitted inbox views
 with a `segmented` switch and bounded paging; each row's details line, like the
-parent lists', holds its status `badge` (the state on phones, where the tile
-drops), its grade and its date. Keep materials above numbered questions in the
-reading column. Numeric answers use LTR text inputs with a decimal keyboard,
-retaining invalid edits and sending no surrounding spaces; text preserves
-whitespace. Choice questions are a fieldset whose legend is the prompt, with
-every option a `choice` card around its native radio, so long answers wrap
-rather than hide in a closed select. An answered question fills its number.
-While work is open, the action bar leads with one meta line: a `progress` track
-of answered questions (the count is its accessible text) and the time since the
-first start, which ticks only while work is open and the page is visible. Below
-it, one row holds save, submit, saved-work recovery and the save state, so the
-row stays one line at any timer length down to 320px. On phones the unsaved
-state shows as the save button's `data-attention` dot; it is still announced.
-The saved-work check shows only while recovering. Invalid submit focuses the
-first problem; missing answers need confirmation. Checkpoint reads never
-overwrite open work's local text implicitly; submitted work replaces it. A
-submission receipt leads the page, locks editing and praises the child by name
-beside its outcome icon, which fills (`data-done`) once reviewed; pending review
-has no final score, and zero possible points has no grade.
+parent lists', holds its date, its status `badge` (the state on phones, where
+the tile drops), its grade and its difficulty. Keep materials above numbered
+questions in the reading column. Numeric answers use LTR text inputs with a
+decimal keyboard, retaining invalid edits and sending no surrounding spaces;
+text preserves whitespace. Choice questions are a fieldset whose legend is the
+prompt, with every option a `choice` card around its native radio, so long
+answers wrap rather than hide in a closed select. An answered question fills its
+number. While work is open, the action bar leads with one meta line: a
+`progress` track of answered questions (the count is its accessible text) and
+the time since the first start, which ticks only while work is open and the page
+is visible. Below it, one row holds save, submit, saved-work recovery and the
+save state, so the row stays one line at any timer length down to 320px. On
+phones the unsaved state shows as the save button's `data-attention` dot; it is
+still announced. The saved-work check shows only while recovering. Invalid
+submit focuses the first problem; missing answers need confirmation. Checkpoint
+reads never overwrite open work's local text implicitly; submitted work replaces
+it. A submission receipt leads the page, locks editing and praises the child by
+name beside its outcome icon, which fills (`data-done`) once reviewed; pending
+review has no final score, and zero possible points has no grade.
 
 ## Workspace actions
 
