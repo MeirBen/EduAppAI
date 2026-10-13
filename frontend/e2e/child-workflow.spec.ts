@@ -415,8 +415,12 @@ test('two families and siblings keep separate work through resume, lost submissi
     await numeric.fill('-');
     await text.fill(exactAnswer);
     await choice.getByRole('radio', { name: 'blue', exact: true }).check();
-    child.once('dialog', (dialog) => dialog.dismiss());
+    const leaving = child.waitForEvent('dialog').then(async (dialog) => {
+      expect(dialog.message()).toContain('יש תשובות שלא נשמרו');
+      await dialog.dismiss();
+    });
     await child.getByRole('link', { name: 'לפעילויות שלי', exact: true }).click();
+    await leaving;
     await expect(child).toHaveURL(`/child/assignments/${assignment.id}`);
     await child.getByRole('button', { name: 'שמירה', exact: true }).click();
     await expect(child.getByText('נשמר', { exact: true })).toBeVisible();

@@ -1,6 +1,5 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using FamilyLearning.Api.Infrastructure.Persistence;
 using FamilyLearning.Api.TaskEngine;
 using FamilyLearning.Api.TaskEngine.Ai;
 using FamilyLearning.Api.TaskEngine.Models;
@@ -33,9 +32,4 @@ public sealed record GenerationStep(string Stage, string Outcome, AiCallUsage? U
 
 /// <summary>Parent-only operation state. ExpectedRevision is its last owned draft revision; completion does not assert readiness for release.</summary>
 public sealed record GenerationOperationDetail(Guid Id, Guid DraftId, string Kind, string Status, string Stage,
-    long OriginalRevision, long ExpectedRevision, string? Failure, bool DiagnosticsExpired, GenerationStep[] Steps, GenerationArtifacts? Artifacts)
-{
-    internal static GenerationOperationDetail From(GenerationOperation operation) => new(operation.Id, operation.DraftId,
-        operation.Kind, operation.Status, operation.Stage, operation.OriginalRevision, operation.ExpectedRevision, operation.Failure,
-        operation.ArtifactsJson is null, operation.Steps, operation.ArtifactsJson is { } json ? StoredJson.Read<GenerationArtifacts>(json) : null);
-}
+    long OriginalRevision, long ExpectedRevision, string? Failure, bool DiagnosticsExpired, GenerationStep[] Steps, GenerationArtifacts? Artifacts);

@@ -32,7 +32,7 @@ public sealed class Assignment(Guid familyId, Guid childId, Guid snapshotId, Dat
         Revision++;
     }
 
-    /// <summary>Withdraws available work. The endpoint checks status/revision inside its write transaction.</summary>
+    /// <summary>Withdraws available work. The service checks status/revision inside its write transaction.</summary>
     public void Withdraw(DateTime utcNow)
     {
         Status = "withdrawn";
@@ -40,7 +40,7 @@ public sealed class Assignment(Guid familyId, Guid childId, Guid snapshotId, Dat
         Revision++;
     }
 
-    /// <summary>Returns withdrawn work, with its saved session. The endpoint checks status, revision and eligibility.</summary>
+    /// <summary>Returns withdrawn work, with its saved session. The service checks status, revision and eligibility.</summary>
     public void Restore()
     {
         Status = "assigned";

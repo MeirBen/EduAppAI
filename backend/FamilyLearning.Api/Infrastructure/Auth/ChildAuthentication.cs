@@ -1,5 +1,4 @@
 using System.Security.Claims;
-using FamilyLearning.Api.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Identity;
@@ -15,7 +14,7 @@ public static class ChildAuthentication
     internal static async Task ValidateAsync(CookieValidatePrincipalContext context)
     {
         var services = context.HttpContext.RequestServices;
-        if (await ChildAccess.FindAsync(context.Principal!, services.GetRequiredService<LearningDbContext>(),
+        if (await services.GetRequiredService<ChildAccess>().FindAsync(context.Principal!,
             services.GetRequiredService<TimeProvider>().GetUtcNow().UtcDateTime, context.HttpContext.RequestAborted) is null)
             context.RejectPrincipal();
     }

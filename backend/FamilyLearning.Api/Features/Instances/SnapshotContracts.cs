@@ -1,7 +1,4 @@
-using FamilyLearning.Api.Features.Activities;
-using FamilyLearning.Api.Infrastructure.Persistence;
 using FamilyLearning.Api.TaskEngine.Models;
-using Microsoft.EntityFrameworkCore;
 
 namespace FamilyLearning.Api.Features.Instances;
 
@@ -21,27 +18,4 @@ public sealed record SnapshotChild(string ChildName, string Status, int? FinalTo
 /// </summary>
 public sealed record SnapshotPreview(Guid Id, Guid SourceDraftId, long SourceDraftRevision, LearningPlan Plan, TaskDocument Document, LengthMeasurement[] Measurements, int EngineRevision,
     Guid? SourceSnapshotId, string CreatedByParentId, DateTime DraftCreatedAtUtc,
-    string ReviewedByParentId, DateTime ReviewedAtUtc, DateTime? ArchivedAtUtc, string? FirstMessage)
-{
-    internal static async Task<SnapshotPreview> ReadAsync(LearningDbContext db, TaskSnapshot snapshot, CancellationToken ct) => new(
-        snapshot.Id, snapshot.SourceDraftId, snapshot.SourceDraftRevision,
-        StoredJson.Read<LearningPlan>(snapshot.PlanJson), StoredJson.Read<TaskDocument>(snapshot.DocumentJson),
-        StoredJson.Read<LengthMeasurement[]>(snapshot.MeasurementsJson), snapshot.EngineRevision,
-        snapshot.SourceSnapshotId, snapshot.CreatedByParentId, snapshot.DraftCreatedAtUtc,
-        snapshot.ReviewedByParentId, snapshot.ReviewedAtUtc, snapshot.ArchivedAtUtc,
-        await FirstMessageAsync(db, snapshot.FamilyId, snapshot.SourceDraftId, ct));
-
-    /// <summary>
-    /// Follows copies back through the drafts that released their sources, which keep that link after a snapshot's deletion;
-    /// null once a draft on the way is gone. A chat past its turn limit keeps only its newest turns.
-    /// </summary>
-    internal static async Task<string?> FirstMessageAsync(LearningDbContext db, Guid familyId, Guid sourceDraftId, CancellationToken ct)
-    {
-        var drafts = db.ActivityDrafts.Where(d => d.FamilyId == familyId)
-            .Select(d => new { d.Id, d.ReleasedSnapshotId, d.SourceSnapshotId, d.ChatJson });
-        var draft = await drafts.SingleOrDefaultAsync(d => d.Id == sourceDraftId, ct);
-        while (draft?.SourceSnapshotId is { } source)
-            draft = await drafts.SingleOrDefaultAsync(d => d.ReleasedSnapshotId == source, ct);
-        return draft is null ? null : StoredJson.Read<ActivityChatTurn[]>(draft.ChatJson).FirstOrDefault(t => t.Role == "parent")?.Text;
-    }
-}
+    string ReviewedByParentId, DateTime ReviewedAtUtc, DateTime? ArchivedAtUtc, string? FirstMessage);

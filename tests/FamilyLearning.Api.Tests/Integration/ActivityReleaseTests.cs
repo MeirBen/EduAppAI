@@ -1,3 +1,4 @@
+using System.Data.Common;
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json.Nodes;
@@ -131,8 +132,10 @@ public sealed class ActivityReleaseTests
         var preview = $"/api/instances/{(await ApproveCopyAsync(parent, original))["id"]!.GetValue<Guid>()}";
         Assert.Equal(HttpStatusCode.NoContent, (await parent.DeleteAsync($"/api/instances/{original["id"]!.GetValue<Guid>()}")).StatusCode);
         Assert.Equal(request, (await parent.GetFromJsonAsync<JsonNode>(preview))!["firstMessage"]!.GetValue<string>());
+        Assert.Equal([request], await FirstMessages(parent));
         Assert.Equal(HttpStatusCode.NoContent, (await parent.DeleteAsync($"/api/activity-drafts/{original["sourceDraftId"]!.GetValue<Guid>()}")).StatusCode);
         Assert.Null((await parent.GetFromJsonAsync<JsonNode>(preview))!["firstMessage"]);
+        Assert.Empty(await FirstMessages(parent));
     }
 
     [Fact]
@@ -155,6 +158,82 @@ public sealed class ActivityReleaseTests
 
     private static async Task<string[]> FirstMessages(HttpClient parent) =>
         (await parent.GetFromJsonAsync<string[]>("/api/instances/first-messages"))!;
+
+    [Fact]
+    public async Task First_messages_scan_past_duplicate_copies_without_repeated_ancestry_reads()
+    {
+        var reads = new SnapshotReads();
+        await using var app = new ApiFactory(services => services.AddScoped(provider => new LearningDbContext(
+            new DbContextOptionsBuilder<LearningDbContext>(provider.GetRequiredService<DbContextOptions<LearningDbContext>>()).AddInterceptors(reads).Options)));
+        using var parent = await app.ParentAsync();
+        foreach (var message in new[] { "ראשונה", "שנייה", "שלישית", "רביעית" }) await ApproveAsync(parent, message);
+        var latest = await ApproveAsync(parent, "מקור משותף");
+        for (var index = 0; index < 36; index++) latest = await ApproveCopyAsync(parent, latest);
+
+        reads.Enabled = true;
+        Assert.Equal(["מקור משותף", "רביעית", "שלישית", "שנייה", "ראשונה"], await FirstMessages(parent));
+        // Each distinct ancestor may need a read, but overlapping copy chains must not multiply that work.
+        Assert.InRange(reads.Count, 1, 50);
+    }
+
+    [Fact]
+    public async Task First_messages_do_not_skip_an_older_request_when_a_scanned_snapshot_is_archived()
+    {
+        var pause = new SecondSnapshotPage();
+        await using var app = new ApiFactory(services => services.AddScoped(provider => new LearningDbContext(
+            new DbContextOptionsBuilder<LearningDbContext>(provider.GetRequiredService<DbContextOptions<LearningDbContext>>()).AddInterceptors(pause).Options)));
+        using var parent = await app.ParentAsync();
+        foreach (var message in new[] { "ראשונה", "שנייה", "שלישית", "רביעית" }) await ApproveAsync(parent, message);
+        var latest = await ApproveAsync(parent, "מקור משותף");
+        for (var index = 0; index < 31; index++) latest = await ApproveCopyAsync(parent, latest);
+
+        pause.Enabled = true;
+        var reading = FirstMessages(parent);
+        try
+        {
+            await pause.Entered.Task.WaitAsync(TimeSpan.FromSeconds(10));
+            using var scope = app.Services.CreateScope();
+            await scope.ServiceProvider.GetRequiredService<LearningDbContext>().TaskSnapshots
+                .Where(s => s.Id == latest["id"]!.GetValue<Guid>())
+                .ExecuteUpdateAsync(update => update.SetProperty(s => s.ArchivedAtUtc, DateTime.UtcNow));
+        }
+        finally { pause.Resume.TrySetResult(); }
+        Assert.Equal(["מקור משותף", "רביעית", "שלישית", "שנייה", "ראשונה"], await reading.WaitAsync(TimeSpan.FromSeconds(10)));
+    }
+
+    private sealed class SecondSnapshotPage : DbCommandInterceptor
+    {
+        private int pages;
+        internal bool Enabled { get; set; }
+        internal TaskCompletionSource Entered { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        internal TaskCompletionSource Resume { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public override async ValueTask<InterceptionResult<DbDataReader>> ReaderExecutingAsync(DbCommand command, CommandEventData eventData,
+            InterceptionResult<DbDataReader> result, CancellationToken cancellationToken = default)
+        {
+            if (Enabled && command.CommandText.Contains("FROM \"TaskSnapshots\"", StringComparison.Ordinal) &&
+                command.CommandText.Contains("LIMIT", StringComparison.Ordinal) && Interlocked.Increment(ref pages) == 2)
+            {
+                Entered.TrySetResult();
+                await Resume.Task.WaitAsync(cancellationToken);
+            }
+            return result;
+        }
+    }
+
+    private sealed class SnapshotReads : DbCommandInterceptor
+    {
+        internal bool Enabled { get; set; }
+        internal int Count { get; private set; }
+
+        public override ValueTask<InterceptionResult<DbDataReader>> ReaderExecutingAsync(DbCommand command, CommandEventData eventData,
+            InterceptionResult<DbDataReader> result, CancellationToken cancellationToken = default)
+        {
+            if (Enabled && (command.CommandText.Contains("\"ActivityDrafts\"", StringComparison.Ordinal) ||
+                command.CommandText.Contains("\"TaskSnapshots\"", StringComparison.Ordinal))) Count++;
+            return ValueTask.FromResult(result);
+        }
+    }
 
     /// <summary>Approves a new activity whose chat opens with <paramref name="message"/> and continues past it.</summary>
     private static async Task<JsonNode> ApproveAsync(HttpClient parent, string message)

@@ -1,5 +1,4 @@
 using System.Text.Json.Serialization;
-using FamilyLearning.Api.Infrastructure.Persistence;
 using FamilyLearning.Api.TaskEngine.Models;
 
 namespace FamilyLearning.Api.Features.Assignments;
@@ -24,31 +23,8 @@ public sealed record FinalizeReviewRequest([property: JsonRequired] long Expecte
 /// <remarks>Final total stays null while review is pending. Percentage presentation must also require a positive possible total.</remarks>
 public sealed record ParentAssignmentResult(AssignmentSummary Assignment, TaskDocument Document, long Revision,
     SessionAnswer[] Answers, SessionEvaluation Evaluation, int ScoringPolicyVersion, DateTime StartedAtUtc,
-    DateTime? SavedAtUtc, DateTime SubmittedAtUtc, DateTime? ReviewedAtUtc, string? ReviewedByParentId)
-{
-    internal static ParentAssignmentResult From(Assignment assignment, string childName, string documentJson, TaskSession session)
-    {
-        var document = StoredJson.Read<TaskDocument>(documentJson);
-        var evaluation = StoredJson.Read<SessionEvaluation>(session.EvaluationJson!);
-        var completed = assignment.Status == "completed";
-        var summary = new AssignmentSummary(assignment.Id, assignment.ChildId, childName, assignment.SnapshotId,
-            document.Title, assignment.Status, assignment.Revision, assignment.CreatedAtUtc, true,
-            completed ? evaluation.FinalTotal : null, completed ? evaluation.PossibleTotal : null);
-        return new(summary, document, session.Revision, StoredJson.Read<SessionAnswer[]>(session.AnswersJson),
-            evaluation, session.ScoringPolicyVersion!.Value,
-            session.StartedAtUtc, session.SavedAtUtc, session.SubmittedAtUtc!.Value, session.ReviewedAtUtc, session.ReviewedByParentId);
-    }
-}
+    DateTime? SavedAtUtc, DateTime SubmittedAtUtc, DateTime? ReviewedAtUtc, string? ReviewedByParentId);
 
 /// <summary>Child-only receipt and saved answers. No keys, question awards, reviewer identity or parent report is exposed.</summary>
 public sealed record LearnerSession(Guid AssignmentId, long Revision, string Status, SessionAnswer[] Answers,
-    DateTime StartedAtUtc, DateTime? SavedAtUtc, DateTime? SubmittedAtUtc, DateTime? ReviewedAtUtc, int? FinalTotal, int? PossibleTotal)
-{
-    internal static LearnerSession From(TaskSession session, string status)
-    {
-        var evaluation = session.EvaluationJson is null ? null : StoredJson.Read<SessionEvaluation>(session.EvaluationJson);
-        return new(session.AssignmentId, session.Revision, status, StoredJson.Read<SessionAnswer[]>(session.AnswersJson),
-            session.StartedAtUtc, session.SavedAtUtc, session.SubmittedAtUtc, session.ReviewedAtUtc,
-            status == "completed" ? evaluation?.FinalTotal : null, evaluation?.PossibleTotal);
-    }
-}
+    DateTime StartedAtUtc, DateTime? SavedAtUtc, DateTime? SubmittedAtUtc, DateTime? ReviewedAtUtc, int? FinalTotal, int? PossibleTotal);

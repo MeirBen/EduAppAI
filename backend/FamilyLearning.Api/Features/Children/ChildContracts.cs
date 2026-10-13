@@ -26,7 +26,7 @@ public sealed record ChildActivationCode(string Code, DateTime ExpiresAtUtc);
 
 internal static class ChildValidation
 {
-    internal static IResult? ValidateDetails(ChildProfileDetails? details)
+    internal static FeatureFailure? ValidateDetails(ChildProfileDetails? details)
     {
         if (details is null) return null;
         var errors = new Dictionary<string, string[]>();
@@ -34,10 +34,9 @@ internal static class ChildValidation
             errors["details.grade"] = [$"הכיתה מוגבלת ל־{EngineValidation.NameLength} תווים."];
         if (details.Age is < 0 or > EngineValidation.MaxChildAge)
             errors["details.age"] = [$"יש להזין גיל שלם בין 0 ל־{EngineValidation.MaxChildAge}."];
-        return errors.Count == 0 ? null : Results.ValidationProblem(errors);
+        return errors.Count == 0 ? null : FeatureFailure.Invalid(errors);
     }
 
     internal static bool ValidName(string? value) => !string.IsNullOrWhiteSpace(value) && value.Trim().Length <= EngineValidation.NameLength;
-    internal static IResult InvalidName(string field) => Results.ValidationProblem(new Dictionary<string, string[]>
-    { [field] = [$"יש להזין שם באורך 1–{EngineValidation.NameLength} תווים."] });
+    internal static FeatureFailure InvalidName(string field) => FeatureFailure.Invalid(field, $"יש להזין שם באורך 1–{EngineValidation.NameLength} תווים.");
 }

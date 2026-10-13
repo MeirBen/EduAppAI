@@ -1,6 +1,6 @@
 namespace FamilyLearning.Api.Features.Children;
 
-/// <summary>Family-owned profile. Disabling retains learning history; endpoints revoke access atomically.</summary>
+/// <summary>Family-owned profile. Disabling retains learning history; the profile service revokes access atomically.</summary>
 public sealed class Child(Guid familyId, string name, DateTime createdAtUtc)
 {
     public Guid Id { get; private set; } = Guid.NewGuid();

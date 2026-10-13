@@ -1,3 +1,4 @@
+using FamilyLearning.Api.Features;
 using FamilyLearning.Api.Features.Activities;
 using FamilyLearning.Api.Infrastructure.Ai;
 using FamilyLearning.Api.Infrastructure.Auth;
@@ -7,7 +8,6 @@ using FamilyLearning.Api.Infrastructure.Web;
 using FamilyLearning.Api.TaskEngine.Ai;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.HttpOverrides;
-using Microsoft.EntityFrameworkCore;
 using Serilog;
 
 var management = args.Length > 0 && args[0] is "--migrate" or "--activity-only-cutover" or "--create-parent";
@@ -20,13 +20,7 @@ try
     var dataDirectory = Path.GetFullPath(builder.Configuration["Storage:Directory"] ?? "data", builder.Environment.ContentRootPath);
     if (OperatingSystem.IsWindows()) Directory.CreateDirectory(dataDirectory);
     else Directory.CreateDirectory(dataDirectory, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
-    builder.Services.AddDbContext<LearningDbContext>(options => options.UseSqlite(
-        new Microsoft.Data.Sqlite.SqliteConnectionStringBuilder
-        {
-            DataSource = Path.Combine(dataDirectory, "family-learning.db"),
-            ForeignKeys = true,
-            Pooling = false
-        }.ToString()));
+    builder.Services.AddLearningPersistence(dataDirectory);
     // Persist keys with the database so restarts do not invalidate existing login cookies.
     builder.Services.AddDataProtection().SetApplicationName("FamilyLearning")
         .PersistKeysToFileSystem(new DirectoryInfo(Path.Combine(dataDirectory, "keys")));
@@ -41,6 +35,7 @@ try
     }
     builder.Services.AddTaskAi(builder.Configuration, builder.Environment);
     builder.Services.AddApplicationApi();
+    builder.Services.AddLearningFeatures();
     builder.Services.AddActivityGeneration(builder.Configuration);
     // Allow bounded activity plans and imported chat even when Hebrew characters use six-byte JSON escapes.
     builder.WebHost.ConfigureKestrel(options => options.Limits.MaxRequestBodySize = 3 * 1024 * 1024);
@@ -62,8 +57,7 @@ try
     app.UseApplicationRequestLogging();
     if (app.Environment.IsDevelopment())
     {
-        using var scope = app.Services.CreateScope();
-        await scope.ServiceProvider.GetRequiredService<LearningDbContext>().Database.MigrateAsync();
+        await app.Services.MigrateLearningDatabaseAsync();
     }
     else
     {

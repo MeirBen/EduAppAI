@@ -7,7 +7,7 @@ namespace FamilyLearning.Api.Infrastructure.Auth;
 /// <summary>Configures Identity, independent parent/child authorization and same-origin cookie/antiforgery behavior.</summary>
 public static class AuthConfiguration
 {
-    /// <summary>Registers the services used by parent endpoints and local account provisioning.</summary>
+    /// <summary>Registers parent and child authentication and local account provisioning.</summary>
     /// <remarks><paramref name="development"/> allows HTTP cookies locally; other environments require HTTPS.</remarks>
     public static void AddParentAuthentication(this IServiceCollection services, bool development)
     {
@@ -62,5 +62,6 @@ public static class AuthConfiguration
             options.Cookie.SecurePolicy = development ? CookieSecurePolicy.SameAsRequest : CookieSecurePolicy.Always;
         });
         services.AddScoped<ParentAccount>();
+        services.AddScoped<ChildAccess>();
     }
 }

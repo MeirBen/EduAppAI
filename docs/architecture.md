@@ -7,10 +7,16 @@ together.
 ## Structure
 
 One .NET 8 project uses Identity, EF Core and SQLite. Features own endpoints,
-DTOs and entities and use DbContext directly. `TaskEngine` owns pure resolution,
-assembly, validation and AI contracts; `Infrastructure` owns authentication,
-provider registration and persistence. `Program.cs` composes the API and the
-durable worker. There are no repository, mediator or compatibility layers.
+DTOs, entities and concrete scoped services. Services and readers use DbContext
+directly; endpoints bind requests and map feature outcomes to native HTTP results.
+Endpoints, web infrastructure and `Program.cs` contain no EF queries or DbContext
+access. Paging queries and database setup live in persistence infrastructure.
+`TaskEngine` owns pure resolution, assembly, validation and AI contracts;
+`Infrastructure` owns authentication, provider registration and persistence.
+`Program.cs` composes the API and the
+durable worker. Feature results carry values or expected failures; the web mapper
+preserves the API's status codes and ProblemDetails without a response envelope.
+There are no repository, mediator or compatibility layers.
 
 Angular is standalone, strict and signal-based: `core` owns auth and API access,
 `activities` the editable workspace, `library` the lists, `instances` frozen
@@ -133,9 +139,10 @@ it; replies, no-ops and failures preserve it. Undo serializes its chat
 read/write with operation admission/completion even when a reply leaves content
 revision alone.
 
-An EF concurrency token guards each draft write. One `SaveChanges` creates the
-snapshot and marks the draft terminal, and a unique source-draft index prevents
-duplicate releases; replay returns the original snapshot, or 410 if it was
+An EF concurrency token guards each draft write. `ActivityService` owns
+reviewed release and replay; one `SaveChanges` creates the snapshot and marks
+the draft terminal, and a unique source-draft index prevents duplicate releases;
+replay returns the original snapshot, or 410 if it was
 deleted. Source draft/snapshot IDs are detached provenance, so draft deletion
 never erases snapshots. The two data deletions each delete assigned work first,
 then activities or children, atomically while keeping accounts.
@@ -292,11 +299,18 @@ content, so no race can attach new work.
 
 The ready list's `status` puts every snapshot in one view: `assigned` while any
 work is assigned or awaiting review, else `completed` once any is finished, else
-`unassigned`; withdrawn work counts neither way. One `InView` rule serves the
-list and its counts. Each row carries its latest open assignment and completion
+`unassigned`; withdrawn work counts neither way. `SnapshotQueries.InView` serves
+the list and its counts. Each row carries its latest open assignment and completion
 and every child's current work (`GET assignments?snapshotId=` lists the same
 work for an activity's page), and lists sort by the date a row shows: archiving,
 else the latest open assignment, else the latest completion, else the review.
+`SnapshotReader` owns parent previews and original-request lookup. Recent
+requests scan snapshot sources in batches and reuse resolved ancestry within
+the family's request, preserving order and distinct messages without repeatedly
+walking shared copy chains. Batches continue by immutable review time and ID,
+so concurrent removals cannot skip unread sources. Missing drafts still end a
+chain with no message.
+
 Library rows list each child's completed result, and assignment summaries carry
 final and possible totals once completed. Totals are never stored twice: queries
 read them from the frozen evaluation JSON with SQLite's built-in `json_extract`,

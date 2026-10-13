@@ -1,148 +1,37 @@
 using System.Security.Claims;
 using FamilyLearning.Api.Infrastructure.Auth;
-using FamilyLearning.Api.Infrastructure.Persistence;
 using FamilyLearning.Api.Infrastructure.Web;
-using Microsoft.EntityFrameworkCore;
 
 namespace FamilyLearning.Api.Features.Children;
 
-/// <summary>Parent-owned profile and device management; all state-dependent writes serialize in SQLite.</summary>
+/// <summary>Maps parent-owned profile and device requests to feature outcomes.</summary>
 public static class ChildEndpoints
 {
     public static void MapChildEndpoints(this RouteGroupBuilder api)
     {
         var children = api.MapGroup("/children");
         children.MapGet("/", ListAsync);
-        children.MapPost("/", async (CreateChildRequest request, ClaimsPrincipal user, LearningDbContext db, TimeProvider clock, CancellationToken ct) =>
-        {
-            if (!ChildValidation.ValidName(request.Name)) return ChildValidation.InvalidName("name");
-            if (ChildValidation.ValidateDetails(request.Details) is { } invalid) return invalid;
-            var now = clock.GetUtcNow().UtcDateTime;
-            var child = new Child(user.FamilyId(), request.Name.Trim(), now);
-            if (request.Details is { } details) child.SetDetails(details, now);
-            db.Children.Add(child);
-            await db.SaveChangesAsync(ct);
-            return Results.Created($"/api/children/{child.Id}", ChildSummary.From(child, hasAssignments: false));
-        });
-        children.MapPut("/{id:guid}", UpdateAsync);
-        children.MapDelete("/{id:guid}", DeleteAsync);
-        children.MapPost("/{id:guid}/activation", IssueAsync).RequireRateLimiting("child-issuance");
+        children.MapPost("/", async (CreateChildRequest request, ClaimsPrincipal user, ChildService service, CancellationToken ct) =>
+            (await service.CreateAsync(user.FamilyId(), request, ct))
+                .ToHttpResult(static child => Results.Created($"/api/children/{child.Id}", child)));
+        children.MapPut("/{id:guid}", async (Guid id, UpdateChildRequest request, ClaimsPrincipal user, ChildService service, CancellationToken ct) =>
+            (await service.UpdateAsync(user.FamilyId(), id, request, ct)).ToHttpResult());
+        children.MapDelete("/{id:guid}", async (Guid id, long expectedRevision, ClaimsPrincipal user, ChildService service, CancellationToken ct) =>
+            (await service.DeleteAsync(user.FamilyId(), id, expectedRevision, ct)).ToNoContentResult());
+        children.MapPost("/{id:guid}/activation", async (Guid id, CreateActivationRequest request, ClaimsPrincipal user, ChildService service, CancellationToken ct) =>
+            (await service.IssueAsync(user.FamilyId(), id, request, ct)).ToHttpResult()).RequireRateLimiting("child-issuance");
         children.MapGet("/{id:guid}/devices", DevicesAsync);
-        children.MapDelete("/{id:guid}/devices/{grantId:guid}", RevokeAsync);
-        children.MapDelete("/{id:guid}/devices/{grantId:guid}/record", RemoveDeviceAsync);
+        children.MapDelete("/{id:guid}/devices/{grantId:guid}", async (Guid id, Guid grantId, ClaimsPrincipal user, ChildService service, CancellationToken ct) =>
+            (await service.RevokeAsync(user.FamilyId(), id, grantId, ct)).ToNoContentResult());
+        children.MapDelete("/{id:guid}/devices/{grantId:guid}/record", async (Guid id, Guid grantId, ClaimsPrincipal user, ChildService service, CancellationToken ct) =>
+            (await service.RemoveDeviceAsync(user.FamilyId(), id, grantId, ct)).ToNoContentResult());
     }
 
-    private static async Task<IResult> ListAsync(ClaimsPrincipal user, LearningDbContext db, CancellationToken ct, int page = 1, int pageSize = PageRequest.DefaultSize)
-    {
-        var paging = new PageRequest(page, pageSize);
-        if (!paging.IsValid) return PageRequest.Invalid();
-        return Results.Ok(await paging.ReadAsync(db.Children.AsNoTracking().Where(c => c.FamilyId == user.FamilyId())
-            .OrderByDescending(c => c.CreatedAtUtc).ThenByDescending(c => c.Id)
-            .Select(c => new ChildSummary(c.Id, c.Name, c.Enabled, c.Revision, c.CreatedAtUtc, c.Grade, c.Age, c.AgeConfirmedAtUtc, c.UpdatedAtUtc,
-                db.Assignments.Any(a => a.ChildId == c.Id))), ct));
-    }
+    private static async Task<IResult> ListAsync(ClaimsPrincipal user, ChildService service, CancellationToken ct,
+        int page = 1, int pageSize = PageRequest.DefaultSize) =>
+        (await service.ListAsync(user.FamilyId(), new(page, pageSize), ct)).ToHttpResult();
 
-    private static async Task<IResult> UpdateAsync(Guid id, UpdateChildRequest request, ClaimsPrincipal user, LearningDbContext db,
-        TimeProvider clock, CancellationToken ct)
-    {
-        await using var transaction = await db.Database.BeginTransactionAsync(ct);
-        var child = await db.Children.SingleOrDefaultAsync(c => c.Id == id && c.FamilyId == user.FamilyId(), ct);
-        if (child is null) return Results.NotFound();
-        if (!ChildValidation.ValidName(request.Name)) return ChildValidation.InvalidName("name");
-        if (ChildValidation.ValidateDetails(request.Details) is { } invalid) return invalid;
-        if (request.ExpectedRevision != child.Revision) return Results.Problem(statusCode: 409, title: "פרטי הילד השתנו. יש לטעון אותם מחדש.");
-        var now = clock.GetUtcNow().UtcDateTime;
-        child.Update(request.Name.Trim(), request.Enabled, now);
-        if (request.Details is { } details) child.SetDetails(details, now);
-        if (!child.Enabled)
-        {
-            await db.ChildActivations.Where(a => a.ChildId == id).ExecuteDeleteAsync(ct);
-            await db.ChildDeviceGrants.Where(g => g.ChildId == id && g.RevokedAtUtc == null)
-                .ExecuteUpdateAsync(s => s.SetProperty(g => g.RevokedAtUtc, now), ct);
-        }
-        await db.SaveChangesAsync(ct);
-        var hasAssignments = await db.Assignments.AnyAsync(a => a.ChildId == id, ct);
-        await transaction.CommitAsync(ct);
-        return Results.Ok(ChildSummary.From(child, hasAssignments));
-    }
-
-    private static async Task<IResult> DeleteAsync(Guid id, long expectedRevision, ClaimsPrincipal user, LearningDbContext db, CancellationToken ct)
-    {
-        await using var transaction = await db.Database.BeginTransactionAsync(ct);
-        var child = await db.Children.SingleOrDefaultAsync(c => c.Id == id && c.FamilyId == user.FamilyId(), ct);
-        if (child is null) return Results.NotFound();
-        if (expectedRevision != child.Revision) return Results.Problem(statusCode: 409, title: "פרטי הילד השתנו. יש לטעון אותם מחדש.");
-        if (await db.Assignments.AnyAsync(a => a.ChildId == id, ct))
-            return Results.Problem(statusCode: 409, title: "לפרופיל יש פעילויות שמורות. אפשר להשבית אותו כדי לשמור על ההיסטוריה.");
-        await db.ChildActivations.Where(a => a.ChildId == id).ExecuteDeleteAsync(ct);
-        await db.ChildDeviceGrants.Where(g => g.ChildId == id).ExecuteDeleteAsync(ct);
-        db.Children.Remove(child);
-        await db.SaveChangesAsync(ct);
-        await transaction.CommitAsync(ct);
-        return Results.NoContent();
-    }
-
-    private static async Task<IResult> IssueAsync(Guid id, CreateActivationRequest request, ClaimsPrincipal user,
-        LearningDbContext db, TimeProvider clock, CancellationToken ct)
-    {
-        await using var transaction = await db.Database.BeginTransactionAsync(ct);
-        var child = await db.Children.AsNoTracking().SingleOrDefaultAsync(c => c.Id == id && c.FamilyId == user.FamilyId(), ct);
-        if (child is null) return Results.NotFound();
-        if (!ChildValidation.ValidName(request.DeviceLabel)) return ChildValidation.InvalidName("deviceLabel");
-        if (!child.Enabled) return Results.Problem(statusCode: 409, title: "יש להפעיל את פרופיל הילד לפני יצירת קוד.");
-        var code = ActivationCode.New();
-        var hash = ActivationCode.Hash(code.Canonical);
-        var expires = clock.GetUtcNow().UtcDateTime.AddMinutes(10);
-        var activation = await db.ChildActivations.SingleOrDefaultAsync(a => a.ChildId == id, ct);
-        if (activation is null) db.ChildActivations.Add(new ChildActivation(id, hash, request.DeviceLabel.Trim(), expires));
-        else activation.Replace(hash, request.DeviceLabel.Trim(), expires);
-        await db.SaveChangesAsync(ct);
-        await transaction.CommitAsync(ct);
-        return Results.Ok(new ChildActivationCode(code.Display, expires));
-    }
-
-    private static async Task<IResult> DevicesAsync(Guid id, ClaimsPrincipal user, LearningDbContext db, TimeProvider clock, CancellationToken ct,
-        int page = 1, int pageSize = PageRequest.DefaultSize)
-    {
-        var paging = new PageRequest(page, pageSize);
-        if (!paging.IsValid) return PageRequest.Invalid();
-        if (!await db.Children.AnyAsync(c => c.Id == id && c.FamilyId == user.FamilyId(), ct)) return Results.NotFound();
-        var now = clock.GetUtcNow().UtcDateTime;
-        return Results.Ok(await paging.ReadAsync(db.ChildDeviceGrants.AsNoTracking().Where(g => g.ChildId == id)
-            .OrderByDescending(g => g.CreatedAtUtc).ThenByDescending(g => g.Id)
-            .Select(g => new ChildDeviceSummary(g.Id, g.DeviceLabel, g.CreatedAtUtc, g.ExpiresAtUtc, g.RevokedAtUtc,
-                g.RevokedAtUtc != null || g.ExpiresAtUtc <= now)), ct));
-    }
-
-    private static async Task<IResult> RevokeAsync(Guid id, Guid grantId, ClaimsPrincipal user, LearningDbContext db,
-        TimeProvider clock, CancellationToken ct)
-    {
-        await using var transaction = await db.Database.BeginTransactionAsync(ct);
-        var grant = await OwnedGrant(db, user, id, grantId).SingleOrDefaultAsync(ct);
-        if (grant is null) return Results.NotFound();
-        grant.Revoke(clock.GetUtcNow().UtcDateTime);
-        await db.SaveChangesAsync(ct);
-        await transaction.CommitAsync(ct);
-        return Results.NoContent();
-    }
-
-    private static async Task<IResult> RemoveDeviceAsync(Guid id, Guid grantId, ClaimsPrincipal user, LearningDbContext db,
-        TimeProvider clock, CancellationToken ct)
-    {
-        await using var transaction = await db.Database.BeginTransactionAsync(ct);
-        var grant = await OwnedGrant(db, user, id, grantId).SingleOrDefaultAsync(ct);
-        if (grant is null) return Results.NotFound();
-        if (grant.RevokedAtUtc is null && grant.ExpiresAtUtc > clock.GetUtcNow().UtcDateTime)
-            return Results.Problem(statusCode: 409, title: "יש לבטל את הגישה מהמכשיר לפני הסרתו מהרשימה.");
-        db.ChildDeviceGrants.Remove(grant);
-        await db.SaveChangesAsync(ct);
-        await transaction.CommitAsync(ct);
-        return Results.NoContent();
-    }
-
-    private static IQueryable<ChildDeviceGrant> OwnedGrant(LearningDbContext db, ClaimsPrincipal user, Guid childId, Guid grantId) =>
-        from device in db.ChildDeviceGrants
-        join child in db.Children on device.ChildId equals child.Id
-        where child.Id == childId && child.FamilyId == user.FamilyId() && device.Id == grantId
-        select device;
+    private static async Task<IResult> DevicesAsync(Guid id, ClaimsPrincipal user, ChildService service, CancellationToken ct,
+        int page = 1, int pageSize = PageRequest.DefaultSize) =>
+        (await service.DevicesAsync(user.FamilyId(), id, new(page, pageSize), ct)).ToHttpResult();
 }

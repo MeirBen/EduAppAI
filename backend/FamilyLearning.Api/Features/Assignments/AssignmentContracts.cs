@@ -1,7 +1,5 @@
-using System.Linq.Expressions;
 using System.Text.Json.Serialization;
 using FamilyLearning.Api.Features.Instances;
-using FamilyLearning.Api.Infrastructure.Persistence;
 using FamilyLearning.Api.TaskEngine.Models;
 
 namespace FamilyLearning.Api.Features.Assignments;
@@ -15,13 +13,7 @@ public sealed record AssignmentStateRequest([property: JsonRequired] long Expect
 /// completed work and are read from the frozen evaluation in SQL.
 /// </summary>
 public sealed record AssignmentSummary(Guid Id, Guid ChildId, string ChildName, Guid SnapshotId, string Title,
-    string Status, long Revision, DateTime CreatedAtUtc, bool HasStarted, int? FinalTotal, int? PossibleTotal)
-{
-    internal static readonly Expression<Func<Assignment, AssignmentSummary>> Projection = a =>
-        new(a.Id, a.ChildId, a.Child.Name, a.SnapshotId, a.Snapshot.Title, a.Status, a.Revision, a.CreatedAtUtc, a.Session != null,
-            a.Status == "completed" ? LearningDbContext.JsonInteger(a.Session!.EvaluationJson, "$.finalTotal") : null,
-            a.Status == "completed" ? LearningDbContext.JsonInteger(a.Session!.EvaluationJson, "$.possibleTotal") : null);
-}
+    string Status, long Revision, DateTime CreatedAtUtc, bool HasStarted, int? FinalTotal, int? PossibleTotal);
 /// <summary>Parent-only assignment detail. Snapshot contains answer keys and must never serve a child route.</summary>
 public sealed record AssignmentDetail(AssignmentSummary Assignment, SnapshotPreview Snapshot,
     DateTime? StartedAtUtc, DateTime? SavedAtUtc, DateTime? SubmittedAtUtc);
