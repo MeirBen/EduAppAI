@@ -325,12 +325,14 @@ name; `data-band` `high` from 80, `mid` from 55 and `low` below, in existing
 contrast-checked pairs, with the number as its text and "ציון" for screen
 readers.
 
-An activity's difficulty shows as one `DifficultyBadge`, first on the details
-line of every activity row: drafts, ready and archived activities, assignment
-rows and the child's list. It is a quiet `badge` with `data-level`, because
-difficulty describes the activity, not its progress. A meter icon fills one, two
-or three steps beside the level's name, so no status or score color is reused,
-and screen readers hear "רמת קושי".
+An activity's difficulty shows as one `DifficultyBadge`, the last badge on the
+details line of every activity row: drafts, ready and archived activities,
+assignment rows and the child's list. A row's badges share one wrapping flex
+group, so they keep one line whenever it fits and move below the date together.
+The difficulty is a quiet `badge` with `data-level`, because it describes the
+activity, not its progress. A meter icon fills one, two or three steps beside
+the level's name, so no status or score color is reused, and screen readers hear
+"רמת קושי".
 
 Grade (free text) and age (LTR integer, server bounds) are optional; each can
 be cleared, with no age-confirmation checkbox. Keep secondary dates under native
