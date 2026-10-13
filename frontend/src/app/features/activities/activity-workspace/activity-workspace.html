@@ -189,8 +189,9 @@
                   [disabledInteractive]="copying()"
                   (click)="copyReleased()"
                 >
-                  <span class="icon icon-copy" aria-hidden="true"></span
-                  ><span>עריכה כטיוטה חדשה</span>
+                  <span class="icon icon-edit" aria-hidden="true"></span
+                  ><span>עריכה כטיוטה חדשה</span
+                  ><span class="tooltip" aria-hidden="true">עריכה כטיוטה חדשה</span>
                 </button>
               } @else {
                 @if (createRecovery()) {
@@ -202,7 +203,8 @@
                     (click)="recoverCreate()"
                   >
                     <span class="icon icon-refresh" aria-hidden="true"></span
-                    ><span>בדיקת שמירת הטיוטה</span>
+                    ><span>בדיקת שמירת הטיוטה</span
+                    ><span class="tooltip" aria-hidden="true">בדיקת שמירת הטיוטה</span>
                   </button>
                 }
                 @if (startRecovery()) {
@@ -214,7 +216,8 @@
                     (click)="recoverStart()"
                   >
                     <span class="icon icon-refresh" aria-hidden="true"></span
-                    ><span>בדיקת הבקשה</span>
+                    ><span>בדיקת הבקשה</span
+                    ><span class="tooltip" aria-hidden="true">בדיקת הבקשה</span>
                   </button>
                 }
                 @if (createAction(); as create) {
@@ -251,7 +254,8 @@
                     [attr.aria-busy]="chatSession.authoring() || operationActive()"
                     (click)="chatOpen() ? closeChat() : openChat()"
                   >
-                    <span class="icon icon-ai" aria-hidden="true"></span><span>העוזר</span>
+                    <span class="icon icon-ai" aria-hidden="true"></span><span>העוזר</span
+                    ><span class="tooltip" aria-hidden="true">העוזר</span>
                   </button>
                 }
               }

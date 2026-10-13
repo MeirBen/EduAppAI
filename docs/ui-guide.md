@@ -57,9 +57,11 @@ parent labels keep their original language and values.
   assistive technology. Tooltips show on hover or keyboard focus; Escape hides
   them, and pressing a control hides its tooltip until the pointer or focus
   leaves it; anchor positioning keeps them within the window. Actions with
-  lasting effects keep their visible label. Where a `nav-link` or an `icon-only`
-  row action keeps only its icon on narrow screens, an `aria-hidden` tooltip
-  shows that label there.
+  lasting effects keep their visible label. Where a `nav-link`, an `icon-only`
+  row action or an action bar's secondary action keeps only its icon on narrow
+  screens, an `aria-hidden` tooltip shows that label there. Each icon keeps one
+  meaning: copy is copying text, and editing, including editing an approved
+  activity as a new draft, is the pencil.
 - Keep hover/press feedback brief, exclude disabled controls and respect reduced
   motion. Use theme shadows and colors rather than page-specific copies.
 - Actions show a 2px offset focus ring. Fields tint their own edge instead, in

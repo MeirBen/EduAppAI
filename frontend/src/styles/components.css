@@ -206,9 +206,13 @@
     & .button {
       @apply px-3.5 text-sm;
     }
-    /* On phones the main row's secondary actions keep only their icon, so it stays one line. */
+    /* On phones the main row's secondary actions keep only their icon, so it stays one line; their tooltip names them there. */
     & .action-bar-row :is(.button-secondary, .text-link) {
       @apply max-sm:icon-only;
+
+      & > .tooltip {
+        @apply sm:hidden;
+      }
     }
   }
   /*

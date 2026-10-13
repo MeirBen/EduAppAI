@@ -218,7 +218,8 @@
               [disabledInteractive]="busy() || reading() || recovery() || !!blocked() || !dirty()"
               (click)="write(false)"
             >
-              <span class="icon icon-save" aria-hidden="true"></span><span>שמירה</span>
+              <span class="icon icon-save" aria-hidden="true"></span><span>שמירה</span
+              ><span class="tooltip" aria-hidden="true">שמירה</span>
             </button>
           }
           @if (!session() && !recovery() && !blocked()) {
@@ -234,7 +235,8 @@
               (click)="useSaved()"
             >
               <span class="icon icon-refresh" aria-hidden="true"></span
-              ><span>טעינת התשובות השמורות</span>
+              ><span>טעינת התשובות השמורות</span
+              ><span class="tooltip" aria-hidden="true">טעינת התשובות השמורות</span>
             </button>
           }
         </div>
